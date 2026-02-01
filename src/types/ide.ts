@@ -28,6 +28,35 @@ export interface ConsoleLog {
   timestamp: Date;
 }
 
+// Git types
+export interface GitCommit {
+  id: string;
+  message: string;
+  timestamp: Date;
+  author: string;
+  files: string[];
+}
+
+export interface GitBranch {
+  name: string;
+  isActive: boolean;
+  commits: GitCommit[];
+}
+
+export interface GitChange {
+  fileId: string;
+  fileName: string;
+  status: 'added' | 'modified' | 'deleted';
+  originalContent?: string;
+}
+
+export interface GitState {
+  branches: GitBranch[];
+  currentBranch: string;
+  changes: GitChange[];
+  isInitialized: boolean;
+}
+
 export interface IDEState {
   files: FileNode[];
   openTabs: Tab[];
@@ -35,4 +64,5 @@ export interface IDEState {
   terminalHistory: TerminalLine[];
   isRunning: boolean;
   consoleOutput: ConsoleLog[];
+  git: GitState;
 }
