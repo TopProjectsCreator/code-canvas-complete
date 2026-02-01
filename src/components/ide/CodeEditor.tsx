@@ -1,11 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FileNode } from '@/types/ide';
 import { FindReplace } from './FindReplace';
+import { FilePreview } from './FilePreview';
 
 interface CodeEditorProps {
   file: FileNode | null;
   onContentChange: (fileId: string, content: string) => void;
 }
+
+// Helper to detect file types that should be previewed instead of edited
+const getPreviewType = (fileName: string): 'image' | 'markdown' | 'svg' | null => {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp'];
+  
+  if (ext === 'svg') return 'svg';
+  if (ext === 'md' || ext === 'markdown') return 'markdown';
+  if (imageExtensions.includes(ext || '')) return 'image';
+  return null;
+};
 
 interface SyntaxToken {
   type: 'keyword' | 'string' | 'number' | 'function' | 'comment' | 'operator' | 'variable' | 'tag' | 'attribute' | 'property' | 'text';
@@ -244,6 +256,12 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
         </div>
       </div>
     );
+  }
+
+  // Check if this file should be previewed instead of edited
+  const previewType = getPreviewType(file.name);
+  if (previewType) {
+    return <FilePreview file={file} previewType={previewType} />;
   }
 
   const tokenizedLines = tokenize(content, file.language || 'text');
