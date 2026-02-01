@@ -1,0 +1,9 @@
+export { IDELayout } from './IDELayout';
+export { Header } from './Header';
+export { Sidebar } from './Sidebar';
+export { FileTree } from './FileTree';
+export { FileIcon } from './FileIcon';
+export { EditorTabs } from './EditorTabs';
+export { CodeEditor } from './CodeEditor';
+export { Terminal } from './Terminal';
+export { Preview } from './Preview';
