@@ -1,19 +1,21 @@
 import { useState, useCallback } from 'react';
 import { FileNode, Tab, TerminalLine } from '@/types/ide';
-import { defaultFiles, findFileById, getFileLanguage } from '@/data/defaultFiles';
+import { getTemplateFiles, findFileById, getFileLanguage } from '@/data/defaultFiles';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { EditorTabs } from './EditorTabs';
 import { CodeEditor } from './CodeEditor';
 import { Terminal } from './Terminal';
 import { Preview } from './Preview';
+import { LanguagePicker, LanguageTemplate } from './LanguagePicker';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
 export const IDELayout = () => {
-  const [files, setFiles] = useState<FileNode[]>(defaultFiles);
+  const [selectedTemplate, setSelectedTemplate] = useState<LanguageTemplate | null>(null);
+  const [files, setFiles] = useState<FileNode[]>([]);
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [terminalHistory, setTerminalHistory] = useState<TerminalLine[]>([
@@ -24,6 +26,11 @@ export const IDELayout = () => {
   const [isTerminalMinimized, setIsTerminalMinimized] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
+
+  const handleSelectTemplate = useCallback((template: LanguageTemplate) => {
+    setSelectedTemplate(template);
+    setFiles(getTemplateFiles(template));
+  }, []);
 
   // Get the active file
   const activeTab = openTabs.find((tab) => tab.id === activeTabId);
@@ -338,6 +345,11 @@ export const IDELayout = () => {
       },
     ]);
   }, []);
+
+  // Show language picker if no template selected
+  if (!selectedTemplate) {
+    return <LanguagePicker onSelect={handleSelectTemplate} />;
+  }
 
   // Prepare active file with updated content
   const activeFileWithContent = activeFile
