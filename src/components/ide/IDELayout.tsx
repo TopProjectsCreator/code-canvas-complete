@@ -804,9 +804,43 @@ export const IDELayout = () => {
     setOriginalFileContents(originals);
   }, [setCurrentProject]);
 
+  // Merge file contents with current edits for saving
+  const getFilesWithContent = useCallback((): FileNode[] => {
+    const mergeContent = (nodes: FileNode[]): FileNode[] => {
+      return nodes.map(node => {
+        if (node.type === 'file') {
+          return {
+            ...node,
+            content: fileContents[node.id] ?? node.content
+          };
+        }
+        if (node.children) {
+          return {
+            ...node,
+            children: mergeContent(node.children)
+          };
+        }
+        return node;
+      });
+    };
+    return mergeContent(files);
+  }, [files, fileContents]);
+
   const handleProjectSaved = useCallback((project: Project) => {
     setCurrentProject(project);
     setHasUnsavedChanges(false);
+    // Update original file contents after save
+    const originals: Record<string, string> = {};
+    const collectContents = (nodes: FileNode[]) => {
+      nodes.forEach(node => {
+        if (node.type === 'file' && node.content) {
+          originals[node.id] = node.content;
+        }
+        if (node.children) collectContents(node.children);
+      });
+    };
+    collectContents(project.files);
+    setOriginalFileContents(originals);
   }, [setCurrentProject]);
 
   const handleNewProject = useCallback(() => {
@@ -896,7 +930,7 @@ export const IDELayout = () => {
       <SaveProjectDialog
         open={showSaveDialog}
         onOpenChange={setShowSaveDialog}
-        files={files}
+        files={getFilesWithContent()}
         language={selectedTemplate}
         currentProject={currentProject}
         onSaved={handleProjectSaved}
