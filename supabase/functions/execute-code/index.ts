@@ -30,6 +30,8 @@ const languageMap: Record<string, { language: string; version: string; filename?
   'csharp': { language: 'csharp', version: '6.12.0', filename: 'Main.cs' },
   'bash': { language: 'bash', version: '5.2.0', filename: 'script.sh' },
   'shell': { language: 'bash', version: '5.2.0', filename: 'script.sh' },
+  'makefile': { language: 'bash', version: '5.2.0', filename: 'Makefile' },
+  'make': { language: 'bash', version: '5.2.0', filename: 'Makefile' },
 };
 
 // Execute code using Piston API
