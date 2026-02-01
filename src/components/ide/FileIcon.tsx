@@ -53,7 +53,27 @@ import {
   Cloud,
   Container,
   Workflow,
-  ScrollText
+  ScrollText,
+  Play,
+  Gamepad2,
+  Blocks,
+  CircuitBoard,
+  Layers,
+  Sparkles,
+  Bot,
+  FileQuestion,
+  Table,
+  Network,
+  Fingerprint,
+  MonitorPlay,
+  Cuboid,
+  Brush,
+  PenTool,
+  Frame,
+  Component,
+  Boxes,
+  LayoutGrid,
+  Notebook
 } from 'lucide-react';
 
 interface FileIconProps {
@@ -254,6 +274,49 @@ export const FileIcon = ({ name, type, isOpen = false, className = '' }: FileIco
     'procfile': { icon: Server, color: 'text-purple-500' },
     'prisma.schema': { icon: Database, color: 'text-indigo-500' },
     'schema.prisma': { icon: Database, color: 'text-indigo-500' },
+    // Replit
+    '.replit': { icon: Play, color: 'text-orange-500' },
+    'replit.nix': { icon: Play, color: 'text-blue-400' },
+    '.replit.nix': { icon: Play, color: 'text-blue-400' },
+    // Other IDEs/Editors
+    '.idea': { icon: Cog, color: 'text-purple-400' },
+    '.project': { icon: Cog, color: 'text-gray-400' },
+    '.classpath': { icon: Cog, color: 'text-gray-400' },
+    '.settings': { icon: Cog, color: 'text-gray-400' },
+    // Python
+    '.python-version': { icon: Code2, color: 'text-yellow-400' },
+    'tox.ini': { icon: TestTube, color: 'text-blue-400' },
+    'pytest.ini': { icon: TestTube, color: 'text-yellow-400' },
+    'mypy.ini': { icon: FileCheck, color: 'text-blue-400' },
+    '.flake8': { icon: FileCheck, color: 'text-gray-400' },
+    '.pylintrc': { icon: FileCheck, color: 'text-gray-400' },
+    'pdm.lock': { icon: Lock, color: 'text-purple-400' },
+    'uv.lock': { icon: Lock, color: 'text-purple-400' },
+    // Deno
+    'deno.json': { icon: Code2, color: 'text-gray-300' },
+    'deno.jsonc': { icon: Code2, color: 'text-gray-300' },
+    'deno.lock': { icon: Lock, color: 'text-gray-300' },
+    'import_map.json': { icon: Braces, color: 'text-gray-300' },
+    // Jupyter
+    '.ipynb_checkpoints': { icon: Notebook, color: 'text-orange-400' },
+    // CI/CD
+    '.travis.yml': { icon: Rocket, color: 'text-red-400' },
+    '.circleci': { icon: Workflow, color: 'text-green-400' },
+    'jenkinsfile': { icon: Workflow, color: 'text-red-400' },
+    'azure-pipelines.yml': { icon: Cloud, color: 'text-blue-500' },
+    'bitbucket-pipelines.yml': { icon: Workflow, color: 'text-blue-400' },
+    '.gitlab-ci.yml': { icon: Workflow, color: 'text-orange-500' },
+    // Testing
+    '.nycrc': { icon: TestTube, color: 'text-green-400' },
+    '.nycrc.json': { icon: TestTube, color: 'text-green-400' },
+    'cypress.json': { icon: TestTube, color: 'text-green-500' },
+    'cypress.config.ts': { icon: TestTube, color: 'text-green-500' },
+    'cypress.config.js': { icon: TestTube, color: 'text-green-500' },
+    'playwright.config.ts': { icon: TestTube, color: 'text-green-400' },
+    'playwright.config.js': { icon: TestTube, color: 'text-green-400' },
+    // Monorepo
+    'pnpm-workspace.yaml': { icon: Boxes, color: 'text-orange-400' },
+    'rush.json': { icon: Zap, color: 'text-blue-500' },
   };
 
   const special = specialFiles[fileName];
@@ -536,10 +599,133 @@ export const FileIcon = ({ name, type, isOpen = false, className = '' }: FileIco
     'spec.tsx': { icon: TestTube, color: 'text-green-400' },
     'spec.jsx': { icon: TestTube, color: 'text-green-400' },
     'snap': { icon: FileCheck, color: 'text-purple-400' },
+    
+    // Scratch / Block-based
+    'sb3': { icon: Blocks, color: 'text-orange-500' },
+    'sb2': { icon: Blocks, color: 'text-orange-400' },
+    'sb': { icon: Blocks, color: 'text-orange-400' },
+    'sprite3': { icon: Gamepad2, color: 'text-purple-500' },
+    'sprite2': { icon: Gamepad2, color: 'text-purple-400' },
+    
+    // Jupyter/Notebooks
+    'ipynb': { icon: Notebook, color: 'text-orange-500' },
+    'qmd': { icon: Notebook, color: 'text-blue-400' },
+    
+    // Game dev
+    'unity': { icon: Cuboid, color: 'text-gray-300' },
+    'prefab': { icon: Cuboid, color: 'text-blue-400' },
+    'mat': { icon: Palette, color: 'text-purple-400' },
+    'fbx': { icon: Cuboid, color: 'text-cyan-400' },
+    'obj': { icon: Cuboid, color: 'text-gray-400' },
+    'gltf': { icon: Cuboid, color: 'text-green-400' },
+    'glb': { icon: Cuboid, color: 'text-green-400' },
+    'blend': { icon: Cuboid, color: 'text-orange-500' },
+    'max': { icon: Cuboid, color: 'text-cyan-500' },
+    'c4d': { icon: Cuboid, color: 'text-blue-500' },
+    'stl': { icon: Cuboid, color: 'text-gray-400' },
+    'dae': { icon: Cuboid, color: 'text-orange-400' },
+    'usdz': { icon: Cuboid, color: 'text-gray-300' },
+    
+    // Godot
+    'gd': { icon: Gamepad2, color: 'text-blue-400' },
+    'tscn': { icon: Layers, color: 'text-blue-400' },
+    'tres': { icon: Layers, color: 'text-purple-400' },
+    'gdshader': { icon: Sparkles, color: 'text-purple-400' },
+    
+    // Unreal
+    'uasset': { icon: Gamepad2, color: 'text-gray-300' },
+    'umap': { icon: LayoutGrid, color: 'text-gray-300' },
+    
+    // Hardware/Electronics
+    'ino': { icon: CircuitBoard, color: 'text-teal-400' },
+    'pde': { icon: CircuitBoard, color: 'text-teal-400' },
+    'pcb': { icon: CircuitBoard, color: 'text-green-500' },
+    'sch': { icon: CircuitBoard, color: 'text-blue-400' },
+    'kicad_pcb': { icon: CircuitBoard, color: 'text-blue-500' },
+    'kicad_sch': { icon: CircuitBoard, color: 'text-blue-500' },
+    'brd': { icon: CircuitBoard, color: 'text-green-400' },
+    
+    // AI/ML
+    'pt': { icon: Bot, color: 'text-orange-400' },
+    'pth': { icon: Bot, color: 'text-orange-400' },
+    'onnx': { icon: Bot, color: 'text-blue-400' },
+    'h5': { icon: Bot, color: 'text-red-400' },
+    'hdf5': { icon: Bot, color: 'text-red-400' },
+    'pkl': { icon: Bot, color: 'text-yellow-400' },
+    'pickle': { icon: Bot, color: 'text-yellow-400' },
+    'joblib': { icon: Bot, color: 'text-blue-400' },
+    'safetensors': { icon: Bot, color: 'text-purple-400' },
+    'gguf': { icon: Bot, color: 'text-green-400' },
+    'ggml': { icon: Bot, color: 'text-green-400' },
+    
+    // Data
+    'parquet': { icon: Table, color: 'text-blue-400' },
+    'arrow': { icon: Table, color: 'text-red-400' },
+    'feather': { icon: Table, color: 'text-purple-400' },
+    'avro': { icon: Table, color: 'text-blue-500' },
+    'npy': { icon: Table, color: 'text-blue-400' },
+    'npz': { icon: Table, color: 'text-blue-400' },
+    
+    // Network/Protocol
+    'proto': { icon: Network, color: 'text-blue-400' },
+    'thrift': { icon: Network, color: 'text-green-400' },
+    'capnp': { icon: Network, color: 'text-red-400' },
+    'flatbuffers': { icon: Network, color: 'text-green-500' },
+    
+    // Security
+    'pem': { icon: Fingerprint, color: 'text-green-500' },
+    'crt': { icon: Fingerprint, color: 'text-green-400' },
+    'cer': { icon: Fingerprint, color: 'text-green-400' },
+    'key': { icon: Fingerprint, color: 'text-yellow-400' },
+    'p12': { icon: Fingerprint, color: 'text-orange-400' },
+    'pfx': { icon: Fingerprint, color: 'text-orange-400' },
+    'jks': { icon: Fingerprint, color: 'text-red-400' },
+    'keystore': { icon: Fingerprint, color: 'text-red-400' },
+    'gpg': { icon: Fingerprint, color: 'text-gray-400' },
+    'asc': { icon: Fingerprint, color: 'text-gray-400' },
+    
+    // Presentation
+    'ppt': { icon: MonitorPlay, color: 'text-orange-500' },
+    'pptx': { icon: MonitorPlay, color: 'text-orange-500' },
+    'odp': { icon: MonitorPlay, color: 'text-orange-400' },
+    'keynote': { icon: MonitorPlay, color: 'text-blue-400' },
+    
+    // Design
+    'afdesign': { icon: PenTool, color: 'text-cyan-400' },
+    'afphoto': { icon: Brush, color: 'text-purple-400' },
+    'afpub': { icon: Frame, color: 'text-red-400' },
+    'indd': { icon: Frame, color: 'text-pink-500' },
+    'eps': { icon: PenTool, color: 'text-orange-400' },
+    'cdr': { icon: PenTool, color: 'text-green-500' },
+    'xcf': { icon: Brush, color: 'text-gray-400' },
+    'kra': { icon: Brush, color: 'text-purple-500' },
+    'procreate': { icon: Brush, color: 'text-gray-300' },
+    
+    // Components/UI
+    'stories.tsx': { icon: Component, color: 'text-pink-400' },
+    'stories.jsx': { icon: Component, color: 'text-pink-400' },
+    'stories.ts': { icon: Component, color: 'text-pink-400' },
+    'stories.js': { icon: Component, color: 'text-pink-400' },
+    'story.tsx': { icon: Component, color: 'text-pink-400' },
+    'story.jsx': { icon: Component, color: 'text-pink-400' },
+    
+    // Infrastructure
+    'tf': { icon: Cloud, color: 'text-purple-500' },
+    'tfvars': { icon: Cloud, color: 'text-purple-400' },
+    'tfstate': { icon: Cloud, color: 'text-purple-400' },
+    'hcl': { icon: Cloud, color: 'text-purple-500' },
+    'nomad': { icon: Cloud, color: 'text-green-500' },
+    'sentinel': { icon: Shield, color: 'text-blue-400' },
+    
+    // Kubernetes
+    'helm': { icon: Cloud, color: 'text-blue-400' },
+    
+    // Nix
+    'nix': { icon: Cog, color: 'text-blue-400' },
   };
 
-  // Check for compound extensions first (e.g., .spec.ts, .test.js)
-  const compoundExts = ['spec.ts', 'spec.js', 'spec.tsx', 'spec.jsx', 'test.ts', 'test.js', 'test.tsx', 'test.jsx', 'd.ts', 'blade.php'];
+  // Check for compound extensions first (e.g., .spec.ts, .test.js, .stories.tsx)
+  const compoundExts = ['spec.ts', 'spec.js', 'spec.tsx', 'spec.jsx', 'test.ts', 'test.js', 'test.tsx', 'test.jsx', 'd.ts', 'blade.php', 'stories.tsx', 'stories.jsx', 'stories.ts', 'stories.js', 'story.tsx', 'story.jsx'];
   for (const compoundExt of compoundExts) {
     if (fileName.endsWith(`.${compoundExt}`)) {
       const extInfo = extIcons[compoundExt];
