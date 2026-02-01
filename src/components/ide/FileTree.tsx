@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, MoreHorizontal } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { ChevronRight, ChevronDown, Plus, MoreHorizontal, Trash2, Edit2 } from 'lucide-react';
 import { FileNode } from '@/types/ide';
 import { FileIcon } from './FileIcon';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,9 @@ import { cn } from '@/lib/utils';
 interface FileTreeProps {
   files: FileNode[];
   onFileSelect: (file: FileNode) => void;
+  onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
+  onDeleteFile: (fileId: string) => void;
+  onRenameFile: (fileId: string, newName: string) => void;
   activeFileId: string | null;
   level?: number;
 }
@@ -14,15 +17,31 @@ interface FileTreeProps {
 interface FileItemProps {
   node: FileNode;
   onFileSelect: (file: FileNode) => void;
+  onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
+  onDeleteFile: (fileId: string) => void;
+  onRenameFile: (fileId: string, newName: string) => void;
   activeFileId: string | null;
   level: number;
 }
 
-const FileItem = ({ node, onFileSelect, activeFileId, level }: FileItemProps) => {
+const FileItem = ({ 
+  node, 
+  onFileSelect, 
+  onCreateFile, 
+  onDeleteFile, 
+  onRenameFile, 
+  activeFileId, 
+  level 
+}: FileItemProps) => {
   const [isOpen, setIsOpen] = useState(level === 0);
   const [isHovered, setIsHovered] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(node.name);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleClick = () => {
+    if (isRenaming) return;
     if (node.type === 'folder') {
       setIsOpen(!isOpen);
     } else {
@@ -30,13 +49,36 @@ const FileItem = ({ node, onFileSelect, activeFileId, level }: FileItemProps) =>
     }
   };
 
+  const handleRename = () => {
+    if (renameValue.trim() && renameValue !== node.name) {
+      onRenameFile(node.id, renameValue.trim());
+    }
+    setIsRenaming(false);
+    setShowMenu(false);
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDeleteFile(node.id);
+    setShowMenu(false);
+  };
+
+  const handleAddToFolder = (e: React.MouseEvent, type: 'file' | 'folder') => {
+    e.stopPropagation();
+    const name = type === 'file' ? 'untitled.js' : 'new-folder';
+    onCreateFile(node.id, name, type);
+    setIsOpen(true);
+    setShowMenu(false);
+  };
+
   const isActive = node.id === activeFileId;
+  const isRoot = level === 0 && node.type === 'folder';
 
   return (
     <div>
       <div
         className={cn(
-          'flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors rounded-sm group',
+          'flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors rounded-sm group relative',
           isActive 
             ? 'bg-primary/20 text-primary' 
             : 'hover:bg-accent text-sidebar-foreground',
@@ -44,7 +86,14 @@ const FileItem = ({ node, onFileSelect, activeFileId, level }: FileItemProps) =>
         style={{ paddingLeft: `${level * 12 + 8}px` }}
         onClick={handleClick}
         onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseLeave={() => {
+          setIsHovered(false);
+          if (!showMenu) setShowMenu(false);
+        }}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setShowMenu(true);
+        }}
       >
         {node.type === 'folder' && (
           <span className="w-4 h-4 flex items-center justify-center text-muted-foreground">
@@ -52,11 +101,86 @@ const FileItem = ({ node, onFileSelect, activeFileId, level }: FileItemProps) =>
           </span>
         )}
         <FileIcon name={node.name} type={node.type} isOpen={isOpen} />
-        <span className="flex-1 text-sm truncate">{node.name}</span>
-        {isHovered && (
-          <MoreHorizontal className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        
+        {isRenaming ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onBlur={handleRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRename();
+              if (e.key === 'Escape') {
+                setRenameValue(node.name);
+                setIsRenaming(false);
+              }
+            }}
+            className="flex-1 text-sm bg-input border border-primary rounded px-1 outline-none"
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+          />
+        ) : (
+          <span className="flex-1 text-sm truncate">{node.name}</span>
+        )}
+        
+        {isHovered && !isRenaming && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowMenu(!showMenu);
+            }}
+            className="p-0.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+          </button>
+        )}
+
+        {/* Context menu */}
+        {showMenu && (
+          <div 
+            className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-md shadow-lg py-1 min-w-[140px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {node.type === 'folder' && (
+              <>
+                <button
+                  onClick={(e) => handleAddToFolder(e, 'file')}
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+                >
+                  <Plus className="w-3 h-3" /> New File
+                </button>
+                <button
+                  onClick={(e) => handleAddToFolder(e, 'folder')}
+                  className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+                >
+                  <Plus className="w-3 h-3" /> New Folder
+                </button>
+                <div className="border-t border-border my-1" />
+              </>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsRenaming(true);
+                setShowMenu(false);
+              }}
+              className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+            >
+              <Edit2 className="w-3 h-3" /> Rename
+            </button>
+            {!isRoot && (
+              <button
+                onClick={handleDelete}
+                className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent text-destructive flex items-center gap-2"
+              >
+                <Trash2 className="w-3 h-3" /> Delete
+              </button>
+            )}
+          </div>
         )}
       </div>
+      
       {node.type === 'folder' && isOpen && node.children && (
         <div>
           {node.children.map((child) => (
@@ -64,6 +188,9 @@ const FileItem = ({ node, onFileSelect, activeFileId, level }: FileItemProps) =>
               key={child.id}
               node={child}
               onFileSelect={onFileSelect}
+              onCreateFile={onCreateFile}
+              onDeleteFile={onDeleteFile}
+              onRenameFile={onRenameFile}
               activeFileId={activeFileId}
               level={level + 1}
             />
@@ -74,7 +201,15 @@ const FileItem = ({ node, onFileSelect, activeFileId, level }: FileItemProps) =>
   );
 };
 
-export const FileTree = ({ files, onFileSelect, activeFileId, level = 0 }: FileTreeProps) => {
+export const FileTree = ({ 
+  files, 
+  onFileSelect, 
+  onCreateFile, 
+  onDeleteFile, 
+  onRenameFile, 
+  activeFileId, 
+  level = 0 
+}: FileTreeProps) => {
   return (
     <div className="py-1">
       {files.map((node) => (
@@ -82,6 +217,9 @@ export const FileTree = ({ files, onFileSelect, activeFileId, level = 0 }: FileT
           key={node.id}
           node={node}
           onFileSelect={onFileSelect}
+          onCreateFile={onCreateFile}
+          onDeleteFile={onDeleteFile}
+          onRenameFile={onRenameFile}
           activeFileId={activeFileId}
           level={level}
         />
