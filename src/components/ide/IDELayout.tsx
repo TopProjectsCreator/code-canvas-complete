@@ -434,6 +434,13 @@ export const IDELayout = () => {
             isOpen={isAIChatOpen}
             onClose={() => setIsAIChatOpen(false)}
             currentFile={activeFileWithContent}
+            consoleOutput={terminalHistory}
+            onInsertCode={(code) => {
+              if (activeFile) {
+                const currentContent = fileContents[activeFile.id] ?? activeFile.content ?? '';
+                handleContentChange(activeFile.id, currentContent + '\n\n' + code);
+              }
+            }}
           />
         </div>
       </div>
