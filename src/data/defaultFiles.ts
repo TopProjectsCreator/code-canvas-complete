@@ -723,41 +723,41 @@ const phpTemplate: FileNode[] = [
 // Welcome to PHP!
 // The web's favorite scripting language
 
-function greet($name) {
-    return "Hello, $name!";
+function greet(\$name) {
+    return "Hello, \$name!";
 }
 
 echo greet("World") . "\\n";
 
 // Array example
-$numbers = [1, 2, 3, 4, 5];
-$doubled = array_map(fn($n) => $n * 2, $numbers);
-echo "Doubled: " . implode(", ", $doubled) . "\\n";
+\$numbers = [1, 2, 3, 4, 5];
+\$doubled = array_map(fn(\$n) => \$n * 2, \$numbers);
+echo "Doubled: " . implode(", ", \$doubled) . "\\n";
 
 // Class example
 class Greeter {
-    private string $name;
+    private string \$name;
     
-    public function __construct(string $name) {
-        $this->name = $name;
+    public function __construct(string \$name) {
+        \$this->name = \$name;
     }
     
     public function greet(): void {
-        echo "Hello, {$this->name}!\\n";
+        echo "Hello, {\$this->name}!\\n";
     }
 }
 
-$greeter = new Greeter("PHP Developer");
-$greeter->greet();
+\$greeter = new Greeter("PHP Developer");
+\$greeter->greet();
 
 // Associative array
-$user = [
+\$user = [
     "name" => "John",
     "email" => "john@example.com",
     "age" => 30
 ];
 
-echo "User: {$user['name']} ({$user['email']})\\n";
+echo "User: {\$user['name']} ({\$user['email']})\\n";
 ?>`
       }
     ]
@@ -841,7 +841,7 @@ const kotlinTemplate: FileNode[] = [
         content: `// Welcome to Kotlin!
 // Concise, safe, and interoperable
 
-fun greet(name: String): String = "Hello, $name!"
+fun greet(name: String): String = "Hello, \$name!"
 
 fun main() {
     println(greet("World"))
@@ -849,12 +849,12 @@ fun main() {
     // List operations
     val numbers = listOf(1, 2, 3, 4, 5)
     val doubled = numbers.map { it * 2 }
-    println("Doubled: $doubled")
+    println("Doubled: \$doubled")
     
     // Data class
     data class User(val name: String, val email: String)
     val user = User("Kotlin Dev", "dev@example.com")
-    println("User: $user")
+    println("User: \$user")
     
     // Class example
     val greeter = Greeter("Kotlin Developer")
@@ -875,7 +875,7 @@ fun main() {
 
 class Greeter(private val name: String) {
     fun greet() {
-        println("Hello, $name!")
+        println("Hello, \$name!")
     }
 }`
       }
@@ -962,12 +962,12 @@ echo "Hello, World!"
 
 # Variables
 NAME="Bash Developer"
-echo "Hello, $NAME!"
+echo "Hello, \$NAME!"
 
 # Function
 greet() {
-    local name=$1
-    echo "Greetings, $name!"
+    local name=\$1
+    echo "Greetings, \$name!"
 }
 
 greet "Shell User"
@@ -979,24 +979,24 @@ echo "Numbers: \${numbers[@]}"
 # Loop
 sum=0
 for num in "\${numbers[@]}"; do
-    sum=$((sum + num))
+    sum=\$((sum + num))
 done
-echo "Sum: $sum"
+echo "Sum: \$sum"
 
 # Conditional
-if [ $sum -gt 10 ]; then
+if [ \$sum -gt 10 ]; then
     echo "Sum is greater than 10"
 else
     echo "Sum is 10 or less"
 fi
 
 # Command substitution
-current_date=$(date +%Y-%m-%d)
-echo "Today is: $current_date"
+current_date=\$(date +%Y-%m-%d)
+echo "Today is: \$current_date"
 
 # File operations (example)
-echo "Current directory: $(pwd)"
-echo "Files: $(ls -la 2>/dev/null | head -5)"`
+echo "Current directory: \$(pwd)"
+echo "Files: \$(ls -la 2>/dev/null | head -5)"`
       }
     ]
   }
