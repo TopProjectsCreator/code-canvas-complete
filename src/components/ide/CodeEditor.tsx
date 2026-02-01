@@ -151,6 +151,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   const [content, setContent] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ line: 0, col: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const highlightRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
   useEffect(() => {
@@ -158,6 +159,13 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
       setContent(file.content);
     }
   }, [file?.id, file?.content]);
+
+  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+    if (highlightRef.current) {
+      highlightRef.current.scrollTop = e.currentTarget.scrollTop;
+      highlightRef.current.scrollLeft = e.currentTarget.scrollLeft;
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
@@ -195,9 +203,12 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
 
   return (
     <div className="flex-1 flex flex-col bg-editor overflow-hidden">
-      <div className="flex-1 relative overflow-auto ide-scrollbar">
+      <div className="flex-1 relative overflow-hidden">
         {/* Syntax highlighted display */}
-        <div className="absolute inset-0 font-mono text-sm leading-6 pointer-events-none z-0 overflow-hidden">
+        <div 
+          ref={highlightRef}
+          className="absolute inset-0 font-mono text-sm leading-6 pointer-events-none z-0 overflow-hidden"
+        >
           {tokenizedLines.map((lineTokens, lineIndex) => (
             <div key={lineIndex} className="code-line">
               <span className="code-line-number">{lineIndex + 1}</span>
@@ -220,9 +231,10 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
           value={content}
           onChange={handleChange}
           onSelect={handleSelect}
+          onScroll={handleScroll}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="absolute inset-0 w-full h-full font-mono text-sm leading-6 bg-transparent text-transparent caret-foreground resize-none outline-none pl-12 pr-4 z-10"
+          className="absolute inset-0 w-full h-full font-mono text-sm leading-6 bg-transparent text-transparent caret-foreground resize-none outline-none pl-12 pr-4 z-10 overflow-auto ide-scrollbar"
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
