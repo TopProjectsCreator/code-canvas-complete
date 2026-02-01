@@ -17,7 +17,8 @@ export const IDELayout = () => {
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [terminalHistory, setTerminalHistory] = useState<TerminalLine[]>([
-    { id: '1', type: 'info', content: 'Welcome to Replit! Type "help" for available commands.', timestamp: new Date() },
+    { id: '1', type: 'info', content: '🚀 Welcome to Replit Shell! Type "help" for available commands.', timestamp: new Date() },
+    { id: '2', type: 'output', content: 'Try: echo "Hello World", node -e "console.log(1+1)", or js: Math.random()', timestamp: new Date() },
   ]);
   const [isRunning, setIsRunning] = useState(false);
   const [isTerminalMinimized, setIsTerminalMinimized] = useState(false);
@@ -104,7 +105,13 @@ export const IDELayout = () => {
     );
   }, []);
 
-  const handleCommand = useCallback((command: string) => {
+  const handleCommand = useCallback((command: string, output: string[], isError: boolean) => {
+    // Check for clear command
+    if (output.length === 1 && output[0] === '\x1Bc') {
+      setTerminalHistory([]);
+      return;
+    }
+
     const inputLine: TerminalLine = {
       id: generateId(),
       type: 'input',
@@ -112,66 +119,31 @@ export const IDELayout = () => {
       timestamp: new Date(),
     };
 
-    let outputLines: TerminalLine[] = [inputLine];
+    const outputLines: TerminalLine[] = output.map(line => ({
+      id: generateId(),
+      type: isError ? 'error' : 'output',
+      content: line,
+      timestamp: new Date(),
+    }));
 
-    // Process commands
-    const cmd = command.toLowerCase().trim();
-    
-    if (cmd === 'help') {
-      outputLines.push({
-        id: generateId(),
-        type: 'output',
-        content: `Available commands:
-  help     - Show this help message
-  clear    - Clear the terminal
-  ls       - List files
-  node     - Run JavaScript (simulated)
-  npm      - Package manager (simulated)
-  run      - Start the Repl`,
-        timestamp: new Date(),
-      });
-    } else if (cmd === 'clear') {
-      setTerminalHistory([]);
-      return;
-    } else if (cmd === 'ls') {
-      outputLines.push({
-        id: generateId(),
-        type: 'output',
-        content: 'index.html  style.css  script.js  README.md  .config/',
-        timestamp: new Date(),
-      });
-    } else if (cmd === 'run' || cmd === 'npm start') {
+    // Handle special commands locally
+    if (command === 'run' || command === 'npm start') {
+      setIsRunning(true);
       outputLines.push({
         id: generateId(),
         type: 'info',
         content: '🚀 Starting development server...',
         timestamp: new Date(),
       });
-      setIsRunning(true);
-    } else if (cmd.startsWith('node ')) {
       outputLines.push({
         id: generateId(),
         type: 'output',
-        content: 'Node.js execution simulated.',
-        timestamp: new Date(),
-      });
-    } else if (cmd.startsWith('npm ')) {
-      outputLines.push({
-        id: generateId(),
-        type: 'output',
-        content: 'npm command executed (simulated).',
-        timestamp: new Date(),
-      });
-    } else {
-      outputLines.push({
-        id: generateId(),
-        type: 'error',
-        content: `bash: ${command.split(' ')[0]}: command not found`,
+        content: 'Server started at https://my-repl.replit.app',
         timestamp: new Date(),
       });
     }
 
-    setTerminalHistory((prev) => [...prev, ...outputLines]);
+    setTerminalHistory((prev) => [...prev, inputLine, ...outputLines]);
   }, []);
 
   const handleRun = useCallback(() => {
