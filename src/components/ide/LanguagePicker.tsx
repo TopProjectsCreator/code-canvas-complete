@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type LanguageTemplate = 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust';
+export type LanguageTemplate = 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' | 'ruby' | 'php' | 'swift' | 'kotlin' | 'csharp' | 'bash';
 
 interface LanguageOption {
   id: LanguageTemplate;
@@ -81,6 +81,55 @@ const languages: LanguageOption[] = [
     icon: <Sparkles className="w-8 h-8" />,
     description: 'Simple, fast, and reliable backend development',
     color: 'from-cyan-400 to-cyan-600',
+  },
+  {
+    id: 'rust',
+    name: 'Rust',
+    icon: <Cpu className="w-8 h-8" />,
+    description: 'Memory-safe systems programming',
+    color: 'from-orange-600 to-red-700',
+  },
+  {
+    id: 'ruby',
+    name: 'Ruby',
+    icon: <Sparkles className="w-8 h-8" />,
+    description: 'Elegant and productive web development',
+    color: 'from-red-500 to-pink-600',
+  },
+  {
+    id: 'php',
+    name: 'PHP',
+    icon: <Globe className="w-8 h-8" />,
+    description: 'Popular server-side scripting language',
+    color: 'from-indigo-500 to-purple-600',
+  },
+  {
+    id: 'swift',
+    name: 'Swift',
+    icon: <Braces className="w-8 h-8" />,
+    description: 'Modern language for Apple platforms',
+    color: 'from-orange-500 to-pink-500',
+  },
+  {
+    id: 'kotlin',
+    name: 'Kotlin',
+    icon: <Coffee className="w-8 h-8" />,
+    description: 'Modern JVM language for Android development',
+    color: 'from-purple-500 to-blue-600',
+  },
+  {
+    id: 'csharp',
+    name: 'C#',
+    icon: <Code2 className="w-8 h-8" />,
+    description: 'Versatile language for .NET and games',
+    color: 'from-purple-600 to-violet-700',
+  },
+  {
+    id: 'bash',
+    name: 'Bash',
+    icon: <TerminalIcon className="w-8 h-8" />,
+    description: 'Shell scripting for automation',
+    color: 'from-green-600 to-emerald-700',
   },
 ];
 
