@@ -14,11 +14,14 @@ import {
   Zap,
   Code,
   Copy,
-  Check
+  Check,
+  LogIn
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { FileNode, TerminalLine } from '@/types/ide';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Message {
   id: string;
@@ -84,6 +87,7 @@ export const AIChat = ({
   onInsertCode,
   onRunTest 
 }: AIChatProps) => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -123,6 +127,19 @@ export const AIChat = ({
     const content = messageContent || input.trim();
     if (!content || isLoading) return;
 
+    // Check if user is authenticated
+    if (!user) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          role: 'assistant',
+          content: '🔒 **Authentication Required**\n\nPlease sign in to use the AI assistant. Your conversations will be secure and private.',
+        },
+      ]);
+      return;
+    }
+
     const userMessage: Message = {
       id: generateId(),
       role: 'user',
@@ -136,6 +153,13 @@ export const AIChat = ({
     let assistantContent = '';
 
     try {
+      // Get the current session token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error('Session expired. Please sign in again.');
+      }
+
       // Include console output for debugging context
       const recentErrors = consoleOutput
         ?.filter(line => line.type === 'error')
@@ -147,7 +171,7 @@ export const AIChat = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           messages: [...messages.slice(1), userMessage].map((m) => ({
@@ -227,7 +251,7 @@ export const AIChat = ({
     } finally {
       setIsLoading(false);
     }
-  }, [input, isLoading, messages, currentFile, consoleOutput]);
+  }, [input, isLoading, messages, currentFile, consoleOutput, user]);
 
   const handleQuickAction = (action: QuickAction) => {
     if (action.requiresFile && !currentFile) {
