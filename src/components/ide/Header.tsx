@@ -11,11 +11,13 @@ import {
   GitFork,
   Star,
   Sparkles,
-  Save
+  Save,
+  Loader2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
+import { Project } from '@/hooks/useProjects';
 
 interface HeaderProps {
   projectName: string;
@@ -28,6 +30,13 @@ interface HeaderProps {
   onOpenProjects: () => void;
   onSaveProject: () => void;
   hasUnsavedChanges?: boolean;
+  currentProject: Project | null;
+  onFork: () => void;
+  onStar: () => void;
+  onShare: () => void;
+  isStarred: boolean;
+  isForking: boolean;
+  starsCount: number;
 }
 
 export const Header = ({ 
@@ -40,7 +49,14 @@ export const Header = ({
   isAIChatOpen,
   onOpenProjects,
   onSaveProject,
-  hasUnsavedChanges
+  hasUnsavedChanges,
+  currentProject,
+  onFork,
+  onStar,
+  onShare,
+  isStarred,
+  isForking,
+  starsCount
 }: HeaderProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const { user } = useAuth();
@@ -138,17 +154,44 @@ export const Header = ({
           </button>
         )}
 
-        <button className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
-          <GitFork className="w-4 h-4" />
+        <button 
+          onClick={onFork}
+          disabled={isForking || !currentProject}
+          className={cn(
+            "hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors",
+            !currentProject 
+              ? "opacity-50 cursor-not-allowed text-muted-foreground"
+              : "hover:bg-accent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {isForking ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <GitFork className="w-4 h-4" />
+          )}
           <span className="text-sm">Fork</span>
         </button>
         
-        <button className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
-          <Star className="w-4 h-4" />
-          <span className="text-sm">Star</span>
+        <button 
+          onClick={onStar}
+          disabled={!currentProject}
+          className={cn(
+            "hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors",
+            !currentProject 
+              ? "opacity-50 cursor-not-allowed text-muted-foreground"
+              : isStarred
+                ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                : "hover:bg-accent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Star className={cn("w-4 h-4", isStarred && "fill-current")} />
+          <span className="text-sm">{starsCount > 0 ? starsCount : 'Star'}</span>
         </button>
         
-        <button className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-colors">
+        <button 
+          onClick={onShare}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
+        >
           <Share2 className="w-4 h-4" />
           <span className="text-sm hidden sm:inline">Share</span>
         </button>
