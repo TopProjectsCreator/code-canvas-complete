@@ -9,22 +9,36 @@ import {
   ChevronDown,
   Users,
   History,
-  Puzzle
+  FilePlus,
+  FolderPlus
 } from 'lucide-react';
 import { FileNode } from '@/types/ide';
 import { FileTree } from './FileTree';
+import { NewFileDialog } from './NewFileDialog';
 import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   files: FileNode[];
   onFileSelect: (file: FileNode) => void;
+  onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
+  onDeleteFile: (fileId: string) => void;
+  onRenameFile: (fileId: string, newName: string) => void;
   activeFileId: string | null;
 }
 
 type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'settings';
 
-export const Sidebar = ({ files, onFileSelect, activeFileId }: SidebarProps) => {
+export const Sidebar = ({ 
+  files, 
+  onFileSelect, 
+  onCreateFile, 
+  onDeleteFile, 
+  onRenameFile, 
+  activeFileId 
+}: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('files');
+  const [showNewFileDialog, setShowNewFileDialog] = useState(false);
+  const [showNewMenu, setShowNewMenu] = useState(false);
 
   const tabs = [
     { id: 'files' as const, icon: Files, label: 'Files' },
@@ -33,6 +47,12 @@ export const Sidebar = ({ files, onFileSelect, activeFileId }: SidebarProps) => 
     { id: 'packages' as const, icon: Package, label: 'Packages' },
     { id: 'settings' as const, icon: Settings, label: 'Settings' },
   ];
+
+  const handleNewFile = (name: string, type: 'file' | 'folder') => {
+    // Create at root level (first folder)
+    const rootFolder = files[0];
+    onCreateFile(rootFolder?.id || null, name, type);
+  };
 
   return (
     <div className="flex h-full bg-sidebar">
@@ -78,14 +98,47 @@ export const Sidebar = ({ files, onFileSelect, activeFileId }: SidebarProps) => 
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Files
               </span>
-              <button className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
-                <Plus className="w-4 h-4" />
-              </button>
+              <div className="relative">
+                <button 
+                  onClick={() => setShowNewMenu(!showNewMenu)}
+                  className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                
+                {showNewMenu && (
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-md shadow-lg py-1 min-w-[140px]">
+                    <button
+                      onClick={() => {
+                        const rootFolder = files[0];
+                        onCreateFile(rootFolder?.id || null, 'untitled.js', 'file');
+                        setShowNewMenu(false);
+                      }}
+                      className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+                    >
+                      <FilePlus className="w-4 h-4" /> New File
+                    </button>
+                    <button
+                      onClick={() => {
+                        const rootFolder = files[0];
+                        onCreateFile(rootFolder?.id || null, 'new-folder', 'folder');
+                        setShowNewMenu(false);
+                      }}
+                      className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+                    >
+                      <FolderPlus className="w-4 h-4" /> New Folder
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex-1 overflow-auto ide-scrollbar">
               <FileTree
                 files={files}
                 onFileSelect={onFileSelect}
+                onCreateFile={onCreateFile}
+                onDeleteFile={onDeleteFile}
+                onRenameFile={onRenameFile}
                 activeFileId={activeFileId}
               />
             </div>
@@ -124,7 +177,7 @@ export const Sidebar = ({ files, onFileSelect, activeFileId }: SidebarProps) => 
         {activeTab === 'packages' && (
           <div className="p-3">
             <button className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-              <Puzzle className="w-4 h-4" />
+              <Package className="w-4 h-4" />
               Add Package
             </button>
             <p className="text-xs text-muted-foreground mt-4 text-center">
@@ -149,6 +202,12 @@ export const Sidebar = ({ files, onFileSelect, activeFileId }: SidebarProps) => 
           </div>
         )}
       </div>
+
+      <NewFileDialog
+        isOpen={showNewFileDialog}
+        onClose={() => setShowNewFileDialog(false)}
+        onSubmit={handleNewFile}
+      />
     </div>
   );
 };
