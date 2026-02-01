@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
+import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2, Sparkles } from 'lucide-react';
 import { TerminalLine } from '@/types/ide';
 import { cn } from '@/lib/utils';
 import { useCodeExecution } from '@/hooks/useCodeExecution';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TerminalProps {
   history: TerminalLine[];
@@ -18,6 +22,9 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize }: 
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [activeTab, setActiveTab] = useState<'shell' | 'console'>('shell');
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiPopoverOpen, setAiPopoverOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { executeShellCommand, executeCode, isExecuting } = useCodeExecution();
@@ -86,6 +93,30 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize }: 
       const commands = ['help', 'clear', 'ls', 'pwd', 'echo', 'node', 'npm', 'date', 'whoami', 'env', 'exit'];
       const match = commands.find(cmd => cmd.startsWith(input));
       if (match) setInput(match);
+    }
+  };
+
+  const generateCommand = async () => {
+    if (!aiPrompt.trim() || isGenerating) return;
+    
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-command', {
+        body: { prompt: aiPrompt }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.command) {
+        setInput(data.command);
+        setAiPopoverOpen(false);
+        setAiPrompt('');
+        inputRef.current?.focus();
+      }
+    } catch (err) {
+      console.error('Failed to generate command:', err);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -164,8 +195,8 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize }: 
           ))}
           
           {/* Input line */}
-          <form onSubmit={handleSubmit} className="flex items-center">
-            <span className="text-primary mr-2">$</span>
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+            <span className="text-primary">$</span>
             <input
               ref={inputRef}
               type="text"
@@ -178,6 +209,61 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize }: 
               autoFocus
             />
             {!isExecuting && <span className="w-2 h-5 bg-primary animate-cursor-blink" />}
+            
+            {/* AI Command Generator */}
+            <Popover open={aiPopoverOpen} onOpenChange={setAiPopoverOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "p-1.5 rounded-md transition-colors",
+                    "hover:bg-accent text-muted-foreground hover:text-primary",
+                    aiPopoverOpen && "bg-accent text-primary"
+                  )}
+                  title="Generate command with AI"
+                >
+                  <Sparkles className="w-4 h-4" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent 
+                align="end" 
+                className="w-80 p-3"
+                onOpenAutoFocus={(e) => e.preventDefault()}
+              >
+                <div className="space-y-3">
+                  <p className="text-sm font-medium">Generate a command</p>
+                  <p className="text-xs text-muted-foreground">
+                    Describe what you want to do in plain English
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      placeholder="e.g., list all .ts files"
+                      className="flex-1 text-sm"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          generateCommand();
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      onClick={generateCommand}
+                      disabled={isGenerating || !aiPrompt.trim()}
+                    >
+                      {isGenerating ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        'Go'
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
           </form>
         </div>
       )}
