@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { FileNode, Tab, TerminalLine } from '@/types/ide';
-import { defaultFiles, findFileById } from '@/data/defaultFiles';
+import { defaultFiles, findFileById, getFileLanguage } from '@/data/defaultFiles';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { EditorTabs } from './EditorTabs';
@@ -72,6 +72,112 @@ export const IDELayout = () => {
     setOpenTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
   }, [openTabs]);
+
+  const handleCreateFile = useCallback((parentId: string | null, name: string, type: 'file' | 'folder') => {
+    const newFile: FileNode = {
+      id: generateId(),
+      name,
+      type,
+      ...(type === 'file' && {
+        content: type === 'file' ? getDefaultContent(name) : undefined,
+        language: getFileLanguage(name),
+      }),
+      ...(type === 'folder' && { children: [] }),
+    };
+
+    setFiles((prev) => {
+      const addToParent = (nodes: FileNode[]): FileNode[] => {
+        return nodes.map((node) => {
+          if (node.id === parentId && node.type === 'folder') {
+            return {
+              ...node,
+              children: [...(node.children || []), newFile],
+            };
+          }
+          if (node.children) {
+            return { ...node, children: addToParent(node.children) };
+          }
+          return node;
+        });
+      };
+
+      if (!parentId) {
+        // Add to root level
+        const root = prev[0];
+        if (root && root.type === 'folder') {
+          return [{
+            ...root,
+            children: [...(root.children || []), newFile],
+          }];
+        }
+        return [...prev, newFile];
+      }
+
+      return addToParent(prev);
+    });
+
+    // If it's a file, open it in a new tab
+    if (type === 'file') {
+      const newTab: Tab = {
+        id: generateId(),
+        name: newFile.name,
+        fileId: newFile.id,
+        isModified: false,
+      };
+      setOpenTabs((prev) => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+    }
+  }, []);
+
+  const handleDeleteFile = useCallback((fileId: string) => {
+    setFiles((prev) => {
+      const removeFile = (nodes: FileNode[]): FileNode[] => {
+        return nodes
+          .filter((node) => node.id !== fileId)
+          .map((node) => ({
+            ...node,
+            children: node.children ? removeFile(node.children) : undefined,
+          }));
+      };
+      return removeFile(prev);
+    });
+
+    // Close any open tabs for this file
+    setOpenTabs((prev) => prev.filter((tab) => tab.fileId !== fileId));
+    
+    // Clear active tab if it was the deleted file
+    if (activeTab?.fileId === fileId) {
+      setActiveTabId(null);
+    }
+  }, [activeTab]);
+
+  const handleRenameFile = useCallback((fileId: string, newName: string) => {
+    setFiles((prev) => {
+      const renameInTree = (nodes: FileNode[]): FileNode[] => {
+        return nodes.map((node) => {
+          if (node.id === fileId) {
+            return { 
+              ...node, 
+              name: newName,
+              language: node.type === 'file' ? getFileLanguage(newName) : undefined,
+            };
+          }
+          if (node.children) {
+            return { ...node, children: renameInTree(node.children) };
+          }
+          return node;
+        });
+      };
+      return renameInTree(prev);
+    });
+
+    // Update tab name if file is open
+    setOpenTabs((prev) =>
+      prev.map((tab) =>
+        tab.fileId === fileId ? { ...tab, name: newName } : tab
+      )
+    );
+  }, []);
 
   const handleTabClick = useCallback((tabId: string) => {
     setActiveTabId(tabId);
@@ -204,6 +310,9 @@ export const IDELayout = () => {
           <Sidebar
             files={files}
             onFileSelect={handleFileSelect}
+            onCreateFile={handleCreateFile}
+            onDeleteFile={handleDeleteFile}
+            onRenameFile={handleRenameFile}
             activeFileId={activeTab?.fileId || null}
           />
         </div>
@@ -252,3 +361,34 @@ export const IDELayout = () => {
     </div>
   );
 };
+
+// Helper to get default content for new files
+function getDefaultContent(filename: string): string {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  
+  switch (ext) {
+    case 'html':
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${filename}</title>
+</head>
+<body>
+  
+</body>
+</html>`;
+    case 'css':
+      return `/* ${filename} */\n`;
+    case 'js':
+    case 'ts':
+      return `// ${filename}\n`;
+    case 'json':
+      return `{\n  \n}`;
+    case 'md':
+      return `# ${filename.replace(/\.md$/, '')}\n`;
+    default:
+      return '';
+  }
+}
