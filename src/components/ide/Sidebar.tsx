@@ -14,13 +14,15 @@ import {
   Upload,
   FileText,
   Palette,
-  Check
+  Check,
+  Zap
 } from 'lucide-react';
-import { FileNode, GitState } from '@/types/ide';
+import { FileNode, GitState, Workflow } from '@/types/ide';
 import { FileTree } from './FileTree';
 import { NewFileDialog } from './NewFileDialog';
 import { GitPanel } from './GitPanel';
 import { PackagePanel } from './PackagePanel';
+import { WorkflowsPanel } from './WorkflowsPanel';
 import { FileIcon } from './FileIcon';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
@@ -103,9 +105,16 @@ interface SidebarProps {
   onGitCreateBranch: (name: string) => void;
   onGitSwitchBranch: (name: string) => void;
   onGitInitRepo: () => void;
+  // Workflow props
+  workflows: Workflow[];
+  onRunWorkflow: (workflow: Workflow) => void;
+  onCreateWorkflow: (workflow: Omit<Workflow, 'id'>) => void;
+  onUpdateWorkflow: (id: string, workflow: Partial<Workflow>) => void;
+  onDeleteWorkflow: (id: string) => void;
+  currentlyRunningWorkflow: string | null;
 }
 
-type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'settings';
+type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'settings';
 
 export const Sidebar = ({ 
   files, 
@@ -124,6 +133,12 @@ export const Sidebar = ({
   onGitCreateBranch,
   onGitSwitchBranch,
   onGitInitRepo,
+  workflows,
+  onRunWorkflow,
+  onCreateWorkflow,
+  onUpdateWorkflow,
+  onDeleteWorkflow,
+  currentlyRunningWorkflow,
 }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('files');
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
@@ -232,6 +247,7 @@ export const Sidebar = ({
     { id: 'search' as const, icon: Search, label: 'Search' },
     { id: 'git' as const, icon: GitBranch, label: 'Version Control' },
     { id: 'packages' as const, icon: Package, label: 'Packages' },
+    { id: 'workflows' as const, icon: Zap, label: 'Workflows' },
     { id: 'settings' as const, icon: Settings, label: 'Settings' },
   ];
 
@@ -434,6 +450,17 @@ export const Sidebar = ({
 
         {activeTab === 'packages' && (
           <PackagePanel files={files} currentLanguage={currentLanguage} />
+        )}
+
+        {activeTab === 'workflows' && (
+          <WorkflowsPanel
+            workflows={workflows}
+            onRunWorkflow={onRunWorkflow}
+            onCreateWorkflow={onCreateWorkflow}
+            onUpdateWorkflow={onUpdateWorkflow}
+            onDeleteWorkflow={onDeleteWorkflow}
+            currentlyRunning={currentlyRunningWorkflow}
+          />
         )}
 
         {activeTab === 'settings' && (
