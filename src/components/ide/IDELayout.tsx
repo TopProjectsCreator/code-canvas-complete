@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from '@/types/ide';
 import { getTemplateFiles, findFileById, getFileLanguage } from '@/data/defaultFiles';
 import { Header } from './Header';
@@ -17,6 +18,11 @@ import { cn } from '@/lib/utils';
 import { useCodeExecution } from '@/hooks/useCodeExecution';
 import { useProjects, Project } from '@/hooks/useProjects';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+
+interface IDELayoutProps {
+  projectId?: string;
+}
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -78,9 +84,11 @@ const getDefaultWorkflows = (template: LanguageTemplate): Workflow[] => {
   return baseWorkflows;
 };
 
-export const IDELayout = () => {
+export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const { user } = useAuth();
-  const { currentProject, setCurrentProject, forkProject, toggleStar } = useProjects();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const { currentProject, setCurrentProject, loadProject, forkProject, toggleStar } = useProjects();
   
   const [selectedTemplate, setSelectedTemplate] = useState<LanguageTemplate | null>(null);
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -129,6 +137,51 @@ export const IDELayout = () => {
     const defaultWorkflows = getDefaultWorkflows(template);
     setWorkflows(defaultWorkflows);
   }, []);
+
+  // Load shared project from URL
+  useEffect(() => {
+    if (projectId && !currentProject) {
+      loadProject(projectId).then((project) => {
+        if (project) {
+          // Check if user has access (public or owner)
+          if (!project.is_public && project.user_id !== user?.id) {
+            toast({
+              title: 'Access denied',
+              description: 'This project is private.',
+              variant: 'destructive',
+            });
+            navigate('/');
+            return;
+          }
+
+          setFiles(project.files);
+          setSelectedTemplate(project.language as LanguageTemplate);
+          
+          // Store original file contents
+          const originals: Record<string, string> = {};
+          const collectContents = (nodes: FileNode[]) => {
+            nodes.forEach(node => {
+              if (node.type === 'file' && node.content) {
+                originals[node.id] = node.content;
+              }
+              if (node.children) collectContents(node.children);
+            });
+          };
+          collectContents(project.files);
+          setOriginalFileContents(originals);
+          
+          // Set workflows
+          const defaultWorkflows = getDefaultWorkflows(project.language as LanguageTemplate);
+          setWorkflows(defaultWorkflows);
+          
+          toast({
+            title: 'Project loaded',
+            description: `Viewing "${project.name}"`,
+          });
+        }
+      });
+    }
+  }, [projectId, currentProject, loadProject, user, navigate, toast]);
 
   // Get the active file
   const activeTab = openTabs.find((tab) => tab.id === activeTabId);
