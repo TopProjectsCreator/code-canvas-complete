@@ -10,3 +10,4 @@ export { Preview } from './Preview';
 export { NewFileDialog } from './NewFileDialog';
 export { LanguagePicker } from './LanguagePicker';
 export { AIChat } from './AIChat';
+export { GitPanel } from './GitPanel';
