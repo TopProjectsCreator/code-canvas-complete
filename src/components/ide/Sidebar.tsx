@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { 
   Files, 
   Search, 
@@ -11,14 +11,21 @@ import {
   History,
   FilePlus,
   FolderPlus,
-  Upload
+  Upload,
+  FileText
 } from 'lucide-react';
 import { FileNode, GitState } from '@/types/ide';
 import { FileTree } from './FileTree';
 import { NewFileDialog } from './NewFileDialog';
 import { GitPanel } from './GitPanel';
+import { FileIcon } from './FileIcon';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
+
+interface SearchResult {
+  file: FileNode;
+  matches: { line: number; text: string; matchStart: number; matchEnd: number }[];
+}
 
 interface SidebarProps {
   files: FileNode[];
@@ -60,7 +67,68 @@ export const Sidebar = ({
   const [activeTab, setActiveTab] = useState<SidebarTab>('files');
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [showNewMenu, setShowNewMenu] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Flatten file tree to get all files
+  const getAllFiles = (nodes: FileNode[]): FileNode[] => {
+    const result: FileNode[] = [];
+    const traverse = (items: FileNode[]) => {
+      for (const item of items) {
+        if (item.type === 'file') {
+          result.push(item);
+        }
+        if (item.children) {
+          traverse(item.children);
+        }
+      }
+    };
+    traverse(nodes);
+    return result;
+  };
+
+  // Search results
+  const searchResults = useMemo((): SearchResult[] => {
+    if (!searchQuery.trim()) return [];
+    
+    const query = searchQuery.toLowerCase();
+    const allFiles = getAllFiles(files);
+    const results: SearchResult[] = [];
+
+    for (const file of allFiles) {
+      const matches: SearchResult['matches'] = [];
+      
+      // Search in filename
+      const fileNameMatch = file.name.toLowerCase().includes(query);
+      
+      // Search in content
+      if (file.content) {
+        const lines = file.content.split('\n');
+        lines.forEach((line, index) => {
+          const lowerLine = line.toLowerCase();
+          let searchStart = 0;
+          let matchIndex = lowerLine.indexOf(query, searchStart);
+          
+          while (matchIndex !== -1) {
+            matches.push({
+              line: index + 1,
+              text: line,
+              matchStart: matchIndex,
+              matchEnd: matchIndex + query.length,
+            });
+            searchStart = matchIndex + 1;
+            matchIndex = lowerLine.indexOf(query, searchStart);
+          }
+        });
+      }
+
+      if (fileNameMatch || matches.length > 0) {
+        results.push({ file, matches });
+      }
+    }
+
+    return results;
+  }, [searchQuery, files]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFiles = event.target.files;
@@ -222,18 +290,71 @@ export const Sidebar = ({
         )}
 
         {activeTab === 'search' && (
-          <div className="p-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search files..."
-                className="w-full pl-9 pr-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+          <div className="flex flex-col h-full">
+            <div className="p-3 border-b border-border">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search in files..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  autoFocus
+                />
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-4 text-center">
-              Type to search across all files
-            </p>
+            <div className="flex-1 overflow-auto ide-scrollbar">
+              {searchQuery.trim() === '' ? (
+                <p className="text-xs text-muted-foreground p-3 text-center">
+                  Type to search across all files
+                </p>
+              ) : searchResults.length === 0 ? (
+                <p className="text-xs text-muted-foreground p-3 text-center">
+                  No results found for "{searchQuery}"
+                </p>
+              ) : (
+                <div className="py-1">
+                  {searchResults.map((result) => (
+                    <div key={result.file.id} className="border-b border-border last:border-b-0">
+                      <button
+                        onClick={() => onFileSelect(result.file)}
+                        className="w-full px-3 py-2 text-left hover:bg-accent flex items-center gap-2"
+                      >
+                        <FileIcon name={result.file.name} type="file" />
+                        <span className="text-sm font-medium truncate">{result.file.name}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {result.matches.length} match{result.matches.length !== 1 ? 'es' : ''}
+                        </span>
+                      </button>
+                      {result.matches.slice(0, 5).map((match, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => onFileSelect(result.file)}
+                          className="w-full px-3 py-1 text-left hover:bg-accent/50 flex items-start gap-2 pl-8"
+                        >
+                          <span className="text-xs text-muted-foreground w-8 shrink-0 text-right">
+                            {match.line}
+                          </span>
+                          <span className="text-xs font-mono truncate">
+                            {match.text.slice(0, match.matchStart)}
+                            <span className="bg-yellow-500/30 text-yellow-200">
+                              {match.text.slice(match.matchStart, match.matchEnd)}
+                            </span>
+                            {match.text.slice(match.matchEnd)}
+                          </span>
+                        </button>
+                      ))}
+                      {result.matches.length > 5 && (
+                        <p className="text-xs text-muted-foreground px-3 py-1 pl-8">
+                          ... and {result.matches.length - 5} more matches
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
