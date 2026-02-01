@@ -8,6 +8,7 @@ import { CodeEditor } from './CodeEditor';
 import { Terminal } from './Terminal';
 import { Preview } from './Preview';
 import { LanguagePicker, LanguageTemplate } from './LanguagePicker';
+import { AIChat } from './AIChat';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +26,7 @@ export const IDELayout = () => {
   const [isRunning, setIsRunning] = useState(false);
   const [isTerminalMinimized, setIsTerminalMinimized] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
 
   const handleSelectTemplate = useCallback((template: LanguageTemplate) => {
@@ -364,6 +366,8 @@ export const IDELayout = () => {
         onRun={handleRun}
         onStop={handleStop}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        onToggleAIChat={() => setIsAIChatOpen(!isAIChatOpen)}
+        isAIChatOpen={isAIChatOpen}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -424,6 +428,13 @@ export const IDELayout = () => {
               />
             </ResizablePanel>
           </ResizablePanelGroup>
+
+          {/* AI Chat Sidebar */}
+          <AIChat
+            isOpen={isAIChatOpen}
+            onClose={() => setIsAIChatOpen(false)}
+            currentFile={activeFileWithContent}
+          />
         </div>
       </div>
     </div>
