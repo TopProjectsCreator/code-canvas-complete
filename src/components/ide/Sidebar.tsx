@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { 
   Files, 
   Search, 
@@ -10,12 +10,14 @@ import {
   Users,
   History,
   FilePlus,
-  FolderPlus
+  FolderPlus,
+  Upload
 } from 'lucide-react';
 import { FileNode } from '@/types/ide';
 import { FileTree } from './FileTree';
 import { NewFileDialog } from './NewFileDialog';
 import { cn } from '@/lib/utils';
+import { getFileLanguage } from '@/data/defaultFiles';
 
 interface SidebarProps {
   files: FileNode[];
@@ -23,6 +25,7 @@ interface SidebarProps {
   onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
   onDeleteFile: (fileId: string) => void;
   onRenameFile: (fileId: string, newName: string) => void;
+  onUploadFiles: (files: { name: string; content: string; language: string }[]) => void;
   activeFileId: string | null;
 }
 
@@ -34,11 +37,49 @@ export const Sidebar = ({
   onCreateFile, 
   onDeleteFile, 
   onRenameFile, 
+  onUploadFiles,
   activeFileId 
 }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('files');
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [showNewMenu, setShowNewMenu] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadedFiles = event.target.files;
+    if (!uploadedFiles || uploadedFiles.length === 0) return;
+
+    const readFiles = Array.from(uploadedFiles).map((file) => {
+      return new Promise<{ name: string; content: string; language: string }>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target?.result as string;
+          resolve({
+            name: file.name,
+            content: content || '',
+            language: getFileLanguage(file.name),
+          });
+        };
+        reader.onerror = () => {
+          resolve({
+            name: file.name,
+            content: '',
+            language: getFileLanguage(file.name),
+          });
+        };
+        reader.readAsText(file);
+      });
+    });
+
+    Promise.all(readFiles).then((files) => {
+      onUploadFiles(files);
+    });
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const tabs = [
     { id: 'files' as const, icon: Files, label: 'Files' },
@@ -128,8 +169,26 @@ export const Sidebar = ({
                     >
                       <FolderPlus className="w-4 h-4" /> New Folder
                     </button>
+                    <div className="border-t border-border my-1" />
+                    <button
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                        setShowNewMenu(false);
+                      }}
+                      className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+                    >
+                      <Upload className="w-4 h-4" /> Upload Files
+                    </button>
                   </div>
                 )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  accept=".js,.ts,.jsx,.tsx,.html,.css,.json,.md,.txt,.py,.go,.rs,.java,.cpp,.c,.h,.xml,.yaml,.yml,.toml,.env,.gitignore"
+                />
               </div>
             </div>
             <div className="flex-1 overflow-auto ide-scrollbar">
