@@ -11,6 +11,7 @@ import { LanguagePicker, LanguageTemplate } from './LanguagePicker';
 import { AIChat } from './AIChat';
 import { ProjectsDialog } from './ProjectsDialog';
 import { SaveProjectDialog } from './SaveProjectDialog';
+import { ShareDialog } from './ShareDialog';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
 import { useCodeExecution } from '@/hooks/useCodeExecution';
@@ -79,7 +80,7 @@ const getDefaultWorkflows = (template: LanguageTemplate): Workflow[] => {
 
 export const IDELayout = () => {
   const { user } = useAuth();
-  const { currentProject, setCurrentProject, loadProject } = useProjects();
+  const { currentProject, setCurrentProject, forkProject, toggleStar } = useProjects();
   
   const [selectedTemplate, setSelectedTemplate] = useState<LanguageTemplate | null>(null);
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -100,7 +101,10 @@ export const IDELayout = () => {
   const [currentlyRunningWorkflow, setCurrentlyRunningWorkflow] = useState<string | null>(null);
   const [showProjectsDialog, setShowProjectsDialog] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isStarred, setIsStarred] = useState(false);
+  const [isForking, setIsForking] = useState(false);
   const { executeCode, isExecuting } = useCodeExecution();
 
   const handleSelectTemplate = useCallback((template: LanguageTemplate) => {
@@ -815,6 +819,30 @@ export const IDELayout = () => {
     setHasUnsavedChanges(false);
   }, [setCurrentProject]);
 
+  // Handle fork
+  const handleFork = useCallback(async () => {
+    if (!currentProject) return;
+    setIsForking(true);
+    const forked = await forkProject(currentProject);
+    if (forked) {
+      handleSelectProject(forked);
+    }
+    setIsForking(false);
+  }, [currentProject, forkProject, handleSelectProject]);
+
+  // Handle star
+  const handleStar = useCallback(async () => {
+    if (!currentProject) return;
+    const success = await toggleStar(currentProject.id);
+    if (success) {
+      setIsStarred(!isStarred);
+      setCurrentProject({
+        ...currentProject,
+        stars_count: isStarred ? currentProject.stars_count - 1 : currentProject.stars_count + 1
+      });
+    }
+  }, [currentProject, toggleStar, isStarred, setCurrentProject]);
+
   // Track unsaved changes
   useEffect(() => {
     if (Object.keys(fileContents).length > 0) {
@@ -849,6 +877,13 @@ export const IDELayout = () => {
         onOpenProjects={() => setShowProjectsDialog(true)}
         onSaveProject={() => setShowSaveDialog(true)}
         hasUnsavedChanges={hasUnsavedChanges}
+        currentProject={currentProject}
+        onFork={handleFork}
+        onStar={handleStar}
+        onShare={() => setShowShareDialog(true)}
+        isStarred={isStarred}
+        isForking={isForking}
+        starsCount={currentProject?.stars_count || 0}
       />
 
       <ProjectsDialog
@@ -865,6 +900,13 @@ export const IDELayout = () => {
         language={selectedTemplate}
         currentProject={currentProject}
         onSaved={handleProjectSaved}
+      />
+
+      <ShareDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        project={currentProject}
+        onProjectUpdated={setCurrentProject}
       />
 
       <div className="flex-1 flex overflow-hidden">
