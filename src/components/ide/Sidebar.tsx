@@ -13,9 +13,10 @@ import {
   FolderPlus,
   Upload
 } from 'lucide-react';
-import { FileNode } from '@/types/ide';
+import { FileNode, GitState } from '@/types/ide';
 import { FileTree } from './FileTree';
 import { NewFileDialog } from './NewFileDialog';
+import { GitPanel } from './GitPanel';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
 
@@ -27,6 +28,14 @@ interface SidebarProps {
   onRenameFile: (fileId: string, newName: string) => void;
   onUploadFiles: (files: { name: string; content: string; language: string }[]) => void;
   activeFileId: string | null;
+  gitState: GitState;
+  onGitCommit: (message: string) => void;
+  onGitStageFile: (fileId: string) => void;
+  onGitUnstageFile: (fileId: string) => void;
+  onGitDiscardChanges: (fileId: string) => void;
+  onGitCreateBranch: (name: string) => void;
+  onGitSwitchBranch: (name: string) => void;
+  onGitInitRepo: () => void;
 }
 
 type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'settings';
@@ -38,7 +47,15 @@ export const Sidebar = ({
   onDeleteFile, 
   onRenameFile, 
   onUploadFiles,
-  activeFileId 
+  activeFileId,
+  gitState,
+  onGitCommit,
+  onGitStageFile,
+  onGitUnstageFile,
+  onGitDiscardChanges,
+  onGitCreateBranch,
+  onGitSwitchBranch,
+  onGitInitRepo,
 }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('files');
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
@@ -221,16 +238,16 @@ export const Sidebar = ({
         )}
 
         {activeTab === 'git' && (
-          <div className="p-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <GitBranch className="w-4 h-4" />
-              <span>main</span>
-              <ChevronDown className="w-3 h-3" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-4">
-              No uncommitted changes
-            </p>
-          </div>
+          <GitPanel
+            gitState={gitState}
+            onCommit={onGitCommit}
+            onStageFile={onGitStageFile}
+            onUnstageFile={onGitUnstageFile}
+            onDiscardChanges={onGitDiscardChanges}
+            onCreateBranch={onGitCreateBranch}
+            onSwitchBranch={onGitSwitchBranch}
+            onInitRepo={onGitInitRepo}
+          />
         )}
 
         {activeTab === 'packages' && (
