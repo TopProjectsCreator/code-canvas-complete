@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { FileNode, Tab, TerminalLine } from '@/types/ide';
+import { useState, useCallback, useEffect } from 'react';
+import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange } from '@/types/ide';
 import { getTemplateFiles, findFileById, getFileLanguage } from '@/data/defaultFiles';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
@@ -15,6 +15,14 @@ import { useCodeExecution } from '@/hooks/useCodeExecution';
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
+// Initial Git state
+const initialGitState: GitState = {
+  branches: [],
+  currentBranch: 'main',
+  changes: [],
+  isInitialized: false,
+};
+
 export const IDELayout = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<LanguageTemplate | null>(null);
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -28,12 +36,28 @@ export const IDELayout = () => {
   const [isTerminalMinimized, setIsTerminalMinimized] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
-  const [fileContents, setFileContents] = useState<Record<string, string>>();
+  const [fileContents, setFileContents] = useState<Record<string, string>>({});
+  const [originalFileContents, setOriginalFileContents] = useState<Record<string, string>>({});
+  const [gitState, setGitState] = useState<GitState>(initialGitState);
   const { executeCode, isExecuting } = useCodeExecution();
 
   const handleSelectTemplate = useCallback((template: LanguageTemplate) => {
     setSelectedTemplate(template);
-    setFiles(getTemplateFiles(template));
+    const templateFiles = getTemplateFiles(template);
+    setFiles(templateFiles);
+    
+    // Store original file contents for Git tracking
+    const originals: Record<string, string> = {};
+    const collectContents = (nodes: FileNode[]) => {
+      nodes.forEach(node => {
+        if (node.type === 'file' && node.content) {
+          originals[node.id] = node.content;
+        }
+        if (node.children) collectContents(node.children);
+      });
+    };
+    collectContents(templateFiles);
+    setOriginalFileContents(originals);
   }, []);
 
   // Get the active file
@@ -44,6 +68,190 @@ export const IDELayout = () => {
   const activeFileWithContent = activeFile
     ? { ...activeFile, content: fileContents?.[activeFile.id] ?? activeFile.content }
     : null;
+
+  // Track Git changes when files are modified
+  useEffect(() => {
+    if (!gitState.isInitialized) return;
+
+    const changes: GitChange[] = [];
+    
+    // Check for modified files
+    Object.entries(fileContents).forEach(([fileId, content]) => {
+      const originalContent = originalFileContents[fileId];
+      const file = findFileById(files, fileId);
+      
+      if (file && content !== (originalContent ?? file.content)) {
+        changes.push({
+          fileId,
+          fileName: file.name,
+          status: originalContent === undefined ? 'added' : 'modified',
+          originalContent,
+        });
+      }
+    });
+
+    // Check for new files not in original
+    const checkNewFiles = (nodes: FileNode[]) => {
+      nodes.forEach(node => {
+        if (node.type === 'file' && !originalFileContents[node.id] && !changes.find(c => c.fileId === node.id)) {
+          changes.push({
+            fileId: node.id,
+            fileName: node.name,
+            status: 'added',
+          });
+        }
+        if (node.children) checkNewFiles(node.children);
+      });
+    };
+    checkNewFiles(files);
+
+    setGitState(prev => ({ ...prev, changes }));
+  }, [fileContents, files, originalFileContents, gitState.isInitialized]);
+
+  // Git handlers
+  const handleGitInitRepo = useCallback(() => {
+    const initialCommit: GitCommit = {
+      id: generateId(),
+      message: 'Initial commit',
+      timestamp: new Date(),
+      author: 'You',
+      files: [],
+    };
+
+    // Collect all current files for initial commit
+    const fileNames: string[] = [];
+    const collectFiles = (nodes: FileNode[]) => {
+      nodes.forEach(node => {
+        if (node.type === 'file') fileNames.push(node.name);
+        if (node.children) collectFiles(node.children);
+      });
+    };
+    collectFiles(files);
+    initialCommit.files = fileNames;
+
+    // Store current contents as original
+    const originals: Record<string, string> = {};
+    const collectContents = (nodes: FileNode[]) => {
+      nodes.forEach(node => {
+        if (node.type === 'file') {
+          originals[node.id] = fileContents[node.id] ?? node.content ?? '';
+        }
+        if (node.children) collectContents(node.children);
+      });
+    };
+    collectContents(files);
+    setOriginalFileContents(originals);
+
+    setGitState({
+      isInitialized: true,
+      currentBranch: 'main',
+      branches: [{ name: 'main', isActive: true, commits: [initialCommit] }],
+      changes: [],
+    });
+
+    setTerminalHistory(prev => [...prev, {
+      id: generateId(),
+      type: 'info',
+      content: '📦 Initialized Git repository with initial commit',
+      timestamp: new Date(),
+    }]);
+  }, [files, fileContents]);
+
+  const handleGitCommit = useCallback((message: string) => {
+    if (gitState.changes.length === 0) return;
+
+    const commit: GitCommit = {
+      id: generateId(),
+      message,
+      timestamp: new Date(),
+      author: 'You',
+      files: gitState.changes.map(c => c.fileName),
+    };
+
+    // Update original contents to current
+    const newOriginals = { ...originalFileContents };
+    gitState.changes.forEach(change => {
+      if (change.status !== 'deleted') {
+        const file = findFileById(files, change.fileId);
+        if (file) {
+          newOriginals[change.fileId] = fileContents[change.fileId] ?? file.content ?? '';
+        }
+      }
+    });
+    setOriginalFileContents(newOriginals);
+
+    setGitState(prev => ({
+      ...prev,
+      changes: [],
+      branches: prev.branches.map(branch =>
+        branch.name === prev.currentBranch
+          ? { ...branch, commits: [commit, ...branch.commits] }
+          : branch
+      ),
+    }));
+
+    setTerminalHistory(prev => [...prev, {
+      id: generateId(),
+      type: 'info',
+      content: `✓ Committed: "${message}" (${gitState.changes.length} file${gitState.changes.length !== 1 ? 's' : ''})`,
+      timestamp: new Date(),
+    }]);
+  }, [gitState.changes, files, fileContents, originalFileContents]);
+
+  const handleGitStageFile = useCallback((fileId: string) => {
+    // In this simplified implementation, all changes are automatically staged
+  }, []);
+
+  const handleGitUnstageFile = useCallback((fileId: string) => {
+    // In this simplified implementation, we can't unstage
+  }, []);
+
+  const handleGitDiscardChanges = useCallback((fileId: string) => {
+    const originalContent = originalFileContents[fileId];
+    const file = findFileById(files, fileId);
+    
+    if (file) {
+      setFileContents(prev => ({
+        ...prev,
+        [fileId]: originalContent ?? file.content ?? '',
+      }));
+    }
+  }, [files, originalFileContents]);
+
+  const handleGitCreateBranch = useCallback((name: string) => {
+    const currentBranch = gitState.branches.find(b => b.name === gitState.currentBranch);
+    
+    setGitState(prev => ({
+      ...prev,
+      currentBranch: name,
+      branches: [
+        ...prev.branches.map(b => ({ ...b, isActive: false })),
+        { name, isActive: true, commits: currentBranch?.commits || [] },
+      ],
+    }));
+
+    setTerminalHistory(prev => [...prev, {
+      id: generateId(),
+      type: 'info',
+      content: `🌿 Created and switched to branch: ${name}`,
+      timestamp: new Date(),
+    }]);
+  }, [gitState.branches, gitState.currentBranch]);
+
+  const handleGitSwitchBranch = useCallback((name: string) => {
+    setGitState(prev => ({
+      ...prev,
+      currentBranch: name,
+      branches: prev.branches.map(b => ({ ...b, isActive: b.name === name })),
+    }));
+
+    setTerminalHistory(prev => [...prev, {
+      id: generateId(),
+      type: 'info',
+      content: `🔀 Switched to branch: ${name}`,
+      timestamp: new Date(),
+    }]);
+  }, []);
   // Get content for preview
   const getFileContent = (fileName: string): string => {
     const findFile = (nodes: FileNode[]): FileNode | null => {
@@ -459,6 +667,14 @@ export const IDELayout = () => {
             onRenameFile={handleRenameFile}
             onUploadFiles={handleUploadFiles}
             activeFileId={activeTab?.fileId || null}
+            gitState={gitState}
+            onGitCommit={handleGitCommit}
+            onGitStageFile={handleGitStageFile}
+            onGitUnstageFile={handleGitUnstageFile}
+            onGitDiscardChanges={handleGitDiscardChanges}
+            onGitCreateBranch={handleGitCreateBranch}
+            onGitSwitchBranch={handleGitSwitchBranch}
+            onGitInitRepo={handleGitInitRepo}
           />
         </div>
 
