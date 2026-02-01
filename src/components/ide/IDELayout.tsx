@@ -667,6 +667,7 @@ export const IDELayout = () => {
             onRenameFile={handleRenameFile}
             onUploadFiles={handleUploadFiles}
             activeFileId={activeTab?.fileId || null}
+            currentLanguage={selectedTemplate || 'javascript'}
             gitState={gitState}
             onGitCommit={handleGitCommit}
             onGitStageFile={handleGitStageFile}
