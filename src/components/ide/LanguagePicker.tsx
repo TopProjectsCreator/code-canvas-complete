@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type LanguageTemplate = 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' | 'ruby' | 'php' | 'swift' | 'kotlin' | 'csharp' | 'bash';
+export type LanguageTemplate = 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' | 'ruby' | 'php' | 'swift' | 'kotlin' | 'csharp' | 'bash' | 'lua' | 'perl' | 'scala' | 'r' | 'haskell' | 'elixir';
 
 interface LanguageOption {
   id: LanguageTemplate;
@@ -130,6 +130,48 @@ const languages: LanguageOption[] = [
     icon: <TerminalIcon className="w-8 h-8" />,
     description: 'Shell scripting for automation',
     color: 'from-green-600 to-emerald-700',
+  },
+  {
+    id: 'lua',
+    name: 'Lua',
+    icon: <Sparkles className="w-8 h-8" />,
+    description: 'Lightweight scripting for games and embedded',
+    color: 'from-blue-800 to-indigo-900',
+  },
+  {
+    id: 'perl',
+    name: 'Perl',
+    icon: <Code2 className="w-8 h-8" />,
+    description: 'Text processing and system administration',
+    color: 'from-sky-600 to-blue-700',
+  },
+  {
+    id: 'scala',
+    name: 'Scala',
+    icon: <Braces className="w-8 h-8" />,
+    description: 'Functional and object-oriented JVM language',
+    color: 'from-red-600 to-red-800',
+  },
+  {
+    id: 'r',
+    name: 'R',
+    icon: <Code2 className="w-8 h-8" />,
+    description: 'Statistical computing and data analysis',
+    color: 'from-blue-500 to-gray-600',
+  },
+  {
+    id: 'haskell',
+    name: 'Haskell',
+    icon: <Braces className="w-8 h-8" />,
+    description: 'Pure functional programming',
+    color: 'from-purple-700 to-purple-900',
+  },
+  {
+    id: 'elixir',
+    name: 'Elixir',
+    icon: <Sparkles className="w-8 h-8" />,
+    description: 'Scalable and fault-tolerant applications',
+    color: 'from-purple-500 to-pink-600',
   },
 ];
 
