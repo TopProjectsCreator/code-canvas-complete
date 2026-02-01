@@ -14,3 +14,4 @@ export { AIChat } from './AIChat';
 export { GitPanel } from './GitPanel';
 export { PackagePanel } from './PackagePanel';
 export { WorkflowsPanel } from './WorkflowsPanel';
+export { FilePreview } from './FilePreview';
