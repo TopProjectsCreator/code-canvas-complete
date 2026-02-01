@@ -4,18 +4,18 @@ import {
   Square, 
   ChevronDown, 
   Share2, 
-  MoreHorizontal,
   Zap,
-  Crown,
   Menu,
   Search,
   Bell,
-  User,
   GitFork,
   Star,
-  Sparkles
+  Sparkles,
+  Save
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { UserMenu } from './UserMenu';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
   projectName: string;
@@ -25,10 +25,25 @@ interface HeaderProps {
   onToggleSidebar: () => void;
   onToggleAIChat: () => void;
   isAIChatOpen: boolean;
+  onOpenProjects: () => void;
+  onSaveProject: () => void;
+  hasUnsavedChanges?: boolean;
 }
 
-export const Header = ({ projectName, isRunning, onRun, onStop, onToggleSidebar, onToggleAIChat, isAIChatOpen }: HeaderProps) => {
+export const Header = ({ 
+  projectName, 
+  isRunning, 
+  onRun, 
+  onStop, 
+  onToggleSidebar, 
+  onToggleAIChat, 
+  isAIChatOpen,
+  onOpenProjects,
+  onSaveProject,
+  hasUnsavedChanges
+}: HeaderProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const { user } = useAuth();
 
   return (
     <header className="flex items-center justify-between px-3 py-2 bg-card border-b border-border">
@@ -108,6 +123,21 @@ export const Header = ({ projectName, isRunning, onRun, onStop, onToggleSidebar,
           <span className="text-sm font-medium hidden sm:inline">AI</span>
         </button>
 
+        {user && (
+          <button 
+            onClick={onSaveProject}
+            className={cn(
+              "hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors",
+              hasUnsavedChanges 
+                ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" 
+                : "hover:bg-accent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Save className="w-4 h-4" />
+            <span className="text-sm">Save</span>
+          </button>
+        )}
+
         <button className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
           <GitFork className="w-4 h-4" />
           <span className="text-sm">Fork</span>
@@ -133,11 +163,7 @@ export const Header = ({ projectName, isRunning, onRun, onStop, onToggleSidebar,
           <Bell className="w-5 h-5" />
         </button>
 
-        <button className="flex items-center gap-2 p-1 rounded-lg hover:bg-accent transition-colors">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-            <User className="w-4 h-4 text-white" />
-          </div>
-        </button>
+        <UserMenu onOpenProjects={onOpenProjects} />
       </div>
     </header>
   );
