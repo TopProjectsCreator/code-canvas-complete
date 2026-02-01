@@ -11,6 +11,7 @@ import { LanguagePicker, LanguageTemplate } from './LanguagePicker';
 import { AIChat } from './AIChat';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
+import { useCodeExecution } from '@/hooks/useCodeExecution';
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -21,13 +22,14 @@ export const IDELayout = () => {
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [terminalHistory, setTerminalHistory] = useState<TerminalLine[]>([
     { id: '1', type: 'info', content: '🚀 Welcome to Replit Shell! Type "help" for available commands.', timestamp: new Date() },
-    { id: '2', type: 'output', content: 'Try: echo "Hello World", node -e "console.log(1+1)", or js: Math.random()', timestamp: new Date() },
+    { id: '2', type: 'output', content: 'Click Run to execute your code, or type commands below.', timestamp: new Date() },
   ]);
   const [isRunning, setIsRunning] = useState(false);
   const [isTerminalMinimized, setIsTerminalMinimized] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
-  const [fileContents, setFileContents] = useState<Record<string, string>>({});
+  const [fileContents, setFileContents] = useState<Record<string, string>>();
+  const { executeCode, isExecuting } = useCodeExecution();
 
   const handleSelectTemplate = useCallback((template: LanguageTemplate) => {
     setSelectedTemplate(template);
@@ -37,7 +39,11 @@ export const IDELayout = () => {
   // Get the active file
   const activeTab = openTabs.find((tab) => tab.id === activeTabId);
   const activeFile = activeTab ? findFileById(files, activeTab.fileId) : null;
-
+  
+  // Prepare active file with updated content
+  const activeFileWithContent = activeFile
+    ? { ...activeFile, content: fileContents?.[activeFile.id] ?? activeFile.content }
+    : null;
   // Get content for preview
   const getFileContent = (fileName: string): string => {
     const findFile = (nodes: FileNode[]): FileNode | null => {
@@ -316,24 +322,97 @@ export const IDELayout = () => {
     setTerminalHistory((prev) => [...prev, inputLine, ...outputLines]);
   }, []);
 
-  const handleRun = useCallback(() => {
+  const handleRun = useCallback(async () => {
+    // Get the main file to run based on the template or active file
+    let fileToRun = activeFileWithContent;
+    
+    // If no active file, try to find the main file for the template
+    if (!fileToRun) {
+      const mainFiles = ['main.py', 'Main.java', 'main.cpp', 'main.c', 'main.go', 'main.rs', 'index.js', 'index.ts', 'script.js'];
+      for (const mainFile of mainFiles) {
+        const findMain = (nodes: FileNode[]): FileNode | null => {
+          for (const node of nodes) {
+            if (node.name === mainFile && node.type === 'file') return node;
+            if (node.children) {
+              const found = findMain(node.children);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+        const found = findMain(files);
+        if (found) {
+          fileToRun = { ...found, content: fileContents[found.id] ?? found.content };
+          break;
+        }
+      }
+    }
+
+    if (!fileToRun || !fileToRun.content) {
+      setTerminalHistory((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          type: 'error',
+          content: 'No file to run. Open a file or create one first.',
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+
     setIsRunning(true);
+    setIsTerminalMinimized(false);
+    
+    // Add running message
     setTerminalHistory((prev) => [
       ...prev,
       {
         id: generateId(),
         type: 'info',
-        content: '🚀 Running your Repl...',
-        timestamp: new Date(),
-      },
-      {
-        id: generateId(),
-        type: 'output',
-        content: 'Server started at https://my-repl.replit.app',
+        content: `🚀 Running ${fileToRun!.name}...`,
         timestamp: new Date(),
       },
     ]);
-  }, []);
+
+    // Execute the code
+    const language = fileToRun.language || getFileLanguage(fileToRun.name);
+    const result = await executeCode(fileToRun.content, language);
+
+    // Add output to terminal
+    if (result.error) {
+      setTerminalHistory((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          type: 'error',
+          content: result.error!,
+          timestamp: new Date(),
+        },
+      ]);
+    } else if (result.output.length > 0) {
+      const outputLines: TerminalLine[] = result.output.map((line) => ({
+        id: generateId(),
+        type: 'output' as const,
+        content: line,
+        timestamp: new Date(),
+      }));
+      setTerminalHistory((prev) => [...prev, ...outputLines]);
+    }
+
+    // Add completion message
+    setTerminalHistory((prev) => [
+      ...prev,
+      {
+        id: generateId(),
+        type: 'info',
+        content: `✅ Finished running ${fileToRun!.name}`,
+        timestamp: new Date(),
+      },
+    ]);
+
+    setIsRunning(false);
+  }, [activeFileWithContent, files, fileContents, executeCode]);
 
   const handleStop = useCallback(() => {
     setIsRunning(false);
@@ -352,12 +431,6 @@ export const IDELayout = () => {
   if (!selectedTemplate) {
     return <LanguagePicker onSelect={handleSelectTemplate} />;
   }
-
-  // Prepare active file with updated content
-  const activeFileWithContent = activeFile
-    ? { ...activeFile, content: fileContents[activeFile.id] ?? activeFile.content }
-    : null;
-
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Header
