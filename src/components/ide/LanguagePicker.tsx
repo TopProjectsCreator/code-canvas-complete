@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { 
   Code2, 
   FileCode, 
@@ -7,9 +7,12 @@ import {
   Coffee,
   Cpu,
   Globe,
-  Sparkles
+  Sparkles,
+  Search,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 export type LanguageTemplate = 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' | 'ruby' | 'php' | 'swift' | 'kotlin' | 'csharp' | 'bash' | 'lua' | 'perl' | 'scala' | 'r' | 'haskell' | 'elixir';
 
@@ -177,11 +180,23 @@ const languages: LanguageOption[] = [
 
 export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredLanguages = useMemo(() => {
+    if (!searchQuery.trim()) return languages;
+    const query = searchQuery.toLowerCase();
+    return languages.filter(
+      lang =>
+        lang.name.toLowerCase().includes(query) ||
+        lang.description.toLowerCase().includes(query) ||
+        lang.id.toLowerCase().includes(query)
+    );
+  }, [searchQuery]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-8">
       <div className="max-w-4xl w-full">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-4">
             Create a new Repl
           </h1>
@@ -190,39 +205,65 @@ export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {languages.map((lang) => (
+        {/* Search bar */}
+        <div className="relative max-w-md mx-auto mb-8">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search languages..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-10 py-6 text-base bg-card border-border"
+          />
+          {searchQuery && (
             <button
-              key={lang.id}
-              onClick={() => onSelect(lang.id)}
-              onMouseEnter={() => setHoveredId(lang.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              className={cn(
-                'relative p-6 rounded-xl border-2 border-border bg-card transition-all duration-200 text-left group',
-                'hover:border-primary hover:shadow-lg hover:scale-[1.02]',
-                hoveredId === lang.id && 'border-primary shadow-lg scale-[1.02]'
-              )}
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             >
-              <div
-                className={cn(
-                  'w-14 h-14 rounded-lg bg-gradient-to-br flex items-center justify-center text-white mb-4',
-                  lang.color
-                )}
-              >
-                {lang.icon}
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-1">
-                {lang.name}
-              </h3>
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {lang.description}
-              </p>
+              <X className="w-4 h-4" />
             </button>
-          ))}
+          )}
         </div>
 
+        {filteredLanguages.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No templates found for "{searchQuery}"</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {filteredLanguages.map((lang) => (
+              <button
+                key={lang.id}
+                onClick={() => onSelect(lang.id)}
+                onMouseEnter={() => setHoveredId(lang.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                className={cn(
+                  'relative p-6 rounded-xl border-2 border-border bg-card transition-all duration-200 text-left group',
+                  'hover:border-primary hover:shadow-lg hover:scale-[1.02]',
+                  hoveredId === lang.id && 'border-primary shadow-lg scale-[1.02]'
+                )}
+              >
+                <div
+                  className={cn(
+                    'w-14 h-14 rounded-lg bg-gradient-to-br flex items-center justify-center text-white mb-4',
+                    lang.color
+                  )}
+                >
+                  {lang.icon}
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-1">
+                  {lang.name}
+                </h3>
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {lang.description}
+                </p>
+              </button>
+            ))}
+          </div>
+        )}
+
         <p className="text-center text-sm text-muted-foreground mt-8">
-          Don't see what you need? More templates coming soon!
+          {filteredLanguages.length} template{filteredLanguages.length !== 1 ? 's' : ''} available
         </p>
       </div>
     </div>
