@@ -197,7 +197,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     <div className="flex-1 flex flex-col bg-editor overflow-hidden">
       <div className="flex-1 relative overflow-auto ide-scrollbar">
         {/* Syntax highlighted display */}
-        <div className="absolute inset-0 font-mono text-sm leading-6 pointer-events-none">
+        <div className="absolute inset-0 font-mono text-sm leading-6 pointer-events-none z-0 overflow-hidden">
           {tokenizedLines.map((lineTokens, lineIndex) => (
             <div key={lineIndex} className="code-line">
               <span className="code-line-number">{lineIndex + 1}</span>
@@ -222,10 +222,11 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
           onSelect={handleSelect}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="absolute inset-0 w-full h-full font-mono text-sm leading-6 bg-transparent text-transparent caret-primary resize-none outline-none pl-12 pr-4"
+          className="absolute inset-0 w-full h-full font-mono text-sm leading-6 bg-transparent text-transparent caret-foreground resize-none outline-none pl-12 pr-4 z-10"
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
+          autoComplete="off"
         />
       </div>
       
