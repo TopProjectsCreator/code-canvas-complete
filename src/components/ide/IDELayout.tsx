@@ -9,9 +9,13 @@ import { Terminal } from './Terminal';
 import { Preview } from './Preview';
 import { LanguagePicker, LanguageTemplate } from './LanguagePicker';
 import { AIChat } from './AIChat';
+import { ProjectsDialog } from './ProjectsDialog';
+import { SaveProjectDialog } from './SaveProjectDialog';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
 import { useCodeExecution } from '@/hooks/useCodeExecution';
+import { useProjects, Project } from '@/hooks/useProjects';
+import { useAuth } from '@/contexts/AuthContext';
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -74,6 +78,9 @@ const getDefaultWorkflows = (template: LanguageTemplate): Workflow[] => {
 };
 
 export const IDELayout = () => {
+  const { user } = useAuth();
+  const { currentProject, setCurrentProject, loadProject } = useProjects();
+  
   const [selectedTemplate, setSelectedTemplate] = useState<LanguageTemplate | null>(null);
   const [files, setFiles] = useState<FileNode[]>([]);
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
@@ -91,6 +98,9 @@ export const IDELayout = () => {
   const [gitState, setGitState] = useState<GitState>(initialGitState);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [currentlyRunningWorkflow, setCurrentlyRunningWorkflow] = useState<string | null>(null);
+  const [showProjectsDialog, setShowProjectsDialog] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { executeCode, isExecuting } = useCodeExecution();
 
   const handleSelectTemplate = useCallback((template: LanguageTemplate) => {
@@ -766,20 +776,95 @@ export const IDELayout = () => {
     ]);
   }, []);
 
+  // Handle selecting a project from the dialog
+  const handleSelectProject = useCallback((project: Project) => {
+    setCurrentProject(project);
+    setFiles(project.files);
+    setSelectedTemplate(project.language as LanguageTemplate);
+    setFileContents({});
+    setOpenTabs([]);
+    setActiveTabId(null);
+    setHasUnsavedChanges(false);
+    
+    // Store original file contents
+    const originals: Record<string, string> = {};
+    const collectContents = (nodes: FileNode[]) => {
+      nodes.forEach(node => {
+        if (node.type === 'file' && node.content) {
+          originals[node.id] = node.content;
+        }
+        if (node.children) collectContents(node.children);
+      });
+    };
+    collectContents(project.files);
+    setOriginalFileContents(originals);
+  }, [setCurrentProject]);
+
+  const handleProjectSaved = useCallback((project: Project) => {
+    setCurrentProject(project);
+    setHasUnsavedChanges(false);
+  }, [setCurrentProject]);
+
+  const handleNewProject = useCallback(() => {
+    setSelectedTemplate(null);
+    setCurrentProject(null);
+    setFiles([]);
+    setFileContents({});
+    setOpenTabs([]);
+    setActiveTabId(null);
+    setHasUnsavedChanges(false);
+  }, [setCurrentProject]);
+
+  // Track unsaved changes
+  useEffect(() => {
+    if (Object.keys(fileContents).length > 0) {
+      setHasUnsavedChanges(true);
+    }
+  }, [fileContents]);
+
   // Show language picker if no template selected
   if (!selectedTemplate) {
-    return <LanguagePicker onSelect={handleSelectTemplate} />;
+    return (
+      <>
+        <LanguagePicker onSelect={handleSelectTemplate} />
+        <ProjectsDialog
+          open={showProjectsDialog}
+          onOpenChange={setShowProjectsDialog}
+          onSelectProject={handleSelectProject}
+          onNewProject={handleNewProject}
+        />
+      </>
+    );
   }
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Header
-        projectName="my-repl"
+        projectName={currentProject?.name || 'my-repl'}
         isRunning={isRunning}
         onRun={handleRun}
         onStop={handleStop}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onToggleAIChat={() => setIsAIChatOpen(!isAIChatOpen)}
         isAIChatOpen={isAIChatOpen}
+        onOpenProjects={() => setShowProjectsDialog(true)}
+        onSaveProject={() => setShowSaveDialog(true)}
+        hasUnsavedChanges={hasUnsavedChanges}
+      />
+
+      <ProjectsDialog
+        open={showProjectsDialog}
+        onOpenChange={setShowProjectsDialog}
+        onSelectProject={handleSelectProject}
+        onNewProject={handleNewProject}
+      />
+
+      <SaveProjectDialog
+        open={showSaveDialog}
+        onOpenChange={setShowSaveDialog}
+        files={files}
+        language={selectedTemplate}
+        currentProject={currentProject}
+        onSaved={handleProjectSaved}
       />
 
       <div className="flex-1 flex overflow-hidden">
