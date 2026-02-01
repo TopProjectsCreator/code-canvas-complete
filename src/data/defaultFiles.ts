@@ -19,6 +19,20 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       return cTemplate;
     case 'go':
       return goTemplate;
+    case 'rust':
+      return rustTemplate;
+    case 'ruby':
+      return rubyTemplate;
+    case 'php':
+      return phpTemplate;
+    case 'swift':
+      return swiftTemplate;
+    case 'kotlin':
+      return kotlinTemplate;
+    case 'csharp':
+      return csharpTemplate;
+    case 'bash':
+      return bashTemplate;
     default:
       return htmlTemplate;
   }
@@ -576,6 +590,418 @@ go 1.21`
   }
 ];
 
+const rustTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-rs',
+        name: 'main.rs',
+        type: 'file',
+        language: 'rust',
+        content: `// Welcome to Rust!
+// Memory safety without garbage collection
+
+fn main() {
+    println!("Hello, World!");
+    
+    // Ownership example
+    let s1 = String::from("hello");
+    let s2 = s1.clone();
+    println!("s1 = {}, s2 = {}", s1, s2);
+    
+    // Vector and iteration
+    let numbers = vec![1, 2, 3, 4, 5];
+    let sum: i32 = numbers.iter().sum();
+    println!("Sum: {}", sum);
+    
+    // Struct example
+    let greeter = Greeter::new("Rust Developer");
+    greeter.greet();
+}
+
+struct Greeter {
+    name: String,
+}
+
+impl Greeter {
+    fn new(name: &str) -> Self {
+        Greeter { name: name.to_string() }
+    }
+    
+    fn greet(&self) {
+        println!("Hello, {}!", self.name);
+    }
+}`
+      },
+      {
+        id: 'cargo-toml',
+        name: 'Cargo.toml',
+        type: 'file',
+        language: 'toml',
+        content: `[package]
+name = "my-repl"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]`
+      }
+    ]
+  }
+];
+
+const rubyTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-rb',
+        name: 'main.rb',
+        type: 'file',
+        language: 'ruby',
+        content: `# Welcome to Ruby!
+# A programmer's best friend
+
+def greet(name)
+  "Hello, #{name}!"
+end
+
+puts greet("World")
+
+# Array methods
+numbers = [1, 2, 3, 4, 5]
+squared = numbers.map { |n| n ** 2 }
+puts "Squared: #{squared}"
+
+# Class example
+class Greeter
+  def initialize(name)
+    @name = name
+  end
+  
+  def greet
+    puts "Hello, #{@name}!"
+  end
+end
+
+greeter = Greeter.new("Ruby Developer")
+greeter.greet
+
+# Block example
+3.times { |i| puts "Count: #{i + 1}" }`
+      },
+      {
+        id: 'gemfile',
+        name: 'Gemfile',
+        type: 'file',
+        language: 'ruby',
+        content: `source 'https://rubygems.org'
+
+# Add your gems here
+# gem 'rails'`
+      }
+    ]
+  }
+];
+
+const phpTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'index-php',
+        name: 'index.php',
+        type: 'file',
+        language: 'php',
+        content: `<?php
+// Welcome to PHP!
+// The web's favorite scripting language
+
+function greet($name) {
+    return "Hello, $name!";
+}
+
+echo greet("World") . "\\n";
+
+// Array example
+$numbers = [1, 2, 3, 4, 5];
+$doubled = array_map(fn($n) => $n * 2, $numbers);
+echo "Doubled: " . implode(", ", $doubled) . "\\n";
+
+// Class example
+class Greeter {
+    private string $name;
+    
+    public function __construct(string $name) {
+        $this->name = $name;
+    }
+    
+    public function greet(): void {
+        echo "Hello, {$this->name}!\\n";
+    }
+}
+
+$greeter = new Greeter("PHP Developer");
+$greeter->greet();
+
+// Associative array
+$user = [
+    "name" => "John",
+    "email" => "john@example.com",
+    "age" => 30
+];
+
+echo "User: {$user['name']} ({$user['email']})\\n";
+?>`
+      }
+    ]
+  }
+];
+
+const swiftTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-swift',
+        name: 'main.swift',
+        type: 'file',
+        language: 'swift',
+        content: `// Welcome to Swift!
+// Modern, safe, and fast
+
+import Foundation
+
+func greet(_ name: String) -> String {
+    return "Hello, \\(name)!"
+}
+
+print(greet("World"))
+
+// Array operations
+let numbers = [1, 2, 3, 4, 5]
+let doubled = numbers.map { $0 * 2 }
+print("Doubled: \\(doubled)")
+
+// Struct example
+struct Greeter {
+    let name: String
+    
+    func greet() {
+        print("Hello, \\(name)!")
+    }
+}
+
+let greeter = Greeter(name: "Swift Developer")
+greeter.greet()
+
+// Optional handling
+let optionalName: String? = "Swift"
+if let name = optionalName {
+    print("Optional value: \\(name)")
+}
+
+// Enum example
+enum Status {
+    case success
+    case failure(String)
+}
+
+let result: Status = .success
+switch result {
+case .success:
+    print("Operation succeeded!")
+case .failure(let message):
+    print("Failed: \\(message)")
+}`
+      }
+    ]
+  }
+];
+
+const kotlinTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-kt',
+        name: 'Main.kt',
+        type: 'file',
+        language: 'kotlin',
+        content: `// Welcome to Kotlin!
+// Concise, safe, and interoperable
+
+fun greet(name: String): String = "Hello, $name!"
+
+fun main() {
+    println(greet("World"))
+    
+    // List operations
+    val numbers = listOf(1, 2, 3, 4, 5)
+    val doubled = numbers.map { it * 2 }
+    println("Doubled: $doubled")
+    
+    // Data class
+    data class User(val name: String, val email: String)
+    val user = User("Kotlin Dev", "dev@example.com")
+    println("User: $user")
+    
+    // Class example
+    val greeter = Greeter("Kotlin Developer")
+    greeter.greet()
+    
+    // Null safety
+    val nullableName: String? = "Kotlin"
+    println("Length: \${nullableName?.length ?: 0}")
+    
+    // When expression
+    val x = 2
+    when (x) {
+        1 -> println("One")
+        2 -> println("Two")
+        else -> println("Other")
+    }
+}
+
+class Greeter(private val name: String) {
+    fun greet() {
+        println("Hello, $name!")
+    }
+}`
+      }
+    ]
+  }
+];
+
+const csharpTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-cs',
+        name: 'Main.cs',
+        type: 'file',
+        language: 'csharp',
+        content: `// Welcome to C#!
+// Versatile and powerful
+
+using System;
+using System.Linq;
+using System.Collections.Generic;
+
+class Program
+{
+    static void Main()
+    {
+        Console.WriteLine("Hello, World!");
+        
+        // LINQ example
+        var numbers = new List<int> { 1, 2, 3, 4, 5 };
+        var doubled = numbers.Select(n => n * 2).ToList();
+        Console.WriteLine($"Doubled: {string.Join(", ", doubled)}");
+        
+        // Class usage
+        var greeter = new Greeter("C# Developer");
+        greeter.Greet();
+        
+        // Record type (C# 9+)
+        var user = new User("John", "john@example.com");
+        Console.WriteLine($"User: {user}");
+    }
+}
+
+class Greeter
+{
+    private readonly string _name;
+    
+    public Greeter(string name)
+    {
+        _name = name;
+    }
+    
+    public void Greet()
+    {
+        Console.WriteLine($"Hello, {_name}!");
+    }
+}
+
+record User(string Name, string Email);`
+      }
+    ]
+  }
+];
+
+const bashTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'script-sh',
+        name: 'script.sh',
+        type: 'file',
+        language: 'bash',
+        content: `#!/bin/bash
+# Welcome to Bash!
+# The power of the command line
+
+echo "Hello, World!"
+
+# Variables
+NAME="Bash Developer"
+echo "Hello, $NAME!"
+
+# Function
+greet() {
+    local name=$1
+    echo "Greetings, $name!"
+}
+
+greet "Shell User"
+
+# Arrays
+numbers=(1 2 3 4 5)
+echo "Numbers: \${numbers[@]}"
+
+# Loop
+sum=0
+for num in "\${numbers[@]}"; do
+    sum=$((sum + num))
+done
+echo "Sum: $sum"
+
+# Conditional
+if [ $sum -gt 10 ]; then
+    echo "Sum is greater than 10"
+else
+    echo "Sum is 10 or less"
+fi
+
+# Command substitution
+current_date=$(date +%Y-%m-%d)
+echo "Today is: $current_date"
+
+# File operations (example)
+echo "Current directory: $(pwd)"
+echo "Files: $(ls -la 2>/dev/null | head -5)"`
+      }
+    ]
+  }
+];
+
 // Keep default as HTML template for backwards compatibility
 export const defaultFiles = htmlTemplate;
 
@@ -610,6 +1036,12 @@ export const getFileLanguage = (filename: string): string => {
     cpp: 'cpp',
     h: 'c',
     hpp: 'cpp',
+    php: 'php',
+    swift: 'swift',
+    kt: 'kotlin',
+    cs: 'csharp',
+    sh: 'bash',
+    toml: 'toml',
   };
   return languageMap[ext || ''] || 'text';
 };
