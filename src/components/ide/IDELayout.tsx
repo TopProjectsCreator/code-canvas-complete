@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { FileNode, Tab, TerminalLine, IDEState } from '@/types/ide';
+import { FileNode, Tab, TerminalLine } from '@/types/ide';
 import { defaultFiles, findFileById } from '@/data/defaultFiles';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
