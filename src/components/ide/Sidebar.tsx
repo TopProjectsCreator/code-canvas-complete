@@ -18,6 +18,7 @@ import { FileNode, GitState } from '@/types/ide';
 import { FileTree } from './FileTree';
 import { NewFileDialog } from './NewFileDialog';
 import { GitPanel } from './GitPanel';
+import { PackagePanel } from './PackagePanel';
 import { FileIcon } from './FileIcon';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
@@ -35,6 +36,7 @@ interface SidebarProps {
   onRenameFile: (fileId: string, newName: string) => void;
   onUploadFiles: (files: { name: string; content: string; language: string }[]) => void;
   activeFileId: string | null;
+  currentLanguage: string;
   gitState: GitState;
   onGitCommit: (message: string) => void;
   onGitStageFile: (fileId: string) => void;
@@ -55,6 +57,7 @@ export const Sidebar = ({
   onRenameFile, 
   onUploadFiles,
   activeFileId,
+  currentLanguage,
   gitState,
   onGitCommit,
   onGitStageFile,
@@ -372,15 +375,7 @@ export const Sidebar = ({
         )}
 
         {activeTab === 'packages' && (
-          <div className="p-3">
-            <button className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-              <Package className="w-4 h-4" />
-              Add Package
-            </button>
-            <p className="text-xs text-muted-foreground mt-4 text-center">
-              Manage your project dependencies
-            </p>
-          </div>
+          <PackagePanel files={files} currentLanguage={currentLanguage} />
         )}
 
         {activeTab === 'settings' && (
