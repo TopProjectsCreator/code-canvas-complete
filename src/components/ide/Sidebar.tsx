@@ -142,6 +142,7 @@ export const Sidebar = ({
 }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('files');
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
+  const [newFileType, setNewFileType] = useState<'file' | 'folder'>('file');
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -313,8 +314,8 @@ export const Sidebar = ({
                   <div className="absolute right-0 top-full mt-1 z-50 bg-popover border border-border rounded-md shadow-lg py-1 min-w-[140px]">
                     <button
                       onClick={() => {
-                        const rootFolder = files[0];
-                        onCreateFile(rootFolder?.id || null, 'untitled.js', 'file');
+                        setNewFileType('file');
+                        setShowNewFileDialog(true);
                         setShowNewMenu(false);
                       }}
                       className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
@@ -323,8 +324,8 @@ export const Sidebar = ({
                     </button>
                     <button
                       onClick={() => {
-                        const rootFolder = files[0];
-                        onCreateFile(rootFolder?.id || null, 'new-folder', 'folder');
+                        setNewFileType('folder');
+                        setShowNewFileDialog(true);
                         setShowNewMenu(false);
                       }}
                       className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
@@ -472,6 +473,7 @@ export const Sidebar = ({
         isOpen={showNewFileDialog}
         onClose={() => setShowNewFileDialog(false)}
         onSubmit={handleNewFile}
+        defaultType={newFileType}
       />
     </div>
   );
