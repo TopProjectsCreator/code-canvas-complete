@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, File, Folder } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -7,12 +7,20 @@ interface NewFileDialogProps {
   onClose: () => void;
   onSubmit: (name: string, type: 'file' | 'folder') => void;
   parentFolder?: string;
+  defaultType?: 'file' | 'folder';
 }
 
-export const NewFileDialog = ({ isOpen, onClose, onSubmit, parentFolder }: NewFileDialogProps) => {
+export const NewFileDialog = ({ isOpen, onClose, onSubmit, parentFolder, defaultType = 'file' }: NewFileDialogProps) => {
   const [name, setName] = useState('');
-  const [type, setType] = useState<'file' | 'folder'>('file');
+  const [type, setType] = useState<'file' | 'folder'>(defaultType);
   const [error, setError] = useState('');
+
+  // Reset type when dialog opens with a new defaultType
+  useEffect(() => {
+    if (isOpen) {
+      setType(defaultType);
+    }
+  }, [isOpen, defaultType]);
 
   if (!isOpen) return null;
 
