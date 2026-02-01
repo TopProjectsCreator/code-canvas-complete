@@ -25,7 +25,35 @@ import {
   Cog,
   Lock,
   GitBranch,
-  FileArchive
+  FileArchive,
+  Globe,
+  Palette,
+  Smartphone,
+  Server,
+  Shield,
+  Key,
+  BookOpen,
+  FileWarning,
+  FileCog,
+  FileCheck,
+  FileX,
+  Puzzle,
+  TestTube,
+  Bug,
+  Rocket,
+  Zap,
+  Heart,
+  Star,
+  MessageSquare,
+  FileImage,
+  FileVideo,
+  FileAudio,
+  Binary,
+  Cpu,
+  Cloud,
+  Container,
+  Workflow,
+  ScrollText
 } from 'lucide-react';
 
 interface FileIconProps {
@@ -37,48 +65,84 @@ interface FileIconProps {
 
 export const FileIcon = ({ name, type, isOpen = false, className = '' }: FileIconProps) => {
   if (type === 'folder') {
-    // Special folder icons
     const folderName = name.toLowerCase();
-    if (folderName === 'node_modules') {
-      return isOpen ? (
-        <FolderOpen className={`w-4 h-4 text-green-600 ${className}`} />
-      ) : (
-        <Folder className={`w-4 h-4 text-green-600 ${className}`} />
-      );
-    }
-    if (folderName === 'src' || folderName === 'source') {
-      return isOpen ? (
-        <FolderOpen className={`w-4 h-4 text-blue-400 ${className}`} />
-      ) : (
-        <Folder className={`w-4 h-4 text-blue-400 ${className}`} />
-      );
-    }
-    if (folderName === 'public' || folderName === 'assets' || folderName === 'static') {
-      return isOpen ? (
-        <FolderOpen className={`w-4 h-4 text-yellow-400 ${className}`} />
-      ) : (
-        <Folder className={`w-4 h-4 text-yellow-400 ${className}`} />
-      );
-    }
-    if (folderName === 'components') {
-      return isOpen ? (
-        <FolderOpen className={`w-4 h-4 text-purple-400 ${className}`} />
-      ) : (
-        <Folder className={`w-4 h-4 text-purple-400 ${className}`} />
-      );
-    }
-    if (folderName === 'test' || folderName === 'tests' || folderName === '__tests__') {
-      return isOpen ? (
-        <FolderOpen className={`w-4 h-4 text-orange-400 ${className}`} />
-      ) : (
-        <Folder className={`w-4 h-4 text-orange-400 ${className}`} />
-      );
-    }
+    
+    // Special folder colors
+    const folderColors: Record<string, string> = {
+      'node_modules': 'text-green-600',
+      'src': 'text-blue-400',
+      'source': 'text-blue-400',
+      'lib': 'text-blue-400',
+      'public': 'text-yellow-400',
+      'assets': 'text-yellow-400',
+      'static': 'text-yellow-400',
+      'images': 'text-purple-400',
+      'img': 'text-purple-400',
+      'components': 'text-purple-400',
+      'pages': 'text-cyan-400',
+      'views': 'text-cyan-400',
+      'layouts': 'text-cyan-400',
+      'test': 'text-orange-400',
+      'tests': 'text-orange-400',
+      '__tests__': 'text-orange-400',
+      'spec': 'text-orange-400',
+      'hooks': 'text-pink-400',
+      'utils': 'text-gray-400',
+      'helpers': 'text-gray-400',
+      'services': 'text-green-400',
+      'api': 'text-green-400',
+      'styles': 'text-pink-400',
+      'css': 'text-blue-400',
+      'config': 'text-gray-500',
+      'configs': 'text-gray-500',
+      'dist': 'text-yellow-600',
+      'build': 'text-yellow-600',
+      'out': 'text-yellow-600',
+      '.git': 'text-orange-500',
+      '.github': 'text-gray-400',
+      '.vscode': 'text-blue-500',
+      'types': 'text-blue-400',
+      '@types': 'text-blue-400',
+      'models': 'text-red-400',
+      'schemas': 'text-red-400',
+      'migrations': 'text-amber-500',
+      'docs': 'text-blue-300',
+      'documentation': 'text-blue-300',
+      'scripts': 'text-green-500',
+      'bin': 'text-green-500',
+      'vendor': 'text-gray-500',
+      'packages': 'text-purple-500',
+      'modules': 'text-purple-500',
+      'plugins': 'text-indigo-400',
+      'extensions': 'text-indigo-400',
+      'middleware': 'text-amber-400',
+      'controllers': 'text-red-400',
+      'routes': 'text-green-400',
+      'store': 'text-purple-500',
+      'redux': 'text-purple-500',
+      'context': 'text-purple-400',
+      'contexts': 'text-purple-400',
+      'features': 'text-cyan-500',
+      'app': 'text-blue-500',
+      'core': 'text-red-500',
+      'shared': 'text-teal-400',
+      'common': 'text-teal-400',
+      'i18n': 'text-green-400',
+      'locales': 'text-green-400',
+      'translations': 'text-green-400',
+      'fonts': 'text-pink-300',
+      'icons': 'text-yellow-400',
+      'supabase': 'text-emerald-400',
+      'prisma': 'text-indigo-500',
+      'graphql': 'text-pink-500',
+    };
+    
+    const color = folderColors[folderName] || 'text-file-folder';
     
     return isOpen ? (
-      <FolderOpen className={`w-4 h-4 text-file-folder ${className}`} />
+      <FolderOpen className={`w-4 h-4 ${color} ${className}`} />
     ) : (
-      <Folder className={`w-4 h-4 text-file-folder ${className}`} />
+      <Folder className={`w-4 h-4 ${color} ${className}`} />
     );
   }
 
@@ -86,202 +150,411 @@ export const FileIcon = ({ name, type, isOpen = false, className = '' }: FileIco
   const fileName = name.toLowerCase();
 
   // Special filenames
-  if (fileName === 'dockerfile') {
-    return <Box className={`w-4 h-4 text-cyan-400 ${className}`} />;
-  }
-  if (fileName === '.gitignore' || fileName === '.gitattributes') {
-    return <GitBranch className={`w-4 h-4 text-orange-500 ${className}`} />;
-  }
-  if (fileName === '.env' || fileName.startsWith('.env.')) {
-    return <Lock className={`w-4 h-4 text-yellow-500 ${className}`} />;
-  }
-  if (fileName === 'package.json') {
-    return <Box className={`w-4 h-4 text-green-500 ${className}`} />;
-  }
-  if (fileName === 'tsconfig.json') {
-    return <Cog className={`w-4 h-4 text-blue-400 ${className}`} />;
-  }
-  if (fileName === 'vite.config.ts' || fileName === 'vite.config.js') {
-    return <Flame className={`w-4 h-4 text-purple-400 ${className}`} />;
-  }
-  if (fileName === 'tailwind.config.ts' || fileName === 'tailwind.config.js') {
-    return <Leaf className={`w-4 h-4 text-cyan-400 ${className}`} />;
+  const specialFiles: Record<string, { icon: React.ElementType; color: string }> = {
+    'dockerfile': { icon: Container, color: 'text-cyan-400' },
+    'docker-compose.yml': { icon: Container, color: 'text-cyan-400' },
+    'docker-compose.yaml': { icon: Container, color: 'text-cyan-400' },
+    '.dockerignore': { icon: Container, color: 'text-cyan-500' },
+    '.gitignore': { icon: GitBranch, color: 'text-orange-500' },
+    '.gitattributes': { icon: GitBranch, color: 'text-orange-500' },
+    '.gitmodules': { icon: GitBranch, color: 'text-orange-500' },
+    '.env': { icon: Lock, color: 'text-yellow-500' },
+    '.env.local': { icon: Lock, color: 'text-yellow-500' },
+    '.env.development': { icon: Lock, color: 'text-green-500' },
+    '.env.production': { icon: Lock, color: 'text-red-500' },
+    '.env.test': { icon: Lock, color: 'text-orange-500' },
+    '.env.example': { icon: Key, color: 'text-gray-400' },
+    'package.json': { icon: Box, color: 'text-green-500' },
+    'package-lock.json': { icon: Lock, color: 'text-yellow-600' },
+    'yarn.lock': { icon: Lock, color: 'text-blue-400' },
+    'pnpm-lock.yaml': { icon: Lock, color: 'text-orange-400' },
+    'bun.lockb': { icon: Lock, color: 'text-amber-400' },
+    'tsconfig.json': { icon: Cog, color: 'text-blue-400' },
+    'jsconfig.json': { icon: Cog, color: 'text-yellow-400' },
+    'vite.config.ts': { icon: Flame, color: 'text-purple-400' },
+    'vite.config.js': { icon: Flame, color: 'text-purple-400' },
+    'vitest.config.ts': { icon: TestTube, color: 'text-green-400' },
+    'vitest.config.js': { icon: TestTube, color: 'text-green-400' },
+    'jest.config.js': { icon: TestTube, color: 'text-red-400' },
+    'jest.config.ts': { icon: TestTube, color: 'text-red-400' },
+    'tailwind.config.ts': { icon: Leaf, color: 'text-cyan-400' },
+    'tailwind.config.js': { icon: Leaf, color: 'text-cyan-400' },
+    'postcss.config.js': { icon: Palette, color: 'text-red-400' },
+    'postcss.config.cjs': { icon: Palette, color: 'text-red-400' },
+    'webpack.config.js': { icon: Box, color: 'text-blue-400' },
+    'rollup.config.js': { icon: Workflow, color: 'text-red-400' },
+    'esbuild.config.js': { icon: Zap, color: 'text-yellow-400' },
+    '.eslintrc': { icon: FileCheck, color: 'text-purple-400' },
+    '.eslintrc.js': { icon: FileCheck, color: 'text-purple-400' },
+    '.eslintrc.json': { icon: FileCheck, color: 'text-purple-400' },
+    'eslint.config.js': { icon: FileCheck, color: 'text-purple-400' },
+    '.prettierrc': { icon: Palette, color: 'text-pink-400' },
+    '.prettierrc.js': { icon: Palette, color: 'text-pink-400' },
+    '.prettierrc.json': { icon: Palette, color: 'text-pink-400' },
+    'prettier.config.js': { icon: Palette, color: 'text-pink-400' },
+    '.editorconfig': { icon: FileCog, color: 'text-gray-400' },
+    'readme.md': { icon: BookOpen, color: 'text-blue-300' },
+    'readme': { icon: BookOpen, color: 'text-blue-300' },
+    'license': { icon: ScrollText, color: 'text-yellow-400' },
+    'license.md': { icon: ScrollText, color: 'text-yellow-400' },
+    'license.txt': { icon: ScrollText, color: 'text-yellow-400' },
+    'changelog.md': { icon: ScrollText, color: 'text-green-400' },
+    'contributing.md': { icon: Heart, color: 'text-pink-400' },
+    'code_of_conduct.md': { icon: Shield, color: 'text-blue-400' },
+    'security.md': { icon: Shield, color: 'text-red-400' },
+    '.npmrc': { icon: Box, color: 'text-red-400' },
+    '.nvmrc': { icon: Server, color: 'text-green-400' },
+    '.node-version': { icon: Server, color: 'text-green-400' },
+    'vercel.json': { icon: Cloud, color: 'text-gray-300' },
+    'netlify.toml': { icon: Cloud, color: 'text-teal-400' },
+    'fly.toml': { icon: Rocket, color: 'text-purple-400' },
+    'railway.json': { icon: Rocket, color: 'text-purple-500' },
+    '.babelrc': { icon: Cog, color: 'text-yellow-400' },
+    'babel.config.js': { icon: Cog, color: 'text-yellow-400' },
+    'next.config.js': { icon: Globe, color: 'text-gray-300' },
+    'next.config.mjs': { icon: Globe, color: 'text-gray-300' },
+    'nuxt.config.ts': { icon: Globe, color: 'text-green-400' },
+    'astro.config.mjs': { icon: Star, color: 'text-orange-400' },
+    'remix.config.js': { icon: Zap, color: 'text-blue-400' },
+    'svelte.config.js': { icon: Flame, color: 'text-orange-500' },
+    'angular.json': { icon: Shield, color: 'text-red-500' },
+    'tsconfig.node.json': { icon: Cog, color: 'text-green-400' },
+    'tsconfig.app.json': { icon: Cog, color: 'text-blue-400' },
+    'components.json': { icon: Puzzle, color: 'text-gray-300' },
+    '.husky': { icon: Bug, color: 'text-gray-400' },
+    'commitlint.config.js': { icon: MessageSquare, color: 'text-green-400' },
+    '.commitlintrc': { icon: MessageSquare, color: 'text-green-400' },
+    'turbo.json': { icon: Zap, color: 'text-pink-500' },
+    'lerna.json': { icon: Workflow, color: 'text-purple-400' },
+    'nx.json': { icon: Zap, color: 'text-blue-500' },
+    'plopfile.js': { icon: Puzzle, color: 'text-blue-400' },
+    'makefile': { icon: Terminal, color: 'text-orange-400' },
+    'cmakelists.txt': { icon: Cog, color: 'text-blue-400' },
+    'cargo.toml': { icon: Box, color: 'text-orange-600' },
+    'cargo.lock': { icon: Lock, color: 'text-orange-600' },
+    'go.mod': { icon: Box, color: 'text-cyan-500' },
+    'go.sum': { icon: Lock, color: 'text-cyan-500' },
+    'gemfile': { icon: Gem, color: 'text-red-500' },
+    'gemfile.lock': { icon: Lock, color: 'text-red-500' },
+    'requirements.txt': { icon: FileText, color: 'text-yellow-400' },
+    'pyproject.toml': { icon: Box, color: 'text-blue-400' },
+    'poetry.lock': { icon: Lock, color: 'text-blue-400' },
+    'pipfile': { icon: Box, color: 'text-green-400' },
+    'pipfile.lock': { icon: Lock, color: 'text-green-400' },
+    'setup.py': { icon: Cog, color: 'text-yellow-400' },
+    'setup.cfg': { icon: Cog, color: 'text-yellow-400' },
+    'manifest.json': { icon: Smartphone, color: 'text-blue-400' },
+    'app.json': { icon: Smartphone, color: 'text-blue-400' },
+    'robots.txt': { icon: Cpu, color: 'text-gray-400' },
+    'sitemap.xml': { icon: Globe, color: 'text-green-400' },
+    'humans.txt': { icon: Heart, color: 'text-pink-400' },
+    'favicon.ico': { icon: Star, color: 'text-yellow-400' },
+    '.htaccess': { icon: Server, color: 'text-green-500' },
+    'nginx.conf': { icon: Server, color: 'text-green-500' },
+    'procfile': { icon: Server, color: 'text-purple-500' },
+    'prisma.schema': { icon: Database, color: 'text-indigo-500' },
+    'schema.prisma': { icon: Database, color: 'text-indigo-500' },
+  };
+
+  const special = specialFiles[fileName];
+  if (special) {
+    const IconComponent = special.icon;
+    return <IconComponent className={`w-4 h-4 ${special.color} ${className}`} />;
   }
 
-  switch (ext) {
+  // Check for .env.* pattern
+  if (fileName.startsWith('.env.')) {
+    return <Lock className={`w-4 h-4 text-yellow-500 ${className}`} />;
+  }
+
+  // Extensions
+  const extIcons: Record<string, { icon: React.ElementType; color: string }> = {
     // Web
-    case 'html':
-    case 'htm':
-      return <FileCode className={`w-4 h-4 text-orange-500 ${className}`} />;
-    case 'css':
-      return <FileType className={`w-4 h-4 text-blue-500 ${className}`} />;
-    case 'scss':
-    case 'sass':
-      return <FileType className={`w-4 h-4 text-pink-400 ${className}`} />;
-    case 'less':
-      return <FileType className={`w-4 h-4 text-indigo-400 ${className}`} />;
+    'html': { icon: Globe, color: 'text-orange-500' },
+    'htm': { icon: Globe, color: 'text-orange-500' },
+    'css': { icon: Palette, color: 'text-blue-500' },
+    'scss': { icon: Palette, color: 'text-pink-400' },
+    'sass': { icon: Palette, color: 'text-pink-400' },
+    'less': { icon: Palette, color: 'text-indigo-400' },
+    'styl': { icon: Palette, color: 'text-green-400' },
     
     // JavaScript/TypeScript
-    case 'js':
-      return <Code2 className={`w-4 h-4 text-yellow-400 ${className}`} />;
-    case 'jsx':
-      return <Code2 className={`w-4 h-4 text-cyan-400 ${className}`} />;
-    case 'ts':
-      return <Code2 className={`w-4 h-4 text-blue-500 ${className}`} />;
-    case 'tsx':
-      return <Code2 className={`w-4 h-4 text-blue-400 ${className}`} />;
-    case 'mjs':
-    case 'cjs':
-      return <Code2 className={`w-4 h-4 text-yellow-500 ${className}`} />;
+    'js': { icon: Code2, color: 'text-yellow-400' },
+    'jsx': { icon: Code2, color: 'text-cyan-400' },
+    'ts': { icon: Code2, color: 'text-blue-500' },
+    'tsx': { icon: Code2, color: 'text-blue-400' },
+    'mjs': { icon: Code2, color: 'text-yellow-500' },
+    'cjs': { icon: Code2, color: 'text-yellow-500' },
+    'd.ts': { icon: FileCode2, color: 'text-blue-300' },
     
     // Data formats
-    case 'json':
-      return <Braces className={`w-4 h-4 text-yellow-300 ${className}`} />;
-    case 'yaml':
-    case 'yml':
-      return <FileCode2 className={`w-4 h-4 text-red-400 ${className}`} />;
-    case 'xml':
-      return <FileCode className={`w-4 h-4 text-orange-400 ${className}`} />;
-    case 'toml':
-      return <FileCode2 className={`w-4 h-4 text-gray-400 ${className}`} />;
-    case 'csv':
-      return <FileSpreadsheet className={`w-4 h-4 text-green-400 ${className}`} />;
+    'json': { icon: Braces, color: 'text-yellow-300' },
+    'json5': { icon: Braces, color: 'text-yellow-400' },
+    'jsonc': { icon: Braces, color: 'text-yellow-400' },
+    'yaml': { icon: FileCode2, color: 'text-red-400' },
+    'yml': { icon: FileCode2, color: 'text-red-400' },
+    'xml': { icon: FileCode, color: 'text-orange-400' },
+    'toml': { icon: FileCode2, color: 'text-gray-400' },
+    'csv': { icon: FileSpreadsheet, color: 'text-green-400' },
+    'tsv': { icon: FileSpreadsheet, color: 'text-green-500' },
+    'xls': { icon: FileSpreadsheet, color: 'text-green-600' },
+    'xlsx': { icon: FileSpreadsheet, color: 'text-green-600' },
+    'ods': { icon: FileSpreadsheet, color: 'text-green-500' },
     
     // Documentation
-    case 'md':
-    case 'markdown':
-      return <FileText className={`w-4 h-4 text-blue-300 ${className}`} />;
-    case 'txt':
-      return <FileText className={`w-4 h-4 text-muted-foreground ${className}`} />;
-    case 'pdf':
-      return <FileText className={`w-4 h-4 text-red-500 ${className}`} />;
+    'md': { icon: BookOpen, color: 'text-blue-300' },
+    'markdown': { icon: BookOpen, color: 'text-blue-300' },
+    'mdx': { icon: BookOpen, color: 'text-yellow-400' },
+    'txt': { icon: FileText, color: 'text-muted-foreground' },
+    'rtf': { icon: FileText, color: 'text-blue-400' },
+    'pdf': { icon: FileText, color: 'text-red-500' },
+    'doc': { icon: FileText, color: 'text-blue-500' },
+    'docx': { icon: FileText, color: 'text-blue-500' },
+    'odt': { icon: FileText, color: 'text-blue-400' },
+    'tex': { icon: FileText, color: 'text-green-500' },
+    'latex': { icon: FileText, color: 'text-green-500' },
+    'rst': { icon: FileText, color: 'text-gray-400' },
+    'adoc': { icon: FileText, color: 'text-red-400' },
+    'org': { icon: FileText, color: 'text-teal-400' },
     
     // Programming languages
-    case 'py':
-      return <Code2 className={`w-4 h-4 text-yellow-400 ${className}`} />;
-    case 'rb':
-      return <Gem className={`w-4 h-4 text-red-500 ${className}`} />;
-    case 'go':
-      return <Code2 className={`w-4 h-4 text-cyan-500 ${className}`} />;
-    case 'rs':
-      return <Cog className={`w-4 h-4 text-orange-600 ${className}`} />;
-    case 'java':
-      return <Coffee className={`w-4 h-4 text-red-400 ${className}`} />;
-    case 'kt':
-    case 'kts':
-      return <Code2 className={`w-4 h-4 text-purple-500 ${className}`} />;
-    case 'swift':
-      return <Code2 className={`w-4 h-4 text-orange-500 ${className}`} />;
-    case 'c':
-      return <Hash className={`w-4 h-4 text-blue-400 ${className}`} />;
-    case 'cpp':
-    case 'cc':
-    case 'cxx':
-      return <Hash className={`w-4 h-4 text-blue-500 ${className}`} />;
-    case 'h':
-    case 'hpp':
-      return <Hash className={`w-4 h-4 text-purple-400 ${className}`} />;
-    case 'cs':
-      return <Hash className={`w-4 h-4 text-green-500 ${className}`} />;
-    case 'php':
-      return <Code2 className={`w-4 h-4 text-indigo-400 ${className}`} />;
-    case 'lua':
-      return <Code2 className={`w-4 h-4 text-blue-600 ${className}`} />;
-    case 'r':
-      return <Code2 className={`w-4 h-4 text-blue-400 ${className}`} />;
-    case 'scala':
-      return <Code2 className={`w-4 h-4 text-red-500 ${className}`} />;
-    case 'hs':
-      return <Code2 className={`w-4 h-4 text-purple-500 ${className}`} />;
-    case 'ex':
-    case 'exs':
-      return <Code2 className={`w-4 h-4 text-purple-400 ${className}`} />;
-    case 'erl':
-      return <Code2 className={`w-4 h-4 text-red-400 ${className}`} />;
-    case 'pl':
-      return <Code2 className={`w-4 h-4 text-blue-300 ${className}`} />;
-    case 'dart':
-      return <Code2 className={`w-4 h-4 text-cyan-400 ${className}`} />;
-    case 'zig':
-      return <Code2 className={`w-4 h-4 text-orange-400 ${className}`} />;
-    case 'nim':
-      return <Code2 className={`w-4 h-4 text-yellow-500 ${className}`} />;
-    case 'julia':
-    case 'jl':
-      return <Code2 className={`w-4 h-4 text-purple-500 ${className}`} />;
+    'py': { icon: Code2, color: 'text-yellow-400' },
+    'pyw': { icon: Code2, color: 'text-yellow-400' },
+    'pyx': { icon: Code2, color: 'text-yellow-500' },
+    'pyi': { icon: Code2, color: 'text-yellow-300' },
+    'rb': { icon: Gem, color: 'text-red-500' },
+    'erb': { icon: Gem, color: 'text-red-400' },
+    'rake': { icon: Gem, color: 'text-red-500' },
+    'go': { icon: Code2, color: 'text-cyan-500' },
+    'rs': { icon: Cog, color: 'text-orange-600' },
+    'java': { icon: Coffee, color: 'text-red-400' },
+    'jar': { icon: Coffee, color: 'text-red-500' },
+    'class': { icon: Coffee, color: 'text-red-300' },
+    'kt': { icon: Code2, color: 'text-purple-500' },
+    'kts': { icon: Code2, color: 'text-purple-500' },
+    'swift': { icon: Code2, color: 'text-orange-500' },
+    'c': { icon: Hash, color: 'text-blue-400' },
+    'cpp': { icon: Hash, color: 'text-blue-500' },
+    'cc': { icon: Hash, color: 'text-blue-500' },
+    'cxx': { icon: Hash, color: 'text-blue-500' },
+    'h': { icon: Hash, color: 'text-purple-400' },
+    'hpp': { icon: Hash, color: 'text-purple-400' },
+    'hxx': { icon: Hash, color: 'text-purple-400' },
+    'cs': { icon: Hash, color: 'text-green-500' },
+    'fs': { icon: Code2, color: 'text-cyan-400' },
+    'fsx': { icon: Code2, color: 'text-cyan-400' },
+    'vb': { icon: Code2, color: 'text-purple-400' },
+    'php': { icon: Code2, color: 'text-indigo-400' },
+    'phtml': { icon: Code2, color: 'text-indigo-400' },
+    'lua': { icon: Code2, color: 'text-blue-600' },
+    'r': { icon: Code2, color: 'text-blue-400' },
+    'rmd': { icon: Code2, color: 'text-blue-400' },
+    'scala': { icon: Code2, color: 'text-red-500' },
+    'sbt': { icon: Code2, color: 'text-red-400' },
+    'hs': { icon: Code2, color: 'text-purple-500' },
+    'lhs': { icon: Code2, color: 'text-purple-500' },
+    'ex': { icon: Code2, color: 'text-purple-400' },
+    'exs': { icon: Code2, color: 'text-purple-400' },
+    'eex': { icon: Code2, color: 'text-purple-400' },
+    'heex': { icon: Code2, color: 'text-purple-400' },
+    'erl': { icon: Code2, color: 'text-red-400' },
+    'hrl': { icon: Code2, color: 'text-red-400' },
+    'pl': { icon: Code2, color: 'text-blue-300' },
+    'pm': { icon: Code2, color: 'text-blue-300' },
+    'dart': { icon: Code2, color: 'text-cyan-400' },
+    'zig': { icon: Code2, color: 'text-orange-400' },
+    'nim': { icon: Code2, color: 'text-yellow-500' },
+    'jl': { icon: Code2, color: 'text-purple-500' },
+    'clj': { icon: Code2, color: 'text-green-500' },
+    'cljs': { icon: Code2, color: 'text-green-400' },
+    'cljc': { icon: Code2, color: 'text-green-500' },
+    'ml': { icon: Code2, color: 'text-orange-400' },
+    'mli': { icon: Code2, color: 'text-orange-400' },
+    'elm': { icon: Code2, color: 'text-cyan-500' },
+    'rkt': { icon: Code2, color: 'text-red-400' },
+    'lisp': { icon: Code2, color: 'text-gray-400' },
+    'scm': { icon: Code2, color: 'text-gray-400' },
+    'groovy': { icon: Code2, color: 'text-blue-400' },
+    'gradle': { icon: Code2, color: 'text-green-500' },
+    'v': { icon: Code2, color: 'text-blue-400' },
+    'vala': { icon: Code2, color: 'text-purple-400' },
+    'cr': { icon: Code2, color: 'text-gray-300' },
+    'hack': { icon: Code2, color: 'text-orange-400' },
+    'purs': { icon: Code2, color: 'text-gray-300' },
+    'd': { icon: Code2, color: 'text-red-400' },
+    'pas': { icon: Code2, color: 'text-blue-400' },
+    'pp': { icon: Code2, color: 'text-blue-400' },
+    'f': { icon: Code2, color: 'text-purple-400' },
+    'f90': { icon: Code2, color: 'text-purple-400' },
+    'f95': { icon: Code2, color: 'text-purple-400' },
+    'cob': { icon: Code2, color: 'text-blue-500' },
+    'cobol': { icon: Code2, color: 'text-blue-500' },
+    'asm': { icon: Binary, color: 'text-gray-400' },
+    's': { icon: Binary, color: 'text-gray-400' },
+    'wasm': { icon: Binary, color: 'text-purple-500' },
+    'wat': { icon: Binary, color: 'text-purple-400' },
     
     // Shell/Scripts
-    case 'sh':
-    case 'bash':
-    case 'zsh':
-    case 'fish':
-      return <Terminal className={`w-4 h-4 text-green-400 ${className}`} />;
-    case 'ps1':
-    case 'bat':
-    case 'cmd':
-      return <Terminal className={`w-4 h-4 text-blue-400 ${className}`} />;
+    'sh': { icon: Terminal, color: 'text-green-400' },
+    'bash': { icon: Terminal, color: 'text-green-400' },
+    'zsh': { icon: Terminal, color: 'text-green-400' },
+    'fish': { icon: Terminal, color: 'text-green-400' },
+    'ksh': { icon: Terminal, color: 'text-green-400' },
+    'csh': { icon: Terminal, color: 'text-green-400' },
+    'ps1': { icon: Terminal, color: 'text-blue-400' },
+    'psm1': { icon: Terminal, color: 'text-blue-400' },
+    'bat': { icon: Terminal, color: 'text-green-500' },
+    'cmd': { icon: Terminal, color: 'text-green-500' },
+    'awk': { icon: Terminal, color: 'text-orange-400' },
+    'sed': { icon: Terminal, color: 'text-orange-400' },
     
     // Database
-    case 'sql':
-      return <Database className={`w-4 h-4 text-yellow-500 ${className}`} />;
-    case 'db':
-    case 'sqlite':
-      return <Database className={`w-4 h-4 text-blue-400 ${className}`} />;
+    'sql': { icon: Database, color: 'text-yellow-500' },
+    'mysql': { icon: Database, color: 'text-blue-400' },
+    'pgsql': { icon: Database, color: 'text-blue-500' },
+    'plsql': { icon: Database, color: 'text-red-400' },
+    'db': { icon: Database, color: 'text-blue-400' },
+    'sqlite': { icon: Database, color: 'text-blue-400' },
+    'sqlite3': { icon: Database, color: 'text-blue-400' },
+    'mdb': { icon: Database, color: 'text-red-400' },
+    'graphql': { icon: Braces, color: 'text-pink-500' },
+    'gql': { icon: Braces, color: 'text-pink-500' },
+    'prisma': { icon: Database, color: 'text-indigo-500' },
     
     // Config
-    case 'config':
-    case 'conf':
-    case 'ini':
-      return <Settings className={`w-4 h-4 text-gray-400 ${className}`} />;
-    case 'lock':
-      return <Lock className={`w-4 h-4 text-yellow-600 ${className}`} />;
+    'config': { icon: Settings, color: 'text-gray-400' },
+    'conf': { icon: Settings, color: 'text-gray-400' },
+    'cfg': { icon: Settings, color: 'text-gray-400' },
+    'ini': { icon: Settings, color: 'text-gray-400' },
+    'properties': { icon: Settings, color: 'text-gray-400' },
+    'env': { icon: Lock, color: 'text-yellow-500' },
+    'lock': { icon: Lock, color: 'text-yellow-600' },
+    'log': { icon: ScrollText, color: 'text-gray-400' },
     
     // Media - Images
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-    case 'webp':
-    case 'ico':
-    case 'bmp':
-    case 'tiff':
-      return <Image className={`w-4 h-4 text-purple-400 ${className}`} />;
-    case 'svg':
-      return <Image className={`w-4 h-4 text-orange-400 ${className}`} />;
+    'png': { icon: FileImage, color: 'text-purple-400' },
+    'jpg': { icon: FileImage, color: 'text-purple-400' },
+    'jpeg': { icon: FileImage, color: 'text-purple-400' },
+    'gif': { icon: FileImage, color: 'text-purple-400' },
+    'webp': { icon: FileImage, color: 'text-purple-400' },
+    'ico': { icon: FileImage, color: 'text-yellow-400' },
+    'bmp': { icon: FileImage, color: 'text-purple-400' },
+    'tiff': { icon: FileImage, color: 'text-purple-400' },
+    'tif': { icon: FileImage, color: 'text-purple-400' },
+    'heic': { icon: FileImage, color: 'text-purple-400' },
+    'heif': { icon: FileImage, color: 'text-purple-400' },
+    'avif': { icon: FileImage, color: 'text-purple-400' },
+    'raw': { icon: FileImage, color: 'text-gray-400' },
+    'psd': { icon: FileImage, color: 'text-blue-500' },
+    'ai': { icon: FileImage, color: 'text-orange-400' },
+    'sketch': { icon: FileImage, color: 'text-yellow-400' },
+    'fig': { icon: FileImage, color: 'text-purple-500' },
+    'xd': { icon: FileImage, color: 'text-pink-500' },
+    'svg': { icon: Image, color: 'text-orange-400' },
     
     // Media - Video
-    case 'mp4':
-    case 'webm':
-    case 'mov':
-    case 'avi':
-    case 'mkv':
-    case 'ogv':
-      return <Video className={`w-4 h-4 text-pink-400 ${className}`} />;
+    'mp4': { icon: FileVideo, color: 'text-pink-400' },
+    'webm': { icon: FileVideo, color: 'text-pink-400' },
+    'mov': { icon: FileVideo, color: 'text-pink-400' },
+    'avi': { icon: FileVideo, color: 'text-pink-400' },
+    'mkv': { icon: FileVideo, color: 'text-pink-400' },
+    'ogv': { icon: FileVideo, color: 'text-pink-400' },
+    'wmv': { icon: FileVideo, color: 'text-pink-400' },
+    'flv': { icon: FileVideo, color: 'text-pink-400' },
+    'm4v': { icon: FileVideo, color: 'text-pink-400' },
+    '3gp': { icon: FileVideo, color: 'text-pink-400' },
     
     // Media - Audio
-    case 'mp3':
-    case 'wav':
-    case 'ogg':
-    case 'flac':
-    case 'aac':
-    case 'm4a':
-      return <Music className={`w-4 h-4 text-green-400 ${className}`} />;
+    'mp3': { icon: FileAudio, color: 'text-green-400' },
+    'wav': { icon: FileAudio, color: 'text-green-400' },
+    'ogg': { icon: FileAudio, color: 'text-green-400' },
+    'flac': { icon: FileAudio, color: 'text-green-400' },
+    'aac': { icon: FileAudio, color: 'text-green-400' },
+    'm4a': { icon: FileAudio, color: 'text-green-400' },
+    'wma': { icon: FileAudio, color: 'text-green-400' },
+    'aiff': { icon: FileAudio, color: 'text-green-400' },
+    'mid': { icon: FileAudio, color: 'text-green-400' },
+    'midi': { icon: FileAudio, color: 'text-green-400' },
     
     // Archives
-    case 'zip':
-    case 'tar':
-    case 'gz':
-    case 'rar':
-    case '7z':
-      return <FileArchive className={`w-4 h-4 text-yellow-600 ${className}`} />;
+    'zip': { icon: FileArchive, color: 'text-yellow-600' },
+    'tar': { icon: FileArchive, color: 'text-yellow-600' },
+    'gz': { icon: FileArchive, color: 'text-yellow-600' },
+    'tgz': { icon: FileArchive, color: 'text-yellow-600' },
+    'bz2': { icon: FileArchive, color: 'text-yellow-600' },
+    'xz': { icon: FileArchive, color: 'text-yellow-600' },
+    'rar': { icon: FileArchive, color: 'text-purple-500' },
+    '7z': { icon: FileArchive, color: 'text-green-500' },
+    'dmg': { icon: FileArchive, color: 'text-gray-400' },
+    'iso': { icon: FileArchive, color: 'text-gray-400' },
     
-    // Frameworks
-    case 'vue':
-      return <Code2 className={`w-4 h-4 text-green-500 ${className}`} />;
-    case 'svelte':
-      return <Code2 className={`w-4 h-4 text-orange-500 ${className}`} />;
+    // Frameworks/Templates
+    'vue': { icon: Code2, color: 'text-green-500' },
+    'svelte': { icon: Code2, color: 'text-orange-500' },
+    'astro': { icon: Star, color: 'text-orange-400' },
+    'ejs': { icon: FileCode, color: 'text-red-400' },
+    'pug': { icon: FileCode, color: 'text-amber-400' },
+    'jade': { icon: FileCode, color: 'text-green-400' },
+    'hbs': { icon: FileCode, color: 'text-orange-400' },
+    'handlebars': { icon: FileCode, color: 'text-orange-400' },
+    'mustache': { icon: FileCode, color: 'text-orange-500' },
+    'njk': { icon: FileCode, color: 'text-green-500' },
+    'twig': { icon: FileCode, color: 'text-green-400' },
+    'blade.php': { icon: FileCode, color: 'text-red-400' },
+    'liquid': { icon: FileCode, color: 'text-blue-400' },
     
-    default:
-      return <File className={`w-4 h-4 text-muted-foreground ${className}`} />;
+    // Binary/Compiled
+    'exe': { icon: Binary, color: 'text-gray-400' },
+    'dll': { icon: Binary, color: 'text-gray-400' },
+    'so': { icon: Binary, color: 'text-gray-400' },
+    'dylib': { icon: Binary, color: 'text-gray-400' },
+    'o': { icon: Binary, color: 'text-gray-400' },
+    'a': { icon: Binary, color: 'text-gray-400' },
+    'lib': { icon: Binary, color: 'text-gray-400' },
+    'bin': { icon: Binary, color: 'text-gray-400' },
+    'out': { icon: Binary, color: 'text-gray-400' },
+    
+    // Fonts
+    'ttf': { icon: FileType, color: 'text-pink-300' },
+    'otf': { icon: FileType, color: 'text-pink-300' },
+    'woff': { icon: FileType, color: 'text-pink-300' },
+    'woff2': { icon: FileType, color: 'text-pink-300' },
+    'eot': { icon: FileType, color: 'text-pink-300' },
+    
+    // Mobile
+    'apk': { icon: Smartphone, color: 'text-green-500' },
+    'ipa': { icon: Smartphone, color: 'text-gray-300' },
+    'aab': { icon: Smartphone, color: 'text-green-500' },
+    
+    // Testing
+    'spec.ts': { icon: TestTube, color: 'text-green-400' },
+    'spec.js': { icon: TestTube, color: 'text-green-400' },
+    'test.ts': { icon: TestTube, color: 'text-green-400' },
+    'test.js': { icon: TestTube, color: 'text-green-400' },
+    'test.tsx': { icon: TestTube, color: 'text-green-400' },
+    'test.jsx': { icon: TestTube, color: 'text-green-400' },
+    'spec.tsx': { icon: TestTube, color: 'text-green-400' },
+    'spec.jsx': { icon: TestTube, color: 'text-green-400' },
+    'snap': { icon: FileCheck, color: 'text-purple-400' },
+  };
+
+  // Check for compound extensions first (e.g., .spec.ts, .test.js)
+  const compoundExts = ['spec.ts', 'spec.js', 'spec.tsx', 'spec.jsx', 'test.ts', 'test.js', 'test.tsx', 'test.jsx', 'd.ts', 'blade.php'];
+  for (const compoundExt of compoundExts) {
+    if (fileName.endsWith(`.${compoundExt}`)) {
+      const extInfo = extIcons[compoundExt];
+      if (extInfo) {
+        const IconComponent = extInfo.icon;
+        return <IconComponent className={`w-4 h-4 ${extInfo.color} ${className}`} />;
+      }
+    }
   }
+
+  const extInfo = ext ? extIcons[ext] : undefined;
+  if (extInfo) {
+    const IconComponent = extInfo.icon;
+    return <IconComponent className={`w-4 h-4 ${extInfo.color} ${className}`} />;
+  }
+
+  return <File className={`w-4 h-4 text-muted-foreground ${className}`} />;
 };
