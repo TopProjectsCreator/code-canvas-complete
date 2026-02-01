@@ -33,6 +33,18 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       return csharpTemplate;
     case 'bash':
       return bashTemplate;
+    case 'lua':
+      return luaTemplate;
+    case 'perl':
+      return perlTemplate;
+    case 'scala':
+      return scalaTemplate;
+    case 'r':
+      return rTemplate;
+    case 'haskell':
+      return haskellTemplate;
+    case 'elixir':
+      return elixirTemplate;
     default:
       return htmlTemplate;
   }
@@ -1042,6 +1054,339 @@ export const getFileLanguage = (filename: string): string => {
     cs: 'csharp',
     sh: 'bash',
     toml: 'toml',
+    lua: 'lua',
+    pl: 'perl',
+    scala: 'scala',
+    r: 'r',
+    hs: 'haskell',
+    ex: 'elixir',
+    exs: 'elixir',
   };
   return languageMap[ext || ''] || 'text';
 };
+
+const luaTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-lua',
+        name: 'main.lua',
+        type: 'file',
+        language: 'lua',
+        content: `-- Welcome to Lua!
+-- A lightweight, embeddable scripting language
+
+-- Simple greeting function
+function greet(name)
+    return "Hello, " .. name .. "! Welcome to Lua."
+end
+
+print(greet("World"))
+
+-- Table (Lua's main data structure)
+local person = {
+    name = "Lua Developer",
+    age = 25,
+    skills = {"scripting", "game dev", "embedded"}
+}
+
+print("Name: " .. person.name)
+print("Skills: " .. table.concat(person.skills, ", "))
+
+-- For loop example
+local sum = 0
+for i = 1, 10 do
+    sum = sum + i
+end
+print("Sum 1-10: " .. sum)
+
+-- Closure example
+function counter()
+    local count = 0
+    return function()
+        count = count + 1
+        return count
+    end
+end
+
+local myCounter = counter()
+print("Count: " .. myCounter())  -- 1
+print("Count: " .. myCounter())  -- 2
+print("Count: " .. myCounter())  -- 3`
+      }
+    ]
+  }
+];
+
+const perlTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-pl',
+        name: 'main.pl',
+        type: 'file',
+        language: 'perl',
+        content: `#!/usr/bin/perl
+# Welcome to Perl!
+# The practical extraction and report language
+
+use strict;
+use warnings;
+
+# Simple greeting
+sub greet {
+    my ($name) = @_;
+    return "Hello, $name! Welcome to Perl.";
+}
+
+print greet("World"), "\\n";
+
+# Array example
+my @numbers = (1, 2, 3, 4, 5);
+my $sum = 0;
+$sum += $_ for @numbers;
+print "Sum: $sum\\n";
+
+# Hash example
+my %person = (
+    name => "Perl Developer",
+    age  => 30,
+    lang => "Perl"
+);
+
+print "Name: $person{name}\\n";
+
+# Regular expression (Perl's superpower!)
+my $text = "The quick brown fox";
+if ($text =~ /quick (\\w+)/) {
+    print "Found: $1\\n";
+}
+
+# String manipulation
+my @words = split / /, $text;
+print "Words: ", join(", ", @words), "\\n";`
+      }
+    ]
+  }
+];
+
+const scalaTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-scala',
+        name: 'Main.scala',
+        type: 'file',
+        language: 'scala',
+        content: `// Welcome to Scala!
+// Functional and object-oriented programming combined
+
+object Main extends App {
+  println("Hello, World!")
+  
+  // Function definition
+  def greet(name: String): String = s"Hello, $name! Welcome to Scala."
+  
+  println(greet("Scala Developer"))
+  
+  // List operations (functional style)
+  val numbers = List(1, 2, 3, 4, 5)
+  val doubled = numbers.map(_ * 2)
+  val sum = numbers.reduce(_ + _)
+  
+  println(s"Doubled: $doubled")
+  println(s"Sum: $sum")
+  
+  // Case class (immutable data)
+  case class Person(name: String, age: Int)
+  
+  val person = Person("Alice", 28)
+  println(s"Person: \${person.name}, Age: \${person.age}")
+  
+  // Pattern matching
+  def describe(x: Any): String = x match {
+    case i: Int if i > 0 => "positive number"
+    case s: String => s"string: $s"
+    case _ => "something else"
+  }
+  
+  println(describe(42))
+  println(describe("hello"))
+}`
+      }
+    ]
+  }
+];
+
+const rTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-r',
+        name: 'main.R',
+        type: 'file',
+        language: 'r',
+        content: `# Welcome to R!
+# Statistical computing and data analysis
+
+# Simple greeting
+greet <- function(name) {
+  paste("Hello,", name, "! Welcome to R.")
+}
+
+print(greet("World"))
+
+# Vector operations
+numbers <- c(1, 2, 3, 4, 5)
+print(paste("Sum:", sum(numbers)))
+print(paste("Mean:", mean(numbers)))
+print(paste("SD:", sd(numbers)))
+
+# Data frame (like a table)
+df <- data.frame(
+  name = c("Alice", "Bob", "Charlie"),
+  age = c(25, 30, 35),
+  score = c(85, 92, 78)
+)
+
+print("Data Frame:")
+print(df)
+
+# Summary statistics
+print("Summary:")
+print(summary(df))
+
+# Simple plot (text-based representation)
+cat("\\nScore distribution:\\n")
+for (i in 1:nrow(df)) {
+  cat(df$name[i], ": ", rep("*", df$score[i] / 10), "\\n", sep="")
+}`
+      }
+    ]
+  }
+];
+
+const haskellTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-hs',
+        name: 'Main.hs',
+        type: 'file',
+        language: 'haskell',
+        content: `-- Welcome to Haskell!
+-- Pure functional programming
+
+module Main where
+
+-- Simple greeting function
+greet :: String -> String
+greet name = "Hello, " ++ name ++ "! Welcome to Haskell."
+
+-- Factorial using recursion
+factorial :: Integer -> Integer
+factorial 0 = 1
+factorial n = n * factorial (n - 1)
+
+-- Fibonacci using pattern matching
+fibonacci :: Int -> Int
+fibonacci 0 = 0
+fibonacci 1 = 1
+fibonacci n = fibonacci (n - 1) + fibonacci (n - 2)
+
+-- List operations
+doubleAll :: [Int] -> [Int]
+doubleAll = map (* 2)
+
+sumList :: [Int] -> Int
+sumList = foldr (+) 0
+
+-- Main function
+main :: IO ()
+main = do
+    putStrLn (greet "World")
+    putStrLn $ "Factorial of 5: " ++ show (factorial 5)
+    putStrLn $ "Fibonacci of 10: " ++ show (fibonacci 10)
+    
+    let numbers = [1, 2, 3, 4, 5]
+    putStrLn $ "Doubled: " ++ show (doubleAll numbers)
+    putStrLn $ "Sum: " ++ show (sumList numbers)
+    
+    -- List comprehension
+    let evens = [x | x <- [1..20], even x]
+    putStrLn $ "Evens 1-20: " ++ show evens`
+      }
+    ]
+  }
+];
+
+const elixirTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-ex',
+        name: 'main.exs',
+        type: 'file',
+        language: 'elixir',
+        content: `# Welcome to Elixir!
+# Functional, concurrent programming on the BEAM
+
+defmodule Greeter do
+  def greet(name) do
+    "Hello, \#{name}! Welcome to Elixir."
+  end
+end
+
+IO.puts Greeter.greet("World")
+
+# Pattern matching
+{a, b, c} = {1, 2, 3}
+IO.puts "a=\#{a}, b=\#{b}, c=\#{c}"
+
+# List operations
+numbers = [1, 2, 3, 4, 5]
+doubled = Enum.map(numbers, fn x -> x * 2 end)
+sum = Enum.reduce(numbers, 0, fn x, acc -> x + acc end)
+
+IO.puts "Doubled: \#{inspect(doubled)}"
+IO.puts "Sum: \#{sum}"
+
+# Pipe operator (Elixir's superpower!)
+result = numbers
+  |> Enum.filter(fn x -> rem(x, 2) == 0 end)
+  |> Enum.map(fn x -> x * 10 end)
+  |> Enum.sum()
+
+IO.puts "Even numbers * 10, summed: \#{result}"
+
+# Recursion with pattern matching
+defmodule Math do
+  def factorial(0), do: 1
+  def factorial(n) when n > 0 do
+    n * factorial(n - 1)
+  end
+end
+
+IO.puts "Factorial of 5: \#{Math.factorial(5)}"`
+      }
+    ]
+  }
+];
