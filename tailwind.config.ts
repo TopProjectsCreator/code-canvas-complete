@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'Fira Code', 'monospace'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -57,6 +61,36 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        editor: {
+          DEFAULT: "hsl(var(--editor-bg))",
+          line: "hsl(var(--editor-line))",
+          selection: "hsl(var(--editor-selection))",
+          gutter: "hsl(var(--editor-gutter))",
+        },
+        terminal: {
+          DEFAULT: "hsl(var(--terminal-bg))",
+          text: "hsl(var(--terminal-text))",
+        },
+        success: "hsl(var(--success))",
+        warning: "hsl(var(--warning))",
+        info: "hsl(var(--info))",
+        syntax: {
+          keyword: "hsl(var(--syntax-keyword))",
+          string: "hsl(var(--syntax-string))",
+          number: "hsl(var(--syntax-number))",
+          function: "hsl(var(--syntax-function))",
+          comment: "hsl(var(--syntax-comment))",
+          variable: "hsl(var(--syntax-variable))",
+          operator: "hsl(var(--syntax-operator))",
+        },
+        file: {
+          folder: "hsl(var(--file-icon-folder))",
+          js: "hsl(var(--file-icon-js))",
+          ts: "hsl(var(--file-icon-ts))",
+          css: "hsl(var(--file-icon-css))",
+          html: "hsl(var(--file-icon-html))",
+          json: "hsl(var(--file-icon-json))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -65,25 +99,32 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.6" },
+        },
+        "cursor-blink": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0" },
+        },
+        "terminal-typing": {
+          from: { width: "0" },
+          to: { width: "100%" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "cursor-blink": "cursor-blink 1s step-end infinite",
+        "terminal-typing": "terminal-typing 0.5s steps(30) forwards",
       },
     },
   },
