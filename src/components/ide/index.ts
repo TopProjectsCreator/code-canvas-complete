@@ -5,6 +5,7 @@ export { FileTree } from './FileTree';
 export { FileIcon } from './FileIcon';
 export { EditorTabs } from './EditorTabs';
 export { CodeEditor } from './CodeEditor';
+export { FindReplace } from './FindReplace';
 export { Terminal } from './Terminal';
 export { Preview } from './Preview';
 export { NewFileDialog } from './NewFileDialog';
