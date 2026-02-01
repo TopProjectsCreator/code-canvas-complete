@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { FileNode } from '@/types/ide';
+import { FindReplace } from './FindReplace';
 
 interface CodeEditorProps {
   file: FileNode | null;
@@ -153,6 +154,53 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [searchMatches, setSearchMatches] = useState<{ start: number; end: number }[]>([]);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifier = isMac ? e.metaKey : e.ctrlKey;
+      
+      if (modifier && e.key === 'f') {
+        e.preventDefault();
+        setShowFindReplace(true);
+      } else if (modifier && e.key === 'h') {
+        e.preventDefault();
+        setShowFindReplace(true);
+      } else if (e.key === 'Escape' && showFindReplace) {
+        setShowFindReplace(false);
+        setSearchMatches([]);
+        setCurrentMatchIndex(-1);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showFindReplace]);
+
+  const handleHighlightChange = useCallback((matches: { start: number; end: number }[], currentIndex: number) => {
+    setSearchMatches(matches);
+    setCurrentMatchIndex(currentIndex);
+    
+    // Scroll to current match
+    if (currentIndex >= 0 && matches[currentIndex] && textareaRef.current) {
+      const match = matches[currentIndex];
+      const textBeforeMatch = content.substring(0, match.start);
+      const lineNumber = textBeforeMatch.split('\n').length;
+      const lineHeight = 24; // leading-6 = 1.5rem = 24px
+      textareaRef.current.scrollTop = (lineNumber - 3) * lineHeight;
+    }
+  }, [content]);
+
+  const handleReplace = useCallback((newContent: string) => {
+    setContent(newContent);
+    if (file) {
+      onContentChange(file.id, newContent);
+    }
+  }, [file, onContentChange]);
 
   useEffect(() => {
     if (file?.content !== undefined) {
@@ -199,30 +247,96 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   }
 
   const tokenizedLines = tokenize(content, file.language || 'text');
-  const lines = content.split('\n');
+
+  // Build a set of character positions that are part of matches for highlighting
+  const getMatchHighlight = (charIndex: number): 'current' | 'match' | null => {
+    for (let i = 0; i < searchMatches.length; i++) {
+      const match = searchMatches[i];
+      if (charIndex >= match.start && charIndex < match.end) {
+        return i === currentMatchIndex ? 'current' : 'match';
+      }
+    }
+    return null;
+  };
+
+  // Convert content to character-based rendering with match highlighting
+  const renderHighlightedContent = () => {
+    let charIndex = 0;
+    
+    return tokenizedLines.map((lineTokens, lineIndex) => {
+      const lineStartIndex = charIndex;
+      
+      const renderedTokens = lineTokens.map((token, tokenIndex) => {
+        const tokenChars = token.value.split('').map((char, i) => {
+          const currentCharIndex = charIndex + i;
+          const highlight = getMatchHighlight(currentCharIndex);
+          
+          if (highlight) {
+            return (
+              <span 
+                key={`${tokenIndex}-${i}`}
+                className={highlight === 'current' 
+                  ? 'bg-yellow-400 text-black' 
+                  : 'bg-yellow-200/50 text-inherit'}
+              >
+                {char}
+              </span>
+            );
+          }
+          return char;
+        });
+        
+        charIndex += token.value.length;
+        
+        // If no highlights in this token, render normally
+        const hasHighlight = tokenChars.some(c => typeof c !== 'string');
+        if (!hasHighlight) {
+          return (
+            <span key={tokenIndex} className={getTokenClass(token.type)}>
+              {token.value}
+            </span>
+          );
+        }
+        
+        return (
+          <span key={tokenIndex} className={getTokenClass(token.type)}>
+            {tokenChars}
+          </span>
+        );
+      });
+      
+      charIndex++; // Account for newline character
+      
+      return (
+        <div key={lineIndex} className="code-line">
+          <span className="code-line-number">{lineIndex + 1}</span>
+          {renderedTokens.length === 0 ? <span>&nbsp;</span> : renderedTokens}
+        </div>
+      );
+    });
+  };
 
   return (
     <div className="flex-1 flex flex-col bg-editor overflow-hidden">
+      <FindReplace
+        content={content}
+        isOpen={showFindReplace}
+        onClose={() => {
+          setShowFindReplace(false);
+          setSearchMatches([]);
+          setCurrentMatchIndex(-1);
+        }}
+        onReplace={handleReplace}
+        onHighlightChange={handleHighlightChange}
+      />
+      
       <div className="flex-1 relative overflow-hidden">
         {/* Syntax highlighted display */}
         <div 
           ref={highlightRef}
           className="absolute inset-0 font-mono text-sm leading-6 pointer-events-none z-0 overflow-hidden"
         >
-          {tokenizedLines.map((lineTokens, lineIndex) => (
-            <div key={lineIndex} className="code-line">
-              <span className="code-line-number">{lineIndex + 1}</span>
-              {lineTokens.length === 0 ? (
-                <span>&nbsp;</span>
-              ) : (
-                lineTokens.map((token, tokenIndex) => (
-                  <span key={tokenIndex} className={getTokenClass(token.type)}>
-                    {token.value}
-                  </span>
-                ))
-              )}
-            </div>
-          ))}
+          {renderHighlightedContent()}
         </div>
         
         {/* Editable textarea overlay */}
