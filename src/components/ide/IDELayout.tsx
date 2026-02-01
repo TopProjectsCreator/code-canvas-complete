@@ -179,6 +179,61 @@ export const IDELayout = () => {
     );
   }, []);
 
+  const handleUploadFiles = useCallback((uploadedFiles: { name: string; content: string; language: string }[]) => {
+    const rootFolder = files[0];
+    const parentId = rootFolder?.id || null;
+
+    uploadedFiles.forEach((file) => {
+      const newFile: FileNode = {
+        id: generateId(),
+        name: file.name,
+        type: 'file',
+        content: file.content,
+        language: file.language,
+      };
+
+      setFiles((prev) => {
+        const addToParent = (nodes: FileNode[]): FileNode[] => {
+          return nodes.map((node) => {
+            if (node.id === parentId && node.type === 'folder') {
+              return {
+                ...node,
+                children: [...(node.children || []), newFile],
+              };
+            }
+            if (node.children) {
+              return { ...node, children: addToParent(node.children) };
+            }
+            return node;
+          });
+        };
+
+        if (!parentId) {
+          const root = prev[0];
+          if (root && root.type === 'folder') {
+            return [{
+              ...root,
+              children: [...(root.children || []), newFile],
+            }];
+          }
+          return [...prev, newFile];
+        }
+
+        return addToParent(prev);
+      });
+
+      // Open the file in a new tab
+      const newTab: Tab = {
+        id: generateId(),
+        name: file.name,
+        fileId: newFile.id,
+        isModified: false,
+      };
+      setOpenTabs((prev) => [...prev, newTab]);
+      setActiveTabId(newTab.id);
+    });
+  }, [files]);
+
   const handleTabClick = useCallback((tabId: string) => {
     setActiveTabId(tabId);
   }, []);
@@ -313,6 +368,7 @@ export const IDELayout = () => {
             onCreateFile={handleCreateFile}
             onDeleteFile={handleDeleteFile}
             onRenameFile={handleRenameFile}
+            onUploadFiles={handleUploadFiles}
             activeFileId={activeTab?.fileId || null}
           />
         </div>
