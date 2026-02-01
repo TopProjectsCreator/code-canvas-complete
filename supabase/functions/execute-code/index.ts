@@ -166,6 +166,91 @@ serve(async (req) => {
               output.push(`added ${Math.floor(Math.random() * 50) + 10} packages in ${(Math.random() * 3 + 1).toFixed(1)}s`);
             }
             break;
+          case 'pip':
+          case 'pip3':
+            if (args[0] === '-V' || args[0] === '--version' || args[0] === '-v') {
+              output.push('pip 24.0 from /usr/local/lib/python3.12/site-packages/pip (python 3.12)');
+            } else if (args[0] === 'install') {
+              const packages = args.slice(1).filter(a => !a.startsWith('-'));
+              if (packages.length === 0) {
+                output.push('ERROR: You must give at least one requirement to install');
+              } else {
+                output.push(`Collecting ${packages.join(', ')}`);
+                packages.forEach(pkg => {
+                  output.push(`  Downloading ${pkg.replace(/[^a-zA-Z0-9_-]/g, '_')}-1.0.0-py3-none-any.whl`);
+                });
+                output.push(`Successfully installed ${packages.join(' ')}`);
+              }
+            } else if (args[0] === 'uninstall') {
+              const packages = args.slice(1).filter(a => !a.startsWith('-'));
+              if (packages.length === 0) {
+                output.push('ERROR: You must give at least one requirement to uninstall');
+              } else {
+                output.push(`Successfully uninstalled ${packages.join(' ')}`);
+              }
+            } else if (args[0] === 'list') {
+              output.push('Package         Version');
+              output.push('--------------- -------');
+              output.push('pip             24.0');
+              output.push('setuptools      69.0.3');
+              output.push('wheel           0.42.0');
+            } else if (args[0] === 'freeze') {
+              output.push('pip==24.0');
+              output.push('setuptools==69.0.3');
+              output.push('wheel==0.42.0');
+            } else if (args[0] === 'show') {
+              const pkg = args[1];
+              if (pkg) {
+                output.push(`Name: ${pkg}`);
+                output.push('Version: 1.0.0');
+                output.push('Summary: A Python package');
+                output.push('Home-page: https://pypi.org');
+                output.push('Author: Python Developer');
+                output.push('License: MIT');
+              }
+            } else if (!args[0]) {
+              output.push('Usage: pip <command> [options]');
+              output.push('Commands:');
+              output.push('  install      Install packages');
+              output.push('  uninstall    Uninstall packages');
+              output.push('  list         List installed packages');
+              output.push('  freeze       Output installed packages');
+              output.push('  show         Show package info');
+            }
+            break;
+          case 'python':
+          case 'python3':
+            if (args[0] === '-V' || args[0] === '--version') {
+              output.push('Python 3.12.0');
+            } else if (args[0] === '-c') {
+              // Execute inline Python (simulated with JS)
+              const pyCode = args.slice(1).join(' ').replace(/^["']|["']$/g, '');
+              try {
+                // Simple Python to JS translation for basic operations
+                let jsCode = pyCode
+                  .replace(/print\((.*?)\)/g, 'console.log($1)')
+                  .replace(/True/g, 'true')
+                  .replace(/False/g, 'false')
+                  .replace(/None/g, 'null');
+                const __capturedLogs: string[] = [];
+                const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+                const fn = new AsyncFunction('__capturedLogs', `
+                  const console = {
+                    log: (...args) => __capturedLogs.push(args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ')),
+                  };
+                  ${jsCode}
+                `);
+                await fn(__capturedLogs);
+                output.push(...__capturedLogs);
+              } catch (e) {
+                output.push(`Error: ${e instanceof Error ? e.message : String(e)}`);
+              }
+            } else if (!args[0]) {
+              output.push('Python 3.12.0 (main, Feb 1 2026, 00:00:00)');
+              output.push('Type "help", "copyright", "credits" or "license" for more information.');
+              output.push('>>> (Interactive mode not supported - use python -c "code")');
+            }
+            break;
           case 'ls':
             const files = ['index.html', 'style.css', 'script.js', 'README.md', '.config'];
             if (args.includes('-la') || args.includes('-l')) {
