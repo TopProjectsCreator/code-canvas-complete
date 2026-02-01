@@ -7,3 +7,4 @@ export { EditorTabs } from './EditorTabs';
 export { CodeEditor } from './CodeEditor';
 export { Terminal } from './Terminal';
 export { Preview } from './Preview';
+export { NewFileDialog } from './NewFileDialog';
