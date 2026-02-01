@@ -57,6 +57,19 @@ export interface GitState {
   isInitialized: boolean;
 }
 
+// Workflow types
+export interface Workflow {
+  id: string;
+  name: string;
+  type: 'run' | 'build' | 'test' | 'deploy' | 'custom';
+  command: string;
+  description?: string;
+  trigger?: 'manual' | 'on-save' | 'on-commit';
+  lastRun?: Date;
+  lastStatus?: 'success' | 'failed' | 'running';
+  isDefault?: boolean;
+}
+
 export interface IDEState {
   files: FileNode[];
   openTabs: Tab[];
@@ -65,4 +78,5 @@ export interface IDEState {
   isRunning: boolean;
   consoleOutput: ConsoleLog[];
   git: GitState;
+  workflows: Workflow[];
 }

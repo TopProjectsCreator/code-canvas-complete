@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange } from '@/types/ide';
+import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from '@/types/ide';
 import { getTemplateFiles, findFileById, getFileLanguage } from '@/data/defaultFiles';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
@@ -23,6 +23,56 @@ const initialGitState: GitState = {
   isInitialized: false,
 };
 
+// Get default workflows based on template
+const getDefaultWorkflows = (template: LanguageTemplate): Workflow[] => {
+  const baseWorkflows: Workflow[] = [];
+  
+  switch (template) {
+    case 'javascript':
+    case 'typescript':
+      baseWorkflows.push(
+        { id: generateId(), name: 'Run', type: 'run', command: 'node index.js', description: 'Run the main file', trigger: 'manual', isDefault: true },
+        { id: generateId(), name: 'Dev Server', type: 'run', command: 'npm run dev', description: 'Start development server', trigger: 'manual' },
+        { id: generateId(), name: 'Build', type: 'build', command: 'npm run build', description: 'Build for production', trigger: 'manual' },
+        { id: generateId(), name: 'Test', type: 'test', command: 'npm test', description: 'Run test suite', trigger: 'manual' }
+      );
+      break;
+    case 'python':
+      baseWorkflows.push(
+        { id: generateId(), name: 'Run', type: 'run', command: 'python main.py', description: 'Run the main file', trigger: 'manual', isDefault: true },
+        { id: generateId(), name: 'Test', type: 'test', command: 'pytest', description: 'Run pytest tests', trigger: 'manual' },
+        { id: generateId(), name: 'Lint', type: 'custom', command: 'pylint *.py', description: 'Check code quality', trigger: 'manual' }
+      );
+      break;
+    case 'go':
+      baseWorkflows.push(
+        { id: generateId(), name: 'Run', type: 'run', command: 'go run main.go', description: 'Run the main file', trigger: 'manual', isDefault: true },
+        { id: generateId(), name: 'Build', type: 'build', command: 'go build', description: 'Compile the project', trigger: 'manual' },
+        { id: generateId(), name: 'Test', type: 'test', command: 'go test ./...', description: 'Run all tests', trigger: 'manual' }
+      );
+      break;
+    case 'rust':
+      baseWorkflows.push(
+        { id: generateId(), name: 'Run', type: 'run', command: 'cargo run', description: 'Build and run', trigger: 'manual', isDefault: true },
+        { id: generateId(), name: 'Build', type: 'build', command: 'cargo build --release', description: 'Build for release', trigger: 'manual' },
+        { id: generateId(), name: 'Test', type: 'test', command: 'cargo test', description: 'Run cargo tests', trigger: 'manual' }
+      );
+      break;
+    case 'html':
+      baseWorkflows.push(
+        { id: generateId(), name: 'Preview', type: 'run', command: 'open index.html', description: 'Open in browser', trigger: 'manual', isDefault: true },
+        { id: generateId(), name: 'Live Server', type: 'run', command: 'npx live-server', description: 'Start live reload server', trigger: 'manual' }
+      );
+      break;
+    default:
+      baseWorkflows.push(
+        { id: generateId(), name: 'Run', type: 'run', command: 'echo "Configure your run command"', description: 'Default run task', trigger: 'manual', isDefault: true }
+      );
+  }
+  
+  return baseWorkflows;
+};
+
 export const IDELayout = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<LanguageTemplate | null>(null);
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -39,6 +89,8 @@ export const IDELayout = () => {
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [originalFileContents, setOriginalFileContents] = useState<Record<string, string>>({});
   const [gitState, setGitState] = useState<GitState>(initialGitState);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [currentlyRunningWorkflow, setCurrentlyRunningWorkflow] = useState<string | null>(null);
   const { executeCode, isExecuting } = useCodeExecution();
 
   const handleSelectTemplate = useCallback((template: LanguageTemplate) => {
@@ -58,6 +110,10 @@ export const IDELayout = () => {
     };
     collectContents(templateFiles);
     setOriginalFileContents(originals);
+
+    // Create default workflows based on template
+    const defaultWorkflows = getDefaultWorkflows(template);
+    setWorkflows(defaultWorkflows);
   }, []);
 
   // Get the active file
@@ -252,6 +308,81 @@ export const IDELayout = () => {
       timestamp: new Date(),
     }]);
   }, []);
+
+  // Workflow handlers
+  const handleRunWorkflow = useCallback((workflow: Workflow) => {
+    setCurrentlyRunningWorkflow(workflow.id);
+    
+    setTerminalHistory(prev => [...prev, {
+      id: generateId(),
+      type: 'info',
+      content: `⚡ Running workflow: ${workflow.name}`,
+      timestamp: new Date(),
+    }, {
+      id: generateId(),
+      type: 'input',
+      content: `$ ${workflow.command}`,
+      timestamp: new Date(),
+    }]);
+
+    // Simulate workflow execution
+    setTimeout(() => {
+      const success = Math.random() > 0.2; // 80% success rate for demo
+      
+      setWorkflows(prev => prev.map(w => 
+        w.id === workflow.id 
+          ? { ...w, lastRun: new Date(), lastStatus: success ? 'success' : 'failed' }
+          : w
+      ));
+
+      setTerminalHistory(prev => [...prev, {
+        id: generateId(),
+        type: success ? 'output' : 'error',
+        content: success 
+          ? `✅ Workflow "${workflow.name}" completed successfully`
+          : `❌ Workflow "${workflow.name}" failed`,
+        timestamp: new Date(),
+      }]);
+
+      setCurrentlyRunningWorkflow(null);
+    }, 1500 + Math.random() * 1000);
+  }, []);
+
+  const handleCreateWorkflow = useCallback((workflow: Omit<Workflow, 'id'>) => {
+    const newWorkflow: Workflow = {
+      id: generateId(),
+      ...workflow,
+    };
+    setWorkflows(prev => [...prev, newWorkflow]);
+    
+    setTerminalHistory(prev => [...prev, {
+      id: generateId(),
+      type: 'info',
+      content: `✨ Created workflow: ${workflow.name}`,
+      timestamp: new Date(),
+    }]);
+  }, []);
+
+  const handleUpdateWorkflow = useCallback((id: string, updates: Partial<Workflow>) => {
+    setWorkflows(prev => prev.map(w => 
+      w.id === id ? { ...w, ...updates } : w
+    ));
+  }, []);
+
+  const handleDeleteWorkflow = useCallback((id: string) => {
+    const workflow = workflows.find(w => w.id === id);
+    setWorkflows(prev => prev.filter(w => w.id !== id));
+    
+    if (workflow) {
+      setTerminalHistory(prev => [...prev, {
+        id: generateId(),
+        type: 'info',
+        content: `🗑️ Deleted workflow: ${workflow.name}`,
+        timestamp: new Date(),
+      }]);
+    }
+  }, [workflows]);
+
   // Get content for preview
   const getFileContent = (fileName: string): string => {
     const findFile = (nodes: FileNode[]): FileNode | null => {
@@ -676,6 +807,12 @@ export const IDELayout = () => {
             onGitCreateBranch={handleGitCreateBranch}
             onGitSwitchBranch={handleGitSwitchBranch}
             onGitInitRepo={handleGitInitRepo}
+            workflows={workflows}
+            onRunWorkflow={handleRunWorkflow}
+            onCreateWorkflow={handleCreateWorkflow}
+            onUpdateWorkflow={handleUpdateWorkflow}
+            onDeleteWorkflow={handleDeleteWorkflow}
+            currentlyRunningWorkflow={currentlyRunningWorkflow}
           />
         </div>
 
