@@ -12,7 +12,8 @@ import {
   Bell,
   User,
   GitFork,
-  Star
+  Star,
+  Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,9 +23,11 @@ interface HeaderProps {
   onRun: () => void;
   onStop: () => void;
   onToggleSidebar: () => void;
+  onToggleAIChat: () => void;
+  isAIChatOpen: boolean;
 }
 
-export const Header = ({ projectName, isRunning, onRun, onStop, onToggleSidebar }: HeaderProps) => {
+export const Header = ({ projectName, isRunning, onRun, onStop, onToggleSidebar, onToggleAIChat, isAIChatOpen }: HeaderProps) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -91,6 +94,20 @@ export const Header = ({ projectName, isRunning, onRun, onStop, onToggleSidebar 
 
       {/* Right section */}
       <div className="flex items-center gap-2">
+        {/* AI Chat Toggle */}
+        <button 
+          onClick={onToggleAIChat}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors',
+            isAIChatOpen 
+              ? 'bg-violet-600 text-white' 
+              : 'bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-500 hover:to-purple-500'
+          )}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span className="text-sm font-medium hidden sm:inline">AI</span>
+        </button>
+
         <button className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
           <GitFork className="w-4 h-4" />
           <span className="text-sm">Fork</span>
