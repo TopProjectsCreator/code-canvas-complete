@@ -12,7 +12,9 @@ import {
   FilePlus,
   FolderPlus,
   Upload,
-  FileText
+  FileText,
+  Palette,
+  Check
 } from 'lucide-react';
 import { FileNode, GitState } from '@/types/ide';
 import { FileTree } from './FileTree';
@@ -22,6 +24,62 @@ import { PackagePanel } from './PackagePanel';
 import { FileIcon } from './FileIcon';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
+import { useTheme, themeInfo, IDETheme } from '@/contexts/ThemeContext';
+
+// Settings Panel Component
+const SettingsPanel = () => {
+  const { theme, setTheme } = useTheme();
+  const themes = Object.keys(themeInfo) as IDETheme[];
+
+  return (
+    <div className="flex flex-col h-full overflow-auto ide-scrollbar">
+      <div className="p-3 border-b border-border">
+        <h3 className="text-sm font-medium mb-3">Repl Settings</h3>
+        <div className="space-y-3">
+          <label className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Auto-save</span>
+            <input type="checkbox" defaultChecked className="accent-primary" />
+          </label>
+          <label className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Word wrap</span>
+            <input type="checkbox" defaultChecked className="accent-primary" />
+          </label>
+        </div>
+      </div>
+
+      <div className="p-3">
+        <div className="flex items-center gap-2 mb-3">
+          <Palette className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-medium">Theme</h3>
+        </div>
+        <div className="space-y-1">
+          {themes.map((themeKey) => (
+            <button
+              key={themeKey}
+              onClick={() => setTheme(themeKey)}
+              className={cn(
+                'w-full flex items-center justify-between p-2 rounded-md text-left transition-colors',
+                theme === themeKey
+                  ? 'bg-primary/20 text-primary'
+                  : 'hover:bg-accent'
+              )}
+            >
+              <div>
+                <div className="text-sm font-medium">{themeInfo[themeKey].name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {themeInfo[themeKey].description}
+                </div>
+              </div>
+              {theme === themeKey && (
+                <Check className="w-4 h-4 text-primary shrink-0" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface SearchResult {
   file: FileNode;
@@ -379,19 +437,7 @@ export const Sidebar = ({
         )}
 
         {activeTab === 'settings' && (
-          <div className="p-3">
-            <h3 className="text-sm font-medium mb-3">Repl Settings</h3>
-            <div className="space-y-3">
-              <label className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Auto-save</span>
-                <input type="checkbox" defaultChecked className="accent-primary" />
-              </label>
-              <label className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Word wrap</span>
-                <input type="checkbox" defaultChecked className="accent-primary" />
-              </label>
-            </div>
-          </div>
+          <SettingsPanel />
         )}
       </div>
 
