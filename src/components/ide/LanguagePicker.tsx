@@ -14,7 +14,14 @@ import {
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 
-export type LanguageTemplate = 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' | 'ruby' | 'php' | 'swift' | 'kotlin' | 'csharp' | 'bash' | 'lua' | 'perl' | 'scala' | 'r' | 'haskell' | 'elixir';
+export type LanguageTemplate = 
+  | 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' 
+  | 'ruby' | 'php' | 'swift' | 'kotlin' | 'csharp' | 'bash' | 'lua' | 'perl' | 'scala' 
+  | 'r' | 'haskell' | 'elixir' 
+  // New templates
+  | 'react' | 'nodejs' | 'flask' | 'django' | 'sqlite' | 'clojure' | 'dart' | 'julia' 
+  | 'nim' | 'zig' | 'fortran' | 'cobol' | 'fsharp' | 'ocaml' | 'erlang' | 'crystal'
+  | 'assembly' | 'lisp' | 'prolog' | 'racket';
 
 interface LanguageOption {
   id: LanguageTemplate;
@@ -29,12 +36,27 @@ interface LanguagePickerProps {
 }
 
 const languages: LanguageOption[] = [
+  // Popular Web Templates
   {
     id: 'html',
     name: 'HTML/CSS/JS',
     icon: <Globe className="w-8 h-8" />,
     description: 'Build a website with HTML, CSS, and JavaScript',
     color: 'from-orange-500 to-red-500',
+  },
+  {
+    id: 'react',
+    name: 'React',
+    icon: <Sparkles className="w-8 h-8" />,
+    description: 'Build UIs with React components',
+    color: 'from-cyan-400 to-blue-500',
+  },
+  {
+    id: 'nodejs',
+    name: 'Node.js',
+    icon: <Braces className="w-8 h-8" />,
+    description: 'Server-side JavaScript with Express',
+    color: 'from-green-500 to-green-700',
   },
   {
     id: 'javascript',
@@ -50,6 +72,7 @@ const languages: LanguageOption[] = [
     description: 'JavaScript with types for better development',
     color: 'from-blue-500 to-blue-700',
   },
+  // Python Ecosystem
   {
     id: 'python',
     name: 'Python',
@@ -57,6 +80,21 @@ const languages: LanguageOption[] = [
     description: 'Great for beginners, AI, and data science',
     color: 'from-green-500 to-blue-500',
   },
+  {
+    id: 'flask',
+    name: 'Flask',
+    icon: <Globe className="w-8 h-8" />,
+    description: 'Lightweight Python web framework',
+    color: 'from-gray-600 to-gray-800',
+  },
+  {
+    id: 'django',
+    name: 'Django',
+    icon: <Globe className="w-8 h-8" />,
+    description: 'Full-featured Python web framework',
+    color: 'from-green-700 to-green-900',
+  },
+  // Systems Languages
   {
     id: 'java',
     name: 'Java',
@@ -93,6 +131,21 @@ const languages: LanguageOption[] = [
     color: 'from-orange-600 to-red-700',
   },
   {
+    id: 'zig',
+    name: 'Zig',
+    icon: <Cpu className="w-8 h-8" />,
+    description: 'Modern systems programming language',
+    color: 'from-amber-500 to-orange-600',
+  },
+  {
+    id: 'nim',
+    name: 'Nim',
+    icon: <Code2 className="w-8 h-8" />,
+    description: 'Efficient and expressive compiled language',
+    color: 'from-yellow-500 to-amber-600',
+  },
+  // Scripting & Web
+  {
     id: 'ruby',
     name: 'Ruby',
     icon: <Sparkles className="w-8 h-8" />,
@@ -107,6 +160,14 @@ const languages: LanguageOption[] = [
     color: 'from-indigo-500 to-purple-600',
   },
   {
+    id: 'dart',
+    name: 'Dart',
+    icon: <Braces className="w-8 h-8" />,
+    description: 'Client-optimized language for Flutter',
+    color: 'from-blue-400 to-cyan-500',
+  },
+  // Mobile & Apple
+  {
     id: 'swift',
     name: 'Swift',
     icon: <Braces className="w-8 h-8" />,
@@ -120,6 +181,7 @@ const languages: LanguageOption[] = [
     description: 'Modern JVM language for Android development',
     color: 'from-purple-500 to-blue-600',
   },
+  // .NET Ecosystem
   {
     id: 'csharp',
     name: 'C#',
@@ -128,11 +190,105 @@ const languages: LanguageOption[] = [
     color: 'from-purple-600 to-violet-700',
   },
   {
-    id: 'bash',
-    name: 'Bash',
-    icon: <TerminalIcon className="w-8 h-8" />,
-    description: 'Shell scripting for automation',
-    color: 'from-green-600 to-emerald-700',
+    id: 'fsharp',
+    name: 'F#',
+    icon: <Code2 className="w-8 h-8" />,
+    description: 'Functional-first .NET language',
+    color: 'from-blue-600 to-cyan-600',
+  },
+  // Data & Scientific
+  {
+    id: 'sqlite',
+    name: 'SQLite',
+    icon: <Cpu className="w-8 h-8" />,
+    description: 'Embedded SQL database queries',
+    color: 'from-sky-500 to-blue-600',
+  },
+  {
+    id: 'r',
+    name: 'R',
+    icon: <Code2 className="w-8 h-8" />,
+    description: 'Statistical computing and data analysis',
+    color: 'from-blue-500 to-gray-600',
+  },
+  {
+    id: 'julia',
+    name: 'Julia',
+    icon: <Sparkles className="w-8 h-8" />,
+    description: 'High-performance scientific computing',
+    color: 'from-purple-500 to-green-500',
+  },
+  {
+    id: 'fortran',
+    name: 'Fortran',
+    icon: <Cpu className="w-8 h-8" />,
+    description: 'Numeric and scientific computing',
+    color: 'from-purple-700 to-indigo-800',
+  },
+  // Functional Languages
+  {
+    id: 'haskell',
+    name: 'Haskell',
+    icon: <Braces className="w-8 h-8" />,
+    description: 'Pure functional programming',
+    color: 'from-purple-700 to-purple-900',
+  },
+  {
+    id: 'elixir',
+    name: 'Elixir',
+    icon: <Sparkles className="w-8 h-8" />,
+    description: 'Scalable and fault-tolerant applications',
+    color: 'from-purple-500 to-pink-600',
+  },
+  {
+    id: 'erlang',
+    name: 'Erlang',
+    icon: <Cpu className="w-8 h-8" />,
+    description: 'Concurrent and distributed systems',
+    color: 'from-red-600 to-pink-700',
+  },
+  {
+    id: 'ocaml',
+    name: 'OCaml',
+    icon: <Code2 className="w-8 h-8" />,
+    description: 'Powerful functional programming',
+    color: 'from-orange-500 to-yellow-600',
+  },
+  {
+    id: 'clojure',
+    name: 'Clojure',
+    icon: <Braces className="w-8 h-8" />,
+    description: 'Lisp for the JVM with immutability',
+    color: 'from-green-600 to-teal-600',
+  },
+  {
+    id: 'lisp',
+    name: 'Common Lisp',
+    icon: <Braces className="w-8 h-8" />,
+    description: 'The original programmable programming language',
+    color: 'from-gray-600 to-gray-800',
+  },
+  {
+    id: 'racket',
+    name: 'Racket',
+    icon: <Code2 className="w-8 h-8" />,
+    description: 'Language-oriented programming',
+    color: 'from-red-500 to-blue-600',
+  },
+  // Logic & Scripting
+  {
+    id: 'prolog',
+    name: 'Prolog',
+    icon: <Code2 className="w-8 h-8" />,
+    description: 'Logic programming for AI',
+    color: 'from-orange-600 to-red-600',
+  },
+  {
+    id: 'scala',
+    name: 'Scala',
+    icon: <Braces className="w-8 h-8" />,
+    description: 'Functional and object-oriented JVM language',
+    color: 'from-red-600 to-red-800',
   },
   {
     id: 'lua',
@@ -149,32 +305,33 @@ const languages: LanguageOption[] = [
     color: 'from-sky-600 to-blue-700',
   },
   {
-    id: 'scala',
-    name: 'Scala',
-    icon: <Braces className="w-8 h-8" />,
-    description: 'Functional and object-oriented JVM language',
-    color: 'from-red-600 to-red-800',
-  },
-  {
-    id: 'r',
-    name: 'R',
-    icon: <Code2 className="w-8 h-8" />,
-    description: 'Statistical computing and data analysis',
-    color: 'from-blue-500 to-gray-600',
-  },
-  {
-    id: 'haskell',
-    name: 'Haskell',
-    icon: <Braces className="w-8 h-8" />,
-    description: 'Pure functional programming',
-    color: 'from-purple-700 to-purple-900',
-  },
-  {
-    id: 'elixir',
-    name: 'Elixir',
+    id: 'crystal',
+    name: 'Crystal',
     icon: <Sparkles className="w-8 h-8" />,
-    description: 'Scalable and fault-tolerant applications',
-    color: 'from-purple-500 to-pink-600',
+    description: 'Ruby-like syntax with C performance',
+    color: 'from-gray-400 to-gray-600',
+  },
+  // Shell & Low-level
+  {
+    id: 'bash',
+    name: 'Bash',
+    icon: <TerminalIcon className="w-8 h-8" />,
+    description: 'Shell scripting for automation',
+    color: 'from-green-600 to-emerald-700',
+  },
+  {
+    id: 'assembly',
+    name: 'Assembly',
+    icon: <Cpu className="w-8 h-8" />,
+    description: 'Low-level hardware programming',
+    color: 'from-gray-700 to-gray-900',
+  },
+  {
+    id: 'cobol',
+    name: 'COBOL',
+    icon: <TerminalIcon className="w-8 h-8" />,
+    description: 'Legacy business applications',
+    color: 'from-blue-800 to-blue-950',
   },
 ];
 
