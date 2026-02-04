@@ -15,6 +15,7 @@ const PISTON_API = 'https://emkc.org/api/v2/piston';
 
 // Map our language names to Piston language identifiers
 const languageMap: Record<string, { language: string; version: string; filename?: string }> = {
+  // Core languages
   'javascript': { language: 'javascript', version: '18.15.0', filename: 'main.js' },
   'typescript': { language: 'typescript', version: '5.0.3', filename: 'main.ts' },
   'python': { language: 'python', version: '3.10.0', filename: 'main.py' },
@@ -32,6 +33,33 @@ const languageMap: Record<string, { language: string; version: string; filename?
   'shell': { language: 'bash', version: '5.2.0', filename: 'script.sh' },
   'makefile': { language: 'bash', version: '5.2.0', filename: 'Makefile' },
   'make': { language: 'bash', version: '5.2.0', filename: 'Makefile' },
+  // Additional languages
+  'lua': { language: 'lua', version: '5.4.4', filename: 'main.lua' },
+  'perl': { language: 'perl', version: '5.36.0', filename: 'main.pl' },
+  'scala': { language: 'scala', version: '3.2.2', filename: 'Main.scala' },
+  'r': { language: 'r', version: '4.1.1', filename: 'main.r' },
+  'haskell': { language: 'haskell', version: '9.0.1', filename: 'Main.hs' },
+  'elixir': { language: 'elixir', version: '1.11.3', filename: 'main.exs' },
+  'clojure': { language: 'clojure', version: '1.10.3', filename: 'main.clj' },
+  'dart': { language: 'dart', version: '2.19.6', filename: 'main.dart' },
+  'julia': { language: 'julia', version: '1.8.5', filename: 'main.jl' },
+  'nim': { language: 'nim', version: '1.6.2', filename: 'main.nim' },
+  'zig': { language: 'zig', version: '0.10.1', filename: 'main.zig' },
+  'fortran': { language: 'fortran', version: '10.2.0', filename: 'main.f90' },
+  'cobol': { language: 'cobol', version: '3.1.2', filename: 'main.cob' },
+  'fsharp': { language: 'fsharp', version: '5.0.201', filename: 'Main.fs' },
+  'ocaml': { language: 'ocaml', version: '4.12.0', filename: 'main.ml' },
+  'erlang': { language: 'erlang', version: '23.0.0', filename: 'main.erl' },
+  'crystal': { language: 'crystal', version: '1.3.2', filename: 'main.cr' },
+  'lisp': { language: 'lisp', version: '2.1.2', filename: 'main.lisp' },
+  'prolog': { language: 'prolog', version: '8.2.4', filename: 'main.pl' },
+  'racket': { language: 'racket', version: '8.3.0', filename: 'main.rkt' },
+  'd': { language: 'd', version: '2.101.0', filename: 'main.d' },
+  'groovy': { language: 'groovy', version: '3.0.7', filename: 'main.groovy' },
+  'pascal': { language: 'pascal', version: '3.2.2', filename: 'main.pas' },
+  'coffeescript': { language: 'coffeescript', version: '2.5.1', filename: 'main.coffee' },
+  'assembly': { language: 'nasm', version: '2.15.5', filename: 'main.asm' },
+  'nasm': { language: 'nasm', version: '2.15.5', filename: 'main.asm' },
 };
 
 // Execute code using Piston API
