@@ -1174,6 +1174,9 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                 handleContentChange(activeFile.id, currentContent + '\n\n' + code);
               }
             }}
+            workflows={workflows}
+            onCreateWorkflow={handleCreateWorkflow}
+            onRunWorkflow={handleRunWorkflow}
           />
         </div>
       </div>
