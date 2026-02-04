@@ -62,61 +62,61 @@ export const Header = ({
   const { user } = useAuth();
 
   return (
-    <header className="flex items-center justify-between px-3 py-2 bg-card border-b border-border">
+    <header className="flex items-center justify-between h-12 px-3 bg-background border-b border-border">
       {/* Left section */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <button 
           onClick={onToggleSidebar}
-          className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors lg:hidden"
+          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors lg:hidden"
         >
           <Menu className="w-5 h-5" />
         </button>
         
-        {/* Logo */}
+        {/* Logo - Replit style */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-orange-400 flex items-center justify-center">
-            <Zap className="w-5 h-5 text-primary-foreground" />
+          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
+            <Zap className="w-4 h-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-foreground hidden sm:block">Replit</span>
         </div>
 
-        {/* Project name */}
-        <div className="flex items-center gap-1 ml-2">
-          <button className="flex items-center gap-1 px-2 py-1 rounded hover:bg-accent transition-colors">
-            <span className="text-sm font-medium text-foreground">{projectName}</span>
-            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-          </button>
-        </div>
+        {/* Divider */}
+        <div className="w-px h-5 bg-border" />
+
+        {/* Project name - Replit style */}
+        <button className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-accent transition-colors group">
+          <span className="text-sm font-medium text-foreground">{projectName}</span>
+          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+        </button>
       </div>
 
-      {/* Center section - Run button */}
-      <div className="flex items-center gap-2">
+      {/* Center section - Run button - Replit's prominent green button */}
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
         <button
           onClick={isRunning ? onStop : onRun}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
           className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all',
+            'flex items-center gap-2 px-5 py-1.5 rounded-md font-semibold text-sm transition-all',
             isRunning
               ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground'
-              : 'bg-success hover:bg-success/90 text-primary-foreground glow-primary'
+              : 'bg-success hover:brightness-110 text-white'
           )}
           style={{
             boxShadow: !isRunning && isHovered 
-              ? '0 0 30px hsl(140 70% 45% / 0.5)' 
+              ? '0 0 20px hsl(142 71% 45% / 0.4)' 
               : !isRunning 
-                ? '0 0 20px hsl(140 70% 45% / 0.3)' 
+                ? '0 0 12px hsl(142 71% 45% / 0.25)' 
                 : 'none'
           }}
         >
           {isRunning ? (
             <>
-              <Square className="w-4 h-4 fill-current" />
+              <Square className="w-3.5 h-3.5 fill-current" />
               <span>Stop</span>
             </>
           ) : (
             <>
-              <Play className="w-4 h-4 fill-current" />
+              <Play className="w-3.5 h-3.5 fill-current" />
               <span>Run</span>
             </>
           )}
@@ -124,33 +124,32 @@ export const Header = ({
       </div>
 
       {/* Right section */}
-      <div className="flex items-center gap-2">
-        {/* AI Chat Toggle */}
+      <div className="flex items-center gap-1">
+        {/* AI Chat Toggle - Replit style */}
         <button 
           onClick={onToggleAIChat}
           className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors',
+            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors',
             isAIChatOpen 
-              ? 'bg-violet-600 text-white' 
-              : 'bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:from-violet-500 hover:to-purple-500'
+              ? 'bg-violet-500/20 text-violet-400' 
+              : 'hover:bg-accent text-muted-foreground hover:text-foreground'
           )}
         >
           <Sparkles className="w-4 h-4" />
-          <span className="text-sm font-medium hidden sm:inline">AI</span>
+          <span className="hidden sm:inline">AI</span>
         </button>
 
         {user && (
           <button 
             onClick={onSaveProject}
             className={cn(
-              "hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors",
+              "hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors",
               hasUnsavedChanges 
-                ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30" 
+                ? "bg-warning/15 text-warning hover:bg-warning/25" 
                 : "hover:bg-accent text-muted-foreground hover:text-foreground"
             )}
           >
             <Save className="w-4 h-4" />
-            <span className="text-sm">Save</span>
           </button>
         )}
 
@@ -158,7 +157,7 @@ export const Header = ({
           onClick={onFork}
           disabled={isForking || !currentProject}
           className={cn(
-            "hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors",
+            "hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors",
             !currentProject 
               ? "opacity-50 cursor-not-allowed text-muted-foreground"
               : "hover:bg-accent text-muted-foreground hover:text-foreground"
@@ -169,41 +168,32 @@ export const Header = ({
           ) : (
             <GitFork className="w-4 h-4" />
           )}
-          <span className="text-sm">Fork</span>
         </button>
         
         <button 
           onClick={onStar}
           disabled={!currentProject}
           className={cn(
-            "hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-lg transition-colors",
+            "hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors",
             !currentProject 
               ? "opacity-50 cursor-not-allowed text-muted-foreground"
               : isStarred
-                ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                ? "text-warning"
                 : "hover:bg-accent text-muted-foreground hover:text-foreground"
           )}
         >
           <Star className={cn("w-4 h-4", isStarred && "fill-current")} />
-          <span className="text-sm">{starsCount > 0 ? starsCount : 'Star'}</span>
+          {starsCount > 0 && <span>{starsCount}</span>}
         </button>
+
+        <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
         
         <button 
           onClick={onShare}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary/90 hover:bg-primary text-primary-foreground text-sm font-medium transition-colors"
         >
-          <Share2 className="w-4 h-4" />
-          <span className="text-sm hidden sm:inline">Share</span>
-        </button>
-
-        <div className="w-px h-6 bg-border mx-1 hidden sm:block" />
-
-        <button className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
-          <Search className="w-5 h-5" />
-        </button>
-        
-        <button className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
-          <Bell className="w-5 h-5" />
+          <Share2 className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Invite</span>
         </button>
 
         <UserMenu onOpenProjects={onOpenProjects} />
