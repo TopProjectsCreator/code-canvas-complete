@@ -194,43 +194,43 @@ export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
   }, [searchQuery]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-8">
-      <div className="max-w-4xl w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-4">
-            Create a new Repl
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="max-w-5xl w-full">
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold text-foreground mb-3">
+            Create a Repl
           </h1>
-          <p className="text-lg text-muted-foreground">
-            Choose a language or template to get started
+          <p className="text-muted-foreground">
+            Choose a template to get started
           </p>
         </div>
 
-        {/* Search bar */}
-        <div className="relative max-w-md mx-auto mb-8">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        {/* Search bar - Replit style */}
+        <div className="relative max-w-lg mx-auto mb-8">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search languages..."
+            placeholder="Search templates..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-10 py-6 text-base bg-card border-border"
+            className="pl-10 pr-10 h-11 text-sm bg-card border-border rounded-lg"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
         {filteredLanguages.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No templates found for "{searchQuery}"</p>
+          <div className="text-center py-16">
+            <p className="text-muted-foreground text-sm">No templates found for "{searchQuery}"</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {filteredLanguages.map((lang) => (
               <button
                 key={lang.id}
@@ -238,23 +238,25 @@ export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
                 onMouseEnter={() => setHoveredId(lang.id)}
                 onMouseLeave={() => setHoveredId(null)}
                 className={cn(
-                  'relative p-6 rounded-xl border-2 border-border bg-card transition-all duration-200 text-left group',
-                  'hover:border-primary hover:shadow-lg hover:scale-[1.02]',
-                  hoveredId === lang.id && 'border-primary shadow-lg scale-[1.02]'
+                  'relative p-4 rounded-lg border border-border bg-card transition-all duration-150 text-left group',
+                  'hover:border-primary/50 hover:bg-accent/30',
+                  hoveredId === lang.id && 'border-primary/50 bg-accent/30'
                 )}
               >
                 <div
                   className={cn(
-                    'w-14 h-14 rounded-lg bg-gradient-to-br flex items-center justify-center text-white mb-4',
+                    'w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center text-white mb-3',
                     lang.color
                   )}
                 >
-                  {lang.icon}
+                  <div className="scale-75">
+                    {lang.icon}
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-1">
+                <h3 className="text-sm font-medium text-foreground mb-0.5">
                   {lang.name}
                 </h3>
-                <p className="text-sm text-muted-foreground line-clamp-2">
+                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                   {lang.description}
                 </p>
               </button>
@@ -262,7 +264,7 @@ export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
           </div>
         )}
 
-        <p className="text-center text-sm text-muted-foreground mt-8">
+        <p className="text-center text-xs text-muted-foreground mt-8">
           {filteredLanguages.length} template{filteredLanguages.length !== 1 ? 's' : ''} available
         </p>
       </div>
