@@ -52,7 +52,7 @@ const languageMap: Record<string, { language: string; version: string; filename?
   'erlang': { language: 'erlang', version: '23.0.0', filename: 'main.erl' },
   'crystal': { language: 'crystal', version: '1.3.2', filename: 'main.cr' },
   'lisp': { language: 'lisp', version: '2.1.2', filename: 'main.lisp' },
-  'prolog': { language: 'prolog', version: '8.2.4', filename: 'main.pl' },
+  'prolog': { language: 'prolog', version: '8.2.4', filename: 'main.pro' },
   'racket': { language: 'racket', version: '8.3.0', filename: 'main.rkt' },
   'd': { language: 'd', version: '2.101.0', filename: 'main.d' },
   'groovy': { language: 'groovy', version: '3.0.7', filename: 'main.groovy' },
