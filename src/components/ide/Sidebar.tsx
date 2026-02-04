@@ -260,37 +260,40 @@ export const Sidebar = ({
 
   return (
     <div className="flex h-full bg-sidebar">
-      {/* Icon rail */}
-      <div className="w-12 flex flex-col items-center py-2 border-r border-border bg-background">
+      {/* Icon rail - Replit style narrow sidebar */}
+      <div className="w-11 flex flex-col items-center py-1.5 border-r border-border bg-background">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              'w-10 h-10 flex items-center justify-center rounded-lg mb-1 transition-colors',
+              'w-9 h-9 flex items-center justify-center rounded-md mb-0.5 transition-colors relative',
               activeTab === tab.id
-                ? 'bg-accent text-primary'
-                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                ? 'text-foreground bg-accent'
+                : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
             )}
             title={tab.label}
           >
-            <tab.icon className="w-5 h-5" />
+            {activeTab === tab.id && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-r" />
+            )}
+            <tab.icon className="w-[18px] h-[18px]" />
           </button>
         ))}
         
         <div className="flex-1" />
         
         <button
-          className="w-10 h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
           title="Invite"
         >
-          <Users className="w-5 h-5" />
+          <Users className="w-[18px] h-[18px]" />
         </button>
         <button
-          className="w-10 h-10 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
           title="History"
         >
-          <History className="w-5 h-5" />
+          <History className="w-[18px] h-[18px]" />
         </button>
       </div>
 
@@ -298,8 +301,8 @@ export const Sidebar = ({
       <div className="flex-1 flex flex-col min-w-0">
         {activeTab === 'files' && (
           <>
-            <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="flex items-center justify-between h-9 px-3 border-b border-border">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Files
               </span>
               <div className="relative">
@@ -318,9 +321,9 @@ export const Sidebar = ({
                         setShowNewFileDialog(true);
                         setShowNewMenu(false);
                       }}
-                      className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+                      className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent flex items-center gap-2"
                     >
-                      <FilePlus className="w-4 h-4" /> New File
+                      <FilePlus className="w-3.5 h-3.5" /> New File
                     </button>
                     <button
                       onClick={() => {
@@ -328,9 +331,9 @@ export const Sidebar = ({
                         setShowNewFileDialog(true);
                         setShowNewMenu(false);
                       }}
-                      className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+                      className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent flex items-center gap-2"
                     >
-                      <FolderPlus className="w-4 h-4" /> New Folder
+                      <FolderPlus className="w-3.5 h-3.5" /> New Folder
                     </button>
                     <div className="border-t border-border my-1" />
                     <button
@@ -338,9 +341,9 @@ export const Sidebar = ({
                         fileInputRef.current?.click();
                         setShowNewMenu(false);
                       }}
-                      className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+                      className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent flex items-center gap-2"
                     >
-                      <Upload className="w-4 h-4" /> Upload Files
+                      <Upload className="w-3.5 h-3.5" /> Upload Files
                     </button>
                   </div>
                 )}
@@ -369,15 +372,15 @@ export const Sidebar = ({
 
         {activeTab === 'search' && (
           <div className="flex flex-col h-full">
-            <div className="p-3 border-b border-border">
+            <div className="p-2 border-b border-border">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <input
                   type="text"
                   placeholder="Search in files..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full pl-8 pr-3 py-1.5 bg-input border border-border rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   autoFocus
                 />
               </div>
