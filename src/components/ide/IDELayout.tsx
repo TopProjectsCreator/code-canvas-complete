@@ -731,29 +731,78 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   }, []);
 
   const handleRun = useCallback(async () => {
-    // Get the main file to run based on the template or active file
-    let fileToRun = activeFileWithContent;
-    
-    // If no active file, try to find the main file for the template
-    if (!fileToRun) {
-      const mainFiles = ['main.py', 'Main.java', 'main.cpp', 'main.c', 'main.go', 'main.rs', 'index.js', 'index.ts', 'script.js'];
-      for (const mainFile of mainFiles) {
-        const findMain = (nodes: FileNode[]): FileNode | null => {
-          for (const node of nodes) {
-            if (node.name === mainFile && node.type === 'file') return node;
-            if (node.children) {
-              const found = findMain(node.children);
-              if (found) return found;
-            }
-          }
-          return null;
-        };
-        const found = findMain(files);
-        if (found) {
-          fileToRun = { ...found, content: fileContents[found.id] ?? found.content };
-          break;
+    // Auto-detect the main entry point file based on language conventions
+    const findFileByName = (nodes: FileNode[], fileName: string): FileNode | null => {
+      for (const node of nodes) {
+        if (node.name === fileName && node.type === 'file') return node;
+        if (node.children) {
+          const found = findFileByName(node.children, fileName);
+          if (found) return found;
         }
       }
+      return null;
+    };
+
+    // Priority order for entry point detection (language-specific main files first)
+    const entryPointPriority = [
+      // Python
+      'main.py', 'app.py', 'run.py',
+      // Java
+      'Main.java', 'App.java',
+      // C/C++
+      'main.cpp', 'main.c',
+      // Go
+      'main.go',
+      // Rust
+      'main.rs',
+      // JavaScript/TypeScript
+      'index.js', 'index.ts', 'main.js', 'main.ts', 'app.js', 'app.ts',
+      // Ruby
+      'main.rb', 'app.rb',
+      // PHP
+      'index.php', 'main.php',
+      // Swift
+      'main.swift',
+      // Kotlin
+      'Main.kt', 'App.kt',
+      // C#
+      'Program.cs', 'Main.cs',
+      // Shell
+      'main.sh', 'run.sh', 'script.sh',
+      // Perl
+      'main.pl', 'script.pl',
+      // Lua
+      'main.lua',
+      // Scala
+      'Main.scala', 'App.scala',
+      // R
+      'main.R', 'script.R',
+      // Haskell
+      'Main.hs',
+      // Elixir
+      'main.exs',
+      // Julia
+      'main.jl',
+      // Dart
+      'main.dart',
+      // Web
+      'script.js', 'index.html',
+    ];
+
+    let fileToRun: FileNode | null = null;
+
+    // First, try to find an entry point file
+    for (const entryFile of entryPointPriority) {
+      const found = findFileByName(files, entryFile);
+      if (found) {
+        fileToRun = { ...found, content: fileContents[found.id] ?? found.content };
+        break;
+      }
+    }
+
+    // If no entry point found, fall back to active file
+    if (!fileToRun && activeFileWithContent) {
+      fileToRun = activeFileWithContent;
     }
 
     if (!fileToRun || !fileToRun.content) {
