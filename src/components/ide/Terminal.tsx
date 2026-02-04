@@ -135,47 +135,51 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize }: 
 
   return (
     <div className={cn(
-      'flex flex-col bg-terminal border-t border-border transition-all duration-200',
-      isMinimized ? 'h-10' : 'h-48'
+      'flex flex-col bg-terminal transition-all duration-200',
+      isMinimized ? 'h-9' : 'h-48'
     )}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 bg-background border-b border-border">
-        <div className="flex items-center gap-2">
+      {/* Header - Replit style */}
+      <div className="flex items-center justify-between h-9 px-2 bg-card border-t border-border">
+        <div className="flex items-center gap-1">
           <button 
             onClick={() => setActiveTab('shell')}
             className={cn(
-              "flex items-center gap-2 px-2 py-1 text-sm rounded transition-colors",
-              activeTab === 'shell' ? 'text-primary bg-accent' : 'hover:bg-accent text-muted-foreground'
+              "flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors",
+              activeTab === 'shell' 
+                ? 'text-foreground bg-background' 
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            <TerminalIcon className="w-4 h-4" />
+            <TerminalIcon className="w-3.5 h-3.5" />
             Shell
           </button>
           <button 
             onClick={() => setActiveTab('console')}
             className={cn(
-              "flex items-center gap-2 px-2 py-1 text-sm rounded transition-colors",
-              activeTab === 'console' ? 'text-primary bg-accent' : 'hover:bg-accent text-muted-foreground'
+              "flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors",
+              activeTab === 'console' 
+                ? 'text-foreground bg-background' 
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             Console
           </button>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           {isExecuting && (
-            <Loader2 className="w-4 h-4 text-primary animate-spin mr-2" />
+            <div className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
+              <Loader2 className="w-3 h-3 animate-spin text-primary" />
+              <span>Running</span>
+            </div>
           )}
           <button 
             onClick={onToggleMinimize}
-            className="p-1 rounded hover:bg-accent text-muted-foreground"
+            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
           >
-            {isMinimized ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            {isMinimized ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
-          <button className="p-1 rounded hover:bg-accent text-muted-foreground">
-            <Plus className="w-4 h-4" />
-          </button>
-          <button className="p-1 rounded hover:bg-accent text-muted-foreground">
-            <X className="w-4 h-4" />
+          <button className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+            <Plus className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
