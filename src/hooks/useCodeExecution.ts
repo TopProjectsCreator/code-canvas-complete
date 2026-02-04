@@ -5,6 +5,7 @@ interface ExecutionResult {
   output: string[];
   error: string | null;
   executedAt: string;
+  isPreview?: boolean; // True for files that should render in preview instead of execute
 }
 
 // Languages that can be executed via Piston API
@@ -13,32 +14,50 @@ const EXECUTABLE_LANGUAGES = new Set([
   'rust', 'ruby', 'php', 'swift', 'kotlin', 'csharp', 'bash', 'shell', 'makefile', 'make'
 ]);
 
-// Languages that are markup/config and can't be "run"
-const NON_EXECUTABLE_LANGUAGES = new Set([
-  'html', 'css', 'json', 'xml', 'yaml', 'yml', 'md', 'markdown', 'txt', 'svg', 'toml'
-]);
-
 export const useCodeExecution = () => {
   const [isExecuting, setIsExecuting] = useState(false);
 
   const executeCode = useCallback(async (code: string, language: string = 'javascript'): Promise<ExecutionResult> => {
-    // Handle non-executable languages gracefully
-    if (NON_EXECUTABLE_LANGUAGES.has(language.toLowerCase())) {
-      const messages: Record<string, string> = {
-        'html': 'HTML files are rendered in the preview. Click Run to see your HTML in the Webview.',
-        'css': 'CSS files are applied when linked in HTML. Check the preview to see styles.',
-        'json': 'JSON is a data format, not executable code.',
-        'xml': 'XML is a markup format, not executable code.',
-        'yaml': 'YAML is a configuration format, not executable code.',
-        'yml': 'YAML is a configuration format, not executable code.',
-        'md': 'Markdown is a documentation format, not executable code.',
-        'markdown': 'Markdown is a documentation format, not executable code.',
-        'toml': 'TOML is a configuration format, not executable code.',
-      };
+    // Handle preview-based languages (HTML, CSS, Markdown render in preview)
+    const PREVIEW_LANGUAGES = new Set(['html', 'css', 'md', 'markdown', 'svg']);
+    
+    if (PREVIEW_LANGUAGES.has(language.toLowerCase())) {
       return {
-        output: [messages[language.toLowerCase()] || `${language.toUpperCase()} files cannot be executed directly.`],
+        output: [`🖼️ Rendering ${language.toUpperCase()} in preview...`],
         error: null,
-        executedAt: new Date().toISOString()
+        executedAt: new Date().toISOString(),
+        isPreview: true,
+      };
+    }
+    
+    // Handle data/config formats with validation or formatting
+    const DATA_LANGUAGES = new Set(['json', 'xml', 'yaml', 'yml', 'toml', 'txt']);
+    
+    if (DATA_LANGUAGES.has(language.toLowerCase())) {
+      // Try to validate/format the data
+      if (language.toLowerCase() === 'json') {
+        try {
+          const parsed = JSON.parse(code);
+          const formatted = JSON.stringify(parsed, null, 2);
+          return {
+            output: ['✓ Valid JSON', '', formatted],
+            error: null,
+            executedAt: new Date().toISOString(),
+          };
+        } catch (e) {
+          return {
+            output: [],
+            error: `Invalid JSON: ${e instanceof Error ? e.message : 'Parse error'}`,
+            executedAt: new Date().toISOString(),
+          };
+        }
+      }
+      
+      // For other data formats, just display them
+      return {
+        output: [`📄 ${language.toUpperCase()} content:`, '', code],
+        error: null,
+        executedAt: new Date().toISOString(),
       };
     }
 
