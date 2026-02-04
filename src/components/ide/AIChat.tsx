@@ -94,6 +94,21 @@ const quickActions: QuickAction[] = [
     prompt: 'Generate comprehensive unit tests for this code using Vitest. Include happy path, edge cases, error scenarios, and boundary conditions. Provide ready-to-use test code.',
     requiresFile: true,
   },
+  // General actions that don't require a file
+  {
+    id: 'generate',
+    label: 'Generate Code',
+    icon: <Code className="w-3.5 h-3.5" />,
+    prompt: 'Help me generate code. What would you like me to create?',
+    requiresFile: false,
+  },
+  {
+    id: 'ask',
+    label: 'Ask Anything',
+    icon: <Sparkles className="w-3.5 h-3.5" />,
+    prompt: 'I\'m ready to help! What programming question do you have?',
+    requiresFile: false,
+  },
 ];
 
 // Thinking step component
