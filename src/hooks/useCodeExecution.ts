@@ -7,10 +7,41 @@ interface ExecutionResult {
   executedAt: string;
 }
 
+// Languages that can be executed via Piston API
+const EXECUTABLE_LANGUAGES = new Set([
+  'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'go', 
+  'rust', 'ruby', 'php', 'swift', 'kotlin', 'csharp', 'bash', 'shell', 'makefile', 'make'
+]);
+
+// Languages that are markup/config and can't be "run"
+const NON_EXECUTABLE_LANGUAGES = new Set([
+  'html', 'css', 'json', 'xml', 'yaml', 'yml', 'md', 'markdown', 'txt', 'svg', 'toml'
+]);
+
 export const useCodeExecution = () => {
   const [isExecuting, setIsExecuting] = useState(false);
 
   const executeCode = useCallback(async (code: string, language: string = 'javascript'): Promise<ExecutionResult> => {
+    // Handle non-executable languages gracefully
+    if (NON_EXECUTABLE_LANGUAGES.has(language.toLowerCase())) {
+      const messages: Record<string, string> = {
+        'html': 'HTML files are rendered in the preview. Click Run to see your HTML in the Webview.',
+        'css': 'CSS files are applied when linked in HTML. Check the preview to see styles.',
+        'json': 'JSON is a data format, not executable code.',
+        'xml': 'XML is a markup format, not executable code.',
+        'yaml': 'YAML is a configuration format, not executable code.',
+        'yml': 'YAML is a configuration format, not executable code.',
+        'md': 'Markdown is a documentation format, not executable code.',
+        'markdown': 'Markdown is a documentation format, not executable code.',
+        'toml': 'TOML is a configuration format, not executable code.',
+      };
+      return {
+        output: [messages[language.toLowerCase()] || `${language.toUpperCase()} files cannot be executed directly.`],
+        error: null,
+        executedAt: new Date().toISOString()
+      };
+    }
+
     setIsExecuting(true);
     
     try {
