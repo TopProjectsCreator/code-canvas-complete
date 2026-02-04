@@ -8,7 +8,10 @@ export type ToolName =
   | 'run_code'
   | 'explain_error'
   | 'generate_tests'
-  | 'refactor_code';
+  | 'refactor_code'
+  | 'create_workflow'
+  | 'run_workflow'
+  | 'list_workflows';
 
 export interface ToolCall {
   id: string;
@@ -62,10 +65,18 @@ export interface AgentContext {
 }
 
 export interface AgentAction {
-  type: 'apply_code' | 'insert_code' | 'create_file' | 'run_command' | 'navigate_to_file';
+  type: 'apply_code' | 'insert_code' | 'create_file' | 'run_command' | 'navigate_to_file' | 'create_workflow' | 'run_workflow';
   payload: Record<string, unknown>;
   label: string;
   icon?: string;
+}
+
+export interface WorkflowAction {
+  name: string;
+  type: 'run' | 'build' | 'test' | 'deploy' | 'custom';
+  command: string;
+  description?: string;
+  trigger?: 'manual' | 'on-save' | 'on-commit';
 }
 
 // Tool definitions for the AI to use
