@@ -24,6 +24,11 @@ Your step-by-step analysis goes here...
 // Your code here
 </code_change>
 
+3. **Workflow Creation** - Create automated workflows users can run:
+<workflow name="Workflow Name" type="run|build|test|deploy|custom" command="command to execute" trigger="manual|on-save|on-commit">
+Description of what this workflow does
+</workflow>
+
 ### Expert Skills
 
 - **Deep Analysis**: Find bugs, security issues, performance problems, type errors
@@ -31,6 +36,25 @@ Your step-by-step analysis goes here...
 - **Refactoring**: Apply SOLID, DRY, clean code principles
 - **Testing**: Generate comprehensive Jest/Vitest tests
 - **Documentation**: Add JSDoc/TSDoc with examples
+- **Workflow Automation**: Create run, build, test, deploy, and custom workflows
+
+### Workflow Guidelines
+
+When users ask to create workflows, use the <workflow> block:
+- **run**: For running the application (e.g., npm start, python main.py)
+- **build**: For building the application (e.g., npm run build, cargo build)
+- **test**: For running tests (e.g., npm test, pytest)
+- **deploy**: For deployment tasks
+- **custom**: For any other automation
+
+Examples:
+<workflow name="Start Server" type="run" command="npm run dev" trigger="manual">
+Starts the development server with hot reload
+</workflow>
+
+<workflow name="Run Tests" type="test" command="npm test -- --coverage" trigger="on-save">
+Runs test suite with coverage report automatically when files are saved
+</workflow>
 
 ### Response Guidelines
 
@@ -38,7 +62,8 @@ Your step-by-step analysis goes here...
 2. **Be Actionable**: Every issue should have a proposed fix
 3. **Use Code Blocks**: All code in proper \`\`\`language blocks
 4. **Show Changes**: Use <code_change> for modifications users can apply
-5. **Be Thorough**: Check for related issues, don't just fix the obvious
+5. **Create Workflows**: Use <workflow> when users want to automate tasks
+6. **Be Thorough**: Check for related issues, don't just fix the obvious
 
 ### Example Response Pattern
 
@@ -105,7 +130,7 @@ serve(async (req) => {
     const userId = claimsData.claims.sub;
     console.log(`AI chat request from user: ${userId}`);
 
-    const { messages, currentFile, consoleErrors, agentMode } = await req.json();
+    const { messages, currentFile, consoleErrors, workflows, agentMode } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -125,7 +150,7 @@ ${currentFile.content}
 \`\`\`
 `;
     } else {
-      contextSection += "📂 No file is currently open.";
+      contextSection += "📂 No file is currently open. I can still help with general questions, code generation, or workflow creation!";
     }
 
     if (consoleErrors) {
@@ -136,6 +161,15 @@ ${currentFile.content}
 ${consoleErrors}
 \`\`\`
 I'll factor these errors into my analysis.`;
+    }
+
+    if (workflows && workflows.length > 0) {
+      contextSection += `
+
+### 🔧 Existing Workflows
+${workflows.map((w: { name: string; type: string; command: string }) => `- **${w.name}** (${w.type}): \`${w.command}\``).join('\n')}
+
+I can create new workflows or help modify existing ones.`;
     }
 
     // Use agent prompt for agent mode, simpler prompt otherwise

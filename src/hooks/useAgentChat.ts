@@ -1,15 +1,19 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { AgentMessage, AgentStep, CodeChange, ToolCall } from '@/types/agent';
+import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction } from '@/types/agent';
+import { Workflow } from '@/types/ide';
 
 interface UseAgentChatProps {
   onCodeChange?: (change: CodeChange) => void;
   onApplyCode?: (code: string, fileName: string) => void;
+  onCreateWorkflow?: (workflow: Omit<Workflow, 'id'>) => void;
+  onRunWorkflow?: (workflow: Workflow) => void;
+  workflows?: Workflow[];
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
-export const useAgentChat = ({ onCodeChange, onApplyCode }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, workflows = [] }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
       id: '1',
@@ -70,6 +74,28 @@ export const useAgentChat = ({ onCodeChange, onApplyCode }: UseAgentChatProps = 
     return { codeChanges, cleanContent: cleanContent.trim() };
   };
 
+  const parseWorkflowCommands = (content: string): { workflowActions: WorkflowAction[], cleanContent: string } => {
+    const workflowActions: WorkflowAction[] = [];
+    let cleanContent = content;
+    
+    // Parse workflow creation blocks: <workflow name="name" type="run" command="npm start">description</workflow>
+    const workflowRegex = /<workflow\s+name="([^"]+)"\s+type="([^"]+)"\s+command="([^"]+)"(?:\s+trigger="([^"]+)")?>([\s\S]*?)<\/workflow>/g;
+    let match;
+    
+    while ((match = workflowRegex.exec(content)) !== null) {
+      workflowActions.push({
+        name: match[1],
+        type: match[2] as 'run' | 'build' | 'test' | 'deploy' | 'custom',
+        command: match[3],
+        trigger: (match[4] as 'manual' | 'on-save' | 'on-commit') || 'manual',
+        description: match[5].trim(),
+      });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+    
+    return { workflowActions, cleanContent: cleanContent.trim() };
+  };
+
   const parseThinkingBlocks = (content: string): { steps: AgentStep[], cleanContent: string } => {
     const steps: AgentStep[] = [];
     let cleanContent = content;
@@ -96,6 +122,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode }: UseAgentChatProps = 
     content: string; 
     steps: AgentStep[];
     hasCodeChanges: boolean;
+    hasWorkflowChanges: boolean;
   } => {
     let content = rawContent;
     const allSteps: AgentStep[] = [];
@@ -136,10 +163,40 @@ export const useAgentChat = ({ onCodeChange, onApplyCode }: UseAgentChatProps = 
     });
     content = afterCode;
     
+    // Parse workflow commands
+    const { workflowActions, cleanContent: afterWorkflows } = parseWorkflowCommands(content);
+    workflowActions.forEach(wa => {
+      allSteps.push({
+        id: generateId(),
+        type: 'tool_call',
+        content: `Creating workflow: ${wa.name}`,
+        timestamp: new Date(),
+        toolCall: {
+          id: generateId(),
+          name: 'create_workflow',
+          arguments: { ...wa } as Record<string, unknown>,
+          status: 'completed',
+        },
+      });
+      
+      // Create the workflow
+      if (onCreateWorkflow) {
+        onCreateWorkflow({
+          name: wa.name,
+          type: wa.type,
+          command: wa.command,
+          description: wa.description,
+          trigger: wa.trigger,
+        });
+      }
+    });
+    content = afterWorkflows;
+    
     return {
       content,
       steps: allSteps,
       hasCodeChanges: codeChanges.length > 0,
+      hasWorkflowChanges: workflowActions.length > 0,
     };
   };
 
@@ -149,6 +206,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode }: UseAgentChatProps = 
       currentFile?: { name: string; language?: string; content?: string } | null;
       consoleErrors?: string;
       agentMode?: boolean;
+      workflows?: Array<{ name: string; type: string; command: string }>;
     } = {}
   ) => {
     if (!messageContent.trim() || isLoading) return;
@@ -197,6 +255,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode }: UseAgentChatProps = 
             content: context.currentFile.content?.slice(0, 10000),
           } : null,
           consoleErrors: context.consoleErrors || null,
+          workflows: context.workflows || workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
           agentMode: true,
         }),
         signal: abortControllerRef.current.signal,
