@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   Bot, 
   Send, 
@@ -10,24 +10,28 @@ import {
   Bug, 
   Lightbulb, 
   TestTube,
-  Play,
   Zap,
   Code,
   Copy,
   Check,
-  LogIn
+  ChevronDown,
+  ChevronRight,
+  Play,
+  FileEdit,
+  Brain,
+  Wrench,
+  StopCircle,
+  Trash2,
+  CheckCircle2,
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { FileNode, TerminalLine } from '@/types/ide';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-
-interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-}
+import { useAgentChat } from '@/hooks/useAgentChat';
+import { AgentMessage, AgentStep, CodeChange } from '@/types/agent';
 
 interface QuickAction {
   id: string;
@@ -43,55 +47,164 @@ interface AIChatProps {
   currentFile: FileNode | null;
   consoleOutput?: TerminalLine[];
   onInsertCode?: (code: string) => void;
+  onApplyCode?: (code: string, fileName: string) => void;
   onRunTest?: (testCode: string) => void;
 }
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
-
 const quickActions: QuickAction[] = [
+  {
+    id: 'analyze',
+    label: 'Analyze',
+    icon: <Brain className="w-3.5 h-3.5" />,
+    prompt: 'Analyze this code comprehensively. Look for bugs, security issues, performance problems, and code quality issues. For each issue found, propose a specific fix with code.',
+    requiresFile: true,
+  },
+  {
+    id: 'fix',
+    label: 'Fix Issues',
+    icon: <Wrench className="w-3.5 h-3.5" />,
+    prompt: 'Find and fix all issues in this code. Show me the corrected code that I can apply directly. Explain each fix briefly.',
+    requiresFile: true,
+  },
   {
     id: 'explain',
     label: 'Explain',
     icon: <Lightbulb className="w-3.5 h-3.5" />,
-    prompt: 'Explain this code in simple terms. What does it do and how does it work? Break down the logic step by step.',
+    prompt: 'Explain this code step by step. Break down the logic, explain the purpose of each section, and highlight any important patterns or techniques used.',
     requiresFile: true,
   },
   {
     id: 'debug',
     label: 'Debug',
     icon: <Bug className="w-3.5 h-3.5" />,
-    prompt: 'Analyze this code for bugs, logic errors, security vulnerabilities, and potential runtime issues. Provide corrected code with explanations.',
+    prompt: 'Debug this code. Analyze the logic flow, identify potential runtime errors, check for edge cases, and provide corrected code with explanations.',
     requiresFile: true,
   },
   {
-    id: 'improve',
+    id: 'refactor',
     label: 'Refactor',
     icon: <Zap className="w-3.5 h-3.5" />,
-    prompt: 'Refactor this code for better readability, performance, and maintainability. Apply SOLID principles and modern best practices. Show the improved version.',
+    prompt: 'Refactor this code for better quality. Apply SOLID principles, improve naming, extract reusable functions, and enhance readability. Show me the refactored code.',
     requiresFile: true,
   },
   {
     id: 'test',
-    label: 'Tests',
+    label: 'Generate Tests',
     icon: <TestTube className="w-3.5 h-3.5" />,
-    prompt: 'Write comprehensive unit tests for this code using Jest/Vitest. Include happy path, edge cases, error handling, and boundary conditions.',
-    requiresFile: true,
-  },
-  {
-    id: 'generate',
-    label: 'Generate',
-    icon: <Code className="w-3.5 h-3.5" />,
-    prompt: 'Based on the current file context, what code would you suggest adding? Generate helpful functions, types, or utilities that would complement this code.',
-    requiresFile: true,
-  },
-  {
-    id: 'document',
-    label: 'Document',
-    icon: <FileCode className="w-3.5 h-3.5" />,
-    prompt: 'Add comprehensive JSDoc/TSDoc comments to all functions, classes, and complex logic. Include @param, @returns, @example, and @throws where applicable.',
+    prompt: 'Generate comprehensive unit tests for this code using Vitest. Include happy path, edge cases, error scenarios, and boundary conditions. Provide ready-to-use test code.',
     requiresFile: true,
   },
 ];
+
+// Thinking step component
+const ThinkingStep = ({ step, isExpanded, onToggle }: { 
+  step: AgentStep; 
+  isExpanded: boolean; 
+  onToggle: () => void;
+}) => (
+  <div className="border border-border/50 rounded-lg overflow-hidden bg-muted/30">
+    <button
+      onClick={onToggle}
+      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
+    >
+      {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+      <Brain className="w-3 h-3 text-violet-400" />
+      <span>Thinking process</span>
+    </button>
+    {isExpanded && (
+      <div className="px-3 pb-3 text-xs text-muted-foreground italic border-t border-border/30">
+        {step.content}
+      </div>
+    )}
+  </div>
+);
+
+// Code change component with apply button
+const CodeChangeBlock = ({ 
+  change, 
+  onApply, 
+  isApplied 
+}: { 
+  change: CodeChange; 
+  onApply: () => void;
+  isApplied: boolean;
+}) => {
+  const [copied, setCopied] = useState(false);
+  
+  const copyCode = async () => {
+    await navigator.clipboard.writeText(change.newCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="border border-primary/30 rounded-lg overflow-hidden bg-primary/5 my-2">
+      <div className="flex items-center justify-between px-3 py-2 bg-primary/10 border-b border-primary/20">
+        <div className="flex items-center gap-2">
+          <FileEdit className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-medium text-foreground">{change.fileName}</span>
+          <span className="text-xs text-muted-foreground">• {change.description}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={copyCode}
+            className="p-1.5 rounded hover:bg-background/50 text-muted-foreground hover:text-foreground transition-colors"
+            title="Copy code"
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+          </button>
+          <button
+            onClick={onApply}
+            disabled={isApplied}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all",
+              isApplied 
+                ? "bg-green-500/20 text-green-400 cursor-default"
+                : "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
+            )}
+          >
+            {isApplied ? (
+              <>
+                <CheckCircle2 className="w-3 h-3" />
+                Applied
+              </>
+            ) : (
+              <>
+                <Play className="w-3 h-3" />
+                Apply
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+      <pre className="p-3 overflow-x-auto text-xs bg-background/30">
+        <code className="text-foreground">{change.newCode}</code>
+      </pre>
+    </div>
+  );
+};
+
+// Tool call indicator
+const ToolCallIndicator = ({ toolCall }: { toolCall: AgentStep['toolCall'] }) => {
+  if (!toolCall) return null;
+  
+  const statusIcon = {
+    pending: <Loader2 className="w-3 h-3 animate-spin text-yellow-400" />,
+    running: <Loader2 className="w-3 h-3 animate-spin text-primary" />,
+    completed: <CheckCircle2 className="w-3 h-3 text-green-400" />,
+    failed: <XCircle className="w-3 h-3 text-red-400" />,
+  }[toolCall.status];
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border/50 text-xs">
+      {statusIcon}
+      <Wrench className="w-3 h-3 text-muted-foreground" />
+      <span className="text-muted-foreground">
+        {toolCall.name.replace(/_/g, ' ')}
+      </span>
+    </div>
+  );
+};
 
 export const AIChat = ({ 
   isOpen, 
@@ -99,21 +212,31 @@ export const AIChat = ({
   currentFile, 
   consoleOutput,
   onInsertCode,
+  onApplyCode,
   onRunTest 
 }: AIChatProps) => {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: "Hi! I'm **Replit Agent** 🤖\n\nI can help you:\n- 📖 **Explain** your code\n- 🐛 **Debug** errors and issues\n- ⚡ **Improve** code quality\n- 🧪 **Write tests** for your functions\n\nOpen a file and use the quick actions below, or ask me anything!",
-    },
-  ]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set());
+  const [appliedChanges, setAppliedChanges] = useState<Set<string>>(new Set());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const { 
+    messages, 
+    isLoading, 
+    currentStep,
+    sendMessage, 
+    applyCodeChange,
+    stopGeneration,
+    clearMessages 
+  } = useAgentChat({
+    onApplyCode: (code, fileName) => {
+      if (onApplyCode) {
+        onApplyCode(code, fileName);
+      }
+    },
+  });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -121,7 +244,7 @@ export const AIChat = ({
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, currentStep]);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -129,164 +252,77 @@ export const AIChat = ({
     }
   }, [isOpen]);
 
-  const generateId = () => Math.random().toString(36).substring(2, 9);
+  const handleSend = () => {
+    if (!input.trim() || isLoading) return;
+    
+    if (!user) {
+      return;
+    }
 
-  const copyToClipboard = async (code: string) => {
-    await navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
+    const recentErrors = consoleOutput
+      ?.filter(line => line.type === 'error')
+      .slice(-5)
+      .map(line => line.content)
+      .join('\n');
+
+    sendMessage(input, {
+      currentFile: currentFile ? {
+        name: currentFile.name,
+        language: currentFile.language,
+        content: currentFile.content,
+      } : null,
+      consoleErrors: recentErrors,
+      agentMode: true,
+    });
+    
+    setInput('');
   };
 
-  const sendMessage = useCallback(async (messageContent?: string) => {
-    const content = messageContent || input.trim();
-    if (!content || isLoading) return;
-
-    // Check if user is authenticated
-    if (!user) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: generateId(),
-          role: 'assistant',
-          content: '🔒 **Authentication Required**\n\nPlease sign in to use the AI assistant. Your conversations will be secure and private.',
-        },
-      ]);
-      return;
-    }
-
-    const userMessage: Message = {
-      id: generateId(),
-      role: 'user',
-      content,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
-    let assistantContent = '';
-
-    try {
-      // Get the current session token
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.access_token) {
-        throw new Error('Session expired. Please sign in again.');
-      }
-
-      // Include console output for debugging context
-      const recentErrors = consoleOutput
-        ?.filter(line => line.type === 'error')
-        .slice(-5)
-        .map(line => line.content)
-        .join('\n');
-
-      const response = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          messages: [...messages.slice(1), userMessage].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-          currentFile: currentFile
-            ? {
-                name: currentFile.name,
-                language: currentFile.language,
-                content: currentFile.content?.slice(0, 8000),
-              }
-            : null,
-          consoleErrors: recentErrors || null,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to get response');
-      }
-
-      if (!response.body) throw new Error('No response body');
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      const assistantId = generateId();
-      setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '' }]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
-          let line = buffer.slice(0, newlineIndex);
-          buffer = buffer.slice(newlineIndex + 1);
-
-          if (line.endsWith('\r')) line = line.slice(0, -1);
-          if (line.startsWith(':') || line.trim() === '') continue;
-          if (!line.startsWith('data: ')) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === '[DONE]') break;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-            if (content) {
-              assistantContent += content;
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: assistantContent } : m
-                )
-              );
-            }
-          } catch {
-            buffer = line + '\n' + buffer;
-            break;
-          }
-        }
-      }
-    } catch (error) {
-      console.error('AI chat error:', error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: generateId(),
-          role: 'assistant',
-          content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [input, isLoading, messages, currentFile, consoleOutput, user]);
-
   const handleQuickAction = (action: QuickAction) => {
-    if (action.requiresFile && !currentFile) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: generateId(),
-          role: 'assistant',
-          content: '⚠️ Please open a file first to use this action.',
-        },
-      ]);
-      return;
-    }
-    sendMessage(action.prompt);
+    if (action.requiresFile && !currentFile) return;
+    
+    const recentErrors = consoleOutput
+      ?.filter(line => line.type === 'error')
+      .slice(-5)
+      .map(line => line.content)
+      .join('\n');
+
+    sendMessage(action.prompt, {
+      currentFile: currentFile ? {
+        name: currentFile.name,
+        language: currentFile.language,
+        content: currentFile.content,
+      } : null,
+      consoleErrors: recentErrors,
+      agentMode: true,
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      handleSend();
     }
+  };
+
+  const toggleThinking = (stepId: string) => {
+    setExpandedThinking(prev => {
+      const next = new Set(prev);
+      if (next.has(stepId)) {
+        next.delete(stepId);
+      } else {
+        next.add(stepId);
+      }
+      return next;
+    });
+  };
+
+  const handleApplyChange = (change: CodeChange, changeId: string) => {
+    applyCodeChange(change);
+    if (onInsertCode) {
+      onInsertCode(change.newCode);
+    }
+    setAppliedChanges(prev => new Set(prev).add(changeId));
   };
 
   if (!isOpen) return null;
@@ -301,15 +337,33 @@ export const AIChat = ({
           </div>
           <div>
             <h3 className="font-semibold text-sm text-foreground">Replit Agent</h3>
-            <p className="text-xs text-muted-foreground">AI Coding Assistant</p>
+            <p className="text-xs text-muted-foreground">
+              {isLoading ? (
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                  {currentStep || 'Working...'}
+                </span>
+              ) : (
+                'Ready to help'
+              )}
+            </p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={clearMessages}
+            className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="Clear conversation"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Current file indicator */}
@@ -369,61 +423,95 @@ export const AIChat = ({
               )}
             >
               {message.role === 'assistant' ? (
-                <div className="prose prose-sm prose-invert max-w-none">
-                  <ReactMarkdown
-                    components={{
-                      code: ({ className, children, ...props }) => {
-                        const isInline = !className;
-                        const codeContent = String(children).replace(/\n$/, '');
-                        
-                        if (isInline) {
-                          return (
-                            <code className="bg-background/50 px-1 py-0.5 rounded text-xs" {...props}>
-                              {children}
-                            </code>
-                          );
-                        }
-                        
-                        return (
-                          <div className="relative group my-2">
-                            <pre className="bg-background/50 p-3 rounded-lg overflow-x-auto">
-                              <code className="text-xs" {...props}>
-                                {children}
-                              </code>
-                            </pre>
-                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button
-                                onClick={() => copyToClipboard(codeContent)}
-                                className="p-1.5 rounded bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
-                                title="Copy code"
-                              >
-                                {copiedCode === codeContent ? (
-                                  <Check className="w-3.5 h-3.5 text-green-500" />
-                                ) : (
-                                  <Copy className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-                              {onInsertCode && (
-                                <button
-                                  onClick={() => onInsertCode(codeContent)}
-                                  className="p-1.5 rounded bg-background/80 hover:bg-primary hover:text-primary-foreground text-muted-foreground transition-colors"
-                                  title="Insert into editor"
-                                >
-                                  <Code className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      },
-                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                      ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                      strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-                    }}
-                  >
-                    {message.content || '...'}
-                  </ReactMarkdown>
+                <div className="space-y-2">
+                  {/* Render steps (thinking, tool calls, code changes) */}
+                  {message.steps?.map((step) => (
+                    <div key={step.id}>
+                      {step.type === 'thinking' && (
+                        <ThinkingStep
+                          step={step}
+                          isExpanded={expandedThinking.has(step.id)}
+                          onToggle={() => toggleThinking(step.id)}
+                        />
+                      )}
+                      {step.type === 'tool_call' && step.toolCall && (
+                        <ToolCallIndicator toolCall={step.toolCall} />
+                      )}
+                      {step.type === 'code_change' && step.codeChange && (
+                        <CodeChangeBlock
+                          change={step.codeChange}
+                          onApply={() => handleApplyChange(step.codeChange!, step.id)}
+                          isApplied={appliedChanges.has(step.id)}
+                        />
+                      )}
+                    </div>
+                  ))}
+                  
+                  {/* Render main content */}
+                  {message.content && (
+                    <div className="prose prose-sm prose-invert max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          code: ({ className, children, ...props }) => {
+                            const isInline = !className;
+                            const codeContent = String(children).replace(/\n$/, '');
+                            
+                            if (isInline) {
+                              return (
+                                <code className="bg-background/50 px-1 py-0.5 rounded text-xs" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            }
+                            
+                            return (
+                              <div className="relative group my-2">
+                                <pre className="bg-background/50 p-3 rounded-lg overflow-x-auto">
+                                  <code className="text-xs" {...props}>
+                                    {children}
+                                  </code>
+                                </pre>
+                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={async () => {
+                                      await navigator.clipboard.writeText(codeContent);
+                                    }}
+                                    className="p-1.5 rounded bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
+                                    title="Copy code"
+                                  >
+                                    <Copy className="w-3.5 h-3.5" />
+                                  </button>
+                                  {onInsertCode && (
+                                    <button
+                                      onClick={() => onInsertCode(codeContent)}
+                                      className="p-1.5 rounded bg-background/80 hover:bg-primary hover:text-primary-foreground text-muted-foreground transition-colors"
+                                      title="Insert into editor"
+                                    >
+                                      <Code className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          },
+                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                          strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                  
+                  {/* Streaming indicator */}
+                  {message.isStreaming && !message.content && (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <span className="text-xs text-muted-foreground">{currentStep || 'Thinking...'}</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 message.content
@@ -436,6 +524,8 @@ export const AIChat = ({
             )}
           </div>
         ))}
+        
+        {/* Loading indicator when waiting for response */}
         {isLoading && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex gap-3">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
@@ -443,7 +533,7 @@ export const AIChat = ({
             </div>
             <div className="bg-muted rounded-xl px-3 py-2 flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
-              <span className="text-xs text-muted-foreground">Thinking...</span>
+              <span className="text-xs text-muted-foreground">{currentStep || 'Thinking...'}</span>
             </div>
           </div>
         )}
@@ -452,32 +542,51 @@ export const AIChat = ({
 
       {/* Input */}
       <div className="p-4 border-t border-border">
-        <div className="flex gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={currentFile ? `Ask about ${currentFile.name}...` : 'Ask me anything...'}
-            className="flex-1 resize-none bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary min-h-[40px] max-h-[120px]"
-            rows={1}
-          />
-          <button
-            onClick={() => sendMessage()}
-            disabled={!input.trim() || isLoading}
-            className={cn(
-              'p-2.5 rounded-lg transition-colors',
-              input.trim() && !isLoading
-                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                : 'bg-muted text-muted-foreground cursor-not-allowed'
-            )}
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
-        <p className="text-xs text-muted-foreground mt-2 text-center">
-          Powered by Lovable AI • Press Enter to send
-        </p>
+        {!user ? (
+          <div className="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground">
+            <AlertCircle className="w-4 h-4" />
+            <span>Sign in to use AI assistant</span>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-2">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={currentFile ? `Ask about ${currentFile.name}...` : 'Ask me anything...'}
+                className="flex-1 resize-none bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary min-h-[40px] max-h-[120px]"
+                rows={1}
+              />
+              {isLoading ? (
+                <button
+                  onClick={stopGeneration}
+                  className="p-2.5 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                  title="Stop generating"
+                >
+                  <StopCircle className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim()}
+                  className={cn(
+                    'p-2.5 rounded-lg transition-colors',
+                    input.trim()
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'bg-muted text-muted-foreground cursor-not-allowed'
+                  )}
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Agent mode • Shows thinking process • Can apply code changes
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
