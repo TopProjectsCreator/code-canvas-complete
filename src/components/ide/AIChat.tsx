@@ -28,10 +28,10 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
-import { FileNode, TerminalLine } from '@/types/ide';
+import { FileNode, TerminalLine, Workflow } from '@/types/ide';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAgentChat } from '@/hooks/useAgentChat';
-import { AgentMessage, AgentStep, CodeChange } from '@/types/agent';
+import { AgentMessage, AgentStep, CodeChange, WorkflowAction } from '@/types/agent';
 
 interface QuickAction {
   id: string;
@@ -49,6 +49,9 @@ interface AIChatProps {
   onInsertCode?: (code: string) => void;
   onApplyCode?: (code: string, fileName: string) => void;
   onRunTest?: (testCode: string) => void;
+  workflows?: Workflow[];
+  onCreateWorkflow?: (workflow: Omit<Workflow, 'id'>) => void;
+  onRunWorkflow?: (workflow: Workflow) => void;
 }
 
 const quickActions: QuickAction[] = [
@@ -100,6 +103,13 @@ const quickActions: QuickAction[] = [
     label: 'Generate Code',
     icon: <Code className="w-3.5 h-3.5" />,
     prompt: 'Help me generate code. What would you like me to create?',
+    requiresFile: false,
+  },
+  {
+    id: 'workflow',
+    label: 'Create Workflow',
+    icon: <Zap className="w-3.5 h-3.5" />,
+    prompt: 'Help me create a new workflow. I can create run, build, test, deploy, or custom workflows. What would you like to automate?',
     requiresFile: false,
   },
   {
@@ -228,7 +238,10 @@ export const AIChat = ({
   consoleOutput,
   onInsertCode,
   onApplyCode,
-  onRunTest 
+  onRunTest,
+  workflows,
+  onCreateWorkflow,
+  onRunWorkflow
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -251,6 +264,9 @@ export const AIChat = ({
         onApplyCode(code, fileName);
       }
     },
+    onCreateWorkflow,
+    onRunWorkflow,
+    workflows,
   });
 
   const scrollToBottom = () => {
