@@ -12,7 +12,8 @@ import {
   Star,
   Sparkles,
   Save,
-  Loader2
+  Loader2,
+  Github
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { UserMenu } from './UserMenu';
@@ -34,6 +35,7 @@ interface HeaderProps {
   onFork: () => void;
   onStar: () => void;
   onShare: () => void;
+  onGitHubImport: () => void;
   isStarred: boolean;
   isForking: boolean;
   starsCount: number;
@@ -54,6 +56,7 @@ export const Header = ({
   onFork,
   onStar,
   onShare,
+  onGitHubImport,
   isStarred,
   isForking,
   starsCount
@@ -137,6 +140,15 @@ export const Header = ({
         >
           <Sparkles className="w-4 h-4" />
           <span className="hidden sm:inline">AI</span>
+        </button>
+
+        {/* GitHub Import */}
+        <button 
+          onClick={onGitHubImport}
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
+          title="Import from GitHub"
+        >
+          <Github className="w-4 h-4" />
         </button>
 
         {user && (
