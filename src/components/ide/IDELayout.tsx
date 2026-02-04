@@ -13,6 +13,7 @@ import { AIChat } from './AIChat';
 import { ProjectsDialog } from './ProjectsDialog';
 import { SaveProjectDialog } from './SaveProjectDialog';
 import { ShareDialog } from './ShareDialog';
+import { GitHubImportDialog } from './GitHubImportDialog';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { cn } from '@/lib/utils';
 import { useCodeExecution } from '@/hooks/useCodeExecution';
@@ -110,6 +111,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const [showProjectsDialog, setShowProjectsDialog] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [showGitHubImportDialog, setShowGitHubImportDialog] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
@@ -937,6 +939,40 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     }
   }, [fileContents]);
 
+  // Handle GitHub import
+  const handleGitHubImport = useCallback((importedFiles: FileNode[], repoName: string) => {
+    setFiles(importedFiles);
+    setSelectedTemplate('javascript'); // Default template for imported repos
+    setFileContents({});
+    setOpenTabs([]);
+    setActiveTabId(null);
+    
+    // Store original file contents
+    const originals: Record<string, string> = {};
+    const collectContents = (nodes: FileNode[]) => {
+      nodes.forEach(node => {
+        if (node.type === 'file' && node.content) {
+          originals[node.id] = node.content;
+        }
+        if (node.children) collectContents(node.children);
+      });
+    };
+    collectContents(importedFiles);
+    setOriginalFileContents(originals);
+
+    toast({
+      title: 'Repository imported',
+      description: `Successfully imported "${repoName}"`,
+    });
+
+    setTerminalHistory(prev => [...prev, {
+      id: generateId(),
+      type: 'info',
+      content: `📦 Imported GitHub repository: ${repoName}`,
+      timestamp: new Date(),
+    }]);
+  }, [toast]);
+
   // Show language picker if no template selected
   if (!selectedTemplate) {
     return (
@@ -968,6 +1004,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         onFork={handleFork}
         onStar={handleStar}
         onShare={() => setShowShareDialog(true)}
+        onGitHubImport={() => setShowGitHubImportDialog(true)}
         isStarred={isStarred}
         isForking={isForking}
         starsCount={currentProject?.stars_count || 0}
@@ -994,6 +1031,12 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         onOpenChange={setShowShareDialog}
         project={currentProject}
         onProjectUpdated={setCurrentProject}
+      />
+
+      <GitHubImportDialog
+        open={showGitHubImportDialog}
+        onOpenChange={setShowGitHubImportDialog}
+        onImport={handleGitHubImport}
       />
 
       <div className="flex-1 flex overflow-hidden">
