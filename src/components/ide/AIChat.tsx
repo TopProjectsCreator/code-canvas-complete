@@ -52,6 +52,7 @@ interface AIChatProps {
   workflows?: Workflow[];
   onCreateWorkflow?: (workflow: Omit<Workflow, 'id'>) => void;
   onRunWorkflow?: (workflow: Workflow) => void;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 const quickActions: QuickAction[] = [
@@ -241,7 +242,8 @@ export const AIChat = ({
   onRunTest,
   workflows,
   onCreateWorkflow,
-  onRunWorkflow
+  onRunWorkflow,
+  onLoadingChange
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -276,6 +278,10 @@ export const AIChat = ({
   useEffect(() => {
     scrollToBottom();
   }, [messages, currentStep]);
+
+  useEffect(() => {
+    onLoadingChange?.(isLoading);
+  }, [isLoading, onLoadingChange]);
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
