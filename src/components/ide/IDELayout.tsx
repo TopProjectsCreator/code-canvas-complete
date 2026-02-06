@@ -103,6 +103,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const [isTerminalMinimized, setIsTerminalMinimized] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const [isAILoading, setIsAILoading] = useState(false);
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [originalFileContents, setOriginalFileContents] = useState<Record<string, string>>({});
   const [gitState, setGitState] = useState<GitState>(initialGitState);
@@ -1046,6 +1047,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onToggleAIChat={() => setIsAIChatOpen(!isAIChatOpen)}
         isAIChatOpen={isAIChatOpen}
+        isAILoading={isAILoading}
         onOpenProjects={() => setShowProjectsDialog(true)}
         onSaveProject={() => setShowSaveDialog(true)}
         hasUnsavedChanges={hasUnsavedChanges}
@@ -1177,6 +1179,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             workflows={workflows}
             onCreateWorkflow={handleCreateWorkflow}
             onRunWorkflow={handleRunWorkflow}
+            onLoadingChange={setIsAILoading}
           />
         </div>
       </div>
