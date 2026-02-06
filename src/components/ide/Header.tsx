@@ -28,6 +28,7 @@ interface HeaderProps {
   onToggleSidebar: () => void;
   onToggleAIChat: () => void;
   isAIChatOpen: boolean;
+  isAILoading?: boolean;
   onOpenProjects: () => void;
   onSaveProject: () => void;
   hasUnsavedChanges?: boolean;
@@ -49,6 +50,7 @@ export const Header = ({
   onToggleSidebar, 
   onToggleAIChat, 
   isAIChatOpen,
+  isAILoading,
   onOpenProjects,
   onSaveProject,
   hasUnsavedChanges,
@@ -132,14 +134,21 @@ export const Header = ({
         <button 
           onClick={onToggleAIChat}
           className={cn(
-            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors',
+            'relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors',
             isAIChatOpen 
               ? 'bg-violet-500/20 text-violet-400' 
               : 'hover:bg-accent text-muted-foreground hover:text-foreground'
           )}
         >
-          <Sparkles className="w-4 h-4" />
+          {isAILoading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
+          ) : (
+            <Sparkles className="w-4 h-4" />
+          )}
           <span className="hidden sm:inline">AI</span>
+          {isAILoading && (
+            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+          )}
         </button>
 
         {/* GitHub Import */}
