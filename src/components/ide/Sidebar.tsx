@@ -23,6 +23,7 @@ import { NewFileDialog } from './NewFileDialog';
 import { GitPanel } from './GitPanel';
 import { PackagePanel } from './PackagePanel';
 import { WorkflowsPanel } from './WorkflowsPanel';
+import { HistoryPanel, HistoryEntry } from './HistoryPanel';
 import { FileIcon } from './FileIcon';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
@@ -112,9 +113,11 @@ interface SidebarProps {
   onUpdateWorkflow: (id: string, workflow: Partial<Workflow>) => void;
   onDeleteWorkflow: (id: string) => void;
   currentlyRunningWorkflow: string | null;
+  // History props
+  historyEntries: HistoryEntry[];
 }
 
-type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'settings';
+type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'settings' | 'history';
 
 export const Sidebar = ({ 
   files, 
@@ -139,6 +142,7 @@ export const Sidebar = ({
   onUpdateWorkflow,
   onDeleteWorkflow,
   currentlyRunningWorkflow,
+  historyEntries,
 }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('files');
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
@@ -290,9 +294,16 @@ export const Sidebar = ({
           <Users className="w-[18px] h-[18px]" />
         </button>
         <button
-          className="w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          onClick={() => setActiveTab('history')}
+          className={cn(
+            'w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors relative',
+            activeTab === 'history' && 'text-foreground bg-accent'
+          )}
           title="History"
         >
+          {activeTab === 'history' && (
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-r" />
+          )}
           <History className="w-[18px] h-[18px]" />
         </button>
       </div>
@@ -469,6 +480,10 @@ export const Sidebar = ({
 
         {activeTab === 'settings' && (
           <SettingsPanel />
+        )}
+
+        {activeTab === 'history' && (
+          <HistoryPanel entries={historyEntries} />
         )}
       </div>
 
