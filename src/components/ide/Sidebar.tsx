@@ -15,7 +15,9 @@ import {
   FileText,
   Palette,
   Check,
-  Zap
+  Zap,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { FileNode, GitState, Workflow } from '@/types/ide';
 import { FileTree } from './FileTree';
@@ -25,14 +27,38 @@ import { PackagePanel } from './PackagePanel';
 import { WorkflowsPanel } from './WorkflowsPanel';
 import { HistoryPanel, HistoryEntry } from './HistoryPanel';
 import { FileIcon } from './FileIcon';
+import { ThemeCreator } from './ThemeCreator';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
 import { useTheme, themeInfo, IDETheme } from '@/contexts/ThemeContext';
 
 // Settings Panel Component
 const SettingsPanel = () => {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, customThemes, addCustomTheme, deleteCustomTheme, updateCustomTheme } = useTheme();
   const themes = Object.keys(themeInfo) as IDETheme[];
+  const [showCreator, setShowCreator] = useState(false);
+  const [editingTheme, setEditingTheme] = useState<import('@/contexts/ThemeContext').CustomTheme | undefined>();
+
+  if (showCreator) {
+    return (
+      <ThemeCreator
+        existingTheme={editingTheme}
+        onSave={(ct) => {
+          if (editingTheme) {
+            updateCustomTheme(ct);
+          } else {
+            addCustomTheme(ct);
+          }
+          setShowCreator(false);
+          setEditingTheme(undefined);
+        }}
+        onBack={() => {
+          setShowCreator(false);
+          setEditingTheme(undefined);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full overflow-auto ide-scrollbar">
@@ -51,33 +77,102 @@ const SettingsPanel = () => {
       </div>
 
       <div className="p-3">
-        <div className="flex items-center gap-2 mb-3">
-          <Palette className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-medium">Theme</h3>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Palette className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-medium">Theme</h3>
+          </div>
+          <button
+            onClick={() => { setEditingTheme(undefined); setShowCreator(true); }}
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+          >
+            <Plus className="w-3 h-3" />
+            Create
+          </button>
         </div>
-        <div className="space-y-1">
-          {themes.map((themeKey) => (
-            <button
-              key={themeKey}
-              onClick={() => setTheme(themeKey)}
-              className={cn(
-                'w-full flex items-center justify-between p-2 rounded-md text-left transition-colors',
-                theme === themeKey
-                  ? 'bg-primary/20 text-primary'
-                  : 'hover:bg-accent'
-              )}
-            >
-              <div>
-                <div className="text-sm font-medium">{themeInfo[themeKey].name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {themeInfo[themeKey].description}
+
+        {/* Custom themes */}
+        {customThemes.length > 0 && (
+          <div className="mb-2">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium px-2">Custom</span>
+            <div className="space-y-1 mt-1">
+              {customThemes.map((ct) => (
+                <div
+                  key={ct.id}
+                  className={cn(
+                    'w-full flex items-center justify-between p-2 rounded-md text-left transition-colors group',
+                    theme === `custom-${ct.id}`
+                      ? 'bg-primary/20 text-primary'
+                      : 'hover:bg-accent'
+                  )}
+                >
+                  <button
+                    onClick={() => setTheme(`custom-${ct.id}`)}
+                    className="flex-1 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-0.5">
+                        {[ct.colors.background, ct.colors.primary, ct.colors.syntaxKeyword].map((c, i) => (
+                          <div key={i} className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: c }} />
+                        ))}
+                      </div>
+                      <div className="text-sm font-medium">{ct.name}</div>
+                    </div>
+                  </button>
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => { setEditingTheme(ct); setShowCreator(true); }}
+                      className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                      title="Edit"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => deleteCustomTheme(ct.id)}
+                      className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                  {theme === `custom-${ct.id}` && (
+                    <Check className="w-4 h-4 text-primary shrink-0 ml-1" />
+                  )}
                 </div>
-              </div>
-              {theme === themeKey && (
-                <Check className="w-4 h-4 text-primary shrink-0" />
-              )}
-            </button>
-          ))}
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Built-in themes */}
+        <div>
+          {customThemes.length > 0 && (
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium px-2">Built-in</span>
+          )}
+          <div className="space-y-1 mt-1">
+            {themes.map((themeKey) => (
+              <button
+                key={themeKey}
+                onClick={() => setTheme(themeKey)}
+                className={cn(
+                  'w-full flex items-center justify-between p-2 rounded-md text-left transition-colors',
+                  theme === themeKey
+                    ? 'bg-primary/20 text-primary'
+                    : 'hover:bg-accent'
+                )}
+              >
+                <div>
+                  <div className="text-sm font-medium">{themeInfo[themeKey].name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {themeInfo[themeKey].description}
+                  </div>
+                </div>
+                {theme === themeKey && (
+                  <Check className="w-4 h-4 text-primary shrink-0" />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
