@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from '@/types/ide';
 import { getTemplateFiles, findFileById, getFileLanguage } from '@/data/defaultFiles';
@@ -116,7 +116,18 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<Array<{
+    id: string; type: 'file-edit' | 'file-create' | 'file-delete' | 'terminal-command' | 'git-commit' | 'template-change' | 'rename';
+    label: string; detail?: string; timestamp: Date;
+  }>>([]);
+  const editedFilesRef = useRef<Set<string>>(new Set());
   const { executeCode, isExecuting } = useCodeExecution();
+
+  const addHistoryEntry = useCallback((type: typeof historyEntries[0]['type'], label: string, detail?: string) => {
+    setHistoryEntries(prev => [{
+      id: generateId(), type, label, detail, timestamp: new Date(),
+    }, ...prev].slice(0, 200));
+  }, []);
 
   const handleSelectTemplate = useCallback((template: LanguageTemplate) => {
     setSelectedTemplate(template);
@@ -322,7 +333,9 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       content: `✓ Committed: "${message}" (${gitState.changes.length} file${gitState.changes.length !== 1 ? 's' : ''})`,
       timestamp: new Date(),
     }]);
-  }, [gitState.changes, files, fileContents, originalFileContents]);
+
+    addHistoryEntry('git-commit', `Committed: "${message}"`, `${gitState.changes.length} file(s)`);
+  }, [gitState.changes, files, fileContents, originalFileContents, addHistoryEntry]);
 
   const handleGitStageFile = useCallback((fileId: string) => {
     // In this simplified implementation, all changes are automatically staged
@@ -551,7 +564,9 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       setOpenTabs((prev) => [...prev, newTab]);
       setActiveTabId(newTab.id);
     }
-  }, []);
+
+    addHistoryEntry('file-create', `Created ${type}: ${name}`);
+  }, [addHistoryEntry]);
 
   const handleDeleteFile = useCallback((fileId: string) => {
     setFiles((prev) => {
@@ -682,13 +697,22 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const handleContentChange = useCallback((fileId: string, content: string) => {
     setFileContents((prev) => ({ ...prev, [fileId]: content }));
     
+    // Track file edits in history (deduplicate rapid edits)
+    if (!editedFilesRef.current.has(fileId)) {
+      editedFilesRef.current.add(fileId);
+      const fileName = openTabs.find(t => t.fileId === fileId)?.name || 'file';
+      addHistoryEntry('file-edit', `Edited ${fileName}`);
+      // Reset after 5s to allow new history entries for the same file
+      setTimeout(() => editedFilesRef.current.delete(fileId), 5000);
+    }
+
     // Mark tab as modified
     setOpenTabs((prev) =>
       prev.map((tab) =>
         tab.fileId === fileId ? { ...tab, isModified: true } : tab
       )
     );
-  }, []);
+  }, [openTabs, addHistoryEntry]);
 
   const handleCommand = useCallback((command: string, output: string[], isError: boolean) => {
     // Check for clear command
@@ -729,7 +753,9 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     }
 
     setTerminalHistory((prev) => [...prev, inputLine, ...outputLines]);
-  }, []);
+
+    addHistoryEntry('terminal-command', `Ran: ${command}`, isError ? 'Error' : undefined);
+  }, [addHistoryEntry]);
 
   const handleRun = useCallback(async () => {
     // Auto-detect the main entry point file based on language conventions
@@ -1028,11 +1054,12 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     if (currentProject) {
       setCurrentProject({ ...currentProject, name: newName });
     }
+    addHistoryEntry('rename', `Renamed project to "${newName}"`);
     toast({
       title: 'Project renamed',
       description: `Project renamed to "${newName}"`,
     });
-  }, [currentProject, setCurrentProject, toast]);
+  }, [currentProject, setCurrentProject, toast, addHistoryEntry]);
 
   // Handle change template (resets files to new template)
   const handleChangeTemplate = useCallback((template: LanguageTemplate) => {
@@ -1041,11 +1068,12 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     setActiveTabId(null);
     setFileContents({});
     setHasUnsavedChanges(true);
+    addHistoryEntry('template-change', `Changed template to ${template}`);
     toast({
       title: 'Template changed',
       description: `Switched to ${template} template`,
     });
-  }, [handleSelectTemplate, toast]);
+  }, [handleSelectTemplate, toast, addHistoryEntry]);
 
   // Show language picker if no template selected
   if (!selectedTemplate) {
@@ -1147,6 +1175,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             onUpdateWorkflow={handleUpdateWorkflow}
             onDeleteWorkflow={handleDeleteWorkflow}
             currentlyRunningWorkflow={currentlyRunningWorkflow}
+            historyEntries={historyEntries}
           />
         </div>
 
