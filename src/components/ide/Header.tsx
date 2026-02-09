@@ -2,12 +2,9 @@ import { useState } from 'react';
 import { 
   Play, 
   Square, 
-  ChevronDown, 
   Share2, 
   Zap,
   Menu,
-  Search,
-  Bell,
   GitFork,
   Star,
   Sparkles,
@@ -15,6 +12,8 @@ import {
   Loader2,
   Github
 } from 'lucide-react';
+import { ProjectMenu } from './ProjectMenu';
+import { LanguageTemplate } from './LanguagePicker';
 import { cn } from '@/lib/utils';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,6 +39,8 @@ interface HeaderProps {
   isStarred: boolean;
   isForking: boolean;
   starsCount: number;
+  onRenameProject: (newName: string) => void;
+  onChangeTemplate: (template: LanguageTemplate) => void;
 }
 
 export const Header = ({ 
@@ -61,7 +62,9 @@ export const Header = ({
   onGitHubImport,
   isStarred,
   isForking,
-  starsCount
+  starsCount,
+  onRenameProject,
+  onChangeTemplate
 }: HeaderProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const { user } = useAuth();
@@ -87,11 +90,12 @@ export const Header = ({
         {/* Divider */}
         <div className="w-px h-5 bg-border" />
 
-        {/* Project name - Replit style */}
-        <button className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-accent transition-colors group">
-          <span className="text-sm font-medium text-foreground">{projectName}</span>
-          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
-        </button>
+        {/* Project name dropdown */}
+        <ProjectMenu
+          projectName={projectName}
+          onRename={onRenameProject}
+          onChangeTemplate={onChangeTemplate}
+        />
       </div>
 
       {/* Center section - Run button - Replit's prominent green button */}

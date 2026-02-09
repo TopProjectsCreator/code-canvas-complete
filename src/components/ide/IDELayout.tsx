@@ -1023,6 +1023,30 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     }]);
   }, [toast]);
 
+  // Handle rename project
+  const handleRenameProject = useCallback((newName: string) => {
+    if (currentProject) {
+      setCurrentProject({ ...currentProject, name: newName });
+    }
+    toast({
+      title: 'Project renamed',
+      description: `Project renamed to "${newName}"`,
+    });
+  }, [currentProject, setCurrentProject, toast]);
+
+  // Handle change template (resets files to new template)
+  const handleChangeTemplate = useCallback((template: LanguageTemplate) => {
+    handleSelectTemplate(template);
+    setOpenTabs([]);
+    setActiveTabId(null);
+    setFileContents({});
+    setHasUnsavedChanges(true);
+    toast({
+      title: 'Template changed',
+      description: `Switched to ${template} template`,
+    });
+  }, [handleSelectTemplate, toast]);
+
   // Show language picker if no template selected
   if (!selectedTemplate) {
     return (
@@ -1059,6 +1083,8 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         isStarred={isStarred}
         isForking={isForking}
         starsCount={currentProject?.stars_count || 0}
+        onRenameProject={handleRenameProject}
+        onChangeTemplate={handleChangeTemplate}
       />
 
       <ProjectsDialog
