@@ -178,6 +178,13 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize }: 
           >
             {isMinimized ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
+          <button 
+            onClick={() => onCommand('clear', ['\x1Bc'], false)}
+            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="Clear terminal"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
           <button className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
             <Plus className="w-3.5 h-3.5" />
           </button>
