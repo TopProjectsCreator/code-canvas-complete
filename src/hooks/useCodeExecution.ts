@@ -34,12 +34,13 @@ export const useCodeExecution = () => {
       };
     }
 
-    // Detect browser-dependent JS/TS that should render in preview instead of executing server-side
+    // Detect DOM-dependent JS/TS that should render in preview instead of executing server-side
+    // Only match clear DOM usage patterns, not general APIs like fetch()
     if ((language.toLowerCase() === 'javascript' || language.toLowerCase() === 'typescript')) {
-      const browserAPIs = /\b(document\.|window\.|getElementById|querySelector|addEventListener|innerHTML|textContent|createElement|appendChild|removeChild|classList|style\.|DOM|alert\(|confirm\(|prompt\(|fetch\(|XMLHttpRequest|localStorage|sessionStorage)\b/;
-      if (browserAPIs.test(code)) {
+      const domAPIs = /\b(document\.(getElementById|querySelector|querySelectorAll|createElement|body|head)|\.innerHTML|\.textContent|\.appendChild|\.removeChild|\.classList\.|\.addEventListener\(|window\.(onload|onresize|location|history))\b/;
+      if (domAPIs.test(code)) {
         return {
-          output: [`🖼️ Browser code detected — rendering in preview instead of executing server-side.`],
+          output: [`🖼️ Browser/DOM code detected — rendering in preview instead of executing server-side.`],
           error: null,
           executedAt: new Date().toISOString(),
           isPreview: true,
