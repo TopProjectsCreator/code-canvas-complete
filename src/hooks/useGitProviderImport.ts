@@ -23,22 +23,28 @@ interface SearchResult {
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
-const TEXT_EXTENSIONS = [
-  '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.h', '.hpp',
-  '.go', '.rs', '.rb', '.php', '.swift', '.kt', '.cs', '.html', '.css',
-  '.scss', '.sass', '.less', '.json', '.xml', '.yaml', '.yml', '.md',
-  '.txt', '.sh', '.bash', '.sql', '.lua', '.r', '.pl', '.scala', '.hs',
-  '.ex', '.exs', '.clj', '.dart', '.jl', '.nim', '.zig', '.f90', '.cob',
-  '.fs', '.ml', '.erl', '.cr', '.lisp', '.pro', '.rkt', '.vue', '.svelte',
-  '.toml', '.ini', '.cfg', '.env.example', '.gitignore', 'Makefile',
-  'Dockerfile', 'README', 'LICENSE', '.prettierrc', '.eslintrc',
-  '.csv', '.tsv', '.lock', '.editorconfig',
-];
+// Binary extensions that should NOT be fetched as text
+const BINARY_EXTENSIONS = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg', '.avif',
+  '.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.wma',
+  '.mp4', '.avi', '.mov', '.mkv', '.webm', '.wmv', '.flv',
+  '.zip', '.tar', '.gz', '.bz2', '.7z', '.rar', '.xz',
+  '.exe', '.dll', '.so', '.dylib', '.bin', '.dat',
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.ttf', '.otf', '.woff', '.woff2', '.eot',
+  '.pyc', '.pyo', '.class', '.o', '.obj', '.a', '.lib',
+  '.db', '.sqlite', '.sqlite3',
+]);
+
+const isTextFile = (name: string) => {
+  const lower = name.toLowerCase();
+  const lastDot = lower.lastIndexOf('.');
+  if (lastDot === -1) return true; // No extension = likely text (Makefile, Dockerfile, etc.)
+  const ext = lower.slice(lastDot);
+  return !BINARY_EXTENSIONS.has(ext);
+};
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git', '__pycache__', 'venv', '.venv', 'vendor', 'target', '.next', '.nuxt', 'coverage']);
-
-const isTextFile = (name: string) =>
-  TEXT_EXTENSIONS.some(ext => name.toLowerCase().endsWith(ext) || name === ext.replace('.', ''));
 
 // ---- GitHub: uses Git Trees API for full-repo fetch ----
 
