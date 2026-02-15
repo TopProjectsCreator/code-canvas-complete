@@ -83,12 +83,14 @@ const github = {
     return d.tree || [];
   },
   async fetchFileContent(owner: string, repo: string, path: string, branch: string): Promise<string> {
-    // Try GitHub Contents API first (has CORS support)
-    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${branch}`;
+    // Encode each path segment individually (don't encode slashes)
+    const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+    // Use GitHub Contents API with raw media type (has CORS support)
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${branch}`;
     const r = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github.v3.raw' } });
     if (r.ok) return r.text();
     // Fallback to raw.githubusercontent.com
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${encodedPath}`;
     const r2 = await fetch(rawUrl);
     if (!r2.ok) throw new Error(`Failed to fetch ${path}: ${r.status} / ${r2.status}`);
     return r2.text();
