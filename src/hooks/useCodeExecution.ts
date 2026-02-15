@@ -11,7 +11,11 @@ interface ExecutionResult {
 // Languages that can be executed via Piston API
 const EXECUTABLE_LANGUAGES = new Set([
   'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'go', 
-  'rust', 'ruby', 'php', 'swift', 'kotlin', 'csharp', 'bash', 'shell', 'makefile', 'make'
+  'rust', 'ruby', 'php', 'swift', 'kotlin', 'csharp', 'bash', 'shell', 'makefile', 'make',
+  'lua', 'perl', 'scala', 'r', 'haskell', 'elixir', 'clojure', 'dart', 'julia',
+  'nim', 'zig', 'fortran', 'cobol', 'fsharp', 'ocaml', 'erlang', 'crystal',
+  'lisp', 'prolog', 'racket', 'd', 'groovy', 'pascal', 'coffeescript',
+  'assembly', 'nasm', 'sqlite', 'sql',
 ]);
 
 export const useCodeExecution = () => {
