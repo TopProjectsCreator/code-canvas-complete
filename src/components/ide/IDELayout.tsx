@@ -906,7 +906,10 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       },
     ]);
 
-    setIsRunning(false);
+    // Keep preview running for HTML/web files so the iframe stays visible
+    if (!result.isPreview) {
+      setIsRunning(false);
+    }
   }, [activeFileWithContent, files, fileContents, executeCode, selectedTemplate]);
 
   const handleStop = useCallback(() => {
