@@ -10,7 +10,7 @@ import {
   Sparkles,
   Save,
   Loader2,
-  Github
+  GitBranch
 } from 'lucide-react';
 import { ProjectMenu } from './ProjectMenu';
 import { LanguageTemplate } from './LanguagePicker';
@@ -35,7 +35,7 @@ interface HeaderProps {
   onFork: () => void;
   onStar: () => void;
   onShare: () => void;
-  onGitHubImport: () => void;
+  onGitImport: () => void;
   isStarred: boolean;
   isForking: boolean;
   starsCount: number;
@@ -59,7 +59,7 @@ export const Header = ({
   onFork,
   onStar,
   onShare,
-  onGitHubImport,
+  onGitImport,
   isStarred,
   isForking,
   starsCount,
@@ -155,13 +155,13 @@ export const Header = ({
           )}
         </button>
 
-        {/* GitHub Import */}
+        {/* Git Import */}
         <button 
-          onClick={onGitHubImport}
+          onClick={onGitImport}
           className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
-          title="Import from GitHub"
+          title="Import from Git"
         >
-          <Github className="w-4 h-4" />
+          <GitBranch className="w-4 h-4" />
         </button>
 
         {user && (
