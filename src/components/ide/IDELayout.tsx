@@ -819,12 +819,22 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
 
     let fileToRun: FileNode | null = null;
 
-    // First, try to find an entry point file
-    for (const entryFile of entryPointPriority) {
-      const found = findFileByName(files, entryFile);
-      if (found) {
-        fileToRun = { ...found, content: fileContents[found.id] ?? found.content };
-        break;
+    // For HTML/web templates, always prioritize index.html (JS runs inside the preview)
+    if (selectedTemplate === 'html' || selectedTemplate === 'react' || selectedTemplate === 'nodejs' || selectedTemplate === 'flask' || selectedTemplate === 'django') {
+      const htmlFile = findFileByName(files, 'index.html');
+      if (htmlFile) {
+        fileToRun = { ...htmlFile, content: fileContents[htmlFile.id] ?? htmlFile.content };
+      }
+    }
+
+    // If no HTML entry found, try language-specific entry points
+    if (!fileToRun) {
+      for (const entryFile of entryPointPriority) {
+        const found = findFileByName(files, entryFile);
+        if (found) {
+          fileToRun = { ...found, content: fileContents[found.id] ?? found.content };
+          break;
+        }
       }
     }
 
@@ -897,7 +907,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     ]);
 
     setIsRunning(false);
-  }, [activeFileWithContent, files, fileContents, executeCode]);
+  }, [activeFileWithContent, files, fileContents, executeCode, selectedTemplate]);
 
   const handleStop = useCallback(() => {
     setIsRunning(false);
