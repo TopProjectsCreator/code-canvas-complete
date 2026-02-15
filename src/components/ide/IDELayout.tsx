@@ -91,6 +91,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const navigate = useNavigate();
   const { currentProject, setCurrentProject, loadProject, forkProject, toggleStar } = useProjects();
   
+  const [localProjectName, setLocalProjectName] = useState('my-repl');
   const [selectedTemplate, setSelectedTemplate] = useState<LanguageTemplate | null>(null);
   const [files, setFiles] = useState<FileNode[]>([]);
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
@@ -1051,6 +1052,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
 
   // Handle rename project
   const handleRenameProject = useCallback((newName: string) => {
+    setLocalProjectName(newName);
     if (currentProject) {
       setCurrentProject({ ...currentProject, name: newName });
     }
@@ -1092,7 +1094,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Header
-        projectName={currentProject?.name || 'my-repl'}
+        projectName={currentProject?.name || localProjectName}
         isRunning={isRunning}
         onRun={handleRun}
         onStop={handleStop}
