@@ -230,12 +230,15 @@ const buildTreeFromPaths = (
       }
     } else {
       const content = fileContents.get(item.path);
+      const isText = isTextFile(name);
       const node: FileNode = {
         id: generateId(),
         name,
         type: 'file',
         language: getFileLanguage(name),
-        content: content ?? `// Binary file: ${name}\n// This file type is not editable in the browser.`,
+        content: content ?? (isText
+          ? `// Failed to fetch file content for: ${name}\n// Try re-importing the repository.`
+          : `// Binary file: ${name}\n// This file type is not editable in the browser.`),
       };
 
       if (parts.length === 1) {
