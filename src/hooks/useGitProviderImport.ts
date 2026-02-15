@@ -83,11 +83,15 @@ const github = {
     return d.tree || [];
   },
   async fetchFileContent(owner: string, repo: string, path: string, branch: string): Promise<string> {
-    // Use raw.githubusercontent.com for reliable content fetching
-    const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(`Failed to fetch ${path}`);
-    return r.text();
+    // Try GitHub Contents API first (has CORS support)
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${branch}`;
+    const r = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github.v3.raw' } });
+    if (r.ok) return r.text();
+    // Fallback to raw.githubusercontent.com
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
+    const r2 = await fetch(rawUrl);
+    if (!r2.ok) throw new Error(`Failed to fetch ${path}: ${r.status} / ${r2.status}`);
+    return r2.text();
   },
   async searchRepos(query: string): Promise<SearchResult[]> {
     const r = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&per_page=10&sort=stars`);
@@ -308,6 +312,8 @@ export const useGitProviderImport = () => {
         for (const r of results) {
           if (r.status === 'fulfilled') {
             fileContents.set(r.value.path, r.value.content);
+          } else {
+            console.warn('File fetch failed:', r.reason?.message || r.reason);
           }
         }
 
