@@ -33,6 +33,19 @@ export const useCodeExecution = () => {
         isPreview: true,
       };
     }
+
+    // Detect browser-dependent JS/TS that should render in preview instead of executing server-side
+    if ((language.toLowerCase() === 'javascript' || language.toLowerCase() === 'typescript')) {
+      const browserAPIs = /\b(document\.|window\.|getElementById|querySelector|addEventListener|innerHTML|textContent|createElement|appendChild|removeChild|classList|style\.|DOM|alert\(|confirm\(|prompt\(|fetch\(|XMLHttpRequest|localStorage|sessionStorage)\b/;
+      if (browserAPIs.test(code)) {
+        return {
+          output: [`🖼️ Browser code detected — rendering in preview instead of executing server-side.`],
+          error: null,
+          executedAt: new Date().toISOString(),
+          isPreview: true,
+        };
+      }
+    }
     
     // Handle data/config formats with validation or formatting
     const DATA_LANGUAGES = new Set(['json', 'xml', 'yaml', 'yml', 'toml', 'txt']);
