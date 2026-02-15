@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, themeInfo, IDETheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
-import { User, Palette, Shield, Keyboard, Check } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { User, Palette, Keyboard, Check, Upload, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AccountSettingsDialogProps {
@@ -27,6 +28,8 @@ export const AccountSettingsDialog = ({ open, onOpenChange }: AccountSettingsDia
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || '');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSaveProfile = async () => {
     setSaving(true);
@@ -38,8 +41,43 @@ export const AccountSettingsDialog = ({ open, onOpenChange }: AccountSettingsDia
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Profile updated' });
+    toast({ title: 'Profile updated' });
     }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Invalid file', description: 'Please upload an image file', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'File too large', description: 'Max 2MB allowed', variant: 'destructive' });
+      return;
+    }
+
+    setUploading(true);
+    const ext = file.name.split('.').pop();
+    const filePath = `${user.id}/avatar.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true });
+
+    if (uploadError) {
+      toast({ title: 'Upload failed', description: uploadError.message, variant: 'destructive' });
+      setUploading(false);
+      return;
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(filePath);
+    setAvatarUrl(publicUrl);
+    await updateProfile({ avatar_url: publicUrl });
+    setUploading(false);
+    toast({ title: 'Avatar updated' });
+    e.target.value = '';
   };
 
   const initials = displayName
@@ -72,15 +110,42 @@ export const AccountSettingsDialog = ({ open, onOpenChange }: AccountSettingsDia
             {/* Profile Tab */}
             <TabsContent value="profile" className="space-y-5 mt-0">
               <div className="flex items-center gap-4">
-                <Avatar className="w-16 h-16">
-                  <AvatarImage src={avatarUrl || undefined} />
-                  <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-lg">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative group">
+                  <Avatar className="w-16 h-16">
+                    <AvatarImage src={avatarUrl || undefined} />
+                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-lg">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-5 h-5 text-white animate-spin" />
+                    ) : (
+                      <Upload className="w-5 h-5 text-white" />
+                    )}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                  />
+                </div>
                 <div className="flex-1 space-y-1">
                   <p className="text-sm font-medium">{displayName || 'No display name'}</p>
                   <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs text-primary hover:underline"
+                    disabled={uploading}
+                  >
+                    {uploading ? 'Uploading...' : 'Change avatar'}
+                  </button>
                 </div>
               </div>
 
@@ -91,14 +156,6 @@ export const AccountSettingsDialog = ({ open, onOpenChange }: AccountSettingsDia
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Your display name"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Avatar URL</label>
-                  <Input
-                    value={avatarUrl}
-                    onChange={(e) => setAvatarUrl(e.target.value)}
-                    placeholder="https://example.com/avatar.png"
                   />
                 </div>
                 <div className="space-y-1.5">
