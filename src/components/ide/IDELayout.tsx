@@ -1178,6 +1178,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             onDeleteWorkflow={handleDeleteWorkflow}
             currentlyRunningWorkflow={currentlyRunningWorkflow}
             historyEntries={historyEntries}
+            onInvite={() => setShowShareDialog(true)}
           />
         </div>
 

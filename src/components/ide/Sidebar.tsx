@@ -210,6 +210,8 @@ interface SidebarProps {
   currentlyRunningWorkflow: string | null;
   // History props
   historyEntries: HistoryEntry[];
+  // Invite/Share
+  onInvite: () => void;
 }
 
 type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'settings' | 'history';
@@ -238,6 +240,7 @@ export const Sidebar = ({
   onDeleteWorkflow,
   currentlyRunningWorkflow,
   historyEntries,
+  onInvite,
 }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('files');
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
@@ -383,6 +386,7 @@ export const Sidebar = ({
         <div className="flex-1" />
         
         <button
+          onClick={onInvite}
           className="w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
           title="Invite"
         >
