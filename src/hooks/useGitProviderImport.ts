@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { FileNode } from '@/types/ide';
 import { getFileLanguage } from '@/data/defaultFiles';
+import { supabase } from '@/integrations/supabase/client';
 
 export type GitProvider = 'github' | 'gitlab' | 'bitbucket';
 
@@ -46,7 +47,13 @@ const isTextFile = (name: string) => {
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git', '__pycache__', 'venv', '.venv', 'vendor', 'target', '.next', '.nuxt', 'coverage']);
 
-// ---- GitHub: uses Git Trees API for full-repo fetch ----
+// Helper to call the github-proxy edge function
+const ghProxy = async (body: Record<string, string>) => {
+  const { data, error } = await supabase.functions.invoke('github-proxy', { body });
+  if (error) throw new Error(error.message || 'Proxy request failed');
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
 
 const github = {
   parseUrl(url: string) {
@@ -61,44 +68,26 @@ const github = {
     return null;
   },
   async fetchRepoInfo(owner: string, repo: string): Promise<RepoInfo> {
-    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
-    if (!r.ok) throw new Error(r.status === 404 ? 'Repository not found. Make sure it exists and is public.' : r.statusText);
-    const d = await r.json();
+    const d = await ghProxy({ action: 'repo-info', owner, repo });
+    if (!d.name) throw new Error('Repository not found. Make sure it exists and is public.');
     return { name: d.name, full_name: d.full_name, description: d.description, stargazers_count: d.stargazers_count, language: d.language, default_branch: d.default_branch };
   },
   async fetchFullTree(owner: string, repo: string, branch: string): Promise<{ path: string; type: 'blob' | 'tree'; url: string; size?: number }[]> {
-    const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`);
-    if (!r.ok) {
+    const d = await ghProxy({ action: 'tree', owner, repo, branch });
+    if (!d.tree && branch === 'main') {
       // Fallback: try master
-      if (branch === 'main') {
-        const r2 = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`);
-        if (r2.ok) {
-          const d = await r2.json();
-          return d.tree || [];
-        }
-      }
-      throw new Error(`Failed to fetch repository tree: ${r.statusText}`);
+      const d2 = await ghProxy({ action: 'tree', owner, repo, branch: 'master' });
+      return d2.tree || [];
     }
-    const d = await r.json();
     return d.tree || [];
   },
   async fetchFileContent(owner: string, repo: string, path: string, branch: string): Promise<string> {
-    // Encode each path segment individually (don't encode slashes)
-    const encodedPath = path.split('/').map(encodeURIComponent).join('/');
-    // Use GitHub Contents API with raw media type (has CORS support)
-    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${branch}`;
-    const r = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github.v3.raw' } });
-    if (r.ok) return r.text();
-    // Fallback to raw.githubusercontent.com
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${encodedPath}`;
-    const r2 = await fetch(rawUrl);
-    if (!r2.ok) throw new Error(`Failed to fetch ${path}: ${r.status} / ${r2.status}`);
-    return r2.text();
+    const d = await ghProxy({ action: 'file-content', owner, repo, path, branch });
+    if (d.content !== undefined) return d.content;
+    throw new Error(`Failed to fetch ${path}`);
   },
   async searchRepos(query: string): Promise<SearchResult[]> {
-    const r = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&per_page=10&sort=stars`);
-    if (!r.ok) return [];
-    const d = await r.json();
+    const d = await ghProxy({ action: 'search', query });
     return (d.items || []).map((i: any) => ({ name: i.name, full_name: i.full_name, description: i.description, stargazers_count: i.stargazers_count, language: i.language }));
   },
 };
