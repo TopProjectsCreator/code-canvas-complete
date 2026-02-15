@@ -34,19 +34,6 @@ export const useCodeExecution = () => {
       };
     }
 
-    // Detect DOM-dependent JS/TS that should render in preview instead of executing server-side
-    // Only match clear DOM usage patterns, not general APIs like fetch()
-    if ((language.toLowerCase() === 'javascript' || language.toLowerCase() === 'typescript')) {
-      const domAPIs = /\b(document\.(getElementById|querySelector|querySelectorAll|createElement|body|head)|\.innerHTML|\.textContent|\.appendChild|\.removeChild|\.classList\.|\.addEventListener\(|window\.(onload|onresize|location|history))\b/;
-      if (domAPIs.test(code)) {
-        return {
-          output: [`🖼️ Browser/DOM code detected — rendering in preview instead of executing server-side.`],
-          error: null,
-          executedAt: new Date().toISOString(),
-          isPreview: true,
-        };
-      }
-    }
     
     // Handle data/config formats with validation or formatting
     const DATA_LANGUAGES = new Set(['json', 'xml', 'yaml', 'yml', 'toml', 'txt']);
