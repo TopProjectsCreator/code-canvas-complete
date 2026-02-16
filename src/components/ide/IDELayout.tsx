@@ -1497,6 +1497,17 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
               const title = currentProject?.name || 'My Project';
               window.open(`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`Check out "${title}"!\n\n${link}`)}`, '_blank');
             }}
+            onForkProject={() => {
+              handleFork();
+            }}
+            onStarProject={() => {
+              handleStar();
+            }}
+            onViewHistory={() => {
+              // Open the sidebar history panel
+              setIsSidebarOpen(true);
+              toast({ title: 'History panel', description: 'Check the History tab in the sidebar to browse and rollback changes.' });
+            }}
           />
         </div>
       </div>
