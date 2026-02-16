@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction } from '@/types/agent';
+import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage } from '@/types/agent';
 import { Workflow } from '@/types/ide';
 import { CustomThemeColors } from '@/contexts/ThemeContext';
 
@@ -21,13 +21,14 @@ interface UseAgentChatProps {
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
+const IMAGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`;
 
 export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, workflows = [] }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
       id: '1',
       role: 'assistant',
-      content: "👋 Hi! I'm **Replit Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n\nI'll show you my thinking process and let you approve changes before I apply them!",
+      content: "👋 Hi! I'm **Replit Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🎨 **Generate images** from text descriptions\n\nI'll show you my thinking process and let you approve changes before I apply them!",
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -166,6 +167,21 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     return { customTheme, cleanContent: cleanContent.trim() };
   };
 
+  const parseImageGenerations = (content: string): { imagePrompts: string[], cleanContent: string } => {
+    const imagePrompts: string[] = [];
+    let cleanContent = content;
+    
+    const imgRegex = /<generate_image\s+prompt="([^"]+)"\s*\/>/g;
+    let match;
+    
+    while ((match = imgRegex.exec(content)) !== null) {
+      imagePrompts.push(match[1]);
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+    
+    return { imagePrompts, cleanContent: cleanContent.trim() };
+  };
+
   const parseThinkingBlocks = (content: string): { steps: AgentStep[], cleanContent: string } => {
     const steps: AgentStep[] = [];
     let cleanContent = content;
@@ -193,6 +209,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     steps: AgentStep[];
     hasCodeChanges: boolean;
     hasWorkflowChanges: boolean;
+    imagePrompts: string[];
   } => {
     let content = rawContent;
     const allSteps: AgentStep[] = [];
@@ -324,12 +341,31 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       });
     }
     content = afterCustomTheme;
+
+    // Parse image generation requests
+    const { imagePrompts, cleanContent: afterImages } = parseImageGenerations(content);
+    imagePrompts.forEach(prompt => {
+      allSteps.push({
+        id: generateId(),
+        type: 'tool_call',
+        content: `Generating image: ${prompt}`,
+        timestamp: new Date(),
+        toolCall: {
+          id: generateId(),
+          name: 'generate_image',
+          arguments: { prompt },
+          status: 'pending',
+        },
+      });
+    });
+    content = afterImages;
     
     return {
       content,
       steps: allSteps,
       hasCodeChanges: codeChanges.length > 0,
       hasWorkflowChanges: workflowActions.length > 0,
+      imagePrompts,
     };
   };
 
@@ -469,10 +505,69 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       setMessages(prev =>
         prev.map(m =>
           m.id === assistantId
-            ? { ...m, ...processed, isStreaming: false }
+            ? { ...m, content: processed.content, steps: processed.steps, hasCodeChanges: processed.hasCodeChanges, isStreaming: false }
             : m
         )
       );
+
+      // Handle image generation requests (async, after streaming)
+      if (processed.imagePrompts && processed.imagePrompts.length > 0) {
+        const { data: { session: imgSession } } = await supabase.auth.getSession();
+        if (imgSession?.access_token) {
+          for (const prompt of processed.imagePrompts) {
+            const imgKey = `img:${prompt}`;
+            if (executedActionsRef.current.has(imgKey)) continue;
+            executedActionsRef.current.add(imgKey);
+
+            // Add loading image placeholder
+            const imgId = generateId();
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === assistantId
+                  ? { ...m, images: [...(m.images || []), { prompt, imageUrl: '', isLoading: true }] }
+                  : m
+              )
+            );
+
+            try {
+              const imgResponse = await fetch(IMAGE_URL, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${imgSession.access_token}`,
+                },
+                body: JSON.stringify({ prompt }),
+              });
+
+              const imgData = await imgResponse.json();
+              
+              setMessages(prev =>
+                prev.map(m => {
+                  if (m.id !== assistantId) return m;
+                  const images = (m.images || []).map(img =>
+                    img.prompt === prompt
+                      ? { ...img, imageUrl: imgData.imageUrl || '', isLoading: false, error: imgData.error }
+                      : img
+                  );
+                  return { ...m, images };
+                })
+              );
+            } catch (err) {
+              setMessages(prev =>
+                prev.map(m => {
+                  if (m.id !== assistantId) return m;
+                  const images = (m.images || []).map(img =>
+                    img.prompt === prompt
+                      ? { ...img, isLoading: false, error: 'Failed to generate image' }
+                      : img
+                  );
+                  return { ...m, images };
+                })
+              );
+            }
+          }
+        }
+      }
 
     } catch (error) {
       if ((error as Error).name === 'AbortError') return;
