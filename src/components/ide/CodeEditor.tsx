@@ -165,15 +165,67 @@ const getTokenClass = (type: SyntaxToken['type']): string => {
   return classMap[type];
 };
 
+// Save and restore cursor position in a contentEditable div
+const saveCursorPosition = (el: HTMLElement): number => {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return 0;
+  const range = sel.getRangeAt(0);
+  const preRange = range.cloneRange();
+  preRange.selectNodeContents(el);
+  preRange.setEnd(range.startContainer, range.startOffset);
+  return preRange.toString().length;
+};
+
+const restoreCursorPosition = (el: HTMLElement, offset: number) => {
+  const sel = window.getSelection();
+  if (!sel) return;
+  
+  let currentOffset = 0;
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  let node: Text | null;
+  
+  while ((node = walker.nextNode() as Text | null)) {
+    const nodeLen = node.textContent?.length || 0;
+    if (currentOffset + nodeLen >= offset) {
+      const range = document.createRange();
+      range.setStart(node, offset - currentOffset);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return;
+    }
+    currentOffset += nodeLen;
+  }
+  
+  // If offset exceeds content, place at end
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+};
+
+// Get line/col from character offset
+const getLineCol = (text: string, offset: number): { line: number; col: number } => {
+  const before = text.substring(0, offset);
+  const lines = before.split('\n');
+  return { line: lines.length, col: lines[lines.length - 1].length + 1 };
+};
+
 export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   const [content, setContent] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ line: 0, col: 0 });
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const highlightRef = useRef<HTMLDivElement>(null);
-  const [isFocused, setIsFocused] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [searchMatches, setSearchMatches] = useState<{ start: number; end: number }[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
+  const isComposingRef = useRef(false);
+  const contentRef = useRef(content); // Keep a ref in sync to avoid stale closures
+
+  // Sync contentRef
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -202,13 +254,12 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     setSearchMatches(matches);
     setCurrentMatchIndex(currentIndex);
     
-    // Scroll to current match
-    if (currentIndex >= 0 && matches[currentIndex] && textareaRef.current) {
+    if (currentIndex >= 0 && matches[currentIndex] && editorRef.current) {
       const match = matches[currentIndex];
       const textBeforeMatch = content.substring(0, match.start);
       const lineNumber = textBeforeMatch.split('\n').length;
-      const lineHeight = 24; // leading-6 = 1.5rem = 24px
-      textareaRef.current.scrollTop = (lineNumber - 3) * lineHeight;
+      const lineHeight = 24;
+      editorRef.current.scrollTop = (lineNumber - 3) * lineHeight;
     }
   }, [content]);
 
@@ -219,38 +270,88 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     }
   }, [file, onContentChange]);
 
+  // Sync content from file prop
   useEffect(() => {
     if (file?.content !== undefined) {
       setContent(file.content);
     }
   }, [file?.id, file?.content]);
 
-  const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
-    if (highlightRef.current) {
-      highlightRef.current.scrollTop = e.currentTarget.scrollTop;
-      highlightRef.current.scrollLeft = e.currentTarget.scrollLeft;
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
-    setContent(newContent);
+  // Handle input from contentEditable
+  const handleInput = useCallback(() => {
+    if (isComposingRef.current) return;
+    const el = editorRef.current;
+    if (!el) return;
+    
+    // Read the plain text from the contentEditable div
+    // innerText preserves line breaks from <div>/<br> elements
+    const newContent = el.innerText;
+    
+    // Remove trailing newline that browsers sometimes add
+    const cleaned = newContent.endsWith('\n') ? newContent.slice(0, -1) : newContent;
+    
+    setContent(cleaned);
     if (file) {
-      onContentChange(file.id, newContent);
+      onContentChange(file.id, cleaned);
+    }
+  }, [file, onContentChange]);
+
+  // Handle keydown for Tab, Enter
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      document.execCommand('insertText', false, '  ');
+    }
+  }, []);
+
+  // Handle paste - normalize to plain text
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+  }, []);
+
+  // Track cursor position
+  const handleSelectionChange = useCallback(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    const offset = saveCursorPosition(el);
+    const pos = getLineCol(contentRef.current, offset);
+    setCursorPosition(pos);
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, [handleSelectionChange]);
+
+  // After React re-renders the syntax-highlighted content, restore cursor
+  const cursorOffsetRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    if (cursorOffsetRef.current !== null) {
+      restoreCursorPosition(el, cursorOffsetRef.current);
+      cursorOffsetRef.current = null;
+    }
+  });
+
+  // Before re-render, save cursor
+  const saveCursorBeforeRender = () => {
+    const el = editorRef.current;
+    if (el && document.activeElement === el) {
+      cursorOffsetRef.current = saveCursorPosition(el);
     }
   };
 
-  const handleSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
-    const textarea = e.currentTarget;
-    const value = textarea.value;
-    const selectionStart = textarea.selectionStart;
-    
-    const lines = value.substring(0, selectionStart).split('\n');
-    const line = lines.length;
-    const col = lines[lines.length - 1].length + 1;
-    
-    setCursorPosition({ line, col });
-  };
+  // Call save before every render that changes content
+  // We use a ref to track prev content so we know when it actually changed
+  const prevContentRef = useRef(content);
+  if (content !== prevContentRef.current) {
+    saveCursorBeforeRender();
+    prevContentRef.current = content;
+  }
 
   if (!file) {
     return (
@@ -271,7 +372,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
 
   const tokenizedLines = tokenize(content, file.language || 'text');
 
-  // Build a set of character positions that are part of matches for highlighting
+  // Build match highlighting
   const getMatchHighlight = (charIndex: number): 'current' | 'match' | null => {
     for (let i = 0; i < searchMatches.length; i++) {
       const match = searchMatches[i];
@@ -282,13 +383,10 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     return null;
   };
 
-  // Convert content to character-based rendering with match highlighting
   const renderHighlightedContent = () => {
     let charIndex = 0;
     
     return tokenizedLines.map((lineTokens, lineIndex) => {
-      const lineStartIndex = charIndex;
-      
       const renderedTokens = lineTokens.map((token, tokenIndex) => {
         const tokenChars = token.value.split('').map((char, i) => {
           const currentCharIndex = charIndex + i;
@@ -311,7 +409,6 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
         
         charIndex += token.value.length;
         
-        // If no highlights in this token, render normally
         const hasHighlight = tokenChars.some(c => typeof c !== 'string');
         if (!hasHighlight) {
           return (
@@ -328,12 +425,12 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
         );
       });
       
-      charIndex++; // Account for newline character
+      charIndex++; // newline
       
       return (
         <div key={lineIndex} className="code-line">
           <span className="code-line-number">{lineIndex + 1}</span>
-          {renderedTokens.length === 0 ? <span>&nbsp;</span> : renderedTokens}
+          {renderedTokens.length === 0 ? <span>{'\n'}</span> : renderedTokens}
         </div>
       );
     });
@@ -354,29 +451,25 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
       />
       
       <div className="flex-1 relative overflow-hidden">
-        {/* Syntax highlighted display */}
         <div 
-          ref={highlightRef}
-          className="absolute inset-0 font-mono text-sm leading-6 pointer-events-none z-0 overflow-hidden pt-[2px]"
-        >
-          {renderHighlightedContent()}
-        </div>
-        
-        {/* Editable textarea overlay */}
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={handleChange}
-          onSelect={handleSelect}
-          onScroll={handleScroll}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          className="absolute inset-0 w-full h-full font-mono text-sm leading-6 bg-transparent text-transparent caret-foreground resize-none outline-none p-0 pl-12 pr-4 pt-[2px] z-10 overflow-auto ide-scrollbar"
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          onCompositionStart={() => { isComposingRef.current = true; }}
+          onCompositionEnd={() => { 
+            isComposingRef.current = false; 
+            handleInput(); 
+          }}
+          className="absolute inset-0 font-mono text-sm leading-6 overflow-auto ide-scrollbar outline-none pt-[2px] caret-foreground"
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
-          autoComplete="off"
-        />
+        >
+          {renderHighlightedContent()}
+        </div>
       </div>
       
       {/* Status bar */}
