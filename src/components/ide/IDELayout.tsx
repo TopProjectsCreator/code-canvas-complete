@@ -102,6 +102,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   ]);
   const [isRunning, setIsRunning] = useState(false);
   const [isTerminalMinimized, setIsTerminalMinimized] = useState(false);
+  const [stdinPrompt, setStdinPrompt] = useState<{ prompts: string[]; code: string; language: string } | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
@@ -856,8 +857,66 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       return;
     }
 
-    setIsRunning(true);
     setIsTerminalMinimized(false);
+    
+    const language = fileToRun.language || getFileLanguage(fileToRun.name);
+    const code = fileToRun.content;
+
+    // Detect stdin-needing patterns
+    const stdinPatterns: Record<string, RegExp[]> = {
+      python: [/\binput\s*\(/],
+      javascript: [/\breadline\s*\(/, /process\.stdin/],
+      c: [/\bscanf\s*\(/, /\bgets\s*\(/, /\bfgets\s*\(/],
+      cpp: [/\bcin\s*>>/, /\bgetline\s*\(/],
+      java: [/Scanner\s*\(/, /BufferedReader/],
+      rust: [/stdin\(\)\.read_line/],
+      go: [/fmt\.Scan/, /bufio\.NewReader\(os\.Stdin\)/],
+      ruby: [/\bgets\b/, /\breadline\b/],
+    };
+
+    const patterns = stdinPatterns[language] || [];
+    const needsStdin = patterns.some(p => p.test(code));
+
+    if (needsStdin) {
+      // Extract prompt strings from input() calls if possible
+      const promptRegex = /input\s*\(\s*(['"`])(.+?)\1\s*\)/g;
+      const prompts: string[] = [];
+      let match;
+      while ((match = promptRegex.exec(code)) !== null) {
+        prompts.push(match[2]);
+      }
+      
+      // Count total input calls (some may not have prompt strings)
+      const inputCallCount = (code.match(/\binput\s*\(/g) || []).length || 
+                             (code.match(/\bscanf\s*\(/g) || []).length ||
+                             (code.match(/\bcin\s*>>/g) || []).length || 1;
+      
+      // Fill missing prompts with generic ones
+      while (prompts.length < inputCallCount) {
+        prompts.push(`Enter input ${prompts.length + 1}:`);
+      }
+
+      setStdinPrompt({ prompts, code, language });
+      
+      setTerminalHistory((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          type: 'info',
+          content: `🚀 Running ${fileToRun!.name}...`,
+          timestamp: new Date(),
+        },
+        {
+          id: generateId(),
+          type: 'info',
+          content: `📝 This program needs input. Enter values below:`,
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+
+    setIsRunning(true);
     
     // Add running message
     setTerminalHistory((prev) => [
@@ -871,8 +930,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     ]);
 
     // Execute the code
-    const language = fileToRun.language || getFileLanguage(fileToRun.name);
-    const result = await executeCode(fileToRun.content, language);
+    const result = await executeCode(code, language);
 
     // Add output to terminal
     if (result.error) {
@@ -911,6 +969,37 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       setIsRunning(false);
     }
   }, [activeFileWithContent, files, fileContents, executeCode, selectedTemplate]);
+
+  // Handle stdin submission from terminal
+  const handleStdinSubmit = useCallback(async (stdinValue: string) => {
+    if (!stdinPrompt) return;
+    
+    setStdinPrompt(null);
+    setIsRunning(true);
+
+    const result = await executeCode(stdinPrompt.code, stdinPrompt.language, stdinValue);
+
+    if (result.error) {
+      setTerminalHistory((prev) => [
+        ...prev,
+        { id: generateId(), type: 'error', content: result.error!, timestamp: new Date() },
+      ]);
+    } else if (result.output.length > 0) {
+      const outputLines: TerminalLine[] = result.output.map((line) => ({
+        id: generateId(),
+        type: 'output' as const,
+        content: line,
+        timestamp: new Date(),
+      }));
+      setTerminalHistory((prev) => [...prev, ...outputLines]);
+    }
+
+    setTerminalHistory((prev) => [
+      ...prev,
+      { id: generateId(), type: 'info', content: `✅ Finished`, timestamp: new Date() },
+    ]);
+    setIsRunning(false);
+  }, [stdinPrompt, executeCode]);
 
   const handleStop = useCallback(() => {
     setIsRunning(false);
@@ -1217,6 +1306,8 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                     onCommand={handleCommand}
                     isMinimized={isTerminalMinimized}
                     onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
+                    stdinPrompt={stdinPrompt}
+                    onStdinSubmit={handleStdinSubmit}
                   />
                 </div>
               </div>
