@@ -253,7 +253,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Preview frame */}
         <div className={cn(
-          'flex items-start justify-center p-3 bg-muted/30 overflow-auto',
+          'flex items-start justify-center bg-muted/30 overflow-auto',
           showDevTools ? 'flex-1 min-h-0' : 'flex-1'
         )}>
           {isRunning ? (
