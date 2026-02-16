@@ -17,7 +17,7 @@ interface GitAction {
 }
 
 interface ShareAction {
-  type: 'make_public' | 'make_private' | 'get_project_link' | 'share_twitter' | 'share_linkedin' | 'share_email';
+  type: 'make_public' | 'make_private' | 'get_project_link' | 'share_twitter' | 'share_linkedin' | 'share_email' | 'fork_project' | 'star_project' | 'view_history';
 }
 
 interface UseAgentChatProps {
@@ -38,13 +38,16 @@ interface UseAgentChatProps {
   onShareTwitter?: () => void;
   onShareLinkedin?: () => void;
   onShareEmail?: () => void;
+  onForkProject?: () => void;
+  onStarProject?: () => void;
+  onViewHistory?: () => void;
   workflows?: Workflow[];
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 const IMAGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`;
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, workflows = [] }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, workflows = [] }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
       id: '1',
@@ -243,7 +246,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     const shareActions: ShareAction[] = [];
     let cleanContent = content;
 
-    const tags: ShareAction['type'][] = ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email'];
+    const tags: ShareAction['type'][] = ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email', 'fork_project', 'star_project', 'view_history'];
     for (const tag of tags) {
       const regex = new RegExp(`<${tag}\\s*\\/>`, 'g');
       let match;
@@ -468,6 +471,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         share_twitter: 'Share on Twitter',
         share_linkedin: 'Share on LinkedIn',
         share_email: 'Share via Email',
+        fork_project: 'Fork project',
+        star_project: 'Star project',
+        view_history: 'View history',
       };
       allSteps.push({
         id: generateId(),

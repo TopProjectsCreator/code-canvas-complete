@@ -81,6 +81,15 @@ Share the project on LinkedIn:
 Share the project via email:
 <share_email />
 
+Fork the current project (creates a copy):
+<fork_project />
+
+Star/unstar the current project:
+<star_project />
+
+View project history (for browsing and rolling back changes):
+<view_history />
+
 ### Expert Skills
 
 - **Deep Analysis**: Find bugs, security issues, performance problems, type errors
@@ -94,6 +103,7 @@ Share the project via email:
 - **Image Generation**: Generate images from text descriptions using AI
 - **Git Operations**: Initialize repos, commit changes, create branches, and import repositories from GitHub/GitLab/Bitbucket
 - **Project Sharing**: Make projects public/private, get shareable links, share on Twitter/LinkedIn/Email
+- **Project Management**: Fork projects, star/unstar, view history and rollback changes
 
 ### Workflow Guidelines
 
@@ -142,7 +152,8 @@ When users ask for a custom/unique theme (e.g. "make me an ocean theme", "I want
 8. **Generate Images**: Use <generate_image> when users want to create images
 9. **Git Operations**: Use <git_init>, <git_commit>, <git_create_branch>, <git_import> for version control tasks
 10. **Project Sharing**: Use <make_public>, <make_private>, <get_project_link>, <share_twitter>, <share_linkedin>, <share_email> for sharing
-11. **Be Thorough**: Check for related issues, don't just fix the obvious
+11. **Project Management**: Use <fork_project>, <star_project>, <view_history> for forking, starring, and browsing/rolling back history
+12. **Be Thorough**: Check for related issues, don't just fix the obvious
 
 ### Example Response Pattern
 
