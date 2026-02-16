@@ -30,25 +30,18 @@ const languageToWandbox: Record<string, string> = {
   'rust': 'Rust',
   'ruby': 'Ruby',
   'php': 'PHP',
-  'swift': 'Swift',
   'csharp': 'C#',
   'bash': 'Bash script',
   'shell': 'Bash script',
   'lua': 'Lua',
   'perl': 'Perl',
-  'scala': 'Scala',
   'r': 'R',
   'haskell': 'Haskell',
-  'elixir': 'Elixir',
-  'erlang': 'Erlang',
-  'crystal': 'Crystal',
   'nim': 'Nim',
-  'ocaml': 'OCaml',
   'lisp': 'Lisp',
   'd': 'D',
   'groovy': 'Groovy',
   'pascal': 'Pascal',
-  'coffeescript': 'CoffeeScript',
   'sql': 'SQL',
   'sqlite': 'SQL',
   'zig': 'Zig',
@@ -147,7 +140,8 @@ async function executeWithWandbox(code: string, language: string): Promise<{ out
     const result = await response.json();
     const output: string[] = [];
 
-    if (result.compiler_message) {
+    // Only include compiler messages if there's no program output (avoid noise from Nim, Haskell, etc.)
+    if (result.compiler_message && !result.program_output?.trim()) {
       const lines = result.compiler_message.split('\n').filter((l: string) => l.trim());
       if (lines.length > 0) output.push(...lines);
     }
@@ -158,13 +152,22 @@ async function executeWithWandbox(code: string, language: string): Promise<{ out
       output.push(...lines);
     }
 
-    if (result.compiler_error) {
+    // Only treat compiler_error as fatal if program didn't produce output
+    // Some compilers (e.g. Nim) put info/hints in stderr
+    if (result.compiler_error && (!result.program_output || !result.program_output.trim())) {
       return { output, error: result.compiler_error };
     }
 
     if (result.status && result.status !== '0' && result.status !== 0) {
       const errorMsg = result.program_error || result.signal || `Process exited with code ${result.status}`;
-      return { output, error: result.program_error || errorMsg };
+      if (result.program_error) {
+        return { output, error: result.program_error };
+      }
+      // If we have program output but non-zero exit, still show output without error
+      if (output.length > 0 && !result.program_error) {
+        return { output, error: null };
+      }
+      return { output, error: errorMsg };
     }
 
     return { output: output.length > 0 ? output : ['(no output)'], error: null };
