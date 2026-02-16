@@ -447,7 +447,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
       charIndex++; // newline
       
       const lineContent = tokensHtml.length === 0 ? '<span>\n</span>' : tokensHtml;
-      return `<div class="code-line"><span class="code-line-number">${lineIndex + 1}</span>${lineContent}</div>`;
+      return `<div class="code-line">${lineContent}</div>`;
     }).join('');
   };
 
@@ -476,25 +476,36 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
         onHighlightChange={handleHighlightChange}
       />
       
-      <div className="flex-1 relative overflow-hidden">
-        <div 
-          ref={editorRef}
-          contentEditable
-          suppressContentEditableWarning
-          onInput={handleInput}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          onCompositionStart={() => { isComposingRef.current = true; }}
-          onCompositionEnd={() => { 
-            isComposingRef.current = false; 
-            handleInput(); 
-          }}
-          className="absolute inset-0 font-mono text-sm leading-6 overflow-auto ide-scrollbar outline-none pt-[2px] caret-foreground"
-          spellCheck={false}
-          autoCapitalize="off"
-          autoCorrect="off"
-          dangerouslySetInnerHTML={{ __html: buildHighlightedHtml() }}
-        />
+      <div className="flex-1 relative overflow-hidden flex">
+        {/* Line number gutter */}
+        <div className="font-mono text-sm leading-6 pt-[2px] select-none text-muted-foreground bg-editor border-r border-border overflow-hidden">
+          {content.split('\n').map((_, i) => (
+            <div key={i} className="px-3 text-right min-w-[3rem] text-xs leading-6">
+              {i + 1}
+            </div>
+          ))}
+        </div>
+        {/* Editable area */}
+        <div className="flex-1 relative overflow-hidden">
+          <div 
+            ref={editorRef}
+            contentEditable
+            suppressContentEditableWarning
+            onInput={handleInput}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            onCompositionStart={() => { isComposingRef.current = true; }}
+            onCompositionEnd={() => { 
+              isComposingRef.current = false; 
+              handleInput(); 
+            }}
+            className="absolute inset-0 font-mono text-sm leading-6 overflow-auto ide-scrollbar outline-none pt-[2px] pl-2 caret-foreground"
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+            dangerouslySetInnerHTML={{ __html: buildHighlightedHtml() }}
+          />
+        </div>
       </div>
       
       {/* Status bar */}
