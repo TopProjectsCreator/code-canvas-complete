@@ -44,16 +44,21 @@ export const FilePreview = ({ file, previewType }: FilePreviewProps) => {
 
   if (previewType === 'image') {
     const isDataUrl = content.startsWith('data:');
+    const isValidBase64 = isDataUrl || /^[A-Za-z0-9+/=\s]+$/.test(content.trim());
+    const hasContent = content.trim().length > 0;
     const imageSrc = isDataUrl ? content : `data:image/${file.name.split('.').pop()};base64,${content}`;
-    
-    if (!content.trim()) {
+
+    // Show placeholder if no content or content isn't valid image data
+    if (!hasContent || !isValidBase64) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center bg-editor text-muted-foreground gap-4">
           <Image className="w-16 h-16 opacity-50" />
           <div className="text-center">
             <p className="text-lg font-medium mb-1">Image Preview</p>
             <p className="text-sm">{file.name}</p>
-            <p className="text-xs mt-2 text-muted-foreground/70">No image data available</p>
+            <p className="text-xs mt-2 text-muted-foreground/70">
+              {hasContent ? 'Image data cannot be previewed inline' : 'No image data available'}
+            </p>
           </div>
         </div>
       );
