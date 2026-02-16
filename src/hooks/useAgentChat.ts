@@ -2,6 +2,12 @@ import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction } from '@/types/agent';
 import { Workflow } from '@/types/ide';
+import { CustomThemeColors } from '@/contexts/ThemeContext';
+
+interface CustomThemeAction {
+  name: string;
+  colors: CustomThemeColors;
+}
 
 interface UseAgentChatProps {
   onCodeChange?: (change: CodeChange) => void;
@@ -10,12 +16,13 @@ interface UseAgentChatProps {
   onRunWorkflow?: (workflow: Workflow) => void;
   onInstallPackage?: (packageName: string) => void;
   onSetTheme?: (theme: string) => void;
+  onCreateCustomTheme?: (name: string, colors: CustomThemeColors) => void;
   workflows?: Workflow[];
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, workflows = [] }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, workflows = [] }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
       id: '1',
@@ -126,6 +133,36 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     }
     
     return { theme, cleanContent: cleanContent.trim() };
+  };
+
+  const parseCustomThemeCreation = (content: string): { customTheme: CustomThemeAction | null, cleanContent: string } => {
+    let cleanContent = content;
+    let customTheme: CustomThemeAction | null = null;
+    
+    const themeRegex = /<create_custom_theme\s+name="([^"]+)"\s+background="([^"]+)"\s+foreground="([^"]+)"\s+primary="([^"]+)"\s+card="([^"]+)"\s+border="([^"]+)"\s+terminalBg="([^"]+)"\s+terminalText="([^"]+)"\s+syntaxKeyword="([^"]+)"\s+syntaxString="([^"]+)"\s+syntaxFunction="([^"]+)"\s+syntaxComment="([^"]+)"\s*\/>/g;
+    const match = themeRegex.exec(content);
+    
+    if (match) {
+      customTheme = {
+        name: match[1],
+        colors: {
+          background: match[2],
+          foreground: match[3],
+          primary: match[4],
+          card: match[5],
+          border: match[6],
+          terminalBg: match[7],
+          terminalText: match[8],
+          syntaxKeyword: match[9],
+          syntaxString: match[10],
+          syntaxFunction: match[11],
+          syntaxComment: match[12],
+        },
+      };
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+    
+    return { customTheme, cleanContent: cleanContent.trim() };
   };
 
   const parseThinkingBlocks = (content: string): { steps: AgentStep[], cleanContent: string } => {
@@ -265,6 +302,27 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       }
     }
     content = afterTheme;
+
+    // Parse custom theme creation
+    const { customTheme, cleanContent: afterCustomTheme } = parseCustomThemeCreation(content);
+    if (customTheme) {
+      allSteps.push({
+        id: generateId(),
+        type: 'tool_call',
+        content: `Creating custom theme: ${customTheme.name}`,
+        timestamp: new Date(),
+        toolCall: {
+          id: generateId(),
+          name: 'create_custom_theme',
+          arguments: { name: customTheme.name, colors: customTheme.colors as unknown as Record<string, unknown> },
+          status: 'completed',
+        },
+      });
+      if (onCreateCustomTheme) {
+        onCreateCustomTheme(customTheme.name, customTheme.colors);
+      }
+    }
+    content = afterCustomTheme;
     
     return {
       content,
