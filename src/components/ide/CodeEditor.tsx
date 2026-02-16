@@ -480,7 +480,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
         {/* Line number gutter */}
         <div className="font-mono text-sm leading-6 pt-[2px] select-none text-muted-foreground bg-editor border-r border-border overflow-hidden">
           {content.split('\n').map((_, i) => (
-            <div key={i} className="px-3 text-right min-w-[3rem] text-xs leading-6">
+            <div key={i} className="pl-2 pr-1.5 text-right min-w-[2.5rem] text-xs leading-6">
               {i + 1}
             </div>
           ))}
@@ -499,7 +499,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
               isComposingRef.current = false; 
               handleInput(); 
             }}
-            className="absolute inset-0 font-mono text-sm leading-6 overflow-auto ide-scrollbar outline-none pt-[2px] pl-1 caret-foreground"
+            className="absolute inset-0 font-mono text-sm leading-6 overflow-auto ide-scrollbar outline-none pt-[2px] pl-0.5 caret-foreground"
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
