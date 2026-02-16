@@ -401,7 +401,7 @@
   }
 
   .code-line {
-    @apply relative pl-12 pr-4 leading-6;
+    @apply relative pr-4 leading-6;
   }
 
   .code-line:hover {
