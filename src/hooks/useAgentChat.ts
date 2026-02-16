@@ -33,6 +33,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const executedActionsRef = useRef<Set<string>>(new Set());
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -225,8 +226,10 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         codeChange: cc,
       });
       
-      // Notify about code change
-      if (onCodeChange) {
+      // Notify about code change (deduplicated)
+      const ccKey = `code:${cc.fileName}:${cc.description}`;
+      if (onCodeChange && !executedActionsRef.current.has(ccKey)) {
+        executedActionsRef.current.add(ccKey);
         onCodeChange(cc);
       }
     });
@@ -248,8 +251,10 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         },
       });
       
-      // Create the workflow
-      if (onCreateWorkflow) {
+      // Create the workflow (deduplicated)
+      const wfKey = `workflow:${wa.name}:${wa.command}`;
+      if (onCreateWorkflow && !executedActionsRef.current.has(wfKey)) {
+        executedActionsRef.current.add(wfKey);
         onCreateWorkflow({
           name: wa.name,
           type: wa.type,
@@ -276,7 +281,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           status: 'completed',
         },
       });
-      if (onInstallPackage) {
+      const pkgKey = `pkg:${pkg}`;
+      if (onInstallPackage && !executedActionsRef.current.has(pkgKey)) {
+        executedActionsRef.current.add(pkgKey);
         onInstallPackage(pkg);
       }
     });
@@ -297,7 +304,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           status: 'completed',
         },
       });
-      if (onSetTheme) {
+      const themeKey = `theme:${theme}`;
+      if (onSetTheme && !executedActionsRef.current.has(themeKey)) {
+        executedActionsRef.current.add(themeKey);
         onSetTheme(theme);
       }
     }
@@ -318,7 +327,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           status: 'completed',
         },
       });
-      if (onCreateCustomTheme) {
+      const ctKey = `customtheme:${customTheme.name}`;
+      if (onCreateCustomTheme && !executedActionsRef.current.has(ctKey)) {
+        executedActionsRef.current.add(ctKey);
         onCreateCustomTheme(customTheme.name, customTheme.colors);
       }
     }
@@ -342,6 +353,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     } = {}
   ) => {
     if (!messageContent.trim() || isLoading) return;
+    executedActionsRef.current.clear();
 
     const { data: { session } } = await supabase.auth.getSession();
     
