@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { FileNode } from '@/types/ide';
 import { Image, FileText, Code2, AlertCircle, Video, Music, Table } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -33,6 +34,68 @@ const parseCSV = (content: string): string[][] => {
   });
 };
 
+// Separate component to handle image loading state
+const ImagePreview = ({ file, content }: { file: FileNode; content: string }) => {
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+
+  if (!content.trim()) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-editor text-muted-foreground gap-4">
+        <Image className="w-16 h-16 opacity-50" />
+        <div className="text-center">
+          <p className="text-lg font-medium mb-1">Image Preview</p>
+          <p className="text-sm">{file.name}</p>
+          <p className="text-xs mt-2 text-muted-foreground/70">No image data available</p>
+        </div>
+      </div>
+    );
+  }
+
+  const isDataUrl = content.startsWith('data:');
+  const isUrl = content.startsWith('http://') || content.startsWith('https://');
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  const imageSrc = isDataUrl || isUrl ? content : `data:image/${ext};base64,${content}`;
+
+  return (
+    <div className="flex-1 flex flex-col bg-editor overflow-hidden">
+      <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
+        {status === 'error' ? (
+          <div className="flex flex-col items-center justify-center gap-4 text-muted-foreground">
+            <Image className="w-16 h-16 opacity-50" />
+            <div className="text-center">
+              <p className="text-lg font-medium mb-1">Image Preview</p>
+              <p className="text-sm">{file.name}</p>
+              <p className="text-xs mt-2 text-muted-foreground/70">Cannot render image preview</p>
+            </div>
+          </div>
+        ) : (
+          <img
+            src={imageSrc}
+            alt={file.name}
+            className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg border border-border"
+            style={{ display: status === 'loaded' ? 'block' : 'none' }}
+            onLoad={() => setStatus('loaded')}
+            onError={() => setStatus('error')}
+          />
+        )}
+        {status === 'loading' && (
+          <div className="flex flex-col items-center gap-2 text-muted-foreground">
+            <Image className="w-12 h-12 opacity-50 animate-pulse" />
+            <p className="text-sm">Loading image…</p>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center justify-between px-4 py-2 bg-background border-t border-border text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Image className="w-4 h-4" />
+          <span>{file.name}</span>
+        </div>
+        <span>Image Preview</span>
+      </div>
+    </div>
+  );
+};
+
 export const FilePreview = ({ file, previewType }: FilePreviewProps) => {
   const content = file.content || '';
 
@@ -43,55 +106,7 @@ export const FilePreview = ({ file, previewType }: FilePreviewProps) => {
   }, [content, previewType]);
 
   if (previewType === 'image') {
-    const isDataUrl = content.startsWith('data:');
-    const isValidBase64 = isDataUrl || /^[A-Za-z0-9+/=\s]+$/.test(content.trim());
-    const hasContent = content.trim().length > 0;
-    const imageSrc = isDataUrl ? content : `data:image/${file.name.split('.').pop()};base64,${content}`;
-
-    // Show placeholder if no content or content isn't valid image data
-    if (!hasContent || !isValidBase64) {
-      return (
-        <div className="flex-1 flex flex-col items-center justify-center bg-editor text-muted-foreground gap-4">
-          <Image className="w-16 h-16 opacity-50" />
-          <div className="text-center">
-            <p className="text-lg font-medium mb-1">Image Preview</p>
-            <p className="text-sm">{file.name}</p>
-            <p className="text-xs mt-2 text-muted-foreground/70">
-              {hasContent ? 'Image data cannot be previewed inline' : 'No image data available'}
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex-1 flex flex-col bg-editor overflow-hidden">
-        <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
-          <div className="relative max-w-full max-h-full">
-            <img 
-              src={imageSrc} 
-              alt={file.name}
-              className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg border border-border"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-              }}
-            />
-            <div className="hidden flex-col items-center justify-center gap-2 text-muted-foreground">
-              <AlertCircle className="w-12 h-12" />
-              <p>Failed to load image</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center justify-between px-4 py-2 bg-background border-t border-border text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Image className="w-4 h-4" />
-            <span>{file.name}</span>
-          </div>
-          <span>Image Preview</span>
-        </div>
-      </div>
-    );
+    return <ImagePreview file={file} content={content} />;
   }
 
   if (previewType === 'video') {
