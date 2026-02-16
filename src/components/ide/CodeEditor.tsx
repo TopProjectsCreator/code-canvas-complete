@@ -499,7 +499,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
               isComposingRef.current = false; 
               handleInput(); 
             }}
-            className="absolute inset-0 font-mono text-sm leading-6 overflow-auto ide-scrollbar outline-none pt-[2px] pl-2 caret-foreground"
+            className="absolute inset-0 font-mono text-sm leading-6 overflow-auto ide-scrollbar outline-none pt-[2px] pl-1 caret-foreground"
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
