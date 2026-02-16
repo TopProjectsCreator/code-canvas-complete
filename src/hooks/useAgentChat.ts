@@ -16,6 +16,10 @@ interface GitAction {
   url?: string;
 }
 
+interface ShareAction {
+  type: 'make_public' | 'make_private' | 'get_project_link' | 'share_twitter' | 'share_linkedin' | 'share_email';
+}
+
 interface UseAgentChatProps {
   onCodeChange?: (change: CodeChange) => void;
   onApplyCode?: (code: string, fileName: string) => void;
@@ -28,13 +32,19 @@ interface UseAgentChatProps {
   onGitInit?: () => void;
   onGitCreateBranch?: (name: string) => void;
   onGitImport?: (url: string) => void;
+  onMakePublic?: () => void;
+  onMakePrivate?: () => void;
+  onGetProjectLink?: () => void;
+  onShareTwitter?: () => void;
+  onShareLinkedin?: () => void;
+  onShareEmail?: () => void;
   workflows?: Workflow[];
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 const IMAGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`;
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, workflows = [] }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, workflows = [] }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
       id: '1',
@@ -227,6 +237,23 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     }
 
     return { gitActions, cleanContent: cleanContent.trim() };
+  };
+
+  const parseShareActions = (content: string): { shareActions: ShareAction[], cleanContent: string } => {
+    const shareActions: ShareAction[] = [];
+    let cleanContent = content;
+
+    const tags: ShareAction['type'][] = ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email'];
+    for (const tag of tags) {
+      const regex = new RegExp(`<${tag}\\s*\\/>`, 'g');
+      let match;
+      while ((match = regex.exec(content)) !== null) {
+        shareActions.push({ type: tag });
+        cleanContent = cleanContent.replace(match[0], '');
+      }
+    }
+
+    return { shareActions, cleanContent: cleanContent.trim() };
   };
 
   const parseThinkingBlocks = (content: string): { steps: AgentStep[], cleanContent: string } => {
@@ -430,7 +457,33 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       });
     });
     content = afterGit;
-    
+
+    // Parse share/visibility actions
+    const { shareActions, cleanContent: afterShare } = parseShareActions(content);
+    shareActions.forEach(action => {
+      const labelMap: Record<string, string> = {
+        make_public: 'Make project public',
+        make_private: 'Make project private',
+        get_project_link: 'Get project link',
+        share_twitter: 'Share on Twitter',
+        share_linkedin: 'Share on LinkedIn',
+        share_email: 'Share via Email',
+      };
+      allSteps.push({
+        id: generateId(),
+        type: 'tool_call',
+        content: labelMap[action.type] || action.type,
+        timestamp: new Date(),
+        toolCall: {
+          id: generateId(),
+          name: action.type as ToolCall['name'],
+          arguments: {},
+          status: 'pending',
+        },
+      });
+    });
+    content = afterShare;
+
     return {
       content,
       steps: allSteps,

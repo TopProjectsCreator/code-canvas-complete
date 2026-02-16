@@ -1452,6 +1452,51 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             onGitImport={(url) => {
               setShowGitImportDialog(true);
             }}
+            onMakePublic={async () => {
+              if (!currentProject) {
+                toast({ title: 'Save project first', description: 'Save the project before changing visibility', variant: 'destructive' });
+                return;
+              }
+              const { error } = await (await import('@/integrations/supabase/client')).supabase
+                .from('projects').update({ is_public: true }).eq('id', currentProject.id);
+              if (!error) {
+                setCurrentProject({ ...currentProject, is_public: true });
+                toast({ title: 'Project is now public', description: 'Anyone with the link can view this project' });
+              }
+            }}
+            onMakePrivate={async () => {
+              if (!currentProject) {
+                toast({ title: 'Save project first', description: 'Save the project before changing visibility', variant: 'destructive' });
+                return;
+              }
+              const { error } = await (await import('@/integrations/supabase/client')).supabase
+                .from('projects').update({ is_public: false }).eq('id', currentProject.id);
+              if (!error) {
+                setCurrentProject({ ...currentProject, is_public: false });
+                toast({ title: 'Project is now private', description: 'Only you can access this project' });
+              }
+            }}
+            onGetProjectLink={() => {
+              const link = currentProject
+                ? `${window.location.origin}/project/${currentProject.id}`
+                : window.location.href;
+              navigator.clipboard.writeText(link);
+              toast({ title: 'Link copied!', description: link });
+            }}
+            onShareTwitter={() => {
+              const link = currentProject ? `${window.location.origin}/project/${currentProject.id}` : window.location.href;
+              const text = `Check out "${currentProject?.name || 'my project'}" on Replit!`;
+              window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`, '_blank');
+            }}
+            onShareLinkedin={() => {
+              const link = currentProject ? `${window.location.origin}/project/${currentProject.id}` : window.location.href;
+              window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link)}`, '_blank');
+            }}
+            onShareEmail={() => {
+              const link = currentProject ? `${window.location.origin}/project/${currentProject.id}` : window.location.href;
+              const title = currentProject?.name || 'My Project';
+              window.open(`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(`Check out "${title}"!\n\n${link}`)}`, '_blank');
+            }}
           />
         </div>
       </div>
