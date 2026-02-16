@@ -25,10 +25,6 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       return rubyTemplate;
     case 'php':
       return phpTemplate;
-    case 'swift':
-      return swiftTemplate;
-    case 'kotlin':
-      return kotlinTemplate;
     case 'csharp':
       return csharpTemplate;
     case 'bash':
@@ -37,14 +33,10 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       return luaTemplate;
     case 'perl':
       return perlTemplate;
-    case 'scala':
-      return scalaTemplate;
     case 'r':
       return rTemplate;
     case 'haskell':
       return haskellTemplate;
-    case 'elixir':
-      return elixirTemplate;
     // New templates
     case 'react':
       return reactTemplate;
@@ -56,36 +48,18 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       return djangoTemplate;
     case 'sqlite':
       return sqliteTemplate;
-    case 'clojure':
-      return clojureTemplate;
-    case 'dart':
-      return dartTemplate;
-    case 'julia':
-      return juliaTemplate;
     case 'nim':
       return nimTemplate;
     case 'zig':
       return zigTemplate;
-    case 'fortran':
-      return fortranTemplate;
-    case 'cobol':
-      return cobolTemplate;
-    case 'fsharp':
-      return fsharpTemplate;
-    case 'ocaml':
-      return ocamlTemplate;
-    case 'erlang':
-      return erlangTemplate;
-    case 'crystal':
-      return crystalTemplate;
-    case 'assembly':
-      return assemblyTemplate;
     case 'lisp':
       return lispTemplate;
-    case 'prolog':
-      return prologTemplate;
-    case 'racket':
-      return racketTemplate;
+    case 'd':
+      return dTemplate;
+    case 'groovy':
+      return groovyTemplate;
+    case 'pascal':
+      return pascalTemplate;
     default:
       return htmlTemplate;
   }
@@ -817,125 +791,6 @@ echo "User: {\$user['name']} ({\$user['email']})\\n";
   }
 ];
 
-const swiftTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-repl',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-swift',
-        name: 'main.swift',
-        type: 'file',
-        language: 'swift',
-        content: `// Welcome to Swift!
-// Modern, safe, and fast
-
-import Foundation
-
-func greet(_ name: String) -> String {
-    return "Hello, \\(name)!"
-}
-
-print(greet("World"))
-
-// Array operations
-let numbers = [1, 2, 3, 4, 5]
-let doubled = numbers.map { $0 * 2 }
-print("Doubled: \\(doubled)")
-
-// Struct example
-struct Greeter {
-    let name: String
-    
-    func greet() {
-        print("Hello, \\(name)!")
-    }
-}
-
-let greeter = Greeter(name: "Swift Developer")
-greeter.greet()
-
-// Optional handling
-let optionalName: String? = "Swift"
-if let name = optionalName {
-    print("Optional value: \\(name)")
-}
-
-// Enum example
-enum Status {
-    case success
-    case failure(String)
-}
-
-let result: Status = .success
-switch result {
-case .success:
-    print("Operation succeeded!")
-case .failure(let message):
-    print("Failed: \\(message)")
-}`
-      }
-    ]
-  }
-];
-
-const kotlinTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-repl',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-kt',
-        name: 'Main.kt',
-        type: 'file',
-        language: 'kotlin',
-        content: `// Welcome to Kotlin!
-// Concise, safe, and interoperable
-
-fun greet(name: String): String = "Hello, \$name!"
-
-fun main() {
-    println(greet("World"))
-    
-    // List operations
-    val numbers = listOf(1, 2, 3, 4, 5)
-    val doubled = numbers.map { it * 2 }
-    println("Doubled: \$doubled")
-    
-    // Data class
-    data class User(val name: String, val email: String)
-    val user = User("Kotlin Dev", "dev@example.com")
-    println("User: \$user")
-    
-    // Class example
-    val greeter = Greeter("Kotlin Developer")
-    greeter.greet()
-    
-    // Null safety
-    val nullableName: String? = "Kotlin"
-    println("Length: \${nullableName?.length ?: 0}")
-    
-    // When expression
-    val x = 2
-    when (x) {
-        1 -> println("One")
-        2 -> println("Two")
-        else -> println("Other")
-    }
-}
-
-class Greeter(private val name: String) {
-    fun greet() {
-        println("Hello, \$name!")
-    }
-}`
-      }
-    ]
-  }
-];
-
 const csharpTemplate: FileNode[] = [
   {
     id: 'root',
@@ -1090,18 +945,13 @@ export const getFileLanguage = (filename: string): string => {
     h: 'c',
     hpp: 'cpp',
     php: 'php',
-    swift: 'swift',
-    kt: 'kotlin',
     cs: 'csharp',
     sh: 'bash',
     toml: 'toml',
     lua: 'lua',
     pl: 'perl',
-    scala: 'scala',
     r: 'r',
     hs: 'haskell',
-    ex: 'elixir',
-    exs: 'elixir',
   };
   return languageMap[ext || ''] || 'text';
 };
@@ -1212,221 +1062,6 @@ if ($text =~ /quick (\\w+)/) {
 # String manipulation
 my @words = split / /, $text;
 print "Words: ", join(", ", @words), "\\n";`
-      }
-    ]
-  }
-];
-
-const scalaTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-repl',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-scala',
-        name: 'Main.scala',
-        type: 'file',
-        language: 'scala',
-        content: `// Welcome to Scala!
-// Functional and object-oriented programming combined
-
-object Main extends App {
-  println("Hello, World!")
-  
-  // Function definition
-  def greet(name: String): String = s"Hello, $name! Welcome to Scala."
-  
-  println(greet("Scala Developer"))
-  
-  // List operations (functional style)
-  val numbers = List(1, 2, 3, 4, 5)
-  val doubled = numbers.map(_ * 2)
-  val sum = numbers.reduce(_ + _)
-  
-  println(s"Doubled: $doubled")
-  println(s"Sum: $sum")
-  
-  // Case class (immutable data)
-  case class Person(name: String, age: Int)
-  
-  val person = Person("Alice", 28)
-  println(s"Person: \${person.name}, Age: \${person.age}")
-  
-  // Pattern matching
-  def describe(x: Any): String = x match {
-    case i: Int if i > 0 => "positive number"
-    case s: String => s"string: $s"
-    case _ => "something else"
-  }
-  
-  println(describe(42))
-  println(describe("hello"))
-}`
-      }
-    ]
-  }
-];
-
-const rTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-repl',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-r',
-        name: 'main.R',
-        type: 'file',
-        language: 'r',
-        content: `# Welcome to R!
-# Statistical computing and data analysis
-
-# Simple greeting
-greet <- function(name) {
-  paste("Hello,", name, "! Welcome to R.")
-}
-
-print(greet("World"))
-
-# Vector operations
-numbers <- c(1, 2, 3, 4, 5)
-print(paste("Sum:", sum(numbers)))
-print(paste("Mean:", mean(numbers)))
-print(paste("SD:", sd(numbers)))
-
-# Data frame (like a table)
-df <- data.frame(
-  name = c("Alice", "Bob", "Charlie"),
-  age = c(25, 30, 35),
-  score = c(85, 92, 78)
-)
-
-print("Data Frame:")
-print(df)
-
-# Summary statistics
-print("Summary:")
-print(summary(df))
-
-# Simple plot (text-based representation)
-cat("\\nScore distribution:\\n")
-for (i in 1:nrow(df)) {
-  cat(df$name[i], ": ", rep("*", df$score[i] / 10), "\\n", sep="")
-}`
-      }
-    ]
-  }
-];
-
-const haskellTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-repl',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-hs',
-        name: 'Main.hs',
-        type: 'file',
-        language: 'haskell',
-        content: `-- Welcome to Haskell!
--- Pure functional programming
-
-module Main where
-
--- Simple greeting function
-greet :: String -> String
-greet name = "Hello, " ++ name ++ "! Welcome to Haskell."
-
--- Factorial using recursion
-factorial :: Integer -> Integer
-factorial 0 = 1
-factorial n = n * factorial (n - 1)
-
--- Fibonacci using pattern matching
-fibonacci :: Int -> Int
-fibonacci 0 = 0
-fibonacci 1 = 1
-fibonacci n = fibonacci (n - 1) + fibonacci (n - 2)
-
--- List operations
-doubleAll :: [Int] -> [Int]
-doubleAll = map (* 2)
-
-sumList :: [Int] -> Int
-sumList = foldr (+) 0
-
--- Main function
-main :: IO ()
-main = do
-    putStrLn (greet "World")
-    putStrLn $ "Factorial of 5: " ++ show (factorial 5)
-    putStrLn $ "Fibonacci of 10: " ++ show (fibonacci 10)
-    
-    let numbers = [1, 2, 3, 4, 5]
-    putStrLn $ "Doubled: " ++ show (doubleAll numbers)
-    putStrLn $ "Sum: " ++ show (sumList numbers)
-    
-    -- List comprehension
-    let evens = [x | x <- [1..20], even x]
-    putStrLn $ "Evens 1-20: " ++ show evens`
-      }
-    ]
-  }
-];
-
-const elixirTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-repl',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-ex',
-        name: 'main.exs',
-        type: 'file',
-        language: 'elixir',
-        content: `# Welcome to Elixir!
-# Functional, concurrent programming on the BEAM
-
-defmodule Greeter do
-  def greet(name) do
-    "Hello, \#{name}! Welcome to Elixir."
-  end
-end
-
-IO.puts Greeter.greet("World")
-
-# Pattern matching
-{a, b, c} = {1, 2, 3}
-IO.puts "a=\#{a}, b=\#{b}, c=\#{c}"
-
-# List operations
-numbers = [1, 2, 3, 4, 5]
-doubled = Enum.map(numbers, fn x -> x * 2 end)
-sum = Enum.reduce(numbers, 0, fn x, acc -> x + acc end)
-
-IO.puts "Doubled: \#{inspect(doubled)}"
-IO.puts "Sum: \#{sum}"
-
-# Pipe operator (Elixir's superpower!)
-result = numbers
-  |> Enum.filter(fn x -> rem(x, 2) == 0 end)
-  |> Enum.map(fn x -> x * 10 end)
-  |> Enum.sum()
-
-IO.puts "Even numbers * 10, summed: \#{result}"
-
-# Recursion with pattern matching
-defmodule Math do
-  def factorial(0), do: 1
-  def factorial(n) when n > 0 do
-    n * factorial(n - 1)
-  end
-end
-
-IO.puts "Factorial of 5: \#{Math.factorial(5)}"`
       }
     ]
   }
@@ -1766,164 +1401,93 @@ WHERE id IN (SELECT DISTINCT user_id FROM posts);`
   }
 ];
 
-const clojureTemplate: FileNode[] = [
+const rTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-clojure-repl',
+    name: 'my-repl',
     type: 'folder',
     children: [
       {
-        id: 'core-clj',
-        name: 'core.clj',
+        id: 'main-r',
+        name: 'main.r',
         type: 'file',
-        language: 'clojure',
-        content: `; Welcome to Clojure!
-; A modern Lisp for the JVM
+        language: 'r',
+        content: `# Welcome to R!
+# Statistical computing and data analysis
 
-(ns core)
+# Variables
+x <- c(1, 2, 3, 4, 5)
+y <- c(2, 4, 6, 8, 10)
 
-; Basic functions
-(defn greet [name]
-  (str "Hello, " name "! Welcome to Clojure."))
+cat("x:", x, "\\n")
+cat("y:", y, "\\n")
+cat("Mean of x:", mean(x), "\\n")
+cat("Sum of y:", sum(y), "\\n")
 
-(println (greet "World"))
+# Function
+greet <- function(name) {
+  paste("Hello,", name, "- welcome to R!")
+}
 
-; Immutable data structures
-(def numbers [1 2 3 4 5])
-(def doubled (map #(* 2 %) numbers))
-(println "Doubled:" doubled)
+cat(greet("World"), "\\n")
 
-; Higher-order functions
-(def sum (reduce + numbers))
-(println "Sum:" sum)
+# Data manipulation
+nums <- 1:20
+evens <- nums[nums %% 2 == 0]
+cat("Evens:", evens, "\\n")
 
-; Threading macro (pipes data through functions)
-(def result
-  (->> numbers
-       (filter even?)
-       (map #(* 10 %))
-       (reduce +)))
-(println "Even * 10, summed:" result)
+# Factorial
+factorial_r <- function(n) {
+  if (n <= 1) return(1)
+  return(n * factorial_r(n - 1))
+}
 
-; Recursion
-(defn factorial [n]
-  (if (<= n 1)
-    1
-    (* n (factorial (dec n)))))
-
-(println "Factorial of 5:" (factorial 5))`
+cat("Factorial of 5:", factorial_r(5), "\\n")`
       }
     ]
   }
 ];
 
-const dartTemplate: FileNode[] = [
+const haskellTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-dart-app',
+    name: 'my-repl',
     type: 'folder',
     children: [
       {
-        id: 'main-dart',
-        name: 'main.dart',
+        id: 'main-hs',
+        name: 'Main.hs',
         type: 'file',
-        language: 'dart',
-        content: `// Welcome to Dart!
-// The language behind Flutter
+        language: 'haskell',
+        content: `-- Welcome to Haskell!
+-- Pure functional programming
 
-void main() {
-  print('Hello, Dart! 🎯');
-  
-  // Variables
-  var name = 'Dart Developer';
-  final greeting = greet(name);
-  print(greeting);
-  
-  // Lists
-  var numbers = [1, 2, 3, 4, 5];
-  var doubled = numbers.map((n) => n * 2).toList();
-  print('Doubled: \$doubled');
-  
-  // Classes
-  var person = Person('Alice', 25);
-  person.introduce();
-  
-  // Async/await
-  fetchData().then((data) => print('Fetched: \$data'));
-}
+-- Simple function
+greet :: String -> String
+greet name = "Hello, " ++ name ++ "!"
 
-String greet(String name) {
-  return 'Hello, \$name! Welcome to Dart.';
-}
+-- Factorial with pattern matching
+factorial :: Integer -> Integer
+factorial 0 = 1
+factorial n = n * factorial (n - 1)
 
-class Person {
-  String name;
-  int age;
-  
-  Person(this.name, this.age);
-  
-  void introduce() {
-    print('I am \$name, \$age years old.');
-  }
-}
+-- Fibonacci
+fibonacci :: Int -> [Int]
+fibonacci n = take n fibs
+  where fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
 
-Future<String> fetchData() async {
-  await Future.delayed(Duration(seconds: 1));
-  return 'Data loaded!';
-}`
-      }
-    ]
-  }
-];
-
-const juliaTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-julia-repl',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-jl',
-        name: 'main.jl',
-        type: 'file',
-        language: 'julia',
-        content: `# Welcome to Julia!
-# High-performance scientific computing
-
-println("Hello, Julia! 🔬")
-
-# Function definition
-function greet(name)
-    return "Hello, \$name! Welcome to Julia."
-end
-
-println(greet("World"))
-
-# Arrays and broadcasting
-numbers = [1, 2, 3, 4, 5]
-squared = numbers .^ 2  # Element-wise squaring
-println("Squared: ", squared)
-
-# Sum and statistics
-println("Sum: ", sum(numbers))
-println("Mean: ", sum(numbers) / length(numbers))
-
-# Matrix operations
-A = [1 2; 3 4]
-B = [5 6; 7 8]
-println("Matrix product:")
-println(A * B)
-
-# Multiple dispatch (Julia's superpower!)
-area(r::Float64) = π * r^2  # Circle
-area(w::Float64, h::Float64) = w * h  # Rectangle
-
-println("Circle area (r=2): ", area(2.0))
-println("Rectangle area (3x4): ", area(3.0, 4.0))
-
-# Comprehensions
-evens = [x for x in 1:10 if x % 2 == 0]
-println("Even numbers: ", evens)`
+main :: IO ()
+main = do
+    putStrLn (greet "World")
+    putStrLn $ "Factorial of 5: " ++ show (factorial 5)
+    putStrLn $ "Fibonacci: " ++ show (fibonacci 10)
+    
+    let numbers = [1..10]
+    let doubled = map (*2) numbers
+    putStrLn $ "Doubled: " ++ show doubled
+    
+    let evens = filter even [1..20]
+    putStrLn $ "Evens: " ++ show evens`
       }
     ]
   }
@@ -1932,7 +1496,7 @@ println("Even numbers: ", evens)`
 const nimTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-nim-app',
+    name: 'my-repl',
     type: 'folder',
     children: [
       {
@@ -1941,44 +1505,31 @@ const nimTemplate: FileNode[] = [
         type: 'file',
         language: 'nim',
         content: `# Welcome to Nim!
-# Efficient and expressive compiled language
+# Efficient and expressive
 
-echo "Hello, Nim! 👑"
+echo "Hello, World!"
 
-# Procedures
+# Variables
+var name = "Nim Developer"
+let pi = 3.14159
+echo "Welcome, " & name
+
+# Function
 proc greet(name: string): string =
-  result = "Hello, " & name & "! Welcome to Nim."
+  "Hello, " & name & "!"
 
 echo greet("World")
 
-# Variables
-var mutableVar = 10
-let immutableVar = 20
-const compileTimeConst = 30
+# Factorial
+proc factorial(n: int): int =
+  if n <= 1: 1
+  else: n * factorial(n - 1)
 
-# Sequences (dynamic arrays)
+echo "Factorial of 5: " & $factorial(5)
+
+# Sequences
 var numbers = @[1, 2, 3, 4, 5]
-let doubled = numbers.mapIt(it * 2)
-echo "Doubled: ", doubled
-
-# Object types
-type
-  Person = object
-    name: string
-    age: int
-
-proc introduce(p: Person) =
-  echo "I am ", p.name, ", ", p.age, " years old."
-
-let alice = Person(name: "Alice", age: 25)
-alice.introduce()
-
-# Control flow
-for i in 1..5:
-  if i mod 2 == 0:
-    echo i, " is even"
-  else:
-    echo i, " is odd"`
+echo "Numbers: " & $numbers`
       }
     ]
   }
@@ -1987,7 +1538,7 @@ for i in 1..5:
 const zigTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-zig-app',
+    name: 'my-repl',
     type: 'folder',
     children: [
       {
@@ -1995,412 +1546,27 @@ const zigTemplate: FileNode[] = [
         name: 'main.zig',
         type: 'file',
         language: 'zig',
-        content: `// Welcome to Zig!
-// Modern systems programming language
-
-const std = @import("std");
+        content: `const std = @import("std");
 
 pub fn main() !void {
     const stdout = std.io.getStdOut().writer();
     
-    try stdout.print("Hello, Zig! ⚡\\n", .{});
+    try stdout.print("Hello, World!\\n", .{});
     
     // Variables
-    const message = "Welcome to Zig";
-    var counter: i32 = 0;
+    const x: i32 = 42;
+    var y: i32 = 10;
+    y += x;
+    try stdout.print("x = {}, y = {}\\n", .{x, y});
     
-    // Arrays and slices
-    const numbers = [_]i32{ 1, 2, 3, 4, 5 };
-    
+    // Array
+    const nums = [_]i32{1, 2, 3, 4, 5};
     var sum: i32 = 0;
-    for (numbers) |num| {
-        sum += num;
-        counter += 1;
+    for (nums) |n| {
+        sum += n;
     }
-    
-    try stdout.print("Sum of {d} numbers: {d}\\n", .{ counter, sum });
-    
-    // Structs
-    const Point = struct {
-        x: f32,
-        y: f32,
-        
-        fn distance(self: @This()) f32 {
-            return @sqrt(self.x * self.x + self.y * self.y);
-        }
-    };
-    
-    const p = Point{ .x = 3.0, .y = 4.0 };
-    try stdout.print("Distance from origin: {d}\\n", .{p.distance()});
+    try stdout.print("Sum: {}\\n", .{sum});
 }`
-      }
-    ]
-  }
-];
-
-const fortranTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-fortran-app',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-f90',
-        name: 'main.f90',
-        type: 'file',
-        language: 'fortran',
-        content: `! Welcome to Fortran!
-! Numeric and scientific computing
-
-program hello
-    implicit none
-    
-    integer :: i, n
-    real :: sum, mean
-    real, dimension(5) :: numbers
-    
-    print *, "Hello, Fortran! 🔢"
-    
-    ! Initialize array
-    numbers = [1.0, 2.0, 3.0, 4.0, 5.0]
-    n = size(numbers)
-    
-    ! Calculate sum
-    sum = 0.0
-    do i = 1, n
-        sum = sum + numbers(i)
-    end do
-    
-    mean = sum / real(n)
-    
-    print *, "Numbers:", numbers
-    print *, "Sum:", sum
-    print *, "Mean:", mean
-    
-    ! Call subroutine
-    call greet("Fortran Developer")
-    
-contains
-    subroutine greet(name)
-        character(len=*), intent(in) :: name
-        print *, "Hello, ", trim(name), "!"
-    end subroutine greet
-    
-end program hello`
-      }
-    ]
-  }
-];
-
-const cobolTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-cobol-app',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-cob',
-        name: 'main.cob',
-        type: 'file',
-        language: 'cobol',
-        content: `       IDENTIFICATION DIVISION.
-       PROGRAM-ID. HELLO-WORLD.
-       AUTHOR. REPLIT.
-       
-       DATA DIVISION.
-       WORKING-STORAGE SECTION.
-       01 WS-NAME PIC A(20) VALUE "COBOL Developer".
-       01 WS-NUM1 PIC 9(3) VALUE 100.
-       01 WS-NUM2 PIC 9(3) VALUE 50.
-       01 WS-RESULT PIC 9(4) VALUE 0.
-       
-       PROCEDURE DIVISION.
-       MAIN-PROCEDURE.
-           DISPLAY "Hello, COBOL! 📼".
-           DISPLAY "Welcome, " WS-NAME.
-           
-           ADD WS-NUM1 TO WS-NUM2 GIVING WS-RESULT.
-           DISPLAY "Sum of " WS-NUM1 " and " WS-NUM2 " = " WS-RESULT.
-           
-           MULTIPLY WS-NUM1 BY WS-NUM2 GIVING WS-RESULT.
-           DISPLAY "Product = " WS-RESULT.
-           
-           STOP RUN.`
-      }
-    ]
-  }
-];
-
-const fsharpTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-fsharp-app',
-    type: 'folder',
-    children: [
-      {
-        id: 'program-fs',
-        name: 'Program.fs',
-        type: 'file',
-        language: 'fsharp',
-        content: `// Welcome to F#!
-// Functional-first .NET language
-
-printfn "Hello, F#! 🔷"
-
-// Functions
-let greet name = sprintf "Hello, %s! Welcome to F#." name
-printfn "%s" (greet "World")
-
-// Immutable by default
-let numbers = [1; 2; 3; 4; 5]
-let doubled = numbers |> List.map (fun x -> x * 2)
-printfn "Doubled: %A" doubled
-
-// Piping and composition
-let result = 
-    numbers 
-    |> List.filter (fun x -> x % 2 = 0)
-    |> List.map (fun x -> x * 10)
-    |> List.sum
-printfn "Even * 10, summed: %d" result
-
-// Pattern matching
-let describe x =
-    match x with
-    | 0 -> "zero"
-    | 1 -> "one"
-    | n when n < 0 -> "negative"
-    | _ -> "positive"
-
-printfn "5 is %s" (describe 5)
-
-// Records
-type Person = { Name: string; Age: int }
-let alice = { Name = "Alice"; Age = 25 }
-printfn "%s is %d years old" alice.Name alice.Age`
-      }
-    ]
-  }
-];
-
-const ocamlTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-ocaml-app',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-ml',
-        name: 'main.ml',
-        type: 'file',
-        language: 'ocaml',
-        content: `(* Welcome to OCaml! *)
-(* Powerful functional programming *)
-
-let () = print_endline "Hello, OCaml! 🐫"
-
-(* Functions *)
-let greet name = 
-  Printf.sprintf "Hello, %s! Welcome to OCaml." name
-
-let () = print_endline (greet "World")
-
-(* Lists and higher-order functions *)
-let numbers = [1; 2; 3; 4; 5]
-let doubled = List.map (fun x -> x * 2) numbers
-
-let () = 
-  print_string "Doubled: ";
-  List.iter (Printf.printf "%d ") doubled;
-  print_newline ()
-
-(* Pattern matching *)
-let describe x = match x with
-  | 0 -> "zero"
-  | 1 -> "one"
-  | n when n < 0 -> "negative"
-  | _ -> "positive"
-
-let () = Printf.printf "5 is %s\\n" (describe 5)
-
-(* Recursive functions *)
-let rec factorial n = 
-  if n <= 1 then 1 
-  else n * factorial (n - 1)
-
-let () = Printf.printf "Factorial of 5: %d\\n" (factorial 5)
-
-(* Algebraic data types *)
-type shape = 
-  | Circle of float
-  | Rectangle of float * float
-
-let area = function
-  | Circle r -> Float.pi *. r *. r
-  | Rectangle (w, h) -> w *. h
-
-let () = Printf.printf "Circle area (r=2): %.2f\\n" (area (Circle 2.0))`
-      }
-    ]
-  }
-];
-
-const erlangTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-erlang-app',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-erl',
-        name: 'main.erl',
-        type: 'file',
-        language: 'erlang',
-        content: `%% Welcome to Erlang!
-%% Concurrent and distributed systems
-
--module(main).
--export([start/0, greet/1, factorial/1]).
-
-start() ->
-    io:format("Hello, Erlang! ☎️~n"),
-    io:format("~s~n", [greet("World")]),
-    
-    %% List operations
-    Numbers = [1, 2, 3, 4, 5],
-    Doubled = lists:map(fun(X) -> X * 2 end, Numbers),
-    io:format("Doubled: ~p~n", [Doubled]),
-    
-    Sum = lists:foldl(fun(X, Acc) -> X + Acc end, 0, Numbers),
-    io:format("Sum: ~p~n", [Sum]),
-    
-    %% Pattern matching
-    io:format("Factorial of 5: ~p~n", [factorial(5)]).
-
-greet(Name) ->
-    lists:concat(["Hello, ", Name, "! Welcome to Erlang."]).
-
-%% Recursion with pattern matching
-factorial(0) -> 1;
-factorial(N) when N > 0 -> N * factorial(N - 1).`
-      }
-    ]
-  }
-];
-
-const crystalTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-crystal-app',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-cr',
-        name: 'main.cr',
-        type: 'file',
-        language: 'crystal',
-        content: `# Welcome to Crystal!
-# Ruby-like syntax with C performance
-
-puts "Hello, Crystal! 💎"
-
-# Functions
-def greet(name : String) : String
-  "Hello, #{name}! Welcome to Crystal."
-end
-
-puts greet("World")
-
-# Arrays
-numbers = [1, 2, 3, 4, 5]
-doubled = numbers.map { |n| n * 2 }
-puts "Doubled: #{doubled}"
-
-sum = numbers.reduce(0) { |acc, n| acc + n }
-puts "Sum: #{sum}"
-
-# Classes
-class Person
-  property name : String
-  property age : Int32
-  
-  def initialize(@name, @age)
-  end
-  
-  def introduce
-    puts "I am #{@name}, #{@age} years old."
-  end
-end
-
-alice = Person.new("Alice", 25)
-alice.introduce
-
-# Pattern matching with case
-def describe(x)
-  case x
-  when 0 then "zero"
-  when 1 then "one"
-  when .< 0 then "negative"
-  else "positive"
-  end
-end
-
-puts "5 is #{describe(5)}"`
-      }
-    ]
-  }
-];
-
-const assemblyTemplate: FileNode[] = [
-  {
-    id: 'root',
-    name: 'my-asm-app',
-    type: 'folder',
-    children: [
-      {
-        id: 'main-asm',
-        name: 'main.asm',
-        type: 'file',
-        language: 'assembly',
-        content: `; Welcome to Assembly!
-; x86-64 Linux Assembly (NASM syntax)
-
-section .data
-    hello db "Hello, Assembly! 🔩", 10, 0
-    hello_len equ $ - hello
-
-section .text
-    global _start
-
-_start:
-    ; Write "Hello, Assembly!" to stdout
-    mov rax, 1          ; syscall: write
-    mov rdi, 1          ; file descriptor: stdout
-    mov rsi, hello      ; pointer to message
-    mov rdx, hello_len  ; message length
-    syscall
-    
-    ; Exit program
-    mov rax, 60         ; syscall: exit
-    xor rdi, rdi        ; exit code: 0
-    syscall`
-      },
-      {
-        id: 'makefile',
-        name: 'Makefile',
-        type: 'file',
-        language: 'makefile',
-        content: `# Assembly Makefile
-
-main: main.asm
-\tnasm -f elf64 main.asm -o main.o
-\tld main.o -o main
-
-clean:
-\trm -f main main.o
-
-run: main
-\t./main`
       }
     ]
   }
@@ -2409,7 +1575,7 @@ run: main
 const lispTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-lisp-repl',
+    name: 'my-repl',
     type: 'folder',
     children: [
       {
@@ -2417,167 +1583,139 @@ const lispTemplate: FileNode[] = [
         name: 'main.lisp',
         type: 'file',
         language: 'lisp',
-        content: `;;; Welcome to Common Lisp!
-;;; The original programmable programming language
+        content: `; Welcome to Common Lisp!
+; The original programmable programming language
 
-(format t "Hello, Lisp! 🌀~%")
+(format t "Hello, World!~%")
 
-;; Function definition
+; Function definition
 (defun greet (name)
-  (format nil "Hello, ~a! Welcome to Lisp." name))
+  (format nil "Hello, ~a!" name))
 
-(format t "~a~%" (greet "World"))
+(format t "~a~%" (greet "Lisp Developer"))
 
-;; Lists and higher-order functions
-(defvar *numbers* '(1 2 3 4 5))
-
-(defvar *doubled* (mapcar (lambda (x) (* x 2)) *numbers*))
-(format t "Doubled: ~a~%" *doubled*)
-
-(defvar *sum* (reduce #'+ *numbers*))
-(format t "Sum: ~a~%" *sum*)
-
-;; Recursion
+; Factorial
 (defun factorial (n)
-  (if (<= n 1)
-      1
+  (if (<= n 1) 1
       (* n (factorial (- n 1)))))
 
 (format t "Factorial of 5: ~a~%" (factorial 5))
 
-;; Macros (Lisp's superpower!)
-(defmacro when-positive (x &body body)
-  \`(when (> ,x 0) ,@body))
-
-(when-positive 5
-  (format t "5 is positive!~%"))
-
-;; Symbols and property lists
-(setf (get 'alice 'age) 25)
-(setf (get 'alice 'name) "Alice")
-(format t "~a is ~a years old.~%" (get 'alice 'name) (get 'alice 'age))`
+; List operations
+(let ((numbers '(1 2 3 4 5)))
+  (format t "Numbers: ~a~%" numbers)
+  (format t "Sum: ~a~%" (reduce #'+ numbers))
+  (format t "Doubled: ~a~%" (mapcar (lambda (x) (* x 2)) numbers)))`
       }
     ]
   }
 ];
 
-const prologTemplate: FileNode[] = [
+const dTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-prolog-repl',
+    name: 'my-repl',
     type: 'folder',
     children: [
       {
-        id: 'main-pl',
-        name: 'main.pl',
+        id: 'main-d',
+        name: 'main.d',
         type: 'file',
-        language: 'prolog',
-        content: `%% Welcome to Prolog!
-%% Logic programming for AI
+        language: 'd',
+        content: `import std.stdio;
 
-%% Facts
-parent(tom, bob).
-parent(tom, liz).
-parent(bob, ann).
-parent(bob, pat).
-parent(pat, jim).
+void main() {
+    writeln("Hello, World!");
+    
+    // Array operations
+    auto nums = [1, 2, 3, 4, 5];
+    int sum = 0;
+    foreach (n; nums) sum += n;
+    writefln("Sum: %d", sum);
+    
+    // Function
+    writefln("Factorial of 5: %d", factorial(5));
+}
 
-male(tom).
-male(bob).
-male(jim).
-female(liz).
-female(ann).
-female(pat).
-
-%% Rules
-father(X, Y) :- parent(X, Y), male(X).
-mother(X, Y) :- parent(X, Y), female(X).
-grandparent(X, Z) :- parent(X, Y), parent(Y, Z).
-sibling(X, Y) :- parent(Z, X), parent(Z, Y), X \\= Y.
-
-%% List operations
-sum_list([], 0).
-sum_list([H|T], Sum) :-
-    sum_list(T, Rest),
-    Sum is H + Rest.
-
-%% Fibonacci
-fib(0, 0).
-fib(1, 1).
-fib(N, F) :-
-    N > 1,
-    N1 is N - 1,
-    N2 is N - 2,
-    fib(N1, F1),
-    fib(N2, F2),
-    F is F1 + F2.
-
-%% Query examples:
-%% ?- parent(tom, X).
-%% ?- grandparent(tom, X).
-%% ?- sum_list([1,2,3,4,5], Sum).
-%% ?- fib(10, F).`
+long factorial(int n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}`
       }
     ]
   }
 ];
 
-const racketTemplate: FileNode[] = [
+const groovyTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-racket-repl',
+    name: 'my-repl',
     type: 'folder',
     children: [
       {
-        id: 'main-rkt',
-        name: 'main.rkt',
+        id: 'main-groovy',
+        name: 'main.groovy',
         type: 'file',
-        language: 'racket',
-        content: `#lang racket
+        language: 'groovy',
+        content: `// Welcome to Groovy!
+println "Hello, World!"
 
-;; Welcome to Racket!
-;; Language-oriented programming
+// Variables
+def name = "Groovy Developer"
+println "Welcome, \${name}"
 
-(displayln "Hello, Racket! 🎾")
+// List operations
+def numbers = [1, 2, 3, 4, 5]
+println "Numbers: \${numbers}"
+println "Sum: \${numbers.sum()}"
+println "Doubled: \${numbers.collect { it * 2 }}"
 
-;; Functions
-(define (greet name)
-  (string-append "Hello, " name "! Welcome to Racket."))
+// Closure
+def greet = { n -> "Hello, \${n}!" }
+println greet("World")
 
-(displayln (greet "World"))
+// Factorial
+def factorial
+factorial = { n -> n <= 1 ? 1 : n * factorial(n - 1) }
+println "Factorial of 5: \${factorial(5)}"`
+      }
+    ]
+  }
+];
 
-;; Lists and higher-order functions
-(define numbers '(1 2 3 4 5))
+const pascalTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-pas',
+        name: 'main.pas',
+        type: 'file',
+        language: 'pascal',
+        content: `program Hello;
 
-(define doubled (map (λ (x) (* x 2)) numbers))
-(printf "Doubled: ~a~n" doubled)
+function Factorial(n: Integer): Integer;
+begin
+  if n <= 1 then
+    Factorial := 1
+  else
+    Factorial := n * Factorial(n - 1);
+end;
 
-(define sum (foldl + 0 numbers))
-(printf "Sum: ~a~n" sum)
-
-;; Pattern matching
-(define (describe x)
-  (match x
-    [0 "zero"]
-    [1 "one"]
-    [(? negative?) "negative"]
-    [_ "positive"]))
-
-(printf "5 is ~a~n" (describe 5))
-
-;; Structs
-(struct person (name age) #:transparent)
-
-(define alice (person "Alice" 25))
-(printf "~a is ~a years old.~n" (person-name alice) (person-age alice))
-
-;; Recursion
-(define (factorial n)
-  (if (<= n 1)
-      1
-      (* n (factorial (- n 1)))))
-
-(printf "Factorial of 5: ~a~n" (factorial 5))`
+var
+  i, sum: Integer;
+begin
+  WriteLn('Hello, World!');
+  
+  sum := 0;
+  for i := 1 to 10 do
+    sum := sum + i;
+  WriteLn('Sum 1-10: ', sum);
+  
+  WriteLn('Factorial of 5: ', Factorial(5));
+end.`
       }
     ]
   }
