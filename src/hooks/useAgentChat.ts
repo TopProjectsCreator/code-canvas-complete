@@ -8,12 +8,14 @@ interface UseAgentChatProps {
   onApplyCode?: (code: string, fileName: string) => void;
   onCreateWorkflow?: (workflow: Omit<Workflow, 'id'>) => void;
   onRunWorkflow?: (workflow: Workflow) => void;
+  onInstallPackage?: (packageName: string) => void;
+  onSetTheme?: (theme: string) => void;
   workflows?: Workflow[];
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, workflows = [] }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, workflows = [] }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
       id: '1',
@@ -94,6 +96,36 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     }
     
     return { workflowActions, cleanContent: cleanContent.trim() };
+  };
+
+  const parsePackageInstalls = (content: string): { packages: string[], cleanContent: string } => {
+    const packages: string[] = [];
+    let cleanContent = content;
+    
+    const pkgRegex = /<install_package\s+name="([^"]+)"\s*\/>/g;
+    let match;
+    
+    while ((match = pkgRegex.exec(content)) !== null) {
+      packages.push(match[1]);
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+    
+    return { packages, cleanContent: cleanContent.trim() };
+  };
+
+  const parseThemeChanges = (content: string): { theme: string | null, cleanContent: string } => {
+    let cleanContent = content;
+    let theme: string | null = null;
+    
+    const themeRegex = /<set_theme\s+theme="([^"]+)"\s*\/>/g;
+    const match = themeRegex.exec(content);
+    
+    if (match) {
+      theme = match[1];
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+    
+    return { theme, cleanContent: cleanContent.trim() };
   };
 
   const parseThinkingBlocks = (content: string): { steps: AgentStep[], cleanContent: string } => {
@@ -191,6 +223,48 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       }
     });
     content = afterWorkflows;
+    
+    // Parse package installs
+    const { packages, cleanContent: afterPackages } = parsePackageInstalls(content);
+    packages.forEach(pkg => {
+      allSteps.push({
+        id: generateId(),
+        type: 'tool_call',
+        content: `Installing package: ${pkg}`,
+        timestamp: new Date(),
+        toolCall: {
+          id: generateId(),
+          name: 'install_package',
+          arguments: { name: pkg },
+          status: 'completed',
+        },
+      });
+      if (onInstallPackage) {
+        onInstallPackage(pkg);
+      }
+    });
+    content = afterPackages;
+
+    // Parse theme changes
+    const { theme, cleanContent: afterTheme } = parseThemeChanges(content);
+    if (theme) {
+      allSteps.push({
+        id: generateId(),
+        type: 'tool_call',
+        content: `Changing theme to: ${theme}`,
+        timestamp: new Date(),
+        toolCall: {
+          id: generateId(),
+          name: 'set_theme',
+          arguments: { theme },
+          status: 'completed',
+        },
+      });
+      if (onSetTheme) {
+        onSetTheme(theme);
+      }
+    }
+    content = afterTheme;
     
     return {
       content,

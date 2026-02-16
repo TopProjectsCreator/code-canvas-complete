@@ -53,6 +53,8 @@ interface AIChatProps {
   onCreateWorkflow?: (workflow: Omit<Workflow, 'id'>) => void;
   onRunWorkflow?: (workflow: Workflow) => void;
   onLoadingChange?: (loading: boolean) => void;
+  onInstallPackage?: (packageName: string) => void;
+  onSetTheme?: (theme: string) => void;
 }
 
 const quickActions: QuickAction[] = [
@@ -243,7 +245,9 @@ export const AIChat = ({
   workflows,
   onCreateWorkflow,
   onRunWorkflow,
-  onLoadingChange
+  onLoadingChange,
+  onInstallPackage,
+  onSetTheme
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -268,6 +272,8 @@ export const AIChat = ({
     },
     onCreateWorkflow,
     onRunWorkflow,
+    onInstallPackage,
+    onSetTheme,
     workflows,
   });
 
