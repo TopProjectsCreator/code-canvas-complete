@@ -13,7 +13,8 @@ export type ToolName =
   | 'run_workflow'
   | 'list_workflows'
   | 'install_package'
-  | 'set_theme';
+  | 'set_theme'
+  | 'create_custom_theme';
 
 export interface ToolCall {
   id: string;
