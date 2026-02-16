@@ -1436,6 +1436,22 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
               }]);
               toast({ title: 'Custom theme created', description: `"${themeName}" is now active` });
             }}
+            onGitCommit={(message) => {
+              if (!gitState.isInitialized) {
+                handleGitInitRepo();
+              }
+              handleGitCommit(message);
+            }}
+            onGitInit={handleGitInitRepo}
+            onGitCreateBranch={(name) => {
+              if (!gitState.isInitialized) {
+                handleGitInitRepo();
+              }
+              handleGitCreateBranch(name);
+            }}
+            onGitImport={(url) => {
+              setShowGitImportDialog(true);
+            }}
           />
         </div>
       </div>
