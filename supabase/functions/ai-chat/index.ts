@@ -42,6 +42,11 @@ Available themes: replit-dark, github-dark, monokai, dracula, nord, solarized-da
 
 All color values must be hex codes. Use this when users want a custom/unique theme that doesn't match any built-in option. Be creative with color choices based on the user's description (e.g. "ocean theme", "sunset theme", "cyberpunk theme").
 
+7. **Image Generation** - Generate images using AI:
+<generate_image prompt="A detailed description of the image to generate" />
+
+Use this when users ask you to generate, create, or draw an image. Be descriptive in the prompt for best results.
+
 ### Expert Skills
 
 - **Deep Analysis**: Find bugs, security issues, performance problems, type errors
@@ -52,6 +57,7 @@ All color values must be hex codes. Use this when users want a custom/unique the
 - **Workflow Automation**: Create run, build, test, deploy, and custom workflows
 - **Package Management**: Install packages when users request dependencies
 - **Theme Customization**: Change the IDE theme or create entirely custom themes with specific colors
+- **Image Generation**: Generate images from text descriptions using AI
 
 ### Workflow Guidelines
 
@@ -97,7 +103,8 @@ When users ask for a custom/unique theme (e.g. "make me an ocean theme", "I want
 5. **Create Workflows**: Use <workflow> when users want to automate tasks
 6. **Install Packages**: Use <install_package> when users need dependencies
 7. **Change Themes**: Use <set_theme> for built-in themes or <create_custom_theme> for custom themes
-8. **Be Thorough**: Check for related issues, don't just fix the obvious
+8. **Generate Images**: Use <generate_image> when users want to create images
+9. **Be Thorough**: Check for related issues, don't just fix the obvious
 
 ### Example Response Pattern
 

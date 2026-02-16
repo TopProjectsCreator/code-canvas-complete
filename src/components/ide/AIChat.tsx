@@ -32,7 +32,7 @@ import ReactMarkdown from 'react-markdown';
 import { FileNode, TerminalLine, Workflow } from '@/types/ide';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAgentChat } from '@/hooks/useAgentChat';
-import { AgentMessage, AgentStep, CodeChange, WorkflowAction } from '@/types/agent';
+import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage } from '@/types/agent';
 
 interface QuickAction {
   id: string;
@@ -624,6 +624,38 @@ export const AIChat = ({
                       >
                         {message.content}
                       </ReactMarkdown>
+                    </div>
+                  )}
+
+                  {/* Generated images */}
+                  {message.images && message.images.length > 0 && (
+                    <div className="space-y-2">
+                      {message.images.map((img, idx) => (
+                        <div key={idx} className="rounded-lg overflow-hidden border border-border/50">
+                          {img.isLoading ? (
+                            <div className="flex items-center gap-2 p-4 bg-muted/30">
+                              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                              <span className="text-xs text-muted-foreground">Generating: {img.prompt}</span>
+                            </div>
+                          ) : img.error ? (
+                            <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive text-xs">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              <span>{img.error}</span>
+                            </div>
+                          ) : img.imageUrl ? (
+                            <div>
+                              <img
+                                src={img.imageUrl}
+                                alt={img.prompt}
+                                className="w-full max-h-64 object-contain bg-background/50"
+                              />
+                              <div className="px-2 py-1.5 bg-muted/30 text-[10px] text-muted-foreground truncate">
+                                {img.prompt}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
                     </div>
                   )}
                   
