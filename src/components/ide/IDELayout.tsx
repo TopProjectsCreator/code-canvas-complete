@@ -1350,6 +1350,50 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                 handleContentChange(activeFile.id, currentContent + '\n\n' + code);
               }
             }}
+            onApplyCode={(code, fileName) => {
+              // Try to find an existing file with that name
+              const findFileByName = (nodes: FileNode[], name: string): FileNode | null => {
+                for (const node of nodes) {
+                  if (node.type === 'file' && node.name === name) return node;
+                  if (node.children) {
+                    const found = findFileByName(node.children, name);
+                    if (found) return found;
+                  }
+                }
+                return null;
+              };
+              const existingFile = findFileByName(files, fileName);
+              if (existingFile) {
+                // Update existing file
+                handleContentChange(existingFile.id, code);
+                // Open it
+                handleFileSelect(existingFile);
+              } else {
+                // Create new file in root folder
+                const newFileId = generateId();
+                const newFile: FileNode = {
+                  id: newFileId,
+                  name: fileName,
+                  type: 'file',
+                  content: code,
+                  language: getFileLanguage(fileName),
+                };
+                setFiles((prev) => {
+                  const root = prev[0];
+                  if (root && root.type === 'folder') {
+                    return [{ ...root, children: [...(root.children || []), newFile] }];
+                  }
+                  return [...prev, newFile];
+                });
+                setFileContents(prev => ({ ...prev, [newFileId]: code }));
+                // Open in tab
+                const newTab: Tab = { id: generateId(), name: fileName, fileId: newFileId, isModified: false };
+                setOpenTabs(prev => [...prev, newTab]);
+                setActiveTabId(newTab.id);
+                addHistoryEntry('file-create', `Created: ${fileName}`, 'via AI');
+              }
+              toast({ title: 'Code applied', description: `Applied changes to "${fileName}"` });
+            }}
             workflows={workflows}
             onCreateWorkflow={handleCreateWorkflow}
             onRunWorkflow={handleRunWorkflow}
