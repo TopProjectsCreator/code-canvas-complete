@@ -1080,10 +1080,8 @@ const reactTemplate: FileNode[] = [
         name: 'App.jsx',
         type: 'file',
         language: 'javascript',
-        content: `import { useState } from 'react';
-
-function App() {
-  const [count, setCount] = useState(0);
+        content: `function App() {
+  const [count, setCount] = React.useState(0);
 
   return (
     <div className="app">
@@ -1092,28 +1090,11 @@ function App() {
         <button onClick={() => setCount(c => c + 1)}>
           Count is {count}
         </button>
-        <p>Edit App.jsx and save to see changes</p>
+        <p>Edit App.jsx and click Run to see changes</p>
       </div>
     </div>
   );
-}
-
-export default App;`
-      },
-      {
-        id: 'index-jsx',
-        name: 'index.jsx',
-        type: 'file',
-        language: 'javascript',
-        content: `import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
-
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);`
+}`
       },
       {
         id: 'index-html',
@@ -1131,15 +1112,25 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     .app { text-align: center; }
     h1 { font-size: 3rem; }
     .card { padding: 2rem; }
-    button { padding: 0.6rem 1.2rem; font-size: 1rem; border-radius: 8px; border: 1px solid transparent; background-color: #1a1a1a; cursor: pointer; transition: all 0.25s; }
+    button { padding: 0.6rem 1.2rem; font-size: 1rem; border-radius: 8px; border: 1px solid transparent; background-color: #1a1a1a; color: white; cursor: pointer; transition: all 0.25s; }
     button:hover { border-color: #646cff; }
   </style>
 </head>
 <body>
   <div id="root"></div>
-  <script type="module" src="index.jsx"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- APP_JSX_PLACEHOLDER -->
 </body>
 </html>`
+      },
+      {
+        id: 'style-css',
+        name: 'style.css',
+        type: 'file',
+        language: 'css',
+        content: `/* Add your custom styles here */`
       }
     ]
   }
