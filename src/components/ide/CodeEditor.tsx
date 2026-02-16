@@ -220,7 +220,8 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   const [searchMatches, setSearchMatches] = useState<{ start: number; end: number }[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
   const isComposingRef = useRef(false);
-  const contentRef = useRef(content); // Keep a ref in sync to avoid stale closures
+  const contentRef = useRef(content);
+  const [markdownPreview, setMarkdownPreview] = useState(true); // toggle for md files
 
   // Sync contentRef
   useEffect(() => {
@@ -366,8 +367,25 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
 
   // Check if this file should be previewed instead of edited
   const previewType = getPreviewType(file.name);
-  if (previewType) {
+  const isMarkdown = previewType === 'markdown';
+  if (previewType && !isMarkdown) {
     return <FilePreview file={file} previewType={previewType} />;
+  }
+  if (isMarkdown && markdownPreview) {
+    return (
+      <div className="flex-1 flex flex-col bg-editor overflow-hidden">
+        <div className="flex items-center gap-2 px-4 py-1.5 bg-background border-b border-border">
+          <button
+            onClick={() => setMarkdownPreview(false)}
+            className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Edit
+          </button>
+          <span className="text-xs font-medium text-foreground">Preview</span>
+        </div>
+        <FilePreview file={{ ...file, content }} previewType="markdown" />
+      </div>
+    );
   }
 
   const tokenizedLines = tokenize(content, file.language || 'text');
@@ -438,6 +456,17 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
 
   return (
     <div className="flex-1 flex flex-col bg-editor overflow-hidden">
+      {isMarkdown && (
+        <div className="flex items-center gap-2 px-4 py-1.5 bg-background border-b border-border">
+          <span className="text-xs font-medium text-foreground">Edit</span>
+          <button
+            onClick={() => setMarkdownPreview(true)}
+            className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Preview
+          </button>
+        </div>
+      )}
       <FindReplace
         content={content}
         isOpen={showFindReplace}
