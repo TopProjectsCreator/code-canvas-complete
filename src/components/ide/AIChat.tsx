@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Bot, 
   Send, 
@@ -362,10 +362,48 @@ export const AIChat = ({
     setAppliedChanges(prev => new Set(prev).add(changeId));
   };
 
+  // Resizable width
+  const [panelWidth, setPanelWidth] = useState(320);
+  const isResizingRef = useRef(false);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(320);
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizingRef.current = true;
+    startXRef.current = e.clientX;
+    startWidthRef.current = panelWidth;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return;
+      const delta = startXRef.current - e.clientX;
+      const newWidth = Math.max(280, Math.min(700, startWidthRef.current + delta));
+      setPanelWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      isResizingRef.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [panelWidth]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="w-80 h-full flex flex-col bg-card border-l border-border">
+    <div className="h-full flex flex-col bg-card border-l border-border relative" style={{ width: panelWidth }}>
+      {/* Resize handle */}
+      <div
+        onMouseDown={handleResizeMouseDown}
+        className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/40 transition-colors z-20"
+      />
       {/* Header - Replit style */}
       <div className="flex items-center justify-between h-12 px-3 border-b border-border">
         <div className="flex items-center gap-2">
