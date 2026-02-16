@@ -25,7 +25,10 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Paintbrush
+  Paintbrush,
+  GitBranch,
+  GitCommit as GitCommitIcon,
+  Download
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -57,6 +60,10 @@ interface AIChatProps {
   onInstallPackage?: (packageName: string) => void;
   onSetTheme?: (theme: string) => void;
   onCreateCustomTheme?: (name: string, colors: import('@/contexts/ThemeContext').CustomThemeColors) => void;
+  onGitCommit?: (message: string) => void;
+  onGitInit?: () => void;
+  onGitCreateBranch?: (name: string) => void;
+  onGitImport?: (url: string) => void;
 }
 
 const quickActions: QuickAction[] = [
@@ -215,24 +222,36 @@ const CodeChangeBlock = ({
 };
 
 // Tool call indicator
-const ToolCallIndicator = ({ toolCall, onApplyTheme, isApplied }: { 
+const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, isApplied }: { 
   toolCall: AgentStep['toolCall'];
   onApplyTheme?: () => void;
+  onApplyGit?: () => void;
   isApplied?: boolean;
 }) => {
   if (!toolCall) return null;
   
   const isThemeAction = toolCall.name === 'set_theme' || toolCall.name === 'create_custom_theme';
+  const isGitAction = toolCall.name === 'git_commit' || toolCall.name === 'git_init' || toolCall.name === 'git_create_branch' || toolCall.name === 'git_import';
   const isPending = toolCall.status === 'pending';
   
-  const statusIcon = isThemeAction && isPending
-    ? <Paintbrush className="w-3 h-3 text-primary" />
+  const statusIcon = (isThemeAction || isGitAction) && isPending
+    ? isGitAction ? <GitBranch className="w-3 h-3 text-primary" /> : <Paintbrush className="w-3 h-3 text-primary" />
     : {
         pending: <Loader2 className="w-3 h-3 animate-spin text-yellow-400" />,
         running: <Loader2 className="w-3 h-3 animate-spin text-primary" />,
         completed: <CheckCircle2 className="w-3 h-3 text-green-400" />,
         failed: <XCircle className="w-3 h-3 text-red-400" />,
       }[toolCall.status];
+
+  const gitIcon = toolCall.name === 'git_commit' ? <GitCommitIcon className="w-3 h-3" />
+    : toolCall.name === 'git_import' ? <Download className="w-3 h-3" />
+    : <GitBranch className="w-3 h-3" />;
+
+  const gitLabel = toolCall.name === 'git_commit' ? 'Commit'
+    : toolCall.name === 'git_init' ? 'Init Repo'
+    : toolCall.name === 'git_create_branch' ? 'Create Branch'
+    : toolCall.name === 'git_import' ? 'Import Repo'
+    : '';
 
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border/50 text-xs">
@@ -248,6 +267,15 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, isApplied }: {
         >
           <Paintbrush className="w-3 h-3" />
           Apply Theme
+        </button>
+      )}
+      {isGitAction && isPending && !isApplied && onApplyGit && (
+        <button
+          onClick={onApplyGit}
+          className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/20 hover:bg-primary/30 text-primary text-[11px] font-medium transition-colors"
+        >
+          {gitIcon}
+          {gitLabel}
         </button>
       )}
       {isApplied && (
@@ -274,7 +302,11 @@ export const AIChat = ({
   onLoadingChange,
   onInstallPackage,
   onSetTheme,
-  onCreateCustomTheme
+  onCreateCustomTheme,
+  onGitCommit,
+  onGitInit,
+  onGitCreateBranch,
+  onGitImport
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -302,6 +334,10 @@ export const AIChat = ({
     onInstallPackage,
     onSetTheme,
     onCreateCustomTheme,
+    onGitCommit,
+    onGitInit,
+    onGitCreateBranch,
+    onGitImport,
     workflows,
   });
 
@@ -555,6 +591,20 @@ export const AIChat = ({
                                 tc.arguments.name as string,
                                 tc.arguments.colors as import('@/contexts/ThemeContext').CustomThemeColors
                               );
+                            }
+                          }}
+                          onApplyGit={() => {
+                            if (appliedChanges.has(step.id)) return;
+                            setAppliedChanges(prev => new Set(prev).add(step.id));
+                            const tc = step.toolCall!;
+                            if (tc.name === 'git_commit' && onGitCommit) {
+                              onGitCommit(tc.arguments.message as string);
+                            } else if (tc.name === 'git_init' && onGitInit) {
+                              onGitInit();
+                            } else if (tc.name === 'git_create_branch' && onGitCreateBranch) {
+                              onGitCreateBranch(tc.arguments.branchName as string);
+                            } else if (tc.name === 'git_import' && onGitImport) {
+                              onGitImport(tc.arguments.url as string);
                             }
                           }}
                         />

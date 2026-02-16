@@ -9,6 +9,13 @@ interface CustomThemeAction {
   colors: CustomThemeColors;
 }
 
+interface GitAction {
+  type: 'git_commit' | 'git_init' | 'git_create_branch' | 'git_import';
+  message?: string;
+  branchName?: string;
+  url?: string;
+}
+
 interface UseAgentChatProps {
   onCodeChange?: (change: CodeChange) => void;
   onApplyCode?: (code: string, fileName: string) => void;
@@ -17,13 +24,17 @@ interface UseAgentChatProps {
   onInstallPackage?: (packageName: string) => void;
   onSetTheme?: (theme: string) => void;
   onCreateCustomTheme?: (name: string, colors: CustomThemeColors) => void;
+  onGitCommit?: (message: string) => void;
+  onGitInit?: () => void;
+  onGitCreateBranch?: (name: string) => void;
+  onGitImport?: (url: string) => void;
   workflows?: Workflow[];
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 const IMAGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`;
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, workflows = [] }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, workflows = [] }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
       id: '1',
@@ -180,6 +191,42 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     }
     
     return { imagePrompts, cleanContent: cleanContent.trim() };
+  };
+
+  const parseGitCommands = (content: string): { gitActions: GitAction[], cleanContent: string } => {
+    const gitActions: GitAction[] = [];
+    let cleanContent = content;
+
+    // git_init
+    const initRegex = /<git_init\s*\/>/g;
+    let match;
+    while ((match = initRegex.exec(content)) !== null) {
+      gitActions.push({ type: 'git_init' });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    // git_commit
+    const commitRegex = /<git_commit\s+message="([^"]+)"\s*\/>/g;
+    while ((match = commitRegex.exec(content)) !== null) {
+      gitActions.push({ type: 'git_commit', message: match[1] });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    // git_create_branch
+    const branchRegex = /<git_create_branch\s+name="([^"]+)"\s*\/>/g;
+    while ((match = branchRegex.exec(content)) !== null) {
+      gitActions.push({ type: 'git_create_branch', branchName: match[1] });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    // git_import
+    const importRegex = /<git_import\s+url="([^"]+)"\s*\/>/g;
+    while ((match = importRegex.exec(content)) !== null) {
+      gitActions.push({ type: 'git_import', url: match[1] });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    return { gitActions, cleanContent: cleanContent.trim() };
   };
 
   const parseThinkingBlocks = (content: string): { steps: AgentStep[], cleanContent: string } => {
@@ -359,6 +406,30 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       });
     });
     content = afterImages;
+
+    // Parse git commands (pending - one-click apply)
+    const { gitActions, cleanContent: afterGit } = parseGitCommands(content);
+    gitActions.forEach(action => {
+      const labelMap: Record<string, string> = {
+        git_init: 'Initialize Git repository',
+        git_commit: `Commit: "${action.message}"`,
+        git_create_branch: `Create branch: ${action.branchName}`,
+        git_import: `Import repo: ${action.url}`,
+      };
+      allSteps.push({
+        id: generateId(),
+        type: 'tool_call',
+        content: labelMap[action.type] || action.type,
+        timestamp: new Date(),
+        toolCall: {
+          id: generateId(),
+          name: action.type as ToolCall['name'],
+          arguments: { message: action.message, branchName: action.branchName, url: action.url } as Record<string, unknown>,
+          status: 'pending',
+        },
+      });
+    });
+    content = afterGit;
     
     return {
       content,
