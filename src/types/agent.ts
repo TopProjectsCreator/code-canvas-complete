@@ -11,7 +11,9 @@ export type ToolName =
   | 'refactor_code'
   | 'create_workflow'
   | 'run_workflow'
-  | 'list_workflows';
+  | 'list_workflows'
+  | 'install_package'
+  | 'set_theme';
 
 export interface ToolCall {
   id: string;
