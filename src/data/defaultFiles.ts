@@ -1557,24 +1557,22 @@ const zigTemplate: FileNode[] = [
         language: 'zig',
         content: `const std = @import("std");
 
-pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
-    
-    try stdout.print("Hello, World!\\n", .{});
-    
+pub fn main() void {
+    std.debug.print("Hello, World!\\n", .{});
+
     // Variables
     const x: i32 = 42;
     var y: i32 = 10;
     y += x;
-    try stdout.print("x = {}, y = {}\\n", .{x, y});
-    
+    std.debug.print("x = {}, y = {}\\n", .{ x, y });
+
     // Array
-    const nums = [_]i32{1, 2, 3, 4, 5};
+    const nums = [_]i32{ 1, 2, 3, 4, 5 };
     var sum: i32 = 0;
     for (nums) |n| {
         sum += n;
     }
-    try stdout.print("Sum: {}\\n", .{sum});
+    std.debug.print("Sum: {}\\n", .{sum});
 }`
       }
     ]
