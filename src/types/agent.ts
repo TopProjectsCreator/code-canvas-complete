@@ -15,7 +15,11 @@ export type ToolName =
   | 'install_package'
   | 'set_theme'
   | 'create_custom_theme'
-  | 'generate_image';
+  | 'generate_image'
+  | 'git_commit'
+  | 'git_init'
+  | 'git_create_branch'
+  | 'git_import';
 
 export interface ToolCall {
   id: string;
