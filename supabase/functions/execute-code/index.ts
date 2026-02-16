@@ -67,6 +67,7 @@ const preferredCompilers: Record<string, string[]> = {
   'Lua': ['lua-5.4.4', 'lua-head'],
   'Perl': ['perl-5.38.0', 'perl-head'],
   'R': ['r-4.3.2', 'r-head'],
+  'Zig': ['zig-0.11.0', 'zig-head'],
 };
 
 // Fetch and cache the available compiler names from Wandbox
