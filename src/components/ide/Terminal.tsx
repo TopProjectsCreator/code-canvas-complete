@@ -13,11 +13,13 @@ interface TerminalProps {
   onCommand: (command: string, output: string[], isError: boolean) => void;
   isMinimized: boolean;
   onToggleMinimize: () => void;
+  stdinPrompt?: { prompts: string[]; code: string; language: string } | null;
+  onStdinSubmit?: (stdinValue: string) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
-export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize }: TerminalProps) => {
+export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, stdinPrompt, onStdinSubmit }: TerminalProps) => {
   const [input, setInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -25,6 +27,8 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize }: 
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiPopoverOpen, setAiPopoverOpen] = useState(false);
+  const [stdinInputs, setStdinInputs] = useState<string[]>([]);
+  const [currentStdinIndex, setCurrentStdinIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { executeShellCommand, executeCode, isExecuting } = useCodeExecution();
@@ -35,12 +39,44 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize }: 
     }
   }, [history]);
 
+  // Reset stdin state when a new prompt arrives
+  useEffect(() => {
+    if (stdinPrompt) {
+      setStdinInputs([]);
+      setCurrentStdinIndex(0);
+      setInput('');
+      inputRef.current?.focus();
+    }
+  }, [stdinPrompt]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isExecuting) return;
+    if (isExecuting) return;
 
-    const command = input.trim();
+    const value = input.trim();
     setInput('');
+
+    // Handle stdin input mode
+    if (stdinPrompt && onStdinSubmit) {
+      const newInputs = [...stdinInputs, value];
+      setStdinInputs(newInputs);
+      
+      // Show the entered value in terminal
+      onCommand(`> ${value}`, [], false);
+
+      if (newInputs.length >= stdinPrompt.prompts.length) {
+        // All inputs collected, submit
+        const stdinValue = newInputs.join('\n');
+        onStdinSubmit(stdinValue);
+      } else {
+        setCurrentStdinIndex(newInputs.length);
+      }
+      return;
+    }
+
+    if (!value) return;
+
+    const command = value;
     setCommandHistory((prev) => [...prev, command]);
     setHistoryIndex(-1);
 
@@ -205,9 +241,16 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize }: 
             </div>
           ))}
           
+          {/* Stdin prompt display */}
+          {stdinPrompt && currentStdinIndex < stdinPrompt.prompts.length && (
+            <div className="leading-relaxed text-yellow-400">
+              <span>📝 {stdinPrompt.prompts[currentStdinIndex]}</span>
+            </div>
+          )}
+          
           {/* Input line */}
           <form onSubmit={handleSubmit} className="flex items-center gap-2">
-            <span className="text-primary">$</span>
+            <span className="text-primary">{stdinPrompt ? '>' : '$'}</span>
             <input
               ref={inputRef}
               type="text"
@@ -216,7 +259,7 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize }: 
               onKeyDown={handleKeyDown}
               className="flex-1 bg-transparent outline-none text-foreground caret-primary"
               disabled={isExecuting}
-              placeholder={isExecuting ? 'Executing...' : ''}
+              placeholder={stdinPrompt ? 'Type your input and press Enter...' : (isExecuting ? 'Executing...' : '')}
               autoFocus
             />
             {!isExecuting && <span className="w-2 h-5 bg-primary animate-cursor-blink" />}
