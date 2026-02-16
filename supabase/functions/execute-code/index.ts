@@ -117,6 +117,24 @@ async function getCompilerForLanguage(language: string): Promise<string | null> 
   return available[0];
 }
 
+// Detect common sandbox limitation errors and return friendly messages
+function friendlyError(error: string): string | null {
+  if (error.includes('EOFError: EOF when reading a line') || error.includes("input()")) {
+    return '⚠️ Interactive input (e.g. input(), scanf, stdin) is not supported in the sandbox. Use hardcoded values instead.\n\nExample:\n  # Instead of: name = input("Enter name: ")\n  name = "World"';
+  }
+  if (error.includes('Cannot find module') || error.includes('MODULE_NOT_FOUND')) {
+    const match = error.match(/Cannot find module '([^']+)'/);
+    const mod = match ? match[1] : 'the module';
+    return `⚠️ External package '${mod}' is not available in the sandbox. Only standard library modules are supported.`;
+  }
+  if (error.includes('ModuleNotFoundError') || error.includes('No module named')) {
+    const match = error.match(/No module named '([^']+)'/);
+    const mod = match ? match[1] : 'the module';
+    return `⚠️ Python package '${mod}' is not available in the sandbox. Only standard library modules are supported.`;
+  }
+  return null;
+}
+
 async function executeWithWandbox(code: string, language: string): Promise<{ output: string[]; error: string | null }> {
   const compiler = await getCompilerForLanguage(language);
   
@@ -153,17 +171,17 @@ async function executeWithWandbox(code: string, language: string): Promise<{ out
     }
 
     // Only treat compiler_error as fatal if program didn't produce output
-    // Some compilers (e.g. Nim) put info/hints in stderr
     if (result.compiler_error && (!result.program_output || !result.program_output.trim())) {
-      return { output, error: result.compiler_error };
+      const friendly = friendlyError(result.compiler_error);
+      return { output, error: friendly || result.compiler_error };
     }
 
     if (result.status && result.status !== '0' && result.status !== 0) {
       const errorMsg = result.program_error || result.signal || `Process exited with code ${result.status}`;
       if (result.program_error) {
-        return { output, error: result.program_error };
+        const friendly = friendlyError(result.program_error);
+        return { output, error: friendly || result.program_error };
       }
-      // If we have program output but non-zero exit, still show output without error
       if (output.length > 0 && !result.program_error) {
         return { output, error: null };
       }
