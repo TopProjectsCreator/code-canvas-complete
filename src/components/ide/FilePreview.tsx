@@ -46,6 +46,7 @@ const ImagePreview = ({ file, content }: { file: FileNode; content: string }) =>
           <p className="text-lg font-medium mb-1">Image Preview</p>
           <p className="text-sm">{file.name}</p>
           <p className="text-xs mt-2 text-muted-foreground/70">No image data available</p>
+          <p className="text-xs mt-1 text-muted-foreground/50">Use "Upload Files" in the file tree to import images</p>
         </div>
       </div>
     );
