@@ -38,7 +38,10 @@ import {
   Share2,
   GitFork,
   Star,
-  History
+  History,
+  MessageCircleQuestion,
+  Save,
+  PlayCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -83,6 +86,9 @@ interface AIChatProps {
   onForkProject?: () => void;
   onStarProject?: () => void;
   onViewHistory?: () => void;
+  onAskUser?: (question: string) => void;
+  onSaveProject?: () => void;
+  onRunProject?: () => void;
 }
 
 const quickActions: QuickAction[] = [
@@ -252,7 +258,7 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, onApplyShare, i
   
   const isThemeAction = toolCall.name === 'set_theme' || toolCall.name === 'create_custom_theme';
   const isGitAction = toolCall.name === 'git_commit' || toolCall.name === 'git_init' || toolCall.name === 'git_create_branch' || toolCall.name === 'git_import';
-  const isShareAction = ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email', 'fork_project', 'star_project', 'view_history'].includes(toolCall.name);
+  const isShareAction = ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email', 'fork_project', 'star_project', 'view_history', 'ask_user', 'save_project', 'run_project'].includes(toolCall.name);
   const isPending = toolCall.status === 'pending';
   
   const statusIcon = (isThemeAction || isGitAction || isShareAction) && isPending
@@ -285,6 +291,9 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, onApplyShare, i
     : toolCall.name === 'fork_project' ? <GitFork className="w-3 h-3" />
     : toolCall.name === 'star_project' ? <Star className="w-3 h-3" />
     : toolCall.name === 'view_history' ? <History className="w-3 h-3" />
+    : toolCall.name === 'ask_user' ? <MessageCircleQuestion className="w-3 h-3" />
+    : toolCall.name === 'save_project' ? <Save className="w-3 h-3" />
+    : toolCall.name === 'run_project' ? <PlayCircle className="w-3 h-3" />
     : <Share2 className="w-3 h-3" />;
 
   const shareLabel = toolCall.name === 'make_public' ? 'Make Public'
@@ -296,6 +305,9 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, onApplyShare, i
     : toolCall.name === 'fork_project' ? 'Fork'
     : toolCall.name === 'star_project' ? 'Star'
     : toolCall.name === 'view_history' ? 'View History'
+    : toolCall.name === 'ask_user' ? 'Answer'
+    : toolCall.name === 'save_project' ? 'Save'
+    : toolCall.name === 'run_project' ? 'Run'
     : '';
 
   return (
@@ -369,7 +381,10 @@ export const AIChat = ({
   onShareEmail,
   onForkProject,
   onStarProject,
-  onViewHistory
+  onViewHistory,
+  onAskUser,
+  onSaveProject,
+  onRunProject
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -410,6 +425,9 @@ export const AIChat = ({
     onForkProject,
     onStarProject,
     onViewHistory,
+    onAskUser,
+    onSaveProject,
+    onRunProject,
     workflows,
   });
 
@@ -692,6 +710,9 @@ export const AIChat = ({
                             else if (tc.name === 'fork_project' && onForkProject) onForkProject();
                             else if (tc.name === 'star_project' && onStarProject) onStarProject();
                             else if (tc.name === 'view_history' && onViewHistory) onViewHistory();
+                            else if (tc.name === 'ask_user' && onAskUser) onAskUser(tc.arguments?.question as string || 'The agent has a question for you.');
+                            else if (tc.name === 'save_project' && onSaveProject) onSaveProject();
+                            else if (tc.name === 'run_project' && onRunProject) onRunProject();
                           }}
                         />
                       )}
