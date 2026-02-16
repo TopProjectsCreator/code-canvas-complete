@@ -488,9 +488,21 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     return fileContents[file.id] ?? file.content ?? '';
   };
 
-  const htmlContent = getFileContent('index.html');
+  const rawHtmlContent = getFileContent('index.html');
   const cssContent = getFileContent('style.css');
   const jsContent = getFileContent('script.js');
+
+  // For React templates, inject App.jsx into the HTML as a Babel-transpiled script
+  const htmlContent = (() => {
+    if (selectedTemplate === 'react') {
+      const appJsxContent = getFileContent('App.jsx');
+      if (appJsxContent && rawHtmlContent) {
+        const babelScript = `<script type="text/babel">\n${appJsxContent}\n\nconst root = ReactDOM.createRoot(document.getElementById('root'));\nroot.render(React.createElement(App));\n</script>`;
+        return rawHtmlContent.replace('<!-- APP_JSX_PLACEHOLDER -->', babelScript);
+      }
+    }
+    return rawHtmlContent;
+  })();
 
   const handleFileSelect = useCallback((file: FileNode) => {
     if (file.type === 'folder') return;
@@ -822,20 +834,19 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
 
     let fileToRun: FileNode | null = null;
 
-    // For React templates, prioritize JSX/TSX entry points for preview rendering
+    // For React templates, render in preview (not via code execution)
     if (selectedTemplate === 'react') {
-      const reactEntryPoints = ['App.jsx', 'App.tsx', 'index.jsx', 'index.tsx', 'App.js', 'App.ts'];
-      for (const entry of reactEntryPoints) {
-        const found = findFileByName(files, entry);
-        if (found) {
-          fileToRun = { ...found, content: fileContents[found.id] ?? found.content };
-          break;
-        }
-      }
+      setIsRunning(true);
+      setTerminalHistory((prev) => [
+        ...prev,
+        { id: generateId(), type: 'info', content: '🚀 Starting React app...', timestamp: new Date() },
+        { id: generateId(), type: 'output', content: '⚛️ React app rendered in preview', timestamp: new Date() },
+      ]);
+      return;
     }
 
     // For HTML/web templates, always prioritize index.html (JS runs inside the preview)
-    if (!fileToRun && (selectedTemplate === 'html' || selectedTemplate === 'nodejs' || selectedTemplate === 'flask' || selectedTemplate === 'django')) {
+    if (selectedTemplate === 'html' || selectedTemplate === 'nodejs' || selectedTemplate === 'flask' || selectedTemplate === 'django') {
       const htmlFile = findFileByName(files, 'index.html');
       if (htmlFile) {
         fileToRun = { ...htmlFile, content: fileContents[htmlFile.id] ?? htmlFile.content };
