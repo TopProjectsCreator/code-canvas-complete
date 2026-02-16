@@ -19,7 +19,7 @@ const EXECUTABLE_LANGUAGES = new Set([
 export const useCodeExecution = () => {
   const [isExecuting, setIsExecuting] = useState(false);
 
-  const executeCode = useCallback(async (code: string, language: string = 'javascript'): Promise<ExecutionResult> => {
+  const executeCode = useCallback(async (code: string, language: string = 'javascript', stdin?: string): Promise<ExecutionResult> => {
     // Handle preview-based languages (HTML, CSS, Markdown render in preview)
     const PREVIEW_LANGUAGES = new Set(['html', 'css', 'md', 'markdown', 'svg']);
     
@@ -67,8 +67,11 @@ export const useCodeExecution = () => {
     setIsExecuting(true);
     
     try {
+      const body: Record<string, string> = { code, language };
+      if (stdin) body.stdin = stdin;
+      
       const { data, error } = await supabase.functions.invoke('execute-code', {
-        body: { code, language }
+        body
       });
 
       // Handle Supabase function invocation errors
