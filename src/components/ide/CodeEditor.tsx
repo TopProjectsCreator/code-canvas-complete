@@ -478,9 +478,9 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
       
       <div className="flex-1 relative overflow-hidden flex">
         {/* Line number gutter */}
-        <div className="font-mono text-sm leading-6 pt-[2px] select-none text-muted-foreground bg-editor border-r border-border overflow-hidden">
+        <div className="font-mono text-sm leading-6 pt-[2px] select-none text-muted-foreground bg-editor overflow-hidden">
           {content.split('\n').map((_, i) => (
-            <div key={i} className="pl-2 pr-1.5 text-right min-w-[2.5rem] text-xs leading-6">
+            <div key={i} className="pl-2 pr-1 text-right min-w-[2rem] text-xs leading-6">
               {i + 1}
             </div>
           ))}
@@ -499,7 +499,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
               isComposingRef.current = false; 
               handleInput(); 
             }}
-            className="absolute inset-0 font-mono text-sm leading-6 overflow-auto ide-scrollbar outline-none pt-[2px] pl-0.5 caret-foreground"
+            className="absolute inset-0 font-mono text-sm leading-6 overflow-auto ide-scrollbar outline-none pt-[2px] pl-[6px] caret-foreground"
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
