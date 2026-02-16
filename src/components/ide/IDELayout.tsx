@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { useCodeExecution } from '@/hooks/useCodeExecution';
 import { useProjects, Project } from '@/hooks/useProjects';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 
 interface IDELayoutProps {
@@ -88,6 +89,7 @@ const getDefaultWorkflows = (template: LanguageTemplate): Workflow[] => {
 export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { addCustomTheme } = useTheme();
   const navigate = useNavigate();
   const { currentProject, setCurrentProject, loadProject, forkProject, toggleStar } = useProjects();
   
@@ -1378,6 +1380,17 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                 timestamp: new Date(),
               }]);
               toast({ title: 'Theme changed', description: `Switched to "${themeName}"` });
+            }}
+            onCreateCustomTheme={(themeName, colors) => {
+              const themeId = Math.random().toString(36).substring(2, 9);
+              addCustomTheme({ id: themeId, name: themeName, colors });
+              setTerminalHistory(prev => [...prev, {
+                id: generateId(),
+                type: 'info',
+                content: `🎨 Created and applied custom theme: "${themeName}"`,
+                timestamp: new Date(),
+              }]);
+              toast({ title: 'Custom theme created', description: `"${themeName}" is now active` });
             }}
           />
         </div>
