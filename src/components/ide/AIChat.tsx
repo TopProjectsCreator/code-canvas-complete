@@ -28,7 +28,14 @@ import {
   Paintbrush,
   GitBranch,
   GitCommit as GitCommitIcon,
-  Download
+  Download,
+  Globe,
+  Lock,
+  Link2,
+  Twitter,
+  Linkedin,
+  Mail,
+  Share2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -64,6 +71,12 @@ interface AIChatProps {
   onGitInit?: () => void;
   onGitCreateBranch?: (name: string) => void;
   onGitImport?: (url: string) => void;
+  onMakePublic?: () => void;
+  onMakePrivate?: () => void;
+  onGetProjectLink?: () => void;
+  onShareTwitter?: () => void;
+  onShareLinkedin?: () => void;
+  onShareEmail?: () => void;
 }
 
 const quickActions: QuickAction[] = [
@@ -222,20 +235,24 @@ const CodeChangeBlock = ({
 };
 
 // Tool call indicator
-const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, isApplied }: { 
+const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, onApplyShare, isApplied }: { 
   toolCall: AgentStep['toolCall'];
   onApplyTheme?: () => void;
   onApplyGit?: () => void;
+  onApplyShare?: () => void;
   isApplied?: boolean;
 }) => {
   if (!toolCall) return null;
   
   const isThemeAction = toolCall.name === 'set_theme' || toolCall.name === 'create_custom_theme';
   const isGitAction = toolCall.name === 'git_commit' || toolCall.name === 'git_init' || toolCall.name === 'git_create_branch' || toolCall.name === 'git_import';
+  const isShareAction = ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email'].includes(toolCall.name);
   const isPending = toolCall.status === 'pending';
   
-  const statusIcon = (isThemeAction || isGitAction) && isPending
-    ? isGitAction ? <GitBranch className="w-3 h-3 text-primary" /> : <Paintbrush className="w-3 h-3 text-primary" />
+  const statusIcon = (isThemeAction || isGitAction || isShareAction) && isPending
+    ? isGitAction ? <GitBranch className="w-3 h-3 text-primary" /> 
+    : isShareAction ? <Share2 className="w-3 h-3 text-primary" />
+    : <Paintbrush className="w-3 h-3 text-primary" />
     : {
         pending: <Loader2 className="w-3 h-3 animate-spin text-yellow-400" />,
         running: <Loader2 className="w-3 h-3 animate-spin text-primary" />,
@@ -251,6 +268,22 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, isApplied }: {
     : toolCall.name === 'git_init' ? 'Init Repo'
     : toolCall.name === 'git_create_branch' ? 'Create Branch'
     : toolCall.name === 'git_import' ? 'Import Repo'
+    : '';
+
+  const shareIcon = toolCall.name === 'make_public' ? <Globe className="w-3 h-3" />
+    : toolCall.name === 'make_private' ? <Lock className="w-3 h-3" />
+    : toolCall.name === 'get_project_link' ? <Link2 className="w-3 h-3" />
+    : toolCall.name === 'share_twitter' ? <Twitter className="w-3 h-3" />
+    : toolCall.name === 'share_linkedin' ? <Linkedin className="w-3 h-3" />
+    : toolCall.name === 'share_email' ? <Mail className="w-3 h-3" />
+    : <Share2 className="w-3 h-3" />;
+
+  const shareLabel = toolCall.name === 'make_public' ? 'Make Public'
+    : toolCall.name === 'make_private' ? 'Make Private'
+    : toolCall.name === 'get_project_link' ? 'Copy Link'
+    : toolCall.name === 'share_twitter' ? 'Share on Twitter'
+    : toolCall.name === 'share_linkedin' ? 'Share on LinkedIn'
+    : toolCall.name === 'share_email' ? 'Share via Email'
     : '';
 
   return (
@@ -276,6 +309,15 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, isApplied }: {
         >
           {gitIcon}
           {gitLabel}
+        </button>
+      )}
+      {isShareAction && isPending && !isApplied && onApplyShare && (
+        <button
+          onClick={onApplyShare}
+          className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/20 hover:bg-primary/30 text-primary text-[11px] font-medium transition-colors"
+        >
+          {shareIcon}
+          {shareLabel}
         </button>
       )}
       {isApplied && (
@@ -306,7 +348,13 @@ export const AIChat = ({
   onGitCommit,
   onGitInit,
   onGitCreateBranch,
-  onGitImport
+  onGitImport,
+  onMakePublic,
+  onMakePrivate,
+  onGetProjectLink,
+  onShareTwitter,
+  onShareLinkedin,
+  onShareEmail
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -338,6 +386,12 @@ export const AIChat = ({
     onGitInit,
     onGitCreateBranch,
     onGitImport,
+    onMakePublic,
+    onMakePrivate,
+    onGetProjectLink,
+    onShareTwitter,
+    onShareLinkedin,
+    onShareEmail,
     workflows,
   });
 
@@ -606,6 +660,17 @@ export const AIChat = ({
                             } else if (tc.name === 'git_import' && onGitImport) {
                               onGitImport(tc.arguments.url as string);
                             }
+                          }}
+                          onApplyShare={() => {
+                            if (appliedChanges.has(step.id)) return;
+                            setAppliedChanges(prev => new Set(prev).add(step.id));
+                            const tc = step.toolCall!;
+                            if (tc.name === 'make_public' && onMakePublic) onMakePublic();
+                            else if (tc.name === 'make_private' && onMakePrivate) onMakePrivate();
+                            else if (tc.name === 'get_project_link' && onGetProjectLink) onGetProjectLink();
+                            else if (tc.name === 'share_twitter' && onShareTwitter) onShareTwitter();
+                            else if (tc.name === 'share_linkedin' && onShareLinkedin) onShareLinkedin();
+                            else if (tc.name === 'share_email' && onShareEmail) onShareEmail();
                           }}
                         />
                       )}
