@@ -83,7 +83,7 @@ const FileItem = ({
             ? 'bg-primary/20 text-primary' 
             : 'hover:bg-accent text-sidebar-foreground',
         )}
-        style={{ paddingLeft: `${level * 12 + 8}px` }}
+        style={{ paddingLeft: `${level * 12 + (node.type === 'file' ? 24 : 8)}px` }}
         onClick={handleClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => {
