@@ -16,12 +16,9 @@ import { Input } from '@/components/ui/input';
 
 export type LanguageTemplate = 
   | 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' 
-  | 'ruby' | 'php' | 'swift' | 'kotlin' | 'csharp' | 'bash' | 'lua' | 'perl' | 'scala' 
-  | 'r' | 'haskell' | 'elixir' 
-  // New templates
-  | 'react' | 'nodejs' | 'flask' | 'django' | 'sqlite' | 'clojure' | 'dart' | 'julia' 
-  | 'nim' | 'zig' | 'fortran' | 'cobol' | 'fsharp' | 'ocaml' | 'erlang' | 'crystal'
-  | 'assembly' | 'lisp' | 'prolog' | 'racket';
+  | 'ruby' | 'php' | 'csharp' | 'bash' | 'lua' | 'perl'
+  | 'r' | 'haskell' | 'nim' | 'zig' | 'lisp' | 'd' | 'groovy' | 'pascal'
+  | 'react' | 'nodejs' | 'flask' | 'django' | 'sqlite';
 
 interface LanguageOption {
   id: LanguageTemplate;
@@ -159,42 +156,13 @@ const languages: LanguageOption[] = [
     description: 'Popular server-side scripting language',
     color: 'from-indigo-500 to-purple-600',
   },
-  {
-    id: 'dart',
-    name: 'Dart',
-    icon: <Braces className="w-8 h-8" />,
-    description: 'Client-optimized language for Flutter',
-    color: 'from-blue-400 to-cyan-500',
-  },
-  // Mobile & Apple
-  {
-    id: 'swift',
-    name: 'Swift',
-    icon: <Braces className="w-8 h-8" />,
-    description: 'Modern language for Apple platforms',
-    color: 'from-orange-500 to-pink-500',
-  },
-  {
-    id: 'kotlin',
-    name: 'Kotlin',
-    icon: <Coffee className="w-8 h-8" />,
-    description: 'Modern JVM language for Android development',
-    color: 'from-purple-500 to-blue-600',
-  },
-  // .NET Ecosystem
+  // .NET
   {
     id: 'csharp',
     name: 'C#',
     icon: <Code2 className="w-8 h-8" />,
     description: 'Versatile language for .NET and games',
     color: 'from-purple-600 to-violet-700',
-  },
-  {
-    id: 'fsharp',
-    name: 'F#',
-    icon: <Code2 className="w-8 h-8" />,
-    description: 'Functional-first .NET language',
-    color: 'from-blue-600 to-cyan-600',
   },
   // Data & Scientific
   {
@@ -211,20 +179,6 @@ const languages: LanguageOption[] = [
     description: 'Statistical computing and data analysis',
     color: 'from-blue-500 to-gray-600',
   },
-  {
-    id: 'julia',
-    name: 'Julia',
-    icon: <Sparkles className="w-8 h-8" />,
-    description: 'High-performance scientific computing',
-    color: 'from-purple-500 to-green-500',
-  },
-  {
-    id: 'fortran',
-    name: 'Fortran',
-    icon: <Cpu className="w-8 h-8" />,
-    description: 'Numeric and scientific computing',
-    color: 'from-purple-700 to-indigo-800',
-  },
   // Functional Languages
   {
     id: 'haskell',
@@ -234,61 +188,33 @@ const languages: LanguageOption[] = [
     color: 'from-purple-700 to-purple-900',
   },
   {
-    id: 'elixir',
-    name: 'Elixir',
-    icon: <Sparkles className="w-8 h-8" />,
-    description: 'Scalable and fault-tolerant applications',
-    color: 'from-purple-500 to-pink-600',
-  },
-  {
-    id: 'erlang',
-    name: 'Erlang',
-    icon: <Cpu className="w-8 h-8" />,
-    description: 'Concurrent and distributed systems',
-    color: 'from-red-600 to-pink-700',
-  },
-  {
-    id: 'ocaml',
-    name: 'OCaml',
-    icon: <Code2 className="w-8 h-8" />,
-    description: 'Powerful functional programming',
-    color: 'from-orange-500 to-yellow-600',
-  },
-  {
-    id: 'clojure',
-    name: 'Clojure',
-    icon: <Braces className="w-8 h-8" />,
-    description: 'Lisp for the JVM with immutability',
-    color: 'from-green-600 to-teal-600',
-  },
-  {
     id: 'lisp',
     name: 'Common Lisp',
     icon: <Braces className="w-8 h-8" />,
     description: 'The original programmable programming language',
     color: 'from-gray-600 to-gray-800',
   },
+  // Additional Languages
   {
-    id: 'racket',
-    name: 'Racket',
+    id: 'd',
+    name: 'D',
     icon: <Code2 className="w-8 h-8" />,
-    description: 'Language-oriented programming',
-    color: 'from-red-500 to-blue-600',
-  },
-  // Logic & Scripting
-  {
-    id: 'prolog',
-    name: 'Prolog',
-    icon: <Code2 className="w-8 h-8" />,
-    description: 'Logic programming for AI',
-    color: 'from-orange-600 to-red-600',
+    description: 'Systems programming with high-level features',
+    color: 'from-red-500 to-red-700',
   },
   {
-    id: 'scala',
-    name: 'Scala',
-    icon: <Braces className="w-8 h-8" />,
-    description: 'Functional and object-oriented JVM language',
-    color: 'from-red-600 to-red-800',
+    id: 'groovy',
+    name: 'Groovy',
+    icon: <Coffee className="w-8 h-8" />,
+    description: 'Dynamic JVM language for scripting',
+    color: 'from-blue-500 to-teal-500',
+  },
+  {
+    id: 'pascal',
+    name: 'Pascal',
+    icon: <Code2 className="w-8 h-8" />,
+    description: 'Classic structured programming language',
+    color: 'from-blue-700 to-blue-900',
   },
   {
     id: 'lua',
@@ -304,34 +230,13 @@ const languages: LanguageOption[] = [
     description: 'Text processing and system administration',
     color: 'from-sky-600 to-blue-700',
   },
-  {
-    id: 'crystal',
-    name: 'Crystal',
-    icon: <Sparkles className="w-8 h-8" />,
-    description: 'Ruby-like syntax with C performance',
-    color: 'from-gray-400 to-gray-600',
-  },
-  // Shell & Low-level
+  // Shell
   {
     id: 'bash',
     name: 'Bash',
     icon: <TerminalIcon className="w-8 h-8" />,
     description: 'Shell scripting for automation',
     color: 'from-green-600 to-emerald-700',
-  },
-  {
-    id: 'assembly',
-    name: 'Assembly',
-    icon: <Cpu className="w-8 h-8" />,
-    description: 'Low-level hardware programming',
-    color: 'from-gray-700 to-gray-900',
-  },
-  {
-    id: 'cobol',
-    name: 'COBOL',
-    icon: <TerminalIcon className="w-8 h-8" />,
-    description: 'Legacy business applications',
-    color: 'from-blue-800 to-blue-950',
   },
 ];
 
