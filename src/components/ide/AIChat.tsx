@@ -55,6 +55,7 @@ interface AIChatProps {
   onLoadingChange?: (loading: boolean) => void;
   onInstallPackage?: (packageName: string) => void;
   onSetTheme?: (theme: string) => void;
+  onCreateCustomTheme?: (name: string, colors: import('@/contexts/ThemeContext').CustomThemeColors) => void;
 }
 
 const quickActions: QuickAction[] = [
@@ -247,7 +248,8 @@ export const AIChat = ({
   onRunWorkflow,
   onLoadingChange,
   onInstallPackage,
-  onSetTheme
+  onSetTheme,
+  onCreateCustomTheme
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -274,6 +276,7 @@ export const AIChat = ({
     onRunWorkflow,
     onInstallPackage,
     onSetTheme,
+    onCreateCustomTheme,
     workflows,
   });
 
