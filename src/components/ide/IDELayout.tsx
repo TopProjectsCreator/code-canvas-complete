@@ -1508,6 +1508,15 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
               setIsSidebarOpen(true);
               toast({ title: 'History panel', description: 'Check the History tab in the sidebar to browse and rollback changes.' });
             }}
+            onAskUser={(question) => {
+              toast({ title: 'Agent Question', description: question, duration: 10000 });
+            }}
+            onSaveProject={() => {
+              setShowSaveDialog(true);
+            }}
+            onRunProject={() => {
+              handleRun();
+            }}
           />
         </div>
       </div>
