@@ -28,7 +28,10 @@ export type ToolName =
   | 'share_email'
   | 'fork_project'
   | 'star_project'
-  | 'view_history';
+  | 'view_history'
+  | 'ask_user'
+  | 'save_project'
+  | 'run_project';
 
 export interface ToolCall {
   id: string;

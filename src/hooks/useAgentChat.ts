@@ -17,7 +17,8 @@ interface GitAction {
 }
 
 interface ShareAction {
-  type: 'make_public' | 'make_private' | 'get_project_link' | 'share_twitter' | 'share_linkedin' | 'share_email' | 'fork_project' | 'star_project' | 'view_history';
+  type: 'make_public' | 'make_private' | 'get_project_link' | 'share_twitter' | 'share_linkedin' | 'share_email' | 'fork_project' | 'star_project' | 'view_history' | 'ask_user' | 'save_project' | 'run_project';
+  question?: string;
 }
 
 interface UseAgentChatProps {
@@ -41,13 +42,16 @@ interface UseAgentChatProps {
   onForkProject?: () => void;
   onStarProject?: () => void;
   onViewHistory?: () => void;
+  onAskUser?: (question: string) => void;
+  onSaveProject?: () => void;
+  onRunProject?: () => void;
   workflows?: Workflow[];
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 const IMAGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`;
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, workflows = [] }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, workflows = [] }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
       id: '1',
@@ -246,14 +250,22 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     const shareActions: ShareAction[] = [];
     let cleanContent = content;
 
-    const tags: ShareAction['type'][] = ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email', 'fork_project', 'star_project', 'view_history'];
-    for (const tag of tags) {
+    const simpleTags: ShareAction['type'][] = ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email', 'fork_project', 'star_project', 'view_history', 'save_project', 'run_project'];
+    for (const tag of simpleTags) {
       const regex = new RegExp(`<${tag}\\s*\\/>`, 'g');
       let match;
       while ((match = regex.exec(content)) !== null) {
         shareActions.push({ type: tag });
         cleanContent = cleanContent.replace(match[0], '');
       }
+    }
+
+    // Parse ask_user with question attribute
+    const askRegex = /<ask_user\s+question="([^"]+)"\s*\/>/g;
+    let askMatch;
+    while ((askMatch = askRegex.exec(content)) !== null) {
+      shareActions.push({ type: 'ask_user', question: askMatch[1] });
+      cleanContent = cleanContent.replace(askMatch[0], '');
     }
 
     return { shareActions, cleanContent: cleanContent.trim() };
@@ -474,6 +486,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         fork_project: 'Fork project',
         star_project: 'Star project',
         view_history: 'View history',
+        ask_user: action.question ? `Question: "${action.question}"` : 'Ask user a question',
+        save_project: 'Save project',
+        run_project: 'Run project',
       };
       allSteps.push({
         id: generateId(),
@@ -483,7 +498,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         toolCall: {
           id: generateId(),
           name: action.type as ToolCall['name'],
-          arguments: {},
+          arguments: action.question ? { question: action.question } : {},
           status: 'pending',
         },
       });
