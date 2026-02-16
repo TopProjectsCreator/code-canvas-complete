@@ -8,6 +8,7 @@ const corsHeaders = {
 interface ExecuteRequest {
   code: string;
   language: string;
+  stdin?: string;
 }
 
 const WANDBOX_COMPILE = 'https://wandbox.org/api/compile.json';
@@ -135,7 +136,7 @@ function friendlyError(error: string): string | null {
   return null;
 }
 
-async function executeWithWandbox(code: string, language: string): Promise<{ output: string[]; error: string | null }> {
+async function executeWithWandbox(code: string, language: string, stdin?: string): Promise<{ output: string[]; error: string | null }> {
   const compiler = await getCompilerForLanguage(language);
   
   
@@ -144,10 +145,13 @@ async function executeWithWandbox(code: string, language: string): Promise<{ out
   }
 
   try {
+    const body: Record<string, string> = { code, compiler };
+    if (stdin) body.stdin = stdin;
+    
     const response = await fetch(WANDBOX_COMPILE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, compiler }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -228,7 +232,7 @@ serve(async (req) => {
   }
 
   try {
-    const { code, language } = await req.json() as ExecuteRequest;
+    const { code, language, stdin } = await req.json() as ExecuteRequest;
 
     if (!code || !code.trim()) {
       return new Response(
@@ -244,10 +248,10 @@ serve(async (req) => {
       if (builtin.handled) {
         result = { output: builtin.output, error: builtin.error };
       } else {
-        result = await executeWithWandbox(code, 'bash');
+        result = await executeWithWandbox(code, 'bash', stdin);
       }
     } else {
-      result = await executeWithWandbox(code, language);
+      result = await executeWithWandbox(code, language, stdin);
     }
 
     return new Response(
