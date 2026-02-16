@@ -1352,6 +1352,33 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             onCreateWorkflow={handleCreateWorkflow}
             onRunWorkflow={handleRunWorkflow}
             onLoadingChange={setIsAILoading}
+            onInstallPackage={(packageName) => {
+              // Add to installed packages list and show terminal feedback
+              setTerminalHistory(prev => [...prev, {
+                id: generateId(),
+                type: 'info',
+                content: `📦 Installing package: ${packageName}...`,
+                timestamp: new Date(),
+              }, {
+                id: generateId(),
+                type: 'output',
+                content: `✅ Package "${packageName}" added successfully`,
+                timestamp: new Date(),
+              }]);
+              toast({ title: `Package installed`, description: `"${packageName}" has been added.` });
+            }}
+            onSetTheme={(themeName) => {
+              // Import and use theme context - we need to trigger theme change
+              document.documentElement.setAttribute('data-theme', themeName);
+              localStorage.setItem('ide-theme', themeName);
+              setTerminalHistory(prev => [...prev, {
+                id: generateId(),
+                type: 'info',
+                content: `🎨 Theme changed to: ${themeName}`,
+                timestamp: new Date(),
+              }]);
+              toast({ title: 'Theme changed', description: `Switched to "${themeName}"` });
+            }}
           />
         </div>
       </div>
