@@ -35,7 +35,10 @@ import {
   Twitter,
   Linkedin,
   Mail,
-  Share2
+  Share2,
+  GitFork,
+  Star,
+  History
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -77,6 +80,9 @@ interface AIChatProps {
   onShareTwitter?: () => void;
   onShareLinkedin?: () => void;
   onShareEmail?: () => void;
+  onForkProject?: () => void;
+  onStarProject?: () => void;
+  onViewHistory?: () => void;
 }
 
 const quickActions: QuickAction[] = [
@@ -246,7 +252,7 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, onApplyShare, i
   
   const isThemeAction = toolCall.name === 'set_theme' || toolCall.name === 'create_custom_theme';
   const isGitAction = toolCall.name === 'git_commit' || toolCall.name === 'git_init' || toolCall.name === 'git_create_branch' || toolCall.name === 'git_import';
-  const isShareAction = ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email'].includes(toolCall.name);
+  const isShareAction = ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email', 'fork_project', 'star_project', 'view_history'].includes(toolCall.name);
   const isPending = toolCall.status === 'pending';
   
   const statusIcon = (isThemeAction || isGitAction || isShareAction) && isPending
@@ -276,6 +282,9 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, onApplyShare, i
     : toolCall.name === 'share_twitter' ? <Twitter className="w-3 h-3" />
     : toolCall.name === 'share_linkedin' ? <Linkedin className="w-3 h-3" />
     : toolCall.name === 'share_email' ? <Mail className="w-3 h-3" />
+    : toolCall.name === 'fork_project' ? <GitFork className="w-3 h-3" />
+    : toolCall.name === 'star_project' ? <Star className="w-3 h-3" />
+    : toolCall.name === 'view_history' ? <History className="w-3 h-3" />
     : <Share2 className="w-3 h-3" />;
 
   const shareLabel = toolCall.name === 'make_public' ? 'Make Public'
@@ -284,6 +293,9 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, onApplyShare, i
     : toolCall.name === 'share_twitter' ? 'Share on Twitter'
     : toolCall.name === 'share_linkedin' ? 'Share on LinkedIn'
     : toolCall.name === 'share_email' ? 'Share via Email'
+    : toolCall.name === 'fork_project' ? 'Fork'
+    : toolCall.name === 'star_project' ? 'Star'
+    : toolCall.name === 'view_history' ? 'View History'
     : '';
 
   return (
@@ -354,7 +366,10 @@ export const AIChat = ({
   onGetProjectLink,
   onShareTwitter,
   onShareLinkedin,
-  onShareEmail
+  onShareEmail,
+  onForkProject,
+  onStarProject,
+  onViewHistory
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -392,6 +407,9 @@ export const AIChat = ({
     onShareTwitter,
     onShareLinkedin,
     onShareEmail,
+    onForkProject,
+    onStarProject,
+    onViewHistory,
     workflows,
   });
 
@@ -671,6 +689,9 @@ export const AIChat = ({
                             else if (tc.name === 'share_twitter' && onShareTwitter) onShareTwitter();
                             else if (tc.name === 'share_linkedin' && onShareLinkedin) onShareLinkedin();
                             else if (tc.name === 'share_email' && onShareEmail) onShareEmail();
+                            else if (tc.name === 'fork_project' && onForkProject) onForkProject();
+                            else if (tc.name === 'star_project' && onStarProject) onStarProject();
+                            else if (tc.name === 'view_history' && onViewHistory) onViewHistory();
                           }}
                         />
                       )}
