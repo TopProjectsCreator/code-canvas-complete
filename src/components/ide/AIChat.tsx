@@ -24,7 +24,8 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Paintbrush
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -214,23 +215,47 @@ const CodeChangeBlock = ({
 };
 
 // Tool call indicator
-const ToolCallIndicator = ({ toolCall }: { toolCall: AgentStep['toolCall'] }) => {
+const ToolCallIndicator = ({ toolCall, onApplyTheme, isApplied }: { 
+  toolCall: AgentStep['toolCall'];
+  onApplyTheme?: () => void;
+  isApplied?: boolean;
+}) => {
   if (!toolCall) return null;
   
-  const statusIcon = {
-    pending: <Loader2 className="w-3 h-3 animate-spin text-yellow-400" />,
-    running: <Loader2 className="w-3 h-3 animate-spin text-primary" />,
-    completed: <CheckCircle2 className="w-3 h-3 text-green-400" />,
-    failed: <XCircle className="w-3 h-3 text-red-400" />,
-  }[toolCall.status];
+  const isThemeAction = toolCall.name === 'set_theme' || toolCall.name === 'create_custom_theme';
+  const isPending = toolCall.status === 'pending';
+  
+  const statusIcon = isThemeAction && isPending
+    ? <Paintbrush className="w-3 h-3 text-primary" />
+    : {
+        pending: <Loader2 className="w-3 h-3 animate-spin text-yellow-400" />,
+        running: <Loader2 className="w-3 h-3 animate-spin text-primary" />,
+        completed: <CheckCircle2 className="w-3 h-3 text-green-400" />,
+        failed: <XCircle className="w-3 h-3 text-red-400" />,
+      }[toolCall.status];
 
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border/50 text-xs">
       {statusIcon}
       <Wrench className="w-3 h-3 text-muted-foreground" />
-      <span className="text-muted-foreground">
+      <span className="text-muted-foreground flex-1">
         {toolCall.name.replace(/_/g, ' ')}
       </span>
+      {isThemeAction && isPending && !isApplied && onApplyTheme && (
+        <button
+          onClick={onApplyTheme}
+          className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/20 hover:bg-primary/30 text-primary text-[11px] font-medium transition-colors"
+        >
+          <Paintbrush className="w-3 h-3" />
+          Apply Theme
+        </button>
+      )}
+      {isApplied && (
+        <span className="flex items-center gap-1 text-green-400 text-[11px]">
+          <CheckCircle2 className="w-3 h-3" />
+          Applied
+        </span>
+      )}
     </div>
   );
 };
@@ -519,7 +544,23 @@ export const AIChat = ({
                         />
                       )}
                       {step.type === 'tool_call' && step.toolCall && (
-                        <ToolCallIndicator toolCall={step.toolCall} />
+                        <ToolCallIndicator 
+                          toolCall={step.toolCall}
+                          isApplied={appliedChanges.has(step.id)}
+                          onApplyTheme={() => {
+                            if (appliedChanges.has(step.id)) return;
+                            setAppliedChanges(prev => new Set(prev).add(step.id));
+                            const tc = step.toolCall!;
+                            if (tc.name === 'set_theme' && onSetTheme) {
+                              onSetTheme(tc.arguments.theme as string);
+                            } else if (tc.name === 'create_custom_theme' && onCreateCustomTheme) {
+                              onCreateCustomTheme(
+                                tc.arguments.name as string,
+                                tc.arguments.colors as import('@/contexts/ThemeContext').CustomThemeColors
+                              );
+                            }
+                          }}
+                        />
                       )}
                       {step.type === 'code_change' && step.codeChange && (
                         <CodeChangeBlock
