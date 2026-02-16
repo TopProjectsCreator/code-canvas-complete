@@ -14,7 +14,8 @@ export type ToolName =
   | 'list_workflows'
   | 'install_package'
   | 'set_theme'
-  | 'create_custom_theme';
+  | 'create_custom_theme'
+  | 'generate_image';
 
 export interface ToolCall {
   id: string;
@@ -44,6 +45,13 @@ export interface AgentStep {
   isCollapsed?: boolean;
 }
 
+export interface GeneratedImage {
+  prompt: string;
+  imageUrl: string;
+  isLoading?: boolean;
+  error?: string;
+}
+
 export interface AgentMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -51,6 +59,7 @@ export interface AgentMessage {
   steps?: AgentStep[];
   isStreaming?: boolean;
   hasCodeChanges?: boolean;
+  images?: GeneratedImage[];
 }
 
 export interface AgentContext {
