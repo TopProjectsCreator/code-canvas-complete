@@ -289,7 +289,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     });
     content = afterPackages;
 
-    // Parse theme changes
+    // Parse theme changes (don't auto-apply, let user click)
     const { theme, cleanContent: afterTheme } = parseThemeChanges(content);
     if (theme) {
       allSteps.push({
@@ -301,18 +301,13 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           id: generateId(),
           name: 'set_theme',
           arguments: { theme },
-          status: 'completed',
+          status: 'pending',
         },
       });
-      const themeKey = `theme:${theme}`;
-      if (onSetTheme && !executedActionsRef.current.has(themeKey)) {
-        executedActionsRef.current.add(themeKey);
-        onSetTheme(theme);
-      }
     }
     content = afterTheme;
 
-    // Parse custom theme creation
+    // Parse custom theme creation (don't auto-apply, let user click)
     const { customTheme, cleanContent: afterCustomTheme } = parseCustomThemeCreation(content);
     if (customTheme) {
       allSteps.push({
@@ -324,14 +319,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           id: generateId(),
           name: 'create_custom_theme',
           arguments: { name: customTheme.name, colors: customTheme.colors as unknown as Record<string, unknown> },
-          status: 'completed',
+          status: 'pending',
         },
       });
-      const ctKey = `customtheme:${customTheme.name}`;
-      if (onCreateCustomTheme && !executedActionsRef.current.has(ctKey)) {
-        executedActionsRef.current.add(ctKey);
-        onCreateCustomTheme(customTheme.name, customTheme.colors);
-      }
     }
     content = afterCustomTheme;
     
