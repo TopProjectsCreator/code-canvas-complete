@@ -822,8 +822,20 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
 
     let fileToRun: FileNode | null = null;
 
+    // For React templates, prioritize JSX/TSX entry points for preview rendering
+    if (selectedTemplate === 'react') {
+      const reactEntryPoints = ['App.jsx', 'App.tsx', 'index.jsx', 'index.tsx', 'App.js', 'App.ts'];
+      for (const entry of reactEntryPoints) {
+        const found = findFileByName(files, entry);
+        if (found) {
+          fileToRun = { ...found, content: fileContents[found.id] ?? found.content };
+          break;
+        }
+      }
+    }
+
     // For HTML/web templates, always prioritize index.html (JS runs inside the preview)
-    if (selectedTemplate === 'html' || selectedTemplate === 'react' || selectedTemplate === 'nodejs' || selectedTemplate === 'flask' || selectedTemplate === 'django') {
+    if (!fileToRun && (selectedTemplate === 'html' || selectedTemplate === 'nodejs' || selectedTemplate === 'flask' || selectedTemplate === 'django')) {
       const htmlFile = findFileByName(files, 'index.html');
       if (htmlFile) {
         fileToRun = { ...htmlFile, content: fileContents[htmlFile.id] ?? htmlFile.content };
