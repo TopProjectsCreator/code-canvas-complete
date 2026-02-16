@@ -309,6 +309,13 @@ export const Sidebar = ({
     return results;
   }, [searchQuery, files]);
 
+  const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'svg'];
+  
+  const isImageFile = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    return imageExtensions.includes(ext);
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFiles = event.target.files;
     if (!uploadedFiles || uploadedFiles.length === 0) return;
@@ -331,7 +338,12 @@ export const Sidebar = ({
             language: getFileLanguage(file.name),
           });
         };
-        reader.readAsText(file);
+        // Read images as data URLs, text files as text
+        if (isImageFile(file.name)) {
+          reader.readAsDataURL(file);
+        } else {
+          reader.readAsText(file);
+        }
       });
     });
 
@@ -463,7 +475,7 @@ export const Sidebar = ({
                   multiple
                   className="hidden"
                   onChange={handleFileUpload}
-                  accept=".js,.ts,.jsx,.tsx,.html,.css,.json,.md,.txt,.py,.go,.rs,.java,.cpp,.c,.h,.xml,.yaml,.yml,.toml,.env,.gitignore"
+                  accept=".js,.ts,.jsx,.tsx,.html,.css,.json,.md,.txt,.py,.go,.rs,.java,.cpp,.c,.h,.xml,.yaml,.yml,.toml,.env,.gitignore,.png,.jpg,.jpeg,.gif,.webp,.ico,.bmp,.svg"
                 />
               </div>
             </div>
