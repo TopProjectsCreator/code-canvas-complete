@@ -10,124 +10,161 @@ interface ExecuteRequest {
   language: string;
 }
 
-// Piston API - Free code execution engine
-const PISTON_API = 'https://emkc.org/api/v2/piston';
+const WANDBOX_COMPILE = 'https://wandbox.org/api/compile.json';
+const WANDBOX_LIST = 'https://wandbox.org/api/list.json';
 
-// Map our language names to Piston language identifiers
-const languageMap: Record<string, { language: string; version: string; filename?: string; runtime?: string }> = {
-  // Core languages
-  'javascript': { language: 'javascript', version: '18.15.0', filename: 'main.js', runtime: 'node' },
-  'typescript': { language: 'typescript', version: '5.0.3', filename: 'main.ts' },
-  'python': { language: 'python', version: '3.10.0', filename: 'main.py' },
-  'java': { language: 'java', version: '15.0.2', filename: 'Main.java' },
-  'cpp': { language: 'c++', version: '10.2.0', filename: 'main.cpp', runtime: 'gcc' },
-  'c': { language: 'c', version: '10.2.0', filename: 'main.c', runtime: 'gcc' },
-  'go': { language: 'go', version: '1.16.2', filename: 'main.go' },
-  'rust': { language: 'rust', version: '1.68.2', filename: 'main.rs' },
-  'ruby': { language: 'ruby', version: '3.0.1', filename: 'main.rb' },
-  'php': { language: 'php', version: '8.2.3', filename: 'main.php' },
-  'swift': { language: 'swift', version: '5.3.3', filename: 'main.swift' },
-  'kotlin': { language: 'kotlin', version: '1.8.20', filename: 'Main.kt' },
-  'csharp': { language: 'csharp', version: '6.12.0', filename: 'Main.cs', runtime: 'mono' },
-  'bash': { language: 'bash', version: '5.2.0', filename: 'script.sh' },
-  'shell': { language: 'bash', version: '5.2.0', filename: 'script.sh' },
-  'makefile': { language: 'bash', version: '5.2.0', filename: 'Makefile' },
-  'make': { language: 'bash', version: '5.2.0', filename: 'Makefile' },
-  // Additional languages - all versions verified against Piston API
-  'lua': { language: 'lua', version: '5.4.4', filename: 'main.lua' },
-  'perl': { language: 'perl', version: '5.36.0', filename: 'main.pl' },
-  'scala': { language: 'scala', version: '3.2.2', filename: 'Main.scala' },
-  'r': { language: 'rscript', version: '4.1.1', filename: 'main.r' },
-  'haskell': { language: 'haskell', version: '9.0.1', filename: 'Main.hs' },
-  'elixir': { language: 'elixir', version: '1.11.3', filename: 'main.exs' },
-  'clojure': { language: 'clojure', version: '1.10.3', filename: 'main.clj' },
-  'dart': { language: 'dart', version: '2.19.6', filename: 'main.dart' },
-  'julia': { language: 'julia', version: '1.8.5', filename: 'main.jl' },
-  'nim': { language: 'nim', version: '1.6.2', filename: 'main.nim' },
-  'zig': { language: 'zig', version: '0.10.1', filename: 'main.zig' },
-  'fortran': { language: 'fortran', version: '10.2.0', filename: 'main.f90', runtime: 'gcc' },
-  'cobol': { language: 'cobol', version: '3.1.2', filename: 'main.cob' },
-  'fsharp': { language: 'fsharp.net', version: '5.0.201', filename: 'Main.fs', runtime: 'dotnet' },
-  'ocaml': { language: 'ocaml', version: '4.12.0', filename: 'main.ml' },
-  'erlang': { language: 'erlang', version: '23.0.0', filename: 'main.erl' },
-  'crystal': { language: 'crystal', version: '0.36.1', filename: 'main.cr' },
-  'lisp': { language: 'lisp', version: '2.1.2', filename: 'main.lisp' },
-  'prolog': { language: 'prolog', version: '8.2.4', filename: 'main.pro' },
-  'racket': { language: 'racket', version: '8.3.0', filename: 'main.rkt' },
-  'd': { language: 'd', version: '10.2.0', filename: 'main.d', runtime: 'gcc' },
-  'groovy': { language: 'groovy', version: '3.0.7', filename: 'main.groovy' },
-  'pascal': { language: 'pascal', version: '3.2.2', filename: 'main.pas' },
-  'coffeescript': { language: 'coffeescript', version: '2.5.1', filename: 'main.coffee' },
-  'assembly': { language: 'nasm', version: '2.15.5', filename: 'main.asm' },
-  'nasm': { language: 'nasm', version: '2.15.5', filename: 'main.asm' },
-  'sqlite': { language: 'sqlite3', version: '3.36.0', filename: 'main.sql' },
-  'sql': { language: 'sqlite3', version: '3.36.0', filename: 'main.sql' },
+// Cache compiler list
+let compilerCache: Record<string, string[]> | null = null;
+let cacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Map our language names to Wandbox language names
+const languageToWandbox: Record<string, string> = {
+  'javascript': 'JavaScript',
+  'typescript': 'TypeScript',
+  'python': 'Python',
+  'java': 'Java',
+  'cpp': 'C++',
+  'c': 'C',
+  'go': 'Go',
+  'rust': 'Rust',
+  'ruby': 'Ruby',
+  'php': 'PHP',
+  'swift': 'Swift',
+  'csharp': 'C#',
+  'bash': 'Bash script',
+  'shell': 'Bash script',
+  'lua': 'Lua',
+  'perl': 'Perl',
+  'scala': 'Scala',
+  'r': 'R',
+  'haskell': 'Haskell',
+  'elixir': 'Elixir',
+  'erlang': 'Erlang',
+  'crystal': 'Crystal',
+  'nim': 'Nim',
+  'ocaml': 'OCaml',
+  'lisp': 'Lisp',
+  'd': 'D',
+  'groovy': 'Groovy',
+  'pascal': 'Pascal',
+  'coffeescript': 'CoffeeScript',
+  'sql': 'SQL',
+  'sqlite': 'SQL',
+  'zig': 'Zig',
 };
 
-// Execute code using Piston API
-async function executeWithPiston(code: string, language: string): Promise<{ output: string[]; error: string | null }> {
-  const langConfig = languageMap[language];
+// Preferred compiler names (known working)
+const preferredCompilers: Record<string, string[]> = {
+  'Python': ['cpython-3.12.0', 'cpython-3.11.0', 'cpython-3.10.0'],
+  'JavaScript': ['nodejs-20.11.0', 'nodejs-18.15.0', 'nodejs-head'],
+  'TypeScript': ['typescript-5.0.4', 'typescript-4.9.4'],
+  'C++': ['gcc-13.2.0', 'gcc-12.2.0', 'gcc-head'],
+  'C': ['gcc-13.2.0-c', 'gcc-12.2.0-c', 'gcc-head-c'],
+  'Go': ['go-1.21.6', 'go-1.20.4', 'go-head'],
+  'Rust': ['rust-1.75.0', 'rust-head'],
+  'Ruby': ['ruby-3.3.0', 'ruby-3.2.0', 'ruby-head'],
+  'Java': ['openjdk-jdk-21+35', 'openjdk-head'],
+  'Swift': ['swift-5.8.1', 'swift-head'],
+  'C#': ['mono-6.12.0.200', 'mono-head'],
+  'PHP': ['php-8.3.0', 'php-head'],
+  'Haskell': ['ghc-9.4.4', 'ghc-head'],
+  'Scala': ['scala-3.2.2', 'scala-head'],
+  'Lua': ['lua-5.4.4', 'lua-head'],
+  'Perl': ['perl-5.38.0', 'perl-head'],
+  'R': ['r-4.3.2', 'r-head'],
+};
+
+// Fetch and cache the available compiler names from Wandbox
+async function getCompilerForLanguage(language: string): Promise<string | null> {
+  const wandboxLang = languageToWandbox[language];
+  if (!wandboxLang) return null;
+
+  const now = Date.now();
+  if (!compilerCache || (now - cacheTime) >= CACHE_TTL) {
+    try {
+      const res = await fetch(WANDBOX_LIST);
+      if (!res.ok) return null;
+      const list = await res.json();
+      const cache: Record<string, string[]> = {};
+      for (const entry of list) {
+        const lang = entry.language;
+        if (lang) {
+          if (!cache[lang]) cache[lang] = [];
+          cache[lang].push(entry.name);
+        }
+      }
+      compilerCache = cache;
+      cacheTime = now;
+    } catch {
+      // If fetch fails, try preferred compilers directly
+      const preferred = preferredCompilers[wandboxLang];
+      return preferred ? preferred[0] : null;
+    }
+  }
+
+  const available = compilerCache![wandboxLang];
+  if (!available || available.length === 0) return null;
+
   
-  if (!langConfig) {
-    return { output: [], error: `Unsupported language: ${language}. Supported: ${Object.keys(languageMap).join(', ')}` };
+
+  // Try preferred compilers first
+  const preferred = preferredCompilers[wandboxLang];
+  if (preferred) {
+    for (const p of preferred) {
+      if (available.includes(p)) return p;
+    }
+  }
+
+  // Skip "head" compilers as they may be broken, try to find a versioned one
+  const versioned = available.find(c => !c.includes('head'));
+  if (versioned) return versioned;
+
+  // Fallback to first available
+  return available[0];
+}
+
+async function executeWithWandbox(code: string, language: string): Promise<{ output: string[]; error: string | null }> {
+  const compiler = await getCompilerForLanguage(language);
+  
+  
+  if (!compiler) {
+    return { output: [], error: `Unsupported language: ${language}. Supported: ${Object.keys(languageToWandbox).join(', ')}` };
   }
 
   try {
-    const response = await fetch(`${PISTON_API}/execute`, {
+    const response = await fetch(WANDBOX_COMPILE, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        language: langConfig.language,
-        version: langConfig.version,
-        files: [{ 
-          name: langConfig.filename,
-          content: code 
-        }],
-      }),
+      body: JSON.stringify({ code, compiler }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      return { output: [], error: `Execution failed: ${errorText}` };
+      return { output: [], error: `Execution failed (${response.status}): ${errorText}` };
     }
 
     const result = await response.json();
-    
     const output: string[] = [];
-    
-    // Compile output (for compiled languages)
-    if (result.compile?.output) {
-      const compileLines = result.compile.output.split('\n').filter((l: string) => l.trim());
-      if (compileLines.length > 0) {
-        output.push(...compileLines);
-      }
+
+    if (result.compiler_message) {
+      const lines = result.compiler_message.split('\n').filter((l: string) => l.trim());
+      if (lines.length > 0) output.push(...lines);
     }
-    
-    // Runtime output
-    if (result.run?.output) {
-      output.push(...result.run.output.split('\n'));
+
+    if (result.program_output) {
+      const lines = result.program_output.split('\n');
+      while (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+      output.push(...lines);
     }
-    
-    // Remove trailing empty lines
-    while (output.length > 0 && output[output.length - 1] === '') {
-      output.pop();
+
+    if (result.compiler_error) {
+      return { output, error: result.compiler_error };
     }
-    
-    // Check for runtime errors
-    if (result.run?.stderr && result.run.stderr.trim()) {
-      // Some stderr output might be warnings, not errors
-      const stderr = result.run.stderr.trim();
-      if (result.run.code !== 0) {
-        return { output, error: stderr };
-      } else {
-        // Add stderr as output (it might be warnings)
-        output.push(...stderr.split('\n'));
-      }
-    }
-    
-    // Check for compile errors
-    if (result.compile?.stderr && result.compile.stderr.trim()) {
-      return { output: [], error: result.compile.stderr };
+
+    if (result.status && result.status !== '0' && result.status !== 0) {
+      const errorMsg = result.program_error || result.signal || `Process exited with code ${result.status}`;
+      return { output, error: result.program_error || errorMsg };
     }
 
     return { output: output.length > 0 ? output : ['(no output)'], error: null };
@@ -136,42 +173,29 @@ async function executeWithPiston(code: string, language: string): Promise<{ outp
   }
 }
 
-// Built-in commands that run locally (for speed)
 function handleBuiltinCommand(command: string): { output: string[]; error: string | null; handled: boolean } {
-  const parts = command.trim().split(/\s+/);
-  const cmd = parts[0];
-  const args = parts.slice(1);
-  
+  const cmd = command.trim().split(/\s+/)[0];
   switch (cmd) {
     case 'clear':
       return { output: ['\x1Bc'], error: null, handled: true };
-      
     case 'help':
-      return { 
+      return {
         output: [
-          '🚀 Real Shell - Powered by Piston Execution Engine',
+          '🚀 Real Shell - Powered by Wandbox',
           '',
-          'This is a real bash shell! Commands are executed on remote servers.',
+          'Commands are executed on remote servers.',
           '',
           'Examples:',
           '  echo "Hello World"',
           '  ls -la',
-          '  cat /etc/os-release',
-          '  python3 -c "print(2**10)"',
-          '  node -e "console.log(Math.PI)"',
-          '  curl -s https://api.github.com | head -5',
           '',
           'Limitations:',
           '  - No persistent filesystem between commands',
-          '  - No network access to localhost',
-          '  - Timeout: 10 seconds per command',
-          '',
-          'Tip: Use the editor to write longer scripts!',
-        ], 
-        error: null, 
-        handled: true 
+          '  - Timeout: ~10 seconds per command',
+        ],
+        error: null,
+        handled: true,
       };
-      
     default:
       return { output: [], error: null, handled: false };
   }
@@ -195,38 +219,24 @@ serve(async (req) => {
     let result: { output: string[]; error: string | null };
 
     if (language === 'shell' || language === 'bash') {
-      // Check for built-in commands first (for speed)
       const builtin = handleBuiltinCommand(code.trim());
       if (builtin.handled) {
         result = { output: builtin.output, error: builtin.error };
       } else {
-        // Execute real bash command via Piston
-        result = await executeWithPiston(code, 'bash');
+        result = await executeWithWandbox(code, 'bash');
       }
     } else {
-      // Execute code with Piston
-      result = await executeWithPiston(code, language);
+      result = await executeWithWandbox(code, language);
     }
 
     return new Response(
-      JSON.stringify({ 
-        output: result.output, 
-        error: result.error,
-        executedAt: new Date().toISOString()
-      }),
-      { 
-        status: result.error ? 400 : 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
+      JSON.stringify({ output: result.output, error: result.error, executedAt: new Date().toISOString() }),
+      { status: result.error ? 400 : 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
   } catch (err) {
     console.error('Execution error:', err);
     return new Response(
-      JSON.stringify({ 
-        error: err instanceof Error ? err.message : 'Unknown error',
-        output: []
-      }),
+      JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error', output: [] }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
