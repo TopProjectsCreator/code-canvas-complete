@@ -221,7 +221,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
   const isComposingRef = useRef(false);
   const contentRef = useRef(content);
-  const [markdownPreview, setMarkdownPreview] = useState(true); // toggle for md files
+  const [markdownPreview, setMarkdownPreview] = useState(true); // toggle for previewable text files
 
   // Sync contentRef
   useEffect(() => {
@@ -367,11 +367,14 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
 
   // Check if this file should be previewed instead of edited
   const previewType = getPreviewType(file.name);
-  const isMarkdown = previewType === 'markdown';
-  if (previewType && !isMarkdown) {
+  // Binary types always show preview only (no editable source)
+  const binaryPreviewTypes = ['image', 'video', 'audio'];
+  const isTextPreviewable = previewType && !binaryPreviewTypes.includes(previewType);
+  
+  if (previewType && !isTextPreviewable) {
     return <FilePreview file={file} previewType={previewType} />;
   }
-  if (isMarkdown && markdownPreview) {
+  if (isTextPreviewable && markdownPreview) {
     return (
       <div className="flex-1 flex flex-col bg-editor overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-1.5 bg-background border-b border-border">
@@ -383,7 +386,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
           </button>
           <span className="text-xs font-medium text-foreground">Preview</span>
         </div>
-        <FilePreview file={{ ...file, content }} previewType="markdown" />
+        <FilePreview file={{ ...file, content }} previewType={previewType} />
       </div>
     );
   }
@@ -456,7 +459,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
 
   return (
     <div className="flex-1 flex flex-col bg-editor overflow-hidden">
-      {isMarkdown && (
+      {isTextPreviewable && (
         <div className="flex items-center gap-2 px-4 py-1.5 bg-background border-b border-border">
           <span className="text-xs font-medium text-foreground">Edit</span>
           <button
