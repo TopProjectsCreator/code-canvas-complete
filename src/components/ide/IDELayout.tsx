@@ -1091,12 +1091,22 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const handleFork = useCallback(async () => {
     if (!currentProject) return;
     setIsForking(true);
-    const forked = await forkProject(currentProject);
+    // Merge current edits into project files before forking
+    const mergeContents = (nodes: FileNode[]): FileNode[] =>
+      nodes.map(node => ({
+        ...node,
+        ...(node.type === 'file' && fileContents[node.id] !== undefined
+          ? { content: fileContents[node.id] }
+          : {}),
+        ...(node.children ? { children: mergeContents(node.children) } : {}),
+      }));
+    const projectWithEdits = { ...currentProject, files: mergeContents(files) };
+    const forked = await forkProject(projectWithEdits);
     if (forked) {
       handleSelectProject(forked);
     }
     setIsForking(false);
-  }, [currentProject, forkProject, handleSelectProject]);
+  }, [currentProject, forkProject, handleSelectProject, files, fileContents]);
 
   // Handle star
   const handleStar = useCallback(async () => {
