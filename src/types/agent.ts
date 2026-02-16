@@ -19,7 +19,13 @@ export type ToolName =
   | 'git_commit'
   | 'git_init'
   | 'git_create_branch'
-  | 'git_import';
+  | 'git_import'
+  | 'make_public'
+  | 'make_private'
+  | 'get_project_link'
+  | 'share_twitter'
+  | 'share_linkedin'
+  | 'share_email';
 
 export interface ToolCall {
   id: string;
