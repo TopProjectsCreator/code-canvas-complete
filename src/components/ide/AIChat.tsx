@@ -390,9 +390,6 @@ export const AIChat = ({
 
   const handleApplyChange = (change: CodeChange, changeId: string) => {
     applyCodeChange(change);
-    if (onInsertCode) {
-      onInsertCode(change.newCode);
-    }
     setAppliedChanges(prev => new Set(prev).add(changeId));
   };
 
