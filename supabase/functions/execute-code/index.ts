@@ -269,7 +269,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ output: result.output, error: result.error, executedAt: new Date().toISOString() }),
-      { status: result.error ? 400 : 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
     console.error('Execution error:', err);
