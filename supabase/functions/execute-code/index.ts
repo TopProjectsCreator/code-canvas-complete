@@ -149,13 +149,25 @@ async function executeWithWandbox(code: string, language: string, stdin?: string
     const body: Record<string, string> = { code, compiler };
     if (stdin) body.stdin = stdin;
     
-    const response = await fetch(WANDBOX_COMPILE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+    
+    let response: Response;
+    try {
+      response = await fetch(WANDBOX_COMPILE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
+      if (response.status === 504) {
+        return { output: [], error: `⚠️ Execution timed out. Compiled languages like Zig, Rust, and C++ may take longer. Try simplifying your code.` };
+      }
       const errorText = await response.text();
       return { output: [], error: `Execution failed (${response.status}): ${errorText}` };
     }
@@ -195,7 +207,7 @@ async function executeWithWandbox(code: string, language: string, stdin?: string
 
     return { output: output.length > 0 ? output : ['(no output)'], error: null };
   } catch (err) {
-    return { output: [], error: `Network error: ${err instanceof Error ? err.message : String(err)}` };
+    return { output: [], error: err instanceof Error && err.name === 'AbortError' ? '⚠️ Execution timed out (30s limit). Try simplifying your code.' : `Network error: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
