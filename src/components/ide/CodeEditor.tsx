@@ -357,7 +357,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
         {/* Syntax highlighted display */}
         <div 
           ref={highlightRef}
-          className="absolute inset-0 font-mono text-sm leading-6 pointer-events-none z-0 overflow-hidden pt-[2px]"
+          className="absolute inset-0 font-mono text-sm leading-6 pointer-events-none z-0 overflow-hidden pt-[2px] pl-12 pr-4"
         >
           {renderHighlightedContent()}
         </div>
