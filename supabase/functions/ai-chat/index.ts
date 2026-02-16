@@ -90,6 +90,17 @@ Star/unstar the current project:
 View project history (for browsing and rolling back changes):
 <view_history />
 
+10. **User Interaction & Project Control** - Prompt users, save, or run:
+
+Ask the user a question (prompts a toast notification with the question):
+<ask_user question="What would you like to name this file?" />
+
+Save the current project (opens the save dialog):
+<save_project />
+
+Run the current project (executes the main file):
+<run_project />
+
 ### Expert Skills
 
 - **Deep Analysis**: Find bugs, security issues, performance problems, type errors
@@ -104,6 +115,7 @@ View project history (for browsing and rolling back changes):
 - **Git Operations**: Initialize repos, commit changes, create branches, and import repositories from GitHub/GitLab/Bitbucket
 - **Project Sharing**: Make projects public/private, get shareable links, share on Twitter/LinkedIn/Email
 - **Project Management**: Fork projects, star/unstar, view history and rollback changes
+- **User Interaction**: Ask questions to gather user input, save projects, and run code with one click
 
 ### Workflow Guidelines
 
