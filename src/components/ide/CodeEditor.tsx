@@ -404,57 +404,51 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     return null;
   };
 
-  const renderHighlightedContent = () => {
+  const escapeHtml = (str: string): string => {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  };
+
+  const buildHighlightedHtml = (): string => {
     let charIndex = 0;
     
     return tokenizedLines.map((lineTokens, lineIndex) => {
-      const renderedTokens = lineTokens.map((token, tokenIndex) => {
-        const tokenChars = token.value.split('').map((char, i) => {
-          const currentCharIndex = charIndex + i;
-          const highlight = getMatchHighlight(currentCharIndex);
-          
-          if (highlight) {
-            return (
-              <span 
-                key={`${tokenIndex}-${i}`}
-                className={highlight === 'current' 
-                  ? 'bg-yellow-400 text-black' 
-                  : 'bg-yellow-200/50 text-inherit'}
-              >
-                {char}
-              </span>
-            );
+      const tokensHtml = lineTokens.map((token) => {
+        const tokenStart = charIndex;
+        const chars = token.value.split('');
+        let hasHighlight = false;
+        
+        // Check if any char in this token has a highlight
+        for (let i = 0; i < chars.length; i++) {
+          if (getMatchHighlight(tokenStart + i)) {
+            hasHighlight = true;
+            break;
           }
-          return char;
-        });
+        }
         
         charIndex += token.value.length;
         
-        const hasHighlight = tokenChars.some(c => typeof c !== 'string');
         if (!hasHighlight) {
-          return (
-            <span key={tokenIndex} className={getTokenClass(token.type)}>
-              {token.value}
-            </span>
-          );
+          return `<span class="${getTokenClass(token.type)}">${escapeHtml(token.value)}</span>`;
         }
         
-        return (
-          <span key={tokenIndex} className={getTokenClass(token.type)}>
-            {tokenChars}
-          </span>
-        );
-      });
+        // Render char by char for highlighted tokens
+        const charHtml = chars.map((char, i) => {
+          const highlight = getMatchHighlight(tokenStart + i);
+          if (highlight) {
+            const cls = highlight === 'current' ? 'bg-yellow-400 text-black' : 'bg-yellow-200/50 text-inherit';
+            return `<span class="${cls}">${escapeHtml(char)}</span>`;
+          }
+          return escapeHtml(char);
+        }).join('');
+        
+        return `<span class="${getTokenClass(token.type)}">${charHtml}</span>`;
+      }).join('');
       
       charIndex++; // newline
       
-      return (
-        <div key={lineIndex} className="code-line">
-          <span className="code-line-number">{lineIndex + 1}</span>
-          {renderedTokens.length === 0 ? <span>{'\n'}</span> : renderedTokens}
-        </div>
-      );
-    });
+      const lineContent = tokensHtml.length === 0 ? '<span>\n</span>' : tokensHtml;
+      return `<div class="code-line"><span class="code-line-number">${lineIndex + 1}</span>${lineContent}</div>`;
+    }).join('');
   };
 
   return (
@@ -499,9 +493,8 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
           spellCheck={false}
           autoCapitalize="off"
           autoCorrect="off"
-        >
-          {renderHighlightedContent()}
-        </div>
+          dangerouslySetInnerHTML={{ __html: buildHighlightedHtml() }}
+        />
       </div>
       
       {/* Status bar */}
