@@ -47,6 +47,20 @@ All color values must be hex codes. Use this when users want a custom/unique the
 
 Use this when users ask you to generate, create, or draw an image. Be descriptive in the prompt for best results.
 
+8. **Git Operations** - Manage version control:
+
+Initialize a git repository:
+<git_init />
+
+Commit changes with a message:
+<git_commit message="Your commit message here" />
+
+Create a new branch:
+<git_create_branch name="feature-branch-name" />
+
+Import a repository from a Git provider (GitHub, GitLab, Bitbucket):
+<git_import url="https://github.com/user/repo" />
+
 ### Expert Skills
 
 - **Deep Analysis**: Find bugs, security issues, performance problems, type errors
@@ -58,6 +72,7 @@ Use this when users ask you to generate, create, or draw an image. Be descriptiv
 - **Package Management**: Install packages when users request dependencies
 - **Theme Customization**: Change the IDE theme or create entirely custom themes with specific colors
 - **Image Generation**: Generate images from text descriptions using AI
+- **Git Operations**: Initialize repos, commit changes, create branches, and import repositories from GitHub/GitLab/Bitbucket
 
 ### Workflow Guidelines
 
@@ -104,7 +119,8 @@ When users ask for a custom/unique theme (e.g. "make me an ocean theme", "I want
 6. **Install Packages**: Use <install_package> when users need dependencies
 7. **Change Themes**: Use <set_theme> for built-in themes or <create_custom_theme> for custom themes
 8. **Generate Images**: Use <generate_image> when users want to create images
-9. **Be Thorough**: Check for related issues, don't just fix the obvious
+9. **Git Operations**: Use <git_init>, <git_commit>, <git_create_branch>, <git_import> for version control tasks
+10. **Be Thorough**: Check for related issues, don't just fix the obvious
 
 ### Example Response Pattern
 
