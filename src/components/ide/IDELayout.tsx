@@ -1153,6 +1153,62 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     }
   }, [fileContents]);
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMod = e.ctrlKey || e.metaKey;
+
+      // Ctrl+S — Save project
+      if (isMod && e.key === 's') {
+        e.preventDefault();
+        if (user) setShowSaveDialog(true);
+      }
+
+      // Ctrl+B — Toggle sidebar
+      if (isMod && e.key === 'b' && !e.shiftKey) {
+        e.preventDefault();
+        setIsSidebarOpen(prev => !prev);
+      }
+
+      // Ctrl+` — Toggle terminal
+      if (isMod && e.key === '`') {
+        e.preventDefault();
+        setIsTerminalMinimized(prev => !prev);
+      }
+
+      // F5 — Run code
+      if (e.key === 'F5') {
+        e.preventDefault();
+        handleRun();
+      }
+
+      // Ctrl+Enter — Run current file
+      if (isMod && e.key === 'Enter') {
+        e.preventDefault();
+        handleRun();
+      }
+
+      // Ctrl+Shift+F — Search in files (open sidebar to search tab)
+      if (isMod && e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        setIsSidebarOpen(true);
+        // The sidebar exposes a search tab; we trigger it via a custom event
+        window.dispatchEvent(new CustomEvent('ide-focus-search'));
+      }
+
+      // Ctrl+P — Quick file open (prevent browser print)
+      if (isMod && e.key === 'p') {
+        e.preventDefault();
+        // Could open a command palette in the future
+        setIsSidebarOpen(true);
+        window.dispatchEvent(new CustomEvent('ide-focus-search'));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [user, handleRun]);
+
   // Handle Git import
   const handleGitImport = useCallback((importedFiles: FileNode[], repoName: string) => {
     setFiles(importedFiles);
