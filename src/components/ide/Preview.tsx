@@ -49,6 +49,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   const [consoleLogs, setConsoleLogs] = useState<ConsoleEntry[]>([]);
   const [networkLogs, setNetworkLogs] = useState<NetworkEntry[]>([]);
   const [consoleFilter, setConsoleFilter] = useState<'all' | 'log' | 'warn' | 'error'>('all');
+  const [isWebviewClosed, setIsWebviewClosed] = useState(false);
   const consoleEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll console
@@ -236,6 +237,13 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </button>
+          <button
+            onClick={() => setIsWebviewClosed(true)}
+            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="Close webview"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       </div>
 
@@ -256,7 +264,23 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
           'flex items-start justify-center bg-muted/30 overflow-auto',
           showDevTools ? 'flex-1 min-h-0' : 'flex-1'
         )}>
-          {isRunning ? (
+          {isWebviewClosed ? (
+            <div className="flex-1 flex items-center justify-center h-full">
+              <div className="text-center text-muted-foreground">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
+                  <X className="w-8 h-8 opacity-40" />
+                </div>
+                <p className="text-sm font-medium mb-1">Webview closed</p>
+                <p className="text-xs opacity-70 mb-4">The preview has been closed</p>
+                <button
+                  onClick={() => { setIsWebviewClosed(false); handleRefresh(); }}
+                  className="px-4 py-2 text-xs font-medium bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  Reopen Webview
+                </button>
+              </div>
+            </div>
+          ) : isRunning ? (
             <div className={cn(
               'bg-white rounded-md shadow-lg overflow-hidden transition-all h-full',
               getDeviceWidth()
