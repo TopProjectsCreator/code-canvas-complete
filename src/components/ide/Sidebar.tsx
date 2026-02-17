@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { 
   Files, 
   Search, 
@@ -248,6 +248,17 @@ export const Sidebar = ({
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Listen for global keyboard shortcut to focus search
+  useEffect(() => {
+    const handleFocusSearch = () => {
+      setActiveTab('search');
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    };
+    window.addEventListener('ide-focus-search', handleFocusSearch);
+    return () => window.removeEventListener('ide-focus-search', handleFocusSearch);
+  }, []);
 
   // Flatten file tree to get all files
   const getAllFiles = (nodes: FileNode[]): FileNode[] => {
@@ -503,6 +514,7 @@ export const Sidebar = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 bg-input border border-border rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  ref={searchInputRef}
                   autoFocus
                 />
               </div>
