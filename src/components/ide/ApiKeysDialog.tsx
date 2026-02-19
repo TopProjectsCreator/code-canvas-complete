@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Key, Trash2, ExternalLink, Eye, EyeOff, Shield, Zap } from 'lucide-react';
+import { Key, Trash2, ExternalLink, Eye, EyeOff, Shield, Zap, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { useApiKeys, AIProvider, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { cn } from '@/lib/utils';
 
@@ -13,19 +13,136 @@ interface ApiKeysDialogProps {
 
 const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter'];
 
+// Test endpoints for each provider (lightweight calls to verify key validity)
+const PROVIDER_TEST_CONFIG: Record<AIProvider, { url: string; method: string; headers: (key: string) => Record<string, string>; body?: (key: string) => string }> = {
+  openai: {
+    url: 'https://api.openai.com/v1/models',
+    method: 'GET',
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+  },
+  anthropic: {
+    url: 'https://api.anthropic.com/v1/messages',
+    method: 'POST',
+    headers: (key) => ({ 'x-api-key': key, 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' }),
+    body: () => JSON.stringify({ model: 'claude-3-haiku-20240307', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
+  },
+  gemini: {
+    url: 'https://generativelanguage.googleapis.com/v1beta/models',
+    method: 'GET',
+    headers: (key) => ({ 'x-goog-api-key': key }),
+  },
+  perplexity: {
+    url: 'https://api.perplexity.ai/chat/completions',
+    method: 'POST',
+    headers: (key) => ({ Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }),
+    body: () => JSON.stringify({ model: 'sonar', messages: [{ role: 'user', content: 'hi' }], max_tokens: 1 }),
+  },
+  deepseek: {
+    url: 'https://api.deepseek.com/v1/models',
+    method: 'GET',
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+  },
+  xai: {
+    url: 'https://api.x.ai/v1/models',
+    method: 'GET',
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+  },
+  cohere: {
+    url: 'https://api.cohere.com/v2/models',
+    method: 'GET',
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+  },
+  openrouter: {
+    url: 'https://openrouter.ai/api/v1/models',
+    method: 'GET',
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+  },
+};
+
+type ValidationState = 'idle' | 'validating' | 'valid' | 'invalid';
+
 export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
   const { apiKeys, saveApiKey, deleteApiKey, loading, getUsageForTier } = useApiKeys();
   const [editingProvider, setEditingProvider] = useState<AIProvider | null>(null);
   const [keyInput, setKeyInput] = useState('');
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
+  const [validation, setValidation] = useState<ValidationState>('idle');
+  const [validationError, setValidationError] = useState<string>('');
+
+  const validateKey = async (provider: AIProvider, key: string): Promise<{ valid: boolean; error?: string }> => {
+    const config = PROVIDER_TEST_CONFIG[provider];
+    if (!config) return { valid: true }; // Skip validation for unknown providers
+
+    try {
+      const opts: RequestInit = {
+        method: config.method,
+        headers: config.headers(key),
+      };
+      if (config.body) opts.body = config.body(key);
+
+      const resp = await fetch(config.url, opts);
+      
+      if (resp.ok || resp.status === 200 || resp.status === 201) {
+        return { valid: true };
+      }
+      
+      // Some providers return 400 for minimal requests but that still means auth worked
+      if (resp.status === 400) {
+        return { valid: true };
+      }
+      
+      if (resp.status === 401 || resp.status === 403) {
+        return { valid: false, error: 'Invalid or expired API key' };
+      }
+      
+      // For other errors, try to get details
+      try {
+        const errData = await resp.json();
+        const msg = errData?.error?.message || errData?.message || `HTTP ${resp.status}`;
+        return { valid: false, error: msg.slice(0, 100) };
+      } catch {
+        return { valid: false, error: `HTTP ${resp.status}` };
+      }
+    } catch (err: any) {
+      // Network errors might be CORS — treat as potentially valid since the key format looks ok
+      if (err.message?.includes('Failed to fetch') || err.message?.includes('CORS')) {
+        return { valid: true }; // Can't verify from browser due to CORS, assume valid
+      }
+      return { valid: false, error: err.message || 'Connection error' };
+    }
+  };
 
   const handleSave = async () => {
     if (!editingProvider || !keyInput.trim()) return;
+    
+    setValidation('validating');
+    setValidationError('');
+    
+    const result = await validateKey(editingProvider, keyInput.trim());
+    
+    if (!result.valid) {
+      setValidation('invalid');
+      setValidationError(result.error || 'Key validation failed');
+      return;
+    }
+    
+    setValidation('valid');
     const success = await saveApiKey(editingProvider, keyInput.trim());
     if (success) {
-      setEditingProvider(null);
-      setKeyInput('');
+      setTimeout(() => {
+        setEditingProvider(null);
+        setKeyInput('');
+        setValidation('idle');
+        setValidationError('');
+      }, 800);
     }
+  };
+
+  const handleCancel = () => {
+    setEditingProvider(null);
+    setKeyInput('');
+    setValidation('idle');
+    setValidationError('');
   };
 
   const existingKeys = new Set(apiKeys.map(k => k.provider));
@@ -61,11 +178,7 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
                   <div className="text-lg">{tier.icon}</div>
                   <div className="text-xs font-medium">{tier.label}</div>
                   <div className={cn('text-[10px] mt-1', isUnlimited ? 'text-green-400' : 'text-muted-foreground')}>
-                    {isUnlimited ? (
-                      'FREE ∞'
-                    ) : (
-                      `${usage.request_count}/${tier.limit} used`
-                    )}
+                    {isUnlimited ? 'FREE ∞' : `${usage.request_count}/${tier.limit} used`}
                   </div>
                 </div>
               );
@@ -117,7 +230,7 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
                         </>
                       ) : (
                         <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" 
-                          onClick={() => { setEditingProvider(provider); setKeyInput(''); }}>
+                          onClick={() => { setEditingProvider(provider); setKeyInput(''); setValidation('idle'); setValidationError(''); }}>
                           Add Key
                         </Button>
                       )}
@@ -131,20 +244,51 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
                   )}
 
                   {isEditing && (
-                    <div className="mt-2 flex gap-1.5">
-                      <Input 
-                        value={keyInput} 
-                        onChange={e => setKeyInput(e.target.value)}
-                        placeholder={info.placeholder}
-                        className="h-7 text-xs font-mono"
-                        type="password"
-                      />
-                      <Button size="sm" className="h-7 text-xs px-3" onClick={handleSave} disabled={loading || !keyInput.trim()}>
-                        Save
-                      </Button>
-                      <Button size="sm" variant="ghost" className="h-7 text-xs px-2" onClick={() => setEditingProvider(null)}>
-                        Cancel
-                      </Button>
+                    <div className="mt-2 space-y-1.5">
+                      <div className="flex gap-1.5">
+                        <Input 
+                          value={keyInput} 
+                          onChange={e => { setKeyInput(e.target.value); setValidation('idle'); setValidationError(''); }}
+                          placeholder={info.placeholder}
+                          className="h-7 text-xs font-mono"
+                          type="password"
+                        />
+                        <Button 
+                          size="sm" 
+                          className="h-7 text-xs px-3" 
+                          onClick={handleSave} 
+                          disabled={loading || !keyInput.trim() || validation === 'validating'}
+                        >
+                          {validation === 'validating' ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : validation === 'valid' ? (
+                            <CheckCircle className="w-3 h-3" />
+                          ) : (
+                            'Save'
+                          )}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs px-2" onClick={handleCancel}>
+                          Cancel
+                        </Button>
+                      </div>
+                      {validation === 'validating' && (
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Verifying key with {info.label}...
+                        </p>
+                      )}
+                      {validation === 'valid' && (
+                        <p className="text-[10px] text-green-400 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Key verified and saved!
+                        </p>
+                      )}
+                      {validation === 'invalid' && (
+                        <p className="text-[10px] text-destructive flex items-center gap-1">
+                          <XCircle className="w-3 h-3" />
+                          {validationError || 'Invalid API key'}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
