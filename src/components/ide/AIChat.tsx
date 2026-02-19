@@ -656,65 +656,7 @@ export const AIChat = ({
             >
               {message.role === 'assistant' ? (
                 <div className="space-y-2">
-                  {/* Render main content first */}
-                  {message.content && (
-                    <div className="prose prose-sm prose-invert max-w-none">
-                      <ReactMarkdown
-                        components={{
-                          code: ({ className, children, ...props }) => {
-                            const isInline = !className;
-                            const codeContent = String(children).replace(/\n$/, '');
-                            
-                            if (isInline) {
-                              return (
-                                <code className="bg-background/50 px-1 py-0.5 rounded text-xs" {...props}>
-                                  {children}
-                                </code>
-                              );
-                            }
-                            
-                            return (
-                              <div className="relative group my-2">
-                                <pre className="bg-background/50 p-3 rounded-lg overflow-x-auto">
-                                  <code className="text-xs" {...props}>
-                                    {children}
-                                  </code>
-                                </pre>
-                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <button
-                                    onClick={async () => {
-                                      await navigator.clipboard.writeText(codeContent);
-                                    }}
-                                    className="p-1.5 rounded bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
-                                    title="Copy code"
-                                  >
-                                    <Copy className="w-3.5 h-3.5" />
-                                  </button>
-                                  {onInsertCode && (
-                                    <button
-                                      onClick={() => onInsertCode(codeContent)}
-                                      className="p-1.5 rounded bg-background/80 hover:bg-primary hover:text-primary-foreground text-muted-foreground transition-colors"
-                                      title="Insert into editor"
-                                    >
-                                      <Code className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          },
-                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                          ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-                          strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
-                        }}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
-                    </div>
-                  )}
-
-                  {/* Render steps (thinking, tool calls, code changes) after content */}
+                  {/* Render steps (thinking, tool calls, code changes) */}
                   {message.steps?.map((step) => (
                     <div key={step.id}>
                       {step.type === 'thinking' && (
@@ -783,6 +725,64 @@ export const AIChat = ({
                       )}
                     </div>
                   ))}
+                  
+                  {/* Render main content */}
+                  {message.content && (
+                    <div className="prose prose-sm prose-invert max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          code: ({ className, children, ...props }) => {
+                            const isInline = !className;
+                            const codeContent = String(children).replace(/\n$/, '');
+                            
+                            if (isInline) {
+                              return (
+                                <code className="bg-background/50 px-1 py-0.5 rounded text-xs" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            }
+                            
+                            return (
+                              <div className="relative group my-2">
+                                <pre className="bg-background/50 p-3 rounded-lg overflow-x-auto">
+                                  <code className="text-xs" {...props}>
+                                    {children}
+                                  </code>
+                                </pre>
+                                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={async () => {
+                                      await navigator.clipboard.writeText(codeContent);
+                                    }}
+                                    className="p-1.5 rounded bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
+                                    title="Copy code"
+                                  >
+                                    <Copy className="w-3.5 h-3.5" />
+                                  </button>
+                                  {onInsertCode && (
+                                    <button
+                                      onClick={() => onInsertCode(codeContent)}
+                                      className="p-1.5 rounded bg-background/80 hover:bg-primary hover:text-primary-foreground text-muted-foreground transition-colors"
+                                      title="Insert into editor"
+                                    >
+                                      <Code className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          },
+                          p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                          ul: ({ children }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
+                          strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
 
                   {/* Generated images */}
                   {message.images && message.images.length > 0 && (
