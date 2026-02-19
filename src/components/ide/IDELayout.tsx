@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { applyDiff } from '@/lib/diffUtils';
 import { useNavigate } from 'react-router-dom';
 import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from '@/types/ide';
 import { getTemplateFiles, findFileById, getFileLanguage } from '@/data/defaultFiles';
@@ -1457,10 +1458,22 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                 return null;
               };
               const existingFile = findFileByName(files, fileName);
+
+              // Check if code is a unified diff (starts with @@ or diff header)
+              const isDiffContent = /^@@\s*-\d+/.test(code.trim()) || /^---\s/.test(code.trim()) || /^diff\s/.test(code.trim());
+
               if (existingFile) {
-                // Update existing file
-                handleContentChange(existingFile.id, code);
-                // Open it
+                if (isDiffContent) {
+                  const originalContent = fileContents[existingFile.id] || existingFile.content || '';
+                  try {
+                    const patched = applyDiff(originalContent, code);
+                    handleContentChange(existingFile.id, patched);
+                  } catch {
+                    handleContentChange(existingFile.id, code);
+                  }
+                } else {
+                  handleContentChange(existingFile.id, code);
+                }
                 handleFileSelect(existingFile);
               } else {
                 // Create new file in root folder
@@ -1480,7 +1493,6 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                   return [...prev, newFile];
                 });
                 setFileContents(prev => ({ ...prev, [newFileId]: code }));
-                // Open in tab
                 const newTab: Tab = { id: generateId(), name: fileName, fileId: newFileId, isModified: false };
                 setOpenTabs(prev => [...prev, newTab]);
                 setActiveTabId(newTab.id);
