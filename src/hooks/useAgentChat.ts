@@ -94,12 +94,22 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const parseCodeChanges = (content: string): { codeChanges: CodeChange[], cleanContent: string } => {
     const codeChanges: CodeChange[] = [];
     let cleanContent = content;
+
+    // Parse full code changes
     const codeRegex = /<code_change\s+file="([^"]+)"\s+(?:lang="([^"]+)"\s+)?desc="([^"]+)">([\s\S]*?)<\/code_change>/g;
     let match;
     while ((match = codeRegex.exec(content)) !== null) {
       codeChanges.push({ fileName: match[1], language: match[2] || 'typescript', description: match[3], newCode: match[4].trim() });
       cleanContent = cleanContent.replace(match[0], '');
     }
+
+    // Parse diff-based changes
+    const diffRegex = /<code_diff\s+file="([^"]+)"\s+(?:lang="([^"]+)"\s+)?desc="([^"]+)">([\s\S]*?)<\/code_diff>/g;
+    while ((match = diffRegex.exec(content)) !== null) {
+      codeChanges.push({ fileName: match[1], language: match[2] || 'typescript', description: match[3], newCode: '', isDiff: true, diffContent: match[4].trim() });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
     return { codeChanges, cleanContent: cleanContent.trim() };
   };
 
@@ -463,7 +473,14 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   }, [isLoading, messages, onCodeChange, selectedModel]);
 
   const applyCodeChange = useCallback((change: CodeChange) => {
-    if (onApplyCode) { onApplyCode(change.newCode, change.fileName); }
+    if (onApplyCode) {
+      if (change.isDiff && change.diffContent) {
+        // For diff changes, we pass the diff content and let the consumer apply it
+        onApplyCode(change.diffContent, change.fileName);
+      } else {
+        onApplyCode(change.newCode, change.fileName);
+      }
+    }
   }, [onApplyCode]);
 
   const stopGeneration = useCallback(() => {
