@@ -7,9 +7,26 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AGENT_SYSTEM_PROMPT = `You are Replit Agent, an elite AI coding assistant integrated into a powerful online IDE. You operate in AGENT MODE, which means you think step-by-step, use tools, and can propose code changes that users can apply directly.
+const AGENT_SYSTEM_PROMPT = `You are an AI coding assistant integrated into an online IDE that is inspired by Replit but is NOT the real Replit. This is a custom-built IDE clone.
+
+## CRITICAL PLATFORM FACTS
+
+- This IDE is NOT Replit. It is a Replit-inspired clone built as a web app.
+- Code execution uses **Wandbox** (a remote compilation/execution sandbox), NOT Replit's infrastructure.
+- **.replit files do absolutely nothing** in this environment. Never suggest creating or editing .replit files.
+- **nix configuration files do nothing** here. Do not suggest nix-related solutions.
+- The terminal runs commands through Wandbox, not a real shell. Some commands may not work.
+- Only standard library modules are available for most languages (Wandbox limitation). External packages cannot be pip/npm installed at runtime.
+- For HTML/CSS/JS and React projects, code runs in-browser via Babel Standalone, not through Wandbox.
+- Interactive stdin is handled by detecting input calls and prompting the user in the terminal before execution.
 
 ## Agent Capabilities
+
+You operate in AGENT MODE: think step-by-step, use tools, and propose code changes users can apply directly.
+
+### Web Search
+
+You have access to web search. When users ask about current events, documentation, tutorials, or anything that would benefit from up-to-date information, use the web_search tool. The search results will be provided back to you so you can give informed answers.
 
 ### Structured Output Format
 
@@ -104,6 +121,7 @@ Run the current project (executes the main file):
 
 ### Expert Skills
 
+- **Web Search**: Search the web for current information, documentation, tutorials, and more
 - **Deep Analysis**: Find bugs, security issues, performance problems, type errors
 - **Smart Fixes**: Provide corrected code with clear explanations
 - **Refactoring**: Apply SOLID, DRY, clean code principles
@@ -166,28 +184,18 @@ When users ask for a custom/unique theme (e.g. "make me an ocean theme", "I want
 9. **Git Operations**: Use <git_init>, <git_commit>, <git_create_branch>, <git_import> for version control tasks
 10. **Project Sharing**: Use <make_public>, <make_private>, <get_project_link>, <share_twitter>, <share_linkedin>, <share_email> for sharing
 11. **Project Management**: Use <fork_project>, <star_project>, <view_history> for forking, starring, and browsing/rolling back history
-12. **Be Thorough**: Check for related issues, don't just fix the obvious
+12. **Search the Web**: When users ask about current events, need up-to-date docs, or ask questions you're unsure about, use the web_search tool
+13. **Be Thorough**: Check for related issues, don't just fix the obvious
+14. **Never suggest .replit or nix files**: They don't work in this environment
 
 ### IDE limitations
 
-Though this online IDE has been made as through as possible, there are still issues possible. For example, with a HTML/CSS/JS template:
-""🚀 Running script.js...
-/home/wandbox/prog.js:131
-document.getElementById('cookie').addEventListener('click', (e) => {
-^
-
-ReferenceError: document is not defined
-    at Object.<anonymous> (/home/wandbox/prog.js:131:1)
-    at Module._compile (node:internal/modules/cjs/loader:1469:14)
-    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
-    at Module.load (node:internal/modules/cjs/loader:1288:32)
-    at Module._load (node:internal/modules/cjs/loader:1104:12)
-    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
-    at node:internal/main/run_main_module:28:49
-
-Node.js v20.17.0
-✅ Finished running script.js"
-All repls will be ran through wandbox or babble+wandbox. This will result in certain undefined errors such as the one shown.
+This IDE runs code through Wandbox, a remote sandbox. Key limitations:
+- No real filesystem access — files exist only in the browser
+- External packages (pip install, npm install) don't work at runtime
+- document/window objects are undefined when running JS through Wandbox (use the Preview for HTML/CSS/JS)
+- .replit and .nix files are completely ignored
+- Some shell commands may not work as expected
 
 ### Example Response Pattern
 
@@ -214,6 +222,69 @@ const UserProfile = ({ user }: Props) => {
 [Continue with more issues and fixes...]
 
 ## Current Context`;
+
+const WEB_SEARCH_TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "web_search",
+      description: "Search the web for current information, documentation, tutorials, code examples, or any topic the user asks about. Use this when you need up-to-date information or are unsure about something.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The search query to look up on the web",
+          },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    },
+  },
+];
+
+async function executeWebSearch(query: string, apiKey: string): Promise<string> {
+  try {
+    const searchResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          {
+            role: "system",
+            content: `You are a web search engine assistant. When given a search query, provide comprehensive, factual, and up-to-date information about the topic. Include:
+- Key facts and explanations
+- Relevant code examples if it's a programming topic
+- Links to official documentation if you know them
+- Current best practices
+- Any recent changes or updates you're aware of
+Be thorough but concise. Format your response clearly with headers and bullet points.`,
+          },
+          {
+            role: "user",
+            content: `Search query: "${query}"\n\nProvide comprehensive search results for this query.`,
+          },
+        ],
+      }),
+    });
+
+    if (!searchResp.ok) {
+      console.error("Web search error:", searchResp.status);
+      return `Search for "${query}" failed. Please try rephrasing your question.`;
+    }
+
+    const searchData = await searchResp.json();
+    return searchData.choices?.[0]?.message?.content || "No results found.";
+  } catch (err) {
+    console.error("Web search execution error:", err);
+    return `Search for "${query}" encountered an error.`;
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -300,11 +371,14 @@ I can create new workflows or help modify existing ones.`;
     // Use agent prompt for agent mode, simpler prompt otherwise
     const systemPrompt = agentMode
       ? AGENT_SYSTEM_PROMPT + "\n" + contextSection
-      : `You are a helpful AI coding assistant. Be concise and helpful.
+      : `You are a helpful AI coding assistant in a Replit-like IDE (but NOT actual Replit). This IDE runs code through Wandbox. .replit files do nothing here. Be concise and helpful.
 
 ${contextSection}`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
+
+    // === Two-pass approach: First check if web search is needed ===
+    const toolCheckResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
@@ -312,33 +386,111 @@ ${contextSection}`;
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [{ role: "system", content: systemPrompt }, ...messages],
-        stream: true,
+        messages: aiMessages,
+        tools: WEB_SEARCH_TOOLS,
+        tool_choice: "auto",
       }),
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    if (!toolCheckResponse.ok) {
+      if (toolCheckResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (response.status === 402) {
+      if (toolCheckResponse.status === 402) {
         return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      const errorText = await toolCheckResponse.text();
+      console.error("AI gateway error (tool check):", toolCheckResponse.status, errorText);
       return new Response(JSON.stringify({ error: "AI service temporarily unavailable" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(response.body, {
+    const toolCheckData = await toolCheckResponse.json();
+    const assistantMessage = toolCheckData.choices?.[0]?.message;
+    const toolCalls = assistantMessage?.tool_calls;
+
+    if (toolCalls && toolCalls.length > 0) {
+      // Execute web searches in parallel
+      console.log(`Executing ${toolCalls.length} web search(es)`);
+      const searchResults = await Promise.all(
+        toolCalls.map(async (tc: { id: string; function: { arguments: string } }) => {
+          const args = JSON.parse(tc.function.arguments);
+          const result = await executeWebSearch(args.query, LOVABLE_API_KEY);
+          return { id: tc.id, result };
+        })
+      );
+
+      // Build messages with tool results for final streaming response
+      const finalMessages = [
+        ...aiMessages,
+        assistantMessage,
+        ...searchResults.map((sr) => ({
+          role: "tool",
+          tool_call_id: sr.id,
+          content: sr.result,
+        })),
+      ];
+
+      const finalResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: finalMessages,
+          stream: true,
+        }),
+      });
+
+      if (!finalResponse.ok) {
+        const errorText = await finalResponse.text();
+        console.error("AI gateway error (final):", finalResponse.status, errorText);
+        return new Response(JSON.stringify({ error: "AI service temporarily unavailable" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(finalResponse.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+
+    // No tool calls — the first response already has the answer
+    // Re-stream it since we consumed the non-streaming response
+    const directResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: aiMessages,
+        stream: true,
+      }),
+    });
+
+    if (!directResponse.ok) {
+      const errorText = await directResponse.text();
+      console.error("AI gateway error (direct):", directResponse.status, errorText);
+      return new Response(JSON.stringify({ error: "AI service temporarily unavailable" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(directResponse.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
