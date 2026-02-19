@@ -5,7 +5,7 @@ import {
   Wrench, StopCircle, Trash2, CheckCircle2, XCircle, AlertCircle, Paintbrush,
   GitBranch, GitCommit as GitCommitIcon, Download, Globe, Lock, Link2, Twitter,
   Linkedin, Mail, Share2, GitFork, Star, History, MessageCircleQuestion, Save,
-  PlayCircle, Music, Key, Settings
+  PlayCircle, Music, Key, Settings, Diff
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -15,6 +15,7 @@ import { useAgentChat } from '@/hooks/useAgentChat';
 import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel } from '@/types/agent';
 import { useApiKeys, PROVIDER_MODELS, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { ApiKeysDialog } from './ApiKeysDialog';
+import { getDiffLines } from '@/lib/diffUtils';
 
 interface QuickAction {
   id: string;
@@ -160,17 +161,21 @@ const CodeChangeBlock = ({
   const [copied, setCopied] = useState(false);
   
   const copyCode = async () => {
-    await navigator.clipboard.writeText(change.newCode);
+    const text = change.isDiff ? (change.diffContent || '') : change.newCode;
+    await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const diffLines = change.isDiff && change.diffContent ? getDiffLines(change.diffContent) : null;
 
   return (
     <div className="border border-primary/30 rounded-lg overflow-hidden bg-primary/5 my-2">
       <div className="flex items-center justify-between px-3 py-2 bg-primary/10 border-b border-primary/20">
         <div className="flex items-center gap-2">
-          <FileEdit className="w-3.5 h-3.5 text-primary" />
+          {change.isDiff ? <Diff className="w-3.5 h-3.5 text-primary" /> : <FileEdit className="w-3.5 h-3.5 text-primary" />}
           <span className="text-xs font-medium text-foreground">{change.fileName}</span>
+          {change.isDiff && <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-mono">DIFF</span>}
           <span className="text-xs text-muted-foreground">• {change.description}</span>
         </div>
         <div className="flex items-center gap-1">
@@ -206,7 +211,28 @@ const CodeChangeBlock = ({
         </div>
       </div>
       <pre className="p-3 overflow-x-auto text-xs bg-background/30">
-        <code className="text-foreground">{change.newCode}</code>
+        {diffLines ? (
+          <code>
+            {diffLines.map((line, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'leading-relaxed',
+                  line.type === 'added' && 'text-green-400 bg-green-500/10',
+                  line.type === 'removed' && 'text-red-400 bg-red-500/10 line-through',
+                  line.type === 'context' && 'text-muted-foreground'
+                )}
+              >
+                <span className="select-none opacity-50 mr-2 inline-block w-4 text-right">
+                  {line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '}
+                </span>
+                {line.content}
+              </div>
+            ))}
+          </code>
+        ) : (
+          <code className="text-foreground">{change.newCode}</code>
+        )}
       </pre>
     </div>
   );
