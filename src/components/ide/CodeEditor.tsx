@@ -216,6 +216,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   const [content, setContent] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ line: 0, col: 0 });
   const editorRef = useRef<HTMLDivElement>(null);
+  const gutterRef = useRef<HTMLDivElement>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [searchMatches, setSearchMatches] = useState<{ start: number; end: number }[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
@@ -478,7 +479,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
       
       <div className="flex-1 relative overflow-hidden flex">
         {/* Line number gutter */}
-        <div className="font-mono text-sm leading-6 pt-[2px] select-none text-muted-foreground bg-editor overflow-hidden">
+        <div ref={gutterRef} className="font-mono text-sm leading-6 pt-[2px] select-none text-muted-foreground bg-editor overflow-hidden">
           {content.split('\n').map((_, i) => (
             <div key={i} className="pl-2 pr-1 text-right min-w-[2rem] text-xs leading-6">
               {i + 1}
@@ -498,6 +499,11 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
             onCompositionEnd={() => { 
               isComposingRef.current = false; 
               handleInput(); 
+            }}
+            onScroll={() => {
+              if (editorRef.current && gutterRef.current) {
+                gutterRef.current.scrollTop = editorRef.current.scrollTop;
+              }
             }}
             className="absolute inset-0 font-mono text-sm leading-6 overflow-auto ide-scrollbar outline-none pt-[2px] pl-[6px] caret-foreground"
             spellCheck={false}
