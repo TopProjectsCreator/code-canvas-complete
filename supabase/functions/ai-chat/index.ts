@@ -429,104 +429,56 @@ serve(async (req) => {
     let selectedModel = modelCandidates[0];
     console.log(`Using built-in model: ${selectedModel} for user: ${userId}`);
 
-    // Two-pass: check for web search first (with fallback model)
-    let toolCheckResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: selectedModel, messages: aiMessages, tools: WEB_SEARCH_TOOLS, tool_choice: "auto" }),
-    });
-
-    // If primary model fails with 500, try fallback
-    if (toolCheckResponse.status === 500 && modelCandidates.length > 1) {
-      console.log(`Primary model ${selectedModel} failed, falling back to ${modelCandidates[1]}`);
-      selectedModel = modelCandidates[1];
-      toolCheckResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: selectedModel, messages: aiMessages, tools: WEB_SEARCH_TOOLS, tool_choice: "auto" }),
-      });
-    }
-
-    if (!toolCheckResponse.ok) {
-      if (toolCheckResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again shortly." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (toolCheckResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errorText = await toolCheckResponse.text();
-      console.error("AI gateway error:", toolCheckResponse.status, errorText);
-      return new Response(JSON.stringify({ error: "AI service unavailable" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const toolCheckData = await toolCheckResponse.json();
-    const assistantMessage = toolCheckData.choices?.[0]?.message;
-    const toolCalls = assistantMessage?.tool_calls;
-
-    if (toolCalls && toolCalls.length > 0) {
-      console.log(`Executing ${toolCalls.length} web search(es)`);
-      const searchResults = await Promise.all(
-        toolCalls.map((tc: any) => {
-          const args = JSON.parse(tc.function.arguments);
-          return executeWebSearch(args.query, LOVABLE_API_KEY);
-        })
-      );
-
-      const toolMessages = toolCalls.map((tc: any, i: number) => ({
-        role: "tool", tool_call_id: tc.id, content: searchResults[i],
-      }));
-
-      const finalMessages = [...aiMessages, assistantMessage, ...toolMessages];
-      const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: selectedModel, messages: finalMessages, stream: true }),
-      });
-
-      if (!streamResponse.ok) {
-        return new Response(JSON.stringify({ error: "AI service error after search" }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(streamResponse.body, {
-        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-      });
-    }
-
-    // No tool calls - stream directly
-    if (assistantMessage?.content && !toolCalls) {
-      const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: selectedModel, messages: aiMessages, stream: true }),
-      });
-
-      if (!streamResponse.ok) {
-        return new Response(JSON.stringify({ error: "AI service error" }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(streamResponse.body, {
-        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-      });
-    }
-
-    // Fallback: stream the non-tool response
-    const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // === Built-in Lovable AI: stream directly ===
+    const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: selectedModel, messages: aiMessages, stream: true }),
     });
 
-    return new Response(fallbackResponse.body, {
+    // If primary model fails, try fallback
+    if (!streamResponse.ok && modelCandidates.length > 1) {
+      console.log(`Primary model ${selectedModel} failed (${streamResponse.status}), trying ${modelCandidates[1]}`);
+      await streamResponse.text(); // consume body
+      selectedModel = modelCandidates[1];
+      const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: selectedModel, messages: aiMessages, stream: true }),
+      });
+
+      if (!fallbackResponse.ok) {
+        const errorText = await fallbackResponse.text();
+        console.error("AI gateway fallback error:", fallbackResponse.status, errorText);
+        return new Response(JSON.stringify({ error: "AI service unavailable" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(fallbackResponse.body, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+
+    if (!streamResponse.ok) {
+      if (streamResponse.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again shortly." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (streamResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const errorText = await streamResponse.text();
+      console.error("AI gateway error:", streamResponse.status, errorText);
+      return new Response(JSON.stringify({ error: "AI service unavailable" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(streamResponse.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
 
