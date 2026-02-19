@@ -285,16 +285,26 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     const el = editorRef.current;
     if (!el) return;
     
-    // Read the plain text from the contentEditable div
-    // innerText preserves line breaks from <div>/<br> elements
-    const newContent = el.innerText;
+    // Extract content by iterating child block elements directly
+    // Using innerText is unreliable with <div> children — it can produce extra newlines
+    const lines: string[] = [];
+    el.childNodes.forEach((child) => {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        lines.push((child as HTMLElement).textContent || '');
+      } else if (child.nodeType === Node.TEXT_NODE) {
+        const text = child.textContent || '';
+        if (text.length > 0) {
+          // Split top-level text nodes on newlines (shouldn't happen normally)
+          text.split('\n').forEach(line => lines.push(line));
+        }
+      }
+    });
     
-    // Remove trailing newline that browsers sometimes add
-    const cleaned = newContent.endsWith('\n') ? newContent.slice(0, -1) : newContent;
+    const newContent = lines.join('\n');
     
-    setContent(cleaned);
+    setContent(newContent);
     if (file) {
-      onContentChange(file.id, cleaned);
+      onContentChange(file.id, newContent);
     }
   }, [file, onContentChange]);
 
@@ -447,7 +457,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
       
       charIndex++; // newline
       
-      const lineContent = tokensHtml.length === 0 ? '<span>\n</span>' : tokensHtml;
+      const lineContent = tokensHtml.length === 0 ? '<br>' : tokensHtml;
       return `<div class="code-line">${lineContent}</div>`;
     }).join('');
   };
@@ -500,7 +510,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
               isComposingRef.current = false; 
               handleInput(); 
             }}
-            className="flex-1 font-mono text-sm leading-6 outline-none pt-[2px] pl-[6px] caret-foreground min-w-0 whitespace-pre"
+            className="flex-1 font-mono text-sm leading-6 outline-none pt-[2px] pl-[6px] caret-foreground min-w-0"
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
