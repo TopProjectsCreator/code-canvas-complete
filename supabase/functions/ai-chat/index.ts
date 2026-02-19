@@ -117,15 +117,16 @@ const WEB_SEARCH_TOOLS = [
 ];
 
 // Provider endpoint configurations for BYOK
-const BYOK_PROVIDERS: Record<string, { url: string; models: string[]; headerKey: string }> = {
-  openai: { url: "https://api.openai.com/v1/chat/completions", models: ["gpt-5.2", "gpt-5.2-mini", "gpt-5", "gpt-5-mini", "gpt-4o", "gpt-4o-mini"], headerKey: "Bearer" },
-  anthropic: { url: "https://api.anthropic.com/v1/messages", models: ["claude-sonnet-4-20250514", "claude-3-5-haiku-20241022"], headerKey: "x-api-key" },
-  gemini: { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", models: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"], headerKey: "Bearer" },
-  perplexity: { url: "https://api.perplexity.ai/chat/completions", models: ["sonar-pro", "sonar"], headerKey: "Bearer" },
-  deepseek: { url: "https://api.deepseek.com/v1/chat/completions", models: ["deepseek-chat", "deepseek-reasoner"], headerKey: "Bearer" },
-  xai: { url: "https://api.x.ai/v1/chat/completions", models: ["grok-3", "grok-3-mini"], headerKey: "Bearer" },
-  cohere: { url: "https://api.cohere.com/v2/chat", models: ["command-a-03-2025", "command-r-plus"], headerKey: "Bearer" },
-  openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", models: ["openai/gpt-5.2", "anthropic/claude-sonnet-4", "google/gemini-2.5-pro"], headerKey: "Bearer" },
+// Models list is not restrictive — any model the user's key supports will be forwarded
+const BYOK_PROVIDERS: Record<string, { url: string; headerKey: string }> = {
+  openai: { url: "https://api.openai.com/v1/chat/completions", headerKey: "Bearer" },
+  anthropic: { url: "https://api.anthropic.com/v1/messages", headerKey: "x-api-key" },
+  gemini: { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", headerKey: "Bearer" },
+  perplexity: { url: "https://api.perplexity.ai/chat/completions", headerKey: "Bearer" },
+  deepseek: { url: "https://api.deepseek.com/v1/chat/completions", headerKey: "Bearer" },
+  xai: { url: "https://api.x.ai/v1/chat/completions", headerKey: "Bearer" },
+  cohere: { url: "https://api.cohere.com/v2/chat", headerKey: "Bearer" },
+  openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", headerKey: "Bearer" },
 };
 
 async function executeWebSearch(query: string, apiKey: string): Promise<string> {
@@ -160,7 +161,7 @@ async function callBYOKProvider(
   const config = BYOK_PROVIDERS[provider];
   if (!config) throw new Error(`Unknown provider: ${provider}`);
 
-  const model = requestedModel && config.models.includes(requestedModel) ? requestedModel : config.models[0];
+  const model = requestedModel || "gpt-4o";
 
   // Anthropic has a different API format
   if (provider === "anthropic") {
