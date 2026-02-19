@@ -65,6 +65,12 @@ All color values must be hex codes. Use this when users want a custom/unique the
 
 Use this when users ask you to generate, create, or draw an image. Be descriptive in the prompt for best results.
 
+8. **Music Generation** - Generate music using Lyria RealTime:
+<generate_music prompt="Minimal techno with deep bass" />
+<generate_music prompt="Chill lo-fi hip hop beats" bpm="85" duration="20" />
+
+Use this when users ask you to generate, create, or compose music. Be descriptive about genre, mood, and instruments. Optional: bpm (60-200), duration in seconds (5-30).
+
 8. **Git Operations** - Manage version control:
 
 Initialize a git repository:
@@ -325,7 +331,7 @@ serve(async (req) => {
     const userId = claimsData.claims.sub;
     console.log(`AI chat request from user: ${userId}`);
 
-    const { messages, currentFile, consoleErrors, workflows, agentMode } = await req.json();
+    const { messages, currentFile, consoleErrors, workflows, agentMode, model } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
     if (!LOVABLE_API_KEY) {
@@ -377,6 +383,15 @@ ${contextSection}`;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
+    // Map model selection to actual model IDs
+    const MODEL_MAP: Record<string, string> = {
+      pro: "google/gemini-3-pro-preview",
+      flash: "google/gemini-3-flash-preview",
+      lite: "google/gemini-2.5-flash-lite",
+    };
+    const selectedModel = MODEL_MAP[model] || MODEL_MAP.flash;
+    console.log(`Using model: ${selectedModel}`);
+
     // === Two-pass approach: First check if web search is needed ===
     const toolCheckResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -385,7 +400,7 @@ ${contextSection}`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: selectedModel,
         messages: aiMessages,
         tools: WEB_SEARCH_TOOLS,
         tool_choice: "auto",
@@ -446,7 +461,7 @@ ${contextSection}`;
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: selectedModel,
           messages: finalMessages,
           stream: true,
         }),
@@ -475,7 +490,7 @@ ${contextSection}`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: selectedModel,
         messages: aiMessages,
         stream: true,
       }),

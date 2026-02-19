@@ -16,6 +16,7 @@ export type ToolName =
   | 'set_theme'
   | 'create_custom_theme'
   | 'generate_image'
+  | 'generate_music'
   | 'git_commit'
   | 'git_init'
   | 'git_create_branch'
@@ -32,6 +33,8 @@ export type ToolName =
   | 'ask_user'
   | 'save_project'
   | 'run_project';
+
+export type AIModel = 'flash' | 'pro' | 'lite';
 
 export interface ToolCall {
   id: string;
@@ -68,6 +71,14 @@ export interface GeneratedImage {
   error?: string;
 }
 
+export interface GeneratedAudio {
+  prompt: string;
+  audioUrl: string;
+  isLoading?: boolean;
+  error?: string;
+  duration?: number;
+}
+
 export interface AgentMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -76,6 +87,7 @@ export interface AgentMessage {
   isStreaming?: boolean;
   hasCodeChanges?: boolean;
   images?: GeneratedImage[];
+  audios?: GeneratedAudio[];
 }
 
 export interface AgentContext {
