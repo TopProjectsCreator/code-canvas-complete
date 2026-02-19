@@ -69,6 +69,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<AIModel>('flash');
+  const [byokProvider, setByokProvider] = useState<string | null>(null);
+  const [byokModel, setByokModel] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const executedActionsRef = useRef<Set<string>>(new Set());
 
@@ -347,6 +349,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           workflows: context.workflows || workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
           agentMode: true,
           model: selectedModel,
+          byokProvider: byokProvider || undefined,
+          byokModel: byokModel || undefined,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -476,6 +480,10 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     currentStep,
     selectedModel,
     setSelectedModel,
+    byokProvider,
+    setByokProvider,
+    byokModel,
+    setByokModel,
     sendMessage,
     applyCodeChange,
     stopGeneration,
