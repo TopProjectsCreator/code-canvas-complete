@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.generate-command]
 verify_jwt = false
+
+[functions.generate-music]
+verify_jwt = false
+
+[functions.template-assistant]
+verify_jwt = false
