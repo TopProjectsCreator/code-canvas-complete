@@ -59,13 +59,15 @@ export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]
     { id: 'o1-pro', label: 'o1 Pro' },
   ],
   anthropic: [
+    { id: 'claude-opus-4-6-20250205', label: 'Claude Opus 4.6' },
+    { id: 'claude-sonnet-4-6-20250217', label: 'Claude Sonnet 4.6' },
+    { id: 'claude-haiku-4-5-20251015', label: 'Claude Haiku 4.5' },
     { id: 'claude-opus-4-20250514', label: 'Claude Opus 4' },
     { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
     { id: 'claude-3-7-sonnet-20250219', label: 'Claude 3.7 Sonnet' },
     { id: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' },
     { id: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
     { id: 'claude-3-opus-20240229', label: 'Claude 3 Opus' },
-    { id: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku' },
   ],
   gemini: [
     { id: 'gemini-3-pro', label: 'Gemini 3 Pro' },
