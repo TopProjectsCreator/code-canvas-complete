@@ -148,8 +148,22 @@ export const ThemeLibrary = ({ onImport, onBack, existingThemeNames }: ThemeLibr
   const [search, setSearch] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
 
+  // Merge built-in community themes with user-published ones
+  const allThemes = useMemo(() => {
+    try {
+      const published: CommunityTheme[] = JSON.parse(localStorage.getItem('ide-published-themes') || '[]');
+      const builtinNames = new Set(COMMUNITY_THEMES.map((t) => t.name));
+      const unique = published.filter((p) => !builtinNames.has(p.name));
+      return [...COMMUNITY_THEMES, ...unique];
+    } catch {
+      return COMMUNITY_THEMES;
+    }
+  }, []);
+
+  const allTags = useMemo(() => [...new Set(allThemes.flatMap((t) => t.tags))], [allThemes]);
+
   const filtered = useMemo(() => {
-    let list = COMMUNITY_THEMES;
+    let list = allThemes;
     if (activeTag) {
       list = list.filter((t) => t.tags.includes(activeTag));
     }
@@ -163,7 +177,7 @@ export const ThemeLibrary = ({ onImport, onBack, existingThemeNames }: ThemeLibr
       );
     }
     return list;
-  }, [search, activeTag]);
+  }, [search, activeTag, allThemes]);
 
   const handleImport = (ct: CommunityTheme) => {
     if (existingThemeNames.includes(ct.name)) {
@@ -199,7 +213,7 @@ export const ThemeLibrary = ({ onImport, onBack, existingThemeNames }: ThemeLibr
           />
         </div>
         <div className="flex flex-wrap gap-1">
-          {ALL_TAGS.map((tag) => (
+          {allTags.map((tag) => (
             <button
               key={tag}
               onClick={() => setActiveTag(activeTag === tag ? null : tag)}
