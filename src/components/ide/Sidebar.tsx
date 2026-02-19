@@ -247,8 +247,10 @@ export const Sidebar = ({
   const [newFileType, setNewFileType] = useState<'file' | 'folder'>('file');
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const dragCounterRef = useRef(0);
 
   // Listen for global keyboard shortcut to focus search
   useEffect(() => {
@@ -368,6 +370,66 @@ export const Sidebar = ({
     }
   };
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.types.includes('Files')) {
+      setIsDragOver(true);
+      if (activeTab !== 'files') setActiveTab('files');
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    dragCounterRef.current = 0;
+
+    const droppedFiles = e.dataTransfer.files;
+    if (!droppedFiles || droppedFiles.length === 0) return;
+
+    const readFiles = Array.from(droppedFiles).map((file) => {
+      return new Promise<{ name: string; content: string; language: string }>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          resolve({
+            name: file.name,
+            content: (ev.target?.result as string) || '',
+            language: getFileLanguage(file.name),
+          });
+        };
+        reader.onerror = () => {
+          resolve({ name: file.name, content: '', language: getFileLanguage(file.name) });
+        };
+        if (isImageFile(file.name)) {
+          reader.readAsDataURL(file);
+        } else {
+          reader.readAsText(file);
+        }
+      });
+    });
+
+    Promise.all(readFiles).then((files) => {
+      onUploadFiles(files);
+    });
+  };
+
+
   const tabs = [
     { id: 'files' as const, icon: Files, label: 'Files' },
     { id: 'search' as const, icon: Search, label: 'Search' },
@@ -384,7 +446,22 @@ export const Sidebar = ({
   };
 
   return (
-    <div className="flex h-full bg-sidebar">
+    <div 
+      className="flex h-full bg-sidebar relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      {/* Drag overlay */}
+      {isDragOver && (
+        <div className="absolute inset-0 z-50 bg-primary/10 border-2 border-dashed border-primary rounded-lg flex items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-2 text-primary">
+            <Upload className="w-8 h-8" />
+            <span className="text-sm font-medium">Drop files here</span>
+          </div>
+        </div>
+      )}
       {/* Icon rail - Replit style narrow sidebar */}
       <div className="w-11 flex flex-col items-center py-1.5 border-r border-border bg-background">
         {tabs.map((tab) => (
