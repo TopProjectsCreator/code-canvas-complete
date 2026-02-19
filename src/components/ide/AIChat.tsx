@@ -1,54 +1,18 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { 
-  Bot, 
-  Send, 
-  X, 
-  Sparkles, 
-  User, 
-  Loader2, 
-  FileCode, 
-  Bug, 
-  Lightbulb, 
-  TestTube,
-  Zap,
-  Code,
-  Copy,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Play,
-  FileEdit,
-  Brain,
-  Wrench,
-  StopCircle,
-  Trash2,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  Paintbrush,
-  GitBranch,
-  GitCommit as GitCommitIcon,
-  Download,
-  Globe,
-  Lock,
-  Link2,
-  Twitter,
-  Linkedin,
-  Mail,
-  Share2,
-  GitFork,
-  Star,
-  History,
-  MessageCircleQuestion,
-  Save,
-  PlayCircle
+  Bot, Send, X, Sparkles, User, Loader2, FileCode, Bug, Lightbulb, TestTube,
+  Zap, Code, Copy, Check, ChevronDown, ChevronRight, Play, FileEdit, Brain,
+  Wrench, StopCircle, Trash2, CheckCircle2, XCircle, AlertCircle, Paintbrush,
+  GitBranch, GitCommit as GitCommitIcon, Download, Globe, Lock, Link2, Twitter,
+  Linkedin, Mail, Share2, GitFork, Star, History, MessageCircleQuestion, Save,
+  PlayCircle, Music
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { FileNode, TerminalLine, Workflow } from '@/types/ide';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAgentChat } from '@/hooks/useAgentChat';
-import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage } from '@/types/agent';
+import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel } from '@/types/agent';
 
 interface QuickAction {
   id: string;
@@ -397,6 +361,8 @@ export const AIChat = ({
     messages, 
     isLoading, 
     currentStep,
+    selectedModel,
+    setSelectedModel,
     sendMessage, 
     applyCodeChange,
     stopGeneration,
@@ -596,6 +562,29 @@ export const AIChat = ({
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
+      </div>
+
+      {/* Model Selector */}
+      <div className="px-3 py-1.5 border-b border-border bg-muted/20 flex items-center gap-1.5">
+        <span className="text-[10px] text-muted-foreground mr-1">Model:</span>
+        {([
+          { id: 'lite' as AIModel, label: 'Lite', icon: '⚡' },
+          { id: 'flash' as AIModel, label: 'Flash', icon: '🔥' },
+          { id: 'pro' as AIModel, label: 'Pro', icon: '💎' },
+        ]).map(m => (
+          <button
+            key={m.id}
+            onClick={() => setSelectedModel(m.id)}
+            className={cn(
+              'px-2 py-0.5 rounded text-[10px] font-medium transition-all',
+              selectedModel === m.id
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
+            )}
+          >
+            {m.icon} {m.label}
+          </button>
+        ))}
       </div>
 
       {/* Current file indicator */}
@@ -818,6 +807,37 @@ export const AIChat = ({
                       ))}
                     </div>
                   )}
+
+                  {/* Generated audio */}
+                  {message.audios && message.audios.length > 0 && (
+                    <div className="space-y-2">
+                      {message.audios.map((audio, idx) => (
+                        <div key={idx} className="rounded-lg overflow-hidden border border-border/50">
+                          {audio.isLoading ? (
+                            <div className="flex items-center gap-2 p-4 bg-muted/30">
+                              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                              <Music className="w-3.5 h-3.5 text-primary" />
+                              <span className="text-xs text-muted-foreground">Generating music: {audio.prompt}</span>
+                            </div>
+                          ) : audio.error ? (
+                            <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive text-xs">
+                              <AlertCircle className="w-3.5 h-3.5" />
+                              <span>{audio.error}</span>
+                            </div>
+                          ) : audio.audioUrl ? (
+                            <div className="p-3 bg-muted/30 space-y-2">
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Music className="w-3.5 h-3.5 text-primary" />
+                                <span className="truncate">{audio.prompt}</span>
+                                {audio.duration && <span className="text-[10px]">({audio.duration}s)</span>}
+                              </div>
+                              <audio controls className="w-full h-8" src={audio.audioUrl} />
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   
                   {/* Streaming indicator */}
                   {message.isStreaming && !message.content && (
@@ -897,7 +917,7 @@ export const AIChat = ({
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-2 text-center">
-              Agent mode • Shows thinking process • Can apply code changes
+              Agent mode • {selectedModel === 'pro' ? '💎 Pro' : selectedModel === 'lite' ? '⚡ Lite' : '🔥 Flash'} • Can apply code changes
             </p>
           </>
         )}
