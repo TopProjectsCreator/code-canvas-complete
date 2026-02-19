@@ -337,16 +337,73 @@ serve(async (req) => {
 
     // === BYOK path: call external provider directly ===
     if (userApiKey && selectedProvider) {
-      console.log(`Using BYOK provider: ${selectedProvider}`);
+      console.log(`Using BYOK provider: ${selectedProvider}, model: ${byokModel}`);
       try {
         const byokResponse = await callBYOKProvider(selectedProvider, userApiKey, aiMessages, true, byokModel);
         if (!byokResponse.ok) {
           const errText = await byokResponse.text();
           console.error(`BYOK error (${selectedProvider}):`, byokResponse.status, errText);
-          return new Response(JSON.stringify({ error: `${selectedProvider} API error: ${byokResponse.status}` }), {
+          return new Response(JSON.stringify({ error: `${selectedProvider} API error (${byokResponse.status}): ${errText.slice(0, 200)}` }), {
             status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
+
+        // Anthropic streams use a different SSE format - convert to OpenAI-compatible
+        if (selectedProvider === "anthropic") {
+          const reader = byokResponse.body!.getReader();
+          const decoder = new TextDecoder();
+          const encoder = new TextEncoder();
+          
+          const stream = new ReadableStream({
+            async start(controller) {
+              let buffer = "";
+              try {
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  buffer += decoder.decode(value, { stream: true });
+                  
+                  let newlineIdx: number;
+                  while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
+                    const line = buffer.slice(0, newlineIdx).trim();
+                    buffer = buffer.slice(newlineIdx + 1);
+                    
+                    if (!line.startsWith("data: ") || line === "data: [DONE]") {
+                      if (line === "data: [DONE]") {
+                        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                      }
+                      continue;
+                    }
+                    
+                    try {
+                      const parsed = JSON.parse(line.slice(6));
+                      // Anthropic content_block_delta events
+                      if (parsed.type === "content_block_delta" && parsed.delta?.text) {
+                        const openaiChunk = { choices: [{ delta: { content: parsed.delta.text } }] };
+                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(openaiChunk)}\n\n`));
+                      }
+                      // Anthropic message_stop event
+                      if (parsed.type === "message_stop") {
+                        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                      }
+                    } catch { /* skip unparseable lines */ }
+                  }
+                }
+                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                controller.close();
+              } catch (err) {
+                console.error("Anthropic stream transform error:", err);
+                controller.close();
+              }
+            },
+          });
+          
+          return new Response(stream, {
+            headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+          });
+        }
+
+        // All other providers use OpenAI-compatible streaming
         return new Response(byokResponse.body, {
           headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
