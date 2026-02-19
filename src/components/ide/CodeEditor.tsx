@@ -500,7 +500,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
               isComposingRef.current = false; 
               handleInput(); 
             }}
-            className="flex-1 font-mono text-sm leading-6 outline-none pt-[2px] pl-[6px] caret-foreground min-w-0"
+            className="flex-1 font-mono text-sm leading-6 outline-none pt-[2px] pl-[6px] caret-foreground min-w-0 whitespace-pre"
             spellCheck={false}
             autoCapitalize="off"
             autoCorrect="off"
