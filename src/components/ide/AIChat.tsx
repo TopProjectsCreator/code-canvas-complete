@@ -656,74 +656,14 @@ export const AIChat = ({
             >
               {message.role === 'assistant' ? (
                 <div className="space-y-2">
-                  {/* Render steps (thinking, tool calls, code changes) */}
-                  {message.steps?.map((step) => (
-                    <div key={step.id}>
-                      {step.type === 'thinking' && (
-                        <ThinkingStep
-                          step={step}
-                          isExpanded={expandedThinking.has(step.id)}
-                          onToggle={() => toggleThinking(step.id)}
-                        />
-                      )}
-                      {step.type === 'tool_call' && step.toolCall && (
-                        <ToolCallIndicator 
-                          toolCall={step.toolCall}
-                          isApplied={appliedChanges.has(step.id)}
-                          onApplyTheme={() => {
-                            if (appliedChanges.has(step.id)) return;
-                            setAppliedChanges(prev => new Set(prev).add(step.id));
-                            const tc = step.toolCall!;
-                            if (tc.name === 'set_theme' && onSetTheme) {
-                              onSetTheme(tc.arguments.theme as string);
-                            } else if (tc.name === 'create_custom_theme' && onCreateCustomTheme) {
-                              onCreateCustomTheme(
-                                tc.arguments.name as string,
-                                tc.arguments.colors as import('@/contexts/ThemeContext').CustomThemeColors
-                              );
-                            }
-                          }}
-                          onApplyGit={() => {
-                            if (appliedChanges.has(step.id)) return;
-                            setAppliedChanges(prev => new Set(prev).add(step.id));
-                            const tc = step.toolCall!;
-                            if (tc.name === 'git_commit' && onGitCommit) {
-                              onGitCommit(tc.arguments.message as string);
-                            } else if (tc.name === 'git_init' && onGitInit) {
-                              onGitInit();
-                            } else if (tc.name === 'git_create_branch' && onGitCreateBranch) {
-                              onGitCreateBranch(tc.arguments.branchName as string);
-                            } else if (tc.name === 'git_import' && onGitImport) {
-                              onGitImport(tc.arguments.url as string);
-                            }
-                          }}
-                          onApplyShare={() => {
-                            if (appliedChanges.has(step.id)) return;
-                            setAppliedChanges(prev => new Set(prev).add(step.id));
-                            const tc = step.toolCall!;
-                            if (tc.name === 'make_public' && onMakePublic) onMakePublic();
-                            else if (tc.name === 'make_private' && onMakePrivate) onMakePrivate();
-                            else if (tc.name === 'get_project_link' && onGetProjectLink) onGetProjectLink();
-                            else if (tc.name === 'share_twitter' && onShareTwitter) onShareTwitter();
-                            else if (tc.name === 'share_linkedin' && onShareLinkedin) onShareLinkedin();
-                            else if (tc.name === 'share_email' && onShareEmail) onShareEmail();
-                            else if (tc.name === 'fork_project' && onForkProject) onForkProject();
-                            else if (tc.name === 'star_project' && onStarProject) onStarProject();
-                            else if (tc.name === 'view_history' && onViewHistory) onViewHistory();
-                            else if (tc.name === 'ask_user' && onAskUser) onAskUser(tc.arguments?.question as string || 'The agent has a question for you.');
-                            else if (tc.name === 'save_project' && onSaveProject) onSaveProject();
-                            else if (tc.name === 'run_project' && onRunProject) onRunProject();
-                          }}
-                        />
-                      )}
-                      {step.type === 'code_change' && step.codeChange && (
-                        <CodeChangeBlock
-                          change={step.codeChange}
-                          onApply={() => handleApplyChange(step.codeChange!, step.id)}
-                          isApplied={appliedChanges.has(step.id)}
-                        />
-                      )}
-                    </div>
+                  {/* Render thinking steps first */}
+                  {message.steps?.filter(s => s.type === 'thinking').map((step) => (
+                    <ThinkingStep
+                      key={step.id}
+                      step={step}
+                      isExpanded={expandedThinking.has(step.id)}
+                      onToggle={() => toggleThinking(step.id)}
+                    />
                   ))}
                   
                   {/* Render main content */}
@@ -783,6 +723,69 @@ export const AIChat = ({
                       </ReactMarkdown>
                     </div>
                   )}
+
+                  {/* Render code changes and tool calls after content */}
+                  {message.steps?.filter(s => s.type !== 'thinking').map((step) => (
+                    <div key={step.id}>
+                      {step.type === 'tool_call' && step.toolCall && (
+                        <ToolCallIndicator 
+                          toolCall={step.toolCall}
+                          isApplied={appliedChanges.has(step.id)}
+                          onApplyTheme={() => {
+                            if (appliedChanges.has(step.id)) return;
+                            setAppliedChanges(prev => new Set(prev).add(step.id));
+                            const tc = step.toolCall!;
+                            if (tc.name === 'set_theme' && onSetTheme) {
+                              onSetTheme(tc.arguments.theme as string);
+                            } else if (tc.name === 'create_custom_theme' && onCreateCustomTheme) {
+                              onCreateCustomTheme(
+                                tc.arguments.name as string,
+                                tc.arguments.colors as import('@/contexts/ThemeContext').CustomThemeColors
+                              );
+                            }
+                          }}
+                          onApplyGit={() => {
+                            if (appliedChanges.has(step.id)) return;
+                            setAppliedChanges(prev => new Set(prev).add(step.id));
+                            const tc = step.toolCall!;
+                            if (tc.name === 'git_commit' && onGitCommit) {
+                              onGitCommit(tc.arguments.message as string);
+                            } else if (tc.name === 'git_init' && onGitInit) {
+                              onGitInit();
+                            } else if (tc.name === 'git_create_branch' && onGitCreateBranch) {
+                              onGitCreateBranch(tc.arguments.branchName as string);
+                            } else if (tc.name === 'git_import' && onGitImport) {
+                              onGitImport(tc.arguments.url as string);
+                            }
+                          }}
+                          onApplyShare={() => {
+                            if (appliedChanges.has(step.id)) return;
+                            setAppliedChanges(prev => new Set(prev).add(step.id));
+                            const tc = step.toolCall!;
+                            if (tc.name === 'make_public' && onMakePublic) onMakePublic();
+                            else if (tc.name === 'make_private' && onMakePrivate) onMakePrivate();
+                            else if (tc.name === 'get_project_link' && onGetProjectLink) onGetProjectLink();
+                            else if (tc.name === 'share_twitter' && onShareTwitter) onShareTwitter();
+                            else if (tc.name === 'share_linkedin' && onShareLinkedin) onShareLinkedin();
+                            else if (tc.name === 'share_email' && onShareEmail) onShareEmail();
+                            else if (tc.name === 'fork_project' && onForkProject) onForkProject();
+                            else if (tc.name === 'star_project' && onStarProject) onStarProject();
+                            else if (tc.name === 'view_history' && onViewHistory) onViewHistory();
+                            else if (tc.name === 'ask_user' && onAskUser) onAskUser(tc.arguments?.question as string || 'The agent has a question for you.');
+                            else if (tc.name === 'save_project' && onSaveProject) onSaveProject();
+                            else if (tc.name === 'run_project' && onRunProject) onRunProject();
+                          }}
+                        />
+                      )}
+                      {step.type === 'code_change' && step.codeChange && (
+                        <CodeChangeBlock
+                          change={step.codeChange}
+                          onApply={() => handleApplyChange(step.codeChange!, step.id)}
+                          isApplied={appliedChanges.has(step.id)}
+                        />
+                      )}
+                    </div>
+                  ))}
 
                   {/* Generated images */}
                   {message.images && message.images.length > 0 && (
