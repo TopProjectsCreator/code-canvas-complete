@@ -421,8 +421,8 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const MODEL_MAP: Record<string, string> = {
-      pro: "google/gemini-3-pro-preview",
-      flash: "google/gemini-3-flash-preview",
+      pro: "google/gemini-2.5-pro",
+      flash: "google/gemini-2.5-flash",
       lite: "google/gemini-2.5-flash-lite",
     };
     const selectedModel = MODEL_MAP[model] || MODEL_MAP.flash;
