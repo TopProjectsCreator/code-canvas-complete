@@ -128,10 +128,14 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const { executeCode, isExecuting } = useCodeExecution();
 
   const addHistoryEntry = useCallback((type: typeof historyEntries[0]['type'], label: string, detail?: string) => {
+    // Capture snapshot of current state for rollback
+    const snapshot = (type === 'file-edit' || type === 'file-create' || type === 'file-delete' || type === 'template-change')
+      ? { files: JSON.parse(JSON.stringify(files)), fileContents: { ...fileContents } }
+      : undefined;
     setHistoryEntries(prev => [{
-      id: generateId(), type, label, detail, timestamp: new Date(),
-    }, ...prev].slice(0, 200));
-  }, []);
+      id: generateId(), type, label, detail, timestamp: new Date(), snapshot,
+    }, ...prev].slice(0, 100));
+  }, [files, fileContents]);
 
   const handleSelectTemplate = useCallback((template: LanguageTemplate) => {
     setSelectedTemplate(template);
@@ -1371,6 +1375,17 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             onDeleteWorkflow={handleDeleteWorkflow}
             currentlyRunningWorkflow={currentlyRunningWorkflow}
             historyEntries={historyEntries}
+            onRestoreEntry={(entry) => {
+              if (!entry.snapshot) {
+                toast({ title: 'Cannot rollback', description: 'This event has no restorable snapshot.', variant: 'destructive' });
+                return;
+              }
+              setFiles(entry.snapshot.files);
+              setFileContents(entry.snapshot.fileContents);
+              setHasUnsavedChanges(true);
+              addHistoryEntry('file-edit', `Rolled back to: ${entry.label}`);
+              toast({ title: 'Rolled back', description: `Restored state from "${entry.label}"` });
+            }}
             onInvite={() => setShowShareDialog(true)}
           />
         </div>
