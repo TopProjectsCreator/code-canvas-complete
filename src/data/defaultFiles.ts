@@ -3,6 +3,8 @@ import { LanguageTemplate } from '@/components/ide/LanguagePicker';
 
 export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
   switch (template) {
+    case 'blank':
+      return blankTemplate;
     case 'html':
       return htmlTemplate;
     case 'javascript':
@@ -1714,6 +1716,28 @@ begin
   
   WriteLn('Factorial of 5: ', Factorial(5));
 end.`
+      }
+    ]
+  }
+];
+
+const blankTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'my-repl',
+    type: 'folder',
+    children: [
+      {
+        id: 'main-txt',
+        name: 'main.txt',
+        type: 'file',
+        language: 'text',
+        content: `# Welcome to your blank Repl!
+# 
+# This is an empty project. Create new files using
+# the sidebar or drag and drop files here.
+#
+# Happy coding! 🚀`
       }
     ]
   }
