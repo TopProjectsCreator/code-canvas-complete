@@ -111,25 +111,24 @@ const SettingsPanel = () => {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShowLibrary(true)}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-foreground hover:bg-accent/80 transition-colors"
-              title="Browse theme library"
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              title="Browse community library"
             >
-              <BookOpen className="w-3 h-3" />
-              Library
+              <BookOpen className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setShowImport(true)}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-foreground hover:bg-accent/80 transition-colors"
-              title="Import a shared theme"
+              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              title="Import shared theme"
             >
-              <Download className="w-3 h-3" />
+              <Download className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => { setEditingTheme(undefined); setShowCreator(true); }}
               className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
             >
               <Plus className="w-3 h-3" />
-              Create
+              New
             </button>
           </div>
         </div>
@@ -166,9 +165,26 @@ const SettingsPanel = () => {
                     <button
                       onClick={() => handleShareTheme(ct)}
                       className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-                      title="Share"
+                      title="Copy share link"
                     >
                       <Share2 className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Publish to community library (stored in localStorage for now)
+                        const published = JSON.parse(localStorage.getItem('ide-published-themes') || '[]');
+                        if (published.some((p: any) => p.name === ct.name)) {
+                          toast.info(`"${ct.name}" is already in the community library`);
+                          return;
+                        }
+                        published.push({ name: ct.name, author: 'you', tags: ['community'], colors: ct.colors });
+                        localStorage.setItem('ide-published-themes', JSON.stringify(published));
+                        toast.success(`"${ct.name}" published to community library!`);
+                      }}
+                      className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                      title="Publish to community library"
+                    >
+                      <Upload className="w-3 h-3" />
                     </button>
                     <button
                       onClick={() => { setEditingTheme(ct); setShowCreator(true); }}
