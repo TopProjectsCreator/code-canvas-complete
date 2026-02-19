@@ -17,7 +17,10 @@ import {
   Check,
   Zap,
   Pencil,
-  Trash2
+  Trash2,
+  Share2,
+  Download,
+  BookOpen
 } from 'lucide-react';
 import { FileNode, GitState, Workflow } from '@/types/ide';
 import { FileTree } from './FileTree';
@@ -28,16 +31,27 @@ import { WorkflowsPanel } from './WorkflowsPanel';
 import { HistoryPanel, HistoryEntry } from './HistoryPanel';
 import { FileIcon } from './FileIcon';
 import { ThemeCreator } from './ThemeCreator';
+import { ThemeImportDialog, getThemeShareUrl } from './ThemeImportDialog';
+import { ThemeLibrary } from './ThemeLibrary';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
 import { useTheme, themeInfo, IDETheme } from '@/contexts/ThemeContext';
+import { toast } from 'sonner';
 
 // Settings Panel Component
 const SettingsPanel = () => {
   const { theme, setTheme, customThemes, addCustomTheme, deleteCustomTheme, updateCustomTheme } = useTheme();
   const themes = Object.keys(themeInfo) as IDETheme[];
   const [showCreator, setShowCreator] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editingTheme, setEditingTheme] = useState<import('@/contexts/ThemeContext').CustomTheme | undefined>();
+
+  const handleShareTheme = (ct: import('@/contexts/ThemeContext').CustomTheme) => {
+    const url = getThemeShareUrl(ct);
+    navigator.clipboard.writeText(url);
+    toast.success('Theme share link copied to clipboard!');
+  };
 
   if (showCreator) {
     return (
@@ -56,6 +70,18 @@ const SettingsPanel = () => {
           setShowCreator(false);
           setEditingTheme(undefined);
         }}
+      />
+    );
+  }
+
+  if (showLibrary) {
+    return (
+      <ThemeLibrary
+        onImport={(ct) => {
+          addCustomTheme(ct);
+        }}
+        onBack={() => setShowLibrary(false)}
+        existingThemeNames={customThemes.map((t) => t.name)}
       />
     );
   }
@@ -82,13 +108,30 @@ const SettingsPanel = () => {
             <Palette className="w-4 h-4 text-primary" />
             <h3 className="text-sm font-medium">Theme</h3>
           </div>
-          <button
-            onClick={() => { setEditingTheme(undefined); setShowCreator(true); }}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
-          >
-            <Plus className="w-3 h-3" />
-            Create
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowLibrary(true)}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-foreground hover:bg-accent/80 transition-colors"
+              title="Browse theme library"
+            >
+              <BookOpen className="w-3 h-3" />
+              Library
+            </button>
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-accent text-foreground hover:bg-accent/80 transition-colors"
+              title="Import a shared theme"
+            >
+              <Download className="w-3 h-3" />
+            </button>
+            <button
+              onClick={() => { setEditingTheme(undefined); setShowCreator(true); }}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              Create
+            </button>
+          </div>
         </div>
 
         {/* Custom themes */}
@@ -120,6 +163,13 @@ const SettingsPanel = () => {
                     </div>
                   </button>
                   <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => handleShareTheme(ct)}
+                      className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                      title="Share"
+                    >
+                      <Share2 className="w-3 h-3" />
+                    </button>
                     <button
                       onClick={() => { setEditingTheme(ct); setShowCreator(true); }}
                       className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
@@ -175,6 +225,12 @@ const SettingsPanel = () => {
           </div>
         </div>
       </div>
+
+      <ThemeImportDialog
+        open={showImport}
+        onOpenChange={setShowImport}
+        onImport={(ct) => addCustomTheme(ct)}
+      />
     </div>
   );
 };
