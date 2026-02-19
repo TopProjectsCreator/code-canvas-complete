@@ -118,14 +118,14 @@ const WEB_SEARCH_TOOLS = [
 
 // Provider endpoint configurations for BYOK
 const BYOK_PROVIDERS: Record<string, { url: string; models: string[]; headerKey: string }> = {
-  openai: { url: "https://api.openai.com/v1/chat/completions", models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"], headerKey: "Bearer" },
+  openai: { url: "https://api.openai.com/v1/chat/completions", models: ["gpt-5.2", "gpt-5.2-mini", "gpt-5", "gpt-5-mini", "gpt-4o", "gpt-4o-mini"], headerKey: "Bearer" },
   anthropic: { url: "https://api.anthropic.com/v1/messages", models: ["claude-sonnet-4-20250514", "claude-3-5-haiku-20241022"], headerKey: "x-api-key" },
-  gemini: { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", models: ["gemini-2.5-flash", "gemini-2.5-pro"], headerKey: "Bearer" },
+  gemini: { url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", models: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"], headerKey: "Bearer" },
   perplexity: { url: "https://api.perplexity.ai/chat/completions", models: ["sonar-pro", "sonar"], headerKey: "Bearer" },
   deepseek: { url: "https://api.deepseek.com/v1/chat/completions", models: ["deepseek-chat", "deepseek-reasoner"], headerKey: "Bearer" },
   xai: { url: "https://api.x.ai/v1/chat/completions", models: ["grok-3", "grok-3-mini"], headerKey: "Bearer" },
   cohere: { url: "https://api.cohere.com/v2/chat", models: ["command-a-03-2025", "command-r-plus"], headerKey: "Bearer" },
-  openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", models: ["openai/gpt-4o", "anthropic/claude-sonnet-4"], headerKey: "Bearer" },
+  openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", models: ["openai/gpt-5.2", "anthropic/claude-sonnet-4", "google/gemini-2.5-pro"], headerKey: "Bearer" },
 };
 
 async function executeWebSearch(query: string, apiKey: string): Promise<string> {
@@ -155,11 +155,12 @@ async function callBYOKProvider(
   apiKey: string,
   messages: any[],
   stream: boolean,
+  requestedModel?: string,
 ): Promise<Response> {
   const config = BYOK_PROVIDERS[provider];
   if (!config) throw new Error(`Unknown provider: ${provider}`);
 
-  const model = config.models[0]; // Use best model
+  const model = requestedModel && config.models.includes(requestedModel) ? requestedModel : config.models[0];
 
   // Anthropic has a different API format
   if (provider === "anthropic") {
@@ -229,7 +230,7 @@ serve(async (req) => {
     }
 
     const userId = claimsData.claims.sub;
-    const { messages, currentFile, consoleErrors, workflows, agentMode, model, byokProvider } = await req.json();
+    const { messages, currentFile, consoleErrors, workflows, agentMode, model, byokProvider, byokModel } = await req.json();
 
     // Check if user has a custom API key for the selected BYOK provider
     let userApiKey: string | null = null;
@@ -338,7 +339,7 @@ serve(async (req) => {
     if (userApiKey && selectedProvider) {
       console.log(`Using BYOK provider: ${selectedProvider}`);
       try {
-        const byokResponse = await callBYOKProvider(selectedProvider, userApiKey, aiMessages, true);
+        const byokResponse = await callBYOKProvider(selectedProvider, userApiKey, aiMessages, true, byokModel);
         if (!byokResponse.ok) {
           const errText = await byokResponse.text();
           console.error(`BYOK error (${selectedProvider}):`, byokResponse.status, errText);
