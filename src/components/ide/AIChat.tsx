@@ -404,7 +404,7 @@ export const AIChat = ({
     workflows,
   });
 
-  const { apiKeys } = useApiKeys();
+  const { apiKeys, fetchApiKeys: refetchApiKeys } = useApiKeys();
   const connectedProviders = apiKeys.map(k => k.provider);
 
   const scrollToBottom = () => {
@@ -576,7 +576,10 @@ export const AIChat = ({
 
       {/* Removed - model selector moved to input area */}
       
-      <ApiKeysDialog open={showApiKeys} onOpenChange={setShowApiKeys} />
+      <ApiKeysDialog open={showApiKeys} onOpenChange={(open) => {
+        setShowApiKeys(open);
+        if (!open) refetchApiKeys();
+      }} />
 
       {/* Current file indicator */}
       {currentFile && (
