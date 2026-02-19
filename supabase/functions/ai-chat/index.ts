@@ -416,70 +416,75 @@ serve(async (req) => {
       }
     }
 
-    // === Built-in Lovable AI path ===
+    // === Built-in AI path ===
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
-    const MODEL_MAP: Record<string, string[]> = {
-      pro: ["google/gemini-3-pro-preview", "google/gemini-2.5-pro"],
-      flash: ["google/gemini-3-flash-preview", "google/gemini-2.5-flash"],
-      lite: ["google/gemini-2.5-flash-lite"],
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    
+    // Try Lovable gateway first, then fall back to direct Gemini API
+    const MODEL_MAP: Record<string, string> = {
+      pro: "gemini-2.5-pro",
+      flash: "gemini-2.5-flash",
+      lite: "gemini-2.5-flash-lite",
     };
-    const modelCandidates = MODEL_MAP[model] || MODEL_MAP.flash;
-    let selectedModel = modelCandidates[0];
-    console.log(`Using built-in model: ${selectedModel} for user: ${userId}`);
+    const geminiModel = MODEL_MAP[model] || MODEL_MAP.flash;
 
-    // === Built-in Lovable AI: stream directly ===
-    const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: selectedModel, messages: aiMessages, stream: true }),
-    });
-
-    // If primary model fails, try fallback
-    if (!streamResponse.ok && modelCandidates.length > 1) {
-      console.log(`Primary model ${selectedModel} failed (${streamResponse.status}), trying ${modelCandidates[1]}`);
-      await streamResponse.text(); // consume body
-      selectedModel = modelCandidates[1];
-      const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Try Lovable gateway
+    let gatewayWorked = false;
+    if (LOVABLE_API_KEY) {
+      const selectedModel = `google/${geminiModel}`;
+      console.log(`Trying Lovable gateway with model: ${selectedModel}`);
+      
+      // Use a simplified messages array to avoid potential payload issues
+      const simplifiedMessages = aiMessages.map((m: any) => ({
+        role: m.role,
+        content: typeof m.content === 'string' ? m.content.slice(0, 30000) : m.content,
+      }));
+      
+      const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model: selectedModel, messages: aiMessages, stream: true }),
+        body: JSON.stringify({ model: selectedModel, messages: simplifiedMessages, stream: true }),
       });
 
-      if (!fallbackResponse.ok) {
-        const errorText = await fallbackResponse.text();
-        console.error("AI gateway fallback error:", fallbackResponse.status, errorText);
-        return new Response(JSON.stringify({ error: "AI service unavailable" }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      if (streamResponse.ok) {
+        gatewayWorked = true;
+        return new Response(streamResponse.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
+      } else {
+        const errorText = await streamResponse.text();
+        console.error(`Lovable gateway failed (${streamResponse.status}):`, errorText.slice(0, 200));
       }
-
-      return new Response(fallbackResponse.body, {
-        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-      });
     }
 
-    if (!streamResponse.ok) {
-      if (streamResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again shortly." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Fallback: direct Gemini API via OpenAI-compatible endpoint
+    if (!gatewayWorked && GEMINI_API_KEY) {
+      console.log(`Using direct Gemini API with model: ${geminiModel}`);
+      const streamResponse = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${GEMINI_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: geminiModel, messages: aiMessages, stream: true }),
+      });
+
+      if (streamResponse.ok) {
+        return new Response(streamResponse.body, {
+          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
         });
+      } else {
+        const errorText = await streamResponse.text();
+        console.error(`Direct Gemini API failed (${streamResponse.status}):`, errorText.slice(0, 200));
       }
-      if (streamResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errorText = await streamResponse.text();
-      console.error("AI gateway error:", streamResponse.status, errorText);
-      return new Response(JSON.stringify({ error: "AI service unavailable" }), {
+    }
+
+    // Both failed
+    if (!LOVABLE_API_KEY && !GEMINI_API_KEY) {
+      return new Response(JSON.stringify({ error: "No AI API key configured. Add a Gemini API key in settings." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(streamResponse.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+    return new Response(JSON.stringify({ error: "AI service unavailable. Try using a BYOK provider key." }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (e) {
