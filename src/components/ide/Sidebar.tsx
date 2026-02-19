@@ -282,6 +282,7 @@ interface SidebarProps {
   currentlyRunningWorkflow: string | null;
   // History props
   historyEntries: HistoryEntry[];
+  onRestoreEntry?: (entry: HistoryEntry) => void;
   // Invite/Share
   onInvite: () => void;
 }
@@ -312,6 +313,7 @@ export const Sidebar = ({
   onDeleteWorkflow,
   currentlyRunningWorkflow,
   historyEntries,
+  onRestoreEntry,
   onInvite,
 }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('files');
@@ -755,7 +757,7 @@ export const Sidebar = ({
         )}
 
         {activeTab === 'history' && (
-          <HistoryPanel entries={historyEntries} />
+          <HistoryPanel entries={historyEntries} onRestoreEntry={onRestoreEntry} />
         )}
       </div>
 
