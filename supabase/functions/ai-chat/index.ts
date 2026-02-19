@@ -429,7 +429,7 @@ serve(async (req) => {
 
     const MODEL_MAP: Record<string, string> = {
       pro: "google/gemini-2.5-pro",
-      flash: "google/gemini-2.5-flash",
+      flash: "google/gemini-3-flash-preview",
       lite: "google/gemini-2.5-flash-lite",
     };
     const selectedModel = MODEL_MAP[model] || MODEL_MAP.flash;
