@@ -52,6 +52,8 @@ export interface CodeChange {
   description: string;
   lineStart?: number;
   lineEnd?: number;
+  isDiff?: boolean;
+  diffContent?: string;
 }
 
 export interface AgentStep {
