@@ -420,20 +420,32 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const MODEL_MAP: Record<string, string> = {
-      pro: "google/gemini-2.5-pro",
-      flash: "google/gemini-2.5-flash",
-      lite: "google/gemini-2.5-flash-lite",
+    const MODEL_MAP: Record<string, string[]> = {
+      pro: ["google/gemini-3-pro-preview", "google/gemini-2.5-pro"],
+      flash: ["google/gemini-3-flash-preview", "google/gemini-2.5-flash"],
+      lite: ["google/gemini-2.5-flash-lite"],
     };
-    const selectedModel = MODEL_MAP[model] || MODEL_MAP.flash;
+    const modelCandidates = MODEL_MAP[model] || MODEL_MAP.flash;
+    let selectedModel = modelCandidates[0];
     console.log(`Using built-in model: ${selectedModel} for user: ${userId}`);
 
-    // Two-pass: check for web search first
-    const toolCheckResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Two-pass: check for web search first (with fallback model)
+    let toolCheckResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model: selectedModel, messages: aiMessages, tools: WEB_SEARCH_TOOLS, tool_choice: "auto" }),
     });
+
+    // If primary model fails with 500, try fallback
+    if (toolCheckResponse.status === 500 && modelCandidates.length > 1) {
+      console.log(`Primary model ${selectedModel} failed, falling back to ${modelCandidates[1]}`);
+      selectedModel = modelCandidates[1];
+      toolCheckResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: selectedModel, messages: aiMessages, tools: WEB_SEARCH_TOOLS, tool_choice: "auto" }),
+      });
+    }
 
     if (!toolCheckResponse.ok) {
       if (toolCheckResponse.status === 429) {
