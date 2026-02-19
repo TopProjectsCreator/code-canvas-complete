@@ -5,7 +5,7 @@ import {
   Wrench, StopCircle, Trash2, CheckCircle2, XCircle, AlertCircle, Paintbrush,
   GitBranch, GitCommit as GitCommitIcon, Download, Globe, Lock, Link2, Twitter,
   Linkedin, Mail, Share2, GitFork, Star, History, MessageCircleQuestion, Save,
-  PlayCircle, Music
+  PlayCircle, Music, Key, Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -13,6 +13,8 @@ import { FileNode, TerminalLine, Workflow } from '@/types/ide';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAgentChat } from '@/hooks/useAgentChat';
 import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel } from '@/types/agent';
+import { useApiKeys } from '@/hooks/useApiKeys';
+import { ApiKeysDialog } from './ApiKeysDialog';
 
 interface QuickAction {
   id: string;
@@ -354,6 +356,7 @@ export const AIChat = ({
   const [input, setInput] = useState('');
   const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set());
   const [appliedChanges, setAppliedChanges] = useState<Set<string>>(new Set());
+  const [showApiKeys, setShowApiKeys] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -568,9 +571,9 @@ export const AIChat = ({
       <div className="px-3 py-1.5 border-b border-border bg-muted/20 flex items-center gap-1.5">
         <span className="text-[10px] text-muted-foreground mr-1">Model:</span>
         {([
-          { id: 'lite' as AIModel, label: 'Lite', icon: '⚡' },
-          { id: 'flash' as AIModel, label: 'Flash', icon: '🔥' },
-          { id: 'pro' as AIModel, label: 'Pro', icon: '💎' },
+          { id: 'lite' as AIModel, label: 'Lite', icon: '⚡', sub: 'FREE' },
+          { id: 'flash' as AIModel, label: 'Flash', icon: '🔥', sub: '10/day' },
+          { id: 'pro' as AIModel, label: 'Pro', icon: '💎', sub: '5/day' },
         ]).map(m => (
           <button
             key={m.id}
@@ -581,11 +584,22 @@ export const AIChat = ({
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
             )}
+            title={m.sub}
           >
             {m.icon} {m.label}
           </button>
         ))}
+        <div className="flex-1" />
+        <button
+          onClick={() => setShowApiKeys(true)}
+          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          title="API Keys & Limits"
+        >
+          <Key className="w-3 h-3" />
+        </button>
       </div>
+      
+      <ApiKeysDialog open={showApiKeys} onOpenChange={setShowApiKeys} />
 
       {/* Current file indicator */}
       {currentFile && (
