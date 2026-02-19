@@ -37,6 +37,47 @@ export const PROVIDER_INFO: Record<AIProvider, { label: string; placeholder: str
   openrouter: { label: 'OpenRouter', placeholder: 'sk-or-...', docsUrl: 'https://openrouter.ai/keys' },
 };
 
+export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]> = {
+  openai: [
+    { id: 'gpt-5.2', label: 'GPT-5.2' },
+    { id: 'gpt-5.2-mini', label: 'GPT-5.2 Mini' },
+    { id: 'gpt-5', label: 'GPT-5' },
+    { id: 'gpt-5-mini', label: 'GPT-5 Mini' },
+    { id: 'gpt-4o', label: 'GPT-4o' },
+    { id: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+  ],
+  anthropic: [
+    { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
+    { id: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku' },
+  ],
+  gemini: [
+    { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite' },
+  ],
+  perplexity: [
+    { id: 'sonar-pro', label: 'Sonar Pro' },
+    { id: 'sonar', label: 'Sonar' },
+  ],
+  deepseek: [
+    { id: 'deepseek-chat', label: 'DeepSeek Chat' },
+    { id: 'deepseek-reasoner', label: 'DeepSeek Reasoner' },
+  ],
+  xai: [
+    { id: 'grok-3', label: 'Grok 3' },
+    { id: 'grok-3-mini', label: 'Grok 3 Mini' },
+  ],
+  cohere: [
+    { id: 'command-a-03-2025', label: 'Command A' },
+    { id: 'command-r-plus', label: 'Command R+' },
+  ],
+  openrouter: [
+    { id: 'openai/gpt-5.2', label: 'GPT-5.2 (OR)' },
+    { id: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4 (OR)' },
+    { id: 'google/gemini-2.5-pro', label: 'Gemini 2.5 Pro (OR)' },
+  ],
+};
+
 const DAILY_LIMITS: Record<string, number> = {
   pro: 5,
   flash: 10,
