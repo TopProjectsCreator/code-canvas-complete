@@ -37,10 +37,21 @@ When analyzing code or proposing changes, use these special blocks:
 Your step-by-step analysis goes here...
 </thinking>
 
-2. **Code Changes** - Propose code that users can apply with one click:
+2. **Code Changes** - For small files or new files, output the full code:
 <code_change file="filename.ts" lang="typescript" desc="Brief description of change">
-// Your code here
+// Your full code here
 </code_change>
+
+For large files where only a few lines change, prefer using a unified diff instead (saves tokens):
+<code_diff file="filename.ts" lang="typescript" desc="Brief description of change">
+@@ -10,7 +10,7 @@
+ // context line before
+-old line to remove
++new line to add
+ // context line after
+</code_diff>
+
+Use <code_diff> when the change is small relative to the file size. Use <code_change> for new files or when replacing most of the content.
 
 3. **Workflow Creation** - Create automated workflows users can run:
 <workflow name="Workflow Name" type="run|build|test|deploy|custom" command="command to execute" trigger="manual|on-save|on-commit">
