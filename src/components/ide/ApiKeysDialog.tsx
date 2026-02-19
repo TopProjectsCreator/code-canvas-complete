@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Key, Trash2, ExternalLink, Eye, EyeOff, Shield, Zap, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { useApiKeys, AIProvider, PROVIDER_INFO } from '@/hooks/useApiKeys';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 interface ApiKeysDialogProps {
@@ -13,51 +14,32 @@ interface ApiKeysDialogProps {
 
 const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter'];
 
-// Test endpoints for each provider (lightweight calls to verify key validity)
-const PROVIDER_TEST_CONFIG: Record<AIProvider, { url: string; method: string; headers: (key: string) => Record<string, string>; body?: (key: string) => string }> = {
-  openai: {
-    url: 'https://api.openai.com/v1/models',
-    method: 'GET',
-    headers: (key) => ({ Authorization: `Bearer ${key}` }),
-  },
-  anthropic: {
-    url: 'https://api.anthropic.com/v1/messages',
-    method: 'POST',
-    headers: (key) => ({ 'x-api-key': key, 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' }),
-    body: () => JSON.stringify({ model: 'claude-3-haiku-20240307', max_tokens: 1, messages: [{ role: 'user', content: 'hi' }] }),
-  },
-  gemini: {
-    url: 'https://generativelanguage.googleapis.com/v1beta/models',
-    method: 'GET',
-    headers: (key) => ({ 'x-goog-api-key': key }),
-  },
-  perplexity: {
-    url: 'https://api.perplexity.ai/chat/completions',
-    method: 'POST',
-    headers: (key) => ({ Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }),
-    body: () => JSON.stringify({ model: 'sonar', messages: [{ role: 'user', content: 'hi' }], max_tokens: 1 }),
-  },
-  deepseek: {
-    url: 'https://api.deepseek.com/v1/models',
-    method: 'GET',
-    headers: (key) => ({ Authorization: `Bearer ${key}` }),
-  },
-  xai: {
-    url: 'https://api.x.ai/v1/models',
-    method: 'GET',
-    headers: (key) => ({ Authorization: `Bearer ${key}` }),
-  },
-  cohere: {
-    url: 'https://api.cohere.com/v2/models',
-    method: 'GET',
-    headers: (key) => ({ Authorization: `Bearer ${key}` }),
-  },
-  openrouter: {
-    url: 'https://openrouter.ai/api/v1/models',
-    method: 'GET',
-    headers: (key) => ({ Authorization: `Bearer ${key}` }),
-  },
+// Format validation rules per provider
+const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; label: string }> = {
+  openai: { prefix: ['sk-'], minLength: 30, label: 'sk-...' },
+  anthropic: { prefix: ['sk-ant-'], minLength: 30, label: 'sk-ant-...' },
+  gemini: { prefix: ['AIza'], minLength: 20, label: 'AIza...' },
+  perplexity: { prefix: ['pplx-'], minLength: 20, label: 'pplx-...' },
+  deepseek: { prefix: ['sk-'], minLength: 20, label: 'sk-...' },
+  xai: { prefix: ['xai-'], minLength: 20, label: 'xai-...' },
+  cohere: { minLength: 20, label: '20+ characters' },
+  openrouter: { prefix: ['sk-or-'], minLength: 20, label: 'sk-or-...' },
 };
+
+function validateKeyFormat(provider: AIProvider, key: string): string | null {
+  const rules = KEY_FORMAT[provider];
+  if (!rules) return null;
+
+  if (key.length < rules.minLength) {
+    return `Key too short. ${PROVIDER_INFO[provider].label} keys are typically ${rules.minLength}+ characters`;
+  }
+
+  if (rules.prefix && !rules.prefix.some(p => key.startsWith(p))) {
+    return `Invalid format. ${PROVIDER_INFO[provider].label} keys should start with ${rules.prefix.join(' or ')}`;
+  }
+
+  return null;
+}
 
 type ValidationState = 'idle' | 'validating' | 'valid' | 'invalid';
 
@@ -70,45 +52,27 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
   const [validationError, setValidationError] = useState<string>('');
 
   const validateKey = async (provider: AIProvider, key: string): Promise<{ valid: boolean; error?: string }> => {
-    const config = PROVIDER_TEST_CONFIG[provider];
-    if (!config) return { valid: true }; // Skip validation for unknown providers
+    // Step 1: Format check
+    const formatError = validateKeyFormat(provider, key);
+    if (formatError) return { valid: false, error: formatError };
 
+    // Step 2: Server-side validation via edge function (avoids CORS)
     try {
-      const opts: RequestInit = {
-        method: config.method,
-        headers: config.headers(key),
-      };
-      if (config.body) opts.body = config.body(key);
+      const { data, error } = await supabase.functions.invoke('validate-api-key', {
+        body: { provider, apiKey: key },
+      });
 
-      const resp = await fetch(config.url, opts);
-      
-      if (resp.ok || resp.status === 200 || resp.status === 201) {
+      if (error) {
+        return { valid: false, error: 'Validation service error' };
+      }
+
+      if (data?.valid) {
         return { valid: true };
+      } else {
+        return { valid: false, error: data?.error || 'Invalid API key' };
       }
-      
-      // Some providers return 400 for minimal requests but that still means auth worked
-      if (resp.status === 400) {
-        return { valid: true };
-      }
-      
-      if (resp.status === 401 || resp.status === 403) {
-        return { valid: false, error: 'Invalid or expired API key' };
-      }
-      
-      // For other errors, try to get details
-      try {
-        const errData = await resp.json();
-        const msg = errData?.error?.message || errData?.message || `HTTP ${resp.status}`;
-        return { valid: false, error: msg.slice(0, 100) };
-      } catch {
-        return { valid: false, error: `HTTP ${resp.status}` };
-      }
-    } catch (err: any) {
-      // Network errors might be CORS — treat as potentially valid since the key format looks ok
-      if (err.message?.includes('Failed to fetch') || err.message?.includes('CORS')) {
-        return { valid: true }; // Can't verify from browser due to CORS, assume valid
-      }
-      return { valid: false, error: err.message || 'Connection error' };
+    } catch {
+      return { valid: false, error: 'Could not verify key' };
     }
   };
 
