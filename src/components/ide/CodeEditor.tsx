@@ -166,38 +166,96 @@ const getTokenClass = (type: SyntaxToken['type']): string => {
 };
 
 // Save and restore cursor position in a contentEditable div
+// Save cursor position by counting characters across code-line divs
 const saveCursorPosition = (el: HTMLElement): number => {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return 0;
   const range = sel.getRangeAt(0);
-  const preRange = range.cloneRange();
-  preRange.selectNodeContents(el);
-  preRange.setEnd(range.startContainer, range.startOffset);
-  return preRange.toString().length;
+  
+  let offset = 0;
+  const lines = el.childNodes;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] as HTMLElement;
+    
+    if (line.contains(range.startContainer) || line === range.startContainer) {
+      // Cursor is in this line — count chars before cursor within this line
+      const lineRange = document.createRange();
+      lineRange.selectNodeContents(line);
+      lineRange.setEnd(range.startContainer, range.startOffset);
+      offset += lineRange.toString().length;
+      return offset;
+    }
+    
+    // Add this line's length + 1 for the newline separator
+    offset += (line.textContent || '').length + 1;
+  }
+  
+  return offset;
 };
 
+// Restore cursor position by walking code-line divs
 const restoreCursorPosition = (el: HTMLElement, offset: number) => {
   const sel = window.getSelection();
   if (!sel) return;
   
   let currentOffset = 0;
-  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
-  let node: Text | null;
+  const lines = el.childNodes;
   
-  while ((node = walker.nextNode() as Text | null)) {
-    const nodeLen = node.textContent?.length || 0;
-    if (currentOffset + nodeLen >= offset) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] as HTMLElement;
+    const lineText = line.textContent || '';
+    const lineLen = lineText.length;
+    
+    if (currentOffset + lineLen >= offset) {
+      const targetOffset = offset - currentOffset;
+      
+      // Empty line with <br> — place cursor at start
+      if (lineLen === 0) {
+        const range = document.createRange();
+        const br = line.querySelector('br');
+        if (br) {
+          range.setStartBefore(br);
+        } else {
+          range.selectNodeContents(line);
+        }
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        return;
+      }
+      
+      // Walk text nodes within this line to find exact position
+      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT, null);
+      let node: Text | null;
+      let nodeOffset = 0;
+      
+      while ((node = walker.nextNode() as Text | null)) {
+        const nodeLen = node.textContent?.length || 0;
+        if (nodeOffset + nodeLen >= targetOffset) {
+          const range = document.createRange();
+          range.setStart(node, targetOffset - nodeOffset);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          return;
+        }
+        nodeOffset += nodeLen;
+      }
+      
+      // Fallback: end of this line
       const range = document.createRange();
-      range.setStart(node, offset - currentOffset);
-      range.collapse(true);
+      range.selectNodeContents(line);
+      range.collapse(false);
       sel.removeAllRanges();
       sel.addRange(range);
       return;
     }
-    currentOffset += nodeLen;
+    
+    currentOffset += lineLen + 1; // +1 for newline
   }
   
-  // If offset exceeds content, place at end
+  // Fallback: place at end
   const range = document.createRange();
   range.selectNodeContents(el);
   range.collapse(false);
