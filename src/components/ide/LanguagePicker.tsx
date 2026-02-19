@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Code2, 
   FileCode, 
@@ -9,13 +9,18 @@ import {
   Globe,
   Sparkles,
   Search,
-  X
+  X,
+  Bot,
+  Send,
+  Loader2,
+  User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import ReactMarkdown from 'react-markdown';
 
 export type LanguageTemplate = 
-  | 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' 
+  | 'blank' | 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' 
   | 'ruby' | 'php' | 'csharp' | 'bash' | 'lua' | 'perl'
   | 'r' | 'haskell' | 'nim' | 'zig' | 'lisp' | 'd' | 'groovy' | 'pascal'
   | 'react' | 'nodejs' | 'flask' | 'django' | 'sqlite';
@@ -32,8 +37,25 @@ interface LanguagePickerProps {
   onSelect: (template: LanguageTemplate) => void;
 }
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+const TEMPLATE_IDS: LanguageTemplate[] = [
+  'blank', 'html', 'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'go', 'rust',
+  'ruby', 'php', 'csharp', 'bash', 'lua', 'perl', 'r', 'haskell', 'nim', 'zig', 'lisp',
+  'd', 'groovy', 'pascal', 'react', 'nodejs', 'flask', 'django', 'sqlite'
+];
+
 const languages: LanguageOption[] = [
-  // Popular Web Templates
+  {
+    id: 'blank',
+    name: 'Blank Repl',
+    icon: <FileCode className="w-8 h-8" />,
+    description: 'Start from scratch with an empty project',
+    color: 'from-gray-400 to-gray-600',
+  },
   {
     id: 'html',
     name: 'HTML/CSS/JS',
@@ -69,7 +91,6 @@ const languages: LanguageOption[] = [
     description: 'JavaScript with types for better development',
     color: 'from-blue-500 to-blue-700',
   },
-  // Python Ecosystem
   {
     id: 'python',
     name: 'Python',
@@ -91,7 +112,6 @@ const languages: LanguageOption[] = [
     description: 'Full-featured Python web framework',
     color: 'from-green-700 to-green-900',
   },
-  // Systems Languages
   {
     id: 'java',
     name: 'Java',
@@ -141,7 +161,6 @@ const languages: LanguageOption[] = [
     description: 'Efficient and expressive compiled language',
     color: 'from-yellow-500 to-amber-600',
   },
-  // Scripting & Web
   {
     id: 'ruby',
     name: 'Ruby',
@@ -156,7 +175,6 @@ const languages: LanguageOption[] = [
     description: 'Popular server-side scripting language',
     color: 'from-indigo-500 to-purple-600',
   },
-  // .NET
   {
     id: 'csharp',
     name: 'C#',
@@ -164,7 +182,6 @@ const languages: LanguageOption[] = [
     description: 'Versatile language for .NET and games',
     color: 'from-purple-600 to-violet-700',
   },
-  // Data & Scientific
   {
     id: 'sqlite',
     name: 'SQLite',
@@ -179,7 +196,6 @@ const languages: LanguageOption[] = [
     description: 'Statistical computing and data analysis',
     color: 'from-blue-500 to-gray-600',
   },
-  // Functional Languages
   {
     id: 'haskell',
     name: 'Haskell',
@@ -194,7 +210,6 @@ const languages: LanguageOption[] = [
     description: 'The original programmable programming language',
     color: 'from-gray-600 to-gray-800',
   },
-  // Additional Languages
   {
     id: 'd',
     name: 'D',
@@ -230,7 +245,6 @@ const languages: LanguageOption[] = [
     description: 'Text processing and system administration',
     color: 'from-sky-600 to-blue-700',
   },
-  // Shell
   {
     id: 'bash',
     name: 'Bash',
@@ -239,6 +253,237 @@ const languages: LanguageOption[] = [
     color: 'from-green-600 to-emerald-700',
   },
 ];
+
+// AI Template Assistant component
+const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate) => void }) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  useEffect(() => {
+    if (isOpen) inputRef.current?.focus();
+  }, [isOpen]);
+
+  const extractTemplateId = (text: string): LanguageTemplate | null => {
+    const match = text.match(/\[template:(\w+)\]/);
+    if (match && TEMPLATE_IDS.includes(match[1] as LanguageTemplate)) {
+      return match[1] as LanguageTemplate;
+    }
+    return null;
+  };
+
+  const cleanContent = (text: string): string => {
+    return text.replace(/\[template:\w+\]/g, '').trim();
+  };
+
+  const send = async () => {
+    if (!input.trim() || isLoading) return;
+    const userMsg: ChatMessage = { role: 'user', content: input.trim() };
+    const allMessages = [...messages, userMsg];
+    setMessages(allMessages);
+    setInput('');
+    setIsLoading(true);
+
+    let assistantSoFar = '';
+
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/template-assistant`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ messages: allMessages }),
+        }
+      );
+
+      if (!resp.ok || !resp.body) {
+        throw new Error('Failed to get response');
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+          let line = buffer.slice(0, newlineIndex);
+          buffer = buffer.slice(newlineIndex + 1);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (!line.startsWith('data: ')) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              assistantSoFar += content;
+              setMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last?.role === 'assistant') {
+                  return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                }
+                return [...prev, { role: 'assistant', content: assistantSoFar }];
+              });
+            }
+          } catch { /* partial JSON, skip */ }
+        }
+      }
+    } catch (err) {
+      console.error('Template assistant error:', err);
+      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I couldn't process that. Try picking a template from the grid!" }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-lg hover:shadow-xl hover:scale-105 transition-all"
+      >
+        <Bot className="w-5 h-5" />
+        <span className="text-sm font-medium">Not sure? Ask AI</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50 w-96 h-[480px] bg-card border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-md bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+            <Bot className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h3 className="text-sm font-medium text-foreground">Template Assistant</h3>
+            <p className="text-[10px] text-muted-foreground">Tell me what you want to build</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setIsOpen(false)}
+          className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Messages */}
+      <div className="flex-1 overflow-auto p-3 space-y-3 ide-scrollbar">
+        {messages.length === 0 && (
+          <div className="text-center py-8 space-y-3">
+            <Sparkles className="w-8 h-8 mx-auto text-primary/50" />
+            <div>
+              <p className="text-sm text-muted-foreground">Describe what you want to build</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">e.g. "I want to build a REST API" or "I'm a beginner learning to code"</p>
+            </div>
+          </div>
+        )}
+        {messages.map((msg, i) => (
+          <div key={i} className={cn('flex gap-2', msg.role === 'user' ? 'justify-end' : 'justify-start')}>
+            {msg.role === 'assistant' && (
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Bot className="w-3.5 h-3.5 text-white" />
+              </div>
+            )}
+            <div className={cn(
+              'max-w-[80%] rounded-lg px-3 py-2 text-sm',
+              msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
+            )}>
+              {msg.role === 'assistant' ? (
+                <div>
+                  <div className="prose prose-sm prose-invert max-w-none">
+                    <ReactMarkdown>{cleanContent(msg.content)}</ReactMarkdown>
+                  </div>
+                  {/* Template suggestion button */}
+                  {(() => {
+                    const templateId = extractTemplateId(msg.content);
+                    if (!templateId) return null;
+                    const lang = languages.find(l => l.id === templateId);
+                    return (
+                      <button
+                        onClick={() => onSelect(templateId)}
+                        className="mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-md bg-primary/10 hover:bg-primary/20 border border-primary/30 transition-colors"
+                      >
+                        <div className={cn('w-6 h-6 rounded bg-gradient-to-br flex items-center justify-center text-white', lang?.color || 'from-gray-400 to-gray-600')}>
+                          <div className="scale-50">{lang?.icon}</div>
+                        </div>
+                        <span className="text-xs font-medium text-primary">
+                          Use {lang?.name || templateId}
+                        </span>
+                        <Sparkles className="w-3 h-3 text-primary ml-auto" />
+                      </button>
+                    );
+                  })()}
+                </div>
+              ) : (
+                msg.content
+              )}
+            </div>
+            {msg.role === 'user' && (
+              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <User className="w-3.5 h-3.5 text-white" />
+              </div>
+            )}
+          </div>
+        ))}
+        {isLoading && messages[messages.length - 1]?.role === 'user' && (
+          <div className="flex gap-2">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+              <Bot className="w-3.5 h-3.5 text-white" />
+            </div>
+            <div className="bg-muted rounded-lg px-3 py-2 flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+              <span className="text-xs text-muted-foreground">Thinking...</span>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="p-3 border-t border-border">
+        <div className="flex gap-2">
+          <Input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+            placeholder="What do you want to build?"
+            className="flex-1 text-sm"
+            disabled={isLoading}
+          />
+          <button
+            onClick={send}
+            disabled={!input.trim() || isLoading}
+            className={cn(
+              'p-2.5 rounded-lg transition-colors',
+              input.trim() ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-muted text-muted-foreground cursor-not-allowed'
+            )}
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -267,7 +512,7 @@ export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
           </p>
         </div>
 
-        {/* Search bar - Replit style */}
+        {/* Search bar */}
         <div className="relative max-w-lg mx-auto mb-8">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -330,6 +575,9 @@ export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
           {filteredLanguages.length} template{filteredLanguages.length !== 1 ? 's' : ''} available
         </p>
       </div>
+
+      {/* AI Template Assistant */}
+      <TemplateAssistant onSelect={onSelect} />
     </div>
   );
 };
