@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const AGENT_SYSTEM_PROMPT = `You are Replit Agent, an elite AI coding assistant integrated into a powerful online IDE. You operate in AGENT MODE, which means you think step-by-step, use tools, and can propose code changes that users can apply directly.
@@ -167,6 +168,27 @@ When users ask for a custom/unique theme (e.g. "make me an ocean theme", "I want
 11. **Project Management**: Use <fork_project>, <star_project>, <view_history> for forking, starring, and browsing/rolling back history
 12. **Be Thorough**: Check for related issues, don't just fix the obvious
 
+### IDE limitations
+
+Though this online IDE has been made as through as possible, there are still issues possible. For example, with a HTML/CSS/JS template:
+""🚀 Running script.js...
+/home/wandbox/prog.js:131
+document.getElementById('cookie').addEventListener('click', (e) => {
+^
+
+ReferenceError: document is not defined
+    at Object.<anonymous> (/home/wandbox/prog.js:131:1)
+    at Module._compile (node:internal/modules/cjs/loader:1469:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1548:10)
+    at Module.load (node:internal/modules/cjs/loader:1288:32)
+    at Module._load (node:internal/modules/cjs/loader:1104:12)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:174:12)
+    at node:internal/main/run_main_module:28:49
+
+Node.js v20.17.0
+✅ Finished running script.js"
+All repls will be ran through wandbox or babble+wandbox. This will result in certain undefined errors such as the one shown.
+
 ### Example Response Pattern
 
 <thinking>
@@ -204,13 +226,13 @@ serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
         JSON.stringify({ error: "Authentication required. Please sign in to use the AI assistant." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    
+
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error("Supabase configuration missing");
     }
@@ -223,10 +245,10 @@ serve(async (req) => {
     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
 
     if (claimsError || !claimsData?.claims) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired session. Please sign in again." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Invalid or expired session. Please sign in again." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const userId = claimsData.claims.sub;
@@ -234,25 +256,26 @@ serve(async (req) => {
 
     const { messages, currentFile, consoleErrors, workflows, agentMode } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
+
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     // Build context section
     let contextSection = "";
-    
+
     if (currentFile) {
       contextSection += `
 ### Active File: \`${currentFile.name}\`
-**Language**: ${currentFile.language || 'unknown'}
+**Language**: ${currentFile.language || "unknown"}
 
-\`\`\`${currentFile.language || ''}
+\`\`\`${currentFile.language || ""}
 ${currentFile.content}
 \`\`\`
 `;
     } else {
-      contextSection += "📂 No file is currently open. I can still help with general questions, code generation, or workflow creation!";
+      contextSection +=
+        "📂 No file is currently open. I can still help with general questions, code generation, or workflow creation!";
     }
 
     if (consoleErrors) {
@@ -269,13 +292,13 @@ I'll factor these errors into my analysis.`;
       contextSection += `
 
 ### 🔧 Existing Workflows
-${workflows.map((w: { name: string; type: string; command: string }) => `- **${w.name}** (${w.type}): \`${w.command}\``).join('\n')}
+${workflows.map((w: { name: string; type: string; command: string }) => `- **${w.name}** (${w.type}): \`${w.command}\``).join("\n")}
 
 I can create new workflows or help modify existing ones.`;
     }
 
     // Use agent prompt for agent mode, simpler prompt otherwise
-    const systemPrompt = agentMode 
+    const systemPrompt = agentMode
       ? AGENT_SYSTEM_PROMPT + "\n" + contextSection
       : `You are a helpful AI coding assistant. Be concise and helpful.
 
@@ -289,10 +312,7 @@ ${contextSection}`;
       },
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages,
-        ],
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true,
       }),
     });
