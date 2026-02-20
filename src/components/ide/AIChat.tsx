@@ -5,7 +5,7 @@ import {
   Wrench, StopCircle, Trash2, CheckCircle2, XCircle, AlertCircle, Paintbrush,
   GitBranch, GitCommit as GitCommitIcon, Download, Globe, Lock, Link2, Twitter,
   Linkedin, Mail, Share2, GitFork, Star, History, MessageCircleQuestion, Save,
-  PlayCircle, Music, Key, Settings, Diff
+  PlayCircle, Music, Key, Settings, Diff, Paperclip, Image, FileVideo, FileAudio, FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -16,6 +16,7 @@ import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage, Ge
 import { useApiKeys, PROVIDER_MODELS, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { ApiKeysDialog } from './ApiKeysDialog';
 import { getDiffLines } from '@/lib/diffUtils';
+import { useAttachments, ChatAttachment } from '@/hooks/useAttachments';
 
 interface QuickAction {
   id: string;
@@ -385,6 +386,10 @@ export const AIChat = ({
   const [showApiKeys, setShowApiKeys] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const {
+    attachments, fileInputRef, addFiles, removeAttachment,
+    clearAttachments, openFilePicker, buildContentParts, acceptString,
+  } = useAttachments();
 
   const { 
     messages, 
@@ -452,7 +457,7 @@ export const AIChat = ({
   }, [isOpen]);
 
   const handleSend = () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && attachments.length === 0) || isLoading) return;
     
     if (!user) {
       return;
@@ -464,6 +469,8 @@ export const AIChat = ({
       .map(line => line.content)
       .join('\n');
 
+    const multimodalContent = buildContentParts(input, attachments);
+
     sendMessage(input, {
       currentFile: currentFile ? {
         name: currentFile.name,
@@ -472,9 +479,11 @@ export const AIChat = ({
       } : null,
       consoleErrors: recentErrors,
       agentMode: true,
+      multimodalContent: attachments.length > 0 ? multimodalContent : undefined,
     });
     
     setInput('');
+    clearAttachments();
   };
 
   const handleQuickAction = (action: QuickAction) => {
@@ -976,8 +985,44 @@ export const AIChat = ({
               </div>
             )}
 
-            {/* Text input + send */}
+            {/* Attachment previews */}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {attachments.map(att => (
+                  <div key={att.id} className="flex items-center gap-1 px-2 py-1 rounded-md bg-accent/50 border border-border text-[11px]">
+                    {att.type === 'image' ? <Image className="w-3 h-3 text-primary" /> :
+                     att.type === 'video' ? <FileVideo className="w-3 h-3 text-primary" /> :
+                     att.type === 'audio' ? <FileAudio className="w-3 h-3 text-primary" /> :
+                     <FileText className="w-3 h-3 text-primary" />}
+                    <span className="max-w-[100px] truncate text-foreground">{att.name}</span>
+                    <button onClick={() => removeAttachment(att.id)} className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={acceptString}
+              className="hidden"
+              onChange={(e) => { if (e.target.files) { addFiles(e.target.files); e.target.value = ''; } }}
+            />
+
+            {/* Text input + attach + send */}
             <div className="flex gap-2">
+              <button
+                onClick={openFilePicker}
+                disabled={isLoading}
+                className="p-2.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                title="Attach file (image, video, audio, PDF)"
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
               <textarea
                 ref={inputRef}
                 value={input}
@@ -998,10 +1043,10 @@ export const AIChat = ({
               ) : (
                 <button
                   onClick={handleSend}
-                  disabled={!input.trim()}
+                  disabled={!input.trim() && attachments.length === 0}
                   className={cn(
                     'p-2.5 rounded-lg transition-colors',
-                    input.trim()
+                    (input.trim() || attachments.length > 0)
                       ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                       : 'bg-muted text-muted-foreground cursor-not-allowed'
                   )}

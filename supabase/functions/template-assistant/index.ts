@@ -15,6 +15,8 @@ IMPORTANT PLATFORM FACTS:
 - Only standard library modules are available (no pip/npm install at runtime).
 - For HTML/CSS/JS and React, code runs in-browser via Babel Standalone.
 
+Users may attach images, PDFs, or other files to show you what they want to build (e.g. screenshots, mockups, documents). Analyze them and recommend the best template.
+
 Available templates:
 - blank: Empty project, start from scratch
 - html: HTML/CSS/JS website
@@ -63,6 +65,8 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Messages may contain multimodal content (content as array with text + image_url parts)
+    // Pass them through as-is since the gateway supports OpenAI-compatible format
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
