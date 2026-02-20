@@ -13,11 +13,17 @@ import {
   Bot,
   Send,
   Loader2,
-  User
+  User,
+  Paperclip,
+  Image,
+  FileVideo,
+  FileAudio,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import ReactMarkdown from 'react-markdown';
+import { useAttachments } from '@/hooks/useAttachments';
 
 export type LanguageTemplate = 
   | 'blank' | 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' 
@@ -262,6 +268,10 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
   const [isOpen, setIsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const {
+    attachments, fileInputRef, addFiles, removeAttachment,
+    clearAttachments, openFilePicker, buildContentParts, acceptString,
+  } = useAttachments();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -284,11 +294,17 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
   };
 
   const send = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && attachments.length === 0) || isLoading) return;
     const userMsg: ChatMessage = { role: 'user', content: input.trim() };
     const allMessages = [...messages, userMsg];
     setMessages(allMessages);
+
+    // Build multimodal content for the API
+    const multimodalContent = buildContentParts(input.trim(), attachments);
+    const apiMessage = { role: 'user' as const, content: multimodalContent };
+
     setInput('');
+    clearAttachments();
     setIsLoading(true);
 
     let assistantSoFar = '';
@@ -302,7 +318,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
             'Content-Type': 'application/json',
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ messages: allMessages }),
+          body: JSON.stringify({ messages: [...allMessages.slice(0, -1).map(m => ({ role: m.role, content: m.content })), apiMessage] }),
         }
       );
 
@@ -459,7 +475,43 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
 
       {/* Input */}
       <div className="p-3 border-t border-border">
+        {/* Attachment previews */}
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {attachments.map(att => (
+              <div key={att.id} className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent/50 border border-border text-[10px]">
+                {att.type === 'image' ? <Image className="w-2.5 h-2.5 text-primary" /> :
+                 att.type === 'video' ? <FileVideo className="w-2.5 h-2.5 text-primary" /> :
+                 att.type === 'audio' ? <FileAudio className="w-2.5 h-2.5 text-primary" /> :
+                 <FileText className="w-2.5 h-2.5 text-primary" />}
+                <span className="max-w-[80px] truncate text-foreground">{att.name}</span>
+                <button onClick={() => removeAttachment(att.id)} className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept={acceptString}
+          className="hidden"
+          onChange={(e) => { if (e.target.files) { addFiles(e.target.files); e.target.value = ''; } }}
+        />
+
         <div className="flex gap-2">
+          <button
+            onClick={openFilePicker}
+            disabled={isLoading}
+            className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="Attach file"
+          >
+            <Paperclip className="w-3.5 h-3.5" />
+          </button>
           <Input
             ref={inputRef}
             value={input}
@@ -471,10 +523,10 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
           />
           <button
             onClick={send}
-            disabled={!input.trim() || isLoading}
+            disabled={(!input.trim() && attachments.length === 0) || isLoading}
             className={cn(
               'p-2.5 rounded-lg transition-colors',
-              input.trim() ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-muted text-muted-foreground cursor-not-allowed'
+              (input.trim() || attachments.length > 0) ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-muted text-muted-foreground cursor-not-allowed'
             )}
           >
             <Send className="w-4 h-4" />
