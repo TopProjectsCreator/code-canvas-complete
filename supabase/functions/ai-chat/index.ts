@@ -24,6 +24,14 @@ const AGENT_SYSTEM_PROMPT = `You are an AI coding assistant integrated into an o
 
 You operate in AGENT MODE: think step-by-step, use tools, and propose code changes users can apply directly.
 
+### Multimodal Input
+
+Users can attach files to their messages including images, PDFs, videos, and audio. When files are attached, they are provided as inline content parts. Analyze them and respond helpfully:
+- **Images**: Describe, analyze code screenshots, identify UI issues, etc.
+- **PDFs**: Read and summarize document content, extract information.
+- **Videos**: Analyze video content, describe scenes, identify issues.
+- **Audio**: Transcribe or summarize audio content.
+
 ### Web Search
 
 You have access to web search. When users ask about current events, documentation, tutorials, or anything that would benefit from up-to-date information, use the web_search tool. The search results will be provided back to you so you can give informed answers.
@@ -106,6 +114,7 @@ Available themes: replit-dark, github-dark, monokai, dracula, nord, solarized-da
 4. **Show Changes**: Use <code_change> for modifications users can apply
 5. **Search the Web**: When users ask about current events or need up-to-date docs, use the web_search tool
 6. **Never suggest .replit or nix files**: They don't work in this environment
+7. **Analyze Attachments**: When users attach images, PDFs, videos, or audio, analyze them thoroughly
 
 ## Current Context`;
 
@@ -128,7 +137,6 @@ const WEB_SEARCH_TOOLS = [
 ];
 
 // Provider endpoint configurations for BYOK
-// Models list is not restrictive — any model the user's key supports will be forwarded
 const BYOK_PROVIDERS: Record<string, { url: string; headerKey: string }> = {
   openai: { url: "https://api.openai.com/v1/chat/completions", headerKey: "Bearer" },
   anthropic: { url: "https://api.anthropic.com/v1/messages", headerKey: "x-api-key" },
@@ -196,7 +204,7 @@ async function callBYOKProvider(
     });
   }
 
-  // OpenAI-compatible format (OpenAI, Gemini, Perplexity, DeepSeek, xAI, Cohere, OpenRouter)
+  // OpenAI-compatible format
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${apiKey}`,
@@ -273,7 +281,6 @@ serve(async (req) => {
       
       if (anyKey && anyKey.length > 0) {
         hasByokKey = true;
-        // Use first available key if no specific provider selected
         if (!userApiKey) {
           userApiKey = (anyKey[0] as any).api_key;
           selectedProvider = (anyKey[0] as any).provider;
@@ -286,7 +293,6 @@ serve(async (req) => {
     if (!hasByokKey) {
       const limit = DAILY_LIMITS[modelTier];
       if (limit !== -1) {
-        // Use service role to read/write usage tracking
         const serviceSupabase = supabaseServiceKey 
           ? createClient(supabaseUrl, supabaseServiceKey)
           : supabase;
@@ -313,7 +319,6 @@ serve(async (req) => {
           });
         }
 
-        // Increment usage
         if (usageData) {
           await serviceSupabase.from("ai_usage_tracking")
             .update({ request_count: currentCount + 1 })
@@ -345,6 +350,8 @@ serve(async (req) => {
       ? AGENT_SYSTEM_PROMPT + "\n" + contextSection
       : `You are a helpful AI coding assistant in a Replit-like IDE (but NOT actual Replit). This IDE runs code through Wandbox. .replit files do nothing here.\n\n${contextSection}`;
 
+    // Messages may contain multimodal content (content as array with text + image_url parts)
+    // Pass them through as-is since the gateway supports OpenAI-compatible format
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
     // === BYOK path: call external provider directly ===
@@ -389,12 +396,10 @@ serve(async (req) => {
                     
                     try {
                       const parsed = JSON.parse(line.slice(6));
-                      // Anthropic content_block_delta events
                       if (parsed.type === "content_block_delta" && parsed.delta?.text) {
                         const openaiChunk = { choices: [{ delta: { content: parsed.delta.text } }] };
                         controller.enqueue(encoder.encode(`data: ${JSON.stringify(openaiChunk)}\n\n`));
                       }
-                      // Anthropic message_stop event
                       if (parsed.type === "message_stop") {
                         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
                       }
