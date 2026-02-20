@@ -326,6 +326,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       consoleErrors?: string;
       agentMode?: boolean;
       workflows?: Array<{ name: string; type: string; command: string }>;
+      multimodalContent?: any; // OpenAI-compatible content parts (array) or string
     } = {}
   ) => {
     if (!messageContent.trim() || isLoading) return;
@@ -349,11 +350,18 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     try {
       abortControllerRef.current = new AbortController();
       
+      // Build messages array, using multimodal content for the latest user message if provided
+      const historyMessages = messages.slice(1).map(m => ({ role: m.role, content: m.content }));
+      const latestUserMsg = {
+        role: 'user' as const,
+        content: context.multimodalContent || messageContent,
+      };
+
       const response = await fetch(CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
-          messages: messages.slice(1).concat(userMessage).map(m => ({ role: m.role, content: m.content })),
+          messages: [...historyMessages, latestUserMsg],
           currentFile: context.currentFile ? { name: context.currentFile.name, language: context.currentFile.language, content: context.currentFile.content?.slice(0, 10000) } : null,
           consoleErrors: context.consoleErrors || null,
           workflows: context.workflows || workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
