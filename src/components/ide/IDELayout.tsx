@@ -1623,6 +1623,9 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             onRunProject={() => {
               handleRun();
             }}
+            onChangeTemplate={(template) => {
+              handleChangeTemplate(template as import('./LanguagePicker').LanguageTemplate);
+            }}
           />
         </div>
       </div>
