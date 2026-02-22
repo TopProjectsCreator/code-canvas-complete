@@ -1626,6 +1626,34 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             onChangeTemplate={(template) => {
               handleChangeTemplate(template as import('./LanguagePicker').LanguageTemplate);
             }}
+            onRenameFile={(oldName, newName) => {
+              const findFileByName = (nodes: FileNode[], name: string): FileNode | null => {
+                for (const node of nodes) {
+                  if (node.type === 'file' && node.name === name) return node;
+                  if (node.children) {
+                    const found = findFileByName(node.children, name);
+                    if (found) return found;
+                  }
+                }
+                return null;
+              };
+              const target = findFileByName(files, oldName);
+              if (target) handleRenameFile(target.id, newName);
+            }}
+            onDeleteFile={(name) => {
+              const findFileByName = (nodes: FileNode[], targetName: string): FileNode | null => {
+                for (const node of nodes) {
+                  if (node.type === 'file' && node.name === targetName) return node;
+                  if (node.children) {
+                    const found = findFileByName(node.children, targetName);
+                    if (found) return found;
+                  }
+                }
+                return null;
+              };
+              const target = findFileByName(files, name);
+              if (target) handleDeleteFile(target.id);
+            }}
           />
         </div>
       </div>
