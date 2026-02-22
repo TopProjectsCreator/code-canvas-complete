@@ -51,6 +51,8 @@ interface UseAgentChatProps {
   onAskUser?: (question: string) => void;
   onSaveProject?: () => void;
   onRunProject?: () => void;
+  onRenameFile?: (oldName: string, newName: string) => void;
+  onDeleteFile?: (name: string) => void;
   workflows?: Workflow[];
 }
 
@@ -58,7 +60,7 @@ const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
 const IMAGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`;
 const MUSIC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-music`;
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, workflows = [] }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, workflows = [] }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
       id: '1',
@@ -258,7 +260,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const parseChatWidgets = (content: string): { widgets: ChatWidget[], cleanContent: string } => {
     const widgets: ChatWidget[] = [];
     let cleanContent = content;
-    const widgetTypes: ChatWidgetType[] = ['color_picker', 'coin_flip', 'dice_roll', 'calculator', 'spinner', 'stock', 'change_template'];
+    const widgetTypes: ChatWidgetType[] = ['color_picker', 'coin_flip', 'dice_roll', 'calculator', 'spinner', 'stock', 'change_template', 'pomodoro', 'logic_visualizer', 'asset_search', 'viewport_preview', 'a11y_audit', 'todo_tracker', 'dependency_visualizer', 'readme_generator', 'project_stats', 'code_review'];
     for (const wType of widgetTypes) {
       const regex = new RegExp(`<${wType}(\\s+[^>]*)?\\/?>`, 'g');
       let match;
@@ -275,7 +277,77 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         cleanContent = cleanContent.replace(match[0], '');
       }
     }
+
+    const aliases: Record<string, ChatWidgetType> = {
+      start_review: 'code_review',
+      show_project_stats: 'project_stats',
+      visualize_logic: 'logic_visualizer',
+      search_assets: 'asset_search',
+      preview_viewport: 'viewport_preview',
+      run_a11y_check: 'a11y_audit',
+      add_todo: 'todo_tracker',
+      generate_readme: 'readme_generator',
+    };
+
+    for (const [tag, type] of Object.entries(aliases)) {
+      const regex = new RegExp(`<${tag}(\\s+[^>]*)?\\s*\\/>`, 'g');
+      let match;
+      while ((match = regex.exec(content)) !== null) {
+        const config: Record<string, unknown> = {};
+        if (match[1]) {
+          const attrRegex = /(\w+)="([^"]*)"/g;
+          let attrMatch;
+          while ((attrMatch = attrRegex.exec(match[1])) !== null) {
+            config[attrMatch[1]] = attrMatch[2];
+          }
+        }
+        widgets.push({ id: generateId(), type, config });
+        cleanContent = cleanContent.replace(match[0], '');
+      }
+    }
+
     return { widgets, cleanContent: cleanContent.trim() };
+  };
+
+  const parseFileManagementActions = (content: string): { actions: Array<{ type: 'rename' | 'delete'; oldName?: string; newName?: string; name?: string }>; cleanContent: string } => {
+    const actions: Array<{ type: 'rename' | 'delete'; oldName?: string; newName?: string; name?: string }> = [];
+    let cleanContent = content;
+
+    const renameRegex = /<rename_file\s+old="([^"]+)"\s+new="([^"]+)"\s*\/>/g;
+    let match;
+    while ((match = renameRegex.exec(content)) !== null) {
+      actions.push({ type: 'rename', oldName: match[1], newName: match[2] });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    const deleteRegex = /<delete_file\s+name="([^"]+)"\s*\/>/g;
+    while ((match = deleteRegex.exec(content)) !== null) {
+      actions.push({ type: 'delete', name: match[1] });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    return { actions, cleanContent: cleanContent.trim() };
+  };
+
+
+
+  const parseGenerateTestsTags = (content: string): { codeChanges: CodeChange[]; cleanContent: string } => {
+    const codeChanges: CodeChange[] = [];
+    let cleanContent = content;
+    const regex = /<generate_tests\s+file="([^"]+)"\s*\/>/g;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      const sourceFile = match[1];
+      const testFile = sourceFile.replace(/\.(\w+)$/, '_test.$1');
+      codeChanges.push({
+        fileName: testFile,
+        language: testFile.endsWith('.ts') ? 'typescript' : 'javascript',
+        description: `Generated starter tests for ${sourceFile}`,
+        newCode: `import { describe, it, expect } from 'vitest';\n\ndescribe('${sourceFile}', () => {\n  it('should implement behavior', () => {\n    expect(true).toBe(true);\n  });\n});`,
+      });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+    return { codeChanges, cleanContent: cleanContent.trim() };
   };
 
   const parseThinkingBlocks = (content: string): { steps: AgentStep[], cleanContent: string } => {
@@ -313,13 +385,15 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     });
     content = afterTools;
     
-    const { codeChanges, cleanContent: afterCode } = parseCodeChanges(content);
+    const { codeChanges: inlineCodeChanges, cleanContent: afterCode } = parseCodeChanges(content);
+    const { codeChanges: generatedTests, cleanContent: afterGeneratedTests } = parseGenerateTestsTags(afterCode);
+    const codeChanges = [...inlineCodeChanges, ...generatedTests];
     codeChanges.forEach(cc => {
       allSteps.push({ id: generateId(), type: 'code_change', content: cc.description, timestamp: new Date(), codeChange: cc });
       const ccKey = `code:${cc.fileName}:${cc.description}`;
       if (onCodeChange && !executedActionsRef.current.has(ccKey)) { executedActionsRef.current.add(ccKey); onCodeChange(cc); }
     });
-    content = afterCode;
+    content = afterGeneratedTests;
     
     const { workflowActions, cleanContent: afterWorkflows } = parseWorkflowCommands(content);
     workflowActions.forEach(wa => {
@@ -377,6 +451,19 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
     const { widgets: parsedWidgets, cleanContent: afterWidgets } = parseChatWidgets(content);
     content = afterWidgets;
+
+    const { actions: fileActions, cleanContent: afterFileActions } = parseFileManagementActions(content);
+    fileActions.forEach((action) => {
+      if (action.type === 'rename' && action.oldName && action.newName) {
+        onRenameFile?.(action.oldName, action.newName);
+        allSteps.push({ id: generateId(), type: 'tool_call', content: `Renamed file: ${action.oldName} → ${action.newName}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'apply_code', arguments: { oldName: action.oldName, newName: action.newName }, status: 'completed' } });
+      }
+      if (action.type === 'delete' && action.name) {
+        onDeleteFile?.(action.name);
+        allSteps.push({ id: generateId(), type: 'tool_call', content: `Deleted file: ${action.name}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'apply_code', arguments: { name: action.name }, status: 'completed' } });
+      }
+    });
+    content = afterFileActions;
 
     return {
       content,
