@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { 
   Palette, Coins, Dices, Calculator as CalcIcon, Loader2, 
@@ -428,6 +428,50 @@ const TemplateChangeWidget = ({ widget, onChangeTemplate }: { widget: ChatWidget
   );
 };
 
+
+
+const SimpleInfoWidget = ({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) => (
+  <div className="border border-border rounded-lg overflow-hidden bg-muted/30 my-2">
+    <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b border-border">
+      {icon}
+      <span className="text-xs font-medium text-foreground">{title}</span>
+    </div>
+    <div className="p-3 text-xs text-muted-foreground">{children}</div>
+  </div>
+);
+
+const PomodoroWidget = ({ widget }: { widget: ChatWidget }) => {
+  const duration = Number(widget.config?.duration) || 25;
+  const [secondsLeft, setSecondsLeft] = useState(duration * 60);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => {
+      setSecondsLeft((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+  const ss = String(secondsLeft % 60).padStart(2, '0');
+
+  return (
+    <SimpleInfoWidget title="Pair Programming Timer" icon={<RotateCw className="w-3.5 h-3.5 text-primary" />}>
+      <div className="flex items-center justify-between">
+        <span className="text-xl font-mono text-foreground">{mm}:{ss}</span>
+        <button onClick={() => setRunning(v => !v)} className="px-2 py-1 rounded bg-primary text-primary-foreground">{running ? 'Pause' : 'Start'}</button>
+      </div>
+    </SimpleInfoWidget>
+  );
+};
+
+const GenericTagWidget = ({ widget }: { widget: ChatWidget }) => (
+  <SimpleInfoWidget title={widget.type.replace(/_/g, ' ')} icon={<FileCode className="w-3.5 h-3.5 text-primary" />}>
+    <pre className="whitespace-pre-wrap">{JSON.stringify(widget.config || {}, null, 2)}</pre>
+  </SimpleInfoWidget>
+);
+
 // ─── Main renderer ───
 export const ChatWidgetRenderer = ({ 
   widget, 
@@ -444,6 +488,17 @@ export const ChatWidgetRenderer = ({
     case 'spinner': return <SpinnerWidget widget={widget} />;
     case 'stock': return <StockWidget widget={widget} />;
     case 'change_template': return <TemplateChangeWidget widget={widget} onChangeTemplate={onChangeTemplate} />;
+    case 'pomodoro': return <PomodoroWidget widget={widget} />;
+    case 'project_stats':
+    case 'logic_visualizer':
+    case 'asset_search':
+    case 'viewport_preview':
+    case 'a11y_audit':
+    case 'todo_tracker':
+    case 'dependency_visualizer':
+    case 'readme_generator':
+    case 'code_review':
+      return <GenericTagWidget widget={widget} />;
     default: return null;
   }
 };
