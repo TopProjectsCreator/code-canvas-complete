@@ -60,6 +60,8 @@ interface AIChatProps {
   onSaveProject?: () => void;
   onRunProject?: () => void;
   onChangeTemplate?: (template: string) => void;
+  onRenameFile?: (oldName: string, newName: string) => void;
+  onDeleteFile?: (name: string) => void;
 }
 
 const quickActions: QuickAction[] = [
@@ -556,7 +558,9 @@ export const AIChat = ({
   onAskUser,
   onSaveProject,
   onRunProject,
-  onChangeTemplate
+  onChangeTemplate,
+  onRenameFile,
+  onDeleteFile
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -612,6 +616,8 @@ export const AIChat = ({
     onAskUser,
     onSaveProject,
     onRunProject,
+    onRenameFile,
+    onDeleteFile,
     workflows,
   });
 
@@ -636,18 +642,31 @@ export const AIChat = ({
     }
   }, [isOpen]);
 
+  const recentErrors = consoleOutput
+    ?.filter(line => line.type === 'error')
+    .slice(-5)
+    .map(line => line.content)
+    .join('\n');
+
+  const handleFixLatestError = () => {
+    if (!recentErrors) return;
+    sendMessage(`Please diagnose and fix this console error. Include likely causes, exact code changes, and use <web_search /> if this looks version-specific.\n\n${recentErrors}`, {
+      currentFile: currentFile ? {
+        name: currentFile.name,
+        language: currentFile.language,
+        content: currentFile.content,
+      } : null,
+      consoleErrors: recentErrors,
+      agentMode: true,
+    });
+  };
+
   const handleSend = () => {
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
     
     if (!user) {
       return;
     }
-
-    const recentErrors = consoleOutput
-      ?.filter(line => line.type === 'error')
-      .slice(-5)
-      .map(line => line.content)
-      .join('\n');
 
     const multimodalContent = buildContentParts(input, attachments);
 
@@ -669,12 +688,6 @@ export const AIChat = ({
   const handleQuickAction = (action: QuickAction) => {
     if (action.requiresFile && !currentFile) return;
     
-    const recentErrors = consoleOutput
-      ?.filter(line => line.type === 'error')
-      .slice(-5)
-      .map(line => line.content)
-      .join('\n');
-
     sendMessage(action.prompt, {
       currentFile: currentFile ? {
         name: currentFile.name,
@@ -1233,6 +1246,15 @@ export const AIChat = ({
             />
 
             {/* Text input + attach + send */}
+            {recentErrors && (
+              <button
+                onClick={handleFixLatestError}
+                className="mb-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
+              >
+                <AlertCircle className="w-3 h-3" />
+                Fix this error
+              </button>
+            )}
             <div className="flex gap-2">
               <button
                 onClick={openFilePicker}

@@ -103,7 +103,24 @@ export interface InteractiveQuestion {
   answer?: string | string[] | number;
 }
 
-export type ChatWidgetType = 'color_picker' | 'coin_flip' | 'dice_roll' | 'calculator' | 'spinner' | 'stock' | 'change_template';
+export type ChatWidgetType =
+  | 'color_picker'
+  | 'coin_flip'
+  | 'dice_roll'
+  | 'calculator'
+  | 'spinner'
+  | 'stock'
+  | 'change_template'
+  | 'pomodoro'
+  | 'project_stats'
+  | 'logic_visualizer'
+  | 'asset_search'
+  | 'viewport_preview'
+  | 'a11y_audit'
+  | 'todo_tracker'
+  | 'dependency_visualizer'
+  | 'readme_generator'
+  | 'code_review';
 
 export interface ChatWidget {
   id: string;
