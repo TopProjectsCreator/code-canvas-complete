@@ -18,6 +18,7 @@ import { useApiKeys, PROVIDER_MODELS, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { ApiKeysDialog } from './ApiKeysDialog';
 import { getDiffLines } from '@/lib/diffUtils';
 import { useAttachments, ChatAttachment } from '@/hooks/useAttachments';
+import { ChatWidgetRenderer } from './ChatWidgets';
 
 interface QuickAction {
   id: string;
@@ -58,6 +59,7 @@ interface AIChatProps {
   onAskUser?: (question: string) => void;
   onSaveProject?: () => void;
   onRunProject?: () => void;
+  onChangeTemplate?: (template: string) => void;
 }
 
 const quickActions: QuickAction[] = [
@@ -553,7 +555,8 @@ export const AIChat = ({
   onViewHistory,
   onAskUser,
   onSaveProject,
-  onRunProject
+  onRunProject,
+  onChangeTemplate
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -1071,6 +1074,15 @@ export const AIChat = ({
                             });
                           }}
                         />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Chat widgets */}
+                  {message.widgets && message.widgets.length > 0 && (
+                    <div className="space-y-2">
+                      {message.widgets.map(w => (
+                        <ChatWidgetRenderer key={w.id} widget={w} onChangeTemplate={onChangeTemplate} />
                       ))}
                     </div>
                   )}

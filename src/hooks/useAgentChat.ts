@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion, QuestionOption } from '@/types/agent';
+import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion, QuestionOption, ChatWidget, ChatWidgetType } from '@/types/agent';
 import { Workflow } from '@/types/ide';
 import { CustomThemeColors } from '@/contexts/ThemeContext';
 
@@ -255,6 +255,29 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     return { questions, cleanContent: cleanContent.trim() };
   };
 
+  const parseChatWidgets = (content: string): { widgets: ChatWidget[], cleanContent: string } => {
+    const widgets: ChatWidget[] = [];
+    let cleanContent = content;
+    const widgetTypes: ChatWidgetType[] = ['color_picker', 'coin_flip', 'dice_roll', 'calculator', 'spinner', 'stock', 'change_template'];
+    for (const wType of widgetTypes) {
+      const regex = new RegExp(`<${wType}(\\s+[^>]*)?\\/?>`, 'g');
+      let match;
+      while ((match = regex.exec(content)) !== null) {
+        const config: Record<string, unknown> = {};
+        if (match[1]) {
+          const attrRegex = /(\w+)="([^"]*)"/g;
+          let attrMatch;
+          while ((attrMatch = attrRegex.exec(match[1])) !== null) {
+            config[attrMatch[1]] = attrMatch[2];
+          }
+        }
+        widgets.push({ id: generateId(), type: wType, config });
+        cleanContent = cleanContent.replace(match[0], '');
+      }
+    }
+    return { widgets, cleanContent: cleanContent.trim() };
+  };
+
   const parseThinkingBlocks = (content: string): { steps: AgentStep[], cleanContent: string } => {
     const steps: AgentStep[] = [];
     let cleanContent = content;
@@ -275,6 +298,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     imagePrompts: string[];
     musicActions: MusicAction[];
     questions: InteractiveQuestion[];
+    widgets: ChatWidget[];
   } => {
     let content = rawContent;
     const allSteps: AgentStep[] = [];
@@ -351,6 +375,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     const { questions: parsedQuestions, cleanContent: afterQuestions } = parseInteractiveQuestions(content);
     content = afterQuestions;
 
+    const { widgets: parsedWidgets, cleanContent: afterWidgets } = parseChatWidgets(content);
+    content = afterWidgets;
+
     return {
       content,
       steps: allSteps,
@@ -359,6 +386,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       imagePrompts,
       musicActions,
       questions: parsedQuestions,
+      widgets: parsedWidgets,
     };
   };
 
@@ -466,7 +494,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
       // Final processing
       const processed = processAgentResponse(fullContent);
-      setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: processed.content, steps: processed.steps, hasCodeChanges: processed.hasCodeChanges, questions: processed.questions, isStreaming: false } : m));
+      setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: processed.content, steps: processed.steps, hasCodeChanges: processed.hasCodeChanges, questions: processed.questions, widgets: processed.widgets, isStreaming: false } : m));
 
       // Handle image generation requests
       if (processed.imagePrompts && processed.imagePrompts.length > 0) {
