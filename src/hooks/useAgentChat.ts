@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel } from '@/types/agent';
+import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion, QuestionOption } from '@/types/agent';
 import { Workflow } from '@/types/ide';
 import { CustomThemeColors } from '@/contexts/ThemeContext';
 
@@ -211,10 +211,48 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       let match;
       while ((match = regex.exec(content)) !== null) { shareActions.push({ type: tag }); cleanContent = cleanContent.replace(match[0], ''); }
     }
-    const askRegex = /<ask_user\s+question="([^"]+)"\s*\/>/g;
-    let askMatch;
-    while ((askMatch = askRegex.exec(content)) !== null) { shareActions.push({ type: 'ask_user', question: askMatch[1] }); cleanContent = cleanContent.replace(askMatch[0], ''); }
     return { shareActions, cleanContent: cleanContent.trim() };
+  };
+
+  const parseInteractiveQuestions = (content: string): { questions: InteractiveQuestion[], cleanContent: string } => {
+    const questions: InteractiveQuestion[] = [];
+    let cleanContent = content;
+    const promptRegex = /<ask_prompt\s+([^>]+)\/>/g;
+    let match;
+    while ((match = promptRegex.exec(content)) !== null) {
+      const attrs = match[1];
+      const getAttr = (name: string) => {
+        const m = new RegExp(`${name}="([^"]*)"`, 'i').exec(attrs);
+        return m ? m[1] : undefined;
+      };
+      const type = getAttr('type') as InteractiveQuestion['type'] || 'text';
+      const question = getAttr('question') || 'Please answer:';
+      const optionsStr = getAttr('options');
+      const options: QuestionOption[] | undefined = optionsStr
+        ? optionsStr.split(',').map((o, i) => ({ id: `opt_${i}`, label: o.trim() }))
+        : undefined;
+      const multi = getAttr('multi') === 'true';
+      const min = getAttr('min') ? Number(getAttr('min')) : undefined;
+      const max = getAttr('max') ? Number(getAttr('max')) : undefined;
+      const step = getAttr('step') ? Number(getAttr('step')) : undefined;
+      const minLabel = getAttr('minLabel');
+      const maxLabel = getAttr('maxLabel');
+
+      questions.push({
+        id: generateId(),
+        type,
+        question,
+        options,
+        multiSelect: multi,
+        min,
+        max,
+        step,
+        minLabel,
+        maxLabel,
+      });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+    return { questions, cleanContent: cleanContent.trim() };
   };
 
   const parseThinkingBlocks = (content: string): { steps: AgentStep[], cleanContent: string } => {
@@ -236,6 +274,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     hasWorkflowChanges: boolean;
     imagePrompts: string[];
     musicActions: MusicAction[];
+    questions: InteractiveQuestion[];
   } => {
     let content = rawContent;
     const allSteps: AgentStep[] = [];
@@ -309,6 +348,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     });
     content = afterShare;
 
+    const { questions: parsedQuestions, cleanContent: afterQuestions } = parseInteractiveQuestions(content);
+    content = afterQuestions;
+
     return {
       content,
       steps: allSteps,
@@ -316,6 +358,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       hasWorkflowChanges: workflowActions.length > 0,
       imagePrompts,
       musicActions,
+      questions: parsedQuestions,
     };
   };
 
@@ -423,7 +466,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
       // Final processing
       const processed = processAgentResponse(fullContent);
-      setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: processed.content, steps: processed.steps, hasCodeChanges: processed.hasCodeChanges, isStreaming: false } : m));
+      setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: processed.content, steps: processed.steps, hasCodeChanges: processed.hasCodeChanges, questions: processed.questions, isStreaming: false } : m));
 
       // Handle image generation requests
       if (processed.imagePrompts && processed.imagePrompts.length > 0) {
@@ -499,6 +542,16 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     setMessages([{ id: '1', role: 'assistant', content: "👋 Conversation cleared! How can I help you?" }]);
   }, []);
 
+  const answerQuestion = useCallback((messageId: string, questionId: string, answer: string | string[] | number) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id !== messageId) return m;
+      const updatedQuestions = m.questions?.map(q =>
+        q.id === questionId ? { ...q, answered: true, answer } : q
+      );
+      return { ...m, questions: updatedQuestions };
+    }));
+  }, []);
+
   return {
     messages,
     isLoading,
@@ -513,5 +566,6 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     applyCodeChange,
     stopGeneration,
     clearMessages,
+    answerQuestion,
   };
 };
