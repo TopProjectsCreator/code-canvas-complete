@@ -81,6 +81,28 @@ export interface GeneratedAudio {
   duration?: number;
 }
 
+export type QuestionType = 'text' | 'multiple_choice' | 'ranking' | 'slider';
+
+export interface QuestionOption {
+  id: string;
+  label: string;
+}
+
+export interface InteractiveQuestion {
+  id: string;
+  type: QuestionType;
+  question: string;
+  options?: QuestionOption[];     // for multiple_choice & ranking
+  min?: number;                   // for slider
+  max?: number;                   // for slider
+  step?: number;                  // for slider
+  minLabel?: string;              // for slider
+  maxLabel?: string;              // for slider
+  multiSelect?: boolean;          // for multiple_choice
+  answered?: boolean;
+  answer?: string | string[] | number;
+}
+
 export interface AgentMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -90,6 +112,7 @@ export interface AgentMessage {
   hasCodeChanges?: boolean;
   images?: GeneratedImage[];
   audios?: GeneratedAudio[];
+  questions?: InteractiveQuestion[];
 }
 
 export interface AgentContext {
