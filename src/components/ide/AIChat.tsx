@@ -5,14 +5,15 @@ import {
   Wrench, StopCircle, Trash2, CheckCircle2, XCircle, AlertCircle, Paintbrush,
   GitBranch, GitCommit as GitCommitIcon, Download, Globe, Lock, Link2, Twitter,
   Linkedin, Mail, Share2, GitFork, Star, History, MessageCircleQuestion, Save,
-  PlayCircle, Music, Key, Settings, Diff, Paperclip, Image, FileVideo, FileAudio, FileText
+  PlayCircle, Music, Key, Settings, Diff, Paperclip, Image, FileVideo, FileAudio, FileText,
+  GripVertical, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import { FileNode, TerminalLine, Workflow } from '@/types/ide';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAgentChat } from '@/hooks/useAgentChat';
-import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel } from '@/types/agent';
+import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion } from '@/types/agent';
 import { useApiKeys, PROVIDER_MODELS, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { ApiKeysDialog } from './ApiKeysDialog';
 import { getDiffLines } from '@/lib/diffUtils';
@@ -347,6 +348,181 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, onApplyShare, i
   );
 };
 
+// Interactive question prompt component
+const InteractiveQuestionBlock = ({ 
+  question, 
+  onAnswer,
+  onSendAnswer,
+}: { 
+  question: InteractiveQuestion; 
+  onAnswer: (answer: string | string[] | number) => void;
+  onSendAnswer: (question: string, answer: string) => void;
+}) => {
+  const [textValue, setTextValue] = useState('');
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [sliderValue, setSliderValue] = useState(question.min ?? 1);
+  const [rankedOptions, setRankedOptions] = useState<string[]>(
+    question.options?.map(o => o.label) || []
+  );
+
+  if (question.answered) {
+    const displayAnswer = Array.isArray(question.answer)
+      ? question.answer.join(', ')
+      : String(question.answer ?? '');
+    return (
+      <div className="border border-primary/30 rounded-lg p-3 bg-primary/5 my-2">
+        <div className="flex items-center gap-2 mb-1">
+          <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+          <span className="text-xs font-medium text-foreground">{question.question}</span>
+        </div>
+        <p className="text-xs text-muted-foreground ml-5">Answer: {displayAnswer}</p>
+      </div>
+    );
+  }
+
+  const handleSubmit = () => {
+    let answer: string | string[] | number;
+    let answerText: string;
+    if (question.type === 'text') {
+      answer = textValue;
+      answerText = textValue;
+    } else if (question.type === 'multiple_choice') {
+      answer = selectedOptions;
+      answerText = selectedOptions.join(', ');
+    } else if (question.type === 'slider') {
+      answer = sliderValue;
+      answerText = String(sliderValue);
+    } else {
+      answer = rankedOptions;
+      answerText = rankedOptions.map((o, i) => `${i + 1}. ${o}`).join(', ');
+    }
+    onAnswer(answer);
+    onSendAnswer(question.question, answerText);
+  };
+
+  const moveRank = (index: number, direction: -1 | 1) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= rankedOptions.length) return;
+    const updated = [...rankedOptions];
+    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+    setRankedOptions(updated);
+  };
+
+  const toggleOption = (label: string) => {
+    if (question.multiSelect) {
+      setSelectedOptions(prev =>
+        prev.includes(label) ? prev.filter(o => o !== label) : [...prev, label]
+      );
+    } else {
+      setSelectedOptions([label]);
+    }
+  };
+
+  return (
+    <div className="border border-primary/30 rounded-lg overflow-hidden bg-primary/5 my-2">
+      <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border-b border-primary/20">
+        <MessageCircleQuestion className="w-3.5 h-3.5 text-primary" />
+        <span className="text-xs font-medium text-foreground">{question.question}</span>
+        {question.multiSelect && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-mono">MULTI</span>
+        )}
+      </div>
+      <div className="p-3 space-y-2">
+        {question.type === 'text' && (
+          <input
+            type="text"
+            value={textValue}
+            onChange={e => setTextValue(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
+            placeholder="Type your answer..."
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        )}
+
+        {question.type === 'multiple_choice' && question.options && (
+          <div className="space-y-1">
+            {question.options.map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => toggleOption(opt.label)}
+                className={cn(
+                  'w-full text-left px-3 py-1.5 rounded-md text-xs transition-all border',
+                  selectedOptions.includes(opt.label)
+                    ? 'bg-primary/20 border-primary/50 text-foreground'
+                    : 'bg-background/50 border-border hover:bg-accent/50 text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <span className={cn(
+                    'w-3.5 h-3.5 rounded border flex items-center justify-center',
+                    question.multiSelect ? 'rounded-sm' : 'rounded-full',
+                    selectedOptions.includes(opt.label) ? 'bg-primary border-primary' : 'border-muted-foreground/50'
+                  )}>
+                    {selectedOptions.includes(opt.label) && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                  </span>
+                  {opt.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {question.type === 'ranking' && (
+          <div className="space-y-1">
+            {rankedOptions.map((opt, i) => (
+              <div key={opt} className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-background/50 border border-border text-xs">
+                <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
+                <GripVertical className="w-3 h-3 text-muted-foreground" />
+                <span className="flex-1 text-foreground">{opt}</span>
+                <button onClick={() => moveRank(i, -1)} disabled={i === 0} className="p-0.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30">
+                  <ArrowUp className="w-3 h-3" />
+                </button>
+                <button onClick={() => moveRank(i, 1)} disabled={i === rankedOptions.length - 1} className="p-0.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30">
+                  <ArrowDown className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {question.type === 'slider' && (
+          <div className="space-y-2">
+            <input
+              type="range"
+              min={question.min ?? 1}
+              max={question.max ?? 10}
+              step={question.step ?? 1}
+              value={sliderValue}
+              onChange={e => setSliderValue(Number(e.target.value))}
+              className="w-full accent-primary h-1.5"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>{question.minLabel ?? question.min ?? 1}</span>
+              <span className="text-xs font-semibold text-primary">{sliderValue}</span>
+              <span>{question.maxLabel ?? question.max ?? 10}</span>
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={handleSubmit}
+          disabled={
+            (question.type === 'text' && !textValue.trim()) ||
+            (question.type === 'multiple_choice' && selectedOptions.length === 0)
+          }
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all w-full justify-center',
+            'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed'
+          )}
+        >
+          <Send className="w-3 h-3" />
+          Submit Answer
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const AIChat = ({ 
   isOpen, 
   onClose, 
@@ -404,7 +580,8 @@ export const AIChat = ({
     sendMessage, 
     applyCodeChange,
     stopGeneration,
-    clearMessages 
+    clearMessages,
+    answerQuestion
   } = useAgentChat({
     onApplyCode: (code, fileName) => {
       if (onApplyCode) {
@@ -864,6 +1041,36 @@ export const AIChat = ({
                             </div>
                           ) : null}
                         </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Interactive questions */}
+                  {message.questions && message.questions.length > 0 && (
+                    <div className="space-y-2">
+                      {message.questions.map(q => (
+                        <InteractiveQuestionBlock
+                          key={q.id}
+                          question={q}
+                          onAnswer={(answer) => answerQuestion(message.id, q.id, answer)}
+                          onSendAnswer={(question, answerText) => {
+                            // Auto-send the answer as a user message
+                            const recentErrors = consoleOutput
+                              ?.filter(line => line.type === 'error')
+                              .slice(-5)
+                              .map(line => line.content)
+                              .join('\n');
+                            sendMessage(`**${question}**\nMy answer: ${answerText}`, {
+                              currentFile: currentFile ? {
+                                name: currentFile.name,
+                                language: currentFile.language,
+                                content: currentFile.content,
+                              } : null,
+                              consoleErrors: recentErrors,
+                              agentMode: true,
+                            });
+                          }}
+                        />
                       ))}
                     </div>
                   )}
