@@ -103,6 +103,14 @@ export interface InteractiveQuestion {
   answer?: string | string[] | number;
 }
 
+export type ChatWidgetType = 'color_picker' | 'coin_flip' | 'dice_roll' | 'calculator' | 'spinner' | 'stock' | 'change_template';
+
+export interface ChatWidget {
+  id: string;
+  type: ChatWidgetType;
+  config?: Record<string, unknown>;
+}
+
 export interface AgentMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -113,6 +121,7 @@ export interface AgentMessage {
   images?: GeneratedImage[];
   audios?: GeneratedAudio[];
   questions?: InteractiveQuestion[];
+  widgets?: ChatWidget[];
 }
 
 export interface AgentContext {
