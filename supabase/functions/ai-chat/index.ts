@@ -78,6 +78,7 @@ Diff only: <code_diff file="name.ts" lang="typescript" desc="description">unifie
 <fork_project /> <star_project /> <view_history />
 <save_project /> <run_project />
 <rename_file old="a.js" new="b.js" /> <delete_file name="temp.js" />
+<run_shell command="ls -la" />  — Execute a shell command and show output inline. Use for running scripts, checking files, etc.
 
 ## Multimodal
 Users can attach images, PDFs, videos, and audio. Analyze them thoroughly when provided.

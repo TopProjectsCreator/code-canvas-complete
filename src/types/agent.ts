@@ -32,7 +32,8 @@ export type ToolName =
   | 'view_history'
   | 'ask_user'
   | 'save_project'
-  | 'run_project';
+  | 'run_project'
+  | 'run_shell';
 
 export type AIModel = 'flash' | 'pro' | 'lite';
 
