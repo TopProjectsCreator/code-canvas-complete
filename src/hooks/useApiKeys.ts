@@ -149,7 +149,22 @@ export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]
     { id: 'microsoft/phi-4', label: 'Phi-4' },
     { id: 'perplexity/sonar-pro', label: 'Sonar Pro' },
   ],
-  github: [],
+  github: [
+    { id: 'openai/gpt-4o', label: 'GPT-4o' },
+    { id: 'openai/gpt-4o-mini', label: 'GPT-4o Mini' },
+    { id: 'openai/o3-mini', label: 'o3 Mini' },
+    { id: 'openai/o1', label: 'o1' },
+    { id: 'openai/o1-mini', label: 'o1 Mini' },
+    { id: 'meta-llama-3.1-405b-instruct', label: 'Llama 3.1 405B' },
+    { id: 'meta-llama-3.1-70b-instruct', label: 'Llama 3.1 70B' },
+    { id: 'meta-llama-3.1-8b-instruct', label: 'Llama 3.1 8B' },
+    { id: 'mistral-large-2411', label: 'Mistral Large' },
+    { id: 'mistral-small', label: 'Mistral Small' },
+    { id: 'cohere-command-r-plus', label: 'Command R+' },
+    { id: 'ai21-jamba-1.5-large', label: 'Jamba 1.5 Large' },
+    { id: 'phi-4', label: 'Phi-4' },
+    { id: 'deepseek-r1', label: 'DeepSeek R1' },
+  ],
 };
 
 const DAILY_LIMITS: Record<string, number> = {
