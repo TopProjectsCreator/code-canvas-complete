@@ -95,14 +95,20 @@ For production-grade static hosting on Koyeb, you can also deploy via a custom D
 
 ### Deploy on Replit
 
-1. Create a new Repl from this GitHub repository.
-  <img width="3199" height="1580" alt="image" src="https://github.com/user-attachments/assets/462e4afe-9578-4800-babc-4e29e9b374d7" />
-  Select lovable then put in: https://github.com/TopProjectsCreator/code-canvas-complete as the url
-  <img width="3195" height="1574" alt="image" src="https://github.com/user-attachments/assets/3dc0f098-33aa-4a31-9b15-96e64821cc21" />
-   Replit agent will automatically setup everything and make it ready to run.
-   <img width="915" height="1719" alt="image" src="https://github.com/user-attachments/assets/73715ba4-b9e9-4b58-bf72-7cdeb67f7282" />
-   Replit agent will automatically transfer the database and ai providers to replit.
-   For always-on/public deployment, configure a Replit Deployment for the project.
+
+1. **Create a new Repl** from the GitHub repository.
+<img width="600" alt="Step 1: Create Repl" src="[https://github.com/user-attachments/assets/462e4afe-9578-4800-babc-4e29e9b374d7](https://github.com/user-attachments/assets/462e4afe-9578-4800-babc-4e29e9b374d7)" />
+2. Select **lovable**, then input the following URL:
+`https://github.com/TopProjectsCreator/code-canvas-complete`
+<img width="600" alt="Step 2: Input URL" src="[https://github.com/user-attachments/assets/3dc0f098-33aa-4a31-9b15-96e64821cc21](https://github.com/user-attachments/assets/3dc0f098-33aa-4a31-9b15-96e64821cc21)" />
+3. **Replit Agent** will automatically set up the environment and prepare the project to run.
+<img width="250" alt="Step 3: Replit Agent Setup" src="[https://github.com/user-attachments/assets/94d996c0-4648-402e-9d10-b4648339c610](https://github.com/user-attachments/assets/94d996c0-4648-402e-9d10-b4648339c610)" />
+
+**Key Features**
+
+* **Automated Migration:** Replit Agent handles the transfer of your database and AI providers directly into the Replit ecosystem.
+* **Deployment:** For an always-on or public-facing application, remember to configure a **Replit Deployment** within the project settings.
+
 
 For production mode in Replit:
 
