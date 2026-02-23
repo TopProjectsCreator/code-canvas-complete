@@ -16,13 +16,22 @@ const AGENT_SYSTEM_PROMPT = `You are an AI coding assistant in a Replit-inspired
 - Propose code changes via <code_change> or <code_diff> blocks.
 
 ## INTERACTIVE QUESTIONS — MANDATORY
-Instead of typing a question, ALWAYS use one of these:
+Instead of typing a question, ALWAYS use one of these.
+- Supported types: text, multiple_choice, ranking, slider, yes_no, number, date, time, datetime, email.
+- If you need a yes/no response, prefer \`type="yes_no"\`.
+- For one-choice pickers, use \`multiple_choice\` without \`multi="true"\`.
 
 <ask_prompt type="text" question="What should the file be named?" />
 <ask_prompt type="multiple_choice" question="Which framework?" options="React,Vue,Angular,Svelte" />
 <ask_prompt type="multiple_choice" question="Select features:" options="Auth,DB,Storage" multi="true" />
 <ask_prompt type="ranking" question="Rank priorities:" options="Speed,Security,Readability" />
 <ask_prompt type="slider" question="Complexity level?" min="1" max="10" minLabel="Simple" maxLabel="Complex" />
+<ask_prompt type="yes_no" question="Should I create a config file for you?" />
+<ask_prompt type="number" question="How many items should I generate?" min="1" max="20" step="1" />
+<ask_prompt type="date" question="What deadline should I target?" />
+<ask_prompt type="time" question="What time should I schedule it for?" />
+<ask_prompt type="datetime" question="When should this run?" />
+<ask_prompt type="email" question="What email should receive updates?" placeholder="name@example.com" />
 
 ## INLINE WIDGETS — use contextually
 
@@ -93,6 +102,17 @@ const WEB_SEARCH_TOOLS = [
 ];
 
 // Provider endpoint configurations for BYOK
+const BYOK_DEFAULT_MODELS: Record<string, string> = {
+  openai: "gpt-4o",
+  anthropic: "claude-3-5-sonnet-latest",
+  gemini: "gemini-2.5-pro",
+  perplexity: "sonar",
+  deepseek: "deepseek-chat",
+  xai: "grok-4-fast",
+  cohere: "command-r-plus",
+  openrouter: "openai/gpt-4o",
+};
+
 const BYOK_PROVIDERS: Record<string, { url: string; headerKey: string }> = {
   openai: { url: "https://api.openai.com/v1/chat/completions", headerKey: "Bearer" },
   anthropic: { url: "https://api.anthropic.com/v1/messages", headerKey: "x-api-key" },
@@ -136,7 +156,7 @@ async function callBYOKProvider(
   const config = BYOK_PROVIDERS[provider];
   if (!config) throw new Error(`Unknown provider: ${provider}`);
 
-  const model = requestedModel || "gpt-4o";
+  const model = requestedModel || BYOK_DEFAULT_MODELS[provider] || "gpt-4o";
 
   // Anthropic has a different API format
   if (provider === "anthropic") {
@@ -312,9 +332,10 @@ serve(async (req) => {
 
     // === BYOK path: call external provider directly ===
     if (userApiKey && selectedProvider) {
-      console.log(`Using BYOK provider: ${selectedProvider}, model: ${byokModel}`);
+      const effectiveByokModel = byokModel || BYOK_DEFAULT_MODELS[selectedProvider] || "gpt-4o";
+      console.log(`Using BYOK provider: ${selectedProvider}, model: ${effectiveByokModel}`);
       try {
-        const byokResponse = await callBYOKProvider(selectedProvider, userApiKey, aiMessages, true, byokModel);
+        const byokResponse = await callBYOKProvider(selectedProvider, userApiKey, aiMessages, true, effectiveByokModel);
         if (!byokResponse.ok) {
           const errText = await byokResponse.text();
           console.error(`BYOK error (${selectedProvider}):`, byokResponse.status, errText);
