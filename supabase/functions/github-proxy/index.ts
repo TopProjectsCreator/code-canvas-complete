@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, owner, repo, branch, path, query } = await req.json();
+    // Body already parsed above
 
     let url: string;
     const headers: Record<string, string> = {
@@ -19,8 +19,10 @@ serve(async (req) => {
       "User-Agent": "Lovable-IDE",
     };
 
-    // Optional: use a GitHub token for higher rate limits (5000/hr vs 60/hr)
-    const token = Deno.env.get("GITHUB_TOKEN");
+    // Use user-provided GitHub token from request, or fall back to env
+    const body = await req.json();
+    const { action, owner, repo, branch, path, query, userToken } = body;
+    const token = userToken || Deno.env.get("GITHUB_TOKEN");
     if (token) {
       headers["Authorization"] = `token ${token}`;
     }
