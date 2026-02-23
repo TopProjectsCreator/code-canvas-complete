@@ -17,8 +17,8 @@ CRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, Sta
 - Think step-by-step in <thinking> blocks for complex requests.
 - Propose code changes via <code_change> or <code_diff> blocks.
 
-## INTERACTIVE QUESTIONS 
-Instead of typing a question, you can use one of these.
+## INTERACTIVE QUESTIONS — MANDATORY
+Instead of typing a question, ALWAYS use one of these.
 - Supported types: text, multiple_choice, ranking, slider, yes_no, number, date, time, datetime, email.
 - If you need a yes/no response, prefer \`type="yes_no"\`.
 - For one-choice pickers, use \`multiple_choice\` without \`multi="true"\`.
@@ -85,13 +85,13 @@ Users can attach images, PDFs, videos, and audio. Analyze them thoroughly when p
 
 ## Current Context`;
 
+
 const WEB_SEARCH_TOOLS = [
   {
     type: "function",
     function: {
       name: "web_search",
-      description:
-        "Search the web for current information, documentation, tutorials, code examples, or any topic the user asks about.",
+      description: "Search the web for current information, documentation, tutorials, code examples, or any topic the user asks about.",
       parameters: {
         type: "object",
         properties: {
@@ -137,11 +137,7 @@ async function executeWebSearch(query: string, apiKey: string): Promise<string> 
       body: JSON.stringify({
         model: "google/gemini-3-flash-preview",
         messages: [
-          {
-            role: "system",
-            content:
-              "You are a web search engine assistant. Provide comprehensive, factual, up-to-date information. Include code examples for programming topics.",
-          },
+          { role: "system", content: "You are a web search engine assistant. Provide comprehensive, factual, up-to-date information. Include code examples for programming topics." },
           { role: "user", content: `Search query: "${query}"\n\nProvide comprehensive search results for this query.` },
         ],
       }),
@@ -171,7 +167,7 @@ async function callBYOKProvider(
   if (provider === "anthropic") {
     const systemMsg = messages.find((m: any) => m.role === "system");
     const nonSystemMsgs = messages.filter((m: any) => m.role !== "system");
-
+    
     return fetch(config.url, {
       method: "POST",
       headers: {
@@ -213,8 +209,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Authentication required." }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -231,14 +226,12 @@ serve(async (req) => {
     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
     if (claimsError || !claimsData?.claims) {
       return new Response(JSON.stringify({ error: "Invalid session." }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const userId = claimsData.claims.sub;
-    const { messages, currentFile, consoleErrors, workflows, agentMode, model, byokProvider, byokModel } =
-      await req.json();
+    const { messages, currentFile, consoleErrors, workflows, agentMode, model, byokProvider, byokModel } = await req.json();
 
     // Check if user has a custom API key for the selected BYOK provider
     let userApiKey: string | null = null;
@@ -251,7 +244,7 @@ serve(async (req) => {
         .eq("user_id", userId)
         .eq("provider", byokProvider)
         .single();
-
+      
       if (keyData) {
         userApiKey = (keyData as any).api_key;
         selectedProvider = byokProvider;
@@ -266,7 +259,7 @@ serve(async (req) => {
         .select("provider, api_key")
         .eq("user_id", userId)
         .limit(1);
-
+      
       if (anyKey && anyKey.length > 0) {
         hasByokKey = true;
         if (!userApiKey) {
@@ -281,8 +274,10 @@ serve(async (req) => {
     if (!hasByokKey) {
       const limit = DAILY_LIMITS[modelTier];
       if (limit !== -1) {
-        const serviceSupabase = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : supabase;
-
+        const serviceSupabase = supabaseServiceKey 
+          ? createClient(supabaseUrl, supabaseServiceKey)
+          : supabase;
+        
         const today = new Date().toISOString().split("T")[0];
         const { data: usageData } = await serviceSupabase
           .from("ai_usage_tracking")
@@ -294,31 +289,25 @@ serve(async (req) => {
 
         const currentCount = (usageData as any)?.request_count || 0;
         if (currentCount >= limit) {
-          return new Response(
-            JSON.stringify({
-              error: `Daily limit reached for ${modelTier.toUpperCase()} model (${limit} requests/day). Add your own API key for unlimited usage, or try the Lite model (free & unlimited).`,
-              rateLimited: true,
-              tier: modelTier,
-              limit,
-              used: currentCount,
-            }),
-            {
-              status: 429,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
+          return new Response(JSON.stringify({ 
+            error: `Daily limit reached for ${modelTier.toUpperCase()} model (${limit} requests/day). Add your own API key for unlimited usage, or try the Lite model (free & unlimited).`,
+            rateLimited: true,
+            tier: modelTier,
+            limit,
+            used: currentCount,
+          }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
         if (usageData) {
-          await serviceSupabase
-            .from("ai_usage_tracking")
+          await serviceSupabase.from("ai_usage_tracking")
             .update({ request_count: currentCount + 1 })
             .eq("user_id", userId)
             .eq("model_tier", modelTier)
             .eq("usage_date", today);
         } else {
-          await serviceSupabase
-            .from("ai_usage_tracking")
+          await serviceSupabase.from("ai_usage_tracking")
             .insert({ user_id: userId, model_tier: modelTier, usage_date: today, request_count: 1 });
         }
       }
@@ -355,15 +344,9 @@ serve(async (req) => {
         if (!byokResponse.ok) {
           const errText = await byokResponse.text();
           console.error(`BYOK error (${selectedProvider}):`, byokResponse.status, errText);
-          return new Response(
-            JSON.stringify({
-              error: `${selectedProvider} API error (${byokResponse.status}): ${errText.slice(0, 200)}`,
-            }),
-            {
-              status: 502,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
-          );
+          return new Response(JSON.stringify({ error: `${selectedProvider} API error (${byokResponse.status}): ${errText.slice(0, 200)}` }), {
+            status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
         }
 
         // Anthropic streams use a different SSE format - convert to OpenAI-compatible
@@ -371,7 +354,7 @@ serve(async (req) => {
           const reader = byokResponse.body!.getReader();
           const decoder = new TextDecoder();
           const encoder = new TextEncoder();
-
+          
           const stream = new ReadableStream({
             async start(controller) {
               let buffer = "";
@@ -380,19 +363,19 @@ serve(async (req) => {
                   const { done, value } = await reader.read();
                   if (done) break;
                   buffer += decoder.decode(value, { stream: true });
-
+                  
                   let newlineIdx: number;
                   while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
                     const line = buffer.slice(0, newlineIdx).trim();
                     buffer = buffer.slice(newlineIdx + 1);
-
+                    
                     if (!line.startsWith("data: ") || line === "data: [DONE]") {
                       if (line === "data: [DONE]") {
                         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
                       }
                       continue;
                     }
-
+                    
                     try {
                       const parsed = JSON.parse(line.slice(6));
                       if (parsed.type === "content_block_delta" && parsed.delta?.text) {
@@ -402,9 +385,7 @@ serve(async (req) => {
                       if (parsed.type === "message_stop") {
                         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
                       }
-                    } catch {
-                      /* skip unparseable lines */
-                    }
+                    } catch { /* skip unparseable lines */ }
                   }
                 }
                 controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -415,7 +396,7 @@ serve(async (req) => {
               }
             },
           });
-
+          
           return new Response(stream, {
             headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
           });
@@ -428,26 +409,20 @@ serve(async (req) => {
       } catch (byokErr) {
         console.error("BYOK call failed:", byokErr);
         return new Response(JSON.stringify({ error: `Failed to call ${selectedProvider}: ${byokErr}` }), {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
     }
 
     // === Built-in AI path ===
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
+    
     if (!LOVABLE_API_KEY || LOVABLE_API_KEY === "placeholder") {
-      return new Response(
-        JSON.stringify({
-          error:
-            "Built-in AI is not available. Please add your own API key (OpenAI, Anthropic, Gemini, etc.) in the API Keys settings to use the AI chat.",
-        }),
-        {
-          status: 503,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ 
+        error: "Built-in AI is not available. Please add your own API key (OpenAI, Anthropic, Gemini, etc.) in the API Keys settings to use the AI chat.",
+      }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const MODEL_MAP: Record<string, string> = {
@@ -467,33 +442,28 @@ serve(async (req) => {
     if (!streamResponse.ok) {
       const errorText = await streamResponse.text();
       console.error(`Lovable gateway error (${streamResponse.status}):`, errorText.slice(0, 200));
-
+      
       if (streamResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again shortly." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-
-      return new Response(
-        JSON.stringify({
-          error: "Built-in AI service unavailable. Please use your own API key (BYOK) instead.",
-        }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      
+      return new Response(JSON.stringify({ 
+        error: "Built-in AI service unavailable. Please use your own API key (BYOK) instead.",
+      }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     return new Response(streamResponse.body, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
+
   } catch (e) {
     console.error("AI chat error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
