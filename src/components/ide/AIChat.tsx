@@ -359,7 +359,7 @@ const InteractiveQuestionBlock = ({
   onSendAnswer,
 }: { 
   question: InteractiveQuestion; 
-  onAnswer: (answer: string | string[] | number) => void;
+  onAnswer: (answer: string | string[] | number | boolean) => void;
   onSendAnswer: (question: string, answer: string) => void;
 }) => {
   const [textValue, setTextValue] = useState('');
@@ -368,6 +368,12 @@ const InteractiveQuestionBlock = ({
   const [rankedOptions, setRankedOptions] = useState<string[]>(
     question.options?.map(o => o.label) || []
   );
+  const [numberValue, setNumberValue] = useState<number | ''>(question.min ?? '');
+  const [dateValue, setDateValue] = useState('');
+  const [timeValue, setTimeValue] = useState('');
+  const [dateTimeValue, setDateTimeValue] = useState('');
+  const [emailValue, setEmailValue] = useState('');
+  const [yesNoValue, setYesNoValue] = useState<'yes' | 'no' | null>(null);
 
   if (question.answered) {
     const displayAnswer = Array.isArray(question.answer)
@@ -385,7 +391,7 @@ const InteractiveQuestionBlock = ({
   }
 
   const handleSubmit = () => {
-    let answer: string | string[] | number;
+    let answer: string | string[] | number | boolean;
     let answerText: string;
     if (question.type === 'text') {
       answer = textValue;
@@ -396,6 +402,25 @@ const InteractiveQuestionBlock = ({
     } else if (question.type === 'slider') {
       answer = sliderValue;
       answerText = String(sliderValue);
+    } else if (question.type === 'number') {
+      const numericAnswer = typeof numberValue === 'number' ? numberValue : question.min ?? 0;
+      answer = numericAnswer;
+      answerText = String(numericAnswer);
+    } else if (question.type === 'date') {
+      answer = dateValue;
+      answerText = dateValue;
+    } else if (question.type === 'time') {
+      answer = timeValue;
+      answerText = timeValue;
+    } else if (question.type === 'datetime') {
+      answer = dateTimeValue;
+      answerText = dateTimeValue;
+    } else if (question.type === 'email') {
+      answer = emailValue;
+      answerText = emailValue;
+    } else if (question.type === 'yes_no') {
+      answer = yesNoValue === 'yes';
+      answerText = yesNoValue === 'yes' ? 'Yes' : 'No';
     } else {
       answer = rankedOptions;
       answerText = rankedOptions.map((o, i) => `${i + 1}. ${o}`).join(', ');
@@ -438,9 +463,78 @@ const InteractiveQuestionBlock = ({
             value={textValue}
             onChange={e => setTextValue(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
-            placeholder="Type your answer..."
+            placeholder={question.placeholder || 'Type your answer...'}
             className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
           />
+        )}
+
+        {question.type === 'number' && (
+          <input
+            type="number"
+            value={numberValue}
+            min={question.min}
+            max={question.max}
+            step={question.step ?? 1}
+            onChange={e => setNumberValue(e.target.value === '' ? '' : Number(e.target.value))}
+            placeholder={question.placeholder || 'Enter a number...'}
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        )}
+
+        {question.type === 'date' && (
+          <input
+            type="date"
+            value={dateValue}
+            onChange={e => setDateValue(e.target.value)}
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        )}
+
+        {question.type === 'time' && (
+          <input
+            type="time"
+            value={timeValue}
+            onChange={e => setTimeValue(e.target.value)}
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        )}
+
+        {question.type === 'datetime' && (
+          <input
+            type="datetime-local"
+            value={dateTimeValue}
+            onChange={e => setDateTimeValue(e.target.value)}
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        )}
+
+        {question.type === 'email' && (
+          <input
+            type="email"
+            value={emailValue}
+            onChange={e => setEmailValue(e.target.value)}
+            placeholder={question.placeholder || 'name@example.com'}
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        )}
+
+        {question.type === 'yes_no' && (
+          <div className="grid grid-cols-2 gap-2">
+            {['yes', 'no'].map(choice => (
+              <button
+                key={choice}
+                onClick={() => setYesNoValue(choice as 'yes' | 'no')}
+                className={cn(
+                  'px-3 py-1.5 rounded-md text-xs transition-all border font-medium',
+                  yesNoValue === choice
+                    ? 'bg-primary/20 border-primary/50 text-foreground'
+                    : 'bg-background/50 border-border hover:bg-accent/50 text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {choice === 'yes' ? 'Yes' : 'No'}
+              </button>
+            ))}
+          </div>
         )}
 
         {question.type === 'multiple_choice' && question.options && (
@@ -512,7 +606,13 @@ const InteractiveQuestionBlock = ({
           onClick={handleSubmit}
           disabled={
             (question.type === 'text' && !textValue.trim()) ||
-            (question.type === 'multiple_choice' && selectedOptions.length === 0)
+            (question.type === 'multiple_choice' && selectedOptions.length === 0) ||
+            (question.type === 'number' && (numberValue === '' || (typeof numberValue === 'number' && ((question.min !== undefined && numberValue < question.min) || (question.max !== undefined && numberValue > question.max)))) ) ||
+            (question.type === 'date' && !dateValue) ||
+            (question.type === 'time' && !timeValue) ||
+            (question.type === 'datetime' && !dateTimeValue) ||
+            (question.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue.trim())) ||
+            (question.type === 'yes_no' && !yesNoValue)
           }
           className={cn(
             'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all w-full justify-center',
