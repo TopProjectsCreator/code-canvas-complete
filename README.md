@@ -1,73 +1,152 @@
-# Welcome to your Lovable project
+# Code Canvas Complete
 
-## Project info
+Code Canvas Complete is a browser-based coding workspace with an integrated AI assistant, multi-file editing, workflow automation, package management helpers, and optional BYOK (bring-your-own-key) model routing.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## What this project is
 
-## How can I edit this code?
+This app is a Vite + React + TypeScript IDE-style interface with:
 
-There are several ways of editing your application.
+- File/project editing UI
+- AI chat with tool-style actions (code changes, workflows, package installs, etc.)
+- Interactive question prompts (`ask_prompt` blocks rendered in-chat)
+- Optional BYOK provider support (OpenAI, Anthropic, Gemini, Perplexity, DeepSeek, xAI, Cohere, OpenRouter)
+- Supabase Edge Functions backend for chat and media generation flows
 
-**Use Lovable**
+## Tech stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui + Radix UI
+- Supabase (Auth + Edge Functions + DB)
 
-Changes made via Lovable will be committed automatically to this repo.
+## Local development
 
-**Use your preferred IDE**
+### Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js 18+
+- npm 9+
+- Supabase project (for auth + edge functions)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 1) Install dependencies
 
-Follow these steps:
+```bash
+npm install
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 2) Configure environment
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Create a `.env` file (or equivalent platform env config) with your frontend variables, for example:
 
-# Step 3: Install the necessary dependencies.
-npm i
+```bash
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+If running Edge Functions locally/remotely, configure function secrets in Supabase as needed (for example service role keys and any AI gateway keys used by your setup).
+
+### 3) Start dev server
+
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### 4) Build for production
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```bash
+npm run build
+npm run preview
+```
 
-**Use GitHub Codespaces**
+## Deployment
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Below are self-managed deployment paths.
 
-## What technologies are used for this project?
+---
 
-This project is built with:
+### Deploy on Vercel
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+1. Push this repo to GitHub/GitLab/Bitbucket.
+2. In Vercel, **New Project** → import the repository.
+3. Framework preset: **Vite** (usually auto-detected).
+4. Build command: `npm run build`
+5. Output directory: `dist`
+6. Add environment variables (at least frontend Supabase values).
+7. Deploy.
 
-## How can I deploy this project?
+> Note: Supabase Edge Functions are deployed through Supabase CLI, not Vercel.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+---
 
-## Can I connect a custom domain to my Lovable project?
+### Deploy on Koyeb
 
-Yes, you can!
+1. Create a new **Web Service** from your repository.
+2. Use a Node buildpack or Dockerfile-based service.
+3. Configure:
+   - Build command: `npm run build`
+   - Run command (static serving option): `npm run preview -- --host 0.0.0.0 --port $PORT`
+4. Add required environment variables.
+5. Deploy service.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+For production-grade static hosting on Koyeb, you can also deploy via a custom Docker image using an Nginx/static server stage.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+
+### Deploy on Replit
+
+1. Create a new Repl from this GitHub repository.
+2. In the Repl shell:
+
+```bash
+npm install
+npm run dev -- --host 0.0.0.0 --port 3000
+```
+
+3. Set environment variables in Replit Secrets.
+4. For always-on/public deployment, configure a Replit Deployment for the project.
+
+For production mode in Replit:
+
+```bash
+npm run build
+npm run preview -- --host 0.0.0.0 --port 3000
+```
+
+---
+
+### Deploy on Lovable
+
+1. Create a project connected to this repository.
+2. Configure required environment variables in project settings.
+3. Use the platform publish/deploy flow to build and host the app.
+4. Deploy Supabase Edge Functions separately via Supabase CLI.
+
+---
+
+## Supabase Edge Functions
+
+This repo includes Edge Functions under `supabase/functions/` (e.g. AI chat handling).
+
+Typical deployment flow:
+
+```bash
+supabase login
+supabase link --project-ref <your-project-ref>
+supabase functions deploy ai-chat
+```
+
+Repeat deploy for any additional functions you use.
+
+## Useful scripts
+
+- `npm run dev` — local development
+- `npm run build` — production build
+- `npm run preview` — preview built app
+- `npm run lint` — linting
+- `npm run test` — run tests
+
+## Notes
+
+- If BYOK is enabled, make sure user API keys are saved for the desired provider before testing provider-specific model routing.
+- Keep frontend env vars (`VITE_*`) separate from sensitive server secrets used by Edge Functions.
