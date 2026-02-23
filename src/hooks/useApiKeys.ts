@@ -11,7 +11,8 @@ export type AIProvider =
   | 'deepseek' 
   | 'xai' 
   | 'cohere' 
-  | 'openrouter';
+  | 'openrouter'
+  | 'github';
 
 export interface UserApiKey {
   id: string;
@@ -35,6 +36,7 @@ export const PROVIDER_INFO: Record<AIProvider, { label: string; placeholder: str
   xai: { label: 'xAI (Grok)', placeholder: 'xai-...', docsUrl: 'https://console.x.ai' },
   cohere: { label: 'Cohere', placeholder: '...', docsUrl: 'https://dashboard.cohere.com/api-keys' },
   openrouter: { label: 'OpenRouter', placeholder: 'sk-or-...', docsUrl: 'https://openrouter.ai/keys' },
+  github: { label: 'GitHub', placeholder: 'ghp_... or github_pat_...', docsUrl: 'https://github.com/settings/tokens' },
 };
 
 export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]> = {
@@ -147,6 +149,7 @@ export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]
     { id: 'microsoft/phi-4', label: 'Phi-4' },
     { id: 'perplexity/sonar-pro', label: 'Sonar Pro' },
   ],
+  github: [],
 };
 
 const DAILY_LIMITS: Record<string, number> = {
