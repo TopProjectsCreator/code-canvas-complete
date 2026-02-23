@@ -220,6 +220,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     const questions: InteractiveQuestion[] = [];
     let cleanContent = content;
     const promptRegex = /<ask_prompt\s+([^>]+)\/>/g;
+    const validTypes: InteractiveQuestion['type'][] = ['text', 'multiple_choice', 'ranking', 'slider', 'yes_no', 'number', 'date', 'time', 'datetime', 'email'];
     let match;
     while ((match = promptRegex.exec(content)) !== null) {
       const attrs = match[1];
@@ -227,30 +228,57 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         const m = new RegExp(`${name}="([^"]*)"`, 'i').exec(attrs);
         return m ? m[1] : undefined;
       };
-      const type = getAttr('type') as InteractiveQuestion['type'] || 'text';
+      const rawType = (getAttr('type') || 'text').toLowerCase();
+      const typeAliases: Record<string, InteractiveQuestion['type']> = {
+        boolean: 'yes_no',
+        bool: 'yes_no',
+        integer: 'number',
+        numeric: 'number',
+        scale: 'slider',
+        single_choice: 'multiple_choice',
+        single: 'multiple_choice',
+        'datetime-local': 'datetime',
+        datetime_local: 'datetime',
+      };
+      const normalizedType = typeAliases[rawType] || rawType;
+      const type = validTypes.includes(normalizedType as InteractiveQuestion['type'])
+        ? (normalizedType as InteractiveQuestion['type'])
+        : 'text';
       const question = getAttr('question') || 'Please answer:';
       const optionsStr = getAttr('options');
       const options: QuestionOption[] | undefined = optionsStr
-        ? optionsStr.split(',').map((o, i) => ({ id: `opt_${i}`, label: o.trim() }))
+        ? optionsStr
+            .split(',')
+            .map(o => o.trim())
+            .filter(Boolean)
+            .map((label, i) => ({ id: `opt_${i}`, label }))
         : undefined;
       const multi = getAttr('multi') === 'true';
-      const min = getAttr('min') ? Number(getAttr('min')) : undefined;
-      const max = getAttr('max') ? Number(getAttr('max')) : undefined;
-      const step = getAttr('step') ? Number(getAttr('step')) : undefined;
+      const parseNumericAttr = (name: 'min' | 'max' | 'step') => {
+        const value = getAttr(name);
+        if (value === undefined) return undefined;
+        const n = Number(value);
+        return Number.isFinite(n) ? n : undefined;
+      };
+      const min = parseNumericAttr('min');
+      const max = parseNumericAttr('max');
+      const step = parseNumericAttr('step');
       const minLabel = getAttr('minLabel');
       const maxLabel = getAttr('maxLabel');
+      const placeholder = getAttr('placeholder');
 
       questions.push({
         id: generateId(),
         type,
         question,
         options,
-        multiSelect: multi,
+        multiSelect: type === 'multiple_choice' ? multi : false,
         min,
         max,
         step,
         minLabel,
         maxLabel,
+        placeholder,
       });
       cleanContent = cleanContent.replace(match[0], '');
     }
@@ -636,7 +664,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       setCurrentStep(null);
       abortControllerRef.current = null;
     }
-  }, [isLoading, messages, onCodeChange, selectedModel]);
+  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, workflows]);
 
   const applyCodeChange = useCallback((change: CodeChange) => {
     if (onApplyCode) {
@@ -657,7 +685,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     setMessages([{ id: '1', role: 'assistant', content: "👋 Conversation cleared! How can I help you?" }]);
   }, []);
 
-  const answerQuestion = useCallback((messageId: string, questionId: string, answer: string | string[] | number) => {
+  const answerQuestion = useCallback((messageId: string, questionId: string, answer: string | string[] | number | boolean) => {
     setMessages(prev => prev.map(m => {
       if (m.id !== messageId) return m;
       const updatedQuestions = m.questions?.map(q =>
