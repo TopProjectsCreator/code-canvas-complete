@@ -96,15 +96,13 @@ For production-grade static hosting on Koyeb, you can also deploy via a custom D
 ### Deploy on Replit
 
 1. Create a new Repl from this GitHub repository.
-2. In the Repl shell:
-
-```bash
-npm install
-npm run dev -- --host 0.0.0.0 --port 3000
-```
-
-3. Set environment variables in Replit Secrets.
-4. For always-on/public deployment, configure a Replit Deployment for the project.
+  <img width="3199" height="1580" alt="image" src="https://github.com/user-attachments/assets/462e4afe-9578-4800-babc-4e29e9b374d7" />
+  Select lovable then put in: https://github.com/TopProjectsCreator/code-canvas-complete as the url
+  <img width="3195" height="1574" alt="image" src="https://github.com/user-attachments/assets/3dc0f098-33aa-4a31-9b15-96e64821cc21" />
+   Replit agent will automatically setup everything and make it ready to run.
+   <img width="915" height="1719" alt="image" src="https://github.com/user-attachments/assets/73715ba4-b9e9-4b58-bf72-7cdeb67f7282" />
+   Replit agent will automatically transfer the database and ai providers to replit.
+   For always-on/public deployment, configure a Replit Deployment for the project.
 
 For production mode in Replit:
 
