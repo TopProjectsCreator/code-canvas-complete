@@ -111,6 +111,7 @@ const BYOK_DEFAULT_MODELS: Record<string, string> = {
   xai: "grok-4-fast",
   cohere: "command-r-plus",
   openrouter: "openai/gpt-4o",
+  github: "openai/gpt-4o",
 };
 
 const BYOK_PROVIDERS: Record<string, { url: string; headerKey: string }> = {
@@ -122,6 +123,7 @@ const BYOK_PROVIDERS: Record<string, { url: string; headerKey: string }> = {
   xai: { url: "https://api.x.ai/v1/chat/completions", headerKey: "Bearer" },
   cohere: { url: "https://api.cohere.com/v2/chat", headerKey: "Bearer" },
   openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", headerKey: "Bearer" },
+  github: { url: "https://models.inference.ai.azure.com/chat/completions", headerKey: "Bearer" },
 };
 
 async function executeWebSearch(query: string, apiKey: string): Promise<string> {
