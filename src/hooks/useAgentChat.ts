@@ -357,6 +357,18 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     return { actions, cleanContent: cleanContent.trim() };
   };
 
+  const parseShellCommands = (content: string): { shellCommands: string[], cleanContent: string } => {
+    const shellCommands: string[] = [];
+    let cleanContent = content;
+    const shellRegex = /<run_shell\s+command="([^"]+)"\s*\/>/g;
+    let match;
+    while ((match = shellRegex.exec(content)) !== null) {
+      shellCommands.push(match[1]);
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+    return { shellCommands, cleanContent: cleanContent.trim() };
+  };
+
 
 
   const parseGenerateTestsTags = (content: string): { codeChanges: CodeChange[]; cleanContent: string } => {
@@ -399,6 +411,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     musicActions: MusicAction[];
     questions: InteractiveQuestion[];
     widgets: ChatWidget[];
+    shellCommands: string[];
   } => {
     let content = rawContent;
     const allSteps: AgentStep[] = [];
@@ -493,6 +506,12 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     });
     content = afterFileActions;
 
+    const { shellCommands, cleanContent: afterShell } = parseShellCommands(content);
+    shellCommands.forEach(cmd => {
+      allSteps.push({ id: generateId(), type: 'tool_call', content: `Running shell: ${cmd}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'run_shell', arguments: { command: cmd }, status: 'pending' } });
+    });
+    content = afterShell;
+
     return {
       content,
       steps: allSteps,
@@ -502,6 +521,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       musicActions,
       questions: parsedQuestions,
       widgets: parsedWidgets,
+      shellCommands,
     };
   };
 
@@ -651,6 +671,56 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
             } catch {
               setMessages(prev => prev.map(m => { if (m.id !== assistantId) return m; const audios = (m.audios || []).map(a => a.prompt === action.prompt ? { ...a, isLoading: false, error: 'Failed to generate music' } : a); return { ...m, audios }; }));
             }
+          }
+        }
+      }
+
+      // Handle shell command execution
+      if (processed.shellCommands && processed.shellCommands.length > 0) {
+        for (const cmd of processed.shellCommands) {
+          const shellKey = `shell:${cmd}`;
+          if (executedActionsRef.current.has(shellKey)) continue;
+          executedActionsRef.current.add(shellKey);
+
+          // Update step to running
+          setMessages(prev => prev.map(m => {
+            if (m.id !== assistantId) return m;
+            const steps = m.steps?.map(s => 
+              s.toolCall?.name === 'run_shell' && (s.toolCall.arguments as any).command === cmd
+                ? { ...s, toolCall: { ...s.toolCall!, status: 'running' as const } }
+                : s
+            );
+            return { ...m, steps };
+          }));
+
+          try {
+            const { data, error } = await supabase.functions.invoke('execute-code', {
+              body: { code: cmd, language: 'shell' }
+            });
+
+            const output = error ? `Error: ${error.message}` : 
+              (data?.error ? `Error: ${data.error}` : (data?.output?.join('\n') || '(no output)'));
+
+            // Update step with result
+            setMessages(prev => prev.map(m => {
+              if (m.id !== assistantId) return m;
+              const steps = m.steps?.map(s => 
+                s.toolCall?.name === 'run_shell' && (s.toolCall.arguments as any).command === cmd
+                  ? { ...s, content: `Shell: ${cmd}\n\`\`\`\n${output}\n\`\`\``, toolCall: { ...s.toolCall!, status: 'completed' as const, result: output } }
+                  : s
+              );
+              return { ...m, steps };
+            }));
+          } catch (err) {
+            setMessages(prev => prev.map(m => {
+              if (m.id !== assistantId) return m;
+              const steps = m.steps?.map(s => 
+                s.toolCall?.name === 'run_shell' && (s.toolCall.arguments as any).command === cmd
+                  ? { ...s, toolCall: { ...s.toolCall!, status: 'failed' as const, result: String(err) } }
+                  : s
+              );
+              return { ...m, steps };
+            }));
           }
         }
       }
