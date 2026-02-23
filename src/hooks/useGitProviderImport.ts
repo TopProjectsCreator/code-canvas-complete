@@ -47,9 +47,28 @@ const isTextFile = (name: string) => {
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git', '__pycache__', 'venv', '.venv', 'vendor', 'target', '.next', '.nuxt', 'coverage']);
 
+// Helper to get user's GitHub token from BYOK
+const getUserGithubToken = async (): Promise<string | null> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data } = await supabase
+      .from('user_api_keys')
+      .select('api_key')
+      .eq('user_id', user.id)
+      .eq('provider', 'github')
+      .maybeSingle();
+    return data?.api_key || null;
+  } catch {
+    return null;
+  }
+};
+
 // Helper to call the github-proxy edge function
 const ghProxy = async (body: Record<string, string>) => {
-  const { data, error } = await supabase.functions.invoke('github-proxy', { body });
+  const userToken = await getUserGithubToken();
+  const payload = userToken ? { ...body, userToken } : body;
+  const { data, error } = await supabase.functions.invoke('github-proxy', { body: payload });
   if (error) throw new Error(error.message || 'Proxy request failed');
   if (data?.error) throw new Error(data.error);
   return data;
