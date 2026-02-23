@@ -81,7 +81,7 @@ export interface GeneratedAudio {
   duration?: number;
 }
 
-export type QuestionType = 'text' | 'multiple_choice' | 'ranking' | 'slider';
+export type QuestionType = 'text' | 'multiple_choice' | 'ranking' | 'slider' | 'yes_no' | 'number' | 'date' | 'time' | 'datetime' | 'email';
 
 export interface QuestionOption {
   id: string;
@@ -99,8 +99,9 @@ export interface InteractiveQuestion {
   minLabel?: string;              // for slider
   maxLabel?: string;              // for slider
   multiSelect?: boolean;          // for multiple_choice
+  placeholder?: string;           // for text/number/date/time/datetime/email
   answered?: boolean;
-  answer?: string | string[] | number;
+  answer?: string | string[] | number | boolean;
 }
 
 export type ChatWidgetType =
