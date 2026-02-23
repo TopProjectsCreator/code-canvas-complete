@@ -111,7 +111,7 @@ const BYOK_DEFAULT_MODELS: Record<string, string> = {
   xai: "grok-4-fast",
   cohere: "command-r-plus",
   openrouter: "openai/gpt-4o",
-  github: "openai/gpt-4o",
+  github: "gpt-4o",
 };
 
 const BYOK_PROVIDERS: Record<string, { url: string; headerKey: string }> = {
