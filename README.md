@@ -97,12 +97,15 @@ For production-grade static hosting on Koyeb, you can also deploy via a custom D
 
 
 1. **Create a new Repl** from the GitHub repository.
-<img width="600" alt="Step 1: Create Repl" src="[https://github.com/user-attachments/assets/462e4afe-9578-4800-babc-4e29e9b374d7](https://github.com/user-attachments/assets/462e4afe-9578-4800-babc-4e29e9b374d7)" />
+<img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/f0033af4-cba9-4941-b89d-241ee891a6e4" />
+
 2. Select **lovable**, then input the following URL:
 `https://github.com/TopProjectsCreator/code-canvas-complete`
-<img width="600" alt="Step 2: Input URL" src="[https://github.com/user-attachments/assets/3dc0f098-33aa-4a31-9b15-96e64821cc21](https://github.com/user-attachments/assets/3dc0f098-33aa-4a31-9b15-96e64821cc21)" />
+<img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/27955b24-1224-43bb-831c-6be61cc9268b" />
+
 3. **Replit Agent** will automatically set up the environment and prepare the project to run.
-<img width="250" alt="Step 3: Replit Agent Setup" src="[https://github.com/user-attachments/assets/94d996c0-4648-402e-9d10-b4648339c610](https://github.com/user-attachments/assets/94d996c0-4648-402e-9d10-b4648339c610)" />
+<img width="250" height="466" alt="image" src="https://github.com/user-attachments/assets/ebf4f5e0-3ad5-4a4e-9b55-9bc60dcb5776" />
+
 
 **Key Features**
 
