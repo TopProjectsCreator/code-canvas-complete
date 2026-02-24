@@ -21,6 +21,28 @@ interface GitHubRepo {
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
+const ALLOWED_HIDDEN_NAMES = new Set(['.gitignore', '.tutorial']);
+
+const BINARY_EXTENSIONS = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg', '.avif',
+  '.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.wma',
+  '.mp4', '.avi', '.mov', '.mkv', '.webm', '.wmv', '.flv',
+  '.zip', '.tar', '.gz', '.bz2', '.7z', '.rar', '.xz',
+  '.exe', '.dll', '.so', '.dylib', '.bin', '.dat',
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.ttf', '.otf', '.woff', '.woff2', '.eot',
+  '.pyc', '.pyo', '.class', '.o', '.obj', '.a', '.lib',
+  '.db', '.sqlite', '.sqlite3',
+]);
+
+const isLikelyTextFile = (name: string) => {
+  const lower = name.toLowerCase();
+  const lastDot = lower.lastIndexOf('.');
+  if (lastDot === -1) return true;
+  const extension = lower.slice(lastDot);
+  return !BINARY_EXTENSIONS.has(extension);
+};
+
 export const useGitHubImport = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<string>('');
@@ -108,8 +130,8 @@ export const useGitHubImport = () => {
     const nodes: FileNode[] = [];
 
     for (const item of contents) {
-      // Skip hidden files and common non-essential files
-      if (item.name.startsWith('.') && item.name !== '.gitignore') {
+      // Skip hidden files and common non-essential files, but allow supported hidden entries
+      if (item.name.startsWith('.') && !ALLOWED_HIDDEN_NAMES.has(item.name)) {
         continue;
       }
       
@@ -128,23 +150,7 @@ export const useGitHubImport = () => {
           children,
         });
       } else if (item.type === 'file' && item.download_url) {
-        // Only fetch content for text files under 500KB
-        const textExtensions = [
-          '.js', '.ts', '.jsx', '.tsx', '.py', '.java', '.cpp', '.c', '.h', '.hpp',
-          '.go', '.rs', '.rb', '.php', '.swift', '.kt', '.cs', '.html', '.css',
-          '.scss', '.sass', '.less', '.json', '.xml', '.yaml', '.yml', '.md',
-          '.txt', '.sh', '.bash', '.sql', '.lua', '.r', '.pl', '.scala', '.hs',
-          '.ex', '.exs', '.clj', '.dart', '.jl', '.nim', '.zig', '.f90', '.cob',
-          '.fs', '.ml', '.erl', '.cr', '.lisp', '.pro', '.rkt', '.vue', '.svelte',
-          '.toml', '.ini', '.cfg', '.env.example', '.gitignore', 'Makefile',
-          'Dockerfile', 'README', 'LICENSE', '.prettierrc', '.eslintrc'
-        ];
-
-        const hasTextExtension = textExtensions.some(ext => 
-          item.name.toLowerCase().endsWith(ext) || item.name === ext.replace('.', '')
-        );
-
-        if (hasTextExtension) {
+        if (isLikelyTextFile(item.name)) {
           setImportProgress(`Fetching ${item.name}...`);
           try {
             const content = await fetchFileContent(item.download_url);
