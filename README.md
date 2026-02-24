@@ -105,7 +105,14 @@ For production-grade static hosting on Koyeb, you can also deploy via a custom D
  - It will say lovable because of how much we changed it so that it could run on lovable.
 
 3. **Replit Agent** will automatically set up the environment and prepare the project to run.
-<img width="250" height="466" alt="image" src="https://github.com/user-attachments/assets/ebf4f5e0-3ad5-4a4e-9b55-9bc60dcb57y 76" />
+<img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/2bbe95b5-da39-4f2e-b521-75dff2852713" />
+
+Notes:
+ - On the top right of the preview:
+ <img width="600" height="150" alt="image" src="https://github.com/user-attachments/assets/f8f095ce-ea1e-4736-bda7-a190cc12cec2" />
+is a icon that look like <img width="50" height="53" alt="image" src="https://github.com/user-attachments/assets/26fbe487-c17a-4aac-a086-b64f9805094f" />.
+Click on it to get it pop out into a new page
+<img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/0fa4a615-f25c-441d-a77c-0abee9f44c12" />
 
 
 **Key Features**
