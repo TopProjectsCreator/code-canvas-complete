@@ -89,7 +89,7 @@ In addition to tool calls, the assistant can render interactive chat widgets and
 
 - Node.js 18+
 - npm 9+
-- Supabase project (for auth + edge functions)
+- **PLATFORM DEPENDENT**: Supabase project (for auth + edge functions)
 
 ### 1) Install dependencies
 
@@ -104,12 +104,10 @@ Create a `.env` file (or equivalent platform env config) with your frontend vari
 ```bash
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
-# Optional Phase-1 platform auth routing override:
-# VITE_DEPLOY_PLATFORM=generic|replit|lovable
+# VITE_DEPLOY_PLATFORM=generic|replit|lovable   (It should autodetect)
 # Optional auth-specific toggles used by platform detection fallback:
 # VITE_REPLIT_AUTH_ENABLED=true
 # VITE_LOVABLE_AUTH_ENABLED=true
-# Optional Phase-2 managed AI/DB endpoints (auto-selected by platform):
 # VITE_REPLIT_AI_BASE_URL=https://...
 # VITE_REPLIT_DB_BASE_URL=https://...
 # VITE_REPLIT_DB_TOKEN=...
@@ -183,7 +181,7 @@ For production-grade static hosting on Koyeb, you can also deploy via a custom D
 Notes:
  - On the top right of the preview:
  <img width="200" height="150" alt="image" src="https://github.com/user-attachments/assets/f8f095ce-ea1e-4736-bda7-a190cc12cec2" />
-is a icon that looks like <img width="50" height="53" alt="image" src="https://github.com/user-attachments/assets/26fbe487-c17a-4aac-a086-b64f9805094f" />.
+is a icon that looks like <img width="15" height="15" alt="image" src="https://github.com/user-attachments/assets/26fbe487-c17a-4aac-a086-b64f9805094f" />.
 Click on it to get it pop out into a new page
 <img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/0fa4a615-f25c-441d-a77c-0abee9f44c12" />
 
@@ -238,3 +236,7 @@ Repeat deploy for any additional functions you use.
 
 - If BYOK is enabled, make sure user API keys are saved for the desired provider before testing provider-specific model routing.
 - Keep frontend env vars (`VITE_*`) separate from sensitive server secrets used by Edge Functions.
+
+## Contributing
+
+We are open to contributions! See CONTRIBUTING.md for more info.
