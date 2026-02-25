@@ -44,7 +44,7 @@ export const SaveProjectDialog = ({
       setDescription(currentProject.description || '');
       setIsPublic(currentProject.is_public);
     } else if (open) {
-      setName('my-repl');
+      setName('my-canvas');
       setDescription('');
       setIsPublic(false);
     }
@@ -79,7 +79,7 @@ export const SaveProjectDialog = ({
           <DialogDescription>
             {currentProject 
               ? 'Update your project settings and save changes'
-              : 'Save your repl to your account'}
+              : 'Save your canvas to your account'}
           </DialogDescription>
         </DialogHeader>
 
