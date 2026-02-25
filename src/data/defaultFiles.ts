@@ -1,70 +1,198 @@
 import { FileNode } from '@/types/ide';
 import { LanguageTemplate } from '@/components/ide/LanguagePicker';
 
+const tutorialTitles: Record<LanguageTemplate, string> = {
+  blank: 'Blank Canvas',
+  html: 'HTML/CSS/JS',
+  javascript: 'JavaScript',
+  typescript: 'TypeScript',
+  python: 'Python',
+  java: 'Java',
+  cpp: 'C++',
+  c: 'C',
+  go: 'Go',
+  rust: 'Rust',
+  ruby: 'Ruby',
+  php: 'PHP',
+  csharp: 'C#',
+  bash: 'Bash',
+  lua: 'Lua',
+  perl: 'Perl',
+  r: 'R',
+  haskell: 'Haskell',
+  nim: 'Nim',
+  zig: 'Zig',
+  lisp: 'Common Lisp',
+  d: 'D',
+  groovy: 'Groovy',
+  pascal: 'Pascal',
+  react: 'React',
+  nodejs: 'Node.js',
+  flask: 'Flask',
+  django: 'Django',
+  sqlite: 'SQLite'
+};
+
+const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
+  nodes.map((node) => ({
+    ...node,
+    children: node.children ? cloneFileNodes(node.children) : undefined
+  }));
+
+const withTutorialFolder = (template: LanguageTemplate, templateFiles: FileNode[]): FileNode[] => {
+  const files = cloneFileNodes(templateFiles);
+  const rootFolder = files.find((node) => node.type === 'folder');
+
+  if (!rootFolder) {
+    return files;
+  }
+
+  rootFolder.children = rootFolder.children || [];
+
+  if (rootFolder.children.some((child) => child.type === 'folder' && child.name === '.tutorial')) {
+    return files;
+  }
+
+  const starterFiles = rootFolder.children
+    .filter((child) => child.name !== '.tutorial')
+    .map((child) => `- ${child.type === 'folder' ? '📁' : '📄'} ${child.name}`)
+    .join('\n');
+
+  rootFolder.children.push({
+    id: `${template}-tutorial-folder`,
+    name: '.tutorial',
+    type: 'folder',
+    children: [
+      {
+        id: `${template}-tutorial-start-here`,
+        name: 'START_HERE.md',
+        type: 'file',
+        language: 'markdown',
+        content: `# ${tutorialTitles[template]} starter guide
+
+This folder explains the sample starter code in your **${tutorialTitles[template]}** canvas.
+
+## Project structure
+
+${starterFiles || '- (No starter files yet)'}
+
+## How to explore this starter
+
+1. Open each starter file and read the top comments first.
+2. Run the project and make one small change at a time.
+3. Use this folder to keep your own notes as you learn.
+
+## Suggested first edits
+
+- Change the main output text.
+- Add one extra function or UI element.
+- Run again and compare behavior.
+`
+      }
+    ]
+  });
+
+  return files;
+};
+
 export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
+  let baseTemplate: FileNode[];
+
   switch (template) {
     case 'blank':
-      return blankTemplate;
+      baseTemplate = blankTemplate;
+      break;
     case 'html':
-      return htmlTemplate;
+      baseTemplate = htmlTemplate;
+      break;
     case 'javascript':
-      return javascriptTemplate;
+      baseTemplate = javascriptTemplate;
+      break;
     case 'typescript':
-      return typescriptTemplate;
+      baseTemplate = typescriptTemplate;
+      break;
     case 'python':
-      return pythonTemplate;
+      baseTemplate = pythonTemplate;
+      break;
     case 'java':
-      return javaTemplate;
+      baseTemplate = javaTemplate;
+      break;
     case 'cpp':
-      return cppTemplate;
+      baseTemplate = cppTemplate;
+      break;
     case 'c':
-      return cTemplate;
+      baseTemplate = cTemplate;
+      break;
     case 'go':
-      return goTemplate;
+      baseTemplate = goTemplate;
+      break;
     case 'rust':
-      return rustTemplate;
+      baseTemplate = rustTemplate;
+      break;
     case 'ruby':
-      return rubyTemplate;
+      baseTemplate = rubyTemplate;
+      break;
     case 'php':
-      return phpTemplate;
+      baseTemplate = phpTemplate;
+      break;
     case 'csharp':
-      return csharpTemplate;
+      baseTemplate = csharpTemplate;
+      break;
     case 'bash':
-      return bashTemplate;
+      baseTemplate = bashTemplate;
+      break;
     case 'lua':
-      return luaTemplate;
+      baseTemplate = luaTemplate;
+      break;
     case 'perl':
-      return perlTemplate;
+      baseTemplate = perlTemplate;
+      break;
     case 'r':
-      return rTemplate;
+      baseTemplate = rTemplate;
+      break;
     case 'haskell':
-      return haskellTemplate;
+      baseTemplate = haskellTemplate;
+      break;
     // New templates
     case 'react':
-      return reactTemplate;
+      baseTemplate = reactTemplate;
+      break;
     case 'nodejs':
-      return nodejsTemplate;
+      baseTemplate = nodejsTemplate;
+      break;
     case 'flask':
-      return flaskTemplate;
+      baseTemplate = flaskTemplate;
+      break;
     case 'django':
-      return djangoTemplate;
+      baseTemplate = djangoTemplate;
+      break;
     case 'sqlite':
-      return sqliteTemplate;
+      baseTemplate = sqliteTemplate;
+      break;
     case 'nim':
-      return nimTemplate;
+      baseTemplate = nimTemplate;
+      break;
     case 'zig':
-      return zigTemplate;
+      baseTemplate = zigTemplate;
+      break;
     case 'lisp':
-      return lispTemplate;
+      baseTemplate = lispTemplate;
+      break;
     case 'd':
-      return dTemplate;
+      baseTemplate = dTemplate;
+      break;
     case 'groovy':
-      return groovyTemplate;
+      baseTemplate = groovyTemplate;
+      break;
     case 'pascal':
-      return pascalTemplate;
+      baseTemplate = pascalTemplate;
+      break;
     default:
-      return htmlTemplate;
+      baseTemplate = htmlTemplate;
+      break;
   }
+
+  return withTutorialFolder(template, baseTemplate);
 };
 
 const htmlTemplate: FileNode[] = [
