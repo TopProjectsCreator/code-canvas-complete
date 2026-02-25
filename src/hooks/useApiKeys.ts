@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { createDataProvider } from '@/integrations/data/provider';
 
 export type AIProvider = 
   | 'perplexity' 
@@ -176,38 +176,32 @@ const DAILY_LIMITS: Record<string, number> = {
 export const useApiKeys = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const dataProvider = useMemo(() => createDataProvider(), []);
   const [apiKeys, setApiKeys] = useState<UserApiKey[]>([]);
   const [usage, setUsage] = useState<UsageInfo[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchApiKeys = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('user_api_keys')
-      .select('*')
-      .eq('user_id', user.id);
-    if (data) setApiKeys(data as unknown as UserApiKey[]);
-  }, [user]);
+    const data = await dataProvider.listApiKeys(user.id);
+    setApiKeys(data as unknown as UserApiKey[]);
+  }, [user, dataProvider]);
 
   const fetchUsage = useCallback(async () => {
     if (!user) return;
     const today = new Date().toISOString().split('T')[0];
-    const { data } = await supabase
-      .from('ai_usage_tracking')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('usage_date', today);
+    const data = await dataProvider.listUsageForDate(user.id, today);
     
     const usageList: UsageInfo[] = ['pro', 'flash', 'lite'].map(tier => {
-      const row = (data || []).find((d: any) => d.model_tier === tier);
+      const row = (data || []).find((d: { model_tier: string; request_count: number }) => d.model_tier === tier);
       return {
         model_tier: tier,
-        request_count: row ? (row as any).request_count : 0,
+        request_count: row ? row.request_count : 0,
         limit: DAILY_LIMITS[tier],
       };
     });
     setUsage(usageList);
-  }, [user]);
+  }, [user, dataProvider]);
 
   useEffect(() => {
     if (user) {
@@ -220,33 +214,30 @@ export const useApiKeys = () => {
     if (!user) return false;
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('user_api_keys')
-        .upsert({ user_id: user.id, provider, api_key: apiKey }, { onConflict: 'user_id,provider' });
-      if (error) throw error;
+      await dataProvider.upsertApiKey(user.id, provider, apiKey);
       toast({ title: 'API key saved', description: `${PROVIDER_INFO[provider].label} key saved successfully.` });
       await fetchApiKeys();
       return true;
-    } catch (err: any) {
-      toast({ title: 'Error saving key', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error saving key', description: err instanceof Error ? err.message : 'Unexpected error', variant: 'destructive' });
       return false;
     } finally {
       setLoading(false);
     }
-  }, [user, toast, fetchApiKeys]);
+  }, [user, toast, fetchApiKeys, dataProvider]);
 
   const deleteApiKey = useCallback(async (provider: AIProvider) => {
     if (!user) return false;
     try {
-      await supabase.from('user_api_keys').delete().eq('user_id', user.id).eq('provider', provider);
+      await dataProvider.deleteApiKey(user.id, provider);
       toast({ title: 'API key removed' });
       await fetchApiKeys();
       return true;
-    } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Unexpected error', variant: 'destructive' });
       return false;
     }
-  }, [user, toast, fetchApiKeys]);
+  }, [user, toast, fetchApiKeys, dataProvider]);
 
   const hasCustomKey = useCallback((provider?: AIProvider) => {
     if (provider) return apiKeys.some(k => k.provider === provider);
