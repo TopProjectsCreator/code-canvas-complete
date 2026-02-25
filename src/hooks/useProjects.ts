@@ -1,8 +1,8 @@
-import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { FileNode } from '@/types/ide';
 import { useToast } from '@/hooks/use-toast';
+import { createDataProvider } from '@/integrations/data/provider';
 
 export interface Project {
   id: string;
@@ -21,6 +21,7 @@ export interface Project {
 export const useProjects = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const dataProvider = useMemo(() => createDataProvider(), []);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
@@ -30,31 +31,18 @@ export const useProjects = () => {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-      
-      // Parse files from JSONB
-      const parsedProjects = (data || []).map(p => ({
-        ...p,
-        files: Array.isArray(p.files) ? (p.files as unknown as FileNode[]) : [],
-      }));
-      
-      setProjects(parsedProjects);
-    } catch (error: any) {
+      const loadedProjects = await dataProvider.listProjects(user.id);
+      setProjects(loadedProjects as Project[]);
+    } catch (error: unknown) {
       toast({
         title: 'Error loading projects',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unexpected error',
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
-  }, [user, toast]);
+  }, [user, toast, dataProvider]);
 
   const saveProject = useCallback(async (
     name: string,
@@ -77,23 +65,15 @@ export const useProjects = () => {
     try {
       if (projectId) {
         // Update existing project
-        const { data, error } = await supabase
-          .from('projects')
-          .update({
-            name,
-            files: JSON.parse(JSON.stringify(files)),
-            language,
-            description: description || null,
-            is_public: isPublic ?? false,
-          })
-          .eq('id', projectId)
-          .eq('user_id', user.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        const updated = { ...data, files: files };
+        const updated = await dataProvider.updateProject({
+          id: projectId,
+          user_id: user.id,
+          name,
+          files,
+          language,
+          description: description || null,
+          is_public: isPublic ?? false,
+        });
         setCurrentProject(updated);
         setProjects(prev => prev.map(p => p.id === projectId ? updated : p));
         
@@ -105,22 +85,14 @@ export const useProjects = () => {
         return updated;
       } else {
         // Create new project
-        const { data, error } = await supabase
-          .from('projects')
-          .insert({
-            user_id: user.id,
-            name,
-            files: JSON.parse(JSON.stringify(files)),
-            language,
-            description: description || null,
-            is_public: isPublic ?? false,
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        const newProject = { ...data, files: files };
+        const newProject = await dataProvider.createProject({
+          user_id: user.id,
+          name,
+          files,
+          language,
+          description: description || null,
+          is_public: isPublic ?? false,
+        });
         setCurrentProject(newProject);
         setProjects(prev => [newProject, ...prev]);
         
@@ -131,60 +103,43 @@ export const useProjects = () => {
         
         return newProject;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error saving project',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unexpected error',
         variant: 'destructive',
       });
       return null;
     } finally {
       setLoading(false);
     }
-  }, [user, toast]);
+  }, [user, toast, dataProvider]);
 
   const loadProject = useCallback(async (projectId: string) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
-
-      if (error) throw error;
-
-      const project = { 
-        ...data, 
-        files: Array.isArray(data.files) ? (data.files as unknown as FileNode[]) : [] 
-      };
+      const project = await dataProvider.getProjectById(projectId) as Project;
       setCurrentProject(project);
       
       return project;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error loading project',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unexpected error',
         variant: 'destructive',
       });
       return null;
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, dataProvider]);
 
   const deleteProject = useCallback(async (projectId: string) => {
     if (!user) return false;
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', projectId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
+      await dataProvider.deleteProject(projectId, user.id);
 
       setProjects(prev => prev.filter(p => p.id !== projectId));
       if (currentProject?.id === projectId) {
@@ -197,17 +152,17 @@ export const useProjects = () => {
       });
       
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error deleting project',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unexpected error',
         variant: 'destructive',
       });
       return false;
     } finally {
       setLoading(false);
     }
-  }, [user, currentProject, toast]);
+  }, [user, currentProject, toast, dataProvider]);
 
   const forkProject = useCallback(async (project: Project) => {
     if (!user) {
@@ -221,23 +176,15 @@ export const useProjects = () => {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('projects')
-        .insert({
-          user_id: user.id,
-          name: `${project.name} (fork)`,
-          files: JSON.parse(JSON.stringify(project.files)),
-          language: project.language,
-          description: project.description,
-          is_public: false,
-          forked_from: project.id,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      const forkedProject = { ...data, files: project.files };
+      const forkedProject = await dataProvider.createProject({
+        user_id: user.id,
+        name: `${project.name} (fork)`,
+        files: project.files,
+        language: project.language,
+        description: project.description,
+        is_public: false,
+        forked_from: project.id,
+      });
       setProjects(prev => [forkedProject, ...prev]);
       
       toast({
@@ -246,17 +193,17 @@ export const useProjects = () => {
       });
       
       return forkedProject;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error forking project',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unexpected error',
         variant: 'destructive',
       });
       return null;
     } finally {
       setLoading(false);
     }
-  }, [user, toast]);
+  }, [user, toast, dataProvider]);
 
   const toggleStar = useCallback(async (projectId: string) => {
     if (!user) {
@@ -270,40 +217,30 @@ export const useProjects = () => {
 
     try {
       // Check if already starred
-      const { data: existing } = await supabase
-        .from('project_stars')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('project_id', projectId)
-        .maybeSingle();
+      const existing = await dataProvider.getExistingStar(projectId, user.id);
 
       if (existing) {
         // Unstar
-        await supabase
-          .from('project_stars')
-          .delete()
-          .eq('id', existing.id);
+        await dataProvider.deleteStarById(existing.id);
         
         toast({ title: 'Removed star' });
       } else {
         // Star
-        await supabase
-          .from('project_stars')
-          .insert({ user_id: user.id, project_id: projectId });
+        await dataProvider.createStar(projectId, user.id);
         
         toast({ title: 'Starred!' });
       }
       
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unexpected error',
         variant: 'destructive',
       });
       return false;
     }
-  }, [user, toast]);
+  }, [user, toast, dataProvider]);
 
   return {
     projects,
