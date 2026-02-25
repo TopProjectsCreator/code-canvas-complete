@@ -46,6 +46,7 @@ const isTextFile = (name: string) => {
 };
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git', '__pycache__', 'venv', '.venv', 'vendor', 'target', '.next', '.nuxt', 'coverage']);
+const ALLOWED_HIDDEN_NAMES = new Set(['.gitignore', '.tutorial']);
 
 // Helper to get user's GitHub token from BYOK
 const getUserGithubToken = async (): Promise<string | null> => {
@@ -228,8 +229,8 @@ const buildTreeFromPaths = (
     const parts = item.path.split('/');
     const name = parts[parts.length - 1];
 
-    // Skip hidden files (except .gitignore) and skip directories
-    if (name.startsWith('.') && name !== '.gitignore') continue;
+    // Skip hidden files except explicitly-supported entries
+    if (name.startsWith('.') && !ALLOWED_HIDDEN_NAMES.has(name)) continue;
     if (SKIP_DIRS.has(name)) continue;
 
     // Check if any ancestor is a skipped directory
