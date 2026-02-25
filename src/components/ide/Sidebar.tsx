@@ -89,7 +89,7 @@ const SettingsPanel = () => {
   return (
     <div className="flex flex-col h-full overflow-auto ide-scrollbar">
       <div className="p-3 border-b border-border">
-        <h3 className="text-sm font-medium mb-3">Repl Settings</h3>
+        <h3 className="text-sm font-medium mb-3">Canvas Settings</h3>
         <div className="space-y-3">
           <label className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Auto-save</span>

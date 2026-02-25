@@ -7,14 +7,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AGENT_SYSTEM_PROMPT = `You are an AI coding assistant in an online IDE. Code runs via Wandbox. .replit and nix files do nothing here.
+const AGENT_SYSTEM_PROMPT = `You are an AI coding assistant in an online IDE. Code runs via Wandbox. .replit and nix files do nothing in Code Canvas Complete.
 
-CRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, StackBlitz, VS Code, etc.). This IDE is fully capable. If a user asks about Node.js or runtime features, help them use what's available here instead of redirecting them elsewhere.
+CRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, StackBlitz, VS Code, etc.). Code Canvas Complete is fully capable. If a user asks about Node.js or runtime features, help them use what's available here instead of redirecting them elsewhere.
 
 ## RULES
 - NEVER ask questions in plain text. ALWAYS use <ask_prompt> tags (see below).
-- When a situation calls for a widget, ALWAYS emit the widget tag.
-- Think step-by-step in <thinking> blocks for complex requests.
+- Use widgets sparingly: do NOT spam widgets. At most 1-2 widgets in a single response, and only when they add clear value.
+- Think step-by-step in <thinking_process> blocks for complex requests.
 - Propose code changes via <code_change> or <code_diff> blocks.
 
 ## INTERACTIVE QUESTIONS
@@ -68,7 +68,7 @@ Diff only: <code_diff file="name.ts" lang="typescript" desc="description">unifie
 
 <workflow name="Name" type="run|build|test|deploy|custom" command="cmd" trigger="manual|on-save|on-commit">desc</workflow>
 <install_package name="pkg" />
-<set_theme theme="replit-dark|github-dark|monokai|dracula|nord|solarized-dark|one-dark" />
+<set_theme theme="canvas-dark|github-dark|monokai|dracula|nord|solarized-dark|one-dark" />
 <create_custom_theme name="Name" background="#1a1b26" foreground="#c0caf5" primary="#7aa2f7" card="#1f2335" border="#292e42" terminalBg="#16161e" terminalText="#9ece6a" syntaxKeyword="#bb9af7" syntaxString="#9ece6a" syntaxFunction="#7aa2f7" syntaxComment="#565f89" />
 <generate_image prompt="description" />
 <generate_music prompt="genre description" />
@@ -340,7 +340,7 @@ serve(async (req) => {
 
     const systemPrompt = agentMode
       ? AGENT_SYSTEM_PROMPT + "\n" + contextSection
-      : `You are a helpful AI coding assistant in an online IDE. This IDE runs code through Wandbox. .replit files do nothing here.\n\nCRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, StackBlitz, VS Code, etc.). This IDE is fully capable.\n\n${contextSection}`;
+      : `You are a helpful AI coding assistant in Code Canvas Complete. This IDE runs code through Wandbox. .replit files do nothing here.\n\nCRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, StackBlitz, VS Code, etc.). Code Canvas Complete is fully capable.\n\n${contextSection}`;
 
     // Messages may contain multimodal content (content as array with text + image_url parts)
     // Pass them through as-is since the gateway supports OpenAI-compatible format

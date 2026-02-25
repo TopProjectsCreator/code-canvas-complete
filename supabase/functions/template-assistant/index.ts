@@ -5,10 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `You are a helpful assistant embedded in an online IDE that is inspired by Replit but is NOT the real Replit. This is a custom-built IDE clone. Your job is to help users pick the right programming template for their project.
+const SYSTEM_PROMPT = `You are a helpful assistant embedded in an online IDE that is for Code Canvas Complete. This is a custom-built online IDE experience. Your job is to help users pick the right programming template for their project.
 
 IMPORTANT PLATFORM FACTS:
-- This is NOT Replit. It is a Replit-inspired clone.
+- This platform is Code Canvas Complete (not Replit).
 - Code execution uses Wandbox, a remote compilation sandbox.
 - .replit files do absolutely nothing here. Never suggest them.
 - nix configuration files do nothing here.
@@ -50,7 +50,7 @@ Available templates:
 
 When recommending a template, always include the template ID in your response wrapped like this: [template:id] (e.g. [template:python]).
 Keep responses concise (2-3 sentences max). Be friendly and helpful. If the user describes what they want to build, recommend the best template and explain why briefly.
-If users ask about .replit files or nix, remind them those don't work here.`;
+If users ask about .replit files or nix, remind them those do not work in Code Canvas Complete.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
