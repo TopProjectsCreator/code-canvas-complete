@@ -119,7 +119,7 @@ export const ProjectMenu = ({ projectName, onRename, onChangeTemplate }: Project
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Rename project</DialogTitle>
-            <DialogDescription>Enter a new name for your repl</DialogDescription>
+            <DialogDescription>Enter a new name for your canvas</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleRenameSubmit} className="flex gap-2 pt-2">
             <Input

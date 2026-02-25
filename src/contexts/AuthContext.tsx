@@ -1,6 +1,8 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { createAuthProvider, OAuthProvider } from '@/integrations/auth/provider';
+import { DeploymentPlatform } from '@/lib/platform';
 
 interface Profile {
   id: string;
@@ -16,8 +18,12 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  platform: DeploymentPlatform;
+  availableOAuthProviders: OAuthProvider[];
   signUp: (email: string, password: string, displayName?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithOAuth: (provider: OAuthProvider) => Promise<{ error: Error | null }>;
+  resetPassword: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Pick<Profile, 'display_name' | 'avatar_url'>>) => Promise<{ error: Error | null }>;
 }
@@ -33,46 +39,43 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const authProvider = useMemo(() => createAuthProvider(), []);
+
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener BEFORE getting session
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          // Fetch profile with setTimeout to avoid Supabase deadlock
-          setTimeout(async () => {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single();
-            setProfile(profileData);
-          }, 0);
-        } else {
-          setProfile(null);
-        }
-        
-        setLoading(false);
-      }
-    );
+    const subscription = authProvider.onAuthStateChange(async (_event, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
+      if (nextSession?.user) {
+        setTimeout(async () => {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('user_id', nextSession.user.id)
+            .single();
+          setProfile(profileData);
+        }, 0);
+      } else {
+        setProfile(null);
+      }
+
+      setLoading(false);
+    });
+
+    authProvider.getSession().then(({ session: initialSession }) => {
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+
+      if (initialSession?.user) {
         supabase
           .from('profiles')
           .select('*')
-          .eq('user_id', session.user.id)
+          .eq('user_id', initialSession.user.id)
           .single()
           .then(({ data: profileData }) => {
             setProfile(profileData);
@@ -84,32 +87,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  const signUp = async (email: string, password: string, displayName?: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: {
-          display_name: displayName || email.split('@')[0],
-        },
-      },
-    });
-    return { error };
-  };
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
-  };
+  }, [authProvider]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await authProvider.signOut();
     setUser(null);
     setSession(null);
     setProfile(null);
@@ -117,16 +98,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const updateProfile = async (updates: Partial<Pick<Profile, 'display_name' | 'avatar_url'>>) => {
     if (!user) return { error: new Error('No user logged in') };
-    
+
     const { error } = await supabase
       .from('profiles')
       .update(updates)
       .eq('user_id', user.id);
-    
+
     if (!error && profile) {
       setProfile({ ...profile, ...updates });
     }
-    
+
     return { error };
   };
 
@@ -137,8 +118,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         session,
         profile,
         loading,
-        signUp,
-        signIn,
+        platform: authProvider.platform,
+        availableOAuthProviders: authProvider.availableOAuthProviders,
+        signUp: authProvider.signUp,
+        signIn: authProvider.signIn,
+        signInWithOAuth: authProvider.signInWithOAuth,
+        resetPassword: authProvider.resetPassword,
         signOut,
         updateProfile,
       }}
