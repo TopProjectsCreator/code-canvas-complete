@@ -252,7 +252,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
         <div className="flex items-center gap-2 px-2.5 py-1 bg-background rounded-md text-xs">
           <span className="text-success">●</span>
           <span className="text-muted-foreground flex-1 truncate font-mono">
-            https://my-repl.replit.app
+            https://my-canvas.codecanvas.app
           </span>
         </div>
       </div>
@@ -300,7 +300,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
                   <Monitor className="w-8 h-8 opacity-40" />
                 </div>
                 <p className="text-sm font-medium mb-1">No preview available</p>
-                <p className="text-xs opacity-70">Click Run to start your Repl</p>
+                <p className="text-xs opacity-70">Click Run to start your Canvas</p>
               </div>
             </div>
           )}
