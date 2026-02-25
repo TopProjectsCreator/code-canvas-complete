@@ -62,7 +62,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     {
       id: '1',
       role: 'assistant',
-      content: "👋 Hi! I'm **Replit Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🎨 **Generate images** from text descriptions\n- 🎵 **Generate music** with AI (Lyria)\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
+      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🎨 **Generate images** from text descriptions\n- 🎵 **Generate music** with AI (Lyria)\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -391,7 +391,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const parseThinkingBlocks = (content: string): { steps: AgentStep[], cleanContent: string } => {
     const steps: AgentStep[] = [];
     let cleanContent = content;
-    const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/g;
+    const thinkingRegex = /<(?:thinking_process|thinking)>([\s\S]*?)<\/(?:thinking_process|thinking)>/g;
     let match;
     while ((match = thinkingRegex.exec(content)) !== null) {
       steps.push({ id: generateId(), type: 'thinking', content: match[1].trim(), timestamp: new Date(), isCollapsed: true });
@@ -608,7 +608,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             if (content) {
               fullContent += content;
-              if (fullContent.includes('<thinking>') && !fullContent.includes('</thinking>')) { setCurrentStep('Analyzing...'); }
+              if ((fullContent.includes('<thinking_process>') && !fullContent.includes('</thinking_process>')) || (fullContent.includes('<thinking>') && !fullContent.includes('</thinking>'))) { setCurrentStep('Analyzing...'); }
               else if (fullContent.includes('<code_change')) { setCurrentStep('Preparing changes...'); }
               else if (fullContent.includes('<generate_music')) { setCurrentStep('Preparing music...'); }
               else { setCurrentStep(null); }
