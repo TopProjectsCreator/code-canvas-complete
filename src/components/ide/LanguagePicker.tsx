@@ -57,7 +57,7 @@ const TEMPLATE_IDS: LanguageTemplate[] = [
 const languages: LanguageOption[] = [
   {
     id: 'blank',
-    name: 'Blank Repl',
+    name: 'Blank Canvas',
     icon: <FileCode className="w-8 h-8" />,
     description: 'Start from scratch with an empty project',
     color: 'from-gray-400 to-gray-600',
@@ -557,7 +557,7 @@ export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
       <div className="max-w-5xl w-full">
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold text-foreground mb-3">
-            Create a Repl
+            Create a Canvas
           </h1>
           <p className="text-muted-foreground">
             Choose a template to get started
