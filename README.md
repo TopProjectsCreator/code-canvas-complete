@@ -111,10 +111,9 @@ For production-grade static hosting on Koyeb, you can also deploy via a custom D
 1. **Create a new Repl** from the GitHub repository.
 <img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/f0033af4-cba9-4941-b89d-241ee891a6e4" />
 
-2. Select **lovable**, then input the following URL:
+2. Select **Github**, then input the following URL:
 `https://github.com/TopProjectsCreator/code-canvas-complete`
-<img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/27955b24-1224-43bb-831c-6be61cc9268b" />\n
- - It will say lovable because of how much we changed it so that it could run on lovable.
+<img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/33e866c9-cab2-4810-aad4-516f8635933b" />
 
 3. **Replit Agent** will automatically set up the environment and prepare the project to run.
 <img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/2bbe95b5-da39-4f2e-b521-75dff2852713" />
