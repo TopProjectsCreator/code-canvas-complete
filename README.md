@@ -42,6 +42,18 @@ Create a `.env` file (or equivalent platform env config) with your frontend vari
 ```bash
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
+# Optional Phase-1 platform auth routing override:
+# VITE_DEPLOY_PLATFORM=generic|replit|lovable
+# Optional auth-specific toggles used by platform detection fallback:
+# VITE_REPLIT_AUTH_ENABLED=true
+# VITE_LOVABLE_AUTH_ENABLED=true
+# Optional Phase-2 managed AI/DB endpoints (auto-selected by platform):
+# VITE_REPLIT_AI_BASE_URL=https://...
+# VITE_REPLIT_DB_BASE_URL=https://...
+# VITE_REPLIT_DB_TOKEN=...
+# VITE_LOVABLE_AI_BASE_URL=https://...
+# VITE_LOVABLE_DB_BASE_URL=https://...
+# VITE_LOVABLE_DB_TOKEN=...
 ```
 
 If running Edge Functions locally/remotely, configure function secrets in Supabase as needed (for example service role keys and any AI gateway keys used by your setup).
@@ -96,7 +108,7 @@ For production-grade static hosting on Koyeb, you can also deploy via a custom D
 ### Deploy on Replit
 
 
-1. **Create a new Repl** from the GitHub repository.
+1. **Create a new Canvas project** from the GitHub repository on Replit.
 <img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/f0033af4-cba9-4941-b89d-241ee891a6e4" />
 
 2. Select **lovable**, then input the following URL:
@@ -104,7 +116,7 @@ For production-grade static hosting on Koyeb, you can also deploy via a custom D
 <img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/27955b24-1224-43bb-831c-6be61cc9268b" />\n
  - It will say lovable because of how much we changed it so that it could run on lovable.
 
-3. **Replit Agent** will automatically set up the environment and prepare the project to run.
+3. **Replit Agent** will automatically set up the environment and prepare Code Canvas Complete to run.
 <img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/2bbe95b5-da39-4f2e-b521-75dff2852713" />
 
 Notes:
@@ -121,7 +133,7 @@ Click on it to get it pop out into a new page
 * **Deployment:** For an always-on or public-facing application, remember to configure a **Replit Deployment** within the project settings.
 
 
-For production mode in Replit:
+For production mode on Replit (Code Canvas Complete):
 
 ```bash
 npm run build
