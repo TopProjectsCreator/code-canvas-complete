@@ -94,13 +94,13 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const navigate = useNavigate();
   const { currentProject, setCurrentProject, loadProject, forkProject, toggleStar } = useProjects();
   
-  const [localProjectName, setLocalProjectName] = useState('my-repl');
+  const [localProjectName, setLocalProjectName] = useState('my-canvas');
   const [selectedTemplate, setSelectedTemplate] = useState<LanguageTemplate | null>(null);
   const [files, setFiles] = useState<FileNode[]>([]);
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [terminalHistory, setTerminalHistory] = useState<TerminalLine[]>([
-    { id: '1', type: 'info', content: '🚀 Welcome to Replit Shell! Type "help" for available commands.', timestamp: new Date() },
+    { id: '1', type: 'info', content: '🚀 Welcome to Canvas Shell! Type "help" for available commands.', timestamp: new Date() },
     { id: '2', type: 'output', content: 'Click Run to execute your code, or type commands below.', timestamp: new Date() },
   ]);
   const [isRunning, setIsRunning] = useState(false);
@@ -768,7 +768,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       outputLines.push({
         id: generateId(),
         type: 'output',
-        content: 'Server started at https://my-repl.replit.app',
+        content: 'Server started at https://my-canvas.codecanvas.app',
         timestamp: new Date(),
       });
     }
@@ -1591,7 +1591,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             }}
             onShareTwitter={() => {
               const link = currentProject ? `${window.location.origin}/project/${currentProject.id}` : window.location.href;
-              const text = `Check out "${currentProject?.name || 'my project'}" on Replit!`;
+              const text = `Check out "${currentProject?.name || 'my project'}" on Code Canvas Complete!`;
               window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link)}`, '_blank');
             }}
             onShareLinkedin={() => {
