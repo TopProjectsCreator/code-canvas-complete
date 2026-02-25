@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
-export type IDETheme = 'replit-dark' | 'github-dark' | 'monokai' | 'dracula' | 'nord' | 'solarized-dark' | 'one-dark' | string;
+export type IDETheme = 'canvas-dark' | 'github-dark' | 'monokai' | 'dracula' | 'nord' | 'solarized-dark' | 'one-dark' | string;
 
 export interface CustomThemeColors {
   background: string;
@@ -23,7 +23,7 @@ export interface CustomTheme {
 }
 
 const BUILTIN_THEMES: IDETheme[] = [
-  'replit-dark', 'github-dark', 'monokai', 'dracula', 'nord', 'solarized-dark', 'one-dark'
+  'canvas-dark', 'github-dark', 'monokai', 'dracula', 'nord', 'solarized-dark', 'one-dark'
 ];
 
 interface ThemeContextType {
@@ -39,7 +39,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const themeInfo: Record<string, { name: string; description: string }> = {
-  'replit-dark': { name: 'Replit Dark', description: 'Default dark theme' },
+  'canvas-dark': { name: 'Canvas Dark', description: 'Default dark theme' },
   'github-dark': { name: 'GitHub Dark', description: 'GitHub inspired' },
   'monokai': { name: 'Monokai', description: 'Classic Sublime theme' },
   'dracula': { name: 'Dracula', description: 'Dark purple theme' },
@@ -169,7 +169,8 @@ function removeCustomThemeStyle(id: string) {
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setThemeState] = useState<IDETheme>(() => {
     const saved = localStorage.getItem('ide-theme');
-    return saved || 'replit-dark';
+    if (saved === 'replit-dark') return 'canvas-dark';
+    return saved || 'canvas-dark';
   });
 
   const [customThemes, setCustomThemes] = useState<CustomTheme[]>(() => {
@@ -214,7 +215,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     removeCustomThemeStyle(id);
     setCustomThemes(prev => prev.filter(t => t.id !== id));
     // If the deleted theme was active, fall back to default
-    setThemeState(prev => prev === `custom-${id}` ? 'replit-dark' : prev);
+    setThemeState(prev => prev === `custom-${id}` ? 'canvas-dark' : prev);
   }, []);
 
   const updateCustomTheme = useCallback((ct: CustomTheme) => {

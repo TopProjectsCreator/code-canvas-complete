@@ -70,7 +70,7 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
 const htmlTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -83,13 +83,13 @@ const htmlTemplate: FileNode[] = [
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Repl</title>
+  <title>My Canvas</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
     <h1>Hello, World!</h1>
-    <p>Welcome to your new Repl!</p>
+    <p>Welcome to your new Canvas!</p>
     <button id="clickMe">Click Me</button>
     <div id="output"></div>
   </div>
@@ -182,16 +182,16 @@ document.getElementById('clickMe').addEventListener('click', () => {
 });
 
 // Try editing this code and click Run!
-console.log('Hello from your Repl! 🚀');`
+console.log('Hello from your Canvas! 🚀');`
       },
       {
         id: 'readme',
         name: 'README.md',
         type: 'file',
         language: 'markdown',
-        content: `# My Awesome Repl
+        content: `# My Awesome Canvas
 
-Welcome to your new Repl! This is a simple HTML/CSS/JavaScript project.
+Welcome to your new Canvas! This is a simple HTML/CSS/JavaScript project.
 
 ## Getting Started
 
@@ -208,7 +208,7 @@ Happy coding! 🎉`
 const javascriptTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -244,7 +244,7 @@ fetchData();`
         name: 'README.md',
         type: 'file',
         language: 'markdown',
-        content: `# JavaScript Repl
+        content: `# JavaScript Canvas
 
 Write and run JavaScript code.
 
@@ -259,7 +259,7 @@ Run \`node index.js\` in the shell to execute your code.`
 const typescriptTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -322,7 +322,7 @@ console.log(identity<string>('Hello TypeScript!'));`
 const pythonTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -378,7 +378,7 @@ print(f"Result: {calc.result}")  # Output: 15`
 const javaTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -426,7 +426,7 @@ class Greeter {
 const cppTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -497,7 +497,7 @@ run: main
 const cTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -559,7 +559,7 @@ run: main
 const goTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -611,7 +611,7 @@ func main() {
         name: 'go.mod',
         type: 'file',
         language: 'go',
-        content: `module my-repl
+        content: `module my-canvas
 
 go 1.21`
       }
@@ -622,7 +622,7 @@ go 1.21`
 const rustTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -671,7 +671,7 @@ impl Greeter {
         type: 'file',
         language: 'toml',
         content: `[package]
-name = "my-repl"
+name = "my-canvas"
 version = "0.1.0"
 edition = "2021"
 
@@ -684,7 +684,7 @@ edition = "2021"
 const rubyTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -740,7 +740,7 @@ greeter.greet
 const phpTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -796,7 +796,7 @@ echo "User: {\$user['name']} ({\$user['email']})\\n";
 const csharpTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -856,7 +856,7 @@ record User(string Name, string Email);`
 const bashTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -961,7 +961,7 @@ export const getFileLanguage = (filename: string): string => {
 const luaTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -1017,7 +1017,7 @@ print("Count: " .. myCounter())  -- 3`
 const perlTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -1326,7 +1326,7 @@ class UserListView(View):
 const sqliteTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-sql-repl',
+    name: 'my-sql-canvas',
     type: 'folder',
     children: [
       {
@@ -1406,7 +1406,7 @@ WHERE id IN (SELECT DISTINCT user_id FROM posts);`
 const rTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -1453,7 +1453,7 @@ cat("Factorial of 5:", factorial_r(5), "\\n")`
 const haskellTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -1498,7 +1498,7 @@ main = do
 const nimTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -1540,7 +1540,7 @@ echo "Numbers: " & $numbers`
 const zigTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -1575,7 +1575,7 @@ pub fn main() void {
 const lispTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -1614,7 +1614,7 @@ const lispTemplate: FileNode[] = [
 const dTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -1649,7 +1649,7 @@ long factorial(int n) {
 const groovyTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -1686,7 +1686,7 @@ println "Factorial of 5: \${factorial(5)}"`
 const pascalTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -1724,7 +1724,7 @@ end.`
 const blankTemplate: FileNode[] = [
   {
     id: 'root',
-    name: 'my-repl',
+    name: 'my-canvas',
     type: 'folder',
     children: [
       {
@@ -1732,7 +1732,7 @@ const blankTemplate: FileNode[] = [
         name: 'main.txt',
         type: 'file',
         language: 'text',
-        content: `# Welcome to your blank Repl!
+        content: `# Welcome to your blank Canvas!
 # 
 # This is an empty project. Create new files using
 # the sidebar or drag and drop files here.
