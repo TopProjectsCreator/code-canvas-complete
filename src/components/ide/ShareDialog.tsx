@@ -95,7 +95,7 @@ export const ShareDialog = ({
 
   const handleSocialShare = (platform: 'twitter' | 'linkedin' | 'email') => {
     const title = project?.name || 'Check out my project';
-    const text = `Check out "${title}" on Replit!`;
+    const text = `Check out "${title}" on Code Canvas Complete!`;
     
     let url = '';
     switch (platform) {
