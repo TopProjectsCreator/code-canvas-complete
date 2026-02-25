@@ -1,8 +1,9 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion, QuestionOption, ChatWidget, ChatWidgetType } from '@/types/agent';
 import { Workflow } from '@/types/ide';
 import { CustomThemeColors } from '@/contexts/ThemeContext';
+import { createAIProvider } from '@/integrations/ai/provider';
 
 interface CustomThemeAction {
   name: string;
@@ -56,10 +57,6 @@ interface UseAgentChatProps {
   workflows?: Workflow[];
 }
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
-const IMAGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`;
-const MUSIC_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-music`;
-
 export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, workflows = [] }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
@@ -75,6 +72,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const [byokModel, setByokModel] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const executedActionsRef = useRef<Set<string>>(new Set());
+  const aiProvider = useMemo(() => createAIProvider(), []);
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -563,19 +561,17 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         content: context.multimodalContent || messageContent,
       };
 
-      const response = await fetch(CHAT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({
-          messages: [...historyMessages, latestUserMsg],
-          currentFile: context.currentFile ? { name: context.currentFile.name, language: context.currentFile.language, content: context.currentFile.content?.slice(0, 10000) } : null,
-          consoleErrors: context.consoleErrors || null,
-          workflows: context.workflows || workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
-          agentMode: true,
-          model: selectedModel,
-          byokProvider: byokProvider || undefined,
-          byokModel: byokModel || undefined,
-        }),
+      const response = await aiProvider.chat({
+        messages: [...historyMessages, latestUserMsg],
+        currentFile: context.currentFile ? { name: context.currentFile.name, language: context.currentFile.language, content: context.currentFile.content?.slice(0, 10000) } : null,
+        consoleErrors: context.consoleErrors || null,
+        workflows: context.workflows || workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
+        agentMode: true,
+        model: selectedModel,
+        byokProvider: aiProvider.allowsBYOK ? (byokProvider || undefined) : undefined,
+        byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
+      }, {
+        accessToken: session.access_token,
         signal: abortControllerRef.current.signal,
       });
 
@@ -643,7 +639,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
             setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, images: [...(m.images || []), { prompt, imageUrl: '', isLoading: true }] } : m));
 
             try {
-              const imgResponse = await fetch(IMAGE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${imgSession.access_token}` }, body: JSON.stringify({ prompt }) });
+              const imgResponse = await aiProvider.generateImage(prompt, { accessToken: imgSession.access_token });
               const imgData = await imgResponse.json();
               setMessages(prev => prev.map(m => { if (m.id !== assistantId) return m; const images = (m.images || []).map(img => img.prompt === prompt ? { ...img, imageUrl: imgData.imageUrl || '', isLoading: false, error: imgData.error } : img); return { ...m, images }; }));
             } catch {
@@ -665,7 +661,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
             setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, audios: [...(m.audios || []), { prompt: action.prompt, audioUrl: '', isLoading: true }] } : m));
 
             try {
-              const musicResponse = await fetch(MUSIC_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${musicSession.access_token}` }, body: JSON.stringify({ prompt: action.prompt, bpm: action.bpm, duration: action.duration }) });
+              const musicResponse = await aiProvider.generateMusic({ prompt: action.prompt, bpm: action.bpm, duration: action.duration }, { accessToken: musicSession.access_token });
               const musicData = await musicResponse.json();
               setMessages(prev => prev.map(m => { if (m.id !== assistantId) return m; const audios = (m.audios || []).map(a => a.prompt === action.prompt ? { ...a, audioUrl: musicData.audioUrl || '', isLoading: false, error: musicData.error, duration: musicData.duration } : a); return { ...m, audios }; }));
             } catch {
@@ -734,7 +730,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       setCurrentStep(null);
       abortControllerRef.current = null;
     }
-  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, workflows]);
+  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, workflows, aiProvider]);
 
   const applyCodeChange = useCallback((change: CodeChange) => {
     if (onApplyCode) {
@@ -769,6 +765,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     messages,
     isLoading,
     currentStep,
+    aiPlatform: aiProvider.platform,
+    supportsManagedAI: aiProvider.supportsManagedAI,
+    allowsBYOK: aiProvider.allowsBYOK,
     selectedModel,
     setSelectedModel,
     byokProvider,
