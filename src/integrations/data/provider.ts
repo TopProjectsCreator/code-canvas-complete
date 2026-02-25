@@ -72,7 +72,7 @@ export interface DataProvider {
 }
 
 const normalizeProjectFiles = (project: { files: unknown } & Record<string, unknown>): ProjectRecord => ({
-  ...(project as ProjectRecord),
+  ...(project as unknown as ProjectRecord),
   files: Array.isArray(project.files) ? (project.files as FileNode[]) : [],
 });
 
