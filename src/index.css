@@ -4,12 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Replit-inspired dark IDE design system */
+/* Canvas-inspired dark IDE design system */
 
 @layer base {
   :root,
-  [data-theme="replit-dark"] {
-    /* Core backgrounds - Replit's signature dark navy */
+  [data-theme="canvas-dark"] {
+    /* Core backgrounds - Canvas signature dark navy */
     --background: 228 14% 10%;
     --foreground: 220 13% 91%;
 
@@ -19,7 +19,7 @@
     --popover: 228 14% 15%;
     --popover-foreground: 220 13% 91%;
 
-    /* Replit's signature orange */
+    /* Canvas signature orange */
     --primary: 24 94% 50%;
     --primary-foreground: 0 0% 100%;
 
@@ -35,7 +35,7 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Subtle borders like Replit */
+    /* Subtle borders for Canvas */
     --border: 228 10% 18%;
     --input: 228 12% 15%;
     --ring: 24 94% 50%;

@@ -108,14 +108,14 @@ For production-grade static hosting on Koyeb, you can also deploy via a custom D
 ### Deploy on Replit
 
 
-1. **Create a new Repl** from the GitHub repository.
+1. **Create a new Canvas project** from the GitHub repository on Replit.
 <img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/f0033af4-cba9-4941-b89d-241ee891a6e4" />
 
 2. Select **Github**, then input the following URL:
 `https://github.com/TopProjectsCreator/code-canvas-complete`
 <img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/33e866c9-cab2-4810-aad4-516f8635933b" />
 
-3. **Replit Agent** will automatically set up the environment and prepare the project to run.
+3. **Replit Agent** will automatically set up the environment and prepare Code Canvas Complete to run.
 <img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/2bbe95b5-da39-4f2e-b521-75dff2852713" />
 
 Notes:
@@ -132,7 +132,7 @@ Click on it to get it pop out into a new page
 * **Deployment:** For an always-on or public-facing application, remember to configure a **Replit Deployment** within the project settings.
 
 
-For production mode in Replit:
+For production mode on Replit (Code Canvas Complete):
 
 ```bash
 npm run build
