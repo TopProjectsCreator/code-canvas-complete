@@ -72,6 +72,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const [byokModel, setByokModel] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const executedActionsRef = useRef<Set<string>>(new Set());
+  const shellSessionIdRef = useRef<string | null>(null);
   const aiProvider = useMemo(() => createAIProvider(), []);
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -672,6 +673,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       }
 
       // Handle shell command execution
+      const shellExecutionSummaries: Array<{ command: string; output: string; success: boolean }> = [];
       if (processed.shellCommands && processed.shellCommands.length > 0) {
         for (const cmd of processed.shellCommands) {
           const shellKey = `shell:${cmd}`;
@@ -691,11 +693,14 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
           try {
             const { data, error } = await supabase.functions.invoke('execute-code', {
-              body: { code: cmd, language: 'shell' }
+              body: { code: cmd, language: 'shell', sessionId: shellSessionIdRef.current || undefined }
             });
+            if (data?.sessionId) shellSessionIdRef.current = data.sessionId;
 
             const output = error ? `Error: ${error.message}` : 
               (data?.error ? `Error: ${data.error}` : (data?.output?.join('\n') || '(no output)'));
+            const success = !error && !data?.error;
+            shellExecutionSummaries.push({ command: cmd, output, success });
 
             // Update step with result
             setMessages(prev => prev.map(m => {
@@ -717,6 +722,83 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
               );
               return { ...m, steps };
             }));
+            shellExecutionSummaries.push({ command: cmd, output: String(err), success: false });
+          }
+        }
+      }
+
+      // Continue the conversation agentically with tool results so the model can decide next actions.
+      if (shellExecutionSummaries.length > 0) {
+        setCurrentStep('Reviewing command output...');
+        const toolFeedback = shellExecutionSummaries
+          .map(({ command, output, success }) => `Command: ${command}\nStatus: ${success ? 'success' : 'failed'}\nOutput:\n${output}`)
+          .join('\n\n---\n\n');
+
+        const followUpResponse = await aiProvider.chat({
+          messages: [
+            ...historyMessages,
+            latestUserMsg,
+            { role: 'assistant', content: fullContent },
+            {
+              role: 'user',
+              content: `Shell tool results are available below. Continue solving the request using these results. If needed, run additional tools.\n\n${toolFeedback}`,
+            },
+          ],
+          currentFile: context.currentFile ? { name: context.currentFile.name, language: context.currentFile.language, content: context.currentFile.content?.slice(0, 10000) } : null,
+          consoleErrors: context.consoleErrors || null,
+          workflows: context.workflows || workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
+          agentMode: true,
+          model: selectedModel,
+          byokProvider: aiProvider.allowsBYOK ? (byokProvider || undefined) : undefined,
+          byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
+        }, {
+          accessToken: session.access_token,
+          signal: abortControllerRef.current?.signal,
+        });
+
+        if (followUpResponse.ok && followUpResponse.body) {
+          const followReader = followUpResponse.body.getReader();
+          const followDecoder = new TextDecoder();
+          let followBuffer = '';
+          let followContent = '';
+
+          while (true) {
+            const { done, value } = await followReader.read();
+            if (done) break;
+            followBuffer += followDecoder.decode(value, { stream: true });
+
+            let newlineIndex: number;
+            while ((newlineIndex = followBuffer.indexOf('\n')) !== -1) {
+              let line = followBuffer.slice(0, newlineIndex);
+              followBuffer = followBuffer.slice(newlineIndex + 1);
+              if (line.endsWith('\r')) line = line.slice(0, -1);
+              if (line.startsWith(':') || line.trim() === '') continue;
+              if (!line.startsWith('data: ')) continue;
+              const jsonStr = line.slice(6).trim();
+              if (jsonStr === '[DONE]') break;
+
+              try {
+                const parsed = JSON.parse(jsonStr);
+                const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+                if (content) followContent += content;
+              } catch {
+                followBuffer = line + '\n' + followBuffer;
+                break;
+              }
+            }
+          }
+
+          const followProcessed = processAgentResponse(followContent);
+          if (followProcessed.content || followProcessed.steps.length > 0) {
+            setMessages(prev => [...prev, {
+              id: generateId(),
+              role: 'assistant',
+              content: followProcessed.content,
+              steps: followProcessed.steps,
+              hasCodeChanges: followProcessed.hasCodeChanges,
+              questions: followProcessed.questions,
+              widgets: followProcessed.widgets,
+            }]);
           }
         }
       }
