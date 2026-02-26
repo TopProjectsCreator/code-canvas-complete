@@ -9,17 +9,29 @@ interface ExecuteRequest {
   code: string;
   language: string;
   stdin?: string;
+  sessionId?: string;
+}
+
+interface ExecuteResult {
+  output: string[];
+  error: string | null;
+  sessionId?: string;
+  executor?: 'wandbox' | 'container';
 }
 
 const WANDBOX_COMPILE = 'https://wandbox.org/api/compile.json';
 const WANDBOX_LIST = 'https://wandbox.org/api/list.json';
 
-// Cache compiler list
+const EXECUTOR_MODE = (Deno.env.get('EXECUTOR_MODE') || 'wandbox').toLowerCase();
+const CONTAINER_BASE_URL = Deno.env.get('EXECUTOR_CONTAINER_BASE_URL') || '';
+const CONTAINER_API_KEY = Deno.env.get('EXECUTOR_CONTAINER_API_KEY') || '';
+
+const containerFirstLanguages = new Set(['shell', 'bash', 'python']);
+
 let compilerCache: Record<string, string[]> | null = null;
 let cacheTime = 0;
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 5 * 60 * 1000;
 
-// Map our language names to Wandbox language names
 const languageToWandbox: Record<string, string> = {
   'javascript': 'JavaScript',
   'typescript': 'TypeScript',
@@ -48,7 +60,6 @@ const languageToWandbox: Record<string, string> = {
   'zig': 'Zig',
 };
 
-// Preferred compiler names (known working)
 const preferredCompilers: Record<string, string[]> = {
   'Python': ['cpython-3.12.0', 'cpython-3.11.0', 'cpython-3.10.0'],
   'JavaScript': ['nodejs-20.11.0', 'nodejs-18.15.0', 'nodejs-head'],
@@ -70,7 +81,6 @@ const preferredCompilers: Record<string, string[]> = {
   'Zig': ['zig-0.11.0', 'zig-head'],
 };
 
-// Fetch and cache the available compiler names from Wandbox
 async function getCompilerForLanguage(language: string): Promise<string | null> {
   const wandboxLang = languageToWandbox[language];
   if (!wandboxLang) return null;
@@ -92,7 +102,6 @@ async function getCompilerForLanguage(language: string): Promise<string | null> 
       compilerCache = cache;
       cacheTime = now;
     } catch {
-      // If fetch fails, try preferred compilers directly
       const preferred = preferredCompilers[wandboxLang];
       return preferred ? preferred[0] : null;
     }
@@ -101,9 +110,6 @@ async function getCompilerForLanguage(language: string): Promise<string | null> 
   const available = compilerCache![wandboxLang];
   if (!available || available.length === 0) return null;
 
-  
-
-  // Try preferred compilers first
   const preferred = preferredCompilers[wandboxLang];
   if (preferred) {
     for (const p of preferred) {
@@ -111,18 +117,15 @@ async function getCompilerForLanguage(language: string): Promise<string | null> 
     }
   }
 
-  // Skip "head" compilers as they may be broken, try to find a versioned one
   const versioned = available.find(c => !c.includes('head'));
   if (versioned) return versioned;
 
-  // Fallback to first available
   return available[0];
 }
 
-// Detect common sandbox limitation errors and return friendly messages
 function friendlyError(error: string): string | null {
-  if (error.includes('EOFError: EOF when reading a line') || error.includes("input()")) {
-    return '⚠️ Interactive input (e.g. input(), scanf, stdin) is not supported in the sandbox. Use hardcoded values instead.\n\nExample:\n  # Instead of: name = input("Enter name: ")\n  name = "World"';
+  if (error.includes('EOFError: EOF when reading a line') || error.includes('input()')) {
+    return '⚠️ Interactive input (e.g. input(), scanf, stdin) is not supported in the sandbox. Use hardcoded values instead.';
   }
   if (error.includes('Cannot find module') || error.includes('MODULE_NOT_FOUND')) {
     const match = error.match(/Cannot find module '([^']+)'/);
@@ -137,21 +140,19 @@ function friendlyError(error: string): string | null {
   return null;
 }
 
-async function executeWithWandbox(code: string, language: string, stdin?: string): Promise<{ output: string[]; error: string | null }> {
+async function executeWithWandbox(code: string, language: string, stdin?: string): Promise<ExecuteResult> {
   const compiler = await getCompilerForLanguage(language);
-  
-  
   if (!compiler) {
-    return { output: [], error: `Unsupported language: ${language}. Supported: ${Object.keys(languageToWandbox).join(', ')}` };
+    return { output: [], error: `Unsupported language: ${language}. Supported: ${Object.keys(languageToWandbox).join(', ')}`, executor: 'wandbox' };
   }
 
   try {
     const body: Record<string, string> = { code, compiler };
     if (stdin) body.stdin = stdin;
-    
+
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
-    
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
     let response: Response;
     try {
       response = await fetch(WANDBOX_COMPILE, {
@@ -166,19 +167,17 @@ async function executeWithWandbox(code: string, language: string, stdin?: string
 
     if (!response.ok) {
       if (response.status === 504) {
-        return { output: [], error: `⚠️ Execution timed out. Compiled languages like Zig, Rust, and C++ may take longer. Try simplifying your code.` };
+        return { output: [], error: '⚠️ Execution timed out. Try simplifying your code.', executor: 'wandbox' };
       }
       const errorText = await response.text();
-      return { output: [], error: `Execution failed (${response.status}): ${errorText}` };
+      return { output: [], error: `Execution failed (${response.status}): ${errorText}`, executor: 'wandbox' };
     }
 
     const result = await response.json();
     const output: string[] = [];
 
-    // Only include compiler messages if there's no program output (avoid noise from Nim, Haskell, etc.)
     if (result.compiler_message && !result.program_output?.trim()) {
-      const lines = result.compiler_message.split('\n').filter((l: string) => l.trim());
-      if (lines.length > 0) output.push(...lines);
+      output.push(...result.compiler_message.split('\n').filter((l: string) => l.trim()));
     }
 
     if (result.program_output) {
@@ -187,31 +186,106 @@ async function executeWithWandbox(code: string, language: string, stdin?: string
       output.push(...lines);
     }
 
-    // Only treat compiler_error as fatal if program didn't produce output
     if (result.compiler_error && (!result.program_output || !result.program_output.trim())) {
       const friendly = friendlyError(result.compiler_error);
-      return { output, error: friendly || result.compiler_error };
+      return { output, error: friendly || result.compiler_error, executor: 'wandbox' };
     }
 
     if (result.status && result.status !== '0' && result.status !== 0) {
-      const errorMsg = result.program_error || result.signal || `Process exited with code ${result.status}`;
       if (result.program_error) {
         const friendly = friendlyError(result.program_error);
-        return { output, error: friendly || result.program_error };
+        return { output, error: friendly || result.program_error, executor: 'wandbox' };
       }
-      if (output.length > 0 && !result.program_error) {
-        return { output, error: null };
-      }
-      return { output, error: errorMsg };
+      return { output, error: output.length > 0 ? null : (result.signal || `Process exited with code ${result.status}`), executor: 'wandbox' };
     }
 
-    return { output: output.length > 0 ? output : ['(no output)'], error: null };
+    return { output: output.length > 0 ? output : ['(no output)'], error: null, executor: 'wandbox' };
   } catch (err) {
-    return { output: [], error: err instanceof Error && err.name === 'AbortError' ? '⚠️ Execution timed out (30s limit). Try simplifying your code.' : `Network error: ${err instanceof Error ? err.message : String(err)}` };
+    return {
+      output: [],
+      error: err instanceof Error && err.name === 'AbortError'
+        ? '⚠️ Execution timed out (30s limit). Try simplifying your code.'
+        : `Network error: ${err instanceof Error ? err.message : String(err)}`,
+      executor: 'wandbox',
+    };
   }
 }
 
-function handleBuiltinCommand(command: string): { output: string[]; error: string | null; handled: boolean } {
+function normalizeOutput(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(v => String(v));
+  if (typeof value === 'string') return value.split('\n');
+  return ['(no output)'];
+}
+
+async function executeWithContainerBackend(
+  code: string,
+  language: string,
+  stdin?: string,
+  sessionId?: string,
+): Promise<ExecuteResult> {
+  if (!CONTAINER_BASE_URL) {
+    return {
+      output: [],
+      error: 'Container executor not configured (missing EXECUTOR_CONTAINER_BASE_URL).',
+      executor: 'container',
+    };
+  }
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (CONTAINER_API_KEY) headers.Authorization = `Bearer ${CONTAINER_API_KEY}`;
+
+  let activeSessionId = sessionId;
+
+  try {
+    if (!activeSessionId) {
+      const createResponse = await fetch(`${CONTAINER_BASE_URL}/sessions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ language }),
+      });
+
+      if (!createResponse.ok) {
+        const text = await createResponse.text();
+        return { output: [], error: `Failed to create execution session: ${text || createResponse.statusText}`, executor: 'container' };
+      }
+
+      const createData = await createResponse.json();
+      activeSessionId = createData?.sessionId;
+      if (!activeSessionId) {
+        return { output: [], error: 'Container backend did not return a sessionId.', executor: 'container' };
+      }
+    }
+
+    const executeResponse = await fetch(`${CONTAINER_BASE_URL}/execute`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ sessionId: activeSessionId, language, code, stdin }),
+    });
+
+    if (!executeResponse.ok) {
+      const text = await executeResponse.text();
+      return { output: [], error: `Container execution failed: ${text || executeResponse.statusText}`, sessionId: activeSessionId, executor: 'container' };
+    }
+
+    const data = await executeResponse.json();
+    return {
+      output: normalizeOutput(data?.output),
+      error: data?.error ? String(data.error) : null,
+      sessionId: activeSessionId,
+      executor: 'container',
+    };
+  } catch (error) {
+    return { output: [], error: `Container backend error: ${error instanceof Error ? error.message : String(error)}`, sessionId: activeSessionId, executor: 'container' };
+  }
+}
+
+function shouldUseContainer(language: string): boolean {
+  if (EXECUTOR_MODE === 'container') return true;
+  if (EXECUTOR_MODE === 'hybrid') return containerFirstLanguages.has(language.toLowerCase());
+  return false;
+}
+
+function handleBuiltinCommand(command: string, executorName: string): { output: string[]; error: string | null; handled: boolean } {
   const cmd = command.trim().split(/\s+/)[0];
   switch (cmd) {
     case 'clear':
@@ -219,17 +293,16 @@ function handleBuiltinCommand(command: string): { output: string[]; error: strin
     case 'help':
       return {
         output: [
-          '🚀 Real Shell - Powered by Wandbox',
+          `🚀 Shell Executor - ${executorName}`,
           '',
-          'Commands are executed on remote servers.',
+          'Commands run on a remote executor.',
+          'Python/shell can use persistent sessions when container mode is enabled.',
           '',
           'Examples:',
-          '  echo "Hello World"',
-          '  ls -la',
-          '',
-          'Limitations:',
-          '  - No persistent filesystem between commands',
-          '  - Timeout: ~10 seconds per command',
+          '  python -m venv .venv',
+          '  source .venv/bin/activate',
+          '  pip install requests',
+          '  python script.py',
         ],
         error: null,
         handled: true,
@@ -245,37 +318,55 @@ serve(async (req) => {
   }
 
   try {
-    const { code, language, stdin } = await req.json() as ExecuteRequest;
+    const { code, language, stdin, sessionId } = await req.json() as ExecuteRequest;
 
     if (!code || !code.trim()) {
       return new Response(
         JSON.stringify({ error: 'No code provided', output: [] }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    let result: { output: string[]; error: string | null };
+    const normalizedLanguage = language.toLowerCase();
+    const useContainer = shouldUseContainer(normalizedLanguage);
+    const executorName = useContainer ? 'Container (session-capable)' : 'Wandbox';
 
-    if (language === 'shell' || language === 'bash') {
-      const builtin = handleBuiltinCommand(code.trim());
+    if (normalizedLanguage === 'shell' || normalizedLanguage === 'bash') {
+      const builtin = handleBuiltinCommand(code.trim(), executorName);
       if (builtin.handled) {
-        result = { output: builtin.output, error: builtin.error };
-      } else {
-        result = await executeWithWandbox(code, 'bash', stdin);
+        return new Response(
+          JSON.stringify({ output: builtin.output, error: builtin.error, executedAt: new Date().toISOString(), sessionId, executor: useContainer ? 'container' : 'wandbox' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+
+    let result: ExecuteResult;
+    if (useContainer) {
+      result = await executeWithContainerBackend(code, normalizedLanguage, stdin, sessionId);
+      if (result.error && EXECUTOR_MODE === 'hybrid') {
+        const fallbackLanguage = normalizedLanguage === 'shell' ? 'bash' : normalizedLanguage;
+        const fallback = await executeWithWandbox(code, fallbackLanguage, stdin);
+        result = {
+          ...fallback,
+          error: `${result.error}\n\n↩️ Fell back to Wandbox executor.`,
+          sessionId: result.sessionId,
+        };
       }
     } else {
-      result = await executeWithWandbox(code, language, stdin);
+      const fallbackLanguage = normalizedLanguage === 'shell' ? 'bash' : normalizedLanguage;
+      result = await executeWithWandbox(code, fallbackLanguage, stdin);
     }
 
     return new Response(
-      JSON.stringify({ output: result.output, error: result.error, executedAt: new Date().toISOString() }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ output: result.output, error: result.error, executedAt: new Date().toISOString(), sessionId: result.sessionId, executor: result.executor || (useContainer ? 'container' : 'wandbox') }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {
     console.error('Execution error:', err);
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : 'Unknown error', output: [] }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 });
