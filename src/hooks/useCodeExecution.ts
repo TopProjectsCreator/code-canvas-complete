@@ -18,6 +18,7 @@ const EXECUTABLE_LANGUAGES = new Set([
 
 export const useCodeExecution = () => {
   const [isExecuting, setIsExecuting] = useState(false);
+  const [executorSessions, setExecutorSessions] = useState<Record<string, string>>({});
 
   const executeCode = useCallback(async (code: string, language: string = 'javascript', stdin?: string): Promise<ExecutionResult> => {
     // Handle preview-based languages (HTML, CSS, Markdown render in preview)
@@ -67,8 +68,12 @@ export const useCodeExecution = () => {
     setIsExecuting(true);
     
     try {
+      const normalizedLanguage = language.toLowerCase();
+      const sessionKey = normalizedLanguage === 'bash' ? 'shell' : normalizedLanguage;
       const body: Record<string, string> = { code, language };
       if (stdin) body.stdin = stdin;
+      const existingSessionId = executorSessions[sessionKey];
+      if (existingSessionId) body.sessionId = existingSessionId;
       
       const { data, error } = await supabase.functions.invoke('execute-code', {
         body
@@ -97,11 +102,18 @@ export const useCodeExecution = () => {
 
       // Handle case where data contains an error (400 response from edge function)
       if (data?.error) {
+        if (data?.sessionId && data.sessionId !== existingSessionId) {
+          setExecutorSessions(prev => ({ ...prev, [sessionKey]: data.sessionId }));
+        }
         return {
           output: data.output || [],
           error: data.error,
           executedAt: data.executedAt || new Date().toISOString()
         };
+      }
+
+      if (data?.sessionId && data.sessionId !== existingSessionId) {
+        setExecutorSessions(prev => ({ ...prev, [sessionKey]: data.sessionId }));
       }
 
       return data as ExecutionResult;
@@ -131,7 +143,7 @@ export const useCodeExecution = () => {
     } finally {
       setIsExecuting(false);
     }
-  }, []);
+  }, [executorSessions]);
 
   const executeShellCommand = useCallback(async (command: string): Promise<ExecutionResult> => {
     return executeCode(command, 'shell');
