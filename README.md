@@ -118,6 +118,30 @@ VITE_SUPABASE_ANON_KEY=...
 
 If running Edge Functions locally/remotely, configure function secrets in Supabase as needed (for example service role keys and any AI gateway keys used by your setup).
 
+### Optional: shell/python executor modes (for `pip` support)
+
+The `execute-code` Edge Function now supports feature-flagged executor routing:
+
+- `EXECUTOR_MODE=wandbox` (default): all languages run on Wandbox.
+- `EXECUTOR_MODE=container`: all executable languages route to your container runner.
+- `EXECUTOR_MODE=hybrid`: `shell`, `bash`, and `python` route to container; others stay on Wandbox.
+
+To enable container-backed persistent shell/python sessions (for workflows like `pip install ...`), set:
+
+```bash
+EXECUTOR_MODE=hybrid
+EXECUTOR_CONTAINER_BASE_URL=https://your-runner.example.com
+# Optional:
+EXECUTOR_CONTAINER_API_KEY=...
+```
+
+Expected container runner API:
+
+- `POST /sessions` with `{ "language": "python" }` → `{ "sessionId": "..." }`
+- `POST /execute` with `{ "sessionId": "...", "language": "python|shell|bash", "code": "...", "stdin": "..." }`
+
+The frontend and agent shell tools will automatically send/retain `sessionId` values returned by `execute-code` for subsequent commands.
+
 ### 3) Start dev server
 
 ```bash

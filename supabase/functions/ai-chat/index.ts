@@ -458,35 +458,94 @@ serve(async (req) => {
     const selectedModel = MODEL_MAP[model] || MODEL_MAP.flash;
     console.log(`Using Lovable gateway with model: ${selectedModel}`);
 
-    const streamResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: selectedModel, messages: aiMessages, stream: true }),
-    });
+    const conversation: any[] = [...aiMessages];
+    let finalAssistantContent = "";
 
-    if (!streamResponse.ok) {
-      const errorText = await streamResponse.text();
-      console.error(`Lovable gateway error (${streamResponse.status}):`, errorText.slice(0, 200));
+    for (let i = 0; i < 4; i++) {
+      const completionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: selectedModel,
+          messages: conversation,
+          tools: WEB_SEARCH_TOOLS,
+          tool_choice: "auto",
+          stream: false,
+        }),
+      });
 
-      if (streamResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again shortly." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (!completionResponse.ok) {
+        const errorText = await completionResponse.text();
+        console.error(`Lovable gateway error (${completionResponse.status}):`, errorText.slice(0, 200));
+
+        if (completionResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again shortly." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        return new Response(
+          JSON.stringify({
+            error: "Built-in AI service unavailable. Please use your own API key (BYOK) instead.",
+          }),
+          {
+            status: 502,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
       }
 
-      return new Response(
-        JSON.stringify({
-          error: "Built-in AI service unavailable. Please use your own API key (BYOK) instead.",
-        }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        },
-      );
+      const completionData = await completionResponse.json();
+      const assistantMessage = completionData?.choices?.[0]?.message;
+      if (!assistantMessage) {
+        finalAssistantContent = "I could not produce a response.";
+        break;
+      }
+
+      const toolCalls = assistantMessage.tool_calls || [];
+      conversation.push(assistantMessage);
+
+      if (toolCalls.length === 0) {
+        finalAssistantContent = assistantMessage.content || "";
+        break;
+      }
+
+      for (const call of toolCalls) {
+        if (call?.function?.name !== "web_search") continue;
+
+        let query = "";
+        try {
+          const args = JSON.parse(call.function.arguments || "{}");
+          query = args.query || "";
+        } catch {
+          query = "";
+        }
+
+        const searchResult = query
+          ? await executeWebSearch(query, LOVABLE_API_KEY)
+          : "Search failed: query was missing.";
+
+        conversation.push({
+          role: "tool",
+          tool_call_id: call.id,
+          name: "web_search",
+          content: searchResult,
+        });
+      }
     }
 
-    return new Response(streamResponse.body, {
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        const chunk = { choices: [{ delta: { content: finalAssistantContent || "" } }] };
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      },
+    });
+
+    return new Response(stream, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
