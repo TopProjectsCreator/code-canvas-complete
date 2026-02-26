@@ -126,7 +126,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     label: string; detail?: string; timestamp: Date;
   }>>([]);
   const editedFilesRef = useRef<Set<string>>(new Set());
-  const { executeCode, isExecuting } = useCodeExecution();
+  const { executeCode, executeShellCommand, isExecuting } = useCodeExecution();
 
   const addHistoryEntry = useCallback((type: typeof historyEntries[0]['type'], label: string, detail?: string) => {
     // Capture snapshot of current state for rollback
@@ -402,7 +402,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   }, []);
 
   // Workflow handlers
-  const handleRunWorkflow = useCallback((workflow: Workflow) => {
+  const handleRunWorkflow = useCallback(async (workflow: Workflow) => {
     setCurrentlyRunningWorkflow(workflow.id);
     
     setTerminalHistory(prev => [...prev, {
@@ -417,28 +417,39 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       timestamp: new Date(),
     }]);
 
-    // Simulate workflow execution
-    setTimeout(() => {
-      const success = Math.random() > 0.2; // 80% success rate for demo
-      
+    try {
+      const result = await executeShellCommand(workflow.command);
+      const success = !result.error;
+
       setWorkflows(prev => prev.map(w => 
         w.id === workflow.id 
           ? { ...w, lastRun: new Date(), lastStatus: success ? 'success' : 'failed' }
           : w
       ));
 
-      setTerminalHistory(prev => [...prev, {
-        id: generateId(),
-        type: success ? 'output' : 'error',
-        content: success 
-          ? `✅ Workflow "${workflow.name}" completed successfully`
-          : `❌ Workflow "${workflow.name}" failed`,
-        timestamp: new Date(),
-      }]);
+      setTerminalHistory(prev => {
+        const outputLines = result.output.map((line) => ({
+          id: generateId(),
+          type: success ? 'output' as const : 'error' as const,
+          content: line,
+          timestamp: new Date(),
+        }));
 
+        const statusLine: TerminalLine = {
+          id: generateId(),
+          type: success ? 'output' : 'error',
+          content: success
+            ? `✅ Workflow "${workflow.name}" completed successfully`
+            : `❌ Workflow "${workflow.name}" failed: ${result.error}`,
+          timestamp: new Date(),
+        };
+
+        return [...prev, ...outputLines, statusLine];
+      });
+    } finally {
       setCurrentlyRunningWorkflow(null);
-    }, 1500 + Math.random() * 1000);
-  }, []);
+    }
+  }, [executeShellCommand]);
 
   const handleCreateWorkflow = useCallback((workflow: Omit<Workflow, 'id'>) => {
     const newWorkflow: Workflow = {
