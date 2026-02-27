@@ -142,6 +142,72 @@ Expected container runner API:
 
 The frontend and agent shell tools will automatically send/retain `sessionId` values returned by `execute-code` for subsequent commands.
 
+Example code:
+
+```Node
+const express = require('express');
+const pty = require('node-pty');
+const { v4: uuidv4 } = require('uuid');
+
+const app = express();
+app.use(express.json());
+
+// Store active shell sessions
+const sessions = {};
+
+// 1. Create a new Session
+app.post('/sessions', (req, res) => {
+  const sessionId = uuidv4();
+  
+  // Spawn a real bash process
+  const shell = pty.spawn('bash', [], {
+    name: 'xterm-color',
+    cols: 80,
+    rows: 24,
+    cwd: process.env.HOME,
+    env: process.env
+  });
+
+  let output = '';
+  shell.onData((data) => {
+    output += data;
+  });
+
+  sessions[sessionId] = { shell, getOutput: () => {
+    const tmp = output;
+    output = ''; // Clear buffer after reading
+    return tmp;
+  }};
+
+  res.json({ sessionId });
+});
+
+// 2. Execute Command
+app.post('/execute', (req, res) => {
+  const { sessionId, command } = req.body;
+  const session = sessions[sessionId];
+
+  if (!session) {
+    return res.status(404).json({ error: "Session not found" });
+  }
+
+  // Write command to the virtual terminal
+  session.shell.write(`${command}\n`);
+
+  // Wait a moment for the shell to process and return the output
+  setTimeout(() => {
+    res.json({ output: session.getOutput() });
+  }, 500); 
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Shell Runner active on port ${PORT}`);
+});
+```
+
+After running `npm install express node-pty body-cache uuid`.
+
 ### 3) Start dev server
 
 ```bash
