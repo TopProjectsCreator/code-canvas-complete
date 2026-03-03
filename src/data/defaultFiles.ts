@@ -1,5 +1,6 @@
 import { FileNode } from '@/types/ide';
 import { LanguageTemplate } from '@/components/ide/LanguagePicker';
+import { getArduinoTemplateFiles } from './arduinoTemplates';
 
 const tutorialTitles: Record<LanguageTemplate, string> = {
   blank: 'Blank Canvas',
@@ -30,7 +31,8 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   nodejs: 'Node.js',
   flask: 'Flask',
   django: 'Django',
-  sqlite: 'SQLite'
+  sqlite: 'SQLite',
+  arduino: 'Arduino',
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
@@ -187,6 +189,8 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
     case 'pascal':
       baseTemplate = pascalTemplate;
       break;
+    case 'arduino':
+      return withTutorialFolder(template, getArduinoTemplateFiles('uno'));
     default:
       baseTemplate = htmlTemplate;
       break;
