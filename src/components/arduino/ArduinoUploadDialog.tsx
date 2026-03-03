@@ -1,0 +1,216 @@
+import { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { arduinoBoards } from '@/data/arduinoTemplates';
+import { Loader2 } from 'lucide-react';
+
+declare global {
+  interface Navigator {
+    serial?: {
+      requestPort(): Promise<{ open: (opts: { baudRate: number }) => Promise<void>; close: () => Promise<void>; getInfo: () => { usbProductId?: number } }>;
+      getPorts(): Promise<Array<{ getInfo: () => { usbProductId?: number } }>>;
+    };
+  }
+}
+
+export interface UploadConfig {
+  boardId: string;
+  portName: string;
+  baudRate: number;
+  uploadMethod: 'serial' | 'wifi' | 'bluetooth';
+}
+
+interface ArduinoUploadDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onUpload: (config: UploadConfig) => Promise<void>;
+  sketchCode: string;
+}
+
+export function ArduinoUploadDialog({
+  open,
+  onOpenChange,
+  onUpload,
+  sketchCode,
+}: ArduinoUploadDialogProps) {
+  const [config, setConfig] = useState<UploadConfig>({
+    boardId: 'uno',
+    portName: 'COM3',
+    baudRate: 115200,
+    uploadMethod: 'serial',
+  });
+
+  const [ports, setPorts] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    if (open) {
+      detectSerialPorts();
+    }
+  }, [open]);
+
+  const detectSerialPorts = async () => {
+    try {
+      const nav = navigator as unknown as { serial?: unknown };
+      if (!nav.serial) {
+        setError('Web Serial API not supported in this browser');
+        return;
+      }
+
+      const serialNav = nav.serial as { getPorts(): Promise<Array<{ getInfo: () => { usbProductId?: number } }>> };
+      const availablePorts = await serialNav.getPorts();
+      setPorts(availablePorts.map((port, index) => `COM${index + 3}`)); // Mock port names
+    } catch (err) {
+      setError('Failed to detect serial ports');
+    }
+  };
+
+  const handleUpload = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      await onUpload(config);
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogHeader>
+          <DialogTitle>Upload to Arduino Board</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="board">Board Type</Label>
+            <Select
+              value={config.boardId}
+              onValueChange={(value) => setConfig({ ...config, boardId: value })}
+            >
+              <SelectTrigger id="board">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(arduinoBoards).map(([id, board]) => (
+                  <SelectItem key={id} value={id}>
+                    {board.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="method">Upload Method</Label>
+            <Select
+              value={config.uploadMethod}
+              onValueChange={(value) =>
+                setConfig({ ...config, uploadMethod: value as UploadConfig['uploadMethod'] })
+              }
+            >
+              <SelectTrigger id="method">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="serial">USB Serial</SelectItem>
+                <SelectItem value="wifi">WiFi (OTA)</SelectItem>
+                <SelectItem value="bluetooth">Bluetooth</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {config.uploadMethod === 'serial' && (
+            <>
+              <div>
+                <Label htmlFor="port">Serial Port</Label>
+                <Select
+                  value={config.portName}
+                  onValueChange={(value) => setConfig({ ...config, portName: value })}
+                >
+                  <SelectTrigger id="port">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ports.length > 0 ? (
+                      ports.map((port) => (
+                        <SelectItem key={port} value={port}>
+                          {port}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>
+                        No ports detected
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="baudrate">Baud Rate</Label>
+                <Select
+                  value={String(config.baudRate)}
+                  onValueChange={(value) => setConfig({ ...config, baudRate: parseInt(value) })}
+                >
+                  <SelectTrigger id="baudrate">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="9600">9600</SelectItem>
+                    <SelectItem value="115200">115200</SelectItem>
+                    <SelectItem value="230400">230400</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          {config.uploadMethod === 'wifi' && (
+            <div>
+              <Label htmlFor="ipaddress">Board IP Address</Label>
+              <Input
+                id="ipaddress"
+                placeholder="192.168.1.100"
+                value={config.portName}
+                onChange={(e) => setConfig({ ...config, portName: e.target.value })}
+              />
+            </div>
+          )}
+
+          {error && <div className="text-sm text-red-500">{error}</div>}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleUpload} disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...
+              </>
+            ) : (
+              'Upload Sketch'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

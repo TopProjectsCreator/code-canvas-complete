@@ -29,7 +29,7 @@ export type LanguageTemplate =
   | 'blank' | 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' 
   | 'ruby' | 'php' | 'csharp' | 'bash' | 'lua' | 'perl'
   | 'r' | 'haskell' | 'nim' | 'zig' | 'lisp' | 'd' | 'groovy' | 'pascal'
-  | 'react' | 'nodejs' | 'flask' | 'django' | 'sqlite';
+  | 'react' | 'nodejs' | 'flask' | 'django' | 'sqlite' | 'arduino';
 
 interface LanguageOption {
   id: LanguageTemplate;
@@ -51,7 +51,7 @@ interface ChatMessage {
 const TEMPLATE_IDS: LanguageTemplate[] = [
   'blank', 'html', 'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'go', 'rust',
   'ruby', 'php', 'csharp', 'bash', 'lua', 'perl', 'r', 'haskell', 'nim', 'zig', 'lisp',
-  'd', 'groovy', 'pascal', 'react', 'nodejs', 'flask', 'django', 'sqlite'
+  'd', 'groovy', 'pascal', 'react', 'nodejs', 'flask', 'django', 'sqlite', 'arduino'
 ];
 
 const languages: LanguageOption[] = [
@@ -257,6 +257,13 @@ const languages: LanguageOption[] = [
     icon: <TerminalIcon className="w-8 h-8" />,
     description: 'Shell scripting for automation',
     color: 'from-green-600 to-emerald-700',
+  },
+  {
+    id: 'arduino',
+    name: 'Arduino',
+    icon: <Cpu className="w-8 h-8" />,
+    description: 'Embedded systems with Arduino boards',
+    color: 'from-cyan-500 to-blue-600',
   },
 ];
 
