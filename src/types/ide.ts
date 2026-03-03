@@ -70,6 +70,48 @@ export interface Workflow {
   isDefault?: boolean;
 }
 
+// Arduino types
+export interface ArduinoBoard {
+  id: string;
+  name: string;
+  cpu: string;
+  flash: number; // KB
+  ram: number; // KB
+  pins: number;
+  voltage: number; // volts
+  serial: boolean;
+  wifi: boolean;
+  bluetooth: boolean;
+}
+
+export interface ArduinoPin {
+  number: number;
+  name: string;
+  mode: 'digital' | 'analog' | 'pwm' | 'i2c' | 'spi' | 'uart';
+  state: 'high' | 'low' | number; // 0-255 for PWM/analog
+}
+
+export interface ArduinoComponent {
+  id: string;
+  type: string; // 'led', 'resistor', 'button', 'sensor', 'servo', etc.
+  label: string;
+  pins: { [key: string]: number }; // e.g., { positive: 5, negative: 0 }
+  properties: Record<string, any>;
+  x: number;
+  y: number;
+}
+
+export interface BreadboardCircuit {
+  id: string;
+  boardId: string;
+  components: ArduinoComponent[];
+  connections: Array<{
+    from: { componentId: string; pin: string };
+    to: { componentId: string | 'board'; pin: string | number };
+  }>;
+  code: string;
+}
+
 export interface IDEState {
   files: FileNode[];
   openTabs: Tab[];
