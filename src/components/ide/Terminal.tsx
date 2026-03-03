@@ -3,6 +3,7 @@ import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2, Spa
 import { TerminalLine } from '@/types/ide';
 import { cn } from '@/lib/utils';
 import { useCodeExecution } from '@/hooks/useCodeExecution';
+import { useWebContainer } from '@/hooks/useWebContainer';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { executeShellCommand, executeCode, isExecuting } = useCodeExecution();
+  const { status: webContainerStatus } = useWebContainer();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -206,6 +208,12 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
             <div className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
               <Loader2 className="w-3 h-3 animate-spin text-primary" />
               <span>Running</span>
+            </div>
+          )}
+          {webContainerStatus === 'booting' && (
+            <div className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
+              <Loader2 className="w-3 h-3 animate-spin text-primary" />
+              <span>Booting shell...</span>
             </div>
           )}
           <button 
