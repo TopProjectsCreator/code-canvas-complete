@@ -1,23 +1,20 @@
 import { UploadConfig } from '@/components/arduino/ArduinoUploadDialog';
 
-declare global {
-  interface Navigator {
-    serial?: SerialInterface;
-  }
-}
-
-interface SerialInterface {
-  requestPort(): Promise<SerialPort>;
-  getPorts(): Promise<SerialPort[]>;
-}
-
-interface SerialPort {
+interface SerialPortLike {
   open(options: { baudRate: number }): Promise<void>;
   close(): Promise<void>;
   getInfo(): { usbProductId?: number };
   readable?: ReadableStream<Uint8Array>;
   writable?: WritableStream<Uint8Array>;
 }
+
+interface SerialLike {
+  requestPort(): Promise<SerialPortLike>;
+  getPorts(): Promise<SerialPortLike[]>;
+}
+
+const getSerial = (): SerialLike | undefined =>
+  (navigator as unknown as { serial?: SerialLike }).serial;
 
 export class ArduinoUploadService {
   /**
@@ -28,12 +25,13 @@ export class ArduinoUploadService {
     config: UploadConfig,
     onProgress?: (message: string) => void
   ): Promise<void> {
-    if (!navigator.serial) {
+    const serial = getSerial();
+    if (!serial) {
       throw new Error('Web Serial API not supported');
     }
 
     try {
-      const port = await navigator.serial.requestPort();
+      const port = await serial.requestPort();
       await port.open({ baudRate: config.baudRate });
 
       onProgress?.('Connected to board');
@@ -107,11 +105,12 @@ export class ArduinoUploadService {
     baudRate: number,
     onData?: (data: string) => void
   ): Promise<void> {
-    if (!navigator.serial) {
+    const serial = getSerial();
+    if (!serial) {
       throw new Error('Web Serial API not supported');
     }
 
-    const serialPort = await navigator.serial.requestPort();
+    const serialPort = await serial.requestPort();
     await serialPort.open({ baudRate });
 
     const reader = serialPort.readable?.getReader();
