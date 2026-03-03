@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const AGENT_SYSTEM_PROMPT = `You are an AI coding assistant in an online IDE. Code runs via Wandbox. .replit and nix files do nothing in Code Canvas Complete.
+const AGENT_SYSTEM_PROMPT = `You are an AI coding assistant in an online IDE. Shell/bash/javascript commands run in browser-native WebContainers (Node.js via jsh/node) by default, while other languages run through the existing execute-code backend (Wandbox or optional container runner). .replit and nix files do nothing in Code Canvas Complete.
 
 CRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, StackBlitz, VS Code, etc.). Code Canvas Complete is fully capable. If a user asks about Node.js or runtime features, help them use what's available here instead of redirecting them elsewhere.
 
@@ -79,6 +79,7 @@ Diff only: <code_diff file="name.ts" lang="typescript" desc="description">unifie
 <save_project /> <run_project />
 <rename_file old="a.js" new="b.js" /> <delete_file name="temp.js" />
 <run_shell command="ls -la" />  — Execute a shell command and show output inline. Use for running scripts, checking files, etc.
+- For Python package manager commands (`pip`, `pip3`, `uv`), explain that browser WebContainers do not provide Python tooling and recommend enabling container-runner mode (`EXECUTOR_MODE=hybrid|container` with `EXECUTOR_CONTAINER_BASE_URL`) when needed.
 
 ## Multimodal
 Users can attach images, PDFs, videos, and audio. Analyze them thoroughly when provided.
