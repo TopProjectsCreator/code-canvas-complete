@@ -23,7 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 
-const ArduinoPanel = lazy(() => import('./arduino').then(m => ({ default: m.ArduinoPanel })));
+const ArduinoPanel = lazy(() => import('@/components/arduino').then(m => ({ default: m.ArduinoPanel })));
 
 interface IDELayoutProps {
   projectId?: string;
