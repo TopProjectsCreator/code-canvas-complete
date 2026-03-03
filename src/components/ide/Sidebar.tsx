@@ -46,6 +46,17 @@ const SettingsPanel = () => {
   const [showLibrary, setShowLibrary] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [editingTheme, setEditingTheme] = useState<import('@/contexts/ThemeContext').CustomTheme | undefined>();
+  const [shellExecutorMode, setShellExecutorMode] = useState<'webcontainer' | 'wandbox'>(() => {
+    if (typeof window === 'undefined') return 'webcontainer';
+    const saved = window.localStorage.getItem('ide.shellExecutorMode');
+    return saved === 'wandbox' ? 'wandbox' : 'webcontainer';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('ide.shellExecutorMode', shellExecutorMode);
+    window.dispatchEvent(new Event('ide-shell-executor-mode-changed'));
+  }, [shellExecutorMode]);
 
   const handleShareTheme = (ct: import('@/contexts/ThemeContext').CustomTheme) => {
     const url = getThemeShareUrl(ct);
@@ -99,6 +110,22 @@ const SettingsPanel = () => {
             <span className="text-sm text-muted-foreground">Word wrap</span>
             <input type="checkbox" defaultChecked className="accent-primary" />
           </label>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm text-muted-foreground">Shell executor</span>
+              <select
+                value={shellExecutorMode}
+                onChange={(e) => setShellExecutorMode(e.target.value as 'webcontainer' | 'wandbox')}
+                className="bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+              >
+                <option value="webcontainer">WebContainer (browser Node.js)</option>
+                <option value="wandbox">Wandbox API</option>
+              </select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Use WebContainer for native Node.js shell commands in browser, or switch back to Wandbox routing.
+            </p>
+          </div>
         </div>
       </div>
 

@@ -118,6 +118,30 @@ VITE_SUPABASE_ANON_KEY=...
 
 If running Edge Functions locally/remotely, configure function secrets in Supabase as needed (for example service role keys and any AI gateway keys used by your setup).
 
+### Browser-native shell with WebContainers (Node.js)
+
+Shell-like commands now default to a browser-native runtime powered by `@webcontainer/api`:
+
+- `shell`, `bash`, and terminal JavaScript (`js:` / `node -e`) are executed in a WebContainer (`jsh`/`node`) directly in the browser.
+- Compiled and non-shell languages continue to use the existing `execute-code` Edge Function path (Wandbox / optional container runner).
+- First shell command incurs a short WebContainer boot (~2-3s), then subsequent commands are fast.
+
+> Limitation: WebContainers provide a Node.js environment, not a full Linux image. Python package workflows such as `pip install ...` or `uv ...` require the container runner backend documented below.
+
+You can switch shell routing in **Settings → Shell executor**:
+
+- `WebContainer (browser Node.js)` (default)
+- `Wandbox API` (legacy behavior)
+
+### Required headers for WebContainers in deployment
+
+WebContainers require cross-origin isolation (SharedArrayBuffer). Configure your production server with:
+
+- `Cross-Origin-Opener-Policy: same-origin`
+- `Cross-Origin-Embedder-Policy: credentialless` (preferred to avoid strict cross-origin asset breakage)
+
+`require-corp` is stricter and may block third-party fonts/images unless they emit compatible CORS/CORP headers.
+
 ### Optional: shell/python executor modes (for `pip` support)
 
 The `execute-code` Edge Function now supports feature-flagged executor routing:
