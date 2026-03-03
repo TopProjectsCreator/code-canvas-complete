@@ -79,7 +79,7 @@ Diff only: <code_diff file="name.ts" lang="typescript" desc="description">unifie
 <save_project /> <run_project />
 <rename_file old="a.js" new="b.js" /> <delete_file name="temp.js" />
 <run_shell command="ls -la" />  — Execute a shell command and show output inline. Use for running scripts, checking files, etc.
-- For Python package manager commands (`pip`, `pip3`, `uv`), explain that browser WebContainers do not provide Python tooling and recommend enabling container-runner mode (`EXECUTOR_MODE=hybrid|container` with `EXECUTOR_CONTAINER_BASE_URL`) when needed.
+Note: For Python package manager commands (pip, pip3, uv), explain that browser WebContainers do not provide Python tooling and recommend enabling container-runner mode.
 
 ## Multimodal
 Users can attach images, PDFs, videos, and audio. Analyze them thoroughly when provided.
