@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useWebContainer } from '@/hooks/useWebContainer';
 
 interface ExecutionResult {
   output: string[];
@@ -8,22 +9,15 @@ interface ExecutionResult {
   isPreview?: boolean; // True for files that should render in preview instead of execute
 }
 
-// Languages that can be executed via Piston API
-const EXECUTABLE_LANGUAGES = new Set([
-  'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'go', 
-  'rust', 'ruby', 'php', 'csharp', 'bash', 'shell',
-  'lua', 'perl', 'r', 'haskell', 'nim', 'lisp',
-  'd', 'groovy', 'pascal', 'sqlite', 'sql', 'zig',
-]);
-
 export const useCodeExecution = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [executorSessions, setExecutorSessions] = useState<Record<string, string>>({});
+  const { status: webContainerStatus, boot, spawn } = useWebContainer();
 
   const executeCode = useCallback(async (code: string, language: string = 'javascript', stdin?: string): Promise<ExecutionResult> => {
     // Handle preview-based languages (HTML, CSS, Markdown render in preview)
     const PREVIEW_LANGUAGES = new Set(['html', 'css', 'md', 'markdown', 'svg']);
-    
+
     if (PREVIEW_LANGUAGES.has(language.toLowerCase())) {
       return {
         output: [`🖼️ Rendering ${language.toUpperCase()} in preview...`],
@@ -33,10 +27,9 @@ export const useCodeExecution = () => {
       };
     }
 
-    
     // Handle data/config formats with validation or formatting
     const DATA_LANGUAGES = new Set(['json', 'xml', 'yaml', 'yml', 'toml', 'txt']);
-    
+
     if (DATA_LANGUAGES.has(language.toLowerCase())) {
       // Try to validate/format the data
       if (language.toLowerCase() === 'json') {
@@ -56,7 +49,7 @@ export const useCodeExecution = () => {
           };
         }
       }
-      
+
       // For other data formats, just display them
       return {
         output: [`📄 ${language.toUpperCase()} content:`, '', code],
@@ -66,22 +59,56 @@ export const useCodeExecution = () => {
     }
 
     setIsExecuting(true);
-    
+
     try {
       const normalizedLanguage = language.toLowerCase();
+      const shellExecutorMode = typeof window !== 'undefined'
+        ? window.localStorage.getItem('ide.shellExecutorMode') || 'webcontainer'
+        : 'webcontainer';
+      const shouldUseWebContainer =
+        ['shell', 'bash', 'javascript'].includes(normalizedLanguage) &&
+        shellExecutorMode !== 'wandbox' &&
+        webContainerStatus !== 'error';
+
+      if (shouldUseWebContainer && /\b(pip|pip3|uv)\b/.test(code)) {
+        return {
+          output: [],
+          error: 'This browser-native shell runs on Node.js WebContainers, so Python package managers like pip/uv are unavailable here. To use pip/uv, enable the container runner backend in Supabase (`EXECUTOR_MODE=hybrid` or `container`) and set `EXECUTOR_CONTAINER_BASE_URL` in your Edge Function environment.',
+          executedAt: new Date().toISOString(),
+        };
+      }
+
+      if (shouldUseWebContainer) {
+        const runtimeCommand = normalizedLanguage === 'javascript' ? 'node' : 'jsh';
+        const runtimeArgs = normalizedLanguage === 'javascript' ? ['-e', code] : ['-lc', code];
+
+        try {
+          if (webContainerStatus === 'idle') {
+            await boot();
+          }
+
+          const result = await spawn(runtimeCommand, runtimeArgs);
+          return {
+            output: [...result.stdout, ...result.stderr],
+            error: result.exitCode === 0 ? null : `Command exited with code ${result.exitCode}`,
+            executedAt: new Date().toISOString(),
+          };
+        } catch (error) {
+          console.warn('WebContainer execution failed, falling back to edge executor.', error);
+        }
+      }
+
       const sessionKey = normalizedLanguage === 'bash' ? 'shell' : normalizedLanguage;
       const body: Record<string, string> = { code, language };
       if (stdin) body.stdin = stdin;
       const existingSessionId = executorSessions[sessionKey];
       if (existingSessionId) body.sessionId = existingSessionId;
-      
+
       const { data, error } = await supabase.functions.invoke('execute-code', {
-        body
+        body,
       });
 
-      // Handle Supabase function invocation errors
       if (error) {
-        // Try to parse error message if it contains JSON
         let errorMessage = error.message;
         try {
           const match = error.message.match(/\{.*\}/);
@@ -92,36 +119,33 @@ export const useCodeExecution = () => {
         } catch {
           // Keep original error message
         }
-        
+
         return {
           output: [],
           error: errorMessage,
-          executedAt: new Date().toISOString()
+          executedAt: new Date().toISOString(),
         };
       }
 
-      // Handle case where data contains an error (400 response from edge function)
       if (data?.error) {
         if (data?.sessionId && data.sessionId !== existingSessionId) {
-          setExecutorSessions(prev => ({ ...prev, [sessionKey]: data.sessionId }));
+          setExecutorSessions((prev) => ({ ...prev, [sessionKey]: data.sessionId }));
         }
         return {
           output: data.output || [],
           error: data.error,
-          executedAt: data.executedAt || new Date().toISOString()
+          executedAt: data.executedAt || new Date().toISOString(),
         };
       }
 
       if (data?.sessionId && data.sessionId !== existingSessionId) {
-        setExecutorSessions(prev => ({ ...prev, [sessionKey]: data.sessionId }));
+        setExecutorSessions((prev) => ({ ...prev, [sessionKey]: data.sessionId }));
       }
 
       return data as ExecutionResult;
     } catch (err) {
-      // Network or unexpected errors
       let errorMessage = 'Unknown error';
       if (err instanceof Error) {
-        // Try to extract JSON error from message
         try {
           const match = err.message.match(/\{.*\}/);
           if (match) {
@@ -134,16 +158,16 @@ export const useCodeExecution = () => {
           errorMessage = err.message;
         }
       }
-      
+
       return {
         output: [],
         error: errorMessage,
-        executedAt: new Date().toISOString()
+        executedAt: new Date().toISOString(),
       };
     } finally {
       setIsExecuting(false);
     }
-  }, [executorSessions]);
+  }, [boot, executorSessions, spawn, webContainerStatus]);
 
   const executeShellCommand = useCallback(async (command: string): Promise<ExecutionResult> => {
     return executeCode(command, 'shell');
@@ -152,6 +176,6 @@ export const useCodeExecution = () => {
   return {
     executeCode,
     executeShellCommand,
-    isExecuting
+    isExecuting,
   };
 };
