@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { applyDiff } from '@/lib/diffUtils';
 import { useNavigate } from 'react-router-dom';
 import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from '@/types/ide';
@@ -22,6 +22,8 @@ import { useProjects, Project } from '@/hooks/useProjects';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
+
+const ArduinoPanel = lazy(() => import('./arduino').then(m => ({ default: m.ArduinoPanel })));
 
 interface IDELayoutProps {
   projectId?: string;
@@ -1433,14 +1435,24 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
 
             <ResizableHandle withHandle className="bg-border" />
 
-            {/* Preview panel */}
+            {/* Preview panel or Arduino panel */}
             <ResizablePanel defaultSize={50} minSize={20}>
-              <Preview
-                htmlContent={htmlContent}
-                cssContent={cssContent}
-                jsContent={jsContent}
-                isRunning={isRunning}
-              />
+              {selectedTemplate === 'arduino' ? (
+                <Suspense fallback={<div className="p-4 text-gray-400">Loading Arduino panel...</div>}>
+                  <ArduinoPanel
+                    files={files}
+                    onFileUpdate={handleContentChange}
+                    currentTemplate={selectedTemplate}
+                  />
+                </Suspense>
+              ) : (
+                <Preview
+                  htmlContent={htmlContent}
+                  cssContent={cssContent}
+                  jsContent={jsContent}
+                  isRunning={isRunning}
+                />
+              )}
             </ResizablePanel>
           </ResizablePanelGroup>
 
