@@ -25,6 +25,9 @@ export class ArduinoUploadService {
     config: UploadConfig,
     onProgress?: (message: string) => void
   ): Promise<void> {
+    if (config.uploadMethod !== 'serial') {
+      throw new Error(`Serial upload called with method ${config.uploadMethod}`);
+    }
     const serial = getSerial();
     if (!serial) {
       throw new Error('Web Serial API not supported');
@@ -70,6 +73,9 @@ export class ArduinoUploadService {
     config: UploadConfig,
     onProgress?: (message: string) => void
   ): Promise<void> {
+    if (config.uploadMethod !== 'serial') {
+      throw new Error(`${config.uploadMethod} uploads are not supported by backend yet`);
+    }
     try {
       onProgress?.('Compiling sketch...');
 

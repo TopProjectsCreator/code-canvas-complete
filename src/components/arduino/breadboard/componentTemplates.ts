@@ -458,6 +458,76 @@ function darken(hex: string, percent: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
+// additional helper drawings
+const drawDiode = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => {
+  // simple triangle arrow
+  ctx.fillStyle = '#AAA';
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.2, y + h * 0.5);
+  ctx.lineTo(x + w * 0.5, y + h * 0.2);
+  ctx.lineTo(x + w * 0.5, y + h * 0.8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // line at cathode
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.6, y + h * 0.2);
+  ctx.lineTo(x + w * 0.6, y + h * 0.8);
+  ctx.stroke();
+};
+
+const drawTransistor = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => {
+  // simple TO-92 shape
+  ctx.fillStyle = '#333';
+  ctx.beginPath();
+  ctx.moveTo(x, y + h * 0.7);
+  ctx.lineTo(x, y + h * 0.3);
+  ctx.quadraticCurveTo(x + w/2, y, x + w, y + h * 0.3);
+  ctx.lineTo(x + w, y + h * 0.7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#111';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+};
+
+const drawRGBLed = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => {
+  // three colored circles
+  const colors = ['#FF0000', '#00FF00', '#0000FF'];
+  colors.forEach((c,i) => {
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.arc(x + w/2, y + h * (0.3 + i * 0.2), w*0.2, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+};
+
+const drawIC = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = '#444';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, w, h);
+  // pins
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.125 + i * w * 0.2, y);
+    ctx.lineTo(x + w * 0.125 + i * w * 0.2, y - 6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + w * 0.125 + i * w * 0.2, y + h);
+    ctx.lineTo(x + w * 0.125 + i * w * 0.2, y + h + 6);
+    ctx.stroke();
+  }
+};
+
 export const COMPONENT_TEMPLATES: Record<string, ComponentTemplate> = {
   led: {
     width: 28, height: 40,
@@ -544,6 +614,39 @@ export const COMPONENT_TEMPLATES: Record<string, ComponentTemplate> = {
     ],
     draw: drawMotor,
   },
+  diode: {
+    width: 40, height: 20,
+    pins: [
+      { name: 'anode', x: 0.1, y: 0.5, side: 'left' },
+      { name: 'cathode', x: 0.9, y: 0.5, side: 'right' },
+    ],
+    draw: drawDiode,
+  },
+  transistor_npn: {
+    width: 30, height: 40,
+    pins: [
+      { name: 'base', x: 0.25, y: 1, side: 'bottom' },
+      { name: 'collector', x: 0.5, y: 1, side: 'bottom' },
+      { name: 'emitter', x: 0.75, y: 1, side: 'bottom' },
+    ],
+    draw: drawTransistor,
+  },
+  rgb_led: {
+    width: 28, height: 40,
+    pins: [
+      { name: 'red', x: 0.25, y: 1, side: 'bottom' },
+      { name: 'green', x: 0.5, y: 1, side: 'bottom' },
+      { name: 'blue', x: 0.75, y: 1, side: 'bottom' },
+      { name: 'common', x: 0.5, y: 0, side: 'top' },
+    ],
+    draw: drawRGBLed,
+  },
+  ic: {
+    width: 60, height: 30,
+    pins: Array.from({length:8}).map((_,i) => ({ name: `pin${i+1}`, x: 0.125 + i*0.125, y: 0, side: 'top' }))
+      .concat(Array.from({length:8}).map((_,i) => ({ name: `pin${i+9}`, x: 0.125 + i*0.125, y: 1, side: 'bottom' }))),
+    draw: drawIC,
+  },
 };
 
 export const WIRE_COLORS = [
@@ -562,4 +665,8 @@ export const COMPONENT_LABELS: Record<string, string> = {
   buzzer: 'Buzzer',
   potentiometer: 'Potentiometer',
   motor: 'DC Motor',
+  diode: 'Diode',
+  transistor_npn: 'NPN Transistor',
+  rgb_led: 'RGB LED',
+  ic: 'Integrated Circuit (IC)',
 };
