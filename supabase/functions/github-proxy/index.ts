@@ -35,26 +35,17 @@ serve(async (req) => {
         url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
         break;
       case "file-content": {
-        // Use raw.githubusercontent.com for file content (no rate limit)
-        const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
-        const rawResp = await fetch(rawUrl, { headers: { "User-Agent": "Lovable-IDE" } });
-        if (!rawResp.ok) {
-          // Fallback to contents API
-          const encodedPath = path.split('/').map((s: string) => encodeURIComponent(s)).join('/');
-          const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${branch}`;
-          headers["Accept"] = "application/vnd.github.v3.raw";
-          const apiResp = await fetch(apiUrl, { headers });
-          if (!apiResp.ok) {
-            return new Response(JSON.stringify({ error: `Failed to fetch ${path}: ${apiResp.status}` }), {
-              status: apiResp.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
-          const text = await apiResp.text();
-          return new Response(JSON.stringify({ content: text }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
+        // Use GitHub Contents API directly (raw.githubusercontent.com has connectivity issues in edge functions)
+        const encodedPath = path.split('/').map((s: string) => encodeURIComponent(s)).join('/');
+        const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${branch}`;
+        const contentHeaders = { ...headers, "Accept": "application/vnd.github.v3.raw" };
+        const apiResp = await fetch(apiUrl, { headers: contentHeaders });
+        if (!apiResp.ok) {
+          return new Response(JSON.stringify({ error: `Failed to fetch ${path}: ${apiResp.status}` }), {
+            status: apiResp.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        const text = await rawResp.text();
+        const text = await apiResp.text();
         return new Response(JSON.stringify({ content: text }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
