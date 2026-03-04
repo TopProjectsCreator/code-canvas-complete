@@ -89,7 +89,7 @@ In addition to tool calls, the assistant can render interactive chat widgets and
 
 - Node.js 18+
 - npm 9+
-- **PLATFORM DEPENDENT**: Supabase project (for auth + edge functions)
+- **Non-Replit deployment:**: Supabase project (for auth + edge functions)
 
 ### 1) Install dependencies
 
