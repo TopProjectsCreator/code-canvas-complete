@@ -59,6 +59,17 @@ export function ArduinoUploadDialog({
     }
   }, [open]);
 
+  // if board changes and current method becomes unsupported, fall back to serial
+  useEffect(() => {
+    const board = arduinoBoards[config.boardId];
+    if (config.uploadMethod === 'wifi' && !board?.wifi) {
+      setConfig(prev => ({ ...prev, uploadMethod: 'serial' }));
+    }
+    if (config.uploadMethod === 'bluetooth' && !board?.bluetooth) {
+      setConfig(prev => ({ ...prev, uploadMethod: 'serial' }));
+    }
+  }, [config.boardId]);
+
   const detectSerialPorts = async () => {
     try {
       const nav = navigator as unknown as { serial?: unknown };
@@ -129,8 +140,12 @@ export function ArduinoUploadDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="serial">USB Serial</SelectItem>
-                <SelectItem value="wifi">WiFi (OTA)</SelectItem>
-                <SelectItem value="bluetooth">Bluetooth</SelectItem>
+                <SelectItem value="wifi" disabled={!arduinoBoards[config.boardId]?.wifi}>
+                  WiFi (OTA){!arduinoBoards[config.boardId]?.wifi && ' — unsupported'}
+                </SelectItem>
+                <SelectItem value="bluetooth" disabled={!arduinoBoards[config.boardId]?.bluetooth}>
+                  Bluetooth{!arduinoBoards[config.boardId]?.bluetooth && ' — unsupported'}
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -191,6 +206,12 @@ export function ArduinoUploadDialog({
                 onChange={(e) => setConfig({ ...config, portName: e.target.value })}
               />
             </div>
+          )}
+          {(config.uploadMethod === 'wifi' && !arduinoBoards[config.boardId]?.wifi) && (
+            <div className="text-sm text-red-500">Selected board does not support WiFi uploads.</div>
+          )}
+          {(config.uploadMethod === 'bluetooth' && !arduinoBoards[config.boardId]?.bluetooth) && (
+            <div className="text-sm text-red-500">Selected board does not support Bluetooth uploads.</div>
           )}
 
           {error && <div className="text-sm text-red-500">{error}</div>}

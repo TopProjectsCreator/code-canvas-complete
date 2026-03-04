@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ArduinoComponent, BreadboardCircuit } from '@/types/ide';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Plus, Trash2, MousePointer, Pen, Eraser, Play, Square } from 'lucide-react';
 import { BreadboardCanvas } from './breadboard/BreadboardCanvas';
 import { COMPONENT_TEMPLATES, WIRE_COLORS, COMPONENT_LABELS } from './breadboard/componentTemplates';
@@ -21,7 +22,19 @@ export function BreadboardVisualizer({
   const [selectedComponent, setSelectedComponent] = useState<string | null>(null);
   const [toolMode, setToolMode] = useState<ToolMode>('select');
   const [wireColor, setWireColor] = useState(WIRE_COLORS[0]);
-  const [wires, setWires] = useState<Wire[]>([]);
+  // wires are persisted in the circuit object; keep them in sync
+  const [wires, setWires] = useState<Wire[]>(circuit.wires || []);
+
+  // keep wires state in sync when circuit prop updates (e.g. project load)
+  useEffect(() => {
+    setWires(circuit.wires || []);
+  }, [circuit.wires]);
+
+  // helper used by canvas to update wires and persist back to circuit
+  const setWiresAndPersist = (newWires: Wire[]) => {
+    setWires(newWires);
+    onCircuitChange({ ...circuit, wires: newWires });
+  };
   const [simulation, setSimulation] = useState<SimulationState>({
     running: false,
     tick: 0,
@@ -30,6 +43,7 @@ export function BreadboardVisualizer({
     buzzerStates: {},
   });
   const [simInterval, setSimInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const addComponent = (type: string) => {
     const tmpl = COMPONENT_TEMPLATES[type];
@@ -49,9 +63,10 @@ export function BreadboardVisualizer({
   const deleteSelected = () => {
     if (!selectedComponent) return;
     // Also remove wires connected to deleted component
-    setWires(prev => prev.filter(w =>
+    const newWires = wires.filter(w =>
       w.from.componentId !== selectedComponent && w.to.componentId !== selectedComponent
-    ));
+    );
+    setWiresAndPersist(newWires);
     onCircuitChange({
       ...circuit,
       components: circuit.components.filter(c => c.id !== selectedComponent),
@@ -107,6 +122,10 @@ export function BreadboardVisualizer({
   }, [simulation.running, simInterval, circuit.components, wires]);
 
   const componentTypes = Object.keys(COMPONENT_TEMPLATES);
+  const filteredTypes = componentTypes.filter(t =>
+    COMPONENT_LABELS[t]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    t.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col gap-3 p-3 bg-background rounded-lg border border-border">
@@ -169,9 +188,17 @@ export function BreadboardVisualizer({
         )}
       </div>
 
-      {/* Add components */}
+      {/* Add components and search */}
+      <div className="flex items-center gap-2">
+        <Input
+          placeholder="Search components..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="text-xs w-40"
+        />
+      </div>
       <div className="flex gap-1 flex-wrap">
-        {componentTypes.map(type => (
+        {filteredTypes.map(type => (
           <Button key={type} size="sm" variant="outline" onClick={() => addComponent(type)} className="text-xs h-7">
             <Plus className="w-3 h-3 mr-1" /> {COMPONENT_LABELS[type]}
           </Button>
@@ -183,7 +210,7 @@ export function BreadboardVisualizer({
         circuit={circuit}
         wires={wires}
         onCircuitChange={onCircuitChange}
-        onWiresChange={setWires}
+        onWiresChange={setWiresAndPersist}
         selectedComponent={selectedComponent}
         onSelectComponent={setSelectedComponent}
         toolMode={toolMode}

@@ -27,6 +27,15 @@ const TOP_ROWS = 5;
 const BOT_ROWS = 5;
 const GAP = 30;
 
+// y positions of the four power rails (plus/minus top and bottom)
+function getRailY(rail: 'top+' | 'top-' | 'bot+' | 'bot-'): number {
+  if (rail === 'top+') return BB_Y + 12;
+  if (rail === 'top-') return BB_Y + 22;
+  if (rail === 'bot+') return BB_Y + BB_H - 22;
+  if (rail === 'bot-') return BB_Y + BB_H - 12;
+  return BB_Y;
+}
+
 function getPinHolePos(col: number, row: number) {
   const cellW = BB_W / COLS;
   const x = BB_X + (col + 0.5) * cellW;
@@ -66,25 +75,40 @@ export function BreadboardCanvas({
 
     // Power rails
     const railColors = ['#FF3333', '#3333FF'];
-    [0, 1].forEach(side => {
-      const ry = side === 0 ? BB_Y + 12 : BB_Y + BB_H - 22;
-      railColors.forEach((color, ri) => {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 2;
-        ctx.setLineDash([8, 4]);
+    (['top+', 'top-', 'bot+', 'bot-'] as const).forEach((rail, idx) => {
+      const ry = getRailY(rail);
+      const color = rail.startsWith('top')
+        ? (rail.endsWith('+') ? '#FF3333' : '#3333FF')
+        : (rail.endsWith('+') ? '#FF3333' : '#3333FF');
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 4]);
+      ctx.beginPath();
+      ctx.moveTo(BB_X + 20, ry);
+      ctx.lineTo(BB_X + BB_W - 20, ry);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // + and - labels for top rails only (bottom rails implied)
+      if (rail.startsWith('top')) {
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = rail.endsWith('+') ? '#FF3333' : '#3333FF';
+        ctx.fillText(rail.endsWith('+') ? '+' : '−', BB_X + 8, ry + (rail.endsWith('+') ? 5 : 15));
+      }
+    });
+    // draw holes along rails so users can click them
+    const holeInterval = 10;
+    (['top+', 'top-', 'bot+', 'bot-'] as const).forEach(rail => {
+      const ry = getRailY(rail);
+      for (let x = BB_X + 20; x <= BB_X + BB_W - 20; x += holeInterval) {
+        ctx.fillStyle = '#B8B0A0';
         ctx.beginPath();
-        ctx.moveTo(BB_X + 20, ry + ri * 10);
-        ctx.lineTo(BB_X + BB_W - 20, ry + ri * 10);
+        ctx.arc(x, ry, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#9A9080';
+        ctx.lineWidth = 0.5;
         ctx.stroke();
-        ctx.setLineDash([]);
-      });
-      // + and - labels
-      ctx.font = 'bold 10px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#FF3333';
-      ctx.fillText('+', BB_X + 8, ry + 5);
-      ctx.fillStyle = '#3333FF';
-      ctx.fillText('−', BB_X + 8, ry + 15);
+      }
     });
 
     // Center divider
@@ -240,6 +264,7 @@ export function BreadboardCanvas({
   };
 
   const findPinAt = (x: number, y: number): WirePoint | null => {
+    // first look for component pins
     for (const comp of circuit.components) {
       const tmpl = COMPONENT_TEMPLATES[comp.type];
       if (!tmpl) continue;
@@ -252,7 +277,7 @@ export function BreadboardCanvas({
         }
       }
     }
-    // Check board pin holes
+    // board holes
     const cellW = BB_W / COLS;
     for (let col = 0; col < COLS; col++) {
       for (let row = 0; row < TOP_ROWS + BOT_ROWS; row++) {
@@ -260,6 +285,15 @@ export function BreadboardCanvas({
         if (Math.hypot(x - pos.x, y - pos.y) < 6) {
           return { boardRow: row, boardCol: col, x: pos.x, y: pos.y };
         }
+      }
+    }
+    // rails
+    const railTolerance = 6;
+    (['top+','top-','bot+','bot-'] as const).forEach(rail => {}); // just to ensure TS type
+    for (const rail of ['top+','top-','bot+','bot-'] as const) {
+      const ry = getRailY(rail);
+      if (y >= ry - railTolerance && y <= ry + railTolerance && x >= BB_X + 20 && x <= BB_X + BB_W - 20) {
+        return { rail, x, y: ry };
       }
     }
     return null;
@@ -330,12 +364,34 @@ export function BreadboardCanvas({
     setMousePos({ x, y });
 
     if (dragging) {
-      onCircuitChange({
+      const updatedCircuit = {
         ...circuit,
         components: circuit.components.map(c =>
           c.id === dragging ? { ...c, x: x - dragOffset.x, y: y - dragOffset.y } : c
         ),
+      };
+      onCircuitChange(updatedCircuit);
+
+      // also shift any wires that reference this component
+      const updatedWires = wires.map(w => {
+        const newWire = { ...w };
+        const updatePoint = (pt: WirePoint) => {
+          if (pt.componentId === dragging && pt.pinIndex !== undefined) {
+            const pos = getComponentPinPos(
+              updatedCircuit.components.find(c => c.id === dragging)!,
+              pt.pinIndex
+            );
+            if (pos) {
+              pt.x = pos.x;
+              pt.y = pos.y;
+            }
+          }
+        };
+        updatePoint(newWire.from);
+        updatePoint(newWire.to);
+        return newWire;
       });
+      onWiresChange(updatedWires);
     } else {
       const h = findComponentAt(x, y);
       setHovered(h?.id || null);
