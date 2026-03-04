@@ -8,6 +8,11 @@ export interface WirePoint {
   pinIndex?: number;
   boardRow?: number;
   boardCol?: number;
+  /**
+   * If the point refers to a power rail, this string identifies which one.
+   * Possible values: 'top+', 'top-', 'bot+', 'bot-'.
+   */
+  rail?: 'top+' | 'top-' | 'bot+' | 'bot-';
   x: number;
   y: number;
 }

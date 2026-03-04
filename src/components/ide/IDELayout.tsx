@@ -602,6 +602,31 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     addHistoryEntry('file-create', `Created ${type}: ${name}`);
   }, [addHistoryEntry]);
 
+  // helper that wraps createFile and also sets initial content
+  const addFile = useCallback((name: string, content: string, language?: string) => {
+    // create the file at root
+    handleCreateFile(null, name, 'file');
+    // since createFile generates a new id asynchronously in state, we need to
+    // wait for the file to actually exist. simplest is to trigger a small
+    // effect: after a tick, find the file by name and set its content.
+    setTimeout(() => {
+      const findAndSet = (nodes: FileNode[]): string | null => {
+        for (const node of nodes) {
+          if (node.type === 'file' && node.name === name) {
+            handleContentChange(node.id, content);
+            return node.id;
+          }
+          if (node.children) {
+            const res = findAndSet(node.children);
+            if (res) return res;
+          }
+        }
+        return null;
+      };
+      findAndSet(files);
+    }, 0);
+  }, [handleCreateFile, handleContentChange, files]);
+
   const handleDeleteFile = useCallback((fileId: string) => {
     setFiles((prev) => {
       const removeFile = (nodes: FileNode[]): FileNode[] => {
@@ -1442,6 +1467,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                   <ArduinoPanel
                     files={files}
                     onFileUpdate={handleContentChange}
+                    onAddFile={addFile}
                     currentTemplate={selectedTemplate}
                   />
                 </Suspense>

@@ -105,10 +105,16 @@ export interface BreadboardCircuit {
   id: string;
   boardId: string;
   components: ArduinoComponent[];
-  connections: Array<{
+  // legacy field, not currently used by visualizer; kept for backward compatibility
+  connections?: Array<{
     from: { componentId: string; pin: string };
     to: { componentId: string | 'board'; pin: string | number };
   }>;
+  /**
+   * Wires drawn on the breadboard. Stored with screen coordinates so the layout
+   * is preserved across loads. The visualizer keeps this in sync.
+   */
+  wires?: import('@/components/arduino/breadboard/types').Wire[];
   code: string;
 }
 
