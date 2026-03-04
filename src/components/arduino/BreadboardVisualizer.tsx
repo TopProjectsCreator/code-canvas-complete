@@ -1,7 +1,11 @@
-import { useRef, useEffect, useState } from 'react';
+import { useState, useCallback } from 'react';
 import { ArduinoComponent, BreadboardCircuit } from '@/types/ide';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, MousePointer, Pen, Eraser, Play, Square } from 'lucide-react';
+import { BreadboardCanvas } from './breadboard/BreadboardCanvas';
+import { COMPONENT_TEMPLATES, WIRE_COLORS, COMPONENT_LABELS } from './breadboard/componentTemplates';
+import { Wire, ToolMode, SimulationState } from './breadboard/types';
+import { toast } from 'sonner';
 
 interface BreadboardVisualizerProps {
   circuit: BreadboardCircuit;
@@ -9,309 +13,196 @@ interface BreadboardVisualizerProps {
   isReadOnly?: boolean;
 }
 
-const COMPONENT_TEMPLATES: Record<string, { width: number; height: number; color: string; pins: string[] }> = {
-  led: { width: 30, height: 50, color: '#FF0000', pins: ['positive', 'negative'] },
-  resistor: { width: 60, height: 15, color: '#8B4513', pins: ['left', 'right'] },
-  button: { width: 40, height: 40, color: '#999999', pins: ['1', '2', '3', '4'] },
-  servo: { width: 45, height: 40, color: '#FFD700', pins: ['signal', 'vcc', 'gnd'] },
-  sensor_temp: { width: 35, height: 35, color: '#00BFFF', pins: ['vcc', 'gnd', 'out'] },
-  sensor_light: { width: 30, height: 30, color: '#FFD700', pins: ['vcc', 'gnd', 'out'] },
-};
-
 export function BreadboardVisualizer({
   circuit,
   onCircuitChange,
   isReadOnly = false,
 }: BreadboardVisualizerProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedComponent, setSelectedComponent] = useState<string | null>(null);
-  const [hoveredComponent, setHoveredComponent] = useState<string | null>(null);
-  const [draggingComponent, setDraggingComponent] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-
-  const CANVAS_WIDTH = 800;
-  const CANVAS_HEIGHT = 600;
-  const BREADBOARD_X = 50;
-  const BREADBOARD_Y = 50;
-  const BREADBOARD_WIDTH = 700;
-  const BREADBOARD_HEIGHT = 500;
-  const PIN_COLS = 60;
-  const PIN_ROWS = 30;
-
-  // Draw breadboard grid
-  const drawBreadboard = (ctx: CanvasRenderingContext2D) => {
-    // Background
-    ctx.fillStyle = '#F5DEB3';
-    ctx.fillRect(BREADBOARD_X, BREADBOARD_Y, BREADBOARD_WIDTH, BREADBOARD_HEIGHT);
-
-    // Border
-    ctx.strokeStyle = '#444';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(BREADBOARD_X, BREADBOARD_Y, BREADBOARD_WIDTH, BREADBOARD_HEIGHT);
-
-    // Grid
-    ctx.strokeStyle = '#DDD';
-    ctx.lineWidth = 0.5;
-    const cellWidth = BREADBOARD_WIDTH / PIN_COLS;
-    const cellHeight = BREADBOARD_HEIGHT / PIN_ROWS;
-
-    for (let i = 0; i <= PIN_COLS; i++) {
-      ctx.beginPath();
-      ctx.moveTo(BREADBOARD_X + i * cellWidth, BREADBOARD_Y);
-      ctx.lineTo(BREADBOARD_X + i * cellWidth, BREADBOARD_Y + BREADBOARD_HEIGHT);
-      ctx.stroke();
-    }
-
-    for (let i = 0; i <= PIN_ROWS; i++) {
-      ctx.beginPath();
-      ctx.moveTo(BREADBOARD_X, BREADBOARD_Y + i * cellHeight);
-      ctx.lineTo(BREADBOARD_X + BREADBOARD_WIDTH, BREADBOARD_Y + i * cellHeight);
-      ctx.stroke();
-    }
-
-    // Pin holes (small circles)
-    ctx.fillStyle = '#CCC';
-    for (let i = 0; i < PIN_COLS; i++) {
-      for (let j = 0; j < PIN_ROWS; j++) {
-        const x = BREADBOARD_X + (i + 0.5) * cellWidth;
-        const y = BREADBOARD_Y + (j + 0.5) * cellHeight;
-        ctx.beginPath();
-        ctx.arc(x, y, 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  };
-
-  // Draw components
-  const drawComponent = (
-    ctx: CanvasRenderingContext2D,
-    component: ArduinoComponent,
-    isSelected: boolean,
-    isHovered: boolean
-  ) => {
-    const template = COMPONENT_TEMPLATES[component.type];
-    if (!template) return;
-
-    ctx.save();
-
-    // Highlight if selected or hovered
-    if (isSelected) {
-      ctx.shadowColor = '#00FF00';
-      ctx.shadowBlur = 10;
-    } else if (isHovered) {
-      ctx.shadowColor = '#0080FF';
-      ctx.shadowBlur = 5;
-    }
-
-    // Draw component body
-    ctx.fillStyle = template.color;
-    ctx.fillRect(component.x, component.y, template.width, template.height);
-
-    ctx.strokeStyle = isSelected ? '#00FF00' : '#000';
-    ctx.lineWidth = isSelected ? 2 : 1;
-    ctx.strokeRect(component.x, component.y, template.width, template.height);
-
-    // Draw label
-    ctx.fillStyle = '#000';
-    ctx.font = 'bold 12px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(component.label, component.x + template.width / 2, component.y + template.height / 2 + 4);
-
-    // Draw pin dots
-    ctx.fillStyle = '#FFD700';
-    const pinSpacing = template.width / (template.pins.length + 1);
-    template.pins.forEach((pin, index) => {
-      const x = component.x + (index + 1) * pinSpacing;
-      const y = component.y + template.height;
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    ctx.restore();
-  };
-
-  // Draw all connections
-  const drawConnections = (ctx: CanvasRenderingContext2D) => {
-    ctx.strokeStyle = '#FF0000';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
-
-    circuit.connections.forEach((conn) => {
-      const fromComponent = circuit.components.find((c) => c.id === conn.from.componentId);
-      if (!fromComponent) return;
-
-      let toX = 0,
-        toY = 0;
-      if (conn.to.componentId === 'board') {
-        // Draw to board connector
-        toX = BREADBOARD_X + 20;
-        toY = BREADBOARD_Y + BREADBOARD_HEIGHT + 20;
-      } else {
-        const toComponent = circuit.components.find((c) => c.id === conn.to.componentId);
-        if (!toComponent) return;
-        toX = toComponent.x + 15;
-        toY = toComponent.y + 25;
-      }
-
-      const fromX = fromComponent.x + 15;
-      const fromY = fromComponent.y + 25;
-
-      ctx.beginPath();
-      ctx.moveTo(fromX, fromY);
-      ctx.bezierCurveTo(fromX, fromY + 50, toX, toY - 50, toX, toY);
-      ctx.stroke();
-    });
-
-    ctx.setLineDash([]);
-  };
-
-  // Main render
-  const render = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    drawBreadboard(ctx);
-
-    circuit.components.forEach((component) => {
-      drawComponent(ctx, component, component.id === selectedComponent, component.id === hoveredComponent);
-    });
-
-    drawConnections(ctx);
-  };
-
-  useEffect(() => {
-    render();
-  }, [circuit, selectedComponent, hoveredComponent]);
-
-  // Mouse handlers
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    if (draggingComponent) {
-      const newComponents = circuit.components.map((c) =>
-        c.id === draggingComponent ? { ...c, x: x - dragOffset.x, y: y - dragOffset.y } : c
-      );
-      onCircuitChange({ ...circuit, components: newComponents });
-    } else {
-      const hovered = circuit.components.find((c) => {
-        const template = COMPONENT_TEMPLATES[c.type];
-        if (!template) return false;
-        return (
-          x >= c.x &&
-          x <= c.x + template.width &&
-          y >= c.y &&
-          y <= c.y + template.height
-        );
-      });
-      setHoveredComponent(hovered?.id || null);
-    }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isReadOnly) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const clicked = circuit.components.find((c) => {
-      const template = COMPONENT_TEMPLATES[c.type];
-      if (!template) return false;
-      return (
-        x >= c.x &&
-        x <= c.x + template.width &&
-        y >= c.y &&
-        y <= c.y + template.height
-      );
-    });
-
-    if (clicked) {
-      setSelectedComponent(clicked.id);
-      setDraggingComponent(clicked.id);
-      setDragOffset({ x: x - clicked.x, y: y - clicked.y });
-    }
-  };
-
-  const handleMouseUp = () => {
-    setDraggingComponent(null);
-  };
+  const [toolMode, setToolMode] = useState<ToolMode>('select');
+  const [wireColor, setWireColor] = useState(WIRE_COLORS[0]);
+  const [wires, setWires] = useState<Wire[]>([]);
+  const [simulation, setSimulation] = useState<SimulationState>({
+    running: false,
+    tick: 0,
+    pinStates: {},
+    ledStates: {},
+    buzzerStates: {},
+  });
+  const [simInterval, setSimInterval] = useState<ReturnType<typeof setInterval> | null>(null);
 
   const addComponent = (type: string) => {
-    const newComponent: ArduinoComponent = {
-      id: `component-${Date.now()}`,
+    const tmpl = COMPONENT_TEMPLATES[type];
+    if (!tmpl) return;
+    const newComp: ArduinoComponent = {
+      id: `comp-${Date.now()}`,
       type,
-      label: type.toUpperCase(),
+      label: COMPONENT_LABELS[type] || type,
       pins: {},
-      properties: {},
-      x: 100 + Math.random() * 200,
-      y: 100 + Math.random() * 200,
+      properties: type === 'led' ? { color: '#FF0000' } : {},
+      x: 150 + Math.random() * 300,
+      y: 120 + Math.random() * 150,
     };
-    onCircuitChange({
-      ...circuit,
-      components: [...circuit.components, newComponent],
-    });
+    onCircuitChange({ ...circuit, components: [...circuit.components, newComp] });
   };
 
   const deleteSelected = () => {
     if (!selectedComponent) return;
+    // Also remove wires connected to deleted component
+    setWires(prev => prev.filter(w =>
+      w.from.componentId !== selectedComponent && w.to.componentId !== selectedComponent
+    ));
     onCircuitChange({
       ...circuit,
-      components: circuit.components.filter((c) => c.id !== selectedComponent),
+      components: circuit.components.filter(c => c.id !== selectedComponent),
     });
     setSelectedComponent(null);
   };
 
+  const toggleSimulation = useCallback(() => {
+    if (simulation.running) {
+      if (simInterval) clearInterval(simInterval);
+      setSimInterval(null);
+      setSimulation(prev => ({ ...prev, running: false, ledStates: {}, buzzerStates: {} }));
+      toast.info('Simulation stopped');
+    } else {
+      // Basic simulation: toggle LEDs and buzzers based on connections
+      const ledIds = circuit.components.filter(c => c.type === 'led').map(c => c.id);
+      const buzzerIds = circuit.components.filter(c => c.type === 'buzzer').map(c => c.id);
+      const motorIds = circuit.components.filter(c => c.type === 'motor').map(c => c.id);
+
+      // Check which components have wires connected
+      const connectedComponents = new Set<string>();
+      wires.forEach(w => {
+        if (w.from.componentId) connectedComponents.add(w.from.componentId);
+        if (w.to.componentId) connectedComponents.add(w.to.componentId);
+      });
+
+      const ledStates: Record<string, boolean> = {};
+      const buzzerStates: Record<string, boolean> = {};
+
+      ledIds.forEach(id => { ledStates[id] = connectedComponents.has(id); });
+      buzzerIds.forEach(id => { buzzerStates[id] = connectedComponents.has(id); });
+      motorIds.forEach(id => { ledStates[id] = connectedComponents.has(id); }); // reuse for motor on
+
+      setSimulation(prev => ({ ...prev, running: true, tick: 0, ledStates, buzzerStates }));
+
+      // Blink unconnected LEDs to show simulation is active
+      const interval = setInterval(() => {
+        setSimulation(prev => {
+          const newTick = prev.tick + 1;
+          const newLedStates = { ...prev.ledStates };
+          ledIds.forEach(id => {
+            if (!connectedComponents.has(id)) {
+              newLedStates[id] = newTick % 2 === 0;
+            }
+          });
+          return { ...prev, tick: newTick, ledStates: newLedStates };
+        });
+      }, 800);
+      setSimInterval(interval);
+
+      toast.success('Simulation started — connected components are ON, unconnected LEDs blink');
+    }
+  }, [simulation.running, simInterval, circuit.components, wires]);
+
+  const componentTypes = Object.keys(COMPONENT_TEMPLATES);
+
   return (
-    <div className="flex flex-col gap-4 p-4 bg-slate-950 rounded-lg">
-      <div className="flex gap-2 flex-wrap">
-        <Button size="sm" variant="outline" onClick={() => addComponent('led')}>
-          <Plus className="w-4 h-4 mr-1" /> LED
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => addComponent('resistor')}>
-          <Plus className="w-4 h-4 mr-1" /> Resistor
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => addComponent('button')}>
-          <Plus className="w-4 h-4 mr-1" /> Button
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => addComponent('servo')}>
-          <Plus className="w-4 h-4 mr-1" /> Servo
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => addComponent('sensor_temp')}>
-          <Plus className="w-4 h-4 mr-1" /> Temp Sensor
-        </Button>
-        <Button size="sm" variant="destructive" onClick={deleteSelected} disabled={!selectedComponent}>
-          <Trash2 className="w-4 h-4 mr-1" /> Delete
-        </Button>
+    <div className="flex flex-col gap-3 p-3 bg-background rounded-lg border border-border">
+      {/* Toolbar */}
+      <div className="flex gap-1 flex-wrap items-center">
+        {/* Tool modes */}
+        <div className="flex gap-1 mr-2 border-r border-border pr-2">
+          <Button
+            size="sm" variant={toolMode === 'select' ? 'default' : 'outline'}
+            onClick={() => setToolMode('select')} title="Select & Move"
+          >
+            <MousePointer className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm" variant={toolMode === 'wire' ? 'default' : 'outline'}
+            onClick={() => setToolMode('wire')} title="Draw Wire"
+          >
+            <Pen className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm" variant={toolMode === 'delete' ? 'destructive' : 'outline'}
+            onClick={() => setToolMode('delete')} title="Delete"
+          >
+            <Eraser className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Wire color picker (only in wire mode) */}
+        {toolMode === 'wire' && (
+          <div className="flex gap-1 mr-2 border-r border-border pr-2">
+            {WIRE_COLORS.slice(0, 6).map(color => (
+              <button
+                key={color}
+                className={`w-5 h-5 rounded-full border-2 ${wireColor === color ? 'border-foreground scale-125' : 'border-muted'}`}
+                style={{ backgroundColor: color }}
+                onClick={() => setWireColor(color)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Simulation */}
+        <div className="mr-2 border-r border-border pr-2">
+          <Button
+            size="sm"
+            variant={simulation.running ? 'destructive' : 'default'}
+            onClick={toggleSimulation}
+            className={simulation.running ? '' : 'bg-green-600 hover:bg-green-700 text-white'}
+          >
+            {simulation.running ? <Square className="w-4 h-4 mr-1" /> : <Play className="w-4 h-4 mr-1" />}
+            {simulation.running ? 'Stop' : 'Simulate'}
+          </Button>
+        </div>
+
+        {/* Delete selected */}
+        {selectedComponent && (
+          <Button size="sm" variant="destructive" onClick={deleteSelected}>
+            <Trash2 className="w-4 h-4 mr-1" /> Delete
+          </Button>
+        )}
       </div>
 
-      <canvas
-        ref={canvasRef}
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
-        onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        className="border border-gray-600 cursor-move bg-slate-900 rounded"
+      {/* Add components */}
+      <div className="flex gap-1 flex-wrap">
+        {componentTypes.map(type => (
+          <Button key={type} size="sm" variant="outline" onClick={() => addComponent(type)} className="text-xs h-7">
+            <Plus className="w-3 h-3 mr-1" /> {COMPONENT_LABELS[type]}
+          </Button>
+        ))}
+      </div>
+
+      {/* Canvas */}
+      <BreadboardCanvas
+        circuit={circuit}
+        wires={wires}
+        onCircuitChange={onCircuitChange}
+        onWiresChange={setWires}
+        selectedComponent={selectedComponent}
+        onSelectComponent={setSelectedComponent}
+        toolMode={toolMode}
+        wireColor={wireColor}
+        simulation={simulation}
+        isReadOnly={isReadOnly}
       />
 
-      <div className="text-xs text-gray-400">
-        {selectedComponent && (
-          <p>Selected: {circuit.components.find((c) => c.id === selectedComponent)?.label}</p>
-        )}
+      {/* Status bar */}
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>
+          {toolMode === 'select' && 'Click to select, drag to move'}
+          {toolMode === 'wire' && 'Click a pin, then click another to connect'}
+          {toolMode === 'delete' && 'Click a component or wire to delete'}
+        </span>
+        <span>
+          {circuit.components.length} components · {wires.length} wires
+          {simulation.running && ' · ⚡ Simulating'}
+        </span>
       </div>
     </div>
   );
