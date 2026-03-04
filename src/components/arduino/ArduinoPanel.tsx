@@ -6,6 +6,7 @@ import { ArduinoUploadDialog } from './ArduinoUploadDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileNode, BreadboardCircuit } from '@/types/ide';
 import { Upload, Zap } from 'lucide-react';
 import { arduinoLibraries } from '@/data/arduinoTemplates';
@@ -13,6 +14,10 @@ import { arduinoLibraries } from '@/data/arduinoTemplates';
 interface ArduinoPanelProps {
   files: FileNode[];
   onFileUpdate: (fileId: string, content: string) => void;
+  /**
+   * Called when the panel needs a new file added to the workspace (e.g. circuit.json).
+   */
+  onAddFile?: (name: string, content: string, language?: string) => void;
   currentTemplate: string;
 }
 
@@ -24,13 +29,14 @@ export function ArduinoPanel({ files, onFileUpdate, currentTemplate }: ArduinoPa
     boardId: 'uno',
     components: [],
     connections: [],
+    wires: [],
     code: '',
   });
 
   const sketchFile = files.find((f) => f.name === 'sketch.ino');
   const circuitFile = files.find((f) => f.name === 'circuit.json');
 
-  // Load circuit from file
+  // Load circuit from file (or create one if missing)
   useEffect(() => {
     if (circuitFile && circuitFile.content) {
       try {
@@ -39,6 +45,17 @@ export function ArduinoPanel({ files, onFileUpdate, currentTemplate }: ArduinoPa
       } catch (e) {
         console.error('Failed to parse circuit.json');
       }
+    } else if (!circuitFile && onAddFile) {
+      // if there's no circuit file yet, create a blank one so state can persist
+      const placeholder: BreadboardCircuit = {
+        id: `circuit-${Date.now()}`,
+        boardId: circuit.boardId,
+        components: circuit.components,
+        connections: circuit.connections || [],
+        wires: circuit.wires || [],
+        code: circuit.code,
+      };
+      onAddFile('circuit.json', JSON.stringify(placeholder, null, 2), 'json');
     }
   }, [circuitFile?.id]);
 
@@ -90,8 +107,24 @@ export function ArduinoPanel({ files, onFileUpdate, currentTemplate }: ArduinoPa
         <TabsContent value="info">
           <Card className="p-4 bg-slate-900 border-slate-700 space-y-3">
             <div>
-              <Label>Board</Label>
-              <p className="text-sm text-gray-300">{circuit.boardId.toUpperCase()}</p>
+              <Label htmlFor="info-board">Board</Label>
+              <Select
+                id="info-board"
+                value={circuit.boardId}
+                onValueChange={(value) => {
+                  const updated = { ...circuit, boardId: value };
+                  setCircuit(updated);
+                  if (circuitFile?.id) {
+                    onFileUpdate(circuitFile.id, JSON.stringify(updated, null, 2));
+                  }
+                }}
+              >
+                {Object.entries(arduinoBoards).map(([id, board]) => (
+                  <SelectItem key={id} value={id}>
+                    {board.name}
+                  </SelectItem>
+                ))}
+              </Select>
             </div>
             <div>
               <Label>Flash Memory</Label>

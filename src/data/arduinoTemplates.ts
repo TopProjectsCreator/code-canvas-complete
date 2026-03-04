@@ -125,6 +125,7 @@ void loop() {
               boardId: board,
               components: [],
               connections: [],
+              wires: [],
             },
             null,
             2
