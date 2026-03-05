@@ -20,10 +20,16 @@ Thanks for your interest in contributing!
 
 ## Development Guidelines
 
-- Keep changes focused and small.
 - Follow the existing code style and project structure.
 - Add or update tests when behavior changes.
 - Ensure linting/build checks pass before submitting.
+
+- AI PR's ACCEPTED!
+   In fact, this was made completly with vibe coding using these platforms:
+   Codex - All around
+   Lovable AI - All around, especially supabase and lovable support
+   Github Copilot - Alot of the ardurino section
+   Replit Agent - Replit support
 
 ## Submitting Changes
 
