@@ -21,7 +21,14 @@ interface ArduinoPanelProps {
   currentTemplate: string;
 }
 
-export function ArduinoPanel({ files, onFileUpdate, currentTemplate }: ArduinoPanelProps) {
+const arduinoBoards: Record<string, { name: string }> = {
+  uno: { name: 'Arduino Uno' },
+  nano: { name: 'Arduino Nano' },
+  mega: { name: 'Arduino Mega' },
+  leonardo: { name: 'Arduino Leonardo' },
+};
+
+export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }: ArduinoPanelProps) {
   const [selectedLibraries, setSelectedLibraries] = useState<string[]>([]);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [circuit, setCircuit] = useState<BreadboardCircuit>({
@@ -109,7 +116,6 @@ export function ArduinoPanel({ files, onFileUpdate, currentTemplate }: ArduinoPa
             <div>
               <Label htmlFor="info-board">Board</Label>
               <Select
-                id="info-board"
                 value={circuit.boardId}
                 onValueChange={(value) => {
                   const updated = { ...circuit, boardId: value };
@@ -119,11 +125,16 @@ export function ArduinoPanel({ files, onFileUpdate, currentTemplate }: ArduinoPa
                   }
                 }}
               >
-                {Object.entries(arduinoBoards).map(([id, board]) => (
-                  <SelectItem key={id} value={id}>
-                    {board.name}
-                  </SelectItem>
-                ))}
+                <SelectTrigger>
+                  <SelectValue placeholder="Select board" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(arduinoBoards).map(([id, board]) => (
+                    <SelectItem key={id} value={id}>
+                      {board.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <div>

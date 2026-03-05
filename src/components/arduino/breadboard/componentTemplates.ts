@@ -643,8 +643,10 @@ export const COMPONENT_TEMPLATES: Record<string, ComponentTemplate> = {
   },
   ic: {
     width: 60, height: 30,
-    pins: Array.from({length:8}).map((_,i) => ({ name: `pin${i+1}`, x: 0.125 + i*0.125, y: 0, side: 'top' }))
-      .concat(Array.from({length:8}).map((_,i) => ({ name: `pin${i+9}`, x: 0.125 + i*0.125, y: 1, side: 'bottom' }))),
+    pins: [
+      ...Array.from({length:8}).map((_,i) => ({ name: `pin${i+1}`, x: 0.125 + i*0.125, y: 0, side: 'top' as const })),
+      ...Array.from({length:8}).map((_,i) => ({ name: `pin${i+9}`, x: 0.125 + i*0.125, y: 1, side: 'bottom' as const })),
+    ],
     draw: drawIC,
   },
 };
