@@ -16,34 +16,45 @@ interface BreadboardCanvasProps {
   isReadOnly?: boolean;
 }
 
-const CANVAS_WIDTH = 820;
-const CANVAS_HEIGHT = 520;
-const BB_X = 60;
-const BB_Y = 40;
-const BB_W = 700;
-const BB_H = 420;
+const CANVAS_WIDTH = 1100;
+const CANVAS_HEIGHT = 440;
+const BB_X = 40;
+const BB_Y = 30;
+const BB_W = 1020;
+const BB_H = 380;
 const COLS = 63;
 const TOP_ROWS = 5;
 const BOT_ROWS = 5;
-const GAP = 30;
+const GAP = 28;
+const HOLE_SPACING = 15;
 
-// y positions of the four power rails (plus/minus top and bottom)
+// compute starting X so holes are centred on the board
+const HOLE_AREA_W = (COLS - 1) * HOLE_SPACING;
+const HOLE_START_X = BB_X + (BB_W - HOLE_AREA_W) / 2;
+
+// vertical layout
+const RAIL_TOP_PLUS_Y = BB_Y + 18;
+const RAIL_TOP_MINUS_Y = BB_Y + 32;
+const HOLES_TOP_START_Y = BB_Y + 56;
+const DIVIDER_Y = HOLES_TOP_START_Y + TOP_ROWS * HOLE_SPACING + GAP / 2 - 4;
+const HOLES_BOT_START_Y = HOLES_TOP_START_Y + TOP_ROWS * HOLE_SPACING + GAP;
+const RAIL_BOT_PLUS_Y = HOLES_BOT_START_Y + BOT_ROWS * HOLE_SPACING + 18;
+const RAIL_BOT_MINUS_Y = RAIL_BOT_PLUS_Y + 14;
+
 function getRailY(rail: 'top+' | 'top-' | 'bot+' | 'bot-'): number {
-  if (rail === 'top+') return BB_Y + 12;
-  if (rail === 'top-') return BB_Y + 22;
-  if (rail === 'bot+') return BB_Y + BB_H - 22;
-  if (rail === 'bot-') return BB_Y + BB_H - 12;
-  return BB_Y;
+  if (rail === 'top+') return RAIL_TOP_PLUS_Y;
+  if (rail === 'top-') return RAIL_TOP_MINUS_Y;
+  if (rail === 'bot+') return RAIL_BOT_PLUS_Y;
+  return RAIL_BOT_MINUS_Y;
 }
 
 function getPinHolePos(col: number, row: number) {
-  const cellW = BB_W / COLS;
-  const x = BB_X + (col + 0.5) * cellW;
+  const x = HOLE_START_X + col * HOLE_SPACING;
   let y: number;
   if (row < TOP_ROWS) {
-    y = BB_Y + 50 + row * 16;
+    y = HOLES_TOP_START_Y + row * HOLE_SPACING;
   } else {
-    y = BB_Y + 50 + TOP_ROWS * 16 + GAP + (row - TOP_ROWS) * 16;
+    y = HOLES_BOT_START_Y + (row - TOP_ROWS) * HOLE_SPACING;
   }
   return { x, y };
 }
@@ -60,6 +71,18 @@ export function BreadboardCanvas({
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hovered, setHovered] = useState<string | null>(null);
 
+  const drawHole = (ctx: CanvasRenderingContext2D, hx: number, hy: number, radius = 2.8) => {
+    ctx.fillStyle = '#B0A890';
+    ctx.beginPath();
+    ctx.arc(hx, hy, radius, 0, Math.PI * 2);
+    ctx.fill();
+    // inner dark circle for depth
+    ctx.fillStyle = '#706850';
+    ctx.beginPath();
+    ctx.arc(hx, hy, radius * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
   const drawBreadboard = useCallback((ctx: CanvasRenderingContext2D) => {
     // Board background
     const bgGrad = ctx.createLinearGradient(BB_X, BB_Y, BB_X, BB_Y + BB_H);
@@ -73,61 +96,48 @@ export function BreadboardCanvas({
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Power rails
-    const railColors = ['#FF3333', '#3333FF'];
-    (['top+', 'top-', 'bot+', 'bot-'] as const).forEach((rail, idx) => {
-      const ry = getRailY(rail);
-      const color = rail.startsWith('top')
-        ? (rail.endsWith('+') ? '#FF3333' : '#3333FF')
-        : (rail.endsWith('+') ? '#FF3333' : '#3333FF');
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([8, 4]);
-      ctx.beginPath();
-      ctx.moveTo(BB_X + 20, ry);
-      ctx.lineTo(BB_X + BB_W - 20, ry);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      // + and - labels for top rails only (bottom rails implied)
-      if (rail.startsWith('top')) {
-        ctx.font = 'bold 10px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillStyle = rail.endsWith('+') ? '#FF3333' : '#3333FF';
-        ctx.fillText(rail.endsWith('+') ? '+' : '−', BB_X + 8, ry + (rail.endsWith('+') ? 5 : 15));
-      }
-    });
-    // draw holes along rails so users can click them
-    const holeInterval = 10;
+    // Power rails – lines spanning the full board
     (['top+', 'top-', 'bot+', 'bot-'] as const).forEach(rail => {
       const ry = getRailY(rail);
-      for (let x = BB_X + 20; x <= BB_X + BB_W - 20; x += holeInterval) {
-        ctx.fillStyle = '#B8B0A0';
-        ctx.beginPath();
-        ctx.arc(x, ry, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#9A9080';
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
+      ctx.strokeStyle = rail.endsWith('+') ? '#FF3333' : '#3333FF';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 3]);
+      ctx.beginPath();
+      ctx.moveTo(HOLE_START_X, ry);
+      ctx.lineTo(HOLE_START_X + HOLE_AREA_W, ry);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    });
+
+    // Rail labels
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#FF3333';
+    ctx.fillText('+', HOLE_START_X - 6, RAIL_TOP_PLUS_Y + 3);
+    ctx.fillStyle = '#3333FF';
+    ctx.fillText('−', HOLE_START_X - 6, RAIL_TOP_MINUS_Y + 3);
+    ctx.fillStyle = '#FF3333';
+    ctx.fillText('+', HOLE_START_X - 6, RAIL_BOT_PLUS_Y + 3);
+    ctx.fillStyle = '#3333FF';
+    ctx.fillText('−', HOLE_START_X - 6, RAIL_BOT_MINUS_Y + 3);
+
+    // Rail holes – one per column
+    (['top+', 'top-', 'bot+', 'bot-'] as const).forEach(rail => {
+      const ry = getRailY(rail);
+      for (let col = 0; col < COLS; col++) {
+        drawHole(ctx, HOLE_START_X + col * HOLE_SPACING, ry, 2.5);
       }
     });
 
     // Center divider
-    const dividerY = BB_Y + 50 + TOP_ROWS * 16 + GAP / 2 - 4;
     ctx.fillStyle = '#D5CDB8';
-    ctx.fillRect(BB_X + 10, dividerY, BB_W - 20, 8);
+    ctx.fillRect(BB_X + 10, DIVIDER_Y, BB_W - 20, 8);
 
-    // Pin holes
-    const cellW = BB_W / COLS;
+    // Pin holes – full grid
     for (let col = 0; col < COLS; col++) {
       for (let row = 0; row < TOP_ROWS + BOT_ROWS; row++) {
         const { x, y } = getPinHolePos(col, row);
-        ctx.fillStyle = '#B8B0A0';
-        ctx.beginPath();
-        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#9A9080';
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
+        drawHole(ctx, x, y);
       }
     }
 
@@ -137,7 +147,7 @@ export function BreadboardCanvas({
     ctx.textAlign = 'center';
     for (let c = 0; c < COLS; c += 5) {
       const { x } = getPinHolePos(c, 0);
-      ctx.fillText(`${c + 1}`, x, BB_Y + 44);
+      ctx.fillText(`${c + 1}`, x, HOLES_TOP_START_Y - 8);
     }
 
     // Row labels
@@ -145,7 +155,7 @@ export function BreadboardCanvas({
     ctx.textAlign = 'right';
     for (let r = 0; r < TOP_ROWS + BOT_ROWS; r++) {
       const { y } = getPinHolePos(0, r);
-      ctx.fillText(rowLabels[r], BB_X - 4, y + 3);
+      ctx.fillText(rowLabels[r], HOLE_START_X - 10, y + 3);
     }
   }, []);
 
@@ -175,11 +185,9 @@ export function BreadboardCanvas({
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(wire.from.x, wire.from.y);
-      // Simple curve
       const midY = (wire.from.y + wire.to.y) / 2;
       ctx.bezierCurveTo(wire.from.x, midY, wire.to.x, midY, wire.to.x, wire.to.y);
       ctx.stroke();
-      // Endpoints
       [wire.from, wire.to].forEach(pt => {
         ctx.fillStyle = wire.color;
         ctx.beginPath();
@@ -225,7 +233,6 @@ export function BreadboardCanvas({
 
       tmpl.draw(ctx, comp.x, comp.y, tmpl.width, tmpl.height, simProps, simulation.running);
 
-      // Selection box
       if (isSelected) {
         ctx.strokeStyle = '#00FF88';
         ctx.lineWidth = 1.5;
@@ -238,7 +245,7 @@ export function BreadboardCanvas({
 
       // Pin hover dots in wire mode
       if (toolMode === 'wire') {
-        tmpl.pins.forEach((pin, i) => {
+        tmpl.pins.forEach((pin) => {
           const px = comp.x + pin.x * tmpl.width;
           const py = comp.y + pin.y * tmpl.height;
           ctx.fillStyle = '#00FF8866';
@@ -264,7 +271,6 @@ export function BreadboardCanvas({
   };
 
   const findPinAt = (x: number, y: number): WirePoint | null => {
-    // first look for component pins
     for (const comp of circuit.components) {
       const tmpl = COMPONENT_TEMPLATES[comp.type];
       if (!tmpl) continue;
@@ -278,7 +284,6 @@ export function BreadboardCanvas({
       }
     }
     // board holes
-    const cellW = BB_W / COLS;
     for (let col = 0; col < COLS; col++) {
       for (let row = 0; row < TOP_ROWS + BOT_ROWS; row++) {
         const pos = getPinHolePos(col, row);
@@ -288,12 +293,13 @@ export function BreadboardCanvas({
       }
     }
     // rails
-    const railTolerance = 6;
-    (['top+','top-','bot+','bot-'] as const).forEach(rail => {}); // just to ensure TS type
-    for (const rail of ['top+','top-','bot+','bot-'] as const) {
+    for (const rail of ['top+', 'top-', 'bot+', 'bot-'] as const) {
       const ry = getRailY(rail);
-      if (y >= ry - railTolerance && y <= ry + railTolerance && x >= BB_X + 20 && x <= BB_X + BB_W - 20) {
-        return { rail, x, y: ry };
+      if (y >= ry - 6 && y <= ry + 6 && x >= HOLE_START_X && x <= HOLE_START_X + HOLE_AREA_W) {
+        // snap to nearest column
+        const colIdx = Math.round((x - HOLE_START_X) / HOLE_SPACING);
+        const snapX = HOLE_START_X + colIdx * HOLE_SPACING;
+        return { rail, x: snapX, y: ry };
       }
     }
     return null;
@@ -325,7 +331,6 @@ export function BreadboardCanvas({
     }
 
     if (toolMode === 'delete') {
-      // Delete wire near click
       const clickedWire = wires.find(w => {
         const d1 = Math.hypot(x - w.from.x, y - w.from.y);
         const d2 = Math.hypot(x - w.to.x, y - w.to.y);
@@ -372,7 +377,6 @@ export function BreadboardCanvas({
       };
       onCircuitChange(updatedCircuit);
 
-      // also shift any wires that reference this component
       const updatedWires = wires.map(w => {
         const newWire = { ...w };
         const updatePoint = (pt: WirePoint) => {
