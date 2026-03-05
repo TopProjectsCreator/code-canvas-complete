@@ -53,7 +53,21 @@ const drawLED = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number,
   ctx.stroke();
 };
 
-const drawResistor = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, _props: Record<string, any>) => {
+const RESISTOR_BAND_MAP: Record<string, string[]> = {
+  '100': ['#8B4513', '#000', '#8B4513', '#FFD700'],
+  '220': ['#FF0000', '#FF0000', '#8B4513', '#FFD700'],
+  '330': ['#FF8C00', '#FF8C00', '#8B4513', '#FFD700'],
+  '470': ['#FFFF00', '#800080', '#8B4513', '#FFD700'],
+  '1K': ['#8B4513', '#000', '#FF0000', '#FFD700'],
+  '2.2K': ['#FF0000', '#FF0000', '#FF0000', '#FFD700'],
+  '4.7K': ['#FFFF00', '#800080', '#FF0000', '#FFD700'],
+  '10K': ['#8B4513', '#000', '#FF8C00', '#FFD700'],
+  '47K': ['#FFFF00', '#800080', '#FF8C00', '#FFD700'],
+  '100K': ['#8B4513', '#000', '#FFFF00', '#FFD700'],
+  '1M': ['#8B4513', '#000', '#008000', '#FFD700'],
+};
+
+const drawResistor = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>) => {
   const bodyX = x + w * 0.2;
   const bodyW = w * 0.6;
   const bodyH = h * 0.7;
@@ -80,14 +94,21 @@ const drawResistor = (ctx: CanvasRenderingContext2D, x: number, y: number, w: nu
   ctx.lineWidth = 1;
   ctx.stroke();
   
-  // Color bands
-  const bands = ['#8B4513', '#000', '#FF0000', '#FFD700'];
+  // Color bands based on resistance value
+  const resistance = props.resistance || '1K';
+  const bands = RESISTOR_BAND_MAP[resistance] || ['#8B4513', '#000', '#FF0000', '#FFD700'];
   const bandW = bodyW * 0.08;
   bands.forEach((color, i) => {
     const bx = bodyX + bodyW * (0.15 + i * 0.2);
     ctx.fillStyle = color;
     ctx.fillRect(bx, bodyY + 1, bandW, bodyH - 2);
   });
+
+  // Value label
+  ctx.fillStyle = '#555';
+  ctx.font = '7px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(resistance + 'Ω', x + w / 2, y + h + 10);
 };
 
 const drawButton = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>, simulating: boolean) => {
@@ -259,7 +280,7 @@ const drawLightSensor = (ctx: CanvasRenderingContext2D, x: number, y: number, w:
   });
 };
 
-const drawCapacitor = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => {
+const drawCapacitor = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>) => {
   // Electrolytic capacitor (cylinder)
   const bodyGrad = ctx.createLinearGradient(x, y, x + w, y);
   bodyGrad.addColorStop(0, '#1A3A5C');
@@ -287,7 +308,7 @@ const drawCapacitor = (ctx: CanvasRenderingContext2D, x: number, y: number, w: n
   ctx.fillStyle = '#FFF';
   ctx.font = '7px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('100μF', x + w / 2, y + h * 0.5);
+  ctx.fillText(props.capacitance || '100μF', x + w / 2, y + h * 0.5);
   
   // Legs
   ctx.strokeStyle = '#888';
