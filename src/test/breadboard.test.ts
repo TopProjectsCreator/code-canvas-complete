@@ -6,7 +6,7 @@ import { getArduinoTemplateFiles } from '@/data/arduinoTemplates';
 // a canvas element. Provide a dummy implementation so errors are avoided.
 beforeAll(() => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  HTMLCanvasElement.prototype.getContext = function (_: string) {
+  (HTMLCanvasElement.prototype as any).getContext = function (_: string) {
     const noOp = () => {};
     const dummyContext: Partial<CanvasRenderingContext2D> = {
       clearRect: noOp,
