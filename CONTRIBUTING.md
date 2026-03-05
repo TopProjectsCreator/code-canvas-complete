@@ -25,11 +25,11 @@ Thanks for your interest in contributing!
 - Ensure linting/build checks pass before submitting.
 
 - AI PR's ACCEPTED!
-   In fact, this was made completly with vibe coding using these platforms:
-   Codex - All around
-   Lovable AI - All around, especially supabase and lovable support
-   Github Copilot - Alot of the ardurino section
-   Replit Agent - Replit support
+   * In fact, this was made completly with vibe coding using these platforms:
+   * Codex - All around
+   * Lovable AI - All around, especially supabase and lovable support
+   * Github Copilot - Alot of the ardurino section
+   * Replit Agent - Replit support
 
 ## Submitting Changes
 
