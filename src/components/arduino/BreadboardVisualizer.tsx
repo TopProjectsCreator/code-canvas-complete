@@ -61,7 +61,18 @@ export function BreadboardVisualizer({
                   type === 'potentiometer' ? { value: 0.5 } :
                   type === 'servo' ? { angle: 90 } :
                   type === 'sensor_temp' ? { temp: 25 } :
-                  type === 'sensor_light' ? { light: 512 } : {},
+                  type === 'sensor_light' ? { light: 512 } :
+                  type === 'buzzer' ? { frequency: '2000', active: true } :
+                  type === 'diode' ? { diodeType: '1N4148' } :
+                  type === 'transistor_npn' ? { partNumber: '2N2222', gain: 100 } :
+                  type === 'motor' ? { speed: 'medium', reverse: false } :
+                  type === 'button' ? { normallyOpen: true } :
+                  type === 'ic' ? { icType: '555' } :
+                  type === 'relay' ? { relayType: '5V-SPDT', energized: false } :
+                  type === 'toggle_switch' ? { on: false } :
+                  type === 'seven_seg' ? { digit: 0 } :
+                  type === 'fuse' ? { rating: '1A' } :
+                  type === 'piezo' ? {} : {},
       x: 120 + col * 150,
       y: 80 + row * 100,
     };
@@ -203,21 +214,23 @@ export function BreadboardVisualizer({
         ))}
       </div>
 
-      {/* Canvas + Property Editor side by side */}
+      {/* Canvas with horizontal scroll for smaller screens */}
       <div className="flex gap-3">
-        <div className="flex-1 min-w-0">
-          <BreadboardCanvas
-            circuit={circuit}
-            wires={wires}
-            onCircuitChange={onCircuitChange}
-            onWiresChange={setWiresAndPersist}
-            selectedComponent={selectedComponent}
-            onSelectComponent={setSelectedComponent}
-            toolMode={toolMode}
-            wireColor={wireColor}
-            simulation={simulation}
-            isReadOnly={isReadOnly}
-          />
+        <div className="flex-1 min-w-0 overflow-x-auto">
+          <div className="min-w-[700px]">
+            <BreadboardCanvas
+              circuit={circuit}
+              wires={wires}
+              onCircuitChange={onCircuitChange}
+              onWiresChange={setWiresAndPersist}
+              selectedComponent={selectedComponent}
+              onSelectComponent={setSelectedComponent}
+              toolMode={toolMode}
+              wireColor={wireColor}
+              simulation={simulation}
+              isReadOnly={isReadOnly}
+            />
+          </div>
         </div>
 
         {/* Property editor panel */}
