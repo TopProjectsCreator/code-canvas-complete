@@ -801,6 +801,96 @@ const drawPiezo = (ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
     ctx.beginPath(); ctx.moveTo(x + w * p, y + h * 0.87); ctx.lineTo(x + w * p, y + h + 4); ctx.stroke();
   });
 };
+// ── Additional new component drawings ──
+
+const drawInductor = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, _props: Record<string, any>) => {
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x, y + h / 2); ctx.lineTo(x + w * 0.15, y + h / 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + w * 0.85, y + h / 2); ctx.lineTo(x + w, y + h / 2); ctx.stroke();
+  ctx.strokeStyle = '#B87333'; ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i++) {
+    ctx.beginPath();
+    ctx.arc(x + w * 0.2 + i * (w * 0.6 / 5) + (w * 0.06), y + h / 2, h * 0.25, Math.PI, 0);
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#888'; ctx.font = '6px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(_props.inductance || '10mH', x + w / 2, y + h + 8);
+};
+
+const drawVoltageRegulator = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>) => {
+  ctx.fillStyle = '#1A1A1A';
+  ctx.beginPath(); ctx.roundRect(x + w * 0.1, y + h * 0.1, w * 0.8, h * 0.6, 3); ctx.fill();
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#999'; ctx.fillRect(x + w * 0.15, y, w * 0.7, h * 0.15);
+  ctx.fillStyle = '#1A1A1A'; ctx.beginPath(); ctx.arc(x + w / 2, y + h * 0.07, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#CCC'; ctx.font = '7px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(props.regType || '7805', x + w / 2, y + h * 0.5);
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+  [0.25, 0.5, 0.75].forEach(p => { ctx.beginPath(); ctx.moveTo(x + w * p, y + h * 0.7); ctx.lineTo(x + w * p, y + h + 4); ctx.stroke(); });
+  ctx.fillStyle = '#666'; ctx.font = '5px monospace';
+  ctx.fillText('I', x + w * 0.25, y + h + 11); ctx.fillText('G', x + w * 0.5, y + h + 11); ctx.fillText('O', x + w * 0.75, y + h + 11);
+};
+
+const drawMOSFET = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>) => {
+  ctx.fillStyle = '#1A1A1A';
+  ctx.beginPath(); ctx.roundRect(x + w * 0.1, y + h * 0.15, w * 0.8, h * 0.55, 3); ctx.fill();
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#999'; ctx.fillRect(x + w * 0.15, y + h * 0.05, w * 0.7, h * 0.12);
+  ctx.fillStyle = '#CCC'; ctx.font = '6px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(props.partNumber || 'IRF540', x + w / 2, y + h * 0.5);
+  ctx.fillText(props.channel || 'N-CH', x + w / 2, y + h * 0.62);
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+  [0.25, 0.5, 0.75].forEach(p => { ctx.beginPath(); ctx.moveTo(x + w * p, y + h * 0.7); ctx.lineTo(x + w * p, y + h + 4); ctx.stroke(); });
+  ctx.fillStyle = '#666'; ctx.font = '5px monospace';
+  ctx.fillText('G', x + w * 0.25, y + h + 11); ctx.fillText('D', x + w * 0.5, y + h + 11); ctx.fillText('S', x + w * 0.75, y + h + 11);
+};
+
+const drawOptocoupler = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, _props: Record<string, any>) => {
+  ctx.fillStyle = '#111'; ctx.beginPath(); ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 2); ctx.fill();
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(x + 6, y + h / 2, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#CCC'; ctx.font = '6px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(_props.partNumber || '4N35', x + w / 2, y + h / 2 + 2);
+  ctx.strokeStyle = '#FF0'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x + w * 0.3, y + h * 0.3); ctx.lineTo(x + w * 0.55, y + h * 0.45); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + w * 0.3, y + h * 0.5); ctx.lineTo(x + w * 0.55, y + h * 0.65); ctx.stroke();
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+  [0.2, 0.5, 0.8].forEach(p => {
+    ctx.beginPath(); ctx.moveTo(x + w * p, y); ctx.lineTo(x + w * p, y - 6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + w * p, y + h); ctx.lineTo(x + w * p, y + h + 6); ctx.stroke();
+  });
+};
+
+const drawLCD = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>) => {
+  ctx.fillStyle = '#0A6E0A'; ctx.beginPath(); ctx.roundRect(x, y, w, h * 0.8, 3); ctx.fill();
+  ctx.strokeStyle = '#063'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#4A8C3F'; ctx.fillRect(x + 4, y + 4, w - 8, h * 0.45);
+  ctx.strokeStyle = '#2A5C1F'; ctx.strokeRect(x + 4, y + 4, w - 8, h * 0.45);
+  ctx.fillStyle = '#111'; ctx.font = '7px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(props.text || 'Hello!', x + w / 2, y + h * 0.32);
+  ctx.fillStyle = '#FFF'; ctx.font = '6px monospace';
+  ctx.fillText(props.lcdType || '16x2', x + w / 2, y + h * 0.68);
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 8; i++) {
+    const px = x + w * (0.06 + i * 0.125);
+    ctx.beginPath(); ctx.moveTo(px, y + h * 0.8); ctx.lineTo(px, y + h + 4); ctx.stroke();
+  }
+};
+
+const drawShiftRegister = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>) => {
+  ctx.fillStyle = '#111'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 2); ctx.fill();
+  ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(x + 6, y + h / 2, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#CCC'; ctx.font = '6px monospace'; ctx.textAlign = 'center';
+  ctx.fillText(props.icType || '74HC595', x + w / 2, y + h / 2 + 2);
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+  for (let i = 0; i < 4; i++) {
+    const px = x + w * 0.125 + i * w * 0.2;
+    ctx.beginPath(); ctx.moveTo(px, y); ctx.lineTo(px, y - 6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px, y + h); ctx.lineTo(px, y + h + 6); ctx.stroke();
+  }
+};
+
 export const COMPONENT_TEMPLATES: Record<string, ComponentTemplate> = {
   led: {
     width: 28, height: 40,
@@ -967,6 +1057,55 @@ export const COMPONENT_TEMPLATES: Record<string, ComponentTemplate> = {
     ],
     draw: drawPiezo,
   },
+  inductor: {
+    width: 60, height: 20,
+    pins: [
+      { name: 'left', x: 0, y: 0.5, side: 'left' },
+      { name: 'right', x: 1, y: 0.5, side: 'right' },
+    ],
+    draw: drawInductor,
+  },
+  voltage_reg: {
+    width: 36, height: 40,
+    pins: [
+      { name: 'input', x: 0.25, y: 1, side: 'bottom' },
+      { name: 'gnd', x: 0.5, y: 1, side: 'bottom' },
+      { name: 'output', x: 0.75, y: 1, side: 'bottom' },
+    ],
+    draw: drawVoltageRegulator,
+  },
+  mosfet: {
+    width: 36, height: 40,
+    pins: [
+      { name: 'gate', x: 0.25, y: 1, side: 'bottom' },
+      { name: 'drain', x: 0.5, y: 1, side: 'bottom' },
+      { name: 'source', x: 0.75, y: 1, side: 'bottom' },
+    ],
+    draw: drawMOSFET,
+  },
+  optocoupler: {
+    width: 40, height: 30,
+    pins: [
+      ...Array.from({length:3}).map((_,i) => ({ name: `pin${i+1}`, x: 0.2 + i*0.3, y: 0, side: 'top' as const })),
+      ...Array.from({length:3}).map((_,i) => ({ name: `pin${i+4}`, x: 0.2 + i*0.3, y: 1, side: 'bottom' as const })),
+    ],
+    draw: drawOptocoupler,
+  },
+  lcd: {
+    width: 80, height: 45,
+    pins: [
+      ...Array.from({length:8}).map((_,i) => ({ name: `pin${i+1}`, x: 0.06 + i*0.125, y: 1, side: 'bottom' as const })),
+    ],
+    draw: drawLCD,
+  },
+  shift_register: {
+    width: 60, height: 30,
+    pins: [
+      ...Array.from({length:4}).map((_,i) => ({ name: `pin${i+1}`, x: 0.125 + i*0.2, y: 0, side: 'top' as const })),
+      ...Array.from({length:4}).map((_,i) => ({ name: `pin${i+5}`, x: 0.125 + i*0.2, y: 1, side: 'bottom' as const })),
+    ],
+    draw: drawShiftRegister,
+  },
 };
 
 export const WIRE_COLORS = [
@@ -994,4 +1133,10 @@ export const COMPONENT_LABELS: Record<string, string> = {
   seven_seg: '7-Segment Display',
   fuse: 'Fuse',
   piezo: 'Piezo Speaker',
+  inductor: 'Inductor',
+  voltage_reg: 'Voltage Regulator',
+  mosfet: 'MOSFET',
+  optocoupler: 'Optocoupler',
+  lcd: 'LCD Display',
+  shift_register: 'Shift Register',
 };
