@@ -38,5 +38,8 @@ export interface SimulationState {
   tick: number;
   pinStates: Record<string, Record<string, number>>; // componentId -> pinName -> value
   ledStates: Record<string, boolean>;
+  ledBrightness: Record<string, number>;
   buzzerStates: Record<string, boolean>;
+  buzzerLevels: Record<string, number>;
+  buzzerFrequencies: Record<string, number>;
 }
