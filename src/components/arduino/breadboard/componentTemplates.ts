@@ -2,7 +2,8 @@ import { ComponentTemplate } from './types';
 
 const drawLED = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>, simulating: boolean) => {
   const color = props.color || '#FF0000';
-  const isOn = simulating && props.on;
+  const brightness = simulating ? (props.brightness ?? (props.on ? 1 : 0)) : 0;
+  const isOn = brightness > 0.02;
   
   // LED body (dome shape)
   ctx.beginPath();
@@ -11,7 +12,7 @@ const drawLED = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number,
   if (isOn) {
     const glow = ctx.createRadialGradient(x + w / 2, y + h * 0.45, 0, x + w / 2, y + h * 0.45, w * 0.6);
     glow.addColorStop(0, color);
-    glow.addColorStop(0.5, color + 'AA');
+    glow.addColorStop(0.5, color + Math.round(80 + brightness * 120).toString(16).padStart(2, '0'));
     glow.addColorStop(1, 'transparent');
     ctx.fillStyle = glow;
     ctx.fill();
@@ -322,7 +323,8 @@ const drawCapacitor = (ctx: CanvasRenderingContext2D, x: number, y: number, w: n
 };
 
 const drawBuzzer = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>, simulating: boolean) => {
-  const isOn = simulating && props.on;
+  const level = simulating ? (props.level ?? (props.on ? 1 : 0)) : 0;
+  const isOn = level > 0.02;
   
   // Body (disc)
   ctx.fillStyle = '#111';
