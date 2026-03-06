@@ -387,6 +387,51 @@ export function ComponentPropertyEditor({ component, onUpdate }: ComponentProper
           options={SHIFT_REG_TYPES}
           onChange={v => updateProp('icType', v)} />
       )}
+
+      {/* Crystal Oscillator */}
+      {component.type === 'crystal' && (
+        <SelectProp label="Frequency"
+          value={props.frequency || '16MHz'}
+          options={['4MHz', '8MHz', '12MHz', '16MHz', '20MHz', '32.768kHz'].map(v => ({ label: v, value: v }))}
+          onChange={v => updateProp('frequency', v)} />
+      )}
+
+      {/* DIP Switch */}
+      {component.type === 'dip_switch' && (
+        <>
+          {[1,2,3,4].map(i => (
+            <div key={i} className="flex items-center justify-between">
+              <Label className="text-xs">Switch {i}</Label>
+              <Switch checked={props[`sw${i}`] ?? false}
+                onCheckedChange={v => updateProp(`sw${i}`, v)} />
+            </div>
+          ))}
+        </>
+      )}
+
+      {/* H-Bridge */}
+      {component.type === 'h_bridge' && (
+        <SelectProp label="Type"
+          value={props.icType || 'L293D'}
+          options={[
+            { label: 'L293D', value: 'L293D' },
+            { label: 'L298N', value: 'L298N' },
+            { label: 'DRV8833', value: 'DRV8833' },
+          ]}
+          onChange={v => updateProp('icType', v)} />
+      )}
+
+      {/* Current Sensor */}
+      {component.type === 'current_sensor' && (
+        <SelectProp label="Range"
+          value={props.range || '±5A'}
+          options={[
+            { label: '±5A', value: '±5A' },
+            { label: '±20A', value: '±20A' },
+            { label: '±30A', value: '±30A' },
+          ]}
+          onChange={v => updateProp('range', v)} />
+      )}
     </div>
   );
 }

@@ -1106,6 +1106,111 @@ export const COMPONENT_TEMPLATES: Record<string, ComponentTemplate> = {
     ],
     draw: drawShiftRegister,
   },
+  crystal: {
+    width: 24, height: 18,
+    pins: [
+      { name: 'left', x: 0, y: 0.5, side: 'left' },
+      { name: 'right', x: 1, y: 0.5, side: 'right' },
+    ],
+    draw: (ctx, x, y, w, h, props) => {
+      // Metal case
+      ctx.fillStyle = '#C0C0C0';
+      ctx.beginPath(); ctx.ellipse(x + w / 2, y + h / 2, w * 0.4, h * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = '#555'; ctx.font = '5px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(props.frequency || '16MHz', x + w / 2, y + h / 2 + 2);
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x, y + h / 2); ctx.lineTo(x + w * 0.1, y + h / 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + w * 0.9, y + h / 2); ctx.lineTo(x + w, y + h / 2); ctx.stroke();
+    },
+  },
+  dip_switch: {
+    width: 50, height: 24,
+    pins: [
+      ...Array.from({length:4}).map((_,i) => ({ name: `sw${i+1}a`, x: 0.15 + i*0.23, y: 0, side: 'top' as const })),
+      ...Array.from({length:4}).map((_,i) => ({ name: `sw${i+1}b`, x: 0.15 + i*0.23, y: 1, side: 'bottom' as const })),
+    ],
+    draw: (ctx, x, y, w, h, props) => {
+      ctx.fillStyle = '#CC2222'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 2); ctx.fill();
+      ctx.strokeStyle = '#881111'; ctx.lineWidth = 1; ctx.stroke();
+      for (let i = 0; i < 4; i++) {
+        const sx = x + w * (0.12 + i * 0.23);
+        const isOn = props[`sw${i + 1}`] ?? false;
+        ctx.fillStyle = '#FFF';
+        ctx.fillRect(sx, y + 3, 6, h - 6);
+        ctx.fillStyle = '#333';
+        ctx.fillRect(sx + 1, isOn ? y + 3 : y + h / 2, 4, h / 2 - 3);
+      }
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5;
+      [0.15, 0.38, 0.61, 0.84].forEach(p => {
+        ctx.beginPath(); ctx.moveTo(x + w * p, y); ctx.lineTo(x + w * p, y - 5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x + w * p, y + h); ctx.lineTo(x + w * p, y + h + 5); ctx.stroke();
+      });
+    },
+  },
+  barrel_jack: {
+    width: 30, height: 30,
+    pins: [
+      { name: 'center', x: 0.5, y: 1, side: 'bottom' },
+      { name: 'sleeve', x: 0.2, y: 1, side: 'bottom' },
+      { name: 'switch', x: 0.8, y: 1, side: 'bottom' },
+    ],
+    draw: (ctx, x, y, w, h) => {
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.roundRect(x, y, w, h * 0.7, 3); ctx.fill();
+      ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.stroke();
+      // Barrel opening
+      ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(x + w / 2, y + h * 0.35, w * 0.25, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(x + w / 2, y + h * 0.35, w * 0.12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#888'; ctx.font = '5px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('DC', x + w / 2, y + h * 0.6);
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+      [0.2, 0.5, 0.8].forEach(p => {
+        ctx.beginPath(); ctx.moveTo(x + w * p, y + h * 0.7); ctx.lineTo(x + w * p, y + h + 4); ctx.stroke();
+      });
+    },
+  },
+  h_bridge: {
+    width: 60, height: 35,
+    pins: [
+      ...Array.from({length:4}).map((_,i) => ({ name: `pin${i+1}`, x: 0.125 + i*0.25, y: 0, side: 'top' as const })),
+      ...Array.from({length:4}).map((_,i) => ({ name: `pin${i+5}`, x: 0.125 + i*0.25, y: 1, side: 'bottom' as const })),
+    ],
+    draw: (ctx, x, y, w, h, props) => {
+      ctx.fillStyle = '#111'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 2); ctx.fill();
+      ctx.strokeStyle = '#444'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(x + 6, y + h / 2, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#CCC'; ctx.font = '6px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(props.icType || 'L293D', x + w / 2, y + h / 2 + 2);
+      // heatsink tab
+      ctx.fillStyle = '#888'; ctx.fillRect(x + w * 0.35, y - 3, w * 0.3, 5);
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+      for (let i = 0; i < 4; i++) {
+        const px = x + w * (0.125 + i * 0.25);
+        ctx.beginPath(); ctx.moveTo(px, y); ctx.lineTo(px, y - 6); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px, y + h); ctx.lineTo(px, y + h + 6); ctx.stroke();
+      }
+    },
+  },
+  current_sensor: {
+    width: 36, height: 28,
+    pins: [
+      { name: 'vcc', x: 0.2, y: 0, side: 'top' },
+      { name: 'out', x: 0.5, y: 0, side: 'top' },
+      { name: 'gnd', x: 0.8, y: 0, side: 'top' },
+      { name: 'ip+', x: 0.25, y: 1, side: 'bottom' },
+      { name: 'ip-', x: 0.75, y: 1, side: 'bottom' },
+    ],
+    draw: (ctx, x, y, w, h, props) => {
+      ctx.fillStyle = '#1A1A1A'; ctx.beginPath(); ctx.roundRect(x + 2, y + 2, w - 4, h - 4, 2); ctx.fill();
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = '#CCC'; ctx.font = '5px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(props.partNumber || 'ACS712', x + w / 2, y + h / 2);
+      ctx.fillText(props.range || '±5A', x + w / 2, y + h / 2 + 8);
+      ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5;
+      [0.2, 0.5, 0.8].forEach(p => { ctx.beginPath(); ctx.moveTo(x + w * p, y); ctx.lineTo(x + w * p, y - 5); ctx.stroke(); });
+      [0.25, 0.75].forEach(p => { ctx.beginPath(); ctx.moveTo(x + w * p, y + h); ctx.lineTo(x + w * p, y + h + 5); ctx.stroke(); });
+    },
+  },
 };
 
 export const WIRE_COLORS = [
@@ -1139,4 +1244,9 @@ export const COMPONENT_LABELS: Record<string, string> = {
   optocoupler: 'Optocoupler',
   lcd: 'LCD Display',
   shift_register: 'Shift Register',
+  crystal: 'Crystal Oscillator',
+  dip_switch: 'DIP Switch',
+  barrel_jack: 'Barrel Jack',
+  h_bridge: 'H-Bridge (L293D)',
+  current_sensor: 'Current Sensor',
 };
