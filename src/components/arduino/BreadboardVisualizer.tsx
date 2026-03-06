@@ -72,7 +72,13 @@ export function BreadboardVisualizer({
                   type === 'toggle_switch' ? { on: false } :
                   type === 'seven_seg' ? { digit: 0 } :
                   type === 'fuse' ? { rating: '1A' } :
-                  type === 'piezo' ? {} : {},
+                  type === 'piezo' ? {} :
+                  type === 'inductor' ? { inductance: '10mH' } :
+                  type === 'voltage_reg' ? { regType: '7805' } :
+                  type === 'mosfet' ? { partNumber: 'IRF540', channel: 'N-CH' } :
+                  type === 'optocoupler' ? { partNumber: '4N35' } :
+                  type === 'lcd' ? { lcdType: '16x2', text: 'Hello!' } :
+                  type === 'shift_register' ? { icType: '74HC595' } : {},
       x: 120 + col * 150,
       y: 80 + row * 100,
     };
@@ -146,10 +152,17 @@ export function BreadboardVisualizer({
   }, [simulation.running, simInterval, circuit.components, wires]);
 
   const componentTypes = Object.keys(COMPONENT_TEMPLATES);
-  const filteredTypes = componentTypes.filter(t =>
-    COMPONENT_LABELS[t]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  
+  // Default visible components (1 row of essentials)
+  const DEFAULT_VISIBLE = ['led', 'resistor', 'button', 'capacitor', 'buzzer', 'potentiometer'];
+  const [showSearch, setShowSearch] = useState(false);
+  
+  const filteredTypes = searchTerm
+    ? componentTypes.filter(t =>
+        COMPONENT_LABELS[t]?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : DEFAULT_VISIBLE;
 
   const selectedComp = circuit.components.find(c => c.id === selectedComponent);
 
@@ -201,17 +214,28 @@ export function BreadboardVisualizer({
         )}
       </div>
 
-      {/* Add components */}
-      <div className="flex items-center gap-2">
-        <Input placeholder="Search components..." value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)} className="text-xs w-40" />
-      </div>
-      <div className="flex gap-1 flex-wrap">
+      {/* Compact component row + search */}
+      <div className="flex items-center gap-1 flex-wrap">
         {filteredTypes.map(type => (
           <Button key={type} size="sm" variant="outline" onClick={() => addComponent(type)} className="text-xs h-7">
             <Plus className="w-3 h-3 mr-1" /> {COMPONENT_LABELS[type]}
           </Button>
         ))}
+        {!showSearch && !searchTerm && (
+          <Button size="sm" variant="ghost" onClick={() => setShowSearch(true)} className="text-xs h-7 text-muted-foreground">
+            + {componentTypes.length - DEFAULT_VISIBLE.length} more…
+          </Button>
+        )}
+        {(showSearch || searchTerm) && (
+          <Input
+            placeholder="Search all components..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onBlur={() => { if (!searchTerm) setShowSearch(false); }}
+            autoFocus
+            className="text-xs w-44 h-7"
+          />
+        )}
       </div>
 
       {/* Canvas with horizontal scroll for smaller screens */}
