@@ -66,6 +66,17 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
     }
   }, [circuitFile?.id]);
 
+
+  useEffect(() => {
+    const code = sketchFile?.content || '';
+    if (circuit.code === code) return;
+    const updated = { ...circuit, code };
+    setCircuit(updated);
+    if (circuitFile?.id) {
+      onFileUpdate(circuitFile.id, JSON.stringify(updated, null, 2));
+    }
+  }, [sketchFile?.content]);
+
   const getSketchWithLibraries = (): string => {
     const libraryIncludes = selectedLibraries
       .map((libId) => arduinoLibraries[libId]?.include || '')
@@ -83,8 +94,8 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
         <Button onClick={() => setUploadDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
           <Upload className="w-4 h-4 mr-2" /> Upload to Board
         </Button>
-        <Button variant="outline">
-          <Zap className="w-4 h-4 mr-2" /> Serial Monitor
+        <Button variant="outline" title="Run simulation to view serial output in the built-in monitor">
+          <Zap className="w-4 h-4 mr-2" /> Serial Monitor (Sim)
         </Button>
       </div>
 

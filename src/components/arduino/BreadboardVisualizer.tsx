@@ -1,13 +1,14 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { ArduinoComponent, BreadboardCircuit } from '@/types/ide';
 import { Button } from '@/components/ui/button';
-import { MousePointer, Pen, Eraser, Play, Square, Trash2 } from 'lucide-react';
+import { MousePointer, Pen, Eraser, Play, Square, Trash2, Terminal } from 'lucide-react';
 import { BreadboardCanvas, snapToGrid } from './breadboard/BreadboardCanvas';
 import { COMPONENT_TEMPLATES, WIRE_COLORS, COMPONENT_LABELS } from './breadboard/componentTemplates';
 import { ComponentPropertyEditor } from './breadboard/ComponentPropertyEditor';
 import { ComponentPalette } from './breadboard/ComponentPalette';
 import { Wire, ToolMode, SimulationState } from './breadboard/types';
 import { toast } from 'sonner';
+import { createRuntime, stepSimulation } from './simulator';
 
 interface BreadboardVisualizerProps {
   circuit: BreadboardCircuit;
@@ -35,9 +36,75 @@ export function BreadboardVisualizer({
   };
 
   const [simulation, setSimulation] = useState<SimulationState>({
-    running: false, tick: 0, pinStates: {}, ledStates: {}, buzzerStates: {},
+    running: false, tick: 0, pinStates: {}, ledStates: {}, ledBrightness: {}, buzzerStates: {}, buzzerLevels: {}, buzzerFrequencies: {},
   });
   const [simInterval, setSimInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+  const runtimeRef = useRef(createRuntime(circuit.code || ''));
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const oscRef = useRef<Record<string, OscillatorNode>>({});
+  const gainRef = useRef<Record<string, GainNode>>({});
+  const [serialOpen, setSerialOpen] = useState(false);
+
+  const stopAudio = () => {
+    Object.values(oscRef.current).forEach((osc) => {
+      try { osc.stop(); } catch {}
+      try { osc.disconnect(); } catch {}
+    });
+    Object.values(gainRef.current).forEach((g) => {
+      try { g.disconnect(); } catch {}
+    });
+    oscRef.current = {};
+    gainRef.current = {};
+  };
+
+  useEffect(() => {
+    runtimeRef.current = createRuntime(circuit.code || '');
+  }, [circuit.code]);
+
+  useEffect(() => () => {
+    if (simInterval) clearInterval(simInterval);
+    stopAudio();
+  }, [simInterval]);
+
+  const syncBuzzerAudio = (levels: Record<string, number>, freqs: Record<string, number>) => {
+    if (!Object.keys(levels).length) {
+      stopAudio();
+      return;
+    }
+    const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    if (!audioCtxRef.current) audioCtxRef.current = new AudioContextClass();
+    const ctx = audioCtxRef.current;
+
+    Object.keys(oscRef.current).forEach((id) => {
+      if ((levels[id] ?? 0) <= 0.02) {
+        try { oscRef.current[id].stop(); } catch {}
+        try { oscRef.current[id].disconnect(); } catch {}
+        try { gainRef.current[id]?.disconnect(); } catch {}
+        delete oscRef.current[id];
+        delete gainRef.current[id];
+      }
+    });
+
+    Object.entries(levels).forEach(([id, lvl]) => {
+      if (lvl <= 0.02) return;
+      const freq = Math.max(60, Math.min(12000, freqs[id] || 1800));
+      if (!oscRef.current[id]) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.value = 0;
+        osc.start();
+        oscRef.current[id] = osc;
+        gainRef.current[id] = gain;
+      }
+      oscRef.current[id].frequency.value = freq;
+      gainRef.current[id].gain.value = Math.min(0.2, lvl * 0.2);
+    });
+  };
+
 
   const getDefaultProps = (type: string): Record<string, any> => {
     const defaults: Record<string, Record<string, any>> = {
@@ -136,102 +203,38 @@ export function BreadboardVisualizer({
     if (simulation.running) {
       if (simInterval) clearInterval(simInterval);
       setSimInterval(null);
-      setSimulation(prev => ({ ...prev, running: false, ledStates: {}, buzzerStates: {}, pinStates: {} }));
+      stopAudio();
+      setSimulation(prev => ({ ...prev, running: false, ledStates: {}, ledBrightness: {}, buzzerStates: {}, buzzerLevels: {}, buzzerFrequencies: {}, pinStates: {} }));
       toast.info('Simulation stopped');
     } else {
-      const ledIds = circuit.components.filter(c => c.type === 'led' || c.type === 'rgb_led').map(c => c.id);
-      const buzzerIds = circuit.components.filter(c => c.type === 'buzzer').map(c => c.id);
-      const motorIds = circuit.components.filter(c => c.type === 'motor').map(c => c.id);
-      const servoIds = circuit.components.filter(c => c.type === 'servo').map(c => c.id);
-
-      const connectedComponents = new Set<string>();
-      const boardConnections: Record<string, string[]> = {}; // pinLabel -> [componentId]
-      
-      wires.forEach(w => {
-        if (w.from.componentId) connectedComponents.add(w.from.componentId);
-        if (w.to.componentId) connectedComponents.add(w.to.componentId);
-        
-        // Track board pin connections
-        if (w.from.componentId === 'board' && w.to.componentId && w.to.componentId !== 'board') {
-          const pinIdx = w.from.pinIndex ?? 0;
-          const ARDUINO_PIN_LABELS = [
-            ...Array.from({length:14}, (_,i) => `D${i}`),
-            ...Array.from({length:6}, (_,i) => `A${i}`),
-            '5V', '3.3V', 'GND', 'VIN',
-          ];
-          const label = ARDUINO_PIN_LABELS[pinIdx] || `D${pinIdx}`;
-          if (!boardConnections[label]) boardConnections[label] = [];
-          boardConnections[label].push(w.to.componentId);
-        }
-        if (w.to.componentId === 'board' && w.from.componentId && w.from.componentId !== 'board') {
-          const pinIdx = w.to.pinIndex ?? 0;
-          const ARDUINO_PIN_LABELS = [
-            ...Array.from({length:14}, (_,i) => `D${i}`),
-            ...Array.from({length:6}, (_,i) => `A${i}`),
-            '5V', '3.3V', 'GND', 'VIN',
-          ];
-          const label = ARDUINO_PIN_LABELS[pinIdx] || `D${pinIdx}`;
-          if (!boardConnections[label]) boardConnections[label] = [];
-          boardConnections[label].push(w.from.componentId);
-        }
-      });
-
-      const ledStates: Record<string, boolean> = {};
-      const buzzerStates: Record<string, boolean> = {};
-      const pinStates: Record<string, Record<string, number>> = { board: {} };
-
-      ledIds.forEach(id => { ledStates[id] = connectedComponents.has(id); });
-      buzzerIds.forEach(id => { buzzerStates[id] = connectedComponents.has(id); });
-      motorIds.forEach(id => { ledStates[id] = connectedComponents.has(id); });
-
-      // Set pin states based on connections
-      Object.entries(boardConnections).forEach(([pinLabel, compIds]) => {
-        const hasLed = compIds.some(id => ledIds.includes(id));
-        const hasBuzzer = compIds.some(id => buzzerIds.includes(id));
-        const hasMotor = compIds.some(id => motorIds.includes(id));
-        if (hasLed || hasBuzzer || hasMotor) pinStates.board[pinLabel] = 1;
-      });
-
-      setSimulation(prev => ({ ...prev, running: true, tick: 0, ledStates, buzzerStates, pinStates }));
+      runtimeRef.current = createRuntime(circuit.code || '');
+      setSimulation(prev => ({ ...prev, running: true, tick: 0, pinStates: { board: {} }, ledStates: {}, ledBrightness: {}, buzzerStates: {}, buzzerLevels: {}, buzzerFrequencies: {} }));
 
       const interval = setInterval(() => {
-        setSimulation(prev => {
-          const newTick = prev.tick + 1;
-          const newLedStates = { ...prev.ledStates };
-          const newPinStates = { ...prev.pinStates, board: { ...prev.pinStates.board } };
-          
-          // Blink unconnected LEDs
-          ledIds.forEach(id => {
-            if (!connectedComponents.has(id)) {
-              newLedStates[id] = newTick % 2 === 0;
-            }
-          });
-
-          // Animate servo angles
-          servoIds.forEach(id => {
-            if (connectedComponents.has(id)) {
-              // Sweep simulation
-              const angle = (Math.sin(newTick * 0.3) * 0.5 + 0.5) * 180;
-              const comp = circuit.components.find(c => c.id === id);
-              if (comp) comp.properties.angle = Math.round(angle);
-            }
-          });
-
-          // Pulse board pins
-          Object.keys(newPinStates.board).forEach(pin => {
-            if (pin.startsWith('D') && newPinStates.board[pin]) {
-              // Digital pins toggle for PWM simulation
-              newPinStates.board[pin] = newTick % 2 === 0 ? 1 : 0;
-            }
-          });
-
-          return { ...prev, tick: newTick, ledStates: newLedStates, pinStates: newPinStates };
+        const result = stepSimulation(runtimeRef.current, 180, circuit, wires);
+        const boardStates: Record<string, number> = {};
+        Object.entries(result.pinLevels).forEach(([pin, level]) => {
+          boardStates[pin] = level > 0.5 ? 1 : 0;
         });
-      }, 800);
+        const ledStates = Object.fromEntries(Object.entries(result.ledBrightness).map(([id, v]) => [id, v > 0.12]));
+        const buzzerStates = Object.fromEntries(Object.entries(result.buzzerLevels).map(([id, v]) => [id, v > 0.05]));
+
+        setSimulation(prev => ({
+          ...prev,
+          tick: prev.tick + 1,
+          pinStates: { board: boardStates },
+          ledStates,
+          ledBrightness: result.ledBrightness,
+          buzzerStates,
+          buzzerLevels: result.buzzerLevels,
+          buzzerFrequencies: result.buzzerFreq,
+        }));
+        syncBuzzerAudio(result.buzzerLevels, result.buzzerFreq);
+      }, 180);
       setSimInterval(interval);
-      toast.success('Simulation started — connect components to Arduino pins!');
+      toast.success('Simulation started — code + wiring simulation active.');
     }
-  }, [simulation.running, simInterval, circuit.components, wires]);
+  }, [simulation.running, simInterval, circuit, wires]);
 
   const selectedComp = circuit.components.find(c => c.id === selectedComponent);
 
@@ -281,6 +284,22 @@ export function BreadboardVisualizer({
           </Button>
         )}
       </div>
+
+      {simulation.running && (
+        <div className="rounded border border-border bg-black/80 text-green-400 p-2 text-xs font-mono">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1"><Terminal className="w-3 h-3" /> Serial Monitor</div>
+            <Button size="sm" variant="outline" onClick={() => setSerialOpen(v => !v)}>{serialOpen ? 'Hide' : 'Show'}</Button>
+          </div>
+          {serialOpen && (
+            <div className="max-h-24 overflow-y-auto space-y-1">
+              {(runtimeRef.current.serial.length ? runtimeRef.current.serial : ['(no serial output yet)']).map((line, idx) => (
+                <div key={`${idx}-${line}`}>{line}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main area: palette + canvas + properties */}
       <div className="flex gap-3">
