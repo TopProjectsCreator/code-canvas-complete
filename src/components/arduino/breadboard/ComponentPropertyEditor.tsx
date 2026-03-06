@@ -67,6 +67,34 @@ const RELAY_TYPES = [
   { label: '12V SPDT', value: '12V-SPDT' },
 ];
 
+const VREG_TYPES = [
+  { label: '7805 (5V)', value: '7805' },
+  { label: '7803 (3.3V)', value: '7803' },
+  { label: '7812 (12V)', value: '7812' },
+  { label: 'LM317 (Adj)', value: 'LM317' },
+];
+
+const MOSFET_TYPES = [
+  { label: 'IRF540 (N-CH)', value: 'IRF540' },
+  { label: 'IRF9540 (P-CH)', value: 'IRF9540' },
+  { label: 'IRLZ44N (Logic)', value: 'IRLZ44N' },
+  { label: '2N7000 (N-CH)', value: '2N7000' },
+];
+
+const LCD_TYPES = [
+  { label: '16x2', value: '16x2' },
+  { label: '20x4', value: '20x4' },
+];
+
+const SHIFT_REG_TYPES = [
+  { label: '74HC595 (SIPO)', value: '74HC595' },
+  { label: '74HC165 (PISO)', value: '74HC165' },
+];
+
+const INDUCTANCE_VALUES = [
+  '1mH', '2.2mH', '4.7mH', '10mH', '22mH', '47mH', '100mH',
+];
+
 function SelectProp({ label, value, options, onChange }: {
   label: string; value: string;
   options: { label: string; value: string }[];
@@ -300,6 +328,64 @@ export function ComponentPropertyEditor({ component, onUpdate }: ComponentProper
           value={props.rating || '1A'}
           options={['250mA', '500mA', '1A', '2A', '5A'].map(v => ({ label: v, value: v }))}
           onChange={v => updateProp('rating', v)} />
+      )}
+
+      {/* Inductor */}
+      {component.type === 'inductor' && (
+        <SelectProp label="Inductance"
+          value={props.inductance || '10mH'}
+          options={INDUCTANCE_VALUES.map(v => ({ label: v, value: v }))}
+          onChange={v => updateProp('inductance', v)} />
+      )}
+
+      {/* Voltage Regulator */}
+      {component.type === 'voltage_reg' && (
+        <SelectProp label="Type"
+          value={props.regType || '7805'}
+          options={VREG_TYPES}
+          onChange={v => updateProp('regType', v)} />
+      )}
+
+      {/* MOSFET */}
+      {component.type === 'mosfet' && (
+        <>
+          <SelectProp label="Part Number"
+            value={props.partNumber || 'IRF540'}
+            options={MOSFET_TYPES}
+            onChange={v => {
+              const ch = v.includes('9540') ? 'P-CH' : 'N-CH';
+              onUpdate({ ...props, partNumber: v, channel: ch });
+            }} />
+          <div className="text-xs text-muted-foreground">Channel: {props.channel || 'N-CH'}</div>
+        </>
+      )}
+
+      {/* Optocoupler */}
+      {component.type === 'optocoupler' && (
+        <SelectProp label="Part Number"
+          value={props.partNumber || '4N35'}
+          options={[
+            { label: '4N35', value: '4N35' },
+            { label: '6N137 (High Speed)', value: '6N137' },
+            { label: 'PC817', value: 'PC817' },
+          ]}
+          onChange={v => updateProp('partNumber', v)} />
+      )}
+
+      {/* LCD */}
+      {component.type === 'lcd' && (
+        <SelectProp label="Size"
+          value={props.lcdType || '16x2'}
+          options={LCD_TYPES}
+          onChange={v => updateProp('lcdType', v)} />
+      )}
+
+      {/* Shift Register */}
+      {component.type === 'shift_register' && (
+        <SelectProp label="Type"
+          value={props.icType || '74HC595'}
+          options={SHIFT_REG_TYPES}
+          onChange={v => updateProp('icType', v)} />
       )}
     </div>
   );
