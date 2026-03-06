@@ -41,7 +41,7 @@ export function ComponentPalette({ onAddComponent }: ComponentPaletteProps) {
       <div className="relative">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
         <Input
-          placeholder="Search..."
+          placeholder="Search components..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="text-xs h-7 pl-7"
