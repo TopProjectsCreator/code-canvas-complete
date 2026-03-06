@@ -317,7 +317,10 @@ export function BreadboardCanvas({
       const simProps = { ...comp.properties };
       if (simulation.running) {
         if (simulation.ledStates[comp.id]) simProps.on = true;
+        if (simulation.ledBrightness?.[comp.id] !== undefined) simProps.brightness = simulation.ledBrightness[comp.id];
         if (simulation.buzzerStates[comp.id]) simProps.on = true;
+        simProps.level = simulation.buzzerLevels?.[comp.id] ?? (simulation.buzzerStates[comp.id] ? 1 : 0);
+        if (simulation.buzzerFrequencies?.[comp.id] !== undefined) simProps.frequency = simulation.buzzerFrequencies[comp.id];
       }
       tmpl.draw(ctx, comp.x, comp.y, tmpl.width, tmpl.height, simProps, simulation.running);
 
