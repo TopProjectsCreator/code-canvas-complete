@@ -1185,7 +1185,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         {
           id: generateId(),
           type: "info",
-          content: "Click upload board to upload this sketch! Or use the sim tool and see a demo!",
+          content: "🔧 Ready to go! Use \"Upload to Board\" to flash your Arduino, or try the simulator to test your circuit virtually.",
           timestamp: new Date(),
         },
       ]);
