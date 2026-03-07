@@ -1,11 +1,13 @@
 import { UploadConfig } from '@/components/arduino/ArduinoUploadDialog';
+import { flashHex } from './stk500';
 
 interface SerialPortLike {
   open(options: { baudRate: number }): Promise<void>;
   close(): Promise<void>;
   getInfo(): { usbProductId?: number };
-  readable?: ReadableStream<Uint8Array>;
-  writable?: WritableStream<Uint8Array>;
+  readable: ReadableStream<Uint8Array> | null;
+  writable: WritableStream<Uint8Array> | null;
+  setSignals?(signals: { dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void>;
 }
 
 interface SerialLike {
@@ -18,87 +20,86 @@ const getSerial = (): SerialLike | undefined =>
 
 export class ArduinoUploadService {
   /**
-   * Upload sketch via Web Serial API (browser-native)
+   * Compile sketch via backend edge function, then flash via Web Serial + STK500v1
    */
   static async uploadViaSerial(
     sketch: string,
     config: UploadConfig,
-    onProgress?: (message: string) => void
+    onProgress?: (message: string, percent?: number) => void
   ): Promise<void> {
-    if (config.uploadMethod !== 'serial') {
-      throw new Error(`Serial upload called with method ${config.uploadMethod}`);
-    }
     const serial = getSerial();
     if (!serial) {
-      throw new Error('Web Serial API not supported');
+      throw new Error('Web Serial API not supported. Use Chrome or Edge.');
     }
 
-    try {
-      const port = await serial.requestPort();
-      await port.open({ baudRate: config.baudRate });
+    // Stage 1: Compile
+    onProgress?.('Compiling sketch...', 0);
 
-      onProgress?.('Connected to board');
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    if (!projectId) {
+      throw new Error('Project configuration missing');
+    }
 
-      const writer = port.writable?.getWriter();
-      if (!writer) throw new Error('Could not get port writer');
+    const compileUrl = `https://${projectId}.supabase.co/functions/v1/compile-arduino`;
+    const compileResponse = await fetch(compileUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sketch, board: config.boardId }),
+    });
 
-      // Send sketch in chunks
-      const encoder = new TextEncoder();
-      const data = encoder.encode(sketch);
-      const chunkSize = 64;
-
-      for (let i = 0; i < data.length; i += chunkSize) {
-        const chunk = data.slice(i, i + chunkSize);
-        await writer.write(chunk);
-        onProgress?.(`Uploading: ${Math.round((i / data.length) * 100)}%`);
+    if (!compileResponse.ok) {
+      const errorData = await compileResponse.json().catch(() => ({}));
+      if (compileResponse.status === 422) {
+        throw new Error(`Compilation errors:\n${errorData.errors || 'Unknown error'}`);
       }
-
-      writer.releaseLock();
-      onProgress?.('Upload complete');
-
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      await port.close();
-    } catch (err) {
-      throw new Error(
-        `Serial upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`
-      );
+      throw new Error(`Compilation failed: ${errorData.error || compileResponse.statusText}`);
     }
-  }
 
-  /**
-   * Upload sketch via backend arduino-cli
-   */
-  static async uploadViaBackend(
-    sketch: string,
-    config: UploadConfig,
-    onProgress?: (message: string) => void
-  ): Promise<void> {
-    if (config.uploadMethod !== 'serial') {
-      throw new Error(`${config.uploadMethod} uploads are not supported by backend yet`);
+    const compileResult = await compileResponse.json();
+
+    if (!compileResult.hex) {
+      // Assembly-only fallback
+      if (compileResult.compiled && compileResult.asm) {
+        throw new Error(
+          'Sketch compiled to assembly but binary output is not available from the compiler service. ' +
+          'This is a known limitation — try a simpler sketch or use Arduino IDE for full compilation.'
+        );
+      }
+      throw new Error('Compilation did not produce flashable output');
     }
+
+    onProgress?.('Compilation successful!', 15);
+
+    if (compileResult.warnings) {
+      onProgress?.(`Warnings: ${compileResult.warnings}`, 15);
+    }
+
+    // Stage 2: Flash via STK500v1
+    onProgress?.('Requesting serial port access...', 18);
+
+    let port: SerialPortLike;
     try {
-      onProgress?.('Compiling sketch...');
+      port = await serial.requestPort();
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        throw new Error('Serial port access denied. Please select a port when prompted.');
+      }
+      throw err;
+    }
 
-      const response = await fetch('/api/arduino/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sketch,
-          board: config.boardId,
-          port: config.portName,
-          baudRate: config.baudRate,
-          method: config.uploadMethod,
-        }),
+    try {
+      await port.open({ baudRate: 115200 });
+
+      await flashHex(port, compileResult.hex, (msg, pct) => {
+        onProgress?.(msg, pct);
       });
 
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
-      }
-
-      onProgress?.('Upload complete');
+      await new Promise(r => setTimeout(r, 500));
+      await port.close();
     } catch (err) {
+      try { await port.close(); } catch { /* ignore */ }
       throw new Error(
-        `Backend upload failed: ${err instanceof Error ? err.message : 'Unknown error'}`
+        `Flash failed: ${err instanceof Error ? err.message : 'Unknown error'}`
       );
     }
   }
@@ -107,10 +108,10 @@ export class ArduinoUploadService {
    * Open serial monitor for debugging
    */
   static async openSerialMonitor(
-    port: string,
+    _port: string,
     baudRate: number,
     onData?: (data: string) => void
-  ): Promise<void> {
+  ): Promise<() => Promise<void>> {
     const serial = getSerial();
     if (!serial) {
       throw new Error('Web Serial API not supported');
@@ -124,21 +125,34 @@ export class ArduinoUploadService {
 
     const decoder = new TextDecoder();
     let buffer = '';
+    let running = true;
 
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+    // Read loop (non-blocking via async)
+    (async () => {
+      try {
+        while (running) {
+          const { value, done } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
-        lines.forEach((line) => onData?.(line));
+          lines.forEach((line) => onData?.(line));
+        }
+      } finally {
+        reader.releaseLock();
+        await serialPort.close();
       }
-    } finally {
-      reader.releaseLock();
-      await serialPort.close();
-    }
+    })();
+
+    // Return a stop function
+    return async () => {
+      running = false;
+      try {
+        reader.releaseLock();
+        await serialPort.close();
+      } catch { /* ignore */ }
+    };
   }
 }
