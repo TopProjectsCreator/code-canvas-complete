@@ -613,16 +613,22 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
 
           <div className="flex-1 p-2 overflow-y-auto">
-            <div className="text-[28px] leading-none text-[#4d97ff] mb-1">{activeCategory}</div>
+            <div className="text-[28px] leading-none mb-1" style={{ color: categoryColors[activeCategory] || '#4c97ff' }}>{activeCategory}</div>
             {activeEditorTab === 'code' ? (
               <div className="space-y-2 pr-2">
-                {motionBlocks.map((label) => (
+                {(categoryBlocks[activeCategory] || []).map((blockDef) => (
                   <button
-                    key={label}
-                    onClick={() => addMotionBlock(label)}
-                    className="w-full text-left rounded-md bg-[#4c97ff] text-white text-[19px] px-4 py-2 shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] hover:bg-[#4289ec]"
+                    key={blockDef.label}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
+                    onClick={() => addBlock(blockDef)}
+                    className="w-full text-left rounded-md text-white text-[17px] px-4 py-2 shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] hover:brightness-110 cursor-grab active:cursor-grabbing"
+                    style={{ backgroundColor: categoryColors[activeCategory] || '#4c97ff' }}
                   >
-                    {label}
+                    {blockDef.label}
                   </button>
                 ))}
               </div>
@@ -634,7 +640,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
         </div>
 
-        <div className="relative bg-[#f9fafc] overflow-hidden">
+        <div
+          className="relative bg-[#f9fafc] overflow-hidden scratch-workspace"
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+          onDrop={handleWorkspaceDrop}
+        >
           <div
             className="absolute inset-0"
             style={{
@@ -644,15 +654,30 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               backgroundSize: '32px 32px',
             }}
           >
-            {selectedBlocks.map((block) => (
-              <div
-                key={block.id}
-                className="absolute rounded-md bg-[#4c97ff] text-white px-3 py-2 text-[15px] min-w-[220px] shadow"
-                style={{ left: block.x ?? 40, top: block.y ?? 40 }}
-              >
-                {block.opcode.replace(/_/g, ' ')}
-              </div>
-            ))}
+            {selectedBlocks.map((block) => {
+              const color = Object.entries(categoryColors).find(([, ]) => block.opcode.startsWith(Object.keys(categoryColors).find(k => block.opcode.startsWith(k.toLowerCase().replace(/\s/g, '_'))) || ''))?.[1];
+              const blockColor = block.opcode.startsWith('motion_') ? '#4c97ff'
+                : block.opcode.startsWith('looks_') ? '#9966ff'
+                : block.opcode.startsWith('sound_') ? '#cf63cf'
+                : block.opcode.startsWith('event_') ? '#ffbf00'
+                : block.opcode.startsWith('control_') ? '#ffab19'
+                : block.opcode.startsWith('sensing_') ? '#5cb1d6'
+                : block.opcode.startsWith('operator_') ? '#59c059'
+                : block.opcode.startsWith('data_') ? '#ff8c1a'
+                : block.opcode.startsWith('procedures_') ? '#ff6680'
+                : '#4c97ff';
+              return (
+                <div
+                  key={block.id}
+                  draggable
+                  onDragEnd={(e) => handleBlockDragInWorkspace(block.id, e)}
+                  className="absolute rounded-md text-white px-3 py-2 text-[15px] min-w-[180px] shadow cursor-grab active:cursor-grabbing select-none"
+                  style={{ left: block.x ?? 40, top: block.y ?? 40, backgroundColor: blockColor }}
+                >
+                  {block.opcode.replace(/_/g, ' ')}
+                </div>
+              );
+            })}
           </div>
           <div className="absolute right-3 bottom-3 flex flex-col gap-2">
             <button className="w-9 h-9 rounded-full bg-white border border-[#c8d0dd] flex items-center justify-center" onClick={() => setWorkspaceZoom((z) => Math.min(1.4, z + 0.1))}><ZoomIn className="w-4 h-4" /></button>
