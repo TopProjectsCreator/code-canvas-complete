@@ -1,86 +1,37 @@
-## Add Browser-Native Shell via WebContainers (Node.js)
 
-### Overview
 
-Integrate `@webcontainer/api` to provide a real Node.js shell (jsh) directly in the browser. Shell/bash/JS commands run locally via WebContainers. Compiled languages (Python, C, Rust, etc.) continue using the existing edge function (Wandbox + optional container backend -- both kept intact).
+## Plan: Arduino Uno R4 WiFi — USB DFU Flashing Only
 
-### Files to Change
+Since OTA is not viable from a hosted web app, this plan adds Uno R4 WiFi support via **USB only** using the WebUSB DFU protocol.
 
-**1. Install `@webcontainer/api**`
+### Changes
 
-- Add the package dependency
+**1. Add board definition** — `src/data/arduinoTemplates.ts`
+- Add `uno_r4_wifi`: RA4M1 (ARM Cortex-M4), 256KB flash, 32KB RAM, 3.3V
+- Mark `wifi: true, bluetooth: true` for display but disable OTA upload methods in the dialog with a tooltip explaining why
 
-**2. New file: `src/hooks/useWebContainer.ts**`
+**2. ARM compilation path** — `supabase/functions/compile-arduino/index.ts`
+- Detect board type; if `uno_r4_wifi`, use Compiler Explorer's `arm-none-eabi-gcc` compiler instead of `avrg1320`
+- ARM-specific flags: `-mcpu=cortex-m4 -mthumb -Os -DF_CPU=48000000UL`
+- Separate minimal core stubs for ARM (GPIO via register writes, UART for Serial)
+- Output raw binary (not Intel HEX) since DFU expects flat binary
 
-- Singleton pattern: one WebContainer instance shared across the app
-- `boot()` on first use, expose status (`idle` | `booting` | `ready` | `error`)
-- `spawn(command, args)` -- runs a command, returns stdout/stderr as string arrays
-- `writeFile(path, content)` / `readFile(path)` for syncing project files
-- `teardown()` cleanup on unmount
-- Lazy boot: container only starts when the user first runs a shell command
+**3. WebUSB DFU flash service** — `src/services/dfuFlash.ts` (new)
+- Use WebUSB API to claim the R4's DFU interface
+- Implement standard USB DFU protocol: `DFU_DNLOAD` to send firmware pages, poll `DFU_GETSTATUS` until complete, `DFU_DETACH` to reboot
+- Progress callback for page-by-page feedback
 
-**3. Update `src/hooks/useCodeExecution.ts**`
+**4. Upload service routing** — `src/services/arduinoUploadService.ts`
+- If board is `uno_r4_wifi`, call `dfuFlash` instead of `stk500`
+- Keep STK500v1 path for classic AVR boards
 
-- Import `useWebContainer`
-- New routing logic at the top of `executeCode`:
-  - If language is `shell`, `bash`, or `javascript` and WebContainer is available, run via WebContainer's `jsh` or `node`
-  - Otherwise, fall through to existing edge function path (Wandbox/container -- untouched)
-- `executeShellCommand` routes through WebContainer when ready
-- Keep all existing session tracking and edge function code as-is (container backend still works for those who configure it)
+**5. Upload dialog updates** — `src/components/arduino/ArduinoUploadDialog.tsx`
+- When R4 WiFi is selected: show USB as only upload method
+- WiFi/Bluetooth options shown as disabled with explanation: "OTA requires local network access — use Arduino IDE for WiFi uploads"
+- Serial port picker replaced with "Connect USB Device" button (WebUSB uses `navigator.usb.requestDevice()` instead of `navigator.serial`)
 
-**4. Update `src/components/ide/Terminal.tsx**`
+### Limitations documented in UI
+- Only basic Arduino functions compile (no WiFi/BLE libraries — those need full Arduino core)
+- WebUSB requires Chrome/Edge
+- Board must be in DFU mode (double-tap reset button on R4)
 
-- Import `useWebContainer` for boot status
-- Show a "Booting shell..." indicator on first command if container is still starting
-- No structural changes to the terminal UI -- commands still flow through `useCodeExecution`
-- If the use is attempting to use pip or uv or something not supported without setting up container runner,  They will be alerted that it wont work and detailed instructions how to make it work.
-
-**5. Update `vite.config.ts**`
-
-- Add required COOP/COEP headers for WebContainers:
-
-```text
-server.headers:
-  Cross-Origin-Embedder-Policy: require-corp
-  Cross-Origin-Opener-Policy: same-origin
-```
-
-**6. Update `README.md**`
-
-- Add a section explaining that shell commands now run via WebContainers in-browser for Node.js
-- Keep the existing container runner documentation for users who want full Linux shell with Python/system tools
-- Note the COOP/COEP header requirement for production deployments
-
-7. **System Instructions**
-  Edit the system instructions so that the bots know of this limitation.
-8. Settings
-  Keep a setting so that users who really want to can use the wandbox api instead of this.
-
-### Architecture
-
-```text
-Terminal Command
-    |
-    +-- shell/bash/js --> WebContainer (in-browser, real Node.js shell)
-    |                     (npm, npx, node all work natively)
-    |
-    +-- python/c/rust/go/etc --> Edge Function
-                                   |
-                                   +-- Wandbox (default)
-                                   +-- Container backend (if configured)
-```
-
-### What stays the same
-
-- Edge function `execute-code` is untouched -- Wandbox and container backend remain
-- `EXECUTOR_MODE` env var still works for container deployments
-- All compiled language execution unchanged
-- AI chat shell commands route through the same `useCodeExecution` hook
-
-### Technical Notes
-
-- WebContainers require SharedArrayBuffer, which needs COOP/COEP headers
-- The COEP `require-corp` header may break loading cross-origin resources (images, fonts from CDNs) unless they have CORS headers. We'll use `credentialless` instead of `require-corp` to avoid this issue where possible.
-- Boot time is ~2-3 seconds on first use, then instant for subsequent commands. 
-
-&nbsp;
