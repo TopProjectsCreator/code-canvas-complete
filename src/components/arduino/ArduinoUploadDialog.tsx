@@ -52,6 +52,8 @@ export function ArduinoUploadDialog({
   const [ports, setPorts] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [progressLog, setProgressLog] = useState<string[]>([]);
+  const [progressPercent, setProgressPercent] = useState(0);
 
   useEffect(() => {
     if (open) {
