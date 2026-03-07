@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { arduinoBoards } from '@/data/arduinoTemplates';
+import { arduinoBoards, isVerifiedWebFlashBoard } from '@/data/arduinoTemplates';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
@@ -52,6 +52,7 @@ export function ArduinoUploadDialog({
     uploadMethod: 'serial',
   });
   const isDFUBoard = DFU_BOARDS.includes(config.boardId);
+  const isVerifiedBoard = isVerifiedWebFlashBoard(config.boardId);
 
   const [ports, setPorts] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -278,11 +279,30 @@ export function ArduinoUploadDialog({
               />
             </div>
           )}
+
+          {config.uploadMethod === 'bluetooth' && !isDFUBoard && (
+            <div>
+              <Label htmlFor="btdevice">Bluetooth Device Name / MAC</Label>
+              <Input
+                id="btdevice"
+                placeholder="HC-05 or AA:BB:CC:DD:EE:FF"
+                value={config.portName}
+                onChange={(e) => setConfig({ ...config, portName: e.target.value })}
+              />
+            </div>
+          )}
           {(config.uploadMethod === 'wifi' && !arduinoBoards[config.boardId]?.wifi) && (
             <div className="text-sm text-destructive">Selected board does not support WiFi uploads.</div>
           )}
           {(config.uploadMethod === 'bluetooth' && !arduinoBoards[config.boardId]?.bluetooth) && (
             <div className="text-sm text-destructive">Selected board does not support Bluetooth uploads.</div>
+          )}
+
+
+          {!isVerifiedBoard && (
+            <div className="text-sm text-amber-500 whitespace-pre-wrap bg-amber-500/10 p-2 rounded">
+              This board is currently available for planning/simulation only. Web compile + flash is verified for Uno, Nano, Mega, Leonardo, Micro, and Uno R4 WiFi.
+            </div>
           )}
 
           {error && (
@@ -304,7 +324,7 @@ export function ArduinoUploadDialog({
 
           <div className="text-xs text-muted-foreground flex items-start gap-1.5 bg-muted/50 p-2 rounded">
             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-            <span>Browser flashing supports basic Arduino functions only (digital/analog I/O, Serial, delay). For complex libraries, use Arduino IDE.</span>
+            <span>Serial flashing runs in-browser. OTA/Bluetooth routes through a local uploader bridge at 127.0.0.1:3232 so production devices can be reached on LAN/BLE.</span>
           </div>
         </div>
 
@@ -312,7 +332,7 @@ export function ArduinoUploadDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleUpload} disabled={loading}>
+          <Button onClick={handleUpload} disabled={loading || !isVerifiedBoard}>
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...
