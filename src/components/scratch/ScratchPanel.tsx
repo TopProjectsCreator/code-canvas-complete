@@ -938,20 +938,64 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               backgroundSize: '32px 32px',
             }}
           >
-            {selectedBlocks.map((block) => {
-              const blockColor = getBlockColor(block.opcode);
-              return (
-                <div
-                  key={block.id}
-                  draggable
-                  onDragEnd={(e) => handleBlockDragInWorkspace(block.id, e)}
-                  className="absolute rounded-2xl text-white px-3 py-2 text-[13px] min-w-[200px] shadow cursor-grab active:cursor-grabbing select-none border-b-2 border-black/20"
-                  style={{ left: block.x ?? 40, top: block.y ?? 40, backgroundColor: blockColor }}
-                >
-                  <div className="font-medium">{blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ')}</div>
-                </div>
-              );
-            })}
+            {(() => {
+              const blocks = selectedTarget?.blocks || {};
+              const rendered = new Set<string>();
+              const elements: React.ReactNode[] = [];
+
+              const renderChain = (startId: string) => {
+                const chain: ScratchBlockNode[] = [];
+                let currentId: string | null | undefined = startId;
+                while (currentId && blocks[currentId] && !rendered.has(currentId)) {
+                  rendered.add(currentId);
+                  chain.push(blocks[currentId]);
+                  currentId = blocks[currentId].next;
+                }
+                if (chain.length === 0) return;
+                const baseX = chain[0].x ?? 40;
+                const baseY = chain[0].y ?? 40;
+
+                elements.push(
+                  <div
+                    key={startId}
+                    draggable
+                    onDragEnd={(e) => handleBlockDragInWorkspace(startId, e)}
+                    className="absolute cursor-grab active:cursor-grabbing select-none"
+                    style={{ left: baseX, top: baseY }}
+                  >
+                    {chain.map((block, i) => {
+                      const blockColor = getBlockColor(block.opcode);
+                      const isFirst = i === 0;
+                      const isLast = i === chain.length - 1;
+                      return (
+                        <div
+                          key={block.id}
+                          className={`text-white px-3 py-2 text-[13px] min-w-[200px] shadow-sm ${isFirst ? 'rounded-t-2xl' : ''} ${isLast ? 'rounded-b-2xl border-b-2 border-black/20' : ''}`}
+                          style={{ backgroundColor: blockColor, marginTop: i > 0 ? -1 : 0 }}
+                        >
+                          <div className="font-medium">{blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ')}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              };
+
+              // Render top-level chains first
+              Object.values(blocks).forEach((block) => {
+                if (block.topLevel && !rendered.has(block.id)) {
+                  renderChain(block.id);
+                }
+              });
+              // Render any orphans
+              Object.values(blocks).forEach((block) => {
+                if (!rendered.has(block.id)) {
+                  renderChain(block.id);
+                }
+              });
+
+              return elements;
+            })()}
           </div>
           <div className="absolute right-3 bottom-3 flex flex-col gap-2">
             <button className="w-9 h-9 rounded-full bg-white border border-[#c8d0dd] flex items-center justify-center" onClick={() => setWorkspaceZoom((z) => Math.min(1.4, z + 0.1))}><ZoomIn className="w-4 h-4" /></button>
