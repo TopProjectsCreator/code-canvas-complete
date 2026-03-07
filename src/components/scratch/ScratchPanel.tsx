@@ -453,7 +453,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </button>
           <button onClick={handleExport} className="px-2 py-1 text-xs rounded bg-white border border-[#c8d0dd]">Export .sb3</button>
           <button onClick={() => importInputRef.current?.click()} className="px-2 py-1 text-xs rounded bg-white border border-[#c8d0dd]">Import .sb3</button>
-          </button>
           <input
             ref={importInputRef}
             className="hidden"
