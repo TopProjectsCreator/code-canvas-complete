@@ -49,6 +49,18 @@ export const arduinoBoards: Record<string, ArduinoBoard> = {
     wifi: true,
     bluetooth: true,
   },
+  uno_r4_wifi: {
+    id: 'uno_r4_wifi',
+    name: 'Arduino Uno R4 WiFi',
+    cpu: 'Renesas RA4M1 (ARM Cortex-M4)',
+    flash: 256,
+    ram: 32,
+    pins: 14,
+    voltage: 3.3,
+    serial: true,
+    wifi: true,
+    bluetooth: true,
+  },
 };
 
 export const arduinoLibraries: Record<string, { name: string; include: string; description: string }> = {
