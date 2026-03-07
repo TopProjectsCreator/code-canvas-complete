@@ -30,6 +30,7 @@ interface ScratchBlockNode {
   parent?: string | null;
   inputs?: Record<string, unknown>;
   fields?: Record<string, unknown>;
+  shadow?: boolean;
   topLevel?: boolean;
   x?: number;
   y?: number;
@@ -85,6 +86,14 @@ interface ScratchPanelProps {
   onStop: () => void;
 }
 
+type ScratchBlockDef = {
+  label: string;
+  opcode: string;
+  inputs?: Record<string, unknown>;
+  fields?: Record<string, unknown>;
+  action?: 'create_variable' | 'create_list';
+};
+
 
 const DEFAULT_PROJECT: ScratchProject = {
   targets: [
@@ -121,7 +130,7 @@ const DEFAULT_PROJECT: ScratchProject = {
   },
 };
 
-const categoryBlocks: Record<string, { label: string; opcode: string; inputs?: Record<string, unknown>; fields?: Record<string, unknown> }[]> = {
+const categoryBlocks: Record<string, ScratchBlockDef[]> = {
   Motion: [
     { label: 'move 10 steps', opcode: 'motion_movesteps', inputs: { STEPS: [1, [4, '10']] } },
     { label: 'turn ⟳ 15 degrees', opcode: 'motion_turnright', inputs: { DEGREES: [1, [4, '15']] } },
@@ -228,7 +237,8 @@ const categoryBlocks: Record<string, { label: string; opcode: string; inputs?: R
     { label: 'abs of ( )', opcode: 'operator_mathop', inputs: { NUM: [1, [4, '']] }, fields: { OPERATOR: ['abs', null] } },
   ],
   Variables: [
-    { label: 'Make a Variable', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] } },
+    { label: 'Make a Variable', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] }, action: 'create_variable' },
+    { label: 'Make a List', opcode: 'data_addtolist', inputs: { ITEM: [1, [10, 'thing']] }, action: 'create_list' },
     { label: 'set my variable to 0', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] } },
     { label: 'change my variable by 1', opcode: 'data_changevariableby', inputs: { VALUE: [1, [4, '1']] } },
     { label: 'show variable', opcode: 'data_showvariable' },
@@ -322,6 +332,123 @@ const bytesToBase64 = (bytes: Uint8Array) => {
     binary += String.fromCharCode(...chunk);
   }
   return btoa(binary);
+};
+
+const getFieldOption = (fields: Record<string, unknown> | undefined, key: string, fallback: string) => {
+  const tuple = fields?.[key];
+  if (!Array.isArray(tuple) || typeof tuple[0] !== 'string') return fallback;
+  return tuple[0];
+};
+
+const createVmCompatibleBlockShape = (
+  blockId: string,
+  blockDef: ScratchBlockDef,
+) => {
+  const nextInputs = { ...(blockDef.inputs || {}) };
+  const nextFields = { ...(blockDef.fields || {}) };
+  const extraBlocks: Record<string, ScratchBlockNode> = {};
+
+  if (blockDef.opcode === 'motion_goto' || blockDef.opcode === 'motion_glideto') {
+    const menuId = generateId();
+    const toValue = getFieldOption(blockDef.fields, 'TO', '_random_');
+    extraBlocks[menuId] = {
+      id: menuId,
+      opcode: 'motion_goto_menu',
+      parent: blockId,
+      topLevel: false,
+      shadow: true,
+      fields: { TO: [toValue, null] },
+      inputs: {},
+      next: null,
+    };
+    nextInputs.TO = [1, menuId];
+    delete nextFields.TO;
+  }
+
+  if (blockDef.opcode === 'motion_pointtowards') {
+    const menuId = generateId();
+    const towardValue = getFieldOption(blockDef.fields, 'TOWARDS', '_mouse_');
+    extraBlocks[menuId] = {
+      id: menuId,
+      opcode: 'motion_pointtowards_menu',
+      parent: blockId,
+      topLevel: false,
+      shadow: true,
+      fields: { TOWARDS: [towardValue, null] },
+      inputs: {},
+      next: null,
+    };
+    nextInputs.TOWARDS = [1, menuId];
+    delete nextFields.TOWARDS;
+  }
+
+  return {
+    inputs: nextInputs,
+    fields: nextFields,
+    extraBlocks,
+  };
+};
+
+const variableOpcodes = new Set([
+  'data_setvariableto',
+  'data_changevariableby',
+  'data_showvariable',
+  'data_hidevariable',
+]);
+
+const listOpcodes = new Set([
+  'data_addtolist',
+  'data_deleteoflist',
+  'data_deletealloflist',
+  'data_insertatlist',
+  'data_replaceitemoflist',
+  'data_itemoflist',
+  'data_lengthoflist',
+  'data_listcontainsitem',
+  'data_showlist',
+  'data_hidelist',
+]);
+
+const getUniqueDataName = (existingNames: string[], baseName: string) => {
+  if (!existingNames.includes(baseName)) return baseName;
+  let count = 2;
+  while (existingNames.includes(`${baseName}${count}`)) count += 1;
+  return `${baseName}${count}`;
+};
+
+const ensureDataRefForTarget = (target: ScratchTarget, blockDef: ScratchBlockDef): { target: ScratchTarget; fields: Record<string, unknown> } => {
+  const nextTarget: ScratchTarget = {
+    ...target,
+    variables: { ...(target.variables || {}) },
+    lists: { ...(target.lists || {}) },
+  };
+  const nextFields: Record<string, unknown> = { ...(blockDef.fields || {}) };
+
+  if (variableOpcodes.has(blockDef.opcode)) {
+    const vars = nextTarget.variables || {};
+    let selectedId = Object.keys(vars)[0];
+    if (!selectedId) {
+      selectedId = generateId();
+      const varName = getUniqueDataName(Object.values(vars).map(([name]) => name), 'my variable');
+      vars[selectedId] = [varName, 0];
+      nextTarget.variables = vars;
+    }
+    nextFields.VARIABLE = [vars[selectedId][0], selectedId];
+  }
+
+  if (listOpcodes.has(blockDef.opcode)) {
+    const lists = nextTarget.lists || {};
+    let selectedId = Object.keys(lists)[0];
+    if (!selectedId) {
+      selectedId = generateId();
+      const listName = getUniqueDataName(Object.values(lists).map(([name]) => name), 'my list');
+      lists[selectedId] = [listName, []];
+      nextTarget.lists = lists;
+    }
+    nextFields.LIST = [lists[selectedId][0], selectedId];
+  }
+
+  return { target: nextTarget, fields: nextFields };
 };
 
 export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, isRunning, onRun, onStop }: ScratchPanelProps) => {
@@ -596,7 +723,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     return { x: current?.x ?? 0, y: (current?.y ?? 0), count };
   };
 
-  const addBlock = (blockDef: { label: string; opcode: string; inputs?: Record<string, unknown>; fields?: Record<string, unknown> }, dropX?: number, dropY?: number) => {
+  const addBlock = (blockDef: ScratchBlockDef, dropX?: number, dropY?: number) => {
     if (!selectedTarget || selectedTarget.isStage || activeEditorTab !== 'code') return;
     const blockId = generateId();
     const blockCount = Object.keys(selectedTarget.blocks || {}).length;
@@ -607,13 +734,34 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       ...current,
       targets: current.targets.map((target, idx) => {
         if (idx !== selectedTargetIndex) return target;
+        if (blockDef.action === 'create_variable') {
+          const vars = { ...(target.variables || {}) };
+          const id = generateId();
+          const name = getUniqueDataName(Object.values(vars).map(([n]) => n), 'my variable');
+          vars[id] = [name, 0];
+          return { ...target, variables: vars };
+        }
+        if (blockDef.action === 'create_list') {
+          const lists = { ...(target.lists || {}) };
+          const id = generateId();
+          const name = getUniqueDataName(Object.values(lists).map(([n]) => n), 'my list');
+          lists[id] = [name, []];
+          return { ...target, lists };
+        }
+
         const blocks = { ...(target.blocks || {}) };
+        const dataResolved = ensureDataRefForTarget(target, blockDef);
+        const resolvedBlockDef: ScratchBlockDef = {
+          ...blockDef,
+          fields: dataResolved.fields,
+        };
         const snapParentId = findSnapTarget(blocks, finalX, finalY);
 
         if (snapParentId && blocks[snapParentId]) {
           const parent = blocks[snapParentId];
           const snapX = parent.x ?? 0;
           const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+          const vmCompatible = createVmCompatibleBlockShape(blockId, resolvedBlockDef);
           blocks[snapParentId] = { ...parent, next: blockId };
           blocks[blockId] = {
             id: blockId,
@@ -623,9 +771,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             topLevel: false,
             x: snapX,
             y: snapY,
-            inputs: blockDef.inputs || {},
-            fields: blockDef.fields || {},
+            inputs: vmCompatible.inputs,
+            fields: vmCompatible.fields,
           };
+          Object.assign(blocks, vmCompatible.extraBlocks);
         } else {
           if (isEventBlock(blockDef.opcode)) {
             blocks[blockId] = {
@@ -637,6 +786,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               x: finalX,
               y: finalY,
               inputs: blockDef.inputs || {},
+              fields: resolvedBlockDef.fields || {},
+            };
+          } else {
+            const vmCompatible = createVmCompatibleBlockShape(blockId, resolvedBlockDef);
               fields: blockDef.fields || {},
             };
           } else {
@@ -660,13 +813,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               topLevel: false,
               x: finalX,
               y: finalY,
+              inputs: vmCompatible.inputs,
+              fields: vmCompatible.fields,
+            };
+            Object.assign(blocks, vmCompatible.extraBlocks);
               inputs: blockDef.inputs || {},
               fields: blockDef.fields || {},
             };
           }
         }
 
-        return { ...target, blocks };
+        return { ...dataResolved.target, blocks };
       }),
     }));
   };
