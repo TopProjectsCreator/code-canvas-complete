@@ -33,6 +33,7 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   django: 'Django',
   sqlite: 'SQLite',
   arduino: 'Arduino',
+  scratch: 'Scratch Blocks',
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
@@ -191,6 +192,9 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case 'arduino':
       return withTutorialFolder(template, getArduinoTemplateFiles('uno'));
+    case 'scratch':
+      baseTemplate = scratchTemplate;
+      break;
     default:
       baseTemplate = htmlTemplate;
       break;
@@ -1068,6 +1072,7 @@ export const getFileLanguage = (filename: string): string => {
     tsx: 'typescript',
     jsx: 'javascript',
     json: 'json',
+    sb3: 'binary',
     md: 'markdown',
     py: 'python',
     rb: 'ruby',
@@ -1141,6 +1146,47 @@ local myCounter = counter()
 print("Count: " .. myCounter())  -- 1
 print("Count: " .. myCounter())  -- 2
 print("Count: " .. myCounter())  -- 3`
+      }
+    ]
+  }
+];
+
+const scratchTemplate: FileNode[] = [
+  {
+    id: 'root',
+    name: 'scratch-project',
+    type: 'folder',
+    children: [
+      {
+        id: 'scratch-readme',
+        name: 'README.md',
+        type: 'file',
+        language: 'markdown',
+        content: `# Scratch Blocks IDE
+
+Use the Scratch panel to build scripts visually.
+
+- Import an existing .sb3 file
+- Drag blocks into the scripts area
+- Run with the green flag button
+- Export back to .sb3 for Scratch compatibility
+`
+      },
+      {
+        id: 'scratch-project-json',
+        name: 'project.json',
+        type: 'file',
+        language: 'json',
+        content: `{
+  "targets": [],
+  "monitors": [],
+  "extensions": [],
+  "meta": {
+    "semver": "3.0.0",
+    "vm": "0.2.0",
+    "agent": "code-canvas"
+  }
+}`
       }
     ]
   }
