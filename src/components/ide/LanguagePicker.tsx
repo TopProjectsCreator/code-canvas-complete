@@ -272,6 +272,13 @@ const languages: LanguageOption[] = [
     description: 'Embedded systems with Arduino boards',
     color: 'from-cyan-500 to-blue-600',
   },
+  {
+    id: 'scratch',
+    name: 'Scratch Blocks',
+    icon: <Bot className="w-8 h-8" />,
+    description: 'Visual block programming with .sb3 import/export',
+    color: 'from-orange-400 to-blue-500',
+  },
 ];
 
 // AI Template Assistant component
