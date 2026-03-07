@@ -545,6 +545,30 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   }, [openTabs]);
 
   const handleCreateFile = useCallback((parentId: string | null, name: string, type: 'file' | 'folder') => {
+    // Prevent duplicate file names within the same parent
+    const siblingHasSameName = (nodes: FileNode[]): boolean => {
+      if (parentId) {
+        const findParent = (ns: FileNode[]): FileNode | null => {
+          for (const n of ns) {
+            if (n.id === parentId) return n;
+            if (n.children) { const f = findParent(n.children); if (f) return f; }
+          }
+          return null;
+        };
+        const parent = findParent(nodes);
+        return !!(parent?.children?.some(c => c.name === name));
+      }
+      // Root level: check inside the root folder
+      const root = nodes[0];
+      if (root?.type === 'folder') return !!(root.children?.some(c => c.name === name));
+      return nodes.some(c => c.name === name);
+    };
+
+    if (siblingHasSameName(files)) {
+      toast({ title: 'File already exists', description: `"${name}" already exists in this location.`, variant: 'destructive' });
+      return;
+    }
+
     const newFile: FileNode = {
       id: generateId(),
       name,
