@@ -15,6 +15,8 @@ import {
   RotateCcw,
   Eye,
   EyeOff,
+  Upload,
+  Play,
 } from 'lucide-react';
 import VirtualMachine from 'scratch-vm';
 import { ScratchArchive, exportSb3, importSb3 } from '@/services/scratchSb3';
@@ -39,8 +41,9 @@ interface ScratchTarget {
   variables?: Record<string, [string, ScratchInputPrimitive]>;
   lists?: Record<string, [string, ScratchInputPrimitive[]]>;
   blocks?: Record<string, ScratchBlockNode>;
-  costumes?: Array<{ name: string; assetId: string; md5ext: string; dataFormat: string }>;
-  sounds?: Array<{ name: string; assetId: string; md5ext: string; dataFormat: string }>;
+  costumes?: Array<{ name: string; assetId: string; md5ext: string; dataFormat: string; rotationCenterX?: number; rotationCenterY?: number }>;
+  sounds?: Array<{ name: string; assetId: string; md5ext: string; dataFormat: string; rate?: number; sampleCount?: number }>;
+  currentCostume?: number;
   visible?: boolean;
   x?: number;
   y?: number;
@@ -54,6 +57,23 @@ interface ScratchProject {
   monitors?: unknown[];
   extensions?: string[];
   meta?: Record<string, unknown>;
+}
+
+interface ScratchVmTarget {
+  isStage?: boolean;
+  sprite?: { name?: string };
+  x?: number;
+  y?: number;
+  direction?: number;
+  visible?: boolean;
+}
+
+interface ScratchVmLike {
+  runtime?: { targets?: ScratchVmTarget[] };
+  start: () => void;
+  stopAll: () => void;
+  greenFlag: () => void;
+  loadProject: (projectData: ArrayBuffer) => Promise<void>;
 }
 
 interface ScratchPanelProps {
@@ -277,6 +297,32 @@ const ensureArchive = (archive: ScratchArchive | null): ScratchArchive => {
 };
 
 const makeNumberInput = (value: string) => [1, [4, value]];
+const isEventBlock = (opcode: string) => opcode.startsWith('event_');
+const getBlockColor = (opcode: string) => (opcode.startsWith('motion_') ? '#4c97ff'
+  : opcode.startsWith('looks_') ? '#9966ff'
+    : opcode.startsWith('sound_') ? '#cf63cf'
+      : opcode.startsWith('event_') ? '#ffbf00'
+        : opcode.startsWith('control_') ? '#ffab19'
+          : opcode.startsWith('sensing_') ? '#5cb1d6'
+            : opcode.startsWith('operator_') ? '#59c059'
+              : opcode.startsWith('data_') ? '#ff8c1a'
+                : opcode.startsWith('procedures_') ? '#ff6680'
+                  : '#4c97ff');
+
+const extensionOf = (name: string) => {
+  const idx = name.lastIndexOf('.');
+  return idx >= 0 ? name.slice(idx + 1).toLowerCase() : '';
+};
+
+const bytesToBase64 = (bytes: Uint8Array) => {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+};
 
 export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, isRunning, onRun, onStop }: ScratchPanelProps) => {
   const [activeEditorTab, setActiveEditorTab] = useState<'code' | 'costumes' | 'sounds'>('code');
@@ -290,19 +336,35 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [vmReady, setVmReady] = useState(false);
   const [vmError, setVmError] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
-  const vmRef = useRef<any>(null);
+  const costumeInputRef = useRef<HTMLInputElement>(null);
+  const soundInputRef = useRef<HTMLInputElement>(null);
+  const vmRef = useRef<ScratchVmLike | null>(null);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
 
   const project = useMemo(() => safeParseProject(archive), [archive]);
   const selectedTarget = project.targets[Math.max(0, Math.min(project.targets.length - 1, selectedTargetIndex))];
   const selectedBlocks = Object.values(selectedTarget?.blocks || {});
   const spriteTargets = project.targets.filter((target) => !target.isStage);
+  const blockLabels = useMemo(() => {
+    const map: Record<string, string> = {};
+    Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
+    return map;
+  }, []);
+
+  const selectedCostumes = selectedTarget?.costumes || [];
+  const selectedSounds = selectedTarget?.sounds || [];
+  const currentCostumeIndex = Number(selectedTarget?.currentCostume || 0);
+  const activeCostume = selectedCostumes[currentCostumeIndex] || selectedCostumes[0];
+  const stageCostumeSrc = activeCostume && archive?.files?.[activeCostume.md5ext]
+    ? `data:image/${activeCostume.dataFormat || 'png'};base64,${archive.files[activeCostume.md5ext]}`
+    : null;
 
   const syncFromVm = () => {
     const vm = vmRef.current;
     if (!vm || !vm.runtime) return;
     const preferredName = selectedTarget?.name;
-    const runtimeTarget = vm.runtime.targets?.find((t: any) => !t.isStage && t.sprite?.name === preferredName)
-      || vm.runtime.targets?.find((t: any) => !t.isStage);
+    const runtimeTarget = vm.runtime.targets?.find((t) => !t.isStage && t.sprite?.name === preferredName)
+      || vm.runtime.targets?.find((t) => !t.isStage);
     if (!runtimeTarget) return;
 
     const x = Number(runtimeTarget.x || 0);
@@ -338,7 +400,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
   useEffect(() => {
     try {
-      const vm = new (VirtualMachine as any)();
+      const VmCtor = VirtualMachine as unknown as { new (): ScratchVmLike };
+      const vm = new VmCtor();
       vm.start();
       vmRef.current = vm;
       setVmReady(true);
@@ -386,6 +449,91 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     onProjectJsonUpdate(nextJson);
     setProjectJsonDraft(nextJson);
     setJsonError(null);
+  };
+
+  const updateArchiveWithProject = async (
+    projectUpdater: (current: ScratchProject) => ScratchProject,
+    archiveUpdater?: (current: ScratchArchive) => ScratchArchive,
+  ) => {
+    const currentArchive = ensureArchive(archive);
+    const currentProject = safeParseProject(currentArchive);
+    const nextProject = projectUpdater(currentProject);
+    const nextJson = formatJson(nextProject);
+    const withProject: ScratchArchive = {
+      ...currentArchive,
+      fileNames: currentArchive.fileNames.includes('project.json')
+        ? currentArchive.fileNames
+        : [...currentArchive.fileNames, 'project.json'],
+      projectJson: nextJson,
+    };
+    const nextArchive = archiveUpdater ? archiveUpdater(withProject) : withProject;
+    onArchiveChange(nextArchive);
+    onProjectJsonUpdate(nextJson);
+    setProjectJsonDraft(nextJson);
+    setJsonError(null);
+    await loadVmFromArchive(nextArchive);
+  };
+
+  const setCurrentCostume = (index: number) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => (idx === selectedTargetIndex ? { ...target, currentCostume: index } : target)),
+    }));
+  };
+
+  const addCostume = async (file: File) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const assetId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 8)}`;
+    const dataFormat = extensionOf(file.name) || 'png';
+    const md5ext = `${assetId}.${dataFormat}`;
+    const base64 = bytesToBase64(bytes);
+
+    await updateArchiveWithProject(
+      (current) => ({
+        ...current,
+        targets: current.targets.map((target, idx) => {
+          if (idx !== selectedTargetIndex) return target;
+          const costumes = target.costumes || [];
+          return {
+            ...target,
+            costumes: [...costumes, { name: file.name.replace(/\.[^/.]+$/, ''), assetId, md5ext, dataFormat, rotationCenterX: 48, rotationCenterY: 48 }],
+            currentCostume: costumes.length,
+          };
+        }),
+      }),
+      (currentArchive) => ({
+        ...currentArchive,
+        files: { ...currentArchive.files, [md5ext]: base64 },
+        fileNames: currentArchive.fileNames.includes(md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, md5ext],
+      }),
+    );
+  };
+
+  const addSound = async (file: File) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const assetId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 8)}`;
+    const dataFormat = extensionOf(file.name) || 'wav';
+    const md5ext = `${assetId}.${dataFormat}`;
+    const base64 = bytesToBase64(bytes);
+
+    await updateArchiveWithProject(
+      (current) => ({
+        ...current,
+        targets: current.targets.map((target, idx) => {
+          if (idx !== selectedTargetIndex) return target;
+          const sounds = target.sounds || [];
+          return {
+            ...target,
+            sounds: [...sounds, { name: file.name.replace(/\.[^/.]+$/, ''), assetId, md5ext, dataFormat, rate: 44100, sampleCount: 0 }],
+          };
+        }),
+      }),
+      (currentArchive) => ({
+        ...currentArchive,
+        files: { ...currentArchive.files, [md5ext]: base64 },
+        fileNames: currentArchive.fileNames.includes(md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, md5ext],
+      }),
+    );
   };
 
   const addSprite = () => {
@@ -479,17 +627,43 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             fields: blockDef.fields || {},
           };
         } else {
-          blocks[blockId] = {
-            id: blockId,
-            opcode: blockDef.opcode,
-            next: null,
-            parent: null,
-            topLevel: true,
-            x: finalX,
-            y: finalY,
-            inputs: blockDef.inputs || {},
-            fields: blockDef.fields || {},
-          };
+          if (isEventBlock(blockDef.opcode)) {
+            blocks[blockId] = {
+              id: blockId,
+              opcode: blockDef.opcode,
+              next: null,
+              parent: null,
+              topLevel: true,
+              x: finalX,
+              y: finalY,
+              inputs: blockDef.inputs || {},
+              fields: blockDef.fields || {},
+            };
+          } else {
+            const eventId = generateId();
+            blocks[eventId] = {
+              id: eventId,
+              opcode: 'event_whenflagclicked',
+              next: blockId,
+              parent: null,
+              topLevel: true,
+              x: finalX,
+              y: Math.max(24, finalY - BLOCK_HEIGHT),
+              inputs: {},
+              fields: {},
+            };
+            blocks[blockId] = {
+              id: blockId,
+              opcode: blockDef.opcode,
+              next: null,
+              parent: eventId,
+              topLevel: false,
+              x: finalX,
+              y: finalY,
+              inputs: blockDef.inputs || {},
+              fields: blockDef.fields || {},
+            };
+          }
         }
 
         return { ...target, blocks };
@@ -685,16 +859,66 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                       e.dataTransfer.effectAllowed = 'copy';
                     }}
                     onClick={() => addBlock(blockDef)}
-                    className="w-full text-left rounded-md text-white text-[17px] px-4 py-2 shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] hover:brightness-110 cursor-grab active:cursor-grabbing"
+                    className="w-full text-left rounded-2xl text-white text-[15px] px-4 py-2 shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] hover:brightness-110 cursor-grab active:cursor-grabbing"
                     style={{ backgroundColor: categoryColors[activeCategory] || '#4c97ff' }}
                   >
                     {blockDef.label}
                   </button>
                 ))}
               </div>
+            ) : activeEditorTab === 'costumes' ? (
+              <div className="h-full rounded-lg border border-[#cfdbef] bg-white p-3 text-sm text-[#5a6682] flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">Costumes ({selectedCostumes.length})</div>
+                  <button className="px-3 py-1.5 rounded-full border border-[#c6d3ea] flex items-center gap-1" onClick={() => costumeInputRef.current?.click()}>
+                    <Upload className="w-3 h-3" /> Upload
+                  </button>
+                  <input ref={costumeInputRef} className="hidden" type="file" accept="image/*,.svg" onChange={(e) => e.target.files?.[0] && addCostume(e.target.files[0])} />
+                </div>
+                <div className="grid grid-cols-2 gap-2 overflow-auto">
+                  {selectedCostumes.map((costume, idx) => {
+                    const src = archive?.files?.[costume.md5ext] ? `data:image/${costume.dataFormat || 'png'};base64,${archive.files[costume.md5ext]}` : undefined;
+                    return (
+                      <button key={costume.assetId} className={`rounded-lg border p-2 text-left ${idx === currentCostumeIndex ? 'border-[#7a5cff] bg-[#f2efff]' : 'border-[#d7deec]'}`} onClick={() => setCurrentCostume(idx)}>
+                        <div className="h-16 rounded bg-[#f4f7ff] border border-[#e3e9f5] flex items-center justify-center overflow-hidden">
+                          {src ? <img src={src} alt={costume.name} className="max-h-full max-w-full" /> : <span>🎭</span>}
+                        </div>
+                        <div className="mt-1 text-xs truncate">{costume.name}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             ) : (
-              <div className="h-full rounded-lg border border-dashed border-[#b9c4da] bg-white p-4 text-sm text-[#7a869f]">
-                {activeEditorTab === 'costumes' ? 'Costume editor area (Scratch-compatible project data preserved).' : 'Sound editor area (Scratch-compatible project data preserved).'}
+              <div className="h-full rounded-lg border border-[#cfdbef] bg-white p-3 text-sm text-[#5a6682] flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">Sounds ({selectedSounds.length})</div>
+                  <button className="px-3 py-1.5 rounded-full border border-[#c6d3ea] flex items-center gap-1" onClick={() => soundInputRef.current?.click()}>
+                    <Upload className="w-3 h-3" /> Upload
+                  </button>
+                  <input ref={soundInputRef} className="hidden" type="file" accept="audio/*" onChange={(e) => e.target.files?.[0] && addSound(e.target.files[0])} />
+                </div>
+                <div className="space-y-2 overflow-auto">
+                  {selectedSounds.map((sound) => {
+                    const src = archive?.files?.[sound.md5ext] ? `data:audio/${sound.dataFormat || 'wav'};base64,${archive.files[sound.md5ext]}` : '';
+                    return (
+                      <div key={sound.assetId} className="rounded-lg border border-[#d7deec] p-2 flex items-center justify-between gap-2">
+                        <div className="truncate">{sound.name}</div>
+                        <button
+                          className="w-7 h-7 rounded-full border border-[#c4cee2] flex items-center justify-center"
+                          onClick={() => {
+                            if (!src) return;
+                            if (!audioPreviewRef.current) audioPreviewRef.current = new Audio();
+                            audioPreviewRef.current.src = src;
+                            void audioPreviewRef.current.play();
+                          }}
+                        >
+                          <Play className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -715,26 +939,16 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             }}
           >
             {selectedBlocks.map((block) => {
-              const color = Object.entries(categoryColors).find(([, ]) => block.opcode.startsWith(Object.keys(categoryColors).find(k => block.opcode.startsWith(k.toLowerCase().replace(/\s/g, '_'))) || ''))?.[1];
-              const blockColor = block.opcode.startsWith('motion_') ? '#4c97ff'
-                : block.opcode.startsWith('looks_') ? '#9966ff'
-                : block.opcode.startsWith('sound_') ? '#cf63cf'
-                : block.opcode.startsWith('event_') ? '#ffbf00'
-                : block.opcode.startsWith('control_') ? '#ffab19'
-                : block.opcode.startsWith('sensing_') ? '#5cb1d6'
-                : block.opcode.startsWith('operator_') ? '#59c059'
-                : block.opcode.startsWith('data_') ? '#ff8c1a'
-                : block.opcode.startsWith('procedures_') ? '#ff6680'
-                : '#4c97ff';
+              const blockColor = getBlockColor(block.opcode);
               return (
                 <div
                   key={block.id}
                   draggable
                   onDragEnd={(e) => handleBlockDragInWorkspace(block.id, e)}
-                  className="absolute rounded-md text-white px-3 py-2 text-[15px] min-w-[180px] shadow cursor-grab active:cursor-grabbing select-none"
+                  className="absolute rounded-2xl text-white px-3 py-2 text-[13px] min-w-[200px] shadow cursor-grab active:cursor-grabbing select-none border-b-2 border-black/20"
                   style={{ left: block.x ?? 40, top: block.y ?? 40, backgroundColor: blockColor }}
                 >
-                  {block.opcode.replace(/_/g, ' ')}
+                  <div className="font-medium">{blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ')}</div>
                 </div>
               );
             })}
@@ -748,14 +962,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         <div className="border-l border-[#c8d0dd] bg-[#e5edf9] grid grid-rows-[430px_1fr] min-h-0">
           <div className="p-2">
-            <div className="rounded-xl bg-white border border-[#c8d0dd] h-full relative overflow-hidden">
+              <div className="rounded-xl bg-white border border-[#c8d0dd] h-full relative overflow-hidden">
               <div className="absolute left-0 top-0 right-0 h-full bg-[#f0f0f0]" />
               {stagePreview.visible && spriteVisible && (
                 <div
                   className="absolute text-[100px] leading-none"
                   style={{ left: stagePreview.x, top: stagePreview.y, transform: `rotate(${stagePreview.direction - 90}deg)` }}
                 >
-                  🐱
+                  {stageCostumeSrc ? <img src={stageCostumeSrc} alt={activeCostume?.name || 'Sprite'} className="w-[96px] h-[96px] object-contain" /> : '🐱'}
                 </div>
               )}
             </div>
@@ -802,7 +1016,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     onClick={() => setSelectedTargetIndex(mappedIndex)}
                     className={`w-[95px] h-[92px] rounded-xl border-2 flex flex-col items-center justify-center ${selected ? 'border-[#7b61ff] bg-[#ede7ff]' : 'border-[#b9c5dc] bg-white'}`}
                   >
-                    <div className="text-3xl">🐱</div>
+                    <div className="text-3xl">{target.costumes?.length ? '🎭' : '🐱'}</div>
                     <div className="text-xs mt-1">{target.name}</div>
                   </button>
                 );
