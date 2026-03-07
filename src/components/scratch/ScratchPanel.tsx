@@ -541,9 +541,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         return { ...target, blocks };
       }),
     }));
-        };
-      }),
-    }));
   };
 
   const runPreview = async () => {
