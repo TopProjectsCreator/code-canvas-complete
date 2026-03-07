@@ -1492,36 +1492,40 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         {/* Main content area */}
         <div className="flex-1 flex overflow-hidden">
           <ResizablePanelGroup direction="horizontal" className="flex-1">
-            {/* Editor panel */}
-            <ResizablePanel defaultSize={50} minSize={30}>
-              <div className="h-full flex flex-col">
-                <EditorTabs
-                  tabs={openTabs}
-                  activeTabId={activeTabId}
-                  onTabClick={handleTabClick}
-                  onTabClose={handleTabClose}
-                />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <CodeEditor
-                    file={activeFileWithContent}
-                    onContentChange={handleContentChange}
-                  />
-                  <Terminal
-                    history={terminalHistory}
-                    onCommand={handleCommand}
-                    isMinimized={isTerminalMinimized}
-                    onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
-                    stdinPrompt={stdinPrompt}
-                    onStdinSubmit={handleStdinSubmit}
-                  />
-                </div>
-              </div>
-            </ResizablePanel>
+            {/* Editor panel - hidden for scratch template */}
+            {selectedTemplate !== 'scratch' && (
+              <>
+                <ResizablePanel defaultSize={50} minSize={30}>
+                  <div className="h-full flex flex-col">
+                    <EditorTabs
+                      tabs={openTabs}
+                      activeTabId={activeTabId}
+                      onTabClick={handleTabClick}
+                      onTabClose={handleTabClose}
+                    />
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                      <CodeEditor
+                        file={activeFileWithContent}
+                        onContentChange={handleContentChange}
+                      />
+                      <Terminal
+                        history={terminalHistory}
+                        onCommand={handleCommand}
+                        isMinimized={isTerminalMinimized}
+                        onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
+                        stdinPrompt={stdinPrompt}
+                        onStdinSubmit={handleStdinSubmit}
+                      />
+                    </div>
+                  </div>
+                </ResizablePanel>
 
-            <ResizableHandle withHandle className="bg-border" />
+                <ResizableHandle withHandle className="bg-border" />
+              </>
+            )}
 
-            {/* Preview panel or Arduino panel */}
-            <ResizablePanel defaultSize={50} minSize={20}>
+            {/* Preview panel or Arduino/Scratch panel */}
+            <ResizablePanel defaultSize={selectedTemplate === 'scratch' ? 100 : 50} minSize={20}>
               {selectedTemplate === 'arduino' ? (
                 <Suspense fallback={<div className="p-4 text-gray-400">Loading Arduino panel...</div>}>
                   <ArduinoPanel
