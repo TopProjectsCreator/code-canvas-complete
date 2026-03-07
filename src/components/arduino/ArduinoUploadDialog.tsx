@@ -187,18 +187,21 @@ export function ArduinoUploadDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="serial">USB Serial</SelectItem>
-                <SelectItem value="wifi" disabled={!arduinoBoards[config.boardId]?.wifi}>
-                  WiFi (OTA){!arduinoBoards[config.boardId]?.wifi && ' — unsupported'}
+                <SelectItem value="serial">{isDFUBoard ? 'USB (DFU)' : 'USB Serial'}</SelectItem>
+                <SelectItem value="wifi" disabled={!arduinoBoards[config.boardId]?.wifi || isDFUBoard}>
+                  WiFi (OTA){isDFUBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.wifi ? ' — unsupported' : '')}
                 </SelectItem>
-                <SelectItem value="bluetooth" disabled={!arduinoBoards[config.boardId]?.bluetooth}>
-                  Bluetooth{!arduinoBoards[config.boardId]?.bluetooth && ' — unsupported'}
+                <SelectItem value="bluetooth" disabled={!arduinoBoards[config.boardId]?.bluetooth || isDFUBoard}>
+                  Bluetooth{isDFUBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.bluetooth ? ' — unsupported' : '')}
                 </SelectItem>
               </SelectContent>
             </Select>
+            {isDFUBoard && (config.uploadMethod === 'wifi' || config.uploadMethod === 'bluetooth') && (
+              <p className="text-xs text-muted-foreground mt-1">OTA/Bluetooth uploads require local network access and are not possible from a hosted web app. Use Arduino IDE instead.</p>
+            )}
           </div>
 
-          {config.uploadMethod === 'serial' && (
+          {config.uploadMethod === 'serial' && !isDFUBoard && (
             <>
               <div>
                 <Label htmlFor="port">Serial Port</Label>
@@ -250,7 +253,21 @@ export function ArduinoUploadDialog({
             </>
           )}
 
-          {config.uploadMethod === 'wifi' && (
+          {config.uploadMethod === 'serial' && isDFUBoard && (
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded space-y-2">
+                <p className="font-medium text-foreground">USB DFU Mode Required</p>
+                <ol className="list-decimal list-inside space-y-1 text-xs">
+                  <li>Connect your Uno R4 WiFi via USB-C</li>
+                  <li>Double-tap the reset button quickly — the LED should pulse</li>
+                  <li>Click "Upload Sketch" — you'll be prompted to select the USB device</li>
+                </ol>
+              </div>
+              <p className="text-xs text-muted-foreground">Uses WebUSB DFU protocol. No serial port selection needed.</p>
+            </div>
+          )}
+
+          {config.uploadMethod === 'wifi' && !isDFUBoard && (
             <div>
               <Label htmlFor="ipaddress">Board IP Address</Label>
               <Input
@@ -262,10 +279,10 @@ export function ArduinoUploadDialog({
             </div>
           )}
           {(config.uploadMethod === 'wifi' && !arduinoBoards[config.boardId]?.wifi) && (
-            <div className="text-sm text-red-500">Selected board does not support WiFi uploads.</div>
+            <div className="text-sm text-destructive">Selected board does not support WiFi uploads.</div>
           )}
           {(config.uploadMethod === 'bluetooth' && !arduinoBoards[config.boardId]?.bluetooth) && (
-            <div className="text-sm text-red-500">Selected board does not support Bluetooth uploads.</div>
+            <div className="text-sm text-destructive">Selected board does not support Bluetooth uploads.</div>
           )}
 
           {error && (
