@@ -48,7 +48,7 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
   const sketchFile = findFileByName(files, 'sketch.ino');
   const circuitFile = findFileByName(files, 'circuit.json');
 
-  // Load circuit from file (or create one if missing)
+  // Load circuit from file
   useEffect(() => {
     if (circuitFile && circuitFile.content) {
       try {
@@ -57,17 +57,6 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
       } catch (e) {
         console.error('Failed to parse circuit.json');
       }
-    } else if (!circuitFile && onAddFile) {
-      // if there's no circuit file yet, create a blank one so state can persist
-      const placeholder: BreadboardCircuit = {
-        id: `circuit-${Date.now()}`,
-        boardId: circuit.boardId,
-        components: circuit.components,
-        connections: circuit.connections || [],
-        wires: circuit.wires || [],
-        code: circuit.code,
-      };
-      onAddFile('circuit.json', JSON.stringify(placeholder, null, 2), 'json');
     }
   }, [circuitFile?.id]);
 
