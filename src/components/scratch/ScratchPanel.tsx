@@ -54,14 +54,6 @@ interface ScratchProject {
   monitors?: unknown[];
   extensions?: string[];
   meta?: Record<string, unknown>;
-import { useMemo, useRef, useState } from 'react';
-import { Play, Square, Upload, Download } from 'lucide-react';
-import { ScratchArchive, exportSb3, importSb3 } from '@/services/scratchSb3';
-
-interface ScratchBlock {
-  id: string;
-  opcode: 'move' | 'turn' | 'say' | 'wait';
-  value: string;
 }
 
 interface ScratchPanelProps {
@@ -72,6 +64,7 @@ interface ScratchPanelProps {
   onRun: () => void;
   onStop: () => void;
 }
+
 
 const DEFAULT_PROJECT: ScratchProject = {
   targets: [
