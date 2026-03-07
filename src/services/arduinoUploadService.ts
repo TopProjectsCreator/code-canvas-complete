@@ -1,5 +1,4 @@
 import { UploadConfig } from '@/components/arduino/ArduinoUploadDialog';
-import { UploadConfig } from '@/components/arduino/ArduinoUploadDialog';
 import { flashHex } from './stk500';
 import { requestDFUDevice, flashDFU } from './dfuFlash';
 
