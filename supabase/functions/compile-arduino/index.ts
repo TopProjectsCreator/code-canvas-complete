@@ -290,7 +290,7 @@ function elfToHex(elfBase64: string): string {
       }
       
       line += toHex8((-checksum) & 0xFF);
-      hex += line + '\\n';
+      hex += line + '\n';
     }
   }
   
