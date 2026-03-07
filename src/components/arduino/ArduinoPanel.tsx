@@ -150,7 +150,7 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
             </div>
             <div>
               <Label>Flash Memory</Label>
-              <p className="text-sm text-gray-300">32KB</p>
+              <p className="text-sm text-gray-300">{arduinoBoards[circuit.boardId]?.flash || 32}KB</p>
             </div>
             <div>
               <Label>Selected Libraries</Label>
@@ -169,6 +169,14 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
         onOpenChange={setUploadDialogOpen}
         onUpload={async (config: UploadConfig, onProgress?: (message: string, percent?: number) => void) => {
           const { ArduinoUploadService } = await import('@/services/arduinoUploadService');
+          if (config.uploadMethod === 'wifi') {
+            await ArduinoUploadService.uploadViaWiFi(getSketchWithLibraries(), config, onProgress);
+            return;
+          }
+          if (config.uploadMethod === 'bluetooth') {
+            await ArduinoUploadService.uploadViaBluetooth(getSketchWithLibraries(), config, onProgress);
+            return;
+          }
           await ArduinoUploadService.uploadViaSerial(getSketchWithLibraries(), config, onProgress);
         }}
         sketchCode={getSketchWithLibraries()}
