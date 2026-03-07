@@ -295,7 +295,7 @@ function elfToHex(elfBase64: string): string {
   }
   
   // EOF record
-  hex += ':00000001FF\\n';
+  hex += ':00000001FF\n';
   return hex;
 }
 
