@@ -45,8 +45,8 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
     code: '',
   });
 
-  const sketchFile = files.find((f) => f.name === 'sketch.ino');
-  const circuitFile = files.find((f) => f.name === 'circuit.json');
+  const sketchFile = findFileByName(files, 'sketch.ino');
+  const circuitFile = findFileByName(files, 'circuit.json');
 
   // Load circuit from file (or create one if missing)
   useEffect(() => {
