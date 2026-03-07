@@ -286,24 +286,85 @@ const categoryRail = [
 const generateId = () => Math.random().toString(36).slice(2, 10);
 const formatJson = (value: unknown) => JSON.stringify(value, null, 2);
 
+const DEFAULT_STAGE_COSTUME_FILE = 'cdx-stage-default.svg';
+const DEFAULT_SPRITE_COSTUME_FILE = 'cdx-sprite-default.svg';
+const DEFAULT_STAGE_COSTUME_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360"><defs><linearGradient id="bg" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#87ceeb"/><stop offset="1" stop-color="#dff3ff"/></linearGradient></defs><rect width="480" height="360" fill="url(#bg)"/><circle cx="410" cy="70" r="40" fill="#ffd35a"/><rect y="260" width="480" height="100" fill="#95d08f"/></svg>`;
+const DEFAULT_SPRITE_COSTUME_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><ellipse cx="48" cy="76" rx="28" ry="14" fill="#d18f3b"/><circle cx="36" cy="40" r="20" fill="#f8a64a"/><circle cx="60" cy="40" r="20" fill="#f8a64a"/><circle cx="48" cy="58" r="20" fill="#f8a64a"/><circle cx="42" cy="56" r="3" fill="#222"/><circle cx="54" cy="56" r="3" fill="#222"/></svg>`;
+
+const utf8ToBase64 = (value: string) => btoa(unescape(encodeURIComponent(value)));
+
+const getDefaultCostumeForTarget = (target: ScratchTarget) => (target.isStage
+  ? {
+      name: 'backdrop1',
+      assetId: 'cdx-stage-default',
+      md5ext: DEFAULT_STAGE_COSTUME_FILE,
+      dataFormat: 'svg',
+      rotationCenterX: 240,
+      rotationCenterY: 180,
+    }
+  : {
+      name: 'costume1',
+      assetId: 'cdx-sprite-default',
+      md5ext: DEFAULT_SPRITE_COSTUME_FILE,
+      dataFormat: 'svg',
+      rotationCenterX: 48,
+      rotationCenterY: 48,
+    });
+
+const normalizeProjectForVm = (project: ScratchProject): ScratchProject => ({
+  ...project,
+  targets: project.targets.map((target) => {
+    const costumes = target.costumes && target.costumes.length > 0
+      ? target.costumes
+      : [getDefaultCostumeForTarget(target)];
+    return {
+      ...target,
+      costumes,
+      currentCostume: typeof target.currentCostume === 'number'
+        ? Math.min(Math.max(0, target.currentCostume), Math.max(0, costumes.length - 1))
+        : 0,
+    };
+  }),
+});
+
+const ensureArchiveAssetsForVm = (archive: ScratchArchive): ScratchArchive => {
+  const files = {
+    ...archive.files,
+    [DEFAULT_STAGE_COSTUME_FILE]: archive.files[DEFAULT_STAGE_COSTUME_FILE] || utf8ToBase64(DEFAULT_STAGE_COSTUME_SVG),
+    [DEFAULT_SPRITE_COSTUME_FILE]: archive.files[DEFAULT_SPRITE_COSTUME_FILE] || utf8ToBase64(DEFAULT_SPRITE_COSTUME_SVG),
+  };
+  const fileNames = [...archive.fileNames];
+  if (!fileNames.includes(DEFAULT_STAGE_COSTUME_FILE)) fileNames.push(DEFAULT_STAGE_COSTUME_FILE);
+  if (!fileNames.includes(DEFAULT_SPRITE_COSTUME_FILE)) fileNames.push(DEFAULT_SPRITE_COSTUME_FILE);
+  return { ...archive, files, fileNames };
+};
+
 const safeParseProject = (archive: ScratchArchive | null): ScratchProject => {
-  if (!archive?.projectJson) return DEFAULT_PROJECT;
+  if (!archive?.projectJson) return normalizeProjectForVm(DEFAULT_PROJECT);
   try {
     const parsed = JSON.parse(archive.projectJson) as ScratchProject;
     if (!Array.isArray(parsed.targets)) return DEFAULT_PROJECT;
-    return parsed;
+    return normalizeProjectForVm(parsed);
   } catch {
     return DEFAULT_PROJECT;
   }
 };
 
 const ensureArchive = (archive: ScratchArchive | null): ScratchArchive => {
-  if (archive) return archive;
-  return {
+  if (archive) {
+    const parsed = safeParseProject(archive);
+    const withProject = {
+      ...archive,
+      projectJson: formatJson(parsed),
+      fileNames: archive.fileNames.includes('project.json') ? archive.fileNames : [...archive.fileNames, 'project.json'],
+    };
+    return ensureArchiveAssetsForVm(withProject);
+  }
+  return ensureArchiveAssetsForVm({
     projectJson: formatJson(DEFAULT_PROJECT),
     files: {},
     fileNames: ['project.json'],
-  };
+  });
 };
 
 const makeNumberInput = (value: string) => [1, [4, value]];
@@ -508,10 +569,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setSpriteVisible(visible);
   };
 
-  const loadVmFromArchive = async (nextArchive: ScratchArchive) => {
+const loadVmFromArchive = async (nextArchive: ScratchArchive) => {
     if (!vmRef.current) return;
     try {
-      const data = await exportSb3(nextArchive);
+      const normalizedArchive = ensureArchive(nextArchive);
+      const data = await exportSb3(normalizedArchive);
       const ab = data.buffer instanceof ArrayBuffer
         ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
         : data.slice().buffer;
