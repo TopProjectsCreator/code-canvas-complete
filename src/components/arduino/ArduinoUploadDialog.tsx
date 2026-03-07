@@ -11,8 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { arduinoBoards, isVerifiedWebFlashBoard } from '@/data/arduinoTemplates';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, Info } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+
+const isInIframe = (): boolean => {
+  try { return window.self !== window.top; } catch { return true; }
+};
 
 declare global {
   interface Navigator {
