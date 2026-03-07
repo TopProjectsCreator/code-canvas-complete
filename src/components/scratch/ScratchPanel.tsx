@@ -481,44 +481,6 @@ export const ScratchPanel = ({
   };
 
   return (
-    <div className="h-full bg-[#f1f4fa] flex flex-col text-[#4d4d4d]">
-      <div className="h-9 border-b border-[#c8d0dd] bg-[#d9e3f2] px-2 flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setActiveEditorTab('code')}
-            className={`px-4 h-7 rounded-t-xl text-sm flex items-center gap-1 ${activeEditorTab === 'code' ? 'bg-white text-[#6b5ce7] font-semibold' : 'bg-[#c9d3e4]'}`}
-          >
-            <Code2 className="w-4 h-4" /> Code
-          </button>
-          <button
-            onClick={() => setActiveEditorTab('costumes')}
-            className={`px-4 h-7 rounded-t-xl text-sm flex items-center gap-1 ${activeEditorTab === 'costumes' ? 'bg-white text-[#5a6b8a] font-semibold' : 'bg-[#c9d3e4]'}`}
-          >
-            <Brush className="w-4 h-4" /> Costumes
-          </button>
-          <button
-            onClick={() => setActiveEditorTab('sounds')}
-            className={`px-4 h-7 rounded-t-xl text-sm flex items-center gap-1 ${activeEditorTab === 'sounds' ? 'bg-white text-[#5a6b8a] font-semibold' : 'bg-[#c9d3e4]'}`}
-          >
-            <Volume2 className="w-4 h-4" /> Sounds
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span className={`text-[11px] px-2 py-0.5 rounded-full border ${vmReady ? 'border-green-400 text-green-700 bg-green-50' : 'border-amber-400 text-amber-700 bg-amber-50'}`}>
-            {vmReady ? 'VM Ready' : 'VM Starting'}
-          </span>
-          <button onClick={runPreview} className="text-green-600" title="Green Flag" disabled={isRunning || !vmReady}>
-            <Flag className="w-5 h-5 fill-green-500" />
-          </button>
-          <button onClick={handleVmStop} className="text-red-500" title="Stop">
-            <StopCircle className="w-5 h-5 fill-red-300" />
-          </button>
-          <button onClick={handleExport} className="px-2 py-1 text-xs rounded bg-white border border-[#c8d0dd]">Export .sb3</button>
-          <button onClick={() => importInputRef.current?.click()} className="px-2 py-1 text-xs rounded bg-white border border-[#c8d0dd]">Import .sb3</button>
-          <button className="p-1 rounded bg-white border border-[#c8d0dd]">
-            <Maximize2 className="w-4 h-4" />
-  return (
     <div className="h-full bg-background text-foreground flex flex-col">
       <div className="h-10 border-b border-border px-3 flex items-center justify-between">
         <div className="text-sm font-medium">Scratch Blocks Workspace</div>
