@@ -167,7 +167,7 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
       <ArduinoUploadDialog
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
-        onUpload={async (config, onProgress) => {
+        onUpload={async (config: UploadConfig, onProgress?: (message: string, percent?: number) => void) => {
           const { ArduinoUploadService } = await import('@/services/arduinoUploadService');
           await ArduinoUploadService.uploadViaSerial(getSketchWithLibraries(), config, onProgress);
         }}
