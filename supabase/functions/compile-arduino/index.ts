@@ -413,6 +413,18 @@ const BOARD_CONFIGS: Record<string, { compiler: string; stubs: string; args: str
     args: '-mmcu=atmega2560 -DF_CPU=16000000UL -Os -std=gnu++11',
     isArm: false,
   },
+  leonardo: {
+    compiler: 'avrg1320',
+    stubs: ARDUINO_CORE_STUBS,
+    args: '-mmcu=atmega32u4 -DF_CPU=16000000UL -Os -std=gnu++11',
+    isArm: false,
+  },
+  micro: {
+    compiler: 'avrg1320',
+    stubs: ARDUINO_CORE_STUBS,
+    args: '-mmcu=atmega32u4 -DF_CPU=16000000UL -Os -std=gnu++11',
+    isArm: false,
+  },
   uno_r4_wifi: {
     compiler: 'armg1320',
     stubs: ARM_CORE_STUBS,
@@ -420,6 +432,8 @@ const BOARD_CONFIGS: Record<string, { compiler: string; stubs: string; args: str
     isArm: true,
   },
 };
+
+const SUPPORTED_BOARD_IDS = Object.keys(BOARD_CONFIGS);
 
 // ELF to Intel HEX conversion
 function elfToHex(elfBase64: string): string {
@@ -508,6 +522,15 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const apiKey = req.headers.get('apikey');
+    const authHeader = req.headers.get('authorization');
+    if (!apiKey && !authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authentication headers' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { sketch, board = 'uno' } = await req.json();
     
     if (!sketch || typeof sketch !== 'string') {
@@ -517,7 +540,16 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const boardConfig = BOARD_CONFIGS[board] || BOARD_CONFIGS['uno'];
+    const boardConfig = BOARD_CONFIGS[board];
+    if (!boardConfig) {
+      return new Response(
+        JSON.stringify({
+          error: `Unsupported board for web compiler: ${board}`,
+          supportedBoards: SUPPORTED_BOARD_IDS,
+        }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Combine stubs + user sketch
     const fullSource = boardConfig.stubs + '\n// === USER SKETCH ===\n' + sketch;
