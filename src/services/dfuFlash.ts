@@ -1,4 +1,4 @@
-/// <reference path="../types/webusb.d.ts" />
+/**
 /**
  * WebUSB DFU (Device Firmware Update) protocol for Arduino Uno R4 WiFi
  * The R4 uses a Renesas RA4M1 with a USB DFU bootloader.
