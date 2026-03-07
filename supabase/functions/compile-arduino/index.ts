@@ -385,32 +385,71 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Try to get binary output for hex conversion
-    // Godbolt returns assembly by default; for actual binary we need the executableOutput
-    if (result.executableOutput && result.executableOutput.code === 0) {
-      // If we got a linked executable, try ELF → HEX
-      try {
-        const hexData = elfToHex(result.executableOutput.content || '');
-        return new Response(
-          JSON.stringify({ hex: hexData, warnings: stderr || null }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      } catch (elfErr) {
-        // Fall through to asm-based approach
+    // Parse binary disassembly output to extract machine code bytes
+    // Godbolt with binary:true returns lines like: "  0:   0e 94 0a 02     call    0x414"
+    const asmLines = (result.asm || []).map((a: { text: string }) => a.text);
+    const hexBytes: number[] = [];
+    let maxAddr = 0;
+
+    for (const line of asmLines) {
+      // Match lines with address and hex bytes, e.g. "  1a:	0e 94 0a 02 	call	0x414"
+      const match = line.match(/^\s*([0-9a-fA-F]+):\s+((?:[0-9a-fA-F]{2}\s)+)/);
+      if (match) {
+        const addr = parseInt(match[1], 16);
+        const bytes = match[2].trim().split(/\s+/).map((b: string) => parseInt(b, 16));
+        
+        // Place bytes at correct address
+        for (let i = 0; i < bytes.length; i++) {
+          const pos = addr + i;
+          while (hexBytes.length <= pos) hexBytes.push(0xFF);
+          hexBytes[pos] = bytes[i];
+          if (pos + 1 > maxAddr) maxAddr = pos + 1;
+        }
       }
     }
 
-    // Fallback: use avr-objcopy style conversion from assembly output
-    // For now, return the assembly and let the client know direct flashing isn't available
-    const asm = (result.asm || []).map((a: { text: string }) => a.text).join('\n');
+    if (maxAddr === 0) {
+      // No binary bytes extracted — return assembly for debugging
+      const asm = asmLines.join('\n');
+      return new Response(
+        JSON.stringify({
+          compiled: true,
+          asm: asm.substring(0, 2000),
+          warnings: stderr || null,
+          note: 'Binary output could not be extracted. Assembly compiled successfully.',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
+    // Convert extracted bytes to Intel HEX format
+    const binaryData = new Uint8Array(hexBytes.slice(0, maxAddr));
+    let hexOutput = '';
+
+    for (let i = 0; i < binaryData.length; i += 16) {
+      const chunkLen = Math.min(16, binaryData.length - i);
+      const addr = i & 0xFFFF;
+
+      let line = `:${toHex8(chunkLen)}${toHex16(addr)}00`;
+      let checksum = chunkLen + (addr >> 8) + (addr & 0xFF) + 0x00;
+
+      for (let j = 0; j < chunkLen; j++) {
+        const b = binaryData[i + j];
+        line += toHex8(b);
+        checksum += b;
+      }
+
+      line += toHex8((-checksum) & 0xFF);
+      hexOutput += line + '\n';
+    }
+
+    hexOutput += ':00000001FF\n';
 
     return new Response(
       JSON.stringify({
-        compiled: true,
-        asm,
+        hex: hexOutput,
+        size: maxAddr,
         warnings: stderr || null,
-        note: 'Binary output not available from Compiler Explorer. Assembly compiled successfully.',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
