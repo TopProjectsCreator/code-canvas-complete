@@ -57,6 +57,7 @@ const templateOptions: { id: LanguageTemplate; name: string }[] = [
   { id: 'pascal', name: 'Pascal' },
   { id: 'perl', name: 'Perl' },
   { id: 'arduino', name: 'Arduino' },
+  { id: 'scratch', name: 'Scratch' },
 ];
 
 export const ProjectMenu = ({ projectName, onRename, onChangeTemplate }: ProjectMenuProps) => {
