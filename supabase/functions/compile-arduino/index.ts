@@ -200,9 +200,9 @@ long constrain(long x, long a, long b) {
   return x;
 }
 
-int min(int a, int b) { return a < b ? a : b; }
-int max(int a, int b) { return a > b ? a : b; }
-long abs(long x) { return x < 0 ? -x : x; }
+#define min(a,b) ((a)<(b)?(a):(b))
+#define max(a,b) ((a)>(b)?(a):(b))
+#define abs(x) ((x)>0?(x):-(x))
 
 // tone / noTone stubs
 void tone(uint8_t pin, unsigned int frequency, unsigned long duration = 0) {
