@@ -21,11 +21,16 @@ interface ArduinoPanelProps {
   currentTemplate: string;
 }
 
-const arduinoBoards: Record<string, { name: string }> = {
-  uno: { name: 'Arduino Uno' },
-  nano: { name: 'Arduino Nano' },
-  mega: { name: 'Arduino Mega' },
-  leonardo: { name: 'Arduino Leonardo' },
+/** Recursively find a file by name */
+const findFileByName = (nodes: FileNode[], name: string): FileNode | undefined => {
+  for (const n of nodes) {
+    if (n.type === 'file' && n.name === name) return n;
+    if (n.children) {
+      const found = findFileByName(n.children, name);
+      if (found) return found;
+    }
+  }
+  return undefined;
 };
 
 export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }: ArduinoPanelProps) {
