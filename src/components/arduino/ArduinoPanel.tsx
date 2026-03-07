@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BreadboardVisualizer } from './BreadboardVisualizer';
 import { LibraryManager } from './LibraryManager';
-import { ArduinoUploadDialog } from './ArduinoUploadDialog';
+import { ArduinoUploadDialog, UploadConfig } from './ArduinoUploadDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
