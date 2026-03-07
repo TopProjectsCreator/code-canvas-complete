@@ -45,13 +45,13 @@ export function ArduinoUploadDialog({
   onUpload,
   sketchCode,
 }: ArduinoUploadDialogProps) {
-  const isDFUBoard = DFU_BOARDS.includes(config.boardId);
   const [config, setConfig] = useState<UploadConfig>({
     boardId: 'uno',
     portName: 'COM3',
     baudRate: 115200,
     uploadMethod: 'serial',
   });
+  const isDFUBoard = DFU_BOARDS.includes(config.boardId);
 
   const [ports, setPorts] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
