@@ -6,13 +6,14 @@ import { Search, GripVertical } from 'lucide-react';
 
 // Component categories for organized browsing
 const CATEGORIES: Record<string, string[]> = {
-  'Basic': ['led', 'resistor', 'capacitor', 'inductor', 'diode', 'fuse'],
-  'Switches': ['button', 'toggle_switch', 'dip_switch'],
-  'Semiconductors': ['transistor_npn', 'mosfet', 'optocoupler', 'voltage_reg'],
-  'Sensors': ['sensor_temp', 'sensor_light', 'potentiometer', 'current_sensor'],
-  'Outputs': ['buzzer', 'piezo', 'rgb_led', 'motor', 'servo', 'seven_seg', 'lcd'],
-  'ICs': ['ic', 'shift_register', 'relay', 'h_bridge'],
-  'Connectors': ['barrel_jack', 'crystal'],
+  'Basic': ['led', 'resistor', 'capacitor', 'inductor', 'diode', 'fuse', 'thermistor', 'photo_diode', 'battery_holder'],
+  'Switches & Input': ['button', 'toggle_switch', 'dip_switch', 'reed_switch', 'tilt_sensor', 'rotary_encoder', 'joystick', 'keypad_4x4'],
+  'Semiconductors & Power': ['transistor_npn', 'mosfet', 'triac', 'optocoupler', 'ssr', 'voltage_reg', 'op_amp', 'logic_level_shifter', 'boost_converter', 'buck_converter'],
+  'Sensors': ['sensor_temp', 'sensor_light', 'potentiometer', 'current_sensor', 'hall_sensor', 'pir_sensor', 'ultrasonic', 'flame_sensor', 'gas_sensor', 'sound_sensor', 'soil_sensor', 'rain_sensor', 'dht11', 'dht22', 'ds18b20', 'bme280', 'mpu6050', 'bh1750', 'tof_sensor', 'fingerprint_sensor', 'rfid_rc522'],
+  'Displays & Output': ['buzzer', 'piezo', 'rgb_led', 'motor', 'servo', 'stepper_motor', 'dc_fan', 'seven_seg', 'lcd', 'oled_display', 'tft_display', 'ws2812_strip', 'neopixel_ring'],
+  'ICs & Drivers': ['ic', 'shift_register', 'relay', 'h_bridge', 'eeprom', 'rtc_module', 'load_cell_amp', 'stepper_driver', 'dac_module', 'adc_module'],
+  'Connectivity': ['ir_receiver', 'ir_emitter', 'gps_module', 'gsm_module', 'wifi_module', 'bluetooth_module', 'nrf24', 'lora_module', 'can_module', 'rs485_module', 'usb_ttl', 'ethernet_w5500', 'sd_card'],
+  'Connectors & Utility': ['barrel_jack', 'terminal_block', 'screw_terminal_2p', 'screw_terminal_3p', 'poe_module', 'crystal'],
 };
 
 interface ComponentPaletteProps {
