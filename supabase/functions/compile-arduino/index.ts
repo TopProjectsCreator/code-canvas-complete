@@ -370,7 +370,7 @@ Deno.serve(async (req: Request) => {
 
     if (hasErrors) {
       // Extract user-relevant errors (adjust line numbers to remove stub offset)
-      const stubLines = ARDUINO_CORE_STUBS.split('\\n').length;
+      const stubLines = ARDUINO_CORE_STUBS.split('\n').length;
       const userErrors = stderr.replace(/<source>:(\d+)/g, (_: string, lineStr: string) => {
         const line = parseInt(lineStr) - stubLines;
         return line > 0 ? `sketch:${line}` : `core:${lineStr}`;
