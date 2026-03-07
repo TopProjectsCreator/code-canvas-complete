@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { COMPONENT_TEMPLATES, COMPONENT_LABELS } from '@/components/arduino/breadboard/componentTemplates';
-import { getArduinoTemplateFiles } from '@/data/arduinoTemplates';
+import { arduinoBoards, getArduinoTemplateFiles } from '@/data/arduinoTemplates';
 
 // jsdom does not implement canvas; tests that mount the visualizer may access
 // a canvas element. Provide a dummy implementation so errors are avoided.
@@ -40,14 +40,28 @@ beforeAll(() => {
 });
 
 describe('breadboard utilities', () => {
-  it('includes additional realistic components', () => {
+  it('includes expanded component library with 50+ additions', () => {
     expect(COMPONENT_TEMPLATES).toHaveProperty('diode');
     expect(COMPONENT_TEMPLATES).toHaveProperty('transistor_npn');
     expect(COMPONENT_TEMPLATES).toHaveProperty('rgb_led');
     expect(COMPONENT_TEMPLATES).toHaveProperty('ic');
+    expect(COMPONENT_TEMPLATES).toHaveProperty('mpu6050');
+    expect(COMPONENT_TEMPLATES).toHaveProperty('lora_module');
+    expect(COMPONENT_TEMPLATES).toHaveProperty('boost_converter');
+    expect(Object.keys(COMPONENT_TEMPLATES).length).toBeGreaterThanOrEqual(80);
     // labels should be human friendly
     expect(COMPONENT_LABELS.diode).toBe('Diode');
     expect(COMPONENT_LABELS.transistor_npn).toMatch(/Transistor/);
+    expect(COMPONENT_LABELS.mpu6050).toMatch(/IMU/);
+  });
+
+
+
+  it('contains a broader board catalog for deployment planning', () => {
+    expect(Object.keys(arduinoBoards).length).toBeGreaterThanOrEqual(15);
+    expect(arduinoBoards.nano_33_iot).toBeDefined();
+    expect(arduinoBoards.giga_r1?.wifi).toBe(true);
+    expect(arduinoBoards.leonardo?.cpu).toMatch(/ATmega32u4/);
   });
 
   it('arduino template files include an empty wires array', () => {
