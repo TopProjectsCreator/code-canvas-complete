@@ -161,6 +161,12 @@ export function ArduinoUploadDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          {isInIframe() && (
+            <div className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 p-3 rounded flex items-start gap-2">
+              <Info className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>Board upload (WebUSB / Web Serial) does not work inside iframes due to browser security restrictions. Open this app in its own tab/window to use hardware flashing.</span>
+            </div>
+          )}
           <div>
             <Label htmlFor="board">Board Type</Label>
             <Select
