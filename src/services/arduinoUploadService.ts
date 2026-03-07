@@ -1,5 +1,6 @@
 import { UploadConfig } from '@/components/arduino/ArduinoUploadDialog';
 import { flashHex } from './stk500';
+import { requestDFUDevice, flashDFU } from './dfuFlash';
 
 interface SerialPortLike {
   open(options: { baudRate: number }): Promise<void>;
@@ -18,19 +19,19 @@ interface SerialLike {
 const getSerial = (): SerialLike | undefined =>
   (navigator as unknown as { serial?: SerialLike }).serial;
 
+// ARM-based boards that use DFU instead of STK500v1
+const DFU_BOARDS = ['uno_r4_wifi'];
+
 export class ArduinoUploadService {
   /**
-   * Compile sketch via backend edge function, then flash via Web Serial + STK500v1
+   * Compile sketch via backend edge function, then flash via appropriate protocol
    */
   static async uploadViaSerial(
     sketch: string,
     config: UploadConfig,
     onProgress?: (message: string, percent?: number) => void
   ): Promise<void> {
-    const serial = getSerial();
-    if (!serial) {
-      throw new Error('Web Serial API not supported. Use Chrome or Edge.');
-    }
+    const isDFU = DFU_BOARDS.includes(config.boardId);
 
     // Stage 1: Compile
     onProgress?.('Compiling sketch...', 0);
@@ -57,15 +58,21 @@ export class ArduinoUploadService {
 
     const compileResult = await compileResponse.json();
 
-    if (!compileResult.hex) {
-      // Assembly-only fallback
-      if (compileResult.compiled && compileResult.asm) {
-        throw new Error(
-          'Sketch compiled to assembly but binary output is not available from the compiler service. ' +
-          'This is a known limitation — try a simpler sketch or use Arduino IDE for full compilation.'
-        );
+    // For DFU boards, expect binary (base64); for AVR, expect hex
+    if (isDFU) {
+      if (!compileResult.binary) {
+        throw new Error('Compilation did not produce binary output for this board');
       }
-      throw new Error('Compilation did not produce flashable output');
+    } else {
+      if (!compileResult.hex) {
+        if (compileResult.compiled && compileResult.asm) {
+          throw new Error(
+            'Sketch compiled to assembly but binary output is not available from the compiler service. ' +
+            'This is a known limitation — try a simpler sketch or use Arduino IDE for full compilation.'
+          );
+        }
+        throw new Error('Compilation did not produce flashable output');
+      }
     }
 
     onProgress?.('Compilation successful!', 15);
@@ -74,7 +81,74 @@ export class ArduinoUploadService {
       onProgress?.(`Warnings: ${compileResult.warnings}`, 15);
     }
 
-    // Stage 2: Flash via STK500v1
+    // Stage 2: Flash
+    if (isDFU) {
+      await this.flashViaDFU(compileResult.binary, onProgress);
+    } else {
+      await this.flashViaSTK500(compileResult.hex, config, onProgress);
+    }
+  }
+
+  /**
+   * Flash via WebUSB DFU for ARM-based boards (Uno R4 WiFi)
+   */
+  private static async flashViaDFU(
+    binaryBase64: string,
+    onProgress?: (message: string, percent?: number) => void
+  ): Promise<void> {
+    if (!navigator.usb) {
+      throw new Error('WebUSB API not supported. Use Chrome or Edge.');
+    }
+
+    onProgress?.('Put your board in DFU mode (double-tap reset button), then select it...', 18);
+
+    let device: USBDevice;
+    try {
+      device = await requestDFUDevice();
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'NotFoundError') {
+        throw new Error(
+          'No DFU device found. Make sure your Arduino Uno R4 WiFi is in DFU mode:\n' +
+          '1. Double-tap the reset button quickly\n' +
+          '2. The LED should pulse/fade\n' +
+          '3. Try selecting the device again'
+        );
+      }
+      throw err;
+    }
+
+    // Decode base64 binary to Uint8Array
+    const binaryStr = atob(binaryBase64);
+    const firmware = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      firmware[i] = binaryStr.charCodeAt(i);
+    }
+
+    try {
+      await flashDFU(device, firmware, (msg, pct) => {
+        onProgress?.(msg, pct);
+      });
+    } catch (err) {
+      throw new Error(
+        `DFU flash failed: ${err instanceof Error ? err.message : 'Unknown error'}\n` +
+        'Try double-tapping reset and retrying.'
+      );
+    }
+  }
+
+  /**
+   * Flash via STK500v1 for AVR boards (Uno, Nano, Mega)
+   */
+  private static async flashViaSTK500(
+    hexData: string,
+    config: UploadConfig,
+    onProgress?: (message: string, percent?: number) => void
+  ): Promise<void> {
+    const serial = getSerial();
+    if (!serial) {
+      throw new Error('Web Serial API not supported. Use Chrome or Edge.');
+    }
+
     onProgress?.('Requesting serial port access...', 18);
 
     let port: SerialPortLike;
@@ -88,9 +162,9 @@ export class ArduinoUploadService {
     }
 
     try {
-      await port.open({ baudRate: 115200 });
+      await port.open({ baudRate: config.baudRate || 115200 });
 
-      await flashHex(port, compileResult.hex, (msg, pct) => {
+      await flashHex(port, hexData, (msg, pct) => {
         onProgress?.(msg, pct);
       });
 
@@ -127,7 +201,6 @@ export class ArduinoUploadService {
     let buffer = '';
     let running = true;
 
-    // Read loop (non-blocking via async)
     (async () => {
       try {
         while (running) {
@@ -146,7 +219,6 @@ export class ArduinoUploadService {
       }
     })();
 
-    // Return a stop function
     return async () => {
       running = false;
       try {
