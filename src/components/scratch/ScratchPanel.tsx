@@ -157,7 +157,7 @@ const makeNumberInput = (value: string) => [1, [4, value]];
 
 export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, isRunning, onRun, onStop }: ScratchPanelProps) => {
   const [activeEditorTab, setActiveEditorTab] = useState<'code' | 'costumes' | 'sounds'>('code');
-  const [activeCategory] = useState('Motion');
+  const [activeCategory, setActiveCategory] = useState('Motion');
   const [selectedTargetIndex, setSelectedTargetIndex] = useState(1);
   const [projectJsonDraft, setProjectJsonDraft] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
