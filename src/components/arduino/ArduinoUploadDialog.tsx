@@ -72,17 +72,54 @@ export function ArduinoUploadDialog({
 
   const detectSerialPorts = async () => {
     try {
-      const nav = navigator as unknown as { serial?: unknown };
+      const nav = navigator as unknown as { serial?: { getPorts(): Promise<Array<{ getInfo: () => { usbProductId?: number; usbVendorId?: number } }>>; requestPort(): Promise<{ getInfo: () => { usbProductId?: number; usbVendorId?: number } }> } };
       if (!nav.serial) {
-        setError('Web Serial API not supported in this browser');
+        setError('Web Serial API not supported in this browser. Use Chrome or Edge.');
         return;
       }
 
-      const serialNav = nav.serial as { getPorts(): Promise<Array<{ getInfo: () => { usbProductId?: number } }>> };
-      const availablePorts = await serialNav.getPorts();
-      setPorts(availablePorts.map((port, index) => `COM${index + 3}`)); // Mock port names
+      const availablePorts = await nav.serial.getPorts();
+      if (availablePorts.length === 0) {
+        setError('No previously authorized ports. Click "Select Port" to grant access.');
+      } else {
+        setPorts(availablePorts.map((port, index) => {
+          const info = port.getInfo();
+          return info.usbProductId ? `USB Device (${info.usbProductId.toString(16)})` : `Port ${index + 1}`;
+        }));
+        setError('');
+      }
     } catch (err) {
       setError('Failed to detect serial ports');
+    }
+  };
+
+  const requestSerialPort = async () => {
+    try {
+      const nav = navigator as unknown as { serial?: { requestPort(): Promise<{ getInfo: () => { usbProductId?: number; usbVendorId?: number } }>; getPorts(): Promise<Array<{ getInfo: () => { usbProductId?: number; usbVendorId?: number } }>> } };
+      if (!nav.serial) {
+        setError('Web Serial API not supported in this browser. Use Chrome or Edge.');
+        return;
+      }
+
+      const port = await nav.serial.requestPort();
+      const info = port.getInfo();
+      const portName = info.usbProductId ? `USB Device (${info.usbProductId.toString(16)})` : 'Serial Port';
+
+      // Refresh full list
+      const allPorts = await nav.serial.getPorts();
+      const portNames = allPorts.map((p, i) => {
+        const pInfo = p.getInfo();
+        return pInfo.usbProductId ? `USB Device (${pInfo.usbProductId.toString(16)})` : `Port ${i + 1}`;
+      });
+      setPorts(portNames);
+      setConfig(prev => ({ ...prev, portName: portName }));
+      setError('');
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        // User cancelled the picker
+        return;
+      }
+      setError('Failed to select port');
     }
   };
 
@@ -154,27 +191,33 @@ export function ArduinoUploadDialog({
             <>
               <div>
                 <Label htmlFor="port">Serial Port</Label>
-                <Select
-                  value={config.portName}
-                  onValueChange={(value) => setConfig({ ...config, portName: value })}
-                >
-                  <SelectTrigger id="port">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ports.length > 0 ? (
-                      ports.map((port) => (
-                        <SelectItem key={port} value={port}>
-                          {port}
+                <div className="flex gap-2">
+                  <Select
+                    value={config.portName}
+                    onValueChange={(value) => setConfig({ ...config, portName: value })}
+                  >
+                    <SelectTrigger id="port" className="flex-1">
+                      <SelectValue placeholder="No port selected" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ports.length > 0 ? (
+                        ports.map((port) => (
+                          <SelectItem key={port} value={port}>
+                            {port}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="none" disabled>
+                          No ports detected
                         </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="none" disabled>
-                        No ports detected
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="secondary" size="sm" onClick={requestSerialPort} className="shrink-0">
+                    Select Port
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Click "Select Port" to grant browser access to your USB device.</p>
               </div>
 
               <div>
