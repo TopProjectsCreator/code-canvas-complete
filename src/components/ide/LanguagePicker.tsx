@@ -29,7 +29,7 @@ export type LanguageTemplate =
   | 'blank' | 'html' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp' | 'c' | 'go' | 'rust' 
   | 'ruby' | 'php' | 'csharp' | 'bash' | 'lua' | 'perl'
   | 'r' | 'haskell' | 'nim' | 'zig' | 'lisp' | 'd' | 'groovy' | 'pascal'
-  | 'react' | 'nodejs' | 'flask' | 'django' | 'sqlite' | 'arduino';
+  | 'react' | 'nodejs' | 'flask' | 'django' | 'sqlite' | 'arduino' | 'scratch';
 
 interface LanguageOption {
   id: LanguageTemplate;
@@ -51,10 +51,17 @@ interface ChatMessage {
 const TEMPLATE_IDS: LanguageTemplate[] = [
   'blank', 'html', 'javascript', 'typescript', 'python', 'java', 'cpp', 'c', 'go', 'rust',
   'ruby', 'php', 'csharp', 'bash', 'lua', 'perl', 'r', 'haskell', 'nim', 'zig', 'lisp',
-  'd', 'groovy', 'pascal', 'react', 'nodejs', 'flask', 'django', 'sqlite', 'arduino'
+  'd', 'groovy', 'pascal', 'react', 'nodejs', 'flask', 'django', 'sqlite', 'arduino', 'scratch'
 ];
 
 const languages: LanguageOption[] = [
+  {
+    id: 'scratch',
+    name: 'Scratch Blocks',
+    icon: <Bot className="w-8 h-8" />,
+    description: 'Visual block programming with .sb3 import/export',
+    color: 'from-orange-400 to-blue-500',
+  },
   {
     id: 'blank',
     name: 'Blank Canvas',
