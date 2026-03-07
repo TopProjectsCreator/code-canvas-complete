@@ -157,7 +157,7 @@ const makeNumberInput = (value: string) => [1, [4, value]];
 
 export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, isRunning, onRun, onStop }: ScratchPanelProps) => {
   const [activeEditorTab, setActiveEditorTab] = useState<'code' | 'costumes' | 'sounds'>('code');
-  const [activeCategory] = useState('Motion');
+  const [activeCategory, setActiveCategory] = useState('Motion');
   const [selectedTargetIndex, setSelectedTargetIndex] = useState(1);
   const [projectJsonDraft, setProjectJsonDraft] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
@@ -475,8 +475,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         <div className="border-r border-[#c8d0dd] bg-[#f3f5fb] flex min-h-0">
           <div className="w-[74px] border-r border-[#d6ddea] p-2 space-y-2 overflow-y-auto">
             {categoryRail.map((cat) => (
-              <button key={cat.name} className="w-full flex flex-col items-center text-[12px] text-[#5e6a83] gap-0.5">
-                <span className="w-7 h-7 rounded-full border border-[#aeb8cc]" style={{ backgroundColor: cat.color }} />
+              <button
+                key={cat.name}
+                onClick={() => setActiveCategory(cat.name)}
+                className={`w-full flex flex-col items-center text-[12px] gap-0.5 ${activeCategory === cat.name ? 'text-[#3373cc] font-semibold' : 'text-[#5e6a83]'}`}
+              >
+                <span className={`w-7 h-7 rounded-full border ${activeCategory === cat.name ? 'border-[#3373cc] ring-2 ring-[#4c97ff]/30' : 'border-[#aeb8cc]'}`} style={{ backgroundColor: cat.color }} />
                 {cat.name}
               </button>
             ))}
