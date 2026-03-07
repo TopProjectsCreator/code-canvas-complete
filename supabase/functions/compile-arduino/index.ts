@@ -326,7 +326,7 @@ Deno.serve(async (req: Request) => {
     const fullSource = ARDUINO_CORE_STUBS + '\\n// === USER SKETCH ===\\n' + sketch;
 
     // Compile via Compiler Explorer (Godbolt) API
-    const compileResponse = await fetch('https://godbolt.org/api/compiler/avrgcc132/compile', {
+    const compileResponse = await fetch('https://godbolt.org/api/compiler/avrg1320/compile', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
