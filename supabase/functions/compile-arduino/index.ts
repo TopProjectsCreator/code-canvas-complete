@@ -403,7 +403,7 @@ Deno.serve(async (req: Request) => {
 
     // Fallback: use avr-objcopy style conversion from assembly output
     // For now, return the assembly and let the client know direct flashing isn't available
-    const asm = (result.asm || []).map((a: { text: string }) => a.text).join('\\n');
+    const asm = (result.asm || []).map((a: { text: string }) => a.text).join('\n');
 
 
     return new Response(
