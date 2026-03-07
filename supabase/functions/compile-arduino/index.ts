@@ -414,7 +414,7 @@ const BOARD_CONFIGS: Record<string, { compiler: string; stubs: string; args: str
     isArm: false,
   },
   uno_r4_wifi: {
-    compiler: 'arm1220',
+    compiler: 'armg1320',
     stubs: ARM_CORE_STUBS,
     args: '-mcpu=cortex-m4 -mthumb -Os -DF_CPU=48000000UL -std=gnu++11 -fno-exceptions -fno-rtti -nostdlib',
     isArm: true,
