@@ -45,7 +45,7 @@ export function ArduinoUploadDialog({
   onUpload,
   sketchCode,
 }: ArduinoUploadDialogProps) {
-  const isDFUBoard = DFU_BOARDS.includes('uno_r4_wifi'); // will be dynamic below
+  const isDFUBoard = DFU_BOARDS.includes(config.boardId);
   const [config, setConfig] = useState<UploadConfig>({
     boardId: 'uno',
     portName: 'COM3',
