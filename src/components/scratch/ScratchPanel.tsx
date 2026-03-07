@@ -790,9 +790,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             };
           } else {
             const vmCompatible = createVmCompatibleBlockShape(blockId, resolvedBlockDef);
-              fields: blockDef.fields || {},
-            };
-          } else {
             const eventId = generateId();
             blocks[eventId] = {
               id: eventId,
@@ -817,9 +814,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               fields: vmCompatible.fields,
             };
             Object.assign(blocks, vmCompatible.extraBlocks);
-              inputs: blockDef.inputs || {},
-              fields: blockDef.fields || {},
-            };
           }
         }
 
