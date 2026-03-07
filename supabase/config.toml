@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.validate-api-key]
 verify_jwt = false
+
+[functions.compile-arduino]
+verify_jwt = false
