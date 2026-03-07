@@ -22,8 +22,10 @@ import { useProjects, Project } from '@/hooks/useProjects';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
+import { ScratchArchive, importSb3 } from '@/services/scratchSb3';
 
 const ArduinoPanel = lazy(() => import('@/components/arduino').then(m => ({ default: m.ArduinoPanel })));
+const ScratchPanel = lazy(() => import('@/components/scratch/ScratchPanel').then(m => ({ default: m.ScratchPanel })));
 
 interface IDELayoutProps {
   projectId?: string;
@@ -75,6 +77,7 @@ const getDefaultWorkflows = (template: LanguageTemplate): Workflow[] => {
       );
       break;
     case 'html':
+    case 'scratch':
       baseWorkflows.push(
         { id: generateId(), name: 'Preview', type: 'run', command: 'open index.html', description: 'Open in browser', trigger: 'manual', isDefault: true },
         { id: generateId(), name: 'Live Server', type: 'run', command: 'npx live-server', description: 'Start live reload server', trigger: 'manual' }
@@ -123,6 +126,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
+  const [scratchArchive, setScratchArchive] = useState<ScratchArchive | null>(null);
   const [historyEntries, setHistoryEntries] = useState<Array<{
     id: string; type: 'file-edit' | 'file-create' | 'file-delete' | 'terminal-command' | 'git-commit' | 'template-change' | 'rename';
     label: string; detail?: string; timestamp: Date;
@@ -709,6 +713,28 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     });
   }, [files]);
 
+  const handleImportScratchProject = useCallback(async (file: File) => {
+    const parsed = await importSb3(await file.arrayBuffer());
+    setScratchArchive(parsed.archive);
+    setSelectedTemplate('scratch');
+    const templateFiles = getTemplateFiles('scratch');
+    setFiles(templateFiles.map((node) => {
+      if (node.type === 'folder') {
+        return {
+          ...node,
+          children: (node.children || []).map((child) =>
+            child.name === 'project.json' ? { ...child, content: parsed.archive.projectJson } : child
+          ),
+        };
+      }
+      return node;
+    }));
+    setTerminalHistory((prev) => [
+      ...prev,
+      { id: generateId(), type: 'info', content: `📦 Imported Scratch project: ${file.name}`, timestamp: new Date() },
+    ]);
+  }, []);
+
   const handleTabClick = useCallback((tabId: string) => {
     setActiveTabId(tabId);
   }, []);
@@ -882,6 +908,15 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         ...prev,
         { id: generateId(), type: 'info', content: '🚀 Starting React app...', timestamp: new Date() },
         { id: generateId(), type: 'output', content: '⚛️ React app rendered in preview', timestamp: new Date() },
+      ]);
+      return;
+    }
+
+    if (selectedTemplate === 'scratch') {
+      setIsRunning(true);
+      setTerminalHistory((prev) => [
+        ...prev,
+        { id: generateId(), type: 'info', content: '🏁 Scratch green flag started in workspace preview.', timestamp: new Date() },
       ]);
       return;
     }
@@ -1395,6 +1430,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             onDeleteFile={handleDeleteFile}
             onRenameFile={handleRenameFile}
             onUploadFiles={handleUploadFiles}
+            onImportScratchProject={handleImportScratchProject}
             activeFileId={activeTab?.fileId || null}
             currentLanguage={selectedTemplate || 'javascript'}
             gitState={gitState}
@@ -1467,6 +1503,27 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                     onFileUpdate={handleContentChange}
                     onAddFile={addFile}
                     currentTemplate={selectedTemplate}
+                  />
+                </Suspense>
+              ) : selectedTemplate === 'scratch' ? (
+                <Suspense fallback={<div className="p-4 text-gray-400">Loading Scratch panel...</div>}>
+                  <ScratchPanel
+                    archive={scratchArchive}
+                    onArchiveChange={setScratchArchive}
+                    onProjectJsonUpdate={(json) => {
+                      setFiles((prev) => prev.map((node) => {
+                        if (node.type !== 'folder') return node;
+                        return {
+                          ...node,
+                          children: (node.children || []).map((child) =>
+                            child.name === 'project.json' ? { ...child, content: json } : child
+                          ),
+                        };
+                      }));
+                    }}
+                    isRunning={isRunning}
+                    onRun={() => setIsRunning(true)}
+                    onStop={handleStop}
                   />
                 </Suspense>
               ) : (
