@@ -290,7 +290,6 @@ interface SidebarProps {
   onDeleteFile: (fileId: string) => void;
   onRenameFile: (fileId: string, newName: string) => void;
   onUploadFiles: (files: { name: string; content: string; language: string }[]) => void;
-  onImportScratchProject?: (file: File) => void;
   activeFileId: string | null;
   currentLanguage: string;
   gitState: GitState;
@@ -324,7 +323,6 @@ export const Sidebar = ({
   onDeleteFile, 
   onRenameFile, 
   onUploadFiles,
-  onImportScratchProject,
   activeFileId,
   currentLanguage,
   gitState,
@@ -436,12 +434,7 @@ export const Sidebar = ({
     const uploadedFiles = event.target.files;
     if (!uploadedFiles || uploadedFiles.length === 0) return;
 
-    const scratchFiles = Array.from(uploadedFiles).filter((file) => file.name.toLowerCase().endsWith('.sb3'));
-    scratchFiles.forEach((file) => onImportScratchProject?.(file));
-
-    const readFiles = Array.from(uploadedFiles)
-      .filter((file) => !file.name.toLowerCase().endsWith('.sb3'))
-      .map((file) => {
+    const readFiles = Array.from(uploadedFiles).map((file) => {
       return new Promise<{ name: string; content: string; language: string }>((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -511,13 +504,7 @@ export const Sidebar = ({
     const droppedFiles = e.dataTransfer.files;
     if (!droppedFiles || droppedFiles.length === 0) return;
 
-    Array.from(droppedFiles)
-      .filter((file) => file.name.toLowerCase().endsWith('.sb3'))
-      .forEach((file) => onImportScratchProject?.(file));
-
-    const readFiles = Array.from(droppedFiles)
-      .filter((file) => !file.name.toLowerCase().endsWith('.sb3'))
-      .map((file) => {
+    const readFiles = Array.from(droppedFiles).map((file) => {
       return new Promise<{ name: string; content: string; language: string }>((resolve) => {
         const reader = new FileReader();
         reader.onload = (ev) => {
