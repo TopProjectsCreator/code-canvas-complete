@@ -336,17 +336,16 @@ Deno.serve(async (req: Request) => {
         source: fullSource,
         options: {
           userArguments: '-mmcu=atmega328p -DF_CPU=16000000UL -Os -std=gnu++11',
-          compilerOptions: {
-            produceGccDump: {},
-          },
+          compilerOptions: {},
           filters: {
             binary: true,
             execute: false,
-            demangle: true,
-            labels: true,
-            directives: true,
-            commentOnly: true,
+            demangle: false,
+            labels: false,
+            directives: false,
+            commentOnly: false,
             trim: false,
+            intel: true,
           },
           tools: [],
           libraries: [],
