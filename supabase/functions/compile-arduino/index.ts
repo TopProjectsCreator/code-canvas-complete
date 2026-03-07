@@ -385,44 +385,71 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Parse binary disassembly output to extract machine code bytes
-    // Godbolt with binary:true returns lines like: "  0:   0e 94 0a 02     call    0x414"
-    const asmLines = (result.asm || []).map((a: { text: string }) => a.text);
+    // Parse binary output from Godbolt
+    // Asm objects may have: { text, source, address, opcodes }
+    const asmEntries = result.asm || [];
     const hexBytes: number[] = [];
     let maxAddr = 0;
 
-    for (const line of asmLines) {
-      // Match lines with address and hex bytes, e.g. "  1a:	0e 94 0a 02 	call	0x414"
-      const match = line.match(/^\s*([0-9a-fA-F]+):\s+((?:[0-9a-fA-F]{2}\s)+)/);
-      if (match) {
-        const addr = parseInt(match[1], 16);
-        const bytes = match[2].trim().split(/\s+/).map((b: string) => parseInt(b, 16));
+    // Debug: log structure of first asm entry with address
+    const sampleWithAddr = asmEntries.find((a: Record<string, unknown>) => a.address !== undefined);
+    const debugInfo = {
+      totalAsmEntries: asmEntries.length,
+      sampleKeys: sampleWithAddr ? Object.keys(sampleWithAddr) : [],
+      sampleEntry: sampleWithAddr || null,
+      firstFew: asmEntries.slice(0, 3),
+    };
+
+    // Try to extract opcodes from structured data
+    for (const entry of asmEntries) {
+      if (entry.address !== undefined && entry.opcodes) {
+        const addr = entry.address;
+        const opcodes: number[] = Array.isArray(entry.opcodes) 
+          ? entry.opcodes 
+          : (typeof entry.opcodes === 'string' 
+            ? entry.opcodes.trim().split(/\s+/).map((b: string) => parseInt(b, 16))
+            : []);
         
-        // Place bytes at correct address
-        for (let i = 0; i < bytes.length; i++) {
+        for (let i = 0; i < opcodes.length; i++) {
           const pos = addr + i;
           while (hexBytes.length <= pos) hexBytes.push(0xFF);
-          hexBytes[pos] = bytes[i];
+          hexBytes[pos] = opcodes[i];
           if (pos + 1 > maxAddr) maxAddr = pos + 1;
         }
       }
     }
 
+    // Fallback: try parsing hex bytes from text lines
     if (maxAddr === 0) {
-      // No binary bytes extracted — return assembly for debugging
-      const asm = asmLines.join('\n');
+      for (const entry of asmEntries) {
+        const line = entry.text || '';
+        const match = line.match(/^\s*([0-9a-fA-F]+):\s+((?:[0-9a-fA-F]{2}\s)+)/);
+        if (match) {
+          const addr = parseInt(match[1], 16);
+          const bytes = match[2].trim().split(/\s+/).map((b: string) => parseInt(b, 16));
+          for (let i = 0; i < bytes.length; i++) {
+            const pos = addr + i;
+            while (hexBytes.length <= pos) hexBytes.push(0xFF);
+            hexBytes[pos] = bytes[i];
+            if (pos + 1 > maxAddr) maxAddr = pos + 1;
+          }
+        }
+      }
+    }
+
+    if (maxAddr === 0) {
       return new Response(
         JSON.stringify({
           compiled: true,
-          asm: asm.substring(0, 2000),
+          debug: debugInfo,
           warnings: stderr || null,
-          note: 'Binary output could not be extracted. Assembly compiled successfully.',
+          note: 'Binary output could not be extracted from compiler output.',
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Convert extracted bytes to Intel HEX format
+    // Convert to Intel HEX
     const binaryData = new Uint8Array(hexBytes.slice(0, maxAddr));
     let hexOutput = '';
 
