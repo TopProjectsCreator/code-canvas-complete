@@ -191,27 +191,33 @@ export function ArduinoUploadDialog({
             <>
               <div>
                 <Label htmlFor="port">Serial Port</Label>
-                <Select
-                  value={config.portName}
-                  onValueChange={(value) => setConfig({ ...config, portName: value })}
-                >
-                  <SelectTrigger id="port">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ports.length > 0 ? (
-                      ports.map((port) => (
-                        <SelectItem key={port} value={port}>
-                          {port}
+                <div className="flex gap-2">
+                  <Select
+                    value={config.portName}
+                    onValueChange={(value) => setConfig({ ...config, portName: value })}
+                  >
+                    <SelectTrigger id="port" className="flex-1">
+                      <SelectValue placeholder="No port selected" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ports.length > 0 ? (
+                        ports.map((port) => (
+                          <SelectItem key={port} value={port}>
+                            {port}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="none" disabled>
+                          No ports detected
                         </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="none" disabled>
-                        No ports detected
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <Button type="button" variant="secondary" size="sm" onClick={requestSerialPort} className="shrink-0">
+                    Select Port
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Click "Select Port" to grant browser access to your USB device.</p>
               </div>
 
               <div>
