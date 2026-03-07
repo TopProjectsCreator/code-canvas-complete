@@ -893,6 +893,47 @@ const drawShiftRegister = (ctx: CanvasRenderingContext2D, x: number, y: number, 
   }
 };
 
+
+
+const drawGenericModule = (
+  title: string,
+  color: string,
+  subtitle?: string
+) => (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>) => {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.roundRect(x + 1, y + 1, w - 2, h - 2, 3);
+  ctx.fill();
+  ctx.strokeStyle = '#1F2937';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = '#E5E7EB';
+  ctx.font = 'bold 6px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(props.title || title, x + w / 2, y + h * 0.45);
+  if (subtitle) {
+    ctx.font = '5px monospace';
+    ctx.fillText(subtitle, x + w / 2, y + h * 0.7);
+  }
+};
+
+const drawTwoLeadPart = (title: string, bodyColor: string) => (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => {
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x, y + h / 2); ctx.lineTo(x + w * 0.2, y + h / 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + w * 0.8, y + h / 2); ctx.lineTo(x + w, y + h / 2); ctx.stroke();
+
+  ctx.fillStyle = bodyColor;
+  ctx.beginPath(); ctx.roundRect(x + w * 0.2, y + h * 0.2, w * 0.6, h * 0.6, 3); ctx.fill();
+  ctx.strokeStyle = '#374151';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.fillStyle = '#111';
+  ctx.font = '6px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(title, x + w / 2, y + h * 0.6);
+};
+
 export const COMPONENT_TEMPLATES: Record<string, ComponentTemplate> = {
   led: {
     width: 28, height: 40,
@@ -1193,6 +1234,69 @@ export const COMPONENT_TEMPLATES: Record<string, ComponentTemplate> = {
       }
     },
   },
+
+  thermistor: { width: 60, height: 20, pins: [{ name: 'a', x: 0, y: 0.5, side: 'left' }, { name: 'b', x: 1, y: 0.5, side: 'right' }], draw: drawTwoLeadPart('NTC', '#FDE68A') },
+  photo_diode: { width: 60, height: 20, pins: [{ name: 'anode', x: 0, y: 0.5, side: 'left' }, { name: 'cathode', x: 1, y: 0.5, side: 'right' }], draw: drawTwoLeadPart('PD', '#FCA5A5') },
+  hall_sensor: { width: 34, height: 40, pins: [{ name: 'vcc', x: 0.2, y: 1, side: 'bottom' }, { name: 'out', x: 0.5, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('HALL', '#2563EB') },
+  pir_sensor: { width: 44, height: 44, pins: [{ name: 'vcc', x: 0.2, y: 1, side: 'bottom' }, { name: 'out', x: 0.5, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('PIR', '#0EA5E9') },
+  ultrasonic: { width: 62, height: 32, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'trig', x: 0.38, y: 1, side: 'bottom' }, { name: 'echo', x: 0.62, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.85, y: 1, side: 'bottom' }], draw: drawGenericModule('HC-SR04', '#0284C7') },
+  ir_receiver: { width: 30, height: 36, pins: [{ name: 'out', x: 0.2, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.5, y: 1, side: 'bottom' }, { name: 'vcc', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('IR RX', '#1F2937') },
+  ir_emitter: { width: 30, height: 36, pins: [{ name: 'anode', x: 0.35, y: 1, side: 'bottom' }, { name: 'cathode', x: 0.65, y: 1, side: 'bottom' }], draw: drawGenericModule('IR TX', '#7C3AED') },
+  flame_sensor: { width: 36, height: 34, pins: [{ name: 'vcc', x: 0.2, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.5, y: 1, side: 'bottom' }, { name: 'do', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('FLAME', '#DC2626') },
+  gas_sensor: { width: 40, height: 40, pins: [{ name: 'vcc', x: 0.2, y: 1, side: 'bottom' }, { name: 'ao', x: 0.5, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('MQ', '#EA580C') },
+  sound_sensor: { width: 36, height: 30, pins: [{ name: 'vcc', x: 0.2, y: 1, side: 'bottom' }, { name: 'ao', x: 0.5, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('MIC', '#0F766E') },
+  soil_sensor: { width: 24, height: 56, pins: [{ name: 'vcc', x: 0.2, y: 0, side: 'top' }, { name: 'ao', x: 0.5, y: 0, side: 'top' }, { name: 'gnd', x: 0.8, y: 0, side: 'top' }], draw: drawGenericModule('SOIL', '#92400E') },
+  rain_sensor: { width: 40, height: 40, pins: [{ name: 'vcc', x: 0.2, y: 1, side: 'bottom' }, { name: 'do', x: 0.5, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('RAIN', '#0369A1') },
+  tilt_sensor: { width: 30, height: 30, pins: [{ name: 'a', x: 0.35, y: 1, side: 'bottom' }, { name: 'b', x: 0.65, y: 1, side: 'bottom' }], draw: drawGenericModule('TILT', '#6B7280') },
+  reed_switch: { width: 60, height: 20, pins: [{ name: 'a', x: 0, y: 0.5, side: 'left' }, { name: 'b', x: 1, y: 0.5, side: 'right' }], draw: drawTwoLeadPart('REED', '#D1D5DB') },
+  rotary_encoder: { width: 34, height: 34, pins: [{ name: 'a', x: 0.2, y: 1, side: 'bottom' }, { name: 'b', x: 0.5, y: 1, side: 'bottom' }, { name: 'sw', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('ENC', '#334155') },
+  joystick: { width: 42, height: 42, pins: [{ name: 'vrx', x: 0.2, y: 1, side: 'bottom' }, { name: 'vry', x: 0.4, y: 1, side: 'bottom' }, { name: 'sw', x: 0.6, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('JOY', '#111827') },
+  keypad_4x4: { width: 64, height: 50, pins: [...Array.from({length:8}).map((_,i) => ({ name: `p${i+1}`, x: 0.08 + i*0.12, y: 1, side: 'bottom' as const }))], draw: drawGenericModule('KEYPAD', '#475569', '4x4') },
+  oled_display: { width: 62, height: 36, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.35, y: 1, side: 'bottom' }, { name: 'scl', x: 0.65, y: 1, side: 'bottom' }, { name: 'sda', x: 0.85, y: 1, side: 'bottom' }], draw: drawGenericModule('OLED', '#111827', 'I2C') },
+  tft_display: { width: 72, height: 44, pins: [...Array.from({length:8}).map((_,i) => ({ name: `pin${i+1}`, x: 0.08 + i*0.12, y: 1, side: 'bottom' as const }))], draw: drawGenericModule('TFT', '#1E293B') },
+  eeprom: { width: 60, height: 30, pins: [...Array.from({length:4}).map((_,i) => ({ name: `pin${i+1}`, x: 0.15 + i*0.23, y: 0, side: 'top' as const })), ...Array.from({length:4}).map((_,i) => ({ name: `pin${i+5}`, x: 0.15 + i*0.23, y: 1, side: 'bottom' as const }))], draw: drawGenericModule('24LC256', '#111827') },
+  rtc_module: { width: 44, height: 30, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.35, y: 1, side: 'bottom' }, { name: 'scl', x: 0.65, y: 1, side: 'bottom' }, { name: 'sda', x: 0.85, y: 1, side: 'bottom' }], draw: drawGenericModule('RTC', '#0F766E') },
+  sd_card: { width: 46, height: 34, pins: [{ name: 'cs', x: 0.15, y: 1, side: 'bottom' }, { name: 'sck', x: 0.35, y: 1, side: 'bottom' }, { name: 'mosi', x: 0.55, y: 1, side: 'bottom' }, { name: 'miso', x: 0.75, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('SD', '#64748B') },
+  gps_module: { width: 54, height: 30, pins: [{ name: 'vcc', x: 0.2, y: 1, side: 'bottom' }, { name: 'tx', x: 0.4, y: 1, side: 'bottom' }, { name: 'rx', x: 0.6, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('GPS', '#0EA5E9') },
+  gsm_module: { width: 62, height: 32, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'tx', x: 0.35, y: 1, side: 'bottom' }, { name: 'rx', x: 0.55, y: 1, side: 'bottom' }, { name: 'rst', x: 0.75, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('GSM', '#1D4ED8') },
+  wifi_module: { width: 56, height: 30, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'tx', x: 0.35, y: 1, side: 'bottom' }, { name: 'rx', x: 0.55, y: 1, side: 'bottom' }, { name: 'en', x: 0.75, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('ESP-01', '#0369A1') },
+  bluetooth_module: { width: 56, height: 30, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'tx', x: 0.35, y: 1, side: 'bottom' }, { name: 'rx', x: 0.55, y: 1, side: 'bottom' }, { name: 'key', x: 0.75, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('HC-05', '#1E40AF') },
+  can_module: { width: 50, height: 30, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'cs', x: 0.35, y: 1, side: 'bottom' }, { name: 'si', x: 0.55, y: 1, side: 'bottom' }, { name: 'so', x: 0.75, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('CAN', '#334155') },
+  rs485_module: { width: 46, height: 30, pins: [{ name: 'ro', x: 0.15, y: 1, side: 'bottom' }, { name: 're', x: 0.35, y: 1, side: 'bottom' }, { name: 'de', x: 0.55, y: 1, side: 'bottom' }, { name: 'di', x: 0.75, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('RS485', '#475569') },
+  usb_ttl: { width: 52, height: 28, pins: [{ name: '5v', x: 0.15, y: 1, side: 'bottom' }, { name: 'tx', x: 0.35, y: 1, side: 'bottom' }, { name: 'rx', x: 0.55, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.75, y: 1, side: 'bottom' }, { name: 'dtr', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('USB-TTL', '#374151') },
+  logic_level_shifter: { width: 50, height: 26, pins: [...Array.from({length:4}).map((_,i) => ({ name: `lv${i+1}`, x: 0.14 + i*0.24, y: 0, side: 'top' as const })), ...Array.from({length:4}).map((_,i) => ({ name: `hv${i+1}`, x: 0.14 + i*0.24, y: 1, side: 'bottom' as const }))], draw: drawGenericModule('LEVEL', '#6B7280') },
+  op_amp: { width: 46, height: 26, pins: [{ name: 'v+', x: 0.1, y: 0.5, side: 'left' }, { name: 'v-', x: 0.9, y: 0.5, side: 'right' }, { name: 'in+', x: 0.3, y: 1, side: 'bottom' }, { name: 'in-', x: 0.5, y: 1, side: 'bottom' }, { name: 'out', x: 0.7, y: 1, side: 'bottom' }], draw: drawGenericModule('OPAMP', '#111827') },
+  dac_module: { width: 44, height: 28, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'scl', x: 0.35, y: 1, side: 'bottom' }, { name: 'sda', x: 0.55, y: 1, side: 'bottom' }, { name: 'out', x: 0.75, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('DAC', '#0F766E') },
+  adc_module: { width: 44, height: 28, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'scl', x: 0.35, y: 1, side: 'bottom' }, { name: 'sda', x: 0.55, y: 1, side: 'bottom' }, { name: 'alert', x: 0.75, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('ADC', '#065F46') },
+  load_cell_amp: { width: 52, height: 28, pins: [{ name: 'dt', x: 0.15, y: 1, side: 'bottom' }, { name: 'sck', x: 0.35, y: 1, side: 'bottom' }, { name: 'vcc', x: 0.55, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.75, y: 1, side: 'bottom' }, { name: 'e+', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('HX711', '#3F3F46') },
+  strain_gauge: { width: 60, height: 20, pins: [{ name: 'e+', x: 0, y: 0.5, side: 'left' }, { name: 'e-', x: 1, y: 0.5, side: 'right' }], draw: drawTwoLeadPart('SG', '#A78BFA') },
+  nrf24: { width: 60, height: 28, pins: [...Array.from({length:8}).map((_,i) => ({ name: `pin${i+1}`, x: 0.08 + i*0.12, y: 1, side: 'bottom' as const }))], draw: drawGenericModule('nRF24', '#1D4ED8') },
+  lora_module: { width: 60, height: 28, pins: [...Array.from({length:8}).map((_,i) => ({ name: `pin${i+1}`, x: 0.08 + i*0.12, y: 1, side: 'bottom' as const }))], draw: drawGenericModule('LoRa', '#4338CA') },
+  stepper_driver: { width: 56, height: 30, pins: [...Array.from({length:8}).map((_,i) => ({ name: `pin${i+1}`, x: 0.08 + i*0.12, y: 1, side: 'bottom' as const }))], draw: drawGenericModule('A4988', '#B45309') },
+  stepper_motor: { width: 44, height: 44, pins: [{ name: 'a+', x: 0.2, y: 1, side: 'bottom' }, { name: 'a-', x: 0.4, y: 1, side: 'bottom' }, { name: 'b+', x: 0.6, y: 1, side: 'bottom' }, { name: 'b-', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('STEP', '#374151') },
+  dc_fan: { width: 36, height: 36, pins: [{ name: 'vcc', x: 0.3, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.7, y: 1, side: 'bottom' }], draw: drawGenericModule('FAN', '#0F766E') },
+  ws2812_strip: { width: 70, height: 18, pins: [{ name: 'din', x: 0, y: 0.5, side: 'left' }, { name: 'dout', x: 1, y: 0.5, side: 'right' }, { name: 'vcc', x: 0.3, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.7, y: 1, side: 'bottom' }], draw: drawTwoLeadPart('WS2812', '#059669') },
+  neopixel_ring: { width: 40, height: 40, pins: [{ name: 'din', x: 0.2, y: 1, side: 'bottom' }, { name: 'dout', x: 0.4, y: 1, side: 'bottom' }, { name: 'vcc', x: 0.6, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('NEO', '#10B981') },
+  triac: { width: 34, height: 38, pins: [{ name: 'mt1', x: 0.2, y: 1, side: 'bottom' }, { name: 'mt2', x: 0.5, y: 1, side: 'bottom' }, { name: 'gate', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('TRIAC', '#7C2D12') },
+  ssr: { width: 46, height: 30, pins: [{ name: 'in+', x: 0.2, y: 1, side: 'bottom' }, { name: 'in-', x: 0.4, y: 1, side: 'bottom' }, { name: 'out1', x: 0.65, y: 1, side: 'bottom' }, { name: 'out2', x: 0.85, y: 1, side: 'bottom' }], draw: drawGenericModule('SSR', '#334155') },
+  bme280: { width: 36, height: 26, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.35, y: 1, side: 'bottom' }, { name: 'scl', x: 0.65, y: 1, side: 'bottom' }, { name: 'sda', x: 0.85, y: 1, side: 'bottom' }], draw: drawGenericModule('BME280', '#0EA5E9') },
+  dht11: { width: 34, height: 38, pins: [{ name: 'vcc', x: 0.2, y: 1, side: 'bottom' }, { name: 'data', x: 0.5, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('DHT11', '#2563EB') },
+  dht22: { width: 34, height: 38, pins: [{ name: 'vcc', x: 0.2, y: 1, side: 'bottom' }, { name: 'data', x: 0.5, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('DHT22', '#1D4ED8') },
+  ds18b20: { width: 34, height: 40, pins: [{ name: 'gnd', x: 0.2, y: 1, side: 'bottom' }, { name: 'dq', x: 0.5, y: 1, side: 'bottom' }, { name: 'vdd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('DS18B20', '#0F766E') },
+  mpu6050: { width: 40, height: 28, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.35, y: 1, side: 'bottom' }, { name: 'scl', x: 0.55, y: 1, side: 'bottom' }, { name: 'sda', x: 0.75, y: 1, side: 'bottom' }, { name: 'int', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('MPU6050', '#2563EB') },
+  bh1750: { width: 36, height: 26, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.35, y: 1, side: 'bottom' }, { name: 'scl', x: 0.65, y: 1, side: 'bottom' }, { name: 'sda', x: 0.85, y: 1, side: 'bottom' }], draw: drawGenericModule('BH1750', '#0891B2') },
+  tof_sensor: { width: 36, height: 26, pins: [{ name: 'vcc', x: 0.15, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.35, y: 1, side: 'bottom' }, { name: 'scl', x: 0.65, y: 1, side: 'bottom' }, { name: 'sda', x: 0.85, y: 1, side: 'bottom' }], draw: drawGenericModule('VL53L0X', '#0EA5E9') },
+  fingerprint_sensor: { width: 46, height: 44, pins: [{ name: 'vcc', x: 0.2, y: 1, side: 'bottom' }, { name: 'tx', x: 0.4, y: 1, side: 'bottom' }, { name: 'rx', x: 0.6, y: 1, side: 'bottom' }, { name: 'gnd', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('FPS', '#334155') },
+  rfid_rc522: { width: 54, height: 34, pins: [...Array.from({length:8}).map((_,i) => ({ name: `pin${i+1}`, x: 0.08 + i*0.12, y: 1, side: 'bottom' as const }))], draw: drawGenericModule('RC522', '#7C3AED') },
+  ethernet_w5500: { width: 72, height: 34, pins: [...Array.from({length:8}).map((_,i) => ({ name: `pin${i+1}`, x: 0.08 + i*0.12, y: 1, side: 'bottom' as const }))], draw: drawGenericModule('W5500', '#1E40AF') },
+  poe_module: { width: 46, height: 30, pins: [{ name: 'vin+', x: 0.2, y: 1, side: 'bottom' }, { name: 'vin-', x: 0.4, y: 1, side: 'bottom' }, { name: 'vout+', x: 0.6, y: 1, side: 'bottom' }, { name: 'vout-', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('PoE', '#0F172A') },
+  battery_holder: { width: 52, height: 24, pins: [{ name: 'positive', x: 0, y: 0.5, side: 'left' }, { name: 'negative', x: 1, y: 0.5, side: 'right' }], draw: drawTwoLeadPart('BAT', '#111827') },
+  boost_converter: { width: 52, height: 30, pins: [{ name: 'vin+', x: 0.2, y: 1, side: 'bottom' }, { name: 'vin-', x: 0.4, y: 1, side: 'bottom' }, { name: 'vout+', x: 0.6, y: 1, side: 'bottom' }, { name: 'vout-', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('BOOST', '#B45309') },
+  buck_converter: { width: 52, height: 30, pins: [{ name: 'vin+', x: 0.2, y: 1, side: 'bottom' }, { name: 'vin-', x: 0.4, y: 1, side: 'bottom' }, { name: 'vout+', x: 0.6, y: 1, side: 'bottom' }, { name: 'vout-', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('BUCK', '#92400E') },
+  terminal_block: { width: 54, height: 22, pins: [{ name: 't1', x: 0.15, y: 1, side: 'bottom' }, { name: 't2', x: 0.35, y: 1, side: 'bottom' }, { name: 't3', x: 0.55, y: 1, side: 'bottom' }, { name: 't4', x: 0.75, y: 1, side: 'bottom' }, { name: 't5', x: 0.9, y: 1, side: 'bottom' }], draw: drawGenericModule('TERM', '#065F46') },
+  screw_terminal_2p: { width: 30, height: 22, pins: [{ name: 'a', x: 0.3, y: 1, side: 'bottom' }, { name: 'b', x: 0.7, y: 1, side: 'bottom' }], draw: drawGenericModule('2P', '#166534') },
+  screw_terminal_3p: { width: 38, height: 22, pins: [{ name: 'a', x: 0.2, y: 1, side: 'bottom' }, { name: 'b', x: 0.5, y: 1, side: 'bottom' }, { name: 'c', x: 0.8, y: 1, side: 'bottom' }], draw: drawGenericModule('3P', '#15803D') },
+
   current_sensor: {
     width: 36, height: 28,
     pins: [
@@ -1250,5 +1354,67 @@ export const COMPONENT_LABELS: Record<string, string> = {
   dip_switch: 'DIP Switch',
   barrel_jack: 'Barrel Jack',
   h_bridge: 'H-Bridge (L293D)',
+
+  thermistor: 'Thermistor (NTC)',
+  photo_diode: 'Photodiode',
+  hall_sensor: 'Hall Effect Sensor',
+  pir_sensor: 'PIR Motion Sensor',
+  ultrasonic: 'Ultrasonic Distance (HC-SR04)',
+  ir_receiver: 'IR Receiver',
+  ir_emitter: 'IR Emitter',
+  flame_sensor: 'Flame Sensor',
+  gas_sensor: 'Gas Sensor (MQ)',
+  sound_sensor: 'Sound Sensor',
+  soil_sensor: 'Soil Moisture Sensor',
+  rain_sensor: 'Rain Sensor',
+  tilt_sensor: 'Tilt Sensor',
+  reed_switch: 'Reed Switch',
+  rotary_encoder: 'Rotary Encoder',
+  joystick: 'Joystick Module',
+  keypad_4x4: '4x4 Matrix Keypad',
+  oled_display: 'OLED Display',
+  tft_display: 'TFT Display',
+  eeprom: 'EEPROM (24LC256)',
+  rtc_module: 'RTC Module',
+  sd_card: 'SD Card Module',
+  gps_module: 'GPS Module',
+  gsm_module: 'GSM Module',
+  wifi_module: 'WiFi Module (ESP-01)',
+  bluetooth_module: 'Bluetooth Module (HC-05)',
+  can_module: 'CAN Bus Module',
+  rs485_module: 'RS485 Transceiver',
+  usb_ttl: 'USB-to-TTL Adapter',
+  logic_level_shifter: 'Logic Level Shifter',
+  op_amp: 'Operational Amplifier',
+  dac_module: 'DAC Module',
+  adc_module: 'ADC Module',
+  load_cell_amp: 'Load Cell Amplifier (HX711)',
+  strain_gauge: 'Strain Gauge',
+  nrf24: 'nRF24L01 Radio',
+  lora_module: 'LoRa Module',
+  stepper_driver: 'Stepper Driver (A4988)',
+  stepper_motor: 'Stepper Motor',
+  dc_fan: 'DC Fan',
+  ws2812_strip: 'WS2812 LED Strip',
+  neopixel_ring: 'NeoPixel Ring',
+  triac: 'TRIAC',
+  ssr: 'Solid State Relay (SSR)',
+  bme280: 'BME280 Env Sensor',
+  dht11: 'DHT11 Sensor',
+  dht22: 'DHT22 Sensor',
+  ds18b20: 'DS18B20 Sensor',
+  mpu6050: 'MPU6050 IMU',
+  bh1750: 'BH1750 Light Sensor',
+  tof_sensor: 'ToF Distance Sensor',
+  fingerprint_sensor: 'Fingerprint Sensor',
+  rfid_rc522: 'RFID RC522 Module',
+  ethernet_w5500: 'Ethernet W5500 Module',
+  poe_module: 'PoE Module',
+  battery_holder: 'Battery Holder',
+  boost_converter: 'Boost Converter',
+  buck_converter: 'Buck Converter',
+  terminal_block: 'Terminal Block (5P)',
+  screw_terminal_2p: 'Screw Terminal (2P)',
+  screw_terminal_3p: 'Screw Terminal (3P)',
   current_sensor: 'Current Sensor',
 };
