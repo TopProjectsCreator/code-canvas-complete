@@ -365,7 +365,7 @@ Deno.serve(async (req: Request) => {
     const result = await compileResponse.json();
 
     // Check for compilation errors
-    const stderr = (result.stderr || []).map((s: { text: string }) => s.text).join('\\n');
+    const stderr = (result.stderr || []).map((s: { text: string }) => s.text).join('\n');
     const hasErrors = (result.code !== 0);
 
     if (hasErrors) {
