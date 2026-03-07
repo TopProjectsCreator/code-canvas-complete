@@ -1,86 +1,63 @@
-## Add Browser-Native Shell via WebContainers (Node.js)
 
-### Overview
 
-Integrate `@webcontainer/api` to provide a real Node.js shell (jsh) directly in the browser. Shell/bash/JS commands run locally via WebContainers. Compiled languages (Python, C, Rust, etc.) continue using the existing edge function (Wandbox + optional container backend -- both kept intact).
+## Plan: Browser-Only Arduino Uno Flashing
 
-### Files to Change
+### The Problem
+The current upload code sends raw sketch text over serial — the board receives ASCII source code, not a compiled binary. Arduino boards need compiled Intel HEX firmware flashed via the STK500v1 bootloader protocol.
 
-**1. Install `@webcontainer/api**`
-
-- Add the package dependency
-
-**2. New file: `src/hooks/useWebContainer.ts**`
-
-- Singleton pattern: one WebContainer instance shared across the app
-- `boot()` on first use, expose status (`idle` | `booting` | `ready` | `error`)
-- `spawn(command, args)` -- runs a command, returns stdout/stderr as string arrays
-- `writeFile(path, content)` / `readFile(path)` for syncing project files
-- `teardown()` cleanup on unmount
-- Lazy boot: container only starts when the user first runs a shell command
-
-**3. Update `src/hooks/useCodeExecution.ts**`
-
-- Import `useWebContainer`
-- New routing logic at the top of `executeCode`:
-  - If language is `shell`, `bash`, or `javascript` and WebContainer is available, run via WebContainer's `jsh` or `node`
-  - Otherwise, fall through to existing edge function path (Wandbox/container -- untouched)
-- `executeShellCommand` routes through WebContainer when ready
-- Keep all existing session tracking and edge function code as-is (container backend still works for those who configure it)
-
-**4. Update `src/components/ide/Terminal.tsx**`
-
-- Import `useWebContainer` for boot status
-- Show a "Booting shell..." indicator on first command if container is still starting
-- No structural changes to the terminal UI -- commands still flow through `useCodeExecution`
-- If the use is attempting to use pip or uv or something not supported without setting up container runner,  They will be alerted that it wont work and detailed instructions how to make it work.
-
-**5. Update `vite.config.ts**`
-
-- Add required COOP/COEP headers for WebContainers:
+### Solution: Two-Stage Pipeline
 
 ```text
-server.headers:
-  Cross-Origin-Embedder-Policy: require-corp
-  Cross-Origin-Opener-Policy: same-origin
+  sketch.ino ──▶ [Edge Function: compile] ──▶ .hex binary
+                                                   │
+  Browser ◀── Web Serial + STK500v1 protocol ◀─────┘
 ```
 
-**6. Update `README.md**`
+**Stage 1 — Server-side compilation** via a new `compile-arduino` edge function:
+- Receives sketch code + board type (uno)
+- Prepends minimal Arduino core stubs (implementations of `pinMode`, `digitalWrite`, `analogWrite`, `delay`, `Serial.begin/print/println`, `millis`, etc.) so simple sketches compile without the full Arduino framework
+- Calls the free Compiler Explorer (Godbolt) API with `avr-gcc` targeting ATmega328P
+- Extracts the compiled ELF, converts to Intel HEX, and returns it
 
-- Add a section explaining that shell commands now run via WebContainers in-browser for Node.js
-- Keep the existing container runner documentation for users who want full Linux shell with Python/system tools
-- Note the COOP/COEP header requirement for production deployments
+**Stage 2 — Browser-side flashing** via a new STK500v1 protocol module:
+- Opens Web Serial port at 115200 baud
+- Toggles DTR to reset the board into bootloader mode
+- Syncs with the Optiboot bootloader using STK500v1 commands (`STK_GET_SYNC`, `STK_SET_DEVICE`, `STK_ENTER_PROGMODE`, `STK_LOAD_ADDRESS`, `STK_PROG_PAGE`, `STK_LEAVE_PROGMODE`)
+- Sends hex data in 128-byte pages (Uno page size)
+- Reports progress back to the UI
 
-7. **System Instructions**
-  Edit the system instructions so that the bots know of this limitation.
-8. Settings
-  Keep a setting so that users who really want to can use the wandbox api instead of this.
+### Files to Create/Modify
 
-### Architecture
+1. **`supabase/functions/compile-arduino/index.ts`** (new)
+   - Edge function that compiles sketches via Compiler Explorer API
+   - Includes minimal Arduino core stubs for common functions
+   - Returns Intel HEX string or compilation errors
 
-```text
-Terminal Command
-    |
-    +-- shell/bash/js --> WebContainer (in-browser, real Node.js shell)
-    |                     (npm, npx, node all work natively)
-    |
-    +-- python/c/rust/go/etc --> Edge Function
-                                   |
-                                   +-- Wandbox (default)
-                                   +-- Container backend (if configured)
-```
+2. **`src/services/stk500.ts`** (new)
+   - STK500v1 protocol constants and state machine
+   - `flashHex(port: SerialPort, hexData: string, onProgress)` — parses Intel HEX, sends pages via bootloader protocol
+   - Board reset via DTR toggle
 
-### What stays the same
+3. **`src/services/hexParser.ts`** (new)
+   - Intel HEX format parser: converts hex string to binary pages
 
-- Edge function `execute-code` is untouched -- Wandbox and container backend remain
-- `EXECUTOR_MODE` env var still works for container deployments
-- All compiled language execution unchanged
-- AI chat shell commands route through the same `useCodeExecution` hook
+4. **`src/services/arduinoUploadService.ts`** (rewrite)
+   - `uploadViaSerial` now: calls compile edge function → parses hex → flashes via STK500v1
+   - Shows step-by-step progress: "Compiling..." → "Resetting board..." → "Flashing page X/Y..." → "Done"
 
-### Technical Notes
+5. **`src/components/arduino/ArduinoUploadDialog.tsx`** (update)
+   - Add progress log showing compilation and flash stages
+   - Show compilation errors with line numbers if sketch fails to compile
 
-- WebContainers require SharedArrayBuffer, which needs COOP/COEP headers
-- The COEP `require-corp` header may break loading cross-origin resources (images, fonts from CDNs) unless they have CORS headers. We'll use `credentialless` instead of `require-corp` to avoid this issue where possible.
-- Boot time is ~2-3 seconds on first use, then instant for subsequent commands. 
+6. **`supabase/config.toml`** — add `compile-arduino` function config with `verify_jwt = false`
 
-&nbsp;
+### Limitations (Documented in UI)
+- Only supports sketches using common Arduino functions (digital/analog I/O, Serial, delay, millis)
+- Complex libraries (Wire, SPI, Servo) won't compile without full Arduino core — the dialog will explain this
+- Only Arduino Uno (ATmega328P with Optiboot) is supported initially
+- User must use Chrome/Edge for Web Serial API
+
+### No API Keys Needed
+- Compiler Explorer API is free and public (no auth required)
+- Web Serial is a browser-native API
+
