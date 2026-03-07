@@ -101,22 +101,145 @@ const DEFAULT_PROJECT: ScratchProject = {
   },
 };
 
-const motionBlocks = [
-  'move 10 steps',
-  'turn ⟳ 15 degrees',
-  'turn ⟲ 15 degrees',
-  'go to random position',
-  'go to x: 0  y: 0',
-  'glide 1 secs to random position',
-  'glide 1 secs to x: 0  y: 0',
-  'point in direction 90',
-  'point towards mouse-pointer',
-  'change x by 10',
-  'set x to 0',
-  'change y by 10',
-  'set y to 0',
-  'if on edge, bounce',
-];
+const categoryBlocks: Record<string, { label: string; opcode: string; inputs?: Record<string, unknown>; fields?: Record<string, unknown> }[]> = {
+  Motion: [
+    { label: 'move 10 steps', opcode: 'motion_movesteps', inputs: { STEPS: [1, [4, '10']] } },
+    { label: 'turn ⟳ 15 degrees', opcode: 'motion_turnright', inputs: { DEGREES: [1, [4, '15']] } },
+    { label: 'turn ⟲ 15 degrees', opcode: 'motion_turnleft', inputs: { DEGREES: [1, [4, '15']] } },
+    { label: 'go to random position', opcode: 'motion_goto', fields: { TO: ['_random_', null] } },
+    { label: 'go to x: 0  y: 0', opcode: 'motion_gotoxy', inputs: { X: [1, [4, '0']], Y: [1, [4, '0']] } },
+    { label: 'glide 1 secs to random position', opcode: 'motion_glideto', inputs: { SECS: [1, [4, '1']] }, fields: { TO: ['_random_', null] } },
+    { label: 'glide 1 secs to x: 0  y: 0', opcode: 'motion_glidesecstoxy', inputs: { SECS: [1, [4, '1']], X: [1, [4, '0']], Y: [1, [4, '0']] } },
+    { label: 'point in direction 90', opcode: 'motion_pointindirection', inputs: { DIRECTION: [1, [4, '90']] } },
+    { label: 'point towards mouse-pointer', opcode: 'motion_pointtowards', fields: { TOWARDS: ['_mouse_', null] } },
+    { label: 'change x by 10', opcode: 'motion_changexby', inputs: { DX: [1, [4, '10']] } },
+    { label: 'set x to 0', opcode: 'motion_setx', inputs: { X: [1, [4, '0']] } },
+    { label: 'change y by 10', opcode: 'motion_changeyby', inputs: { DY: [1, [4, '10']] } },
+    { label: 'set y to 0', opcode: 'motion_sety', inputs: { Y: [1, [4, '0']] } },
+    { label: 'if on edge, bounce', opcode: 'motion_ifonedgebounce' },
+  ],
+  Looks: [
+    { label: 'say Hello! for 2 seconds', opcode: 'looks_sayforsecs', inputs: { MESSAGE: [1, [10, 'Hello!']], SECS: [1, [4, '2']] } },
+    { label: 'say Hello!', opcode: 'looks_say', inputs: { MESSAGE: [1, [10, 'Hello!']] } },
+    { label: 'think Hmm... for 2 seconds', opcode: 'looks_thinkforsecs', inputs: { MESSAGE: [1, [10, 'Hmm...']], SECS: [1, [4, '2']] } },
+    { label: 'think Hmm...', opcode: 'looks_think', inputs: { MESSAGE: [1, [10, 'Hmm...']] } },
+    { label: 'switch costume to', opcode: 'looks_switchcostumeto' },
+    { label: 'next costume', opcode: 'looks_nextcostume' },
+    { label: 'switch backdrop to', opcode: 'looks_switchbackdropto' },
+    { label: 'next backdrop', opcode: 'looks_nextbackdrop' },
+    { label: 'change size by 10', opcode: 'looks_changesizeby', inputs: { CHANGE: [1, [4, '10']] } },
+    { label: 'set size to 100%', opcode: 'looks_setsizeto', inputs: { SIZE: [1, [4, '100']] } },
+    { label: 'change color effect by 25', opcode: 'looks_changeeffectby', inputs: { CHANGE: [1, [4, '25']] }, fields: { EFFECT: ['COLOR', null] } },
+    { label: 'set color effect to 0', opcode: 'looks_seteffectto', inputs: { VALUE: [1, [4, '0']] }, fields: { EFFECT: ['COLOR', null] } },
+    { label: 'clear graphic effects', opcode: 'looks_cleargraphiceffects' },
+    { label: 'show', opcode: 'looks_show' },
+    { label: 'hide', opcode: 'looks_hide' },
+    { label: 'go to front layer', opcode: 'looks_gotofrontback', fields: { FRONT_BACK: ['front', null] } },
+    { label: 'go back 1 layers', opcode: 'looks_goforwardbackwardlayers', inputs: { NUM: [1, [4, '1']] }, fields: { FORWARD_BACKWARD: ['backward', null] } },
+  ],
+  Sound: [
+    { label: 'play sound until done', opcode: 'sound_playuntildone' },
+    { label: 'start sound', opcode: 'sound_play' },
+    { label: 'stop all sounds', opcode: 'sound_stopallsounds' },
+    { label: 'change pitch effect by 10', opcode: 'sound_changeeffectby', inputs: { VALUE: [1, [4, '10']] }, fields: { EFFECT: ['PITCH', null] } },
+    { label: 'set pitch effect to 100', opcode: 'sound_seteffectto', inputs: { VALUE: [1, [4, '100']] }, fields: { EFFECT: ['PITCH', null] } },
+    { label: 'clear sound effects', opcode: 'sound_cleareffects' },
+    { label: 'change volume by -10', opcode: 'sound_changevolumeby', inputs: { VOLUME: [1, [4, '-10']] } },
+    { label: 'set volume to 100%', opcode: 'sound_setvolumeto', inputs: { VOLUME: [1, [4, '100']] } },
+  ],
+  Events: [
+    { label: 'when 🏴 clicked', opcode: 'event_whenflagclicked' },
+    { label: 'when space key pressed', opcode: 'event_whenkeypressed', fields: { KEY_OPTION: ['space', null] } },
+    { label: 'when this sprite clicked', opcode: 'event_whenthisspriteclicked' },
+    { label: 'when backdrop switches to', opcode: 'event_whenbackdropswitchesto' },
+    { label: 'when loudness > 10', opcode: 'event_whengreaterthan', inputs: { VALUE: [1, [4, '10']] }, fields: { WHENGREATERTHANMENU: ['LOUDNESS', null] } },
+    { label: 'when I receive message1', opcode: 'event_whenbroadcastreceived', fields: { BROADCAST_OPTION: ['message1', null] } },
+    { label: 'broadcast message1', opcode: 'event_broadcast', inputs: { BROADCAST_INPUT: [1, [11, 'message1', 'message1']] } },
+    { label: 'broadcast message1 and wait', opcode: 'event_broadcastandwait', inputs: { BROADCAST_INPUT: [1, [11, 'message1', 'message1']] } },
+  ],
+  Control: [
+    { label: 'wait 1 seconds', opcode: 'control_wait', inputs: { DURATION: [1, [4, '1']] } },
+    { label: 'repeat 10', opcode: 'control_repeat', inputs: { TIMES: [1, [4, '10']] } },
+    { label: 'forever', opcode: 'control_forever' },
+    { label: 'if < > then', opcode: 'control_if' },
+    { label: 'if < > then else', opcode: 'control_if_else' },
+    { label: 'wait until < >', opcode: 'control_wait_until' },
+    { label: 'repeat until < >', opcode: 'control_repeat_until' },
+    { label: 'stop all', opcode: 'control_stop', fields: { STOP_OPTION: ['all', null] } },
+    { label: 'when I start as a clone', opcode: 'control_start_as_clone' },
+    { label: 'create clone of myself', opcode: 'control_create_clone_of', fields: { CLONE_OPTION: ['_myself_', null] } },
+    { label: 'delete this clone', opcode: 'control_delete_this_clone' },
+  ],
+  Sensing: [
+    { label: 'touching mouse-pointer?', opcode: 'sensing_touchingobject', fields: { TOUCHINGOBJECTMENU: ['_mouse_', null] } },
+    { label: 'touching color?', opcode: 'sensing_touchingcolor' },
+    { label: 'color is touching?', opcode: 'sensing_coloristouchingcolor' },
+    { label: 'distance to mouse-pointer', opcode: 'sensing_distanceto', fields: { DISTANCETOMENU: ['_mouse_', null] } },
+    { label: 'ask What is your name? and wait', opcode: 'sensing_askandwait', inputs: { QUESTION: [1, [10, 'What is your name?']] } },
+    { label: 'answer', opcode: 'sensing_answer' },
+    { label: 'key space pressed?', opcode: 'sensing_keypressed', fields: { KEY_OPTION: ['space', null] } },
+    { label: 'mouse down?', opcode: 'sensing_mousedown' },
+    { label: 'mouse x', opcode: 'sensing_mousex' },
+    { label: 'mouse y', opcode: 'sensing_mousey' },
+    { label: 'loudness', opcode: 'sensing_loudness' },
+    { label: 'timer', opcode: 'sensing_timer' },
+    { label: 'reset timer', opcode: 'sensing_resettimer' },
+    { label: 'current year', opcode: 'sensing_current', fields: { CURRENTMENU: ['YEAR', null] } },
+    { label: 'days since 2000', opcode: 'sensing_dayssince2000' },
+  ],
+  Operators: [
+    { label: '( ) + ( )', opcode: 'operator_add', inputs: { NUM1: [1, [4, '']], NUM2: [1, [4, '']] } },
+    { label: '( ) - ( )', opcode: 'operator_subtract', inputs: { NUM1: [1, [4, '']], NUM2: [1, [4, '']] } },
+    { label: '( ) * ( )', opcode: 'operator_multiply', inputs: { NUM1: [1, [4, '']], NUM2: [1, [4, '']] } },
+    { label: '( ) / ( )', opcode: 'operator_divide', inputs: { NUM1: [1, [4, '']], NUM2: [1, [4, '']] } },
+    { label: 'pick random 1 to 10', opcode: 'operator_random', inputs: { FROM: [1, [4, '1']], TO: [1, [4, '10']] } },
+    { label: '( ) > ( )', opcode: 'operator_gt', inputs: { OPERAND1: [1, [10, '']], OPERAND2: [1, [10, '']] } },
+    { label: '( ) < ( )', opcode: 'operator_lt', inputs: { OPERAND1: [1, [10, '']], OPERAND2: [1, [10, '']] } },
+    { label: '( ) = ( )', opcode: 'operator_equals', inputs: { OPERAND1: [1, [10, '']], OPERAND2: [1, [10, '']] } },
+    { label: '( ) and ( )', opcode: 'operator_and' },
+    { label: '( ) or ( )', opcode: 'operator_or' },
+    { label: 'not ( )', opcode: 'operator_not' },
+    { label: 'join apple banana', opcode: 'operator_join', inputs: { STRING1: [1, [10, 'apple']], STRING2: [1, [10, 'banana']] } },
+    { label: 'letter 1 of apple', opcode: 'operator_letter_of', inputs: { LETTER: [1, [4, '1']], STRING: [1, [10, 'apple']] } },
+    { label: 'length of apple', opcode: 'operator_length', inputs: { STRING: [1, [10, 'apple']] } },
+    { label: 'apple contains a?', opcode: 'operator_contains', inputs: { STRING1: [1, [10, 'apple']], STRING2: [1, [10, 'a']] } },
+    { label: '( ) mod ( )', opcode: 'operator_mod', inputs: { NUM1: [1, [4, '']], NUM2: [1, [4, '']] } },
+    { label: 'round ( )', opcode: 'operator_round', inputs: { NUM: [1, [4, '']] } },
+    { label: 'abs of ( )', opcode: 'operator_mathop', inputs: { NUM: [1, [4, '']] }, fields: { OPERATOR: ['abs', null] } },
+  ],
+  Variables: [
+    { label: 'Make a Variable', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] } },
+    { label: 'set my variable to 0', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] } },
+    { label: 'change my variable by 1', opcode: 'data_changevariableby', inputs: { VALUE: [1, [4, '1']] } },
+    { label: 'show variable', opcode: 'data_showvariable' },
+    { label: 'hide variable', opcode: 'data_hidevariable' },
+    { label: 'add thing to list', opcode: 'data_addtolist', inputs: { ITEM: [1, [10, 'thing']] } },
+    { label: 'delete 1 of list', opcode: 'data_deleteoflist', inputs: { INDEX: [1, [4, '1']] } },
+    { label: 'delete all of list', opcode: 'data_deletealloflist' },
+    { label: 'insert thing at 1 of list', opcode: 'data_insertatlist', inputs: { ITEM: [1, [10, 'thing']], INDEX: [1, [4, '1']] } },
+    { label: 'replace item 1 of list with thing', opcode: 'data_replaceitemoflist', inputs: { INDEX: [1, [4, '1']], ITEM: [1, [10, 'thing']] } },
+    { label: 'item 1 of list', opcode: 'data_itemoflist', inputs: { INDEX: [1, [4, '1']] } },
+    { label: 'length of list', opcode: 'data_lengthoflist' },
+    { label: 'list contains thing?', opcode: 'data_listcontainsitem', inputs: { ITEM: [1, [10, 'thing']] } },
+    { label: 'show list', opcode: 'data_showlist' },
+    { label: 'hide list', opcode: 'data_hidelist' },
+  ],
+  'My Blocks': [
+    { label: 'Make a Block', opcode: 'procedures_definition' },
+  ],
+};
+
+const categoryColors: Record<string, string> = {
+  Motion: '#4c97ff',
+  Looks: '#9966ff',
+  Sound: '#cf63cf',
+  Events: '#ffbf00',
+  Control: '#ffab19',
+  Sensing: '#5cb1d6',
+  Operators: '#59c059',
+  Variables: '#ff8c1a',
+  'My Blocks': '#ff6680',
+};
 
 const categoryRail = [
   { name: 'Motion', color: '#4c97ff' },
@@ -298,60 +421,63 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setSelectedTargetIndex(project.targets.length);
   };
 
-  const addMotionBlock = (label: string) => {
+  const addBlock = (blockDef: { label: string; opcode: string; inputs?: Record<string, unknown>; fields?: Record<string, unknown> }, dropX?: number, dropY?: number) => {
     if (!selectedTarget || selectedTarget.isStage || activeEditorTab !== 'code') return;
-    const hatId = generateId();
     const blockId = generateId();
-
-    const opcodeMap: Record<string, { opcode: string; inputs?: Record<string, unknown>; fields?: Record<string, unknown> }> = {
-      'move 10 steps': { opcode: 'motion_movesteps', inputs: { STEPS: makeNumberInput('10') } },
-      'turn ⟳ 15 degrees': { opcode: 'motion_turnright', inputs: { DEGREES: makeNumberInput('15') } },
-      'turn ⟲ 15 degrees': { opcode: 'motion_turnleft', inputs: { DEGREES: makeNumberInput('15') } },
-      'go to random position': { opcode: 'motion_goto', fields: { TO: ['_random_', null] } },
-      'go to x: 0  y: 0': { opcode: 'motion_gotoxy', inputs: { X: makeNumberInput('0'), Y: makeNumberInput('0') } },
-      'glide 1 secs to random position': { opcode: 'motion_glideto', inputs: { SECS: makeNumberInput('1') }, fields: { TO: ['_random_', null] } },
-      'glide 1 secs to x: 0  y: 0': { opcode: 'motion_glidesecstoxy', inputs: { SECS: makeNumberInput('1'), X: makeNumberInput('0'), Y: makeNumberInput('0') } },
-      'point in direction 90': { opcode: 'motion_pointindirection', inputs: { DIRECTION: makeNumberInput('90') } },
-      'point towards mouse-pointer': { opcode: 'motion_pointtowards', fields: { TOWARDS: ['_mouse_', null] } },
-      'change x by 10': { opcode: 'motion_changexby', inputs: { DX: makeNumberInput('10') } },
-      'set x to 0': { opcode: 'motion_setx', inputs: { X: makeNumberInput('0') } },
-      'change y by 10': { opcode: 'motion_changeyby', inputs: { DY: makeNumberInput('10') } },
-      'set y to 0': { opcode: 'motion_sety', inputs: { Y: makeNumberInput('0') } },
-      'if on edge, bounce': { opcode: 'motion_ifonedgebounce' },
-    };
-
-    const blockDef = opcodeMap[label] || opcodeMap['move 10 steps'];
+    const blockCount = Object.keys(selectedTarget.blocks || {}).length;
 
     updateProject((current) => ({
       ...current,
       targets: current.targets.map((target, idx) => {
         if (idx !== selectedTargetIndex) return target;
-        const blockCount = Object.keys(target.blocks || {}).length;
         return {
           ...target,
           blocks: {
             ...(target.blocks || {}),
-            [hatId]: {
-              id: hatId,
-              opcode: 'event_whenflagclicked',
-              next: blockId,
-              parent: null,
-              topLevel: true,
-              x: 40,
-              y: 30 + blockCount * 70,
-              inputs: {},
-              fields: {},
-            },
             [blockId]: {
               id: blockId,
               opcode: blockDef.opcode,
               next: null,
-              parent: hatId,
-              topLevel: false,
+              parent: null,
+              topLevel: true,
+              x: dropX ?? 40,
+              y: dropY ?? (30 + blockCount * 55),
               inputs: blockDef.inputs || {},
               fields: blockDef.fields || {},
             },
           },
+        };
+      }),
+    }));
+  };
+
+  const handleWorkspaceDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/scratch-block'));
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / workspaceZoom;
+      const y = (e.clientY - rect.top) / workspaceZoom;
+      addBlock(data, x, y);
+    } catch { /* ignore */ }
+  };
+
+  const handleBlockDragInWorkspace = (blockId: string, e: React.DragEvent) => {
+    const rect = e.currentTarget.closest('.scratch-workspace')?.getBoundingClientRect();
+    if (!rect) return;
+    const x = (e.clientX - rect.left) / workspaceZoom;
+    const y = (e.clientY - rect.top) / workspaceZoom;
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        return {
+          ...target,
+          blocks: Object.fromEntries(
+            Object.entries(target.blocks || {}).map(([id, block]) =>
+              id === blockId ? [id, { ...block, x, y }] : [id, block]
+            )
+          ),
         };
       }),
     }));
@@ -487,16 +613,22 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
 
           <div className="flex-1 p-2 overflow-y-auto">
-            <div className="text-[28px] leading-none text-[#4d97ff] mb-1">{activeCategory}</div>
+            <div className="text-[28px] leading-none mb-1" style={{ color: categoryColors[activeCategory] || '#4c97ff' }}>{activeCategory}</div>
             {activeEditorTab === 'code' ? (
               <div className="space-y-2 pr-2">
-                {motionBlocks.map((label) => (
+                {(categoryBlocks[activeCategory] || []).map((blockDef) => (
                   <button
-                    key={label}
-                    onClick={() => addMotionBlock(label)}
-                    className="w-full text-left rounded-md bg-[#4c97ff] text-white text-[19px] px-4 py-2 shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] hover:bg-[#4289ec]"
+                    key={blockDef.label}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
+                    onClick={() => addBlock(blockDef)}
+                    className="w-full text-left rounded-md text-white text-[17px] px-4 py-2 shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] hover:brightness-110 cursor-grab active:cursor-grabbing"
+                    style={{ backgroundColor: categoryColors[activeCategory] || '#4c97ff' }}
                   >
-                    {label}
+                    {blockDef.label}
                   </button>
                 ))}
               </div>
@@ -508,7 +640,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
         </div>
 
-        <div className="relative bg-[#f9fafc] overflow-hidden">
+        <div
+          className="relative bg-[#f9fafc] overflow-hidden scratch-workspace"
+          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+          onDrop={handleWorkspaceDrop}
+        >
           <div
             className="absolute inset-0"
             style={{
@@ -518,15 +654,30 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               backgroundSize: '32px 32px',
             }}
           >
-            {selectedBlocks.map((block) => (
-              <div
-                key={block.id}
-                className="absolute rounded-md bg-[#4c97ff] text-white px-3 py-2 text-[15px] min-w-[220px] shadow"
-                style={{ left: block.x ?? 40, top: block.y ?? 40 }}
-              >
-                {block.opcode.replace(/_/g, ' ')}
-              </div>
-            ))}
+            {selectedBlocks.map((block) => {
+              const color = Object.entries(categoryColors).find(([, ]) => block.opcode.startsWith(Object.keys(categoryColors).find(k => block.opcode.startsWith(k.toLowerCase().replace(/\s/g, '_'))) || ''))?.[1];
+              const blockColor = block.opcode.startsWith('motion_') ? '#4c97ff'
+                : block.opcode.startsWith('looks_') ? '#9966ff'
+                : block.opcode.startsWith('sound_') ? '#cf63cf'
+                : block.opcode.startsWith('event_') ? '#ffbf00'
+                : block.opcode.startsWith('control_') ? '#ffab19'
+                : block.opcode.startsWith('sensing_') ? '#5cb1d6'
+                : block.opcode.startsWith('operator_') ? '#59c059'
+                : block.opcode.startsWith('data_') ? '#ff8c1a'
+                : block.opcode.startsWith('procedures_') ? '#ff6680'
+                : '#4c97ff';
+              return (
+                <div
+                  key={block.id}
+                  draggable
+                  onDragEnd={(e) => handleBlockDragInWorkspace(block.id, e)}
+                  className="absolute rounded-md text-white px-3 py-2 text-[15px] min-w-[180px] shadow cursor-grab active:cursor-grabbing select-none"
+                  style={{ left: block.x ?? 40, top: block.y ?? 40, backgroundColor: blockColor }}
+                >
+                  {block.opcode.replace(/_/g, ' ')}
+                </div>
+              );
+            })}
           </div>
           <div className="absolute right-3 bottom-3 flex flex-col gap-2">
             <button className="w-9 h-9 rounded-full bg-white border border-[#c8d0dd] flex items-center justify-center" onClick={() => setWorkspaceZoom((z) => Math.min(1.4, z + 0.1))}><ZoomIn className="w-4 h-4" /></button>
