@@ -516,7 +516,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 className="absolute rounded-md bg-[#4c97ff] text-white px-3 py-2 text-[15px] min-w-[220px] shadow"
                 style={{ left: block.x ?? 40, top: block.y ?? 40 }}
               >
-                {block.opcode.replaceAll('_', ' ')}
+                {block.opcode.replace(/_/g, ' ')}
               </div>
             ))}
           </div>
