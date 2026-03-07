@@ -1178,7 +1178,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       return;
     }
 
-    if (selectedTemplate === "Arduino") {
+    if (selectedTemplate === "arduino") {
       setIsRunning(false);
       setTerminalHistory((prev) => [
         ...prev,
