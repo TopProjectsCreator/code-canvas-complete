@@ -230,11 +230,201 @@ int main() {
 }
 `;
 
+// Minimal ARM core stubs for Renesas RA4M1 (Arduino Uno R4 WiFi)
+const ARM_CORE_STUBS = `
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define HIGH 1
+#define LOW 0
+#define INPUT 0
+#define OUTPUT 1
+#define INPUT_PULLUP 2
+#define LED_BUILTIN 13
+#define A0 14
+#define A1 15
+#define A2 16
+#define A3 17
+#define A4 18
+#define A5 19
+
+#define DEC 10
+#define HEX 16
+#define OCT 8
+#define BIN 2
+
+typedef uint8_t byte;
+typedef bool boolean;
+
+// RA4M1 register base addresses (simplified)
+#define IOPORT_BASE 0x40040000UL
+#define SCI0_BASE   0x40070000UL
+
+// Simplified volatile register access
+#define REG32(addr) (*(volatile uint32_t*)(addr))
+#define REG8(addr)  (*(volatile uint8_t*)(addr))
+
+// SysTick for millis
+volatile unsigned long _millis_count = 0;
+
+extern "C" void SysTick_Handler(void) {
+  _millis_count++;
+}
+
+unsigned long millis() { return _millis_count; }
+unsigned long micros() { return _millis_count * 1000UL; }
+
+void delay(unsigned long ms) {
+  unsigned long start = millis();
+  while (millis() - start < ms) {}
+}
+
+void delayMicroseconds(unsigned int us) {
+  volatile unsigned int count = us * (48 / 4); // ~48MHz, 4 cycles per loop
+  while (count--) { __asm__ __volatile__("nop"); }
+}
+
+// Simplified GPIO — maps Arduino pins to port/bit pairs
+// R4 WiFi pin mapping (simplified for common pins)
+struct PinMap { uint8_t port; uint8_t bit; };
+static const PinMap pinMap[] = {
+  {1,1}, {1,0}, {1,2}, {1,4}, {1,5}, {1,6}, {1,7}, {1,8}, // D0-D7
+  {3,4}, {3,3}, {3,2}, {3,1}, {3,0}, {1,11},               // D8-D13
+  {0,0}, {0,1}, {0,2}, {0,3}, {0,4}, {0,5},                 // A0-A5
+};
+static const int NUM_PINS = sizeof(pinMap) / sizeof(pinMap[0]);
+
+void pinMode(uint8_t pin, uint8_t mode) {
+  if (pin >= NUM_PINS) return;
+  // Stub: on real hardware this would configure IOPORT PDR/PMR registers
+  (void)mode;
+}
+
+void digitalWrite(uint8_t pin, uint8_t val) {
+  if (pin >= NUM_PINS) return;
+  // Stub: on real hardware this would set IOPORT PODR register
+  (void)val;
+}
+
+int digitalRead(uint8_t pin) {
+  if (pin >= NUM_PINS) return LOW;
+  // Stub: on real hardware this would read IOPORT PIDR register
+  return LOW;
+}
+
+int analogRead(uint8_t pin) {
+  (void)pin;
+  return 0;
+}
+
+void analogWrite(uint8_t pin, int val) {
+  (void)pin; (void)val;
+}
+
+// Serial class (stub for ARM)
+class HardwareSerial {
+public:
+  void begin(unsigned long baud) { (void)baud; }
+  void end() {}
+  int available() { return 0; }
+  int read() { return -1; }
+
+  size_t write(uint8_t c) { (void)c; return 1; }
+  size_t write(const uint8_t *buf, size_t size) {
+    (void)buf; return size;
+  }
+
+  size_t print(const char *s) {
+    size_t n = 0;
+    while (s[n]) n++;
+    return n;
+  }
+  size_t print(int val, int base = DEC) { (void)val; (void)base; return 1; }
+  size_t print(unsigned int val, int base = DEC) { (void)val; (void)base; return 1; }
+  size_t print(long val, int base = DEC) { (void)val; (void)base; return 1; }
+  size_t print(double val, int digits = 2) { (void)val; (void)digits; return 1; }
+
+  size_t println() { return 2; }
+  size_t println(const char *s) { return print(s) + println(); }
+  size_t println(int val, int base = DEC) { return print(val, base) + println(); }
+  size_t println(unsigned int val, int base = DEC) { return print(val, base) + println(); }
+  size_t println(long val, int base = DEC) { return print(val, base) + println(); }
+  size_t println(double val, int digits = 2) { return print(val, digits) + println(); }
+};
+
+HardwareSerial Serial;
+
+long map(long x, long in_min, long in_max, long out_min, long out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+long constrain(long x, long a, long b) {
+  if (x < a) return a;
+  if (x > b) return b;
+  return x;
+}
+
+#define min(a,b) ((a)<(b)?(a):(b))
+#define max(a,b) ((a)>(b)?(a):(b))
+
+void tone(uint8_t pin, unsigned int frequency, unsigned long duration = 0) {
+  (void)pin; (void)frequency; (void)duration;
+}
+void noTone(uint8_t pin) { (void)pin; }
+
+void setup();
+void loop();
+
+// Minimal startup for ARM
+void _init_systick() {
+  // SysTick reload value for 1ms at 48MHz
+  volatile uint32_t* SYST_RVR = (volatile uint32_t*)0xE000E014;
+  volatile uint32_t* SYST_CSR = (volatile uint32_t*)0xE000E010;
+  *SYST_RVR = 48000 - 1;
+  *SYST_CSR = 0x07; // Enable, interrupt, processor clock
+}
+
+int main() {
+  _init_systick();
+  setup();
+  while (1) loop();
+  return 0;
+}
+`;
+
+// Board configuration for compilation
+const BOARD_CONFIGS: Record<string, { compiler: string; stubs: string; args: string; isArm: boolean }> = {
+  uno: {
+    compiler: 'avrg1320',
+    stubs: ARDUINO_CORE_STUBS,
+    args: '-mmcu=atmega328p -DF_CPU=16000000UL -Os -std=gnu++11',
+    isArm: false,
+  },
+  nano: {
+    compiler: 'avrg1320',
+    stubs: ARDUINO_CORE_STUBS,
+    args: '-mmcu=atmega328p -DF_CPU=16000000UL -Os -std=gnu++11',
+    isArm: false,
+  },
+  mega: {
+    compiler: 'avrg1320',
+    stubs: ARDUINO_CORE_STUBS,
+    args: '-mmcu=atmega2560 -DF_CPU=16000000UL -Os -std=gnu++11',
+    isArm: false,
+  },
+  uno_r4_wifi: {
+    compiler: 'armg1320',
+    stubs: ARM_CORE_STUBS,
+    args: '-mcpu=cortex-m4 -mthumb -Os -DF_CPU=48000000UL -std=gnu++11 -fno-exceptions -fno-rtti -nostdlib',
+    isArm: true,
+  },
+};
+
 // ELF to Intel HEX conversion
 function elfToHex(elfBase64: string): string {
   const elfBytes = Uint8Array.from(atob(elfBase64), c => c.charCodeAt(0));
   
-  // Parse ELF header
   const is32 = elfBytes[4] === 1;
   if (!is32) throw new Error('Only 32-bit ELF supported');
   
@@ -248,12 +438,11 @@ function elfToHex(elfBase64: string): string {
   const phentsize = readU16(42);
   const phnum = readU16(44);
   
-  // Extract loadable segments
   const segments: { paddr: number; data: Uint8Array }[] = [];
   for (let i = 0; i < phnum; i++) {
     const off = phoff + i * phentsize;
     const pType = readU32(off);
-    if (pType !== 1) continue; // PT_LOAD
+    if (pType !== 1) continue;
     
     const fileOff = readU32(off + 4);
     const paddr = readU32(off + 12);
@@ -269,9 +458,7 @@ function elfToHex(elfBase64: string): string {
   
   if (segments.length === 0) throw new Error('No loadable segments in ELF');
   
-  // Generate Intel HEX
   let hex = '';
-  
   for (const seg of segments) {
     const baseAddr = seg.paddr;
     const data = seg.data;
@@ -294,7 +481,6 @@ function elfToHex(elfBase64: string): string {
     }
   }
   
-  // EOF record
   hex += ':00000001FF\n';
   return hex;
 }
@@ -305,6 +491,15 @@ function toHex8(n: number): string {
 
 function toHex16(n: number): string {
   return n.toString(16).toUpperCase().padStart(4, '0');
+}
+
+// Convert raw bytes to flat binary base64
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
 Deno.serve(async (req: Request) => {
@@ -322,11 +517,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const boardConfig = BOARD_CONFIGS[board] || BOARD_CONFIGS['uno'];
+
     // Combine stubs + user sketch
-    const fullSource = ARDUINO_CORE_STUBS + '\n// === USER SKETCH ===\n' + sketch;
+    const fullSource = boardConfig.stubs + '\n// === USER SKETCH ===\n' + sketch;
 
     // Compile via Compiler Explorer (Godbolt) API
-    const compileResponse = await fetch('https://godbolt.org/api/compiler/avrg1320/compile', {
+    const compileResponse = await fetch(`https://godbolt.org/api/compiler/${boardConfig.compiler}/compile`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -335,7 +532,7 @@ Deno.serve(async (req: Request) => {
       body: JSON.stringify({
         source: fullSource,
         options: {
-          userArguments: '-mmcu=atmega328p -DF_CPU=16000000UL -Os -std=gnu++11',
+          userArguments: boardConfig.args,
           compilerOptions: {},
           filters: {
             binary: true,
@@ -364,12 +561,12 @@ Deno.serve(async (req: Request) => {
     const result = await compileResponse.json();
 
     // Check for compilation errors
+    const stubs = boardConfig.stubs;
     const stderr = (result.stderr || []).map((s: { text: string }) => s.text).join('\n');
     const hasErrors = (result.code !== 0);
 
     if (hasErrors) {
-      // Extract user-relevant errors (adjust line numbers to remove stub offset)
-      const stubLines = ARDUINO_CORE_STUBS.split('\n').length;
+      const stubLines = stubs.split('\n').length;
       const userErrors = stderr.replace(/<source>:(\d+)/g, (_: string, lineStr: string) => {
         const line = parseInt(lineStr) - stubLines;
         return line > 0 ? `sketch:${line}` : `core:${lineStr}`;
@@ -386,12 +583,10 @@ Deno.serve(async (req: Request) => {
     }
 
     // Parse binary output from Godbolt
-    // Asm objects may have: { text, source, address, opcodes }
     const asmEntries = result.asm || [];
     const hexBytes: number[] = [];
     let maxAddr = 0;
 
-    // Debug: log structure of first asm entry with address
     const sampleWithAddr = asmEntries.find((a: Record<string, unknown>) => a.address !== undefined);
     const debugInfo = {
       totalAsmEntries: asmEntries.length,
@@ -400,7 +595,6 @@ Deno.serve(async (req: Request) => {
       firstFew: asmEntries.slice(0, 3),
     };
 
-    // Try to extract opcodes from structured data
     for (const entry of asmEntries) {
       if (entry.address !== undefined && entry.opcodes) {
         const addr = entry.address;
@@ -449,10 +643,23 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Convert to Intel HEX
     const binaryData = new Uint8Array(hexBytes.slice(0, maxAddr));
-    let hexOutput = '';
 
+    // For ARM boards, return raw binary (base64-encoded) instead of Intel HEX
+    if (boardConfig.isArm) {
+      return new Response(
+        JSON.stringify({
+          binary: bytesToBase64(binaryData),
+          format: 'bin',
+          size: maxAddr,
+          warnings: stderr || null,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // For AVR boards, return Intel HEX
+    let hexOutput = '';
     for (let i = 0; i < binaryData.length; i += 16) {
       const chunkLen = Math.min(16, binaryData.length - i);
       const addr = i & 0xFFFF;
