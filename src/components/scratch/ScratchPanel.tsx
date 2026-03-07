@@ -421,60 +421,63 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setSelectedTargetIndex(project.targets.length);
   };
 
-  const addMotionBlock = (label: string) => {
+  const addBlock = (blockDef: { label: string; opcode: string; inputs?: Record<string, unknown>; fields?: Record<string, unknown> }, dropX?: number, dropY?: number) => {
     if (!selectedTarget || selectedTarget.isStage || activeEditorTab !== 'code') return;
-    const hatId = generateId();
     const blockId = generateId();
-
-    const opcodeMap: Record<string, { opcode: string; inputs?: Record<string, unknown>; fields?: Record<string, unknown> }> = {
-      'move 10 steps': { opcode: 'motion_movesteps', inputs: { STEPS: makeNumberInput('10') } },
-      'turn ⟳ 15 degrees': { opcode: 'motion_turnright', inputs: { DEGREES: makeNumberInput('15') } },
-      'turn ⟲ 15 degrees': { opcode: 'motion_turnleft', inputs: { DEGREES: makeNumberInput('15') } },
-      'go to random position': { opcode: 'motion_goto', fields: { TO: ['_random_', null] } },
-      'go to x: 0  y: 0': { opcode: 'motion_gotoxy', inputs: { X: makeNumberInput('0'), Y: makeNumberInput('0') } },
-      'glide 1 secs to random position': { opcode: 'motion_glideto', inputs: { SECS: makeNumberInput('1') }, fields: { TO: ['_random_', null] } },
-      'glide 1 secs to x: 0  y: 0': { opcode: 'motion_glidesecstoxy', inputs: { SECS: makeNumberInput('1'), X: makeNumberInput('0'), Y: makeNumberInput('0') } },
-      'point in direction 90': { opcode: 'motion_pointindirection', inputs: { DIRECTION: makeNumberInput('90') } },
-      'point towards mouse-pointer': { opcode: 'motion_pointtowards', fields: { TOWARDS: ['_mouse_', null] } },
-      'change x by 10': { opcode: 'motion_changexby', inputs: { DX: makeNumberInput('10') } },
-      'set x to 0': { opcode: 'motion_setx', inputs: { X: makeNumberInput('0') } },
-      'change y by 10': { opcode: 'motion_changeyby', inputs: { DY: makeNumberInput('10') } },
-      'set y to 0': { opcode: 'motion_sety', inputs: { Y: makeNumberInput('0') } },
-      'if on edge, bounce': { opcode: 'motion_ifonedgebounce' },
-    };
-
-    const blockDef = opcodeMap[label] || opcodeMap['move 10 steps'];
+    const blockCount = Object.keys(selectedTarget.blocks || {}).length;
 
     updateProject((current) => ({
       ...current,
       targets: current.targets.map((target, idx) => {
         if (idx !== selectedTargetIndex) return target;
-        const blockCount = Object.keys(target.blocks || {}).length;
         return {
           ...target,
           blocks: {
             ...(target.blocks || {}),
-            [hatId]: {
-              id: hatId,
-              opcode: 'event_whenflagclicked',
-              next: blockId,
-              parent: null,
-              topLevel: true,
-              x: 40,
-              y: 30 + blockCount * 70,
-              inputs: {},
-              fields: {},
-            },
             [blockId]: {
               id: blockId,
               opcode: blockDef.opcode,
               next: null,
-              parent: hatId,
-              topLevel: false,
+              parent: null,
+              topLevel: true,
+              x: dropX ?? 40,
+              y: dropY ?? (30 + blockCount * 55),
               inputs: blockDef.inputs || {},
               fields: blockDef.fields || {},
             },
           },
+        };
+      }),
+    }));
+  };
+
+  const handleWorkspaceDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/scratch-block'));
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / workspaceZoom;
+      const y = (e.clientY - rect.top) / workspaceZoom;
+      addBlock(data, x, y);
+    } catch { /* ignore */ }
+  };
+
+  const handleBlockDragInWorkspace = (blockId: string, e: React.DragEvent) => {
+    const rect = e.currentTarget.closest('.scratch-workspace')?.getBoundingClientRect();
+    if (!rect) return;
+    const x = (e.clientX - rect.left) / workspaceZoom;
+    const y = (e.clientY - rect.top) / workspaceZoom;
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        return {
+          ...target,
+          blocks: Object.fromEntries(
+            Object.entries(target.blocks || {}).map(([id, block]) =>
+              id === blockId ? [id, { ...block, x, y }] : [id, block]
+            )
+          ),
         };
       }),
     }));
