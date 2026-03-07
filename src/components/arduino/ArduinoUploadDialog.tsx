@@ -32,7 +32,7 @@ export interface UploadConfig {
 interface ArduinoUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpload: (config: UploadConfig) => Promise<void>;
+  onUpload: (config: UploadConfig, onProgress?: (message: string, percent?: number) => void) => Promise<void>;
   sketchCode: string;
 }
 
