@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { arduinoBoards } from '@/data/arduinoTemplates';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 
 declare global {
   interface Navigator {
@@ -32,7 +33,7 @@ export interface UploadConfig {
 interface ArduinoUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpload: (config: UploadConfig) => Promise<void>;
+  onUpload: (config: UploadConfig, onProgress?: (message: string, percent?: number) => void) => Promise<void>;
   sketchCode: string;
 }
 
@@ -52,6 +53,8 @@ export function ArduinoUploadDialog({
   const [ports, setPorts] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
+  const [progressLog, setProgressLog] = useState<string[]>([]);
+  const [progressPercent, setProgressPercent] = useState(0);
 
   useEffect(() => {
     if (open) {
@@ -126,9 +129,14 @@ export function ArduinoUploadDialog({
   const handleUpload = async () => {
     setLoading(true);
     setError('');
+    setProgressLog([]);
+    setProgressPercent(0);
 
     try {
-      await onUpload(config);
+      await onUpload(config, (message, percent) => {
+        setProgressLog(prev => [...prev, message]);
+        if (percent !== undefined) setProgressPercent(percent);
+      });
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
@@ -257,7 +265,27 @@ export function ArduinoUploadDialog({
             <div className="text-sm text-red-500">Selected board does not support Bluetooth uploads.</div>
           )}
 
-          {error && <div className="text-sm text-red-500">{error}</div>}
+          {error && (
+            <div className="text-sm text-destructive whitespace-pre-wrap max-h-32 overflow-auto bg-destructive/10 p-2 rounded">
+              {error}
+            </div>
+          )}
+
+          {loading && progressLog.length > 0 && (
+            <div className="space-y-2">
+              <Progress value={progressPercent} className="h-2" />
+              <div className="text-xs text-muted-foreground max-h-24 overflow-auto space-y-0.5">
+                {progressLog.map((msg, i) => (
+                  <div key={i}>{msg}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="text-xs text-muted-foreground flex items-start gap-1.5 bg-muted/50 p-2 rounded">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>Browser flashing supports basic Arduino functions only (digital/analog I/O, Serial, delay). For complex libraries, use Arduino IDE.</span>
+          </div>
         </div>
 
         <DialogFooter>

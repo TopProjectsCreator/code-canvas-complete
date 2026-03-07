@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BreadboardVisualizer } from './BreadboardVisualizer';
 import { LibraryManager } from './LibraryManager';
-import { ArduinoUploadDialog } from './ArduinoUploadDialog';
+import { ArduinoUploadDialog, UploadConfig } from './ArduinoUploadDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -167,14 +167,9 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
       <ArduinoUploadDialog
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
-        onUpload={async (config) => {
-          // Handle upload
+        onUpload={async (config: UploadConfig, onProgress?: (message: string, percent?: number) => void) => {
           const { ArduinoUploadService } = await import('@/services/arduinoUploadService');
-          if (config.uploadMethod === 'serial') {
-            await ArduinoUploadService.uploadViaSerial(getSketchWithLibraries(), config);
-          } else {
-            await ArduinoUploadService.uploadViaBackend(getSketchWithLibraries(), config);
-          }
+          await ArduinoUploadService.uploadViaSerial(getSketchWithLibraries(), config, onProgress);
         }}
         sketchCode={getSketchWithLibraries()}
       />
