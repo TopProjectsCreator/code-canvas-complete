@@ -373,63 +373,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     } catch {
       // noop
     }
-const generateId = () => Math.random().toString(36).slice(2, 9);
-
-export const ScratchPanel = ({
-  archive,
-  onArchiveChange,
-  onProjectJsonUpdate,
-  isRunning,
-  onRun,
-  onStop,
-}: ScratchPanelProps) => {
-  const [blocks, setBlocks] = useState<ScratchBlock[]>([]);
-  const [sprite, setSprite] = useState({ x: 140, y: 100, rotation: 0, speech: '' });
-  const [runningIndex, setRunningIndex] = useState<number | null>(null);
-  const importInputRef = useRef<HTMLInputElement>(null);
-
-  const targetsCount = useMemo(() => {
-    if (!archive) return 0;
-    try {
-      const parsed = JSON.parse(archive.projectJson) as { targets?: unknown[] };
-      return parsed.targets?.length ?? 0;
-    } catch {
-      return 0;
-    }
-  }, [archive]);
-
-  const addBlock = (opcode: ScratchBlock['opcode']) => {
-    const defaults: Record<ScratchBlock['opcode'], string> = {
-      move: '10',
-      turn: '15',
-      say: 'Hello!',
-      wait: '1',
-    };
-    setBlocks((prev) => [...prev, { id: generateId(), opcode, value: defaults[opcode] }]);
-  };
-
-  const runBlocks = async () => {
-    onRun();
-    for (let i = 0; i < blocks.length; i += 1) {
-      setRunningIndex(i);
-      const block = blocks[i];
-      if (block.opcode === 'move') {
-        const amount = Number(block.value) || 0;
-        setSprite((prev) => ({ ...prev, x: Math.max(0, Math.min(280, prev.x + amount)) }));
-      }
-      if (block.opcode === 'turn') {
-        const amount = Number(block.value) || 0;
-        setSprite((prev) => ({ ...prev, rotation: prev.rotation + amount }));
-      }
-      if (block.opcode === 'say') {
-        setSprite((prev) => ({ ...prev, speech: block.value }));
-      }
-      if (block.opcode === 'wait') {
-        const seconds = Math.max(0, Number(block.value) || 0);
-        await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
-      }
-    }
-    setRunningIndex(null);
     onStop();
   };
 
@@ -446,12 +389,6 @@ export const ScratchPanel = ({
 
   const handleExport = async () => {
     const data = await exportSb3(ensureArchive(archive));
-    const blob = new Blob([data], { type: 'application/x.scratch.sb3' });
-  };
-
-  const handleExport = async () => {
-    if (!archive) return;
-    const data = await exportSb3(archive);
     const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer], { type: 'application/x.scratch.sb3' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
