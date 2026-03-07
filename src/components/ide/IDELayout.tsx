@@ -624,7 +624,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     }
 
     addHistoryEntry('file-create', `Created ${type}: ${name}`);
-  }, [addHistoryEntry]);
+  }, [addHistoryEntry, files, toast]);
 
   // addFile is defined further below (after handleContentChange) to avoid TDZ issues
 
