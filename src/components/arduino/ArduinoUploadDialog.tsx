@@ -265,7 +265,27 @@ export function ArduinoUploadDialog({
             <div className="text-sm text-red-500">Selected board does not support Bluetooth uploads.</div>
           )}
 
-          {error && <div className="text-sm text-red-500">{error}</div>}
+          {error && (
+            <div className="text-sm text-destructive whitespace-pre-wrap max-h-32 overflow-auto bg-destructive/10 p-2 rounded">
+              {error}
+            </div>
+          )}
+
+          {loading && progressLog.length > 0 && (
+            <div className="space-y-2">
+              <Progress value={progressPercent} className="h-2" />
+              <div className="text-xs text-muted-foreground max-h-24 overflow-auto space-y-0.5">
+                {progressLog.map((msg, i) => (
+                  <div key={i}>{msg}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="text-xs text-muted-foreground flex items-start gap-1.5 bg-muted/50 p-2 rounded">
+            <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+            <span>Browser flashing supports basic Arduino functions only (digital/analog I/O, Serial, delay). For complex libraries, use Arduino IDE.</span>
+          </div>
         </div>
 
         <DialogFooter>
