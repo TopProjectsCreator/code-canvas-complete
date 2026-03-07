@@ -128,9 +128,14 @@ export function ArduinoUploadDialog({
   const handleUpload = async () => {
     setLoading(true);
     setError('');
+    setProgressLog([]);
+    setProgressPercent(0);
 
     try {
-      await onUpload(config);
+      await onUpload(config, (message, percent) => {
+        setProgressLog(prev => [...prev, message]);
+        if (percent !== undefined) setProgressPercent(percent);
+      });
       onOpenChange(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
