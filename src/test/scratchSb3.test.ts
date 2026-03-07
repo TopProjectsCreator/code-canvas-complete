@@ -18,6 +18,7 @@ describe('scratch sb3 import/export', () => {
 
     const outData = await exportSb3(imported.archive);
     const out = outData.buffer.slice(outData.byteOffset, outData.byteOffset + outData.byteLength);
+    const out = outData.buffer.slice(outData.byteOffset, outData.byteOffset + outData.byteLength) as ArrayBuffer;
     const outImported = await importSb3(out);
 
     expect(outImported.archive.projectJson).toContain('Sprite1');
