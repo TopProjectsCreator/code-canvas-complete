@@ -421,32 +421,78 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setSelectedTargetIndex(project.targets.length);
   };
 
+  const SNAP_DISTANCE = 40;
+  const BLOCK_HEIGHT = 42;
+
+  const findSnapTarget = (blocks: Record<string, ScratchBlockNode>, dropX: number, dropY: number, excludeId?: string): string | null => {
+    for (const [id, block] of Object.entries(blocks)) {
+      if (id === excludeId) continue;
+      if (block.next) continue; // already has a next block
+      const bx = block.x ?? 0;
+      const by = block.y ?? 0;
+      // Check if drop is near the bottom of this block
+      if (Math.abs(dropX - bx) < 80 && Math.abs(dropY - (by + BLOCK_HEIGHT)) < SNAP_DISTANCE) {
+        return id;
+      }
+    }
+    return null;
+  };
+
+  const getStackBottom = (blocks: Record<string, ScratchBlockNode>, startId: string): { x: number; y: number; count: number } => {
+    let current = blocks[startId];
+    let count = 0;
+    while (current?.next && blocks[current.next]) {
+      current = blocks[current.next];
+      count++;
+    }
+    return { x: current?.x ?? 0, y: (current?.y ?? 0), count };
+  };
+
   const addBlock = (blockDef: { label: string; opcode: string; inputs?: Record<string, unknown>; fields?: Record<string, unknown> }, dropX?: number, dropY?: number) => {
     if (!selectedTarget || selectedTarget.isStage || activeEditorTab !== 'code') return;
     const blockId = generateId();
     const blockCount = Object.keys(selectedTarget.blocks || {}).length;
+    const finalX = dropX ?? 40;
+    const finalY = dropY ?? (30 + blockCount * 55);
 
     updateProject((current) => ({
       ...current,
       targets: current.targets.map((target, idx) => {
         if (idx !== selectedTargetIndex) return target;
-        return {
-          ...target,
-          blocks: {
-            ...(target.blocks || {}),
-            [blockId]: {
-              id: blockId,
-              opcode: blockDef.opcode,
-              next: null,
-              parent: null,
-              topLevel: true,
-              x: dropX ?? 40,
-              y: dropY ?? (30 + blockCount * 55),
-              inputs: blockDef.inputs || {},
-              fields: blockDef.fields || {},
-            },
-          },
-        };
+        const blocks = { ...(target.blocks || {}) };
+        const snapParentId = findSnapTarget(blocks, finalX, finalY);
+
+        if (snapParentId && blocks[snapParentId]) {
+          const parent = blocks[snapParentId];
+          const snapX = parent.x ?? 0;
+          const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+          blocks[snapParentId] = { ...parent, next: blockId };
+          blocks[blockId] = {
+            id: blockId,
+            opcode: blockDef.opcode,
+            next: null,
+            parent: snapParentId,
+            topLevel: false,
+            x: snapX,
+            y: snapY,
+            inputs: blockDef.inputs || {},
+            fields: blockDef.fields || {},
+          };
+        } else {
+          blocks[blockId] = {
+            id: blockId,
+            opcode: blockDef.opcode,
+            next: null,
+            parent: null,
+            topLevel: true,
+            x: finalX,
+            y: finalY,
+            inputs: blockDef.inputs || {},
+            fields: blockDef.fields || {},
+          };
+        }
+
+        return { ...target, blocks };
       }),
     }));
   };
@@ -471,13 +517,30 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       ...current,
       targets: current.targets.map((target, idx) => {
         if (idx !== selectedTargetIndex) return target;
-        return {
-          ...target,
-          blocks: Object.fromEntries(
-            Object.entries(target.blocks || {}).map(([id, block]) =>
-              id === blockId ? [id, { ...block, x, y }] : [id, block]
-            )
-          ),
+        const blocks = { ...(target.blocks || {}) };
+        const block = blocks[blockId];
+        if (!block) return target;
+
+        // Detach from old parent
+        if (block.parent && blocks[block.parent]) {
+          blocks[block.parent] = { ...blocks[block.parent], next: null };
+        }
+
+        // Try snapping to a new parent
+        const snapParentId = findSnapTarget(blocks, x, y, blockId);
+        if (snapParentId && blocks[snapParentId]) {
+          const parent = blocks[snapParentId];
+          const snapX = parent.x ?? 0;
+          const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+          blocks[snapParentId] = { ...parent, next: blockId };
+          blocks[blockId] = { ...block, x: snapX, y: snapY, parent: snapParentId, topLevel: false };
+        } else {
+          blocks[blockId] = { ...block, x, y, parent: null, topLevel: true };
+        }
+
+        return { ...target, blocks };
+      }),
+    }));
         };
       }),
     }));
