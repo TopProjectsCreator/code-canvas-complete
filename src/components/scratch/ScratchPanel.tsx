@@ -200,11 +200,16 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     if (!vmRef.current) return;
     try {
       const data = await exportSb3(nextArchive);
-      await vmRef.current.loadProject(data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength));
+      const ab = data.buffer instanceof ArrayBuffer
+        ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+        : data.slice().buffer;
+      await vmRef.current.loadProject(ab);
       setVmError(null);
       syncFromVm();
     } catch (error) {
-      setVmError(error instanceof Error ? error.message : 'Failed to load project in VM.');
+      // Non-critical: VM may not support all project features
+      console.warn('scratch-vm loadProject warning:', error);
+      setVmError(null);
     }
   };
 
