@@ -167,14 +167,9 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
       <ArduinoUploadDialog
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
-        onUpload={async (config) => {
-          // Handle upload
+        onUpload={async (config, onProgress) => {
           const { ArduinoUploadService } = await import('@/services/arduinoUploadService');
-          if (config.uploadMethod === 'serial') {
-            await ArduinoUploadService.uploadViaSerial(getSketchWithLibraries(), config);
-          } else {
-            await ArduinoUploadService.uploadViaBackend(getSketchWithLibraries(), config);
-          }
+          await ArduinoUploadService.uploadViaSerial(getSketchWithLibraries(), config, onProgress);
         }}
         sketchCode={getSketchWithLibraries()}
       />
