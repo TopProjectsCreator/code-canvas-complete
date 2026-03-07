@@ -30,7 +30,6 @@ interface ScratchBlockNode {
   parent?: string | null;
   inputs?: Record<string, unknown>;
   fields?: Record<string, unknown>;
-  shadow?: boolean;
   topLevel?: boolean;
   x?: number;
   y?: number;
@@ -86,14 +85,6 @@ interface ScratchPanelProps {
   onStop: () => void;
 }
 
-type ScratchBlockDef = {
-  label: string;
-  opcode: string;
-  inputs?: Record<string, unknown>;
-  fields?: Record<string, unknown>;
-  action?: 'create_variable' | 'create_list';
-};
-
 
 const DEFAULT_PROJECT: ScratchProject = {
   targets: [
@@ -130,7 +121,7 @@ const DEFAULT_PROJECT: ScratchProject = {
   },
 };
 
-const categoryBlocks: Record<string, ScratchBlockDef[]> = {
+const categoryBlocks: Record<string, { label: string; opcode: string; inputs?: Record<string, unknown>; fields?: Record<string, unknown> }[]> = {
   Motion: [
     { label: 'move 10 steps', opcode: 'motion_movesteps', inputs: { STEPS: [1, [4, '10']] } },
     { label: 'turn ⟳ 15 degrees', opcode: 'motion_turnright', inputs: { DEGREES: [1, [4, '15']] } },
@@ -237,8 +228,7 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'abs of ( )', opcode: 'operator_mathop', inputs: { NUM: [1, [4, '']] }, fields: { OPERATOR: ['abs', null] } },
   ],
   Variables: [
-    { label: 'Make a Variable', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] }, action: 'create_variable' },
-    { label: 'Make a List', opcode: 'data_addtolist', inputs: { ITEM: [1, [10, 'thing']] }, action: 'create_list' },
+    { label: 'Make a Variable', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] } },
     { label: 'set my variable to 0', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] } },
     { label: 'change my variable by 1', opcode: 'data_changevariableby', inputs: { VALUE: [1, [4, '1']] } },
     { label: 'show variable', opcode: 'data_showvariable' },
@@ -332,123 +322,6 @@ const bytesToBase64 = (bytes: Uint8Array) => {
     binary += String.fromCharCode(...chunk);
   }
   return btoa(binary);
-};
-
-const getFieldOption = (fields: Record<string, unknown> | undefined, key: string, fallback: string) => {
-  const tuple = fields?.[key];
-  if (!Array.isArray(tuple) || typeof tuple[0] !== 'string') return fallback;
-  return tuple[0];
-};
-
-const createVmCompatibleBlockShape = (
-  blockId: string,
-  blockDef: ScratchBlockDef,
-) => {
-  const nextInputs = { ...(blockDef.inputs || {}) };
-  const nextFields = { ...(blockDef.fields || {}) };
-  const extraBlocks: Record<string, ScratchBlockNode> = {};
-
-  if (blockDef.opcode === 'motion_goto' || blockDef.opcode === 'motion_glideto') {
-    const menuId = generateId();
-    const toValue = getFieldOption(blockDef.fields, 'TO', '_random_');
-    extraBlocks[menuId] = {
-      id: menuId,
-      opcode: 'motion_goto_menu',
-      parent: blockId,
-      topLevel: false,
-      shadow: true,
-      fields: { TO: [toValue, null] },
-      inputs: {},
-      next: null,
-    };
-    nextInputs.TO = [1, menuId];
-    delete nextFields.TO;
-  }
-
-  if (blockDef.opcode === 'motion_pointtowards') {
-    const menuId = generateId();
-    const towardValue = getFieldOption(blockDef.fields, 'TOWARDS', '_mouse_');
-    extraBlocks[menuId] = {
-      id: menuId,
-      opcode: 'motion_pointtowards_menu',
-      parent: blockId,
-      topLevel: false,
-      shadow: true,
-      fields: { TOWARDS: [towardValue, null] },
-      inputs: {},
-      next: null,
-    };
-    nextInputs.TOWARDS = [1, menuId];
-    delete nextFields.TOWARDS;
-  }
-
-  return {
-    inputs: nextInputs,
-    fields: nextFields,
-    extraBlocks,
-  };
-};
-
-const variableOpcodes = new Set([
-  'data_setvariableto',
-  'data_changevariableby',
-  'data_showvariable',
-  'data_hidevariable',
-]);
-
-const listOpcodes = new Set([
-  'data_addtolist',
-  'data_deleteoflist',
-  'data_deletealloflist',
-  'data_insertatlist',
-  'data_replaceitemoflist',
-  'data_itemoflist',
-  'data_lengthoflist',
-  'data_listcontainsitem',
-  'data_showlist',
-  'data_hidelist',
-]);
-
-const getUniqueDataName = (existingNames: string[], baseName: string) => {
-  if (!existingNames.includes(baseName)) return baseName;
-  let count = 2;
-  while (existingNames.includes(`${baseName}${count}`)) count += 1;
-  return `${baseName}${count}`;
-};
-
-const ensureDataRefForTarget = (target: ScratchTarget, blockDef: ScratchBlockDef): { target: ScratchTarget; fields: Record<string, unknown> } => {
-  const nextTarget: ScratchTarget = {
-    ...target,
-    variables: { ...(target.variables || {}) },
-    lists: { ...(target.lists || {}) },
-  };
-  const nextFields: Record<string, unknown> = { ...(blockDef.fields || {}) };
-
-  if (variableOpcodes.has(blockDef.opcode)) {
-    const vars = nextTarget.variables || {};
-    let selectedId = Object.keys(vars)[0];
-    if (!selectedId) {
-      selectedId = generateId();
-      const varName = getUniqueDataName(Object.values(vars).map(([name]) => name), 'my variable');
-      vars[selectedId] = [varName, 0];
-      nextTarget.variables = vars;
-    }
-    nextFields.VARIABLE = [vars[selectedId][0], selectedId];
-  }
-
-  if (listOpcodes.has(blockDef.opcode)) {
-    const lists = nextTarget.lists || {};
-    let selectedId = Object.keys(lists)[0];
-    if (!selectedId) {
-      selectedId = generateId();
-      const listName = getUniqueDataName(Object.values(lists).map(([name]) => name), 'my list');
-      lists[selectedId] = [listName, []];
-      nextTarget.lists = lists;
-    }
-    nextFields.LIST = [lists[selectedId][0], selectedId];
-  }
-
-  return { target: nextTarget, fields: nextFields };
 };
 
 export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, isRunning, onRun, onStop }: ScratchPanelProps) => {
@@ -723,7 +596,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     return { x: current?.x ?? 0, y: (current?.y ?? 0), count };
   };
 
-  const addBlock = (blockDef: ScratchBlockDef, dropX?: number, dropY?: number) => {
+  const addBlock = (blockDef: { label: string; opcode: string; inputs?: Record<string, unknown>; fields?: Record<string, unknown> }, dropX?: number, dropY?: number) => {
     if (!selectedTarget || selectedTarget.isStage || activeEditorTab !== 'code') return;
     const blockId = generateId();
     const blockCount = Object.keys(selectedTarget.blocks || {}).length;
@@ -734,34 +607,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       ...current,
       targets: current.targets.map((target, idx) => {
         if (idx !== selectedTargetIndex) return target;
-        if (blockDef.action === 'create_variable') {
-          const vars = { ...(target.variables || {}) };
-          const id = generateId();
-          const name = getUniqueDataName(Object.values(vars).map(([n]) => n), 'my variable');
-          vars[id] = [name, 0];
-          return { ...target, variables: vars };
-        }
-        if (blockDef.action === 'create_list') {
-          const lists = { ...(target.lists || {}) };
-          const id = generateId();
-          const name = getUniqueDataName(Object.values(lists).map(([n]) => n), 'my list');
-          lists[id] = [name, []];
-          return { ...target, lists };
-        }
-
         const blocks = { ...(target.blocks || {}) };
-        const dataResolved = ensureDataRefForTarget(target, blockDef);
-        const resolvedBlockDef: ScratchBlockDef = {
-          ...blockDef,
-          fields: dataResolved.fields,
-        };
         const snapParentId = findSnapTarget(blocks, finalX, finalY);
 
         if (snapParentId && blocks[snapParentId]) {
           const parent = blocks[snapParentId];
           const snapX = parent.x ?? 0;
           const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
-          const vmCompatible = createVmCompatibleBlockShape(blockId, resolvedBlockDef);
           blocks[snapParentId] = { ...parent, next: blockId };
           blocks[blockId] = {
             id: blockId,
@@ -771,10 +623,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             topLevel: false,
             x: snapX,
             y: snapY,
-            inputs: vmCompatible.inputs,
-            fields: vmCompatible.fields,
+            inputs: blockDef.inputs || {},
+            fields: blockDef.fields || {},
           };
-          Object.assign(blocks, vmCompatible.extraBlocks);
         } else {
           if (isEventBlock(blockDef.opcode)) {
             blocks[blockId] = {
@@ -786,10 +637,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               x: finalX,
               y: finalY,
               inputs: blockDef.inputs || {},
-              fields: resolvedBlockDef.fields || {},
-            };
-          } else {
-            const vmCompatible = createVmCompatibleBlockShape(blockId, resolvedBlockDef);
               fields: blockDef.fields || {},
             };
           } else {
@@ -813,17 +660,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               topLevel: false,
               x: finalX,
               y: finalY,
-              inputs: vmCompatible.inputs,
-              fields: vmCompatible.fields,
-            };
-            Object.assign(blocks, vmCompatible.extraBlocks);
               inputs: blockDef.inputs || {},
               fields: blockDef.fields || {},
             };
           }
         }
 
-        return { ...dataResolved.target, blocks };
+        return { ...target, blocks };
       }),
     }));
   };
@@ -1095,20 +938,64 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               backgroundSize: '32px 32px',
             }}
           >
-            {selectedBlocks.map((block) => {
-              const blockColor = getBlockColor(block.opcode);
-              return (
-                <div
-                  key={block.id}
-                  draggable
-                  onDragEnd={(e) => handleBlockDragInWorkspace(block.id, e)}
-                  className="absolute rounded-2xl text-white px-3 py-2 text-[13px] min-w-[200px] shadow cursor-grab active:cursor-grabbing select-none border-b-2 border-black/20"
-                  style={{ left: block.x ?? 40, top: block.y ?? 40, backgroundColor: blockColor }}
-                >
-                  <div className="font-medium">{blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ')}</div>
-                </div>
-              );
-            })}
+            {(() => {
+              const blocks = selectedTarget?.blocks || {};
+              const rendered = new Set<string>();
+              const elements: React.ReactNode[] = [];
+
+              const renderChain = (startId: string) => {
+                const chain: ScratchBlockNode[] = [];
+                let currentId: string | null | undefined = startId;
+                while (currentId && blocks[currentId] && !rendered.has(currentId)) {
+                  rendered.add(currentId);
+                  chain.push(blocks[currentId]);
+                  currentId = blocks[currentId].next;
+                }
+                if (chain.length === 0) return;
+                const baseX = chain[0].x ?? 40;
+                const baseY = chain[0].y ?? 40;
+
+                elements.push(
+                  <div
+                    key={startId}
+                    draggable
+                    onDragEnd={(e) => handleBlockDragInWorkspace(startId, e)}
+                    className="absolute cursor-grab active:cursor-grabbing select-none"
+                    style={{ left: baseX, top: baseY }}
+                  >
+                    {chain.map((block, i) => {
+                      const blockColor = getBlockColor(block.opcode);
+                      const isFirst = i === 0;
+                      const isLast = i === chain.length - 1;
+                      return (
+                        <div
+                          key={block.id}
+                          className={`text-white px-3 py-2 text-[13px] min-w-[200px] shadow-sm ${isFirst ? 'rounded-t-2xl' : ''} ${isLast ? 'rounded-b-2xl border-b-2 border-black/20' : ''}`}
+                          style={{ backgroundColor: blockColor, marginTop: i > 0 ? -1 : 0 }}
+                        >
+                          <div className="font-medium">{blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ')}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              };
+
+              // Render top-level chains first
+              Object.values(blocks).forEach((block) => {
+                if (block.topLevel && !rendered.has(block.id)) {
+                  renderChain(block.id);
+                }
+              });
+              // Render any orphans
+              Object.values(blocks).forEach((block) => {
+                if (!rendered.has(block.id)) {
+                  renderChain(block.id);
+                }
+              });
+
+              return elements;
+            })()}
           </div>
           <div className="absolute right-3 bottom-3 flex flex-col gap-2">
             <button className="w-9 h-9 rounded-full bg-white border border-[#c8d0dd] flex items-center justify-center" onClick={() => setWorkspaceZoom((z) => Math.min(1.4, z + 0.1))}><ZoomIn className="w-4 h-4" /></button>
