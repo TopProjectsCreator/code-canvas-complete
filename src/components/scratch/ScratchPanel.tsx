@@ -87,7 +87,7 @@ export const ScratchPanel = ({
   const handleExport = async () => {
     if (!archive) return;
     const data = await exportSb3(archive);
-    const blob = new Blob([data], { type: 'application/x.scratch.sb3' });
+    const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer], { type: 'application/x.scratch.sb3' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
