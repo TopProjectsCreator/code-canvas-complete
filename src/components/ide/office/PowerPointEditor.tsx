@@ -30,6 +30,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const [slides, setSlides] = useState<SlideData[]>([]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [editingText, setEditingText] = useState<number | null>(null);
+  const [ribbonTab, setRibbonTab] = useState<'home' | 'insert' | 'design' | 'transitions' | 'animations' | 'slideshow'>('home');
 
   useEffect(() => {
     const load = async () => {
