@@ -997,12 +997,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         : data.slice().buffer;
       console.log('[Scratch] Loading project into VM, size:', ab.byteLength);
       await vmRef.current.loadProject(ab);
+      projectLoadedRef.current = true;
       console.log('[Scratch] Project loaded successfully, targets:', vmRef.current.runtime?.targets?.length);
       setVmError(null);
       syncFromVm();
     } catch (error) {
+      projectLoadedRef.current = false;
       console.warn('scratch-vm loadProject warning:', error);
-      setVmError(null);
+      setVmError(error instanceof Error ? error.message : 'Failed to load Scratch project');
     }
   }, [syncFromVm]);
 
