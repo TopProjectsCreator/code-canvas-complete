@@ -646,6 +646,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const importInputRef = useRef<HTMLInputElement>(null);
   const costumeInputRef = useRef<HTMLInputElement>(null);
   const soundInputRef = useRef<HTMLInputElement>(null);
+  const backdropInputRef = useRef<HTMLInputElement>(null);
   const vmRef = useRef<ScratchVmLike | null>(null);
   const rendererRef = useRef<{ draw(): void; destroy(): void } | null>(null);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
