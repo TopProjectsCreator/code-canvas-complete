@@ -671,8 +671,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
       // Attach audio engine
       try {
-        const audioEngine = new AudioEngine();
-        vm.attachAudioEngine(audioEngine);
+        if (AudioEngineCtor) {
+          const audioEngine = new AudioEngineCtor();
+          vm.attachAudioEngine(audioEngine);
+        }
       } catch (e) {
         console.warn('Failed to attach scratch-audio:', e);
       }
