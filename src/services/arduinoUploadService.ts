@@ -180,12 +180,12 @@ export class ArduinoUploadService {
     config: UploadConfig,
     onProgress?: (message: string, percent?: number) => void
   ): Promise<void> {
-    const isDFU = DFU_BOARDS.includes(config.boardId);
+    const isSamba = SAMBA_BOARDS.includes(config.boardId);
     const compileResult = await this.compileSketch(sketch, config.boardId, onProgress);
 
     // Stage 2: Flash
-    if (isDFU) {
-      await this.flashViaDFU(compileResult.binary!, onProgress);
+    if (isSamba) {
+      await this.flashViaSamba(compileResult.binary!, onProgress);
     } else {
       await this.flashViaSTK500(compileResult.hex!, config, onProgress);
     }
