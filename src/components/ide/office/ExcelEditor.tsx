@@ -4,7 +4,9 @@ import { FileNode } from '@/types/ide';
 import {
   FileSpreadsheet, Save, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight, Undo, Redo,
-  Plus, Loader2, ChevronDown
+  Plus, Loader2, ChevronDown, Table, Image, Link,
+  BarChart3, Filter, SortAsc, SortDesc, Search,
+  Eye, Columns, ArrowDownUp, Calculator, Sigma
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +42,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
   const [sheets] = useState(['Sheet1']);
   const [activeSheet] = useState(0);
   const [colWidths] = useState<number[]>(Array(DEFAULT_COLS).fill(80));
+  const [ribbonTab, setRibbonTab] = useState<'home' | 'insert' | 'formulas' | 'data' | 'review' | 'view'>('home');
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -192,47 +195,102 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
             </Button>
           </div>
           <div className="flex items-center gap-1 px-2 text-xs bg-[#217346]/80 dark:bg-[#1a5c37]/80">
-            <span className="px-3 py-1 bg-white/20 rounded-t font-medium">Home</span>
-            <span className="px-3 py-1 hover:bg-white/10 rounded-t cursor-pointer">Insert</span>
-            <span className="px-3 py-1 hover:bg-white/10 rounded-t cursor-pointer">Formulas</span>
-            <span className="px-3 py-1 hover:bg-white/10 rounded-t cursor-pointer">Data</span>
-            <span className="px-3 py-1 hover:bg-white/10 rounded-t cursor-pointer">Review</span>
-            <span className="px-3 py-1 hover:bg-white/10 rounded-t cursor-pointer">View</span>
+            {(['home', 'insert', 'formulas', 'data', 'review', 'view'] as const).map(tab => (
+              <span
+                key={tab}
+                className={cn(
+                  "px-3 py-1 rounded-t cursor-pointer capitalize",
+                  ribbonTab === tab ? "bg-white/20 font-medium" : "hover:bg-white/10"
+                )}
+                onClick={() => setRibbonTab(tab)}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </span>
+            ))}
           </div>
         </div>
 
         {/* Ribbon */}
-        <div className="bg-background border-b border-border flex items-center gap-1 px-3 py-1.5">
-          <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><Undo className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><Redo className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
-          </div>
-          <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><Bold className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><Italic className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><Underline className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
-          </div>
-          <div className="flex items-center gap-0.5">
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><AlignLeft className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><AlignCenter className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><AlignRight className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
-          </div>
+        <div className="bg-background border-b border-border flex items-center gap-1 px-3 py-1.5 min-h-[40px]">
+          {ribbonTab === 'home' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Undo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Redo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Bold className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Underline className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignLeft className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignCenter className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignRight className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
+              </div>
+            </>
+          )}
+
+          {ribbonTab === 'insert' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Table className="w-3.5 h-3.5" /> Table</Button></TooltipTrigger><TooltipContent>Insert Table</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><BarChart3 className="w-3.5 h-3.5" /> Chart</Button></TooltipTrigger><TooltipContent>Insert Chart</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Image className="w-3.5 h-3.5" /> Picture</Button></TooltipTrigger><TooltipContent>Insert Picture</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Link className="w-3.5 h-3.5" /> Link</Button></TooltipTrigger><TooltipContent>Insert Link</TooltipContent></Tooltip>
+              </div>
+            </>
+          )}
+
+          {ribbonTab === 'formulas' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Sigma className="w-3.5 h-3.5" /> AutoSum</Button></TooltipTrigger><TooltipContent>AutoSum</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Calculator className="w-3.5 h-3.5" /> Financial</Button></TooltipTrigger><TooltipContent>Financial Functions</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Search className="w-3.5 h-3.5" /> Lookup</Button></TooltipTrigger><TooltipContent>Lookup & Reference</TooltipContent></Tooltip>
+              </div>
+            </>
+          )}
+
+          {ribbonTab === 'data' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><SortAsc className="w-3.5 h-3.5" /> Sort A-Z</Button></TooltipTrigger><TooltipContent>Sort Ascending</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><SortDesc className="w-3.5 h-3.5" /> Sort Z-A</Button></TooltipTrigger><TooltipContent>Sort Descending</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Filter className="w-3.5 h-3.5" /> Filter</Button></TooltipTrigger><TooltipContent>Filter</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><ArrowDownUp className="w-3.5 h-3.5" /> Sort</Button></TooltipTrigger><TooltipContent>Custom Sort</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Columns className="w-3.5 h-3.5" /> Text to Columns</Button></TooltipTrigger><TooltipContent>Text to Columns</TooltipContent></Tooltip>
+              </div>
+            </>
+          )}
+
+          {ribbonTab === 'review' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Search className="w-3.5 h-3.5" /> Find</Button></TooltipTrigger><TooltipContent>Find</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Eye className="w-3.5 h-3.5" /> Show Comments</Button></TooltipTrigger><TooltipContent>Show Comments</TooltipContent></Tooltip>
+              </div>
+            </>
+          )}
+
+          {ribbonTab === 'view' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Eye className="w-3.5 h-3.5" /> Normal</Button></TooltipTrigger><TooltipContent>Normal View</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Columns className="w-3.5 h-3.5" /> Freeze Panes</Button></TooltipTrigger><TooltipContent>Freeze Panes</TooltipContent></Tooltip>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Formula bar */}
