@@ -1488,10 +1488,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         const substackInput = block.inputs?.SUBSTACK as unknown[];
         const hasSubstack = substackInput && substackInput[1];
         if (!hasSubstack) {
-          // Inside the C-block mouth: slightly indented, one row below
+          // For empty C-blocks, be permissive: dropping near the block body or mouth snaps into SUBSTACK.
           const mouthX = bx + C_BLOCK_INDENT;
           const mouthY = by + BLOCK_HEIGHT;
-          if (Math.abs(dropX - mouthX) < 80 && Math.abs(dropY - mouthY) < SNAP_DISTANCE) {
+          const nearMouth = Math.abs(dropX - mouthX) < 96 && Math.abs(dropY - mouthY) < SNAP_DISTANCE * 1.5;
+          const nearBody = Math.abs(dropX - bx) < 96 && Math.abs(dropY - (by + BLOCK_HEIGHT)) < SNAP_DISTANCE * 1.5;
+          if (nearMouth || nearBody) {
             return { id, type: 'substack' };
           }
         }
