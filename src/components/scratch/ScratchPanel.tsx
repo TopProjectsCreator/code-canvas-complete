@@ -1752,13 +1752,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         }
 
         // Try snapping to a new parent
-        const snapParentId = findSnapTarget(blocks, x, y, blockId);
-        if (snapParentId && blocks[snapParentId]) {
-          const parent = blocks[snapParentId];
-          const snapX = parent.x ?? 0;
-          const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
-          blocks[snapParentId] = { ...parent, next: blockId };
-          blocks[blockId] = { ...block, x: snapX, y: snapY, parent: snapParentId, topLevel: false };
+        const snapResult = findSnapTarget(blocks, x, y, blockId);
+        if (snapResult && blocks[snapResult.id]) {
+          const parent = blocks[snapResult.id];
+          if (snapResult.type === 'substack') {
+            const snapX = (parent.x ?? 0) + C_BLOCK_INDENT;
+            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const parentInputs = { ...(parent.inputs || {}), SUBSTACK: [2, blockId] };
+            blocks[snapResult.id] = { ...parent, inputs: parentInputs };
+            blocks[blockId] = { ...block, x: snapX, y: snapY, parent: snapResult.id, topLevel: false };
+          } else {
+            const snapX = parent.x ?? 0;
+            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            blocks[snapResult.id] = { ...parent, next: blockId };
+            blocks[blockId] = { ...block, x: snapX, y: snapY, parent: snapResult.id, topLevel: false };
+          }
         } else {
           blocks[blockId] = { ...block, x, y, parent: null, topLevel: true };
         }
