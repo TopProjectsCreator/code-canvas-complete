@@ -2,7 +2,10 @@ import { UploadConfig } from '@/components/arduino/ArduinoUploadDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { isVerifiedWebFlashBoard } from '@/data/arduinoTemplates';
 import { flashHex } from './stk500';
-import { triggerBootloader, flashViaSamba as sambaFlash } from './sambaFlash';
+import { triggerBootloader, flashViaSamba, isSambaBoard } from './sambaFlash';
+import { flashViaAVR109 } from './avr109';
+import { flashViaEsptool } from './esptool';
+import { flashViaSTM32 } from './stm32serial';
 
 interface SerialPortLike {
   open(options: { baudRate: number }): Promise<void>;
@@ -21,8 +24,12 @@ interface SerialLike {
 const getSerial = (): SerialLike | undefined =>
   (navigator as unknown as { serial?: SerialLike }).serial;
 
-// ARM-based boards that use SAM-BA protocol instead of STK500v1
-const SAMBA_BOARDS = ['uno_r4_wifi'];
+// Board → flash protocol mapping
+const AVR109_BOARDS = ['leonardo', 'micro'];
+const ESP_BOARDS = ['esp32', 'esp8266'];
+const STM32_BOARDS = ['portenta_h7', 'giga_r1'];
+// SAM-BA boards are determined by isSambaBoard() from sambaFlash.ts
+
 const OTA_BRIDGE_URL = import.meta.env.VITE_OTA_BRIDGE_URL || 'http://127.0.0.1:3232';
 const OTA_BRIDGE_TOKEN = import.meta.env.VITE_OTA_BRIDGE_TOKEN;
 const REQUEST_TIMEOUT_MS = 45000;
@@ -49,7 +56,7 @@ export class ArduinoUploadService {
     if (!isVerifiedWebFlashBoard(boardId)) {
       throw new Error(
         `Board "${boardId}" is currently in planning/simulation mode. ` +
-        'Verified web compile+flash support is available for Uno/Nano/Mega/Leonardo/Micro/Uno R4 WiFi. '
+        'Web compile+flash is not yet available for this board.'
       );
     }
   }
@@ -109,9 +116,9 @@ export class ArduinoUploadService {
     }
 
     const compileResult = await compileResponse.json();
-    const isSamba = SAMBA_BOARDS.includes(boardId);
+    const needsBinary = isSambaBoard(boardId) || ESP_BOARDS.includes(boardId) || STM32_BOARDS.includes(boardId);
 
-    if (isSamba) {
+    if (needsBinary) {
       if (!compileResult.binary) {
         throw new Error('Compilation did not produce binary output for this board');
       }
@@ -173,6 +180,17 @@ export class ArduinoUploadService {
   }
 
   /**
+   * Determine flash protocol for a board and route accordingly
+   */
+  private static getFlashProtocol(boardId: string): 'stk500' | 'avr109' | 'samba' | 'esptool' | 'stm32' {
+    if (AVR109_BOARDS.includes(boardId)) return 'avr109';
+    if (isSambaBoard(boardId)) return 'samba';
+    if (ESP_BOARDS.includes(boardId)) return 'esptool';
+    if (STM32_BOARDS.includes(boardId)) return 'stm32';
+    return 'stk500'; // Default for AVR boards (uno, nano, mega)
+  }
+
+  /**
    * Compile sketch via backend edge function, then flash via appropriate protocol
    */
   static async uploadViaSerial(
@@ -180,40 +198,33 @@ export class ArduinoUploadService {
     config: UploadConfig,
     onProgress?: (message: string, percent?: number) => void
   ): Promise<void> {
-    const isSamba = SAMBA_BOARDS.includes(config.boardId);
+    const protocol = this.getFlashProtocol(config.boardId);
     const compileResult = await this.compileSketch(sketch, config.boardId, onProgress);
 
-    // Stage 2: Flash
-    if (isSamba) {
-      await this.flashViaSamba(compileResult.binary!, onProgress);
-    } else {
-      await this.flashViaSTK500(compileResult.hex!, config, onProgress);
-    }
-  }
+    switch (protocol) {
+      case 'avr109':
+        await flashViaAVR109(compileResult.hex!, onProgress);
+        break;
 
-  /**
-   * Flash via SAM-BA protocol over WebSerial for ARM-based boards (Uno R4 WiFi)
-   */
-  private static async flashViaSamba(
-    binaryBase64: string,
-    onProgress?: (message: string, percent?: number) => void
-  ): Promise<void> {
-    const serial = getSerial();
-    if (!serial) {
-      throw new Error('Web Serial API not supported. Use Chrome or Edge.');
-    }
+      case 'samba':
+        await triggerBootloader((msg, pct) => onProgress?.(msg, pct));
+        await flashViaSamba(compileResult.binary!, (msg, pct) => onProgress?.(msg, pct), config.boardId);
+        break;
 
-    try {
-      // Step 1: Trigger bootloader via 1200-baud touch
-      await triggerBootloader((msg, pct) => onProgress?.(msg, pct));
+      case 'esptool': {
+        const chipHint = config.boardId === 'esp8266' ? 'esp8266' : 'esp32';
+        await flashViaEsptool(compileResult.binary!, chipHint, onProgress);
+        break;
+      }
 
-      // Step 2: Flash via SAM-BA protocol
-      await sambaFlash(binaryBase64, (msg, pct) => onProgress?.(msg, pct));
-    } catch (err) {
-      throw new Error(
-        `SAM-BA flash failed: ${err instanceof Error ? err.message : 'Unknown error'}\n` +
-        'Ensure the board is connected and try again.'
-      );
+      case 'stm32':
+        await flashViaSTM32(compileResult.binary!, onProgress);
+        break;
+
+      case 'stk500':
+      default:
+        await this.flashViaSTK500(compileResult.hex!, config, onProgress);
+        break;
     }
   }
 
@@ -259,7 +270,6 @@ export class ArduinoUploadService {
     }
   }
 
-
   static async uploadViaWiFi(
     sketch: string,
     config: UploadConfig,
@@ -297,7 +307,6 @@ export class ArduinoUploadService {
       onProgress
     );
   }
-
 
   /**
    * Open serial monitor for debugging
