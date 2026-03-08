@@ -1866,7 +1866,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         return { ...dataResolved.target, blocks };
       }),
-    }));
+    });
+    });
   };
 
   const handleWorkspaceDrop = (e: React.DragEvent) => {
