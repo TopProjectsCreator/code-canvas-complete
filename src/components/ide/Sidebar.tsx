@@ -426,10 +426,16 @@ export const Sidebar = ({
   }, [searchQuery, files]);
 
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'svg'];
+  const officeExtensions = ['docx', 'xlsx', 'pptx'];
   
   const isImageFile = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase() || '';
     return imageExtensions.includes(ext);
+  };
+
+  const isOfficeFile = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    return officeExtensions.includes(ext);
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -459,8 +465,8 @@ export const Sidebar = ({
             language: getFileLanguage(file.name),
           });
         };
-        // Read images as data URLs, text files as text
-        if (isImageFile(file.name)) {
+        // Read binary media/office files as data URLs, text files as plain text
+        if (isImageFile(file.name) || isOfficeFile(file.name)) {
           reader.readAsDataURL(file);
         } else {
           reader.readAsText(file);
@@ -530,7 +536,7 @@ export const Sidebar = ({
         reader.onerror = () => {
           resolve({ name: file.name, content: '', language: getFileLanguage(file.name) });
         };
-        if (isImageFile(file.name)) {
+        if (isImageFile(file.name) || isOfficeFile(file.name)) {
           reader.readAsDataURL(file);
         } else {
           reader.readAsText(file);
