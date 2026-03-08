@@ -110,6 +110,9 @@ const TEMPLATE_IDS: LanguageTemplate[] = [
   "sqlite",
   "arduino",
   "scratch",
+  "word",
+  "powerpoint",
+  "excel",
 ];
 
 const languages: LanguageOption[] = [
