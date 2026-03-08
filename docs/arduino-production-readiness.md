@@ -11,7 +11,11 @@ This document records the implemented safeguards for production hardening:
 
 ## 2) Upload architecture hardening
 
-- OTA/Bluetooth bridge endpoint is now configurable via:
+- **AVR boards** (Uno, Nano, Mega, Leonardo, Micro): Flashed via Web Serial using STK500v1 protocol.
+- **ARM boards** (Uno R4 WiFi): Flashed via Web Serial using SAM-BA protocol with 1200-baud bootloader trigger.
+  - Previously used WebUSB DFU, which failed due to browser "protected class" restrictions on DFU interfaces.
+  - Now uses the same protocol as `bossac` (Arduino's official upload tool for R4 WiFi).
+- OTA/Bluetooth bridge endpoint is configurable via:
   - `VITE_OTA_BRIDGE_URL`
   - `VITE_OTA_BRIDGE_TOKEN`
 - Non-local remote bridges must use HTTPS.
