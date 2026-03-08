@@ -5,7 +5,10 @@ import {
   FileText, Save, Bold, Italic, Underline, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Undo, Redo, Type, Minus, Plus,
-  Loader2, Printer
+  Loader2, Table, Image, Link, Columns,
+  BookOpen, CheckSquare, MessageSquare, Eye, LayoutGrid,
+  Heading1, Heading2, Quote, Code, SeparatorHorizontal,
+  FileImage, Film, Bookmark, Search, Replace, SpellCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
