@@ -867,6 +867,41 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     return { x: current?.x ?? 0, y: (current?.y ?? 0), count };
   };
 
+  const createVariable = (name: string) => {
+    if (!selectedTarget || selectedTarget.isStage) return;
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const vars = { ...(target.variables || {}) };
+        const id = generateId();
+        vars[id] = [name, 0];
+        return { ...target, variables: vars };
+      }),
+    }));
+  };
+
+  const createList = (name: string) => {
+    if (!selectedTarget || selectedTarget.isStage) return;
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const lists = { ...(target.lists || {}) };
+        const id = generateId();
+        lists[id] = [name, []];
+        return { ...target, lists };
+      }),
+    }));
+  };
+
+  const handleDataPromptSubmit = () => {
+    if (!dataPrompt || !dataPrompt.name.trim()) return;
+    if (dataPrompt.type === 'variable') createVariable(dataPrompt.name.trim());
+    else createList(dataPrompt.name.trim());
+    setDataPrompt(null);
+  };
+
   const addBlock = (blockDef: ScratchBlockDef, dropX?: number, dropY?: number) => {
     if (!selectedTarget || selectedTarget.isStage || activeEditorTab !== 'code') return;
     const blockId = generateId();
@@ -878,20 +913,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       ...current,
       targets: current.targets.map((target, idx) => {
         if (idx !== selectedTargetIndex) return target;
-        if (blockDef.action === 'create_variable') {
-          const vars = { ...(target.variables || {}) };
-          const id = generateId();
-          const name = getUniqueDataName(Object.values(vars).map(([n]) => n), 'my variable');
-          vars[id] = [name, 0];
-          return { ...target, variables: vars };
-        }
-        if (blockDef.action === 'create_list') {
-          const lists = { ...(target.lists || {}) };
-          const id = generateId();
-          const name = getUniqueDataName(Object.values(lists).map(([n]) => n), 'my list');
-          lists[id] = [name, []];
-          return { ...target, lists };
-        }
 
         const blocks = { ...(target.blocks || {}) };
         const dataResolved = ensureDataRefForTarget(target, blockDef);
