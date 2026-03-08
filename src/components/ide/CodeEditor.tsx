@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { FileNode } from '@/types/ide';
 import { FindReplace } from './FindReplace';
 import { FilePreview } from './FilePreview';
+import { OfficeEditor } from './OfficeEditor';
 
 interface CodeEditorProps {
   file: FileNode | null;
@@ -9,7 +10,7 @@ interface CodeEditorProps {
 }
 
 // Helper to detect file types that should be previewed instead of edited
-const getPreviewType = (fileName: string): 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | null => {
+const getPreviewType = (fileName: string): 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'office' | null => {
   const ext = fileName.split('.').pop()?.toLowerCase();
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp'];
   const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogv'];
@@ -21,6 +22,7 @@ const getPreviewType = (fileName: string): 'image' | 'markdown' | 'svg' | 'video
   if (imageExtensions.includes(ext || '')) return 'image';
   if (videoExtensions.includes(ext || '')) return 'video';
   if (audioExtensions.includes(ext || '')) return 'audio';
+  if (['docx', 'xlsx', 'pptx'].includes(ext || '')) return 'office';
   return null;
 };
 
@@ -440,6 +442,10 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   const binaryPreviewTypes = ['image', 'video', 'audio'];
   const isTextPreviewable = previewType && !binaryPreviewTypes.includes(previewType);
   
+  if (previewType === 'office') {
+    return <OfficeEditor file={file} onContentChange={onContentChange} />;
+  }
+
   if (previewType && !isTextPreviewable) {
     return <FilePreview file={file} previewType={previewType} />;
   }
