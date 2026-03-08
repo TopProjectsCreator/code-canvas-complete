@@ -37,7 +37,7 @@ interface ArduinoUploadDialogProps {
   sketchCode: string;
 }
 
-const DFU_BOARDS = ['uno_r4_wifi'];
+const SAMBA_BOARDS = ['uno_r4_wifi'];
 
 export function ArduinoUploadDialog({
   open,
@@ -51,7 +51,7 @@ export function ArduinoUploadDialog({
     baudRate: 115200,
     uploadMethod: 'serial',
   });
-  const isDFUBoard = DFU_BOARDS.includes(config.boardId);
+  const isSambaBoard = SAMBA_BOARDS.includes(config.boardId);
   const isVerifiedBoard = isVerifiedWebFlashBoard(config.boardId);
 
   const [ports, setPorts] = useState<string[]>([]);
@@ -162,7 +162,7 @@ export function ArduinoUploadDialog({
           {isInIframe && (
             <div className="text-sm text-amber-500 bg-amber-500/10 p-3 rounded flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>Board upload (Web Serial / WebUSB) does not work inside iframes due to browser security restrictions. Please open this app directly in a new tab to use hardware flashing.</span>
+              <span>Board upload (Web Serial) does not work inside iframes due to browser security restrictions. Please open this app directly in a new tab to use hardware flashing.</span>
             </div>
           )}
           <div>
@@ -196,21 +196,21 @@ export function ArduinoUploadDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="serial">{isDFUBoard ? 'USB (DFU)' : 'USB Serial'}</SelectItem>
-                <SelectItem value="wifi" disabled={!arduinoBoards[config.boardId]?.wifi || isDFUBoard}>
-                  WiFi (OTA){isDFUBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.wifi ? ' — unsupported' : '')}
+                <SelectItem value="serial">{isSambaBoard ? 'USB Serial (SAM-BA)' : 'USB Serial'}</SelectItem>
+                <SelectItem value="wifi" disabled={!arduinoBoards[config.boardId]?.wifi || isSambaBoard}>
+                  WiFi (OTA){isSambaBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.wifi ? ' — unsupported' : '')}
                 </SelectItem>
-                <SelectItem value="bluetooth" disabled={!arduinoBoards[config.boardId]?.bluetooth || isDFUBoard}>
-                  Bluetooth{isDFUBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.bluetooth ? ' — unsupported' : '')}
+                <SelectItem value="bluetooth" disabled={!arduinoBoards[config.boardId]?.bluetooth || isSambaBoard}>
+                  Bluetooth{isSambaBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.bluetooth ? ' — unsupported' : '')}
                 </SelectItem>
               </SelectContent>
             </Select>
-            {isDFUBoard && (config.uploadMethod === 'wifi' || config.uploadMethod === 'bluetooth') && (
+            {isSambaBoard && (config.uploadMethod === 'wifi' || config.uploadMethod === 'bluetooth') && (
               <p className="text-xs text-muted-foreground mt-1">OTA/Bluetooth uploads require local network access and are not possible from a hosted web app. Use Arduino IDE instead.</p>
             )}
           </div>
 
-          {config.uploadMethod === 'serial' && !isDFUBoard && (
+          {config.uploadMethod === 'serial' && !isSambaBoard && (
             <>
               <div>
                 <Label htmlFor="port">Serial Port</Label>
@@ -262,21 +262,22 @@ export function ArduinoUploadDialog({
             </>
           )}
 
-          {config.uploadMethod === 'serial' && isDFUBoard && (
+          {config.uploadMethod === 'serial' && isSambaBoard && (
             <div className="space-y-2">
               <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded space-y-2">
-                <p className="font-medium text-foreground">USB DFU Mode Required</p>
+                <p className="font-medium text-foreground">USB Serial Upload (SAM-BA Protocol)</p>
                 <ol className="list-decimal list-inside space-y-1 text-xs">
                   <li>Connect your Uno R4 WiFi via USB-C</li>
-                  <li>Double-tap the reset button quickly — the LED should pulse</li>
-                  <li>Click "Upload Sketch" — you'll be prompted to select the USB device</li>
+                  <li>Click "Upload Sketch" — you'll be prompted to select the serial port</li>
+                  <li>The board will automatically enter bootloader mode (1200-baud reset)</li>
+                  <li>You may need to select the port again after the board resets</li>
                 </ol>
               </div>
-              <p className="text-xs text-muted-foreground">Uses WebUSB DFU protocol. No serial port selection needed.</p>
+              <p className="text-xs text-muted-foreground">Uses SAM-BA protocol over Web Serial. No manual reset needed.</p>
             </div>
           )}
 
-          {config.uploadMethod === 'wifi' && !isDFUBoard && (
+          {config.uploadMethod === 'wifi' && !isSambaBoard && (
             <div>
               <Label htmlFor="ipaddress">Board IP Address</Label>
               <Input
@@ -288,7 +289,7 @@ export function ArduinoUploadDialog({
             </div>
           )}
 
-          {config.uploadMethod === 'bluetooth' && !isDFUBoard && (
+          {config.uploadMethod === 'bluetooth' && !isSambaBoard && (
             <div>
               <Label htmlFor="btdevice">Bluetooth Device Name / MAC</Label>
               <Input
