@@ -2039,3 +2039,44 @@ This project contains an Excel spreadsheet. Click on \`Spreadsheet.xlsx\` to ope
     ]
   }
 ];
+
+const videoTemplate: FileNode[] = [
+  {
+    id: 'video-project',
+    name: 'Video Project',
+    type: 'folder',
+    children: [
+      {
+        id: 'sample-video',
+        name: 'sample.mp4',
+        type: 'file',
+        language: 'video',
+        content: ''
+      },
+      {
+        id: 'readme-md',
+        name: 'README.md',
+        type: 'file',
+        language: 'markdown',
+        content: `# Video Editor Project
+
+This project contains a video editor. Upload \`.mp4\`, \`.webm\`, or \`.ogg\` files to get started.
+
+## Features
+- Play/pause, skip, fullscreen
+- Visual thumbnail timeline with scrubbing
+- Draggable trim handles (Set In/Out)
+- Playback speed control (0.5× – 2×)
+- Volume control with mute
+- Frame capture (download as PNG)
+- Video info panel (resolution, duration)
+
+## Getting Started
+1. Use "Upload Files" in the file tree to add a video
+2. Click the video file to open the editor
+3. Use the timeline to scrub and trim
+`
+      }
+    ]
+  }
+];
