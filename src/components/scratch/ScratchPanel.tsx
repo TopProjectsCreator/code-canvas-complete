@@ -926,7 +926,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     originalBlock: ScratchBlockNode;
     detached: boolean;
   } | null>(null);
-  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const [dragBlockId, setDragBlockId] = useState<string | null>(null);
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -1484,6 +1483,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const SNAP_DISTANCE = 40;
   const BLOCK_HEIGHT = 42;
   const C_BLOCK_INDENT = 24;
+  const C_BLOCK_MOUTH_HEIGHT = 24;
 
   const cBlockOpcodes = new Set([
     'control_forever', 'control_repeat', 'control_if', 'control_if_else',
@@ -1492,46 +1492,65 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
   type SnapResult = { id: string; type: 'next' | 'substack' } | null;
 
+  const getStackLength = (blocks: Record<string, ScratchBlockNode>, startId: string) => {
+    let count = 1;
+    let current = blocks[startId];
+    while (current?.next && blocks[current.next]) {
+      current = blocks[current.next];
+      count += 1;
+    }
+    return count;
+  };
+
+  const getNextSnapY = (blocks: Record<string, ScratchBlockNode>, block: ScratchBlockNode) => {
+    const by = block.y ?? 0;
+    if (!cBlockOpcodes.has(block.opcode)) return by + BLOCK_HEIGHT;
+    const substackInput = block.inputs?.SUBSTACK as unknown[];
+    const substackRoot = typeof substackInput?.[1] === 'string' ? substackInput[1] : null;
+    const substackLen = substackRoot && blocks[substackRoot] ? getStackLength(blocks, substackRoot) : 1;
+    return by + BLOCK_HEIGHT + C_BLOCK_MOUTH_HEIGHT + substackLen * BLOCK_HEIGHT;
+  };
+
+  const getSnapPosition = (blocks: Record<string, ScratchBlockNode>, parent: ScratchBlockNode, type: 'next' | 'substack') => ({
+    x: type === 'substack' ? (parent.x ?? 0) + C_BLOCK_INDENT : (parent.x ?? 0),
+    y: type === 'substack' ? (parent.y ?? 0) + BLOCK_HEIGHT : getNextSnapY(blocks, parent),
+  });
+
   const findSnapTarget = (blocks: Record<string, ScratchBlockNode>, dropX: number, dropY: number, excludeId?: string): SnapResult => {
+    let best: { id: string; type: 'next' | 'substack'; score: number } | null = null;
+
     for (const [id, block] of Object.entries(blocks)) {
       if (id === excludeId) continue;
       const bx = block.x ?? 0;
       const by = block.y ?? 0;
 
-      // Check if this is a C-block and the drop is inside its mouth (SUBSTACK)
       if (cBlockOpcodes.has(block.opcode)) {
         const substackInput = block.inputs?.SUBSTACK as unknown[];
-        const hasSubstack = substackInput && substackInput[1];
+        const hasSubstack = Boolean(substackInput && substackInput[1]);
         if (!hasSubstack) {
-          // For empty C-blocks, be permissive: dropping near the block body or mouth snaps into SUBSTACK.
           const mouthX = bx + C_BLOCK_INDENT;
           const mouthY = by + BLOCK_HEIGHT;
-          const nearMouth = Math.abs(dropX - mouthX) < 96 && Math.abs(dropY - mouthY) < SNAP_DISTANCE * 1.5;
-          const nearBody = Math.abs(dropX - bx) < 96 && Math.abs(dropY - (by + BLOCK_HEIGHT)) < SNAP_DISTANCE * 1.5;
-          if (nearMouth || nearBody) {
-            return { id, type: 'substack' };
+          const dx = Math.abs(dropX - mouthX);
+          const dy = Math.abs(dropY - mouthY);
+          if (dx < 90 && dy < SNAP_DISTANCE * 1.3) {
+            const score = dx + dy;
+            if (!best || score < best.score) best = { id, type: 'substack', score };
           }
         }
       }
 
-      // Standard next-block snap (below this block)
       if (!block.next) {
-        if (Math.abs(dropX - bx) < 80 && Math.abs(dropY - (by + BLOCK_HEIGHT)) < SNAP_DISTANCE) {
-          return { id, type: 'next' };
+        const nextY = getNextSnapY(blocks, block);
+        const dx = Math.abs(dropX - bx);
+        const dy = Math.abs(dropY - nextY);
+        if (dx < 84 && dy < SNAP_DISTANCE) {
+          const score = dx + dy;
+          if (!best || score < best.score) best = { id, type: 'next', score };
         }
       }
     }
-    return null;
-  };
 
-  const getStackBottom = (blocks: Record<string, ScratchBlockNode>, startId: string): { x: number; y: number; count: number } => {
-    let current = blocks[startId];
-    let count = 0;
-    while (current?.next && blocks[current.next]) {
-      current = blocks[current.next];
-      count++;
-    }
-    return { x: current?.x ?? 0, y: (current?.y ?? 0), count };
+    return best ? { id: best.id, type: best.type } : null;
   };
 
   const createVariable = (name: string) => {
@@ -1659,8 +1678,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
           if (snapResult.type === 'substack') {
             // Insert inside C-block mouth
-            const snapX = (parent.x ?? 0) + C_BLOCK_INDENT;
-            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, 'substack');
             const parentInputs = { ...(parent.inputs || {}), SUBSTACK: [2, blockId] };
             blocks[snapResult.id] = { ...parent, inputs: parentInputs };
             blocks[blockId] = {
@@ -1676,8 +1694,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             };
           } else {
             // Standard next-block snap
-            const snapX = parent.x ?? 0;
-            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, 'next');
             blocks[snapResult.id] = { ...parent, next: blockId };
             blocks[blockId] = {
               id: blockId,
@@ -1798,7 +1815,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       detached: false,
     };
     setDragBlockId(blockId);
-    setDragPos({ x: block.x ?? 0, y: block.y ?? 0 });
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
   }, [getWorkspaceCoords, selectedTarget]);
 
@@ -1809,7 +1825,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const { x, y } = getWorkspaceCoords(e.clientX, e.clientY);
     const newX = x - drag.offsetX;
     const newY = y - drag.offsetY;
-    setDragPos({ x: newX, y: newY });
 
     // Detach from parent on first move
     if (!drag.detached) {
@@ -1879,8 +1894,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const snap = findSnapTarget(blocks, newX, newY, drag.blockId);
     if (snap && blocks[snap.id]) {
       const parent = blocks[snap.id];
-      const snapX = snap.type === 'substack' ? (parent.x ?? 0) + C_BLOCK_INDENT : (parent.x ?? 0);
-      const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+      const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, snap.type);
       setSnapPreview({ ...snap, x: snapX, y: snapY });
     } else {
       setSnapPreview(null);
@@ -1903,8 +1917,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
           const parent = blocks[snap.id];
           if (snap.type === 'substack') {
-            const snapX = (parent.x ?? 0) + C_BLOCK_INDENT;
-            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, 'substack');
             const dx = snapX - (block.x ?? 0);
             const dy = snapY - (block.y ?? 0);
             blocks[snap.id] = { ...parent, inputs: { ...(parent.inputs || {}), SUBSTACK: [2, drag.blockId] } };
@@ -1914,8 +1927,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               if (blocks[sid]) blocks[sid] = { ...blocks[sid], x: (blocks[sid].x ?? 0) + dx, y: (blocks[sid].y ?? 0) + dy };
             });
           } else {
-            const snapX = parent.x ?? 0;
-            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, 'next');
             const dx = snapX - (block.x ?? 0);
             const dy = snapY - (block.y ?? 0);
             blocks[snap.id] = { ...parent, next: drag.blockId };
@@ -1932,7 +1944,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
     dragRef.current = null;
     setDragBlockId(null);
-    setDragPos(null);
     setSnapPreview(null);
   }, [snapPreview, selectedTargetIndex, updateProject, getBlockStack]);
 
