@@ -1866,7 +1866,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         return { ...dataResolved.target, blocks };
       }),
-    });
+      };
     });
   };
 
