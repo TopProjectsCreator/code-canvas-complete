@@ -1669,27 +1669,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   };
 
   const runPreview = async () => {
-    try {
-      if (!vmRef.current) return;
-      onRun();
-      vmRef.current.greenFlag();
-      setTimeout(() => {
-        syncFromVm();
-      }, 120);
-    } catch (error) {
-      setVmError(error instanceof Error ? error.message : 'VM runtime error.');
-      onStop();
-    }
+    if (!vmRef.current || !vmReady) return;
+    onRun(); // Effect will call greenFlag()
   };
 
   const handleVmStop = () => {
-    try {
-      vmRef.current?.stopAll();
-      syncFromVm();
-    } catch {
-      // noop
-    }
-    onStop();
+    onStop(); // Effect will call stopAll()
   };
 
   const handleImport = async (file: File) => {
