@@ -1110,6 +1110,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         vm.start();
         vmRef.current = vm;
+
+        // Handle "ask and wait" blocks — VM emits QUESTION, waits for ANSWER
+        const rt = vm.runtime as any;
+        rt?.on?.('QUESTION', (question: string) => {
+          const answer = window.prompt(question || 'What is your name?') || '';
+          rt?.emit?.('ANSWER', answer);
+        });
+
         setVmReady(true);
         if (!storageReadyRef.current) {
           setVmError('Storage unavailable; running in 2D fallback mode.');
