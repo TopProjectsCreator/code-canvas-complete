@@ -1468,16 +1468,40 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
   const SNAP_DISTANCE = 40;
   const BLOCK_HEIGHT = 42;
+  const C_BLOCK_INDENT = 24;
 
-  const findSnapTarget = (blocks: Record<string, ScratchBlockNode>, dropX: number, dropY: number, excludeId?: string): string | null => {
+  const cBlockOpcodes = new Set([
+    'control_forever', 'control_repeat', 'control_if', 'control_if_else',
+    'control_repeat_until', 'control_wait_until',
+  ]);
+
+  type SnapResult = { id: string; type: 'next' | 'substack' } | null;
+
+  const findSnapTarget = (blocks: Record<string, ScratchBlockNode>, dropX: number, dropY: number, excludeId?: string): SnapResult => {
     for (const [id, block] of Object.entries(blocks)) {
       if (id === excludeId) continue;
-      if (block.next) continue; // already has a next block
       const bx = block.x ?? 0;
       const by = block.y ?? 0;
-      // Check if drop is near the bottom of this block
-      if (Math.abs(dropX - bx) < 80 && Math.abs(dropY - (by + BLOCK_HEIGHT)) < SNAP_DISTANCE) {
-        return id;
+
+      // Check if this is a C-block and the drop is inside its mouth (SUBSTACK)
+      if (cBlockOpcodes.has(block.opcode)) {
+        const substackInput = block.inputs?.SUBSTACK as unknown[];
+        const hasSubstack = substackInput && substackInput[1];
+        if (!hasSubstack) {
+          // Inside the C-block mouth: slightly indented, one row below
+          const mouthX = bx + C_BLOCK_INDENT;
+          const mouthY = by + BLOCK_HEIGHT;
+          if (Math.abs(dropX - mouthX) < 80 && Math.abs(dropY - mouthY) < SNAP_DISTANCE) {
+            return { id, type: 'substack' };
+          }
+        }
+      }
+
+      // Standard next-block snap (below this block)
+      if (!block.next) {
+        if (Math.abs(dropX - bx) < 80 && Math.abs(dropY - (by + BLOCK_HEIGHT)) < SNAP_DISTANCE) {
+          return { id, type: 'next' };
+        }
       }
     }
     return null;
