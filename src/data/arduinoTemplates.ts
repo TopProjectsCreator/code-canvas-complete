@@ -198,10 +198,21 @@ export const arduinoBoards: Record<string, ArduinoBoard> = {
 
 
 /**
- * Boards that currently have validated compile+flash support in this web app.
- * Additional boards in `arduinoBoards` are available for planning/simulation only.
+ * Boards with validated compile+flash support in this web app.
+ * - STK500v1: uno, nano, mega
+ * - AVR109/Caterina: leonardo, micro
+ * - SAM-BA: uno_r4_wifi, due, zero, mkr_wifi_1010, nano_33_iot
+ * - esptool SLIP: esp32, esp8266
+ * - STM32 UART: portenta_h7, giga_r1
+ * - NOT supported (UF2 mass storage): nano_33_ble, rp2040_connect
  */
-export const VERIFIED_WEB_FLASH_BOARDS = ['uno', 'nano', 'mega', 'leonardo', 'micro', 'uno_r4_wifi'] as const;
+export const VERIFIED_WEB_FLASH_BOARDS = [
+  'uno', 'nano', 'mega',
+  'leonardo', 'micro',
+  'uno_r4_wifi', 'due', 'zero', 'mkr_wifi_1010', 'nano_33_iot',
+  'esp32', 'esp8266',
+  'portenta_h7', 'giga_r1',
+] as const;
 
 export const isVerifiedWebFlashBoard = (boardId: string): boolean =>
   VERIFIED_WEB_FLASH_BOARDS.includes(boardId as typeof VERIFIED_WEB_FLASH_BOARDS[number]);
