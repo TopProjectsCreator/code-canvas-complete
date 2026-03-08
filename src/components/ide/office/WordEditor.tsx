@@ -29,7 +29,9 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const [paragraphs, setParagraphs] = useState<string[]>([]);
   const [zoom, setZoom] = useState(100);
   const [activeTab, setActiveTab] = useState<'home' | 'insert' | 'layout' | 'references' | 'review' | 'view'>('home');
+  const [images, setImages] = useState<Array<{ id: string; dataUrl: string }>>([]);
   const editorRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const load = async () => {
