@@ -196,16 +196,16 @@ export function ArduinoUploadDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="serial">{isDFUBoard ? 'USB (DFU)' : 'USB Serial'}</SelectItem>
-                <SelectItem value="wifi" disabled={!arduinoBoards[config.boardId]?.wifi || isDFUBoard}>
-                  WiFi (OTA){isDFUBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.wifi ? ' — unsupported' : '')}
+                <SelectItem value="serial">{isSambaBoard ? 'USB Serial (SAM-BA)' : 'USB Serial'}</SelectItem>
+                <SelectItem value="wifi" disabled={!arduinoBoards[config.boardId]?.wifi || isSambaBoard}>
+                  WiFi (OTA){isSambaBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.wifi ? ' — unsupported' : '')}
                 </SelectItem>
-                <SelectItem value="bluetooth" disabled={!arduinoBoards[config.boardId]?.bluetooth || isDFUBoard}>
-                  Bluetooth{isDFUBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.bluetooth ? ' — unsupported' : '')}
+                <SelectItem value="bluetooth" disabled={!arduinoBoards[config.boardId]?.bluetooth || isSambaBoard}>
+                  Bluetooth{isSambaBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.bluetooth ? ' — unsupported' : '')}
                 </SelectItem>
               </SelectContent>
             </Select>
-            {isDFUBoard && (config.uploadMethod === 'wifi' || config.uploadMethod === 'bluetooth') && (
+            {isSambaBoard && (config.uploadMethod === 'wifi' || config.uploadMethod === 'bluetooth') && (
               <p className="text-xs text-muted-foreground mt-1">OTA/Bluetooth uploads require local network access and are not possible from a hosted web app. Use Arduino IDE instead.</p>
             )}
           </div>
