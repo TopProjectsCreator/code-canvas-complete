@@ -631,7 +631,7 @@ const VariablesFlyout = ({
   );
 };
 
-
+export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, isRunning, onRun, onStop }: ScratchPanelProps) => {
   const [activeEditorTab, setActiveEditorTab] = useState<'code' | 'costumes' | 'sounds'>('code');
   const [activeCategory, setActiveCategory] = useState('Motion');
   const [selectedTargetIndex, setSelectedTargetIndex] = useState(1);
