@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
+import { requestArduinoPort, requestAnyPort, SerialPortLike } from '@/services/serialUtils';
   Dialog,
   DialogContent,
   DialogHeader,
