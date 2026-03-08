@@ -986,11 +986,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     if (!vmRef.current) return;
     try {
       const normalizedArchive = ensureArchive(nextArchive);
+      console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames);
       const data = await exportSb3(normalizedArchive);
       const ab = data.buffer instanceof ArrayBuffer
         ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
         : data.slice().buffer;
+      console.log('[Scratch] Loading project into VM, size:', ab.byteLength);
       await vmRef.current.loadProject(ab);
+      console.log('[Scratch] Project loaded successfully, targets:', vmRef.current.runtime?.targets?.length);
       setVmError(null);
       syncFromVm();
     } catch (error) {
@@ -1004,6 +1007,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const canvas = canvasRef.current;
     if (!canvas) return;
     let cancelled = false;
+    let useWebGLRenderer = false;
+
+    // Create a separate offscreen canvas for 2D fallback drawing
+    // (scratch-render claims the main canvas as WebGL, so getContext('2d') would return null)
+    const fallbackCanvas = document.createElement('canvas');
+    fallbackCanvas.width = canvas.width;
+    fallbackCanvas.height = canvas.height;
 
     const initVm = async () => {
       try {
@@ -1018,6 +1028,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             const renderer = new RenderCtor(canvas);
             vm.attachRenderer(renderer);
             rendererRef.current = renderer;
+            useWebGLRenderer = true;
+            console.log('[Scratch] scratch-render attached successfully');
           }
         } catch (e) {
           console.warn('scratch-render not available:', e);
@@ -1035,11 +1047,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               (asset: { assetId: string; dataFormat: string }) => {
                 const key = `${asset.assetId}.${asset.dataFormat}`;
                 const b64 = archiveRef.current?.files?.[key];
-                if (b64) return `data:application/octet-stream;base64,${b64}`;
+                if (b64) {
+                  return `data:application/octet-stream;base64,${b64}`;
+                }
                 return '';
               }
             );
             vm.attachStorage(storage);
+            console.log('[Scratch] scratch-storage attached successfully');
           }
         } catch (e) {
           console.warn('scratch-storage not available:', e);
@@ -1063,32 +1078,43 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         vmRef.current = vm;
         setVmReady(true);
         setVmError(null);
+        console.log('[Scratch] VM started, useWebGLRenderer:', useWebGLRenderer);
 
-        // Start draw loop with 2D canvas fallback
-        let rendererWorking = false;
+        // Start draw loop
+        let rendererProducedOutput = false;
+        let frameCount = 0;
         const drawStep = () => {
-          const ctx = canvas.getContext('2d');
-          if (rendererRef.current) {
+          frameCount++;
+          if (useWebGLRenderer && rendererRef.current) {
             try {
               rendererRef.current.draw();
-              // Check if renderer actually drew something (non-transparent pixel)
-              if (!rendererWorking && ctx) {
-                const pixel = ctx.getImageData(0, 0, 1, 1).data;
-                if (pixel[3] > 0) rendererWorking = true;
-              }
-            } catch {
-              rendererWorking = false;
+              rendererProducedOutput = true;
+            } catch (e) {
+              if (frameCount < 5) console.warn('[Scratch] renderer.draw() error:', e);
+              rendererProducedOutput = false;
             }
           }
-          // Fallback: draw costumes on 2D canvas if renderer isn't producing output
-          if (!rendererWorking && ctx) {
-            drawFallbackStage(ctx, canvas.width, canvas.height, archiveRef.current, vmRef.current);
+
+          // If WebGL renderer isn't working, use 2D fallback on a separate canvas
+          // then copy to the main canvas
+          if (!rendererProducedOutput) {
+            const ctx2d = fallbackCanvas.getContext('2d');
+            if (ctx2d) {
+              drawFallbackStage(ctx2d, fallbackCanvas.width, fallbackCanvas.height, archiveRef.current, vmRef.current);
+              // Copy fallback to the visible canvas (which may not have a 2D context)
+              const mainCtx = canvas.getContext('2d');
+              if (mainCtx) {
+                mainCtx.drawImage(fallbackCanvas, 0, 0);
+              }
+            }
           }
+
           syncFromVm();
           rafRef.current = requestAnimationFrame(drawStep);
         };
         rafRef.current = requestAnimationFrame(drawStep);
       } catch (error) {
+        console.error('[Scratch] VM init failed:', error);
         if (!cancelled) {
           setVmError(error instanceof Error ? error.message : 'Failed to initialize scratch-vm.');
         }
