@@ -99,6 +99,91 @@ type ScratchBlockDef = {
   fields?: Record<string, unknown>;
   action?: 'create_variable' | 'create_list';
 };
+// Fallback 2D canvas renderer when scratch-render (WebGL) doesn't produce output
+const fallbackImageCache = new Map<string, HTMLImageElement>();
+
+const drawFallbackStage = (
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  archive: ScratchArchive | null,
+  vm: ScratchVmLike | null,
+) => {
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+
+  if (!archive) return;
+
+  let project: ScratchProject | null = null;
+  try {
+    project = JSON.parse(archive.projectJson) as ScratchProject;
+  } catch { return; }
+  if (!project?.targets) return;
+
+  const imgMime = (fmt: string | undefined) => {
+    const f = fmt || 'png';
+    return f === 'svg' ? 'image/svg+xml' : `image/${f}`;
+  };
+
+  const loadImg = (md5ext: string, dataFormat?: string): HTMLImageElement | null => {
+    const cached = fallbackImageCache.get(md5ext);
+    if (cached?.complete && cached.naturalWidth > 0) return cached;
+    if (cached) return null; // still loading
+    const b64 = archive.files?.[md5ext];
+    if (!b64) return null;
+    const img = new Image();
+    img.src = `data:${imgMime(dataFormat)};base64,${b64}`;
+    fallbackImageCache.set(md5ext, img);
+    return null; // will render next frame
+  };
+
+  // Draw stage backdrop
+  const stage = project.targets.find((t) => t.isStage);
+  if (stage?.costumes?.length) {
+    const idx = Number(stage.currentCostume || 0);
+    const costume = stage.costumes[idx] || stage.costumes[0];
+    if (costume) {
+      const img = loadImg(costume.md5ext, costume.dataFormat);
+      if (img) {
+        ctx.drawImage(img, 0, 0, w, h);
+      }
+    }
+  }
+
+  // Draw sprites
+  const runtimeTargets = vm?.runtime?.targets;
+  for (const target of project.targets) {
+    if (target.isStage) continue;
+    // Use runtime position if available
+    const rt = runtimeTargets?.find((t) => t.sprite?.name === target.name);
+    const visible = rt ? rt.visible !== false : true;
+    if (!visible) continue;
+
+    const costumes = target.costumes || [];
+    const costumeIdx = Number(target.currentCostume || 0);
+    const costume = costumes[costumeIdx] || costumes[0];
+    if (!costume) continue;
+
+    const img = loadImg(costume.md5ext, costume.dataFormat);
+    if (!img) continue;
+
+    const x = (rt?.x ?? 0) + w / 2;
+    const y = h / 2 - (rt?.y ?? 0);
+    const bitmapRes = (costume as Record<string, unknown>).bitmapResolution as number || (costume.dataFormat === 'svg' ? 1 : 2);
+    const cx = (costume.rotationCenterX || 0) / bitmapRes;
+    const cy = (costume.rotationCenterY || 0) / bitmapRes;
+    const drawW = img.naturalWidth / bitmapRes;
+    const drawH = img.naturalHeight / bitmapRes;
+
+    ctx.save();
+    ctx.translate(x, y);
+    const dir = (rt?.direction ?? 90) - 90;
+    if (Math.abs(dir) > 0.1) ctx.rotate((dir * Math.PI) / 180);
+    ctx.drawImage(img, -cx, -cy, drawW, drawH);
+    ctx.restore();
+  }
+};
 
 
 const DEFAULT_PROJECT: ScratchProject = {
@@ -947,10 +1032,25 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         setVmReady(true);
         setVmError(null);
 
-        // Start draw loop
+        // Start draw loop with 2D canvas fallback
+        let rendererWorking = false;
         const drawStep = () => {
+          const ctx = canvas.getContext('2d');
           if (rendererRef.current) {
-            rendererRef.current.draw();
+            try {
+              rendererRef.current.draw();
+              // Check if renderer actually drew something (non-transparent pixel)
+              if (!rendererWorking && ctx) {
+                const pixel = ctx.getImageData(0, 0, 1, 1).data;
+                if (pixel[3] > 0) rendererWorking = true;
+              }
+            } catch {
+              rendererWorking = false;
+            }
+          }
+          // Fallback: draw costumes on 2D canvas if renderer isn't producing output
+          if (!rendererWorking && ctx) {
+            drawFallbackStage(ctx, canvas.width, canvas.height, archiveRef.current, vmRef.current);
           }
           syncFromVm();
           rafRef.current = requestAnimationFrame(drawStep);
