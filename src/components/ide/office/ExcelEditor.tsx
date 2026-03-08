@@ -195,7 +195,6 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
             </Button>
           </div>
           <div className="flex items-center gap-1 px-2 text-xs bg-[#217346]/80 dark:bg-[#1a5c37]/80">
-          <div className="flex items-center gap-1 px-2 text-xs bg-[#217346]/80 dark:bg-[#1a5c37]/80">
             {(['home', 'insert', 'formulas', 'data', 'review', 'view'] as const).map(tab => (
               <span
                 key={tab}
