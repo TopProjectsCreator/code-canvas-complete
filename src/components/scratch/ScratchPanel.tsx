@@ -1445,7 +1445,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               backgroundSize: '24px 24px',
             }}
           >
-            {selectedBlocks.map((block) => {
+            {selectedBlocks.filter((block) => block.opcode).map((block) => {
               const blockColor = getBlockColor(block.opcode);
               const shape = getBlockShape(block.opcode);
               const label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
