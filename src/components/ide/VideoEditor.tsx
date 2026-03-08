@@ -181,6 +181,23 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
   const trimPct = duration > 0 ? { start: (trimStart / duration) * 100, end: (trimEnd / duration) * 100 } : { start: 0, end: 100 };
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  const handleFileUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.ogg,.mov';
+    input.onchange = (e) => {
+      const f = (e.target as HTMLInputElement).files?.[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        onContentChange(file.id, result);
+      };
+      reader.readAsDataURL(f);
+    };
+    input.click();
+  };
+
   if (!videoSrc) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-background text-muted-foreground gap-4">
@@ -190,6 +207,9 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
           <p className="text-sm">{file.name}</p>
           <p className="text-xs mt-2 text-muted-foreground/70">No video data available</p>
         </div>
+        <Button variant="outline" className="gap-2" onClick={handleFileUpload}>
+          <Upload className="w-4 h-4" /> Upload Video
+        </Button>
       </div>
     );
   }
