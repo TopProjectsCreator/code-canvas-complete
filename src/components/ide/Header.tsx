@@ -13,7 +13,7 @@ import {
   GitBranch
 } from 'lucide-react';
 import { ProjectMenu } from './ProjectMenu';
-import { LanguageTemplate } from './LanguagePicker';
+import type { LanguageTemplate } from '@/data/templateRegistry';
 import { cn } from '@/lib/utils';
 import { UserMenu } from './UserMenu';
 import { useAuth } from '@/contexts/AuthContext';
