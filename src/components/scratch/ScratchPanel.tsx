@@ -1920,8 +1920,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
           const parent = blocks[snap.id];
           if (snap.type === 'substack') {
-            const snapX = (parent.x ?? 0) + C_BLOCK_INDENT;
-            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, 'substack');
             const dx = snapX - (block.x ?? 0);
             const dy = snapY - (block.y ?? 0);
             blocks[snap.id] = { ...parent, inputs: { ...(parent.inputs || {}), SUBSTACK: [2, drag.blockId] } };
@@ -1931,8 +1930,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               if (blocks[sid]) blocks[sid] = { ...blocks[sid], x: (blocks[sid].x ?? 0) + dx, y: (blocks[sid].y ?? 0) + dy };
             });
           } else {
-            const snapX = parent.x ?? 0;
-            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, 'next');
             const dx = snapX - (block.x ?? 0);
             const dy = snapY - (block.y ?? 0);
             blocks[snap.id] = { ...parent, next: drag.blockId };
