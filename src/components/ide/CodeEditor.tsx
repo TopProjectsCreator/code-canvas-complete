@@ -14,13 +14,14 @@ interface CodeEditorProps {
 }
 
 // Helper to detect file types that should be previewed instead of edited
-const getPreviewType = (fileName: string): 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'office' | 'cad' | null => {
+const getPreviewType = (fileName: string): 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'office' | 'cad' | 'rtf' | null => {
   const ext = fileName.split('.').pop()?.toLowerCase();
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp'];
   const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogv', 'ogg'];
-  const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'];
+  const audioExtensions = ['mp3', 'wav', 'flac', 'aac', 'm4a'];
   const cadExtensions = ['stl', 'obj'];
   
+  if (ext === 'rtf') return 'rtf';
   if (ext === 'svg') return 'svg';
   if (ext === 'md' || ext === 'markdown') return 'markdown';
   if (ext === 'csv') return 'csv';
