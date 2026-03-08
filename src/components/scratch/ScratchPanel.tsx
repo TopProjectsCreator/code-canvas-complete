@@ -1474,11 +1474,16 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               )
             ) : activeEditorTab === 'costumes' ? (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-1">
                   <span className="text-sm font-semibold text-[#575e75]">Costumes ({selectedCostumes.length})</span>
-                  <button className="px-3 py-1 rounded-full bg-[#855cd6] text-white text-xs flex items-center gap-1" onClick={() => costumeInputRef.current?.click()}>
-                    <Upload className="w-3 h-3" /> Upload
-                  </button>
+                  <div className="flex gap-1">
+                    <button className="px-2.5 py-1 rounded-full bg-[#855cd6] text-white text-xs flex items-center gap-1" onClick={() => setLibraryOpen('costumes')}>
+                      Choose
+                    </button>
+                    <button className="px-2.5 py-1 rounded-full bg-[#575e75] text-white text-xs flex items-center gap-1" onClick={() => costumeInputRef.current?.click()}>
+                      <Upload className="w-3 h-3" /> Upload
+                    </button>
+                  </div>
                   <input ref={costumeInputRef} className="hidden" type="file" accept="image/*,.svg" onChange={(e) => e.target.files?.[0] && addCostume(e.target.files[0])} />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
