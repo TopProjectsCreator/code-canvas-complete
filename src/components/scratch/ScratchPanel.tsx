@@ -1083,6 +1083,24 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           console.warn('scratch-storage not available:', e);
         }
 
+        // Dynamically import and attach renderer (after storage)
+        if (storageReadyRef.current) {
+          try {
+            const renderMod = await import('scratch-render');
+            const RenderCtor = (renderMod as any)?.default || renderMod;
+            if (typeof RenderCtor === 'function') {
+              const renderer = new RenderCtor(canvas);
+              vm.attachRenderer(renderer);
+              rendererRef.current = renderer;
+              useWebGLRenderer = true;
+              console.log('[Scratch] scratch-render attached successfully');
+            }
+          } catch (e) {
+            useWebGLRenderer = false;
+            console.warn('scratch-render not available:', e);
+          }
+        }
+
         // Dynamically import and attach audio engine
         try {
           const audioMod = await import('scratch-audio');
@@ -1100,7 +1118,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         vm.start();
         vmRef.current = vm;
         setVmReady(true);
-        setVmError(null);
+        if (!storageReadyRef.current) {
+          setVmError('Storage unavailable; running in 2D fallback mode.');
+        }
         console.log('[Scratch] VM started, useWebGLRenderer:', useWebGLRenderer);
 
         // Start draw loop
