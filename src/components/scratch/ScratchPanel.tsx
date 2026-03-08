@@ -1128,7 +1128,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         let frameCount = 0;
         const drawStep = () => {
           frameCount++;
-          if (useWebGLRenderer && rendererRef.current) {
+          rendererProducedOutput = false;
+          if (useWebGLRenderer && rendererRef.current && projectLoadedRef.current) {
             try {
               rendererRef.current.draw();
               rendererProducedOutput = true;
