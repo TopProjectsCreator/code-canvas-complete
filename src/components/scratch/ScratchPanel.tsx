@@ -650,19 +650,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
       // Attach storage with custom web source that resolves from archive
       try {
-        const storage = new ScratchStorage();
-        const AssetType = storage.AssetType;
+        if (ScratchStorageCtor) {
+          const storage = new ScratchStorageCtor();
+          const AssetType = storage.AssetType;
 
-        storage.addWebStore(
-          [AssetType.ImageVector, AssetType.ImageBitmap, AssetType.Sound],
-          (asset: { assetId: string; dataFormat: string }) => {
-            const key = `${asset.assetId}.${asset.dataFormat}`;
-            const b64 = archiveRef.current?.files?.[key];
-            if (b64) return `data:application/octet-stream;base64,${b64}`;
-            return '';
-          }
-        );
-        vm.attachStorage(storage);
+          storage.addWebStore(
+            [AssetType.ImageVector, AssetType.ImageBitmap, AssetType.Sound],
+            (asset: { assetId: string; dataFormat: string }) => {
+              const key = `${asset.assetId}.${asset.dataFormat}`;
+              const b64 = archiveRef.current?.files?.[key];
+              if (b64) return `data:application/octet-stream;base64,${b64}`;
+              return '';
+            }
+          );
+          vm.attachStorage(storage);
+        }
       } catch (e) {
         console.warn('Failed to attach scratch-storage:', e);
       }
