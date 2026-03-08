@@ -169,10 +169,27 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   };
 
   const insertVideo = () => {
-    const url = prompt('Enter video URL (YouTube/Vimeo):');
-    if (url) {
-      exec('insertHTML', `<div style="margin:8px 0;padding:12px;background:hsl(var(--muted));border-radius:6px;text-align:center"><span style="font-size:0.85em">🎬 Video: <a href="${url}" target="_blank" style="color:hsl(217,91%,60%)">${url}</a></span></div>`);
+    // Offer choice: URL or file upload
+    const choice = prompt('Enter video URL (YouTube/Vimeo), or type "file" to upload an .mp4:');
+    if (!choice) return;
+    if (choice.toLowerCase().trim() === 'file') {
+      videoInputRef.current?.click();
+    } else {
+      exec('insertHTML', `<div style="margin:8px 0;padding:12px;background:hsl(var(--muted));border-radius:6px;text-align:center"><span style="font-size:0.85em">🎬 Video: <a href="${choice}" target="_blank" style="color:hsl(217,91%,60%)">${choice}</a></span></div>`);
     }
+  };
+
+  const onVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        exec('insertHTML', `<div style="margin:8px 0"><video controls style="max-width:100%;border-radius:6px" src="${reader.result}"></video></div>`);
+      }
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
   };
 
   const insertHeading = (level: 1 | 2) => {
