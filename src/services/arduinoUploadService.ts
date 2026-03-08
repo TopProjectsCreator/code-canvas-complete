@@ -21,8 +21,8 @@ interface SerialLike {
 const getSerial = (): SerialLike | undefined =>
   (navigator as unknown as { serial?: SerialLike }).serial;
 
-// ARM-based boards that use DFU instead of STK500v1
-const DFU_BOARDS = ['uno_r4_wifi'];
+// ARM-based boards that use SAM-BA protocol instead of STK500v1
+const SAMBA_BOARDS = ['uno_r4_wifi'];
 const OTA_BRIDGE_URL = import.meta.env.VITE_OTA_BRIDGE_URL || 'http://127.0.0.1:3232';
 const OTA_BRIDGE_TOKEN = import.meta.env.VITE_OTA_BRIDGE_TOKEN;
 const REQUEST_TIMEOUT_MS = 45000;
