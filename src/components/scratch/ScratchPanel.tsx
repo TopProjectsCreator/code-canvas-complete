@@ -929,6 +929,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number>(0);
   const archiveRef = useRef<ScratchArchive | null>(archive);
+  const storageReadyRef = useRef(false);
 
   // Keep archiveRef in sync for the storage adapter closure
   useEffect(() => {
