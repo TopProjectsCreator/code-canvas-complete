@@ -1766,8 +1766,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const finalX = dropX ?? 40;
     const finalY = dropY ?? (30 + blockCount * 55);
 
-    updateProject((current) => ({
+    const extId = getExtensionId(blockDef.opcode);
+    updateProject((current) => {
+      const extensions = extId && !current.extensions?.includes(extId)
+        ? [...(current.extensions as string[] || []), extId]
+        : current.extensions;
+      return {
       ...current,
+      extensions,
       targets: current.targets.map((target, idx) => {
         if (idx !== selectedTargetIndex) return target;
 
