@@ -208,7 +208,7 @@ export class ArduinoUploadService {
       await triggerBootloader((msg, pct) => onProgress?.(msg, pct));
 
       // Step 2: Flash via SAM-BA protocol
-      await flashViaSamba(binaryBase64, (msg, pct) => onProgress?.(msg, pct));
+      await sambaFlash(binaryBase64, (msg, pct) => onProgress?.(msg, pct));
     } catch (err) {
       throw new Error(
         `SAM-BA flash failed: ${err instanceof Error ? err.message : 'Unknown error'}\n` +
