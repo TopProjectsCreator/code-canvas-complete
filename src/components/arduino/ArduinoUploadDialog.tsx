@@ -51,7 +51,7 @@ export function ArduinoUploadDialog({
     baudRate: 115200,
     uploadMethod: 'serial',
   });
-  const isDFUBoard = DFU_BOARDS.includes(config.boardId);
+  const isSambaBoard = SAMBA_BOARDS.includes(config.boardId);
   const isVerifiedBoard = isVerifiedWebFlashBoard(config.boardId);
 
   const [ports, setPorts] = useState<string[]>([]);
