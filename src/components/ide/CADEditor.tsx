@@ -199,6 +199,31 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const [modelColor, setModelColor] = useState('#6366f1');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const loadCADFile = (f: File) => {
+    const reader = new FileReader();
+    reader.onload = () => onContentChange(file.id, reader.result as string);
+    reader.readAsDataURL(f);
+  };
+
+  const handleCADUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.stl,.obj';
+    input.onchange = (e) => {
+      const f = (e.target as HTMLInputElement).files?.[0];
+      if (f) loadCADFile(f);
+    };
+    input.click();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files[0];
+    if (f) loadCADFile(f);
+  };
 
   const geometry = useMemo(() => {
     const content = file.content || '';
