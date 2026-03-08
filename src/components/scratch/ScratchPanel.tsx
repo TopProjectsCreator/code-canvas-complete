@@ -19,10 +19,36 @@ import {
   Play,
 } from 'lucide-react';
 import VirtualMachine from 'scratch-vm';
-import RenderWebGL from 'scratch-render';
-import ScratchStorage from 'scratch-storage';
-import AudioEngine from 'scratch-audio';
 import { ScratchArchive, exportSb3, importSb3 } from '@/services/scratchSb3';
+
+// These packages may fail to import in some environments — load them dynamically
+let RenderWebGL: (new (canvas: HTMLCanvasElement) => { draw(): void; destroy(): void }) | null = null;
+let ScratchStorageCtor: (new () => { AssetType: Record<string, string>; addWebStore: (...args: unknown[]) => void }) | null = null;
+let AudioEngineCtor: (new () => { dispose(): void }) | null = null;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  RenderWebGL = require('scratch-render');
+  if (RenderWebGL && typeof RenderWebGL === 'object' && 'default' in (RenderWebGL as Record<string, unknown>)) {
+    RenderWebGL = (RenderWebGL as unknown as { default: typeof RenderWebGL }).default;
+  }
+} catch (e) { console.warn('scratch-render not available:', e); }
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  ScratchStorageCtor = require('scratch-storage');
+  if (ScratchStorageCtor && typeof ScratchStorageCtor === 'object' && 'default' in (ScratchStorageCtor as Record<string, unknown>)) {
+    ScratchStorageCtor = (ScratchStorageCtor as unknown as { default: typeof ScratchStorageCtor }).default;
+  }
+} catch (e) { console.warn('scratch-storage not available:', e); }
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  AudioEngineCtor = require('scratch-audio');
+  if (AudioEngineCtor && typeof AudioEngineCtor === 'object' && 'default' in (AudioEngineCtor as Record<string, unknown>)) {
+    AudioEngineCtor = (AudioEngineCtor as unknown as { default: typeof AudioEngineCtor }).default;
+  }
+} catch (e) { console.warn('scratch-audio not available:', e); }
 
 type ScratchInputPrimitive = string | number | boolean;
 
