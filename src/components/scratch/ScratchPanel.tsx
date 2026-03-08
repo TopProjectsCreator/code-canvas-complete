@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import VirtualMachine from 'scratch-vm';
 import { ScratchArchive, exportSb3, importSb3 } from '@/services/scratchSb3';
+import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
 
 type ScratchInputPrimitive = string | number | boolean;
 
@@ -1167,9 +1168,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               <div className="space-y-1.5">
                 {(categoryBlocks[activeCategory] || []).map((blockDef) => {
                   const color = categoryColors[activeCategory] || '#4c97ff';
-                  const isHat = blockDef.opcode.startsWith('event_when') || blockDef.opcode === 'control_start_as_clone';
+                  const shape = getBlockShape(blockDef.opcode);
                   return (
-                    <button
+                    <div
                       key={blockDef.label}
                       draggable
                       onDragStart={(e) => {
@@ -1177,16 +1178,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         e.dataTransfer.effectAllowed = 'copy';
                       }}
                       onClick={() => addBlock(blockDef)}
-                      className="w-full text-left text-white text-[13px] px-3 py-[6px] cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
-                      style={{
-                        backgroundColor: color,
-                        borderRadius: isHat ? '16px 16px 4px 4px' : '4px',
-                        borderBottom: `3px solid rgba(0,0,0,0.15)`,
-                        borderLeft: `3px solid rgba(0,0,0,0.05)`,
-                      }}
+                      className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                     >
-                      {blockDef.label}
-                    </button>
+                      <ScratchBlockShape label={blockDef.label} color={color} shape={shape} />
+                    </div>
                   );
                 })}
               </div>
@@ -1264,23 +1259,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           >
             {selectedBlocks.map((block) => {
               const blockColor = getBlockColor(block.opcode);
-              const isHat = block.opcode.startsWith('event_when') || block.opcode === 'control_start_as_clone';
+              const shape = getBlockShape(block.opcode);
+              const label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
               return (
                 <div
                   key={block.id}
                   draggable
                   onDragEnd={(e) => handleBlockDragInWorkspace(block.id, e)}
-                  className="absolute text-white px-3 py-[6px] text-[13px] min-w-[140px] cursor-grab active:cursor-grabbing select-none"
-                  style={{
-                    left: block.x ?? 40,
-                    top: block.y ?? 40,
-                    backgroundColor: blockColor,
-                    borderRadius: isHat ? '16px 16px 4px 4px' : '4px',
-                    borderBottom: '3px solid rgba(0,0,0,0.15)',
-                    borderLeft: '3px solid rgba(0,0,0,0.05)',
-                  }}
+                  className="absolute cursor-grab active:cursor-grabbing select-none"
+                  style={{ left: block.x ?? 40, top: block.y ?? 40 }}
                 >
-                  {blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ')}
+                  <ScratchBlockShape label={label} color={blockColor} shape={shape} />
                 </div>
               );
             })}
