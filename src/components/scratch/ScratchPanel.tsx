@@ -1706,7 +1706,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     title="Upload backdrop"
                   >
                     <Plus className="w-3 h-3" />
-                </button>
+                  </button>
+                </div>
                 <input ref={backdropInputRef} className="hidden" type="file" accept="image/*,.svg" onChange={(e) => e.target.files?.[0] && addBackdrop(e.target.files[0])} />
               </div>
               <div className="text-[9px] text-[#575e75] px-2 mb-1">Backdrops</div>
