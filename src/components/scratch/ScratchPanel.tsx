@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import VirtualMachine from 'scratch-vm';
 import { ScratchArchive, exportSb3, importSb3 } from '@/services/scratchSb3';
+import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
 
 type ScratchInputPrimitive = string | number | boolean;
 
