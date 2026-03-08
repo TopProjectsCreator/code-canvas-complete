@@ -4,7 +4,9 @@ import { FileNode } from '@/types/ide';
 import {
   Presentation, Save, Plus, Trash2, Copy, ChevronUp, ChevronDown,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
-  Type, Square, Circle, Image, Play, Undo, Redo, Loader2
+  Type, Square, Circle, Image, Play, Undo, Redo, Loader2,
+  Table, Film, Link, Palette, Wand2, Zap, RotateCcw,
+  Eye, SlidersHorizontal, Timer, Maximize
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -28,6 +30,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const [slides, setSlides] = useState<SlideData[]>([]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [editingText, setEditingText] = useState<number | null>(null);
+  const [ribbonTab, setRibbonTab] = useState<'home' | 'insert' | 'design' | 'transitions' | 'animations' | 'slideshow'>('home');
 
   useEffect(() => {
     const load = async () => {
@@ -206,71 +209,114 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
 
           {/* Ribbon tabs */}
           <div className="flex items-center gap-1 px-2 py-0.5 text-xs border-b border-border/50">
-            <span className="px-3 py-1 rounded-t bg-muted font-medium">Home</span>
-            <span className="px-3 py-1 text-muted-foreground hover:bg-muted/50 rounded-t cursor-pointer">Insert</span>
-            <span className="px-3 py-1 text-muted-foreground hover:bg-muted/50 rounded-t cursor-pointer">Design</span>
-            <span className="px-3 py-1 text-muted-foreground hover:bg-muted/50 rounded-t cursor-pointer">Transitions</span>
-            <span className="px-3 py-1 text-muted-foreground hover:bg-muted/50 rounded-t cursor-pointer">Animations</span>
-            <span className="px-3 py-1 text-muted-foreground hover:bg-muted/50 rounded-t cursor-pointer">Slide Show</span>
+            {(['home', 'insert', 'design', 'transitions', 'animations', 'slideshow'] as const).map(tab => (
+              <span
+                key={tab}
+                className={cn(
+                  "px-3 py-1 rounded-t cursor-pointer capitalize",
+                  ribbonTab === tab ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"
+                )}
+                onClick={() => setRibbonTab(tab)}
+              >
+                {tab === 'slideshow' ? 'Slide Show' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </span>
+            ))}
           </div>
 
           {/* Ribbon content */}
-          <div className="flex items-center gap-1 px-3 py-1.5">
-            {/* Clipboard group */}
-            <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7"><Undo className="w-3.5 h-3.5" /></Button>
-              </TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7"><Redo className="w-3.5 h-3.5" /></Button>
-              </TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
-            </div>
+          <div className="flex items-center gap-1 px-3 py-1.5 min-h-[40px]">
+            {ribbonTab === 'home' && (
+              <>
+                <div className="flex items-center gap-0.5 pr-3 border-r border-border">
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Undo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Redo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
+                </div>
+                <div className="flex items-center gap-0.5 pr-3 border-r border-border">
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Bold className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Underline className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
+                </div>
+                <div className="flex items-center gap-0.5 pr-3 border-r border-border">
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignLeft className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignCenter className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignRight className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={addTextBox}><Type className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Text Box</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Square className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Shape</TooltipContent></Tooltip>
+                </div>
+              </>
+            )}
 
-            {/* Font group */}
-            <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7"><Bold className="w-3.5 h-3.5" /></Button>
-              </TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7"><Italic className="w-3.5 h-3.5" /></Button>
-              </TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7"><Underline className="w-3.5 h-3.5" /></Button>
-              </TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
-            </div>
+            {ribbonTab === 'insert' && (
+              <>
+                <div className="flex items-center gap-0.5 pr-3 border-r border-border">
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={addTextBox}><Type className="w-3.5 h-3.5" /> Text Box</Button></TooltipTrigger><TooltipContent>Insert Text Box</TooltipContent></Tooltip>
+                </div>
+                <div className="flex items-center gap-0.5 pr-3 border-r border-border">
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Image className="w-3.5 h-3.5" /> Picture</Button></TooltipTrigger><TooltipContent>Insert Picture</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Film className="w-3.5 h-3.5" /> Video</Button></TooltipTrigger><TooltipContent>Insert Video</TooltipContent></Tooltip>
+                </div>
+                <div className="flex items-center gap-0.5 pr-3 border-r border-border">
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Square className="w-3.5 h-3.5" /> Shape</Button></TooltipTrigger><TooltipContent>Insert Shape</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Table className="w-3.5 h-3.5" /> Table</Button></TooltipTrigger><TooltipContent>Insert Table</TooltipContent></Tooltip>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Link className="w-3.5 h-3.5" /> Link</Button></TooltipTrigger><TooltipContent>Insert Link</TooltipContent></Tooltip>
+                </div>
+              </>
+            )}
 
-            {/* Paragraph group */}
-            <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7"><AlignLeft className="w-3.5 h-3.5" /></Button>
-              </TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7"><AlignCenter className="w-3.5 h-3.5" /></Button>
-              </TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7"><AlignRight className="w-3.5 h-3.5" /></Button>
-              </TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
-            </div>
+            {ribbonTab === 'design' && (
+              <>
+                <div className="flex items-center gap-0.5 pr-3 border-r border-border">
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Palette className="w-3.5 h-3.5" /> Themes</Button></TooltipTrigger><TooltipContent>Slide Themes</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><SlidersHorizontal className="w-3.5 h-3.5" /> Variants</Button></TooltipTrigger><TooltipContent>Theme Variants</TooltipContent></Tooltip>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Maximize className="w-3.5 h-3.5" /> Slide Size</Button></TooltipTrigger><TooltipContent>Slide Size</TooltipContent></Tooltip>
+                </div>
+              </>
+            )}
 
-            {/* Insert group */}
-            <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={addTextBox}><Type className="w-3.5 h-3.5" /></Button>
-              </TooltipTrigger><TooltipContent>Text Box</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7"><Square className="w-3.5 h-3.5" /></Button>
-              </TooltipTrigger><TooltipContent>Shape</TooltipContent></Tooltip>
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="icon" variant="ghost" className="h-7 w-7"><Image className="w-3.5 h-3.5" /></Button>
-              </TooltipTrigger><TooltipContent>Image</TooltipContent></Tooltip>
-            </div>
+            {ribbonTab === 'transitions' && (
+              <>
+                <div className="flex items-center gap-0.5 pr-3 border-r border-border">
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><RotateCcw className="w-3.5 h-3.5" /> None</Button></TooltipTrigger><TooltipContent>No Transition</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Wand2 className="w-3.5 h-3.5" /> Fade</Button></TooltipTrigger><TooltipContent>Fade</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Zap className="w-3.5 h-3.5" /> Push</Button></TooltipTrigger><TooltipContent>Push</TooltipContent></Tooltip>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground">Duration:</span>
+                  <span className="text-xs">1.00s</span>
+                </div>
+              </>
+            )}
 
-            {/* Slide Show */}
-            <div className="flex items-center gap-0.5">
-              <Tooltip><TooltipTrigger asChild>
-                <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Play className="w-3.5 h-3.5" /> Present</Button>
-              </TooltipTrigger><TooltipContent>Start Presentation</TooltipContent></Tooltip>
-            </div>
+            {ribbonTab === 'animations' && (
+              <>
+                <div className="flex items-center gap-0.5 pr-3 border-r border-border">
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><RotateCcw className="w-3.5 h-3.5" /> None</Button></TooltipTrigger><TooltipContent>No Animation</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Wand2 className="w-3.5 h-3.5" /> Appear</Button></TooltipTrigger><TooltipContent>Appear</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Zap className="w-3.5 h-3.5" /> Fly In</Button></TooltipTrigger><TooltipContent>Fly In</TooltipContent></Tooltip>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Eye className="w-3.5 h-3.5" /> Preview</Button></TooltipTrigger><TooltipContent>Preview Animation</TooltipContent></Tooltip>
+                </div>
+              </>
+            )}
+
+            {ribbonTab === 'slideshow' && (
+              <>
+                <div className="flex items-center gap-0.5 pr-3 border-r border-border">
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Play className="w-3.5 h-3.5" /> From Beginning</Button></TooltipTrigger><TooltipContent>Start from Beginning</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Play className="w-3.5 h-3.5" /> From Current</Button></TooltipTrigger><TooltipContent>Start from Current Slide</TooltipContent></Tooltip>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Timer className="w-3.5 h-3.5" /> Rehearse</Button></TooltipTrigger><TooltipContent>Rehearse Timings</TooltipContent></Tooltip>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
