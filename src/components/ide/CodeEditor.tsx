@@ -3,6 +3,7 @@ import { FileNode } from '@/types/ide';
 import { FindReplace } from './FindReplace';
 import { FilePreview } from './FilePreview';
 import { OfficeEditor } from './OfficeEditor';
+import { VideoEditor } from './VideoEditor';
 
 interface CodeEditorProps {
   file: FileNode | null;
@@ -13,7 +14,7 @@ interface CodeEditorProps {
 const getPreviewType = (fileName: string): 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'office' | null => {
   const ext = fileName.split('.').pop()?.toLowerCase();
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp'];
-  const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogv'];
+  const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogv', 'ogg'];
   const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'];
   
   if (ext === 'svg') return 'svg';
@@ -444,6 +445,10 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   
   if (previewType === 'office') {
     return <OfficeEditor file={file} onContentChange={onContentChange} />;
+  }
+
+  if (previewType === 'video') {
+    return <VideoEditor file={file} onContentChange={onContentChange} />;
   }
 
   if (previewType && !isTextPreviewable) {
