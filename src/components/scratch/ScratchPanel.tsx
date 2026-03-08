@@ -646,6 +646,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const importInputRef = useRef<HTMLInputElement>(null);
   const costumeInputRef = useRef<HTMLInputElement>(null);
   const soundInputRef = useRef<HTMLInputElement>(null);
+  const backdropInputRef = useRef<HTMLInputElement>(null);
   const vmRef = useRef<ScratchVmLike | null>(null);
   const rendererRef = useRef<{ draw(): void; destroy(): void } | null>(null);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
@@ -662,6 +663,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const selectedTarget = project.targets[Math.max(0, Math.min(project.targets.length - 1, selectedTargetIndex))];
   const selectedBlocks = Object.values(selectedTarget?.blocks || {});
   const spriteTargets = project.targets.filter((target) => !target.isStage);
+  const stageTarget = project.targets.find((t) => t.isStage);
+  const stageBackdrops = stageTarget?.costumes || [];
+  const stageCurrentBackdrop = Number(stageTarget?.currentCostume || 0);
   const blockLabels = useMemo(() => {
     const map: Record<string, string> = {};
     Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
@@ -894,6 +898,41 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         fileNames: currentArchive.fileNames.includes(md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, md5ext],
       }),
     );
+  };
+
+  const addBackdrop = async (file: File) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const assetId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 8)}`;
+    const dataFormat = extensionOf(file.name) || 'png';
+    const md5ext = `${assetId}.${dataFormat}`;
+    const base64 = bytesToBase64(bytes);
+
+    await updateArchiveWithProject(
+      (current) => ({
+        ...current,
+        targets: current.targets.map((target) => {
+          if (!target.isStage) return target;
+          const costumes = target.costumes || [];
+          return {
+            ...target,
+            costumes: [...costumes, { name: file.name.replace(/\.[^/.]+$/, ''), assetId, md5ext, dataFormat, rotationCenterX: 240, rotationCenterY: 180 }],
+            currentCostume: costumes.length,
+          };
+        }),
+      }),
+      (currentArchive) => ({
+        ...currentArchive,
+        files: { ...currentArchive.files, [md5ext]: base64 },
+        fileNames: currentArchive.fileNames.includes(md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, md5ext],
+      }),
+    );
+  };
+
+  const setStageBackdrop = (index: number) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target) => target.isStage ? { ...target, currentCostume: index } : target),
+    }));
   };
 
   const addSound = async (file: File) => {
@@ -1540,14 +1579,40 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               </div>
             </div>
 
-            {/* Stage / Backdrops mini panel */}
-            <div className="w-[100px] border-l border-[#e0e0e0] bg-white p-2 flex flex-col items-center gap-1 shrink-0">
-              <div className="text-[10px] font-semibold text-[#575e75]">Stage</div>
-              <div className="w-16 h-12 rounded border border-[#d0d0d0] bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
-                {stageCostumeSrc ? <img src={stageCostumeSrc} className="max-w-full max-h-full" /> : <span className="text-xs text-[#b0b0b0]">🖼</span>}
+            {/* Stage / Backdrops panel */}
+            <div className="w-[120px] border-l border-[#e0e0e0] bg-white flex flex-col shrink-0 min-h-0">
+              <div className="px-2 pt-2 pb-1 flex items-center justify-between">
+                <div className="text-[11px] font-bold text-[#575e75]">Stage</div>
+                <button
+                  onClick={() => backdropInputRef.current?.click()}
+                  className="w-5 h-5 rounded-full bg-[#855cd6] text-white flex items-center justify-center hover:bg-[#7248bf]"
+                  title="Upload backdrop"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+                <input ref={backdropInputRef} className="hidden" type="file" accept="image/*,.svg" onChange={(e) => e.target.files?.[0] && addBackdrop(e.target.files[0])} />
               </div>
-              <div className="text-[9px] text-[#575e75]">Backdrops</div>
-              <div className="text-[10px] text-[#b0b0b0]">{project.targets[0]?.costumes?.length || 1}</div>
+              <div className="text-[9px] text-[#575e75] px-2 mb-1">Backdrops</div>
+              <div className="flex-1 overflow-y-auto px-1.5 pb-2 space-y-1.5">
+                {stageBackdrops.map((backdrop, idx) => {
+                  const src = archive?.files?.[backdrop.md5ext]
+                    ? `data:image/${backdrop.dataFormat || 'png'};base64,${archive.files[backdrop.md5ext]}`
+                    : null;
+                  const selected = idx === stageCurrentBackdrop;
+                  return (
+                    <button
+                      key={backdrop.assetId}
+                      onClick={() => setStageBackdrop(idx)}
+                      className={`w-full rounded border-2 p-1 transition-colors ${selected ? 'border-[#855cd6] bg-[#f0ebff]' : 'border-[#d0d0d0] hover:border-[#b0b0b0]'}`}
+                    >
+                      <div className="w-full aspect-[4/3] rounded bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
+                        {src ? <img src={src} alt={backdrop.name} className="max-w-full max-h-full" /> : <span className="text-xs text-[#b0b0b0]">🖼</span>}
+                      </div>
+                      <div className="text-[9px] text-[#575e75] mt-0.5 truncate text-center">{idx + 1}. {backdrop.name}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
