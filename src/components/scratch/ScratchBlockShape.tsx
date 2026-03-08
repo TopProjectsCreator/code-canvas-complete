@@ -41,7 +41,8 @@ const darken = (hex: string, amount = 0.15) => {
 type LabelSegment =
   | { type: 'text'; value: string }
   | { type: 'reporter'; value: string }
-  | { type: 'boolean'; value: string };
+  | { type: 'boolean'; value: string }
+  | { type: 'dropdown'; value: string };
 
 const parseLabel = (label: string): LabelSegment[] => {
   const segments: LabelSegment[] = [];
@@ -61,6 +62,12 @@ const parseLabel = (label: string): LabelSegment[] => {
       if (end === -1) { current += label[i]; i++; continue; }
       segments.push({ type: 'boolean', value: label.slice(i + 1, end) });
       i = end + 1;
+    } else if (label[i] === '{') {
+      if (current) { segments.push({ type: 'text', value: current }); current = ''; }
+      const end = label.indexOf('}', i + 1);
+      if (end === -1) { current += label[i]; i++; continue; }
+      segments.push({ type: 'dropdown', value: label.slice(i + 1, end) });
+      i = end + 1;
     } else {
       current += label[i];
       i++;
@@ -69,6 +76,9 @@ const parseLabel = (label: string): LabelSegment[] => {
   if (current) segments.push({ type: 'text', value: current });
   return segments;
 };
+
+const DROPDOWN_PAD = 6;
+const DROPDOWN_ARROW = 8;
 
 /** Measure total width needed for parsed segments */
 const measureSegments = (segments: LabelSegment[]): number => {
@@ -80,6 +90,8 @@ const measureSegments = (segments: LabelSegment[]): number => {
       w += Math.max(seg.value.length * CHAR_W + INPUT_PAD * 2 + 4, 28) + 4;
     } else if (seg.type === 'boolean') {
       w += Math.max(seg.value.length * CHAR_W + BOOL_H + 4, 32) + 4;
+    } else if (seg.type === 'dropdown') {
+      w += seg.value.length * CHAR_W + DROPDOWN_PAD * 2 + DROPDOWN_ARROW + 8;
     }
   }
   w += 10; // right padding
