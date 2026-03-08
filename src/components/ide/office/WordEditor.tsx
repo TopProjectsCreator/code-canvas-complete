@@ -27,6 +27,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const [error, setError] = useState<string | null>(null);
   const [paragraphs, setParagraphs] = useState<string[]>([]);
   const [zoom, setZoom] = useState(100);
+  const [activeTab, setActiveTab] = useState<'home' | 'insert' | 'layout' | 'references' | 'review' | 'view'>('home');
   const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
