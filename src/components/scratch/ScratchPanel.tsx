@@ -1835,7 +1835,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   const mappedIndex = project.targets.findIndex((t) => t.name === target.name && !t.isStage);
                   const selected = mappedIndex === selectedTargetIndex;
                   const costumeSrc = target.costumes?.[0]?.md5ext && archive?.files?.[target.costumes[0].md5ext]
-                    ? `data:image/${target.costumes[0].dataFormat || 'png'};base64,${archive.files[target.costumes[0].md5ext]}`
+                    ? `data:${imgMime(target.costumes[0].dataFormat)};base64,${archive.files[target.costumes[0].md5ext]}`
                     : null;
                   return (
                     <button
