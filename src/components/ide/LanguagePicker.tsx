@@ -56,7 +56,10 @@ export type LanguageTemplate =
   | "django"
   | "sqlite"
   | "arduino"
-  | "scratch";
+  | "scratch"
+  | "word"
+  | "powerpoint"
+  | "excel";
 
 interface LanguageOption {
   id: LanguageTemplate;
