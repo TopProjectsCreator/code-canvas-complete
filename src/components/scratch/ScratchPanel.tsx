@@ -241,8 +241,7 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'abs of ( )', opcode: 'operator_mathop', inputs: { NUM: [1, [4, '']] }, fields: { OPERATOR: ['abs', null] } },
   ],
   Variables: [
-    { label: 'Make a Variable', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] }, action: 'create_variable' },
-    { label: 'Make a List', opcode: 'data_addtolist', inputs: { ITEM: [1, [10, 'thing']] }, action: 'create_list' },
+    // These are the block templates — "Make a Variable"/"Make a List" buttons are rendered separately in the flyout
     { label: 'set my variable to 0', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] } },
     { label: 'change my variable by 1', opcode: 'data_changevariableby', inputs: { VALUE: [1, [4, '1']] } },
     { label: 'show variable', opcode: 'data_showvariable' },
@@ -516,7 +515,123 @@ const ensureDataRefForTarget = (target: ScratchTarget, blockDef: ScratchBlockDef
   return { target: nextTarget, fields: nextFields };
 };
 
-export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, isRunning, onRun, onStop }: ScratchPanelProps) => {
+/** Variables category flyout — matches real Scratch editor layout */
+const VariablesFlyout = ({
+  variables,
+  lists,
+  blocks,
+  color,
+  onMakeVariable,
+  onMakeList,
+  onAddBlock,
+}: {
+  variables: [string, [string, ScratchInputPrimitive]][];
+  lists: [string, [string, ScratchInputPrimitive[]]][];
+  blocks: ScratchBlockDef[];
+  color: string;
+  onMakeVariable: () => void;
+  onMakeList: () => void;
+  onAddBlock: (blockDef: ScratchBlockDef) => void;
+}) => {
+  // Split blocks into variable-related and list-related
+  const varBlocks = blocks.filter((b) => !b.opcode.includes('list') && !b.opcode.includes('List'));
+  const listBlocks = blocks.filter((b) => b.opcode.includes('list') || b.opcode.includes('List'));
+
+  return (
+    <div className="space-y-2">
+      {/* Make a Variable button */}
+      <button
+        onClick={onMakeVariable}
+        className="w-full py-2 rounded-lg text-[14px] font-semibold text-[#575e75] border-2 border-[#d0d0d0] bg-white hover:bg-[#f8f8f8] transition-colors"
+      >
+        Make a Variable
+      </button>
+
+      {/* Variable reporters */}
+      {variables.length > 0 && (
+        <div className="space-y-1.5 py-1">
+          {variables.map(([id, [name]]) => (
+            <div key={id} className="flex items-center gap-2">
+              <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#ff8c1a]" />
+              <ScratchBlockShape label={name} color={color} shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Variable blocks */}
+      {variables.length > 0 && (
+        <div className="space-y-1.5">
+          {varBlocks.map((blockDef) => {
+            const shape = getBlockShape(blockDef.opcode);
+            return (
+              <div
+                key={blockDef.label}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                onClick={() => onAddBlock(blockDef)}
+                className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
+              >
+                <ScratchBlockShape label={blockDef.label} color={color} shape={shape} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Separator */}
+      <div className="border-t border-[#e0e0e0] my-2" />
+
+      {/* Make a List button */}
+      <button
+        onClick={onMakeList}
+        className="w-full py-2 rounded-lg text-[14px] font-semibold text-[#575e75] border-2 border-[#d0d0d0] bg-white hover:bg-[#f8f8f8] transition-colors"
+      >
+        Make a List
+      </button>
+
+      {/* List reporters */}
+      {lists.length > 0 && (
+        <div className="space-y-1.5 py-1">
+          {lists.map(([id, [name]]) => (
+            <div key={id} className="flex items-center gap-2">
+              <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#e6832a]" />
+              <ScratchBlockShape label={name} color="#e6832a" shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* List blocks */}
+      {lists.length > 0 && (
+        <div className="space-y-1.5">
+          {listBlocks.map((blockDef) => {
+            const shape = getBlockShape(blockDef.opcode);
+            return (
+              <div
+                key={blockDef.label}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                onClick={() => onAddBlock(blockDef)}
+                className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
+              >
+                <ScratchBlockShape label={blockDef.label} color="#e6832a" shape={shape} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
   const [activeEditorTab, setActiveEditorTab] = useState<'code' | 'costumes' | 'sounds'>('code');
   const [activeCategory, setActiveCategory] = useState('Motion');
   const [selectedTargetIndex, setSelectedTargetIndex] = useState(1);
@@ -527,6 +642,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [workspaceZoom, setWorkspaceZoom] = useState(1);
   const [vmReady, setVmReady] = useState(false);
   const [vmError, setVmError] = useState<string | null>(null);
+  const [dataPrompt, setDataPrompt] = useState<{ type: 'variable' | 'list'; name: string } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const costumeInputRef = useRef<HTMLInputElement>(null);
   const soundInputRef = useRef<HTMLInputElement>(null);
@@ -867,6 +983,41 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     return { x: current?.x ?? 0, y: (current?.y ?? 0), count };
   };
 
+  const createVariable = (name: string) => {
+    if (!selectedTarget || selectedTarget.isStage) return;
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const vars = { ...(target.variables || {}) };
+        const id = generateId();
+        vars[id] = [name, 0];
+        return { ...target, variables: vars };
+      }),
+    }));
+  };
+
+  const createList = (name: string) => {
+    if (!selectedTarget || selectedTarget.isStage) return;
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const lists = { ...(target.lists || {}) };
+        const id = generateId();
+        lists[id] = [name, []];
+        return { ...target, lists };
+      }),
+    }));
+  };
+
+  const handleDataPromptSubmit = () => {
+    if (!dataPrompt || !dataPrompt.name.trim()) return;
+    if (dataPrompt.type === 'variable') createVariable(dataPrompt.name.trim());
+    else createList(dataPrompt.name.trim());
+    setDataPrompt(null);
+  };
+
   const addBlock = (blockDef: ScratchBlockDef, dropX?: number, dropY?: number) => {
     if (!selectedTarget || selectedTarget.isStage || activeEditorTab !== 'code') return;
     const blockId = generateId();
@@ -878,20 +1029,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       ...current,
       targets: current.targets.map((target, idx) => {
         if (idx !== selectedTargetIndex) return target;
-        if (blockDef.action === 'create_variable') {
-          const vars = { ...(target.variables || {}) };
-          const id = generateId();
-          const name = getUniqueDataName(Object.values(vars).map(([n]) => n), 'my variable');
-          vars[id] = [name, 0];
-          return { ...target, variables: vars };
-        }
-        if (blockDef.action === 'create_list') {
-          const lists = { ...(target.lists || {}) };
-          const id = generateId();
-          const name = getUniqueDataName(Object.values(lists).map(([n]) => n), 'my list');
-          lists[id] = [name, []];
-          return { ...target, lists };
-        }
 
         const blocks = { ...(target.blocks || {}) };
         const dataResolved = ensureDataRefForTarget(target, blockDef);
@@ -1165,6 +1302,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               {activeCategory}
             </div>
             {activeEditorTab === 'code' ? (
+              activeCategory === 'Variables' ? (
+                <VariablesFlyout
+                  variables={Object.entries(selectedTarget?.variables || {})}
+                  lists={Object.entries(selectedTarget?.lists || {})}
+                  blocks={categoryBlocks['Variables'] || []}
+                  color={categoryColors['Variables'] || '#ff8c1a'}
+                  onMakeVariable={() => setDataPrompt({ type: 'variable', name: 'my variable' })}
+                  onMakeList={() => setDataPrompt({ type: 'list', name: 'my list' })}
+                  onAddBlock={addBlock}
+                />
+              ) : (
               <div className="space-y-1.5">
                 {(categoryBlocks[activeCategory] || []).map((blockDef) => {
                   const color = categoryColors[activeCategory] || '#4c97ff';
@@ -1185,6 +1333,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   );
                 })}
               </div>
+              )
             ) : activeEditorTab === 'costumes' ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -1421,6 +1570,31 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             spellCheck={false}
           />
           {jsonError && <div className="text-[11px] text-red-500 mt-0.5">{jsonError}</div>}
+        </div>
+      )}
+
+      {/* Variable / List creation dialog */}
+      {dataPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDataPrompt(null)}>
+          <div className="bg-white rounded-xl shadow-xl p-5 w-[320px]" onClick={(e) => e.stopPropagation()}>
+            <div className="text-[15px] font-bold text-[#575e75] mb-3">
+              {dataPrompt.type === 'variable' ? 'New Variable' : 'New List'}
+            </div>
+            <div className="text-[13px] text-[#575e75] mb-1">
+              {dataPrompt.type === 'variable' ? 'Variable' : 'List'} name:
+            </div>
+            <input
+              autoFocus
+              className="w-full h-9 rounded-lg border-2 border-[#855cd6] px-3 text-[14px] outline-none"
+              value={dataPrompt.name}
+              onChange={(e) => setDataPrompt({ ...dataPrompt, name: e.target.value })}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleDataPromptSubmit(); if (e.key === 'Escape') setDataPrompt(null); }}
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setDataPrompt(null)} className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]">Cancel</button>
+              <button onClick={handleDataPromptSubmit} className="px-4 py-1.5 rounded-lg text-[13px] text-white bg-[#855cd6] hover:bg-[#7248bf]">OK</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
