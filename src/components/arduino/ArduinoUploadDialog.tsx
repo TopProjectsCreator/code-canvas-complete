@@ -37,7 +37,7 @@ interface ArduinoUploadDialogProps {
   sketchCode: string;
 }
 
-const DFU_BOARDS = ['uno_r4_wifi'];
+const SAMBA_BOARDS = ['uno_r4_wifi'];
 
 export function ArduinoUploadDialog({
   open,
