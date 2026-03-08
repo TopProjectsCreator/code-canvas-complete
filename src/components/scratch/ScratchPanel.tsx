@@ -1502,6 +1502,16 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     return count;
   };
 
+  const getStackTailId = (blocks: Record<string, ScratchBlockNode>, startId: string) => {
+    let tailId = startId;
+    let current = blocks[startId];
+    while (current?.next && blocks[current.next]) {
+      tailId = current.next;
+      current = blocks[current.next];
+    }
+    return tailId;
+  };
+
   const getNextSnapY = (blocks: Record<string, ScratchBlockNode>, block: ScratchBlockNode) => {
     const by = block.y ?? 0;
     if (!cBlockOpcodes.has(block.opcode)) return by + BLOCK_HEIGHT;
