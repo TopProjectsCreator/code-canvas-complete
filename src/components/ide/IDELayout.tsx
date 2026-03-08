@@ -9,7 +9,8 @@ import { EditorTabs } from "./EditorTabs";
 import { CodeEditor } from "./CodeEditor";
 import { Terminal } from "./Terminal";
 import { Preview } from "./Preview";
-import { LanguagePicker, LanguageTemplate } from "./LanguagePicker";
+import { LanguagePicker } from "./LanguagePicker";
+import type { LanguageTemplate } from "@/data/templateRegistry";
 import { AIChat } from "./AIChat";
 import { ProjectsDialog } from "./ProjectsDialog";
 import { SaveProjectDialog } from "./SaveProjectDialog";
@@ -2070,7 +2071,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
               handleRun();
             }}
             onChangeTemplate={(template) => {
-              handleChangeTemplate(template as import("./LanguagePicker").LanguageTemplate);
+              handleChangeTemplate(template as LanguageTemplate);
             }}
             onRenameFile={(oldName, newName) => {
               const findFileByName = (nodes: FileNode[], name: string): FileNode | null => {
