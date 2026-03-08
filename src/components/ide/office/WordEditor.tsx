@@ -80,6 +80,33 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     setParagraphs(text.split('\n'));
   };
 
+  const handleImageUpload = () => fileInputRef.current?.click();
+
+  const onImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        const id = `img-${Date.now()}`;
+        setImages(prev => [...prev, { id, dataUrl: reader.result as string }]);
+        // Insert image placeholder into editor
+        if (editorRef.current) {
+          const img = document.createElement('img');
+          img.src = reader.result as string;
+          img.style.maxWidth = '100%';
+          img.style.borderRadius = '4px';
+          img.style.margin = '8px 0';
+          img.setAttribute('data-img-id', id);
+          editorRef.current.appendChild(img);
+          handleEditorInput();
+        }
+      }
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground gap-2">
