@@ -4,6 +4,8 @@ import { FindReplace } from './FindReplace';
 import { FilePreview } from './FilePreview';
 import { OfficeEditor } from './OfficeEditor';
 import { VideoEditor } from './VideoEditor';
+import { AudioEditor } from './AudioEditor';
+import { RTFEditor } from './RTFEditor';
 import { CADEditor } from './CADEditor';
 
 interface CodeEditorProps {
