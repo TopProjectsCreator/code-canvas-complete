@@ -198,6 +198,15 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
     case 'scratch':
       baseTemplate = scratchTemplate;
       break;
+    case 'word':
+      baseTemplate = wordTemplate;
+      break;
+    case 'powerpoint':
+      baseTemplate = powerpointTemplate;
+      break;
+    case 'excel':
+      baseTemplate = excelTemplate;
+      break;
     default:
       baseTemplate = htmlTemplate;
       break;
