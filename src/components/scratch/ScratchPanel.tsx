@@ -1815,7 +1815,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       detached: false,
     };
     setDragBlockId(blockId);
-    setDragPos({ x: block.x ?? 0, y: block.y ?? 0 });
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
   }, [getWorkspaceCoords, selectedTarget]);
 
@@ -1826,7 +1825,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const { x, y } = getWorkspaceCoords(e.clientX, e.clientY);
     const newX = x - drag.offsetX;
     const newY = y - drag.offsetY;
-    setDragPos({ x: newX, y: newY });
 
     // Detach from parent on first move
     if (!drag.detached) {
@@ -1946,7 +1944,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
     dragRef.current = null;
     setDragBlockId(null);
-    setDragPos(null);
     setSnapPreview(null);
   }, [snapPreview, selectedTargetIndex, updateProject, getBlockStack]);
 
