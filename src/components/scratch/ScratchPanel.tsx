@@ -930,6 +930,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const rafRef = useRef<number>(0);
   const archiveRef = useRef<ScratchArchive | null>(archive);
   const storageReadyRef = useRef(false);
+  const projectLoadedRef = useRef(false);
 
   // Keep archiveRef in sync for the storage adapter closure
   useEffect(() => {
@@ -996,12 +997,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         : data.slice().buffer;
       console.log('[Scratch] Loading project into VM, size:', ab.byteLength);
       await vmRef.current.loadProject(ab);
+      projectLoadedRef.current = true;
       console.log('[Scratch] Project loaded successfully, targets:', vmRef.current.runtime?.targets?.length);
       setVmError(null);
       syncFromVm();
     } catch (error) {
+      projectLoadedRef.current = false;
       console.warn('scratch-vm loadProject warning:', error);
-      setVmError(null);
+      setVmError(error instanceof Error ? error.message : 'Failed to load Scratch project');
     }
   }, [syncFromVm]);
 
@@ -1023,22 +1026,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         const VmCtor = VirtualMachine as unknown as { new (): ScratchVmLike };
         const vm = new VmCtor();
 
-        // Dynamically import and attach renderer
-        try {
-          const renderMod = await import('scratch-render');
-          const RenderCtor = renderMod.default || renderMod;
-          if (typeof RenderCtor === 'function') {
-            const renderer = new RenderCtor(canvas);
-            vm.attachRenderer(renderer);
-            rendererRef.current = renderer;
-            useWebGLRenderer = true;
-            console.log('[Scratch] scratch-render attached successfully');
-          }
-        } catch (e) {
-          console.warn('scratch-render not available:', e);
-        }
+        projectLoadedRef.current = false;
 
-        // Dynamically import and attach storage
+        // Attach storage first; renderer depends on successful project asset resolution
         try {
           storageReadyRef.current = false;
           const storageMod = await import('scratch-storage');
@@ -1093,6 +1083,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           console.warn('scratch-storage not available:', e);
         }
 
+        // Keep 2D fallback renderer as primary path for compatibility in this environment
+        useWebGLRenderer = false;
+
         // Dynamically import and attach audio engine
         try {
           const audioMod = await import('scratch-audio');
@@ -1110,7 +1103,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         vm.start();
         vmRef.current = vm;
         setVmReady(true);
-        setVmError(null);
+        if (!storageReadyRef.current) {
+          setVmError('Storage unavailable; running in 2D fallback mode.');
+        }
         console.log('[Scratch] VM started, useWebGLRenderer:', useWebGLRenderer);
 
         // Start draw loop
@@ -1118,7 +1113,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         let frameCount = 0;
         const drawStep = () => {
           frameCount++;
-          if (useWebGLRenderer && rendererRef.current) {
+          rendererProducedOutput = false;
+          if (useWebGLRenderer && rendererRef.current && projectLoadedRef.current) {
             try {
               rendererRef.current.draw();
               rendererProducedOutput = true;
@@ -1167,6 +1163,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       } catch { /* noop */ }
       rendererRef.current = null;
       vmRef.current = null;
+      projectLoadedRef.current = false;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
