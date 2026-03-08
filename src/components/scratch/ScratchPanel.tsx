@@ -1112,9 +1112,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         vmRef.current = vm;
 
         // Handle "ask and wait" blocks — VM emits QUESTION, waits for ANSWER
-        vm.runtime?.on?.('QUESTION', (question: string) => {
+        const rt = vm.runtime as any;
+        rt?.on?.('QUESTION', (question: string) => {
           const answer = window.prompt(question || 'What is your name?') || '';
-          vm.runtime?.emit?.('ANSWER', answer);
+          rt?.emit?.('ANSWER', answer);
         });
 
         setVmReady(true);
