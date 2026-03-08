@@ -2071,7 +2071,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
               handleRun();
             }}
             onChangeTemplate={(template) => {
-              handleChangeTemplate(template as import("./LanguagePicker").LanguageTemplate);
+              handleChangeTemplate(template as LanguageTemplate);
             }}
             onRenameFile={(oldName, newName) => {
               const findFileByName = (nodes: FileNode[], name: string): FileNode | null => {
