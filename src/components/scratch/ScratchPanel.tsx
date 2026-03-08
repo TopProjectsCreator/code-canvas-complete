@@ -1238,16 +1238,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         <div className="border-l border-[#c8d0dd] bg-[#e5edf9] grid grid-rows-[430px_1fr] min-h-0">
           <div className="p-2">
-              <div className="rounded-xl bg-white border border-[#c8d0dd] h-full relative overflow-hidden">
-              <div className="absolute left-0 top-0 right-0 h-full bg-[#f0f0f0]" />
-              {stagePreview.visible && spriteVisible && (
-                <div
-                  className="absolute text-[100px] leading-none"
-                  style={{ left: stagePreview.x, top: stagePreview.y, transform: `rotate(${stagePreview.direction - 90}deg)` }}
-                >
-                  {stageCostumeSrc ? <img src={stageCostumeSrc} alt={activeCostume?.name || 'Sprite'} className="w-[96px] h-[96px] object-contain" /> : '🐱'}
-                </div>
-              )}
+              <div className="rounded-xl bg-white border border-[#c8d0dd] h-full relative overflow-hidden flex items-center justify-center">
+              <canvas
+                ref={canvasRef}
+                width={480}
+                height={360}
+                className="w-full h-full"
+                style={{ imageRendering: 'pixelated' }}
+              />
             </div>
           </div>
 
