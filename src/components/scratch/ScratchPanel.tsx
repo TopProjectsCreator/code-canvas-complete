@@ -548,20 +548,49 @@ const VariablesFlyout = ({
     allNames: string[];
   } | null>(null);
 
+  // Track which variable/list is selected for block insertion
+  const [selectedVarId, setSelectedVarId] = useState<string | null>(null);
+  const [selectedListId, setSelectedListId] = useState<string | null>(null);
+
+  // Auto-select first variable/list if none selected
+  const activeVarId = selectedVarId && variables.some(([id]) => id === selectedVarId) ? selectedVarId : variables[0]?.[0] || null;
+  const activeListId = selectedListId && lists.some(([id]) => id === selectedListId) ? selectedListId : lists[0]?.[0] || null;
+
+  const activeVarName = variables.find(([id]) => id === activeVarId)?.[1]?.[0] || '';
+  const activeListName = lists.find(([id]) => id === activeListId)?.[1]?.[0] || '';
+
   const varBlocks = blocks.filter((b) => !b.opcode.includes('list') && !b.opcode.includes('List'));
   const listBlocks = blocks.filter((b) => b.opcode.includes('list') || b.opcode.includes('List'));
 
   const varNames = variables.map(([, [name]]) => name);
   const listNames = lists.map(([, [name]]) => name);
 
-  // Replace "my variable" in block labels with the first variable name
+  // Replace "my variable" in block labels with the selected variable name
   const resolveVarLabel = (label: string) => {
-    if (varNames.length > 0) return label.replace('my variable', varNames[0]);
+    if (activeVarName) return label.replace('my variable', activeVarName);
     return label;
   };
   const resolveListLabel = (label: string) => {
-    if (listNames.length > 0) return label.replace('my list', listNames[0]);
+    if (activeListName) return label.replace('my list', activeListName);
     return label;
+  };
+
+  // Wrap onAddBlock to inject the selected variable/list into the block fields
+  const handleAddVarBlock = (blockDef: ScratchBlockDef) => {
+    if (activeVarId && activeVarName) {
+      const patched = { ...blockDef, fields: { ...blockDef.fields, VARIABLE: [activeVarName, activeVarId] } };
+      onAddBlock(patched);
+    } else {
+      onAddBlock(blockDef);
+    }
+  };
+  const handleAddListBlock = (blockDef: ScratchBlockDef) => {
+    if (activeListId && activeListName) {
+      const patched = { ...blockDef, fields: { ...blockDef.fields, LIST: [activeListName, activeListId] } };
+      onAddBlock(patched);
+    } else {
+      onAddBlock(blockDef);
+    }
   };
 
   return (
@@ -600,9 +629,20 @@ const VariablesFlyout = ({
         </div>
       )}
 
-      {/* Variable blocks */}
+      {/* Variable selector + blocks */}
       {variables.length > 0 && (
         <div className="space-y-1.5">
+          {variables.length > 1 && (
+            <select
+              value={activeVarId || ''}
+              onChange={(e) => setSelectedVarId(e.target.value)}
+              className="w-full rounded-lg border-2 border-[#ff8c1a] bg-white px-2 py-1.5 text-[13px] text-[#575e75] font-semibold outline-none cursor-pointer"
+            >
+              {variables.map(([id, [name]]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
+            </select>
+          )}
           {varBlocks.map((blockDef) => {
             const shape = getBlockShape(blockDef.opcode);
             return (
@@ -610,10 +650,13 @@ const VariablesFlyout = ({
                 key={blockDef.label}
                 draggable
                 onDragStart={(e) => {
-                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
+                  const patched = activeVarId && activeVarName
+                    ? { ...blockDef, fields: { ...blockDef.fields, VARIABLE: [activeVarName, activeVarId] } }
+                    : blockDef;
+                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(patched));
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
-                onClick={() => onAddBlock(blockDef)}
+                onClick={() => handleAddVarBlock(blockDef)}
                 className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
               >
                 <ScratchBlockShape label={resolveVarLabel(blockDef.label)} color={color} shape={shape} />
