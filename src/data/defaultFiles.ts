@@ -34,6 +34,9 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   sqlite: 'SQLite',
   arduino: 'Arduino',
   scratch: 'Scratch Blocks',
+  word: 'Word Document',
+  powerpoint: 'PowerPoint',
+  excel: 'Excel Spreadsheet',
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
