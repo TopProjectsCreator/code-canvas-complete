@@ -31,6 +31,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const [wordCount, setWordCount] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const initialHtmlRef = useRef('');
   // Track the file id we loaded so we only set innerHTML once per file
   const loadedFileIdRef = useRef<string | null>(null);
