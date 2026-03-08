@@ -29,7 +29,9 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const [paragraphs, setParagraphs] = useState<string[]>([]);
   const [zoom, setZoom] = useState(100);
   const [activeTab, setActiveTab] = useState<'home' | 'insert' | 'layout' | 'references' | 'review' | 'view'>('home');
+  const [images, setImages] = useState<Array<{ id: string; dataUrl: string }>>([]);
   const editorRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -78,6 +80,33 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     setParagraphs(text.split('\n'));
   };
 
+  const handleImageUpload = () => fileInputRef.current?.click();
+
+  const onImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        const id = `img-${Date.now()}`;
+        setImages(prev => [...prev, { id, dataUrl: reader.result as string }]);
+        // Insert image placeholder into editor
+        if (editorRef.current) {
+          const img = document.createElement('img');
+          img.src = reader.result as string;
+          img.style.maxWidth = '100%';
+          img.style.borderRadius = '4px';
+          img.style.margin = '8px 0';
+          img.setAttribute('data-img-id', id);
+          editorRef.current.appendChild(img);
+          handleEditorInput();
+        }
+      }
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground gap-2">
@@ -94,6 +123,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   return (
     <TooltipProvider>
       <div className="flex-1 flex flex-col bg-[#f3f3f3] dark:bg-[#1e1e1e] overflow-hidden">
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onImageFileChange} />
         {/* Title bar */}
         <div className="bg-[#185abd] dark:bg-[#1b3a6b] text-white">
           <div className="flex items-center justify-between px-3 py-1.5">
@@ -176,7 +206,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
                 <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Table className="w-3.5 h-3.5" /> Table</Button></TooltipTrigger><TooltipContent>Insert Table</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Image className="w-3.5 h-3.5" /> Picture</Button></TooltipTrigger><TooltipContent>Insert Picture</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={handleImageUpload}><Image className="w-3.5 h-3.5" /> Picture</Button></TooltipTrigger><TooltipContent>Insert Picture</TooltipContent></Tooltip>
                 <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Film className="w-3.5 h-3.5" /> Video</Button></TooltipTrigger><TooltipContent>Insert Video</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
