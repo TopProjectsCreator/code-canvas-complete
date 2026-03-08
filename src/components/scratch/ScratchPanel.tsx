@@ -1897,8 +1897,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const snap = findSnapTarget(blocks, newX, newY, drag.blockId);
     if (snap && blocks[snap.id]) {
       const parent = blocks[snap.id];
-      const snapX = snap.type === 'substack' ? (parent.x ?? 0) + C_BLOCK_INDENT : (parent.x ?? 0);
-      const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+      const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, snap.type);
       setSnapPreview({ ...snap, x: snapX, y: snapY });
     } else {
       setSnapPreview(null);
