@@ -31,6 +31,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const [wordCount, setWordCount] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const initialHtmlRef = useRef('');
   // Track the file id we loaded so we only set innerHTML once per file
   const loadedFileIdRef = useRef<string | null>(null);
@@ -168,10 +169,27 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   };
 
   const insertVideo = () => {
-    const url = prompt('Enter video URL (YouTube/Vimeo):');
-    if (url) {
-      exec('insertHTML', `<div style="margin:8px 0;padding:12px;background:hsl(var(--muted));border-radius:6px;text-align:center"><span style="font-size:0.85em">🎬 Video: <a href="${url}" target="_blank" style="color:hsl(217,91%,60%)">${url}</a></span></div>`);
+    // Offer choice: URL or file upload
+    const choice = prompt('Enter video URL (YouTube/Vimeo), or type "file" to upload an .mp4:');
+    if (!choice) return;
+    if (choice.toLowerCase().trim() === 'file') {
+      videoInputRef.current?.click();
+    } else {
+      exec('insertHTML', `<div style="margin:8px 0;padding:12px;background:hsl(var(--muted));border-radius:6px;text-align:center"><span style="font-size:0.85em">🎬 Video: <a href="${choice}" target="_blank" style="color:hsl(217,91%,60%)">${choice}</a></span></div>`);
     }
+  };
+
+  const onVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        exec('insertHTML', `<div style="margin:8px 0"><video controls style="max-width:100%;border-radius:6px" src="${reader.result}"></video></div>`);
+      }
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
   };
 
   const insertHeading = (level: 1 | 2) => {
@@ -209,6 +227,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     <TooltipProvider>
       <div className="flex-1 flex flex-col bg-[#f3f3f3] dark:bg-[#1e1e1e] overflow-hidden">
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onImageFileChange} />
+        <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,video/ogg" className="hidden" onChange={onVideoFileChange} />
         {/* Title bar */}
         <div className="bg-[#185abd] dark:bg-[#1b3a6b] text-white">
           <div className="flex items-center justify-between px-3 py-1.5">
