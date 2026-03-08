@@ -181,31 +181,50 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
   const trimPct = duration > 0 ? { start: (trimStart / duration) * 100, end: (trimEnd / duration) * 100 } : { start: 0, end: 100 };
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
 
+  const [dragOver, setDragOver] = useState(false);
+
+  const loadVideoFile = (f: File) => {
+    const reader = new FileReader();
+    reader.onload = () => onContentChange(file.id, reader.result as string);
+    reader.readAsDataURL(f);
+  };
+
   const handleFileUpload = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.ogg,.mov';
     input.onchange = (e) => {
       const f = (e.target as HTMLInputElement).files?.[0];
-      if (!f) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        onContentChange(file.id, result);
-      };
-      reader.readAsDataURL(f);
+      if (f) loadVideoFile(f);
     };
     input.click();
   };
 
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('video/')) loadVideoFile(f);
+  };
+
   if (!videoSrc) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-background text-muted-foreground gap-4">
-        <Video className="w-16 h-16 opacity-50" />
+      <div
+        className={cn(
+          "flex-1 flex flex-col items-center justify-center bg-background text-muted-foreground gap-4 transition-colors",
+          dragOver && "bg-primary/10 ring-2 ring-primary ring-inset"
+        )}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+      >
+        <Video className={cn("w-16 h-16 opacity-50 transition-transform", dragOver && "scale-110 opacity-80")} />
         <div className="text-center">
           <p className="text-lg font-medium mb-1">Video Editor</p>
           <p className="text-sm">{file.name}</p>
-          <p className="text-xs mt-2 text-muted-foreground/70">No video data available</p>
+          <p className="text-xs mt-2 text-muted-foreground/70">
+            {dragOver ? 'Drop video file here' : 'Drag & drop a video or click below'}
+          </p>
         </div>
         <Button variant="outline" className="gap-2" onClick={handleFileUpload}>
           <Upload className="w-4 h-4" /> Upload Video
