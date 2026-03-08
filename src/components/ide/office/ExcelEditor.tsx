@@ -4,7 +4,9 @@ import { FileNode } from '@/types/ide';
 import {
   FileSpreadsheet, Save, Bold, Italic, Underline,
   AlignLeft, AlignCenter, AlignRight, Undo, Redo,
-  Plus, Loader2, ChevronDown
+  Plus, Loader2, ChevronDown, Table, Image, Link,
+  BarChart3, Filter, SortAsc, SortDesc, Search,
+  Eye, Columns, ArrowDownUp, Calculator, Sigma
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
