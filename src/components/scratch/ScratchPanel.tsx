@@ -1177,6 +1177,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         vm.start();
         vmRef.current = vm;
 
+        // Load built-in extensions (pen, music)
+        try {
+          const em = (vm as any).extensionManager;
+          if (em?.loadExtensionIdSync) {
+            em.loadExtensionIdSync('pen');
+            em.loadExtensionIdSync('music');
+          } else if (em?.loadExtensionURL) {
+            em.loadExtensionURL('pen').catch(() => {});
+            em.loadExtensionURL('music').catch(() => {});
+          }
+          console.log('[Scratch] Extensions loaded');
+        } catch (e) {
+          console.warn('[Scratch] Extension loading:', e);
+        }
+
         // Handle "ask and wait" blocks — VM emits QUESTION, waits for ANSWER
         const rt = vm.runtime as any;
         rt?.on?.('QUESTION', (question: string) => {
