@@ -1720,7 +1720,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
   const runPreview = async () => {
     if (!vmRef.current || !vmReady) return;
-    onRun(); // Effect will call greenFlag()
+    const currentArchive = ensureArchive(archive);
+    await loadVmFromArchive(currentArchive);
+    onRun(); // Effect will call greenFlag() on freshly loaded project
   };
 
   const handleVmStop = () => {
