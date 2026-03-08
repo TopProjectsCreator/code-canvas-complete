@@ -387,7 +387,7 @@ const utf8ToBase64 = (value: string) => btoa(unescape(encodeURIComponent(value))
 const getDefaultCostumeForTarget = (target: ScratchTarget) => (target.isStage
   ? {
       name: 'backdrop1',
-      assetId: 'cdx-stage-default',
+      assetId: DEFAULT_STAGE_ASSET_ID,
       md5ext: DEFAULT_STAGE_COSTUME_FILE,
       dataFormat: 'svg',
       rotationCenterX: 240,
