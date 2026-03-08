@@ -443,7 +443,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   // Check if this file should be previewed instead of edited
   const previewType = getPreviewType(file.name);
   // Binary types always show preview only (no editable source)
-  const binaryPreviewTypes = ['image', 'video', 'audio'];
+  const binaryPreviewTypes = ['image', 'video', 'audio', 'cad'];
   const isTextPreviewable = previewType && !binaryPreviewTypes.includes(previewType);
   
   if (previewType === 'office') {
