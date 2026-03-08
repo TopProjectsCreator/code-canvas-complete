@@ -1536,13 +1536,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
       if (cBlockOpcodes.has(block.opcode)) {
         const substackInput = block.inputs?.SUBSTACK as unknown[];
-        const hasSubstack = Boolean(substackInput && substackInput[1]);
-        if (!hasSubstack) {
-          const mouthX = bx + C_BLOCK_INDENT;
-          const mouthY = by + BLOCK_HEIGHT;
-          const dx = Math.abs(dropX - mouthX);
-          const dy = Math.abs(dropY - mouthY);
-          if (dx < 90 && dy < SNAP_DISTANCE * 1.3) {
+        const substackRoot = typeof substackInput?.[1] === 'string' ? substackInput[1] : null;
+        const mouthX = bx + C_BLOCK_INDENT;
+        const mouthY = by + BLOCK_HEIGHT;
+        const dx = Math.abs(dropX - mouthX);
+        const dy = Math.abs(dropY - mouthY);
+
+        // Prefer dropping INSIDE the loop when pointer is near loop mouth/body.
+        if (dx < 90 && dy < SNAP_DISTANCE * 1.3) {
+          if (substackRoot && blocks[substackRoot]) {
+            const tailId = getStackTailId(blocks, substackRoot);
+            const tail = blocks[tailId];
+            const nextY = getNextSnapY(blocks, tail);
+            const score = Math.abs(dropX - (tail.x ?? 0)) + Math.abs(dropY - nextY);
+            if (!best || score < best.score) best = { id: tailId, type: 'next', score };
+          } else {
             const score = dx + dy;
             if (!best || score < best.score) best = { id, type: 'substack', score };
           }
