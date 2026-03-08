@@ -947,10 +947,25 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         setVmReady(true);
         setVmError(null);
 
-        // Start draw loop
+        // Start draw loop with 2D canvas fallback
+        let rendererWorking = false;
         const drawStep = () => {
+          const ctx = canvas.getContext('2d');
           if (rendererRef.current) {
-            rendererRef.current.draw();
+            try {
+              rendererRef.current.draw();
+              // Check if renderer actually drew something (non-transparent pixel)
+              if (!rendererWorking && ctx) {
+                const pixel = ctx.getImageData(0, 0, 1, 1).data;
+                if (pixel[3] > 0) rendererWorking = true;
+              }
+            } catch {
+              rendererWorking = false;
+            }
+          }
+          // Fallback: draw costumes on 2D canvas if renderer isn't producing output
+          if (!rendererWorking && ctx) {
+            drawFallbackStage(ctx, canvas.width, canvas.height, archiveRef.current, vmRef.current);
           }
           syncFromVm();
           rafRef.current = requestAnimationFrame(drawStep);
