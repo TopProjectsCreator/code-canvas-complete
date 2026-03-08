@@ -371,8 +371,8 @@ const ensureArchive = (archive: ScratchArchive | null): ScratchArchive => {
 };
 
 const makeNumberInput = (value: string) => [1, [4, value]];
-const isEventBlock = (opcode: string) => opcode.startsWith('event_');
-const getBlockColor = (opcode: string) => (opcode.startsWith('motion_') ? '#4c97ff'
+const isEventBlock = (opcode: string) => opcode?.startsWith('event_');
+const getBlockColor = (opcode: string) => (!opcode ? '#4c97ff' : opcode.startsWith('motion_') ? '#4c97ff'
   : opcode.startsWith('looks_') ? '#9966ff'
     : opcode.startsWith('sound_') ? '#cf63cf'
       : opcode.startsWith('event_') ? '#ffbf00'
