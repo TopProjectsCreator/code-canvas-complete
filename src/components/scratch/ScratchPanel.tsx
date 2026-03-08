@@ -1186,6 +1186,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               {activeCategory}
             </div>
             {activeEditorTab === 'code' ? (
+              activeCategory === 'Variables' ? (
+                <VariablesFlyout
+                  variables={Object.entries(selectedTarget?.variables || {})}
+                  lists={Object.entries(selectedTarget?.lists || {})}
+                  blocks={categoryBlocks['Variables'] || []}
+                  color={categoryColors['Variables'] || '#ff8c1a'}
+                  onMakeVariable={() => setDataPrompt({ type: 'variable', name: 'my variable' })}
+                  onMakeList={() => setDataPrompt({ type: 'list', name: 'my list' })}
+                  onAddBlock={addBlock}
+                />
+              ) : (
               <div className="space-y-1.5">
                 {(categoryBlocks[activeCategory] || []).map((blockDef) => {
                   const color = categoryColors[activeCategory] || '#4c97ff';
@@ -1206,6 +1217,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   );
                 })}
               </div>
+              )
             ) : activeEditorTab === 'costumes' ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
