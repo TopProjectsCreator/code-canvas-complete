@@ -1746,9 +1746,20 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         const block = blocks[blockId];
         if (!block) return target;
 
-        // Detach from old parent
+        // Detach from old parent (could be next or SUBSTACK)
         if (block.parent && blocks[block.parent]) {
-          blocks[block.parent] = { ...blocks[block.parent], next: null };
+          const oldParent = { ...blocks[block.parent] };
+          if (oldParent.next === blockId) {
+            oldParent.next = null;
+          }
+          // Also clear SUBSTACK if it referenced this block
+          if (oldParent.inputs) {
+            const substackVal = oldParent.inputs.SUBSTACK as unknown[];
+            if (substackVal && substackVal[1] === blockId) {
+              oldParent.inputs = { ...oldParent.inputs, SUBSTACK: [2, null] };
+            }
+          }
+          blocks[block.parent] = oldParent;
         }
 
         // Try snapping to a new parent
