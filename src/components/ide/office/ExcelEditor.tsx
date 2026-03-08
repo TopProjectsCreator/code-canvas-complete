@@ -162,8 +162,8 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     else if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); setEditingCell([row, col]); }
     else if (e.key === 'Delete' || e.key === 'Backspace') { updateCell(row, col, ''); }
     else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      updateCell(row, col, '');
       setEditingCell([row, col]);
-      updateCell(row, col, e.key);
     }
   };
 
