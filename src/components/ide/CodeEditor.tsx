@@ -3,6 +3,7 @@ import { FileNode } from '@/types/ide';
 import { FindReplace } from './FindReplace';
 import { FilePreview } from './FilePreview';
 import { OfficeEditor } from './OfficeEditor';
+import { VideoEditor } from './VideoEditor';
 
 interface CodeEditorProps {
   file: FileNode | null;
