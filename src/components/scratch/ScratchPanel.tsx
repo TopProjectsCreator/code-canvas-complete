@@ -1679,8 +1679,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
           if (snapResult.type === 'substack') {
             // Insert inside C-block mouth
-            const snapX = (parent.x ?? 0) + C_BLOCK_INDENT;
-            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, 'substack');
             const parentInputs = { ...(parent.inputs || {}), SUBSTACK: [2, blockId] };
             blocks[snapResult.id] = { ...parent, inputs: parentInputs };
             blocks[blockId] = {
@@ -1696,8 +1695,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             };
           } else {
             // Standard next-block snap
-            const snapX = parent.x ?? 0;
-            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, 'next');
             blocks[snapResult.id] = { ...parent, next: blockId };
             blocks[blockId] = {
               id: blockId,
