@@ -37,7 +37,11 @@ interface ArduinoUploadDialogProps {
   sketchCode: string;
 }
 
-const SAMBA_BOARDS = ['uno_r4_wifi'];
+const SAMBA_BOARDS = ['uno_r4_wifi', 'due', 'zero', 'mkr_wifi_1010', 'nano_33_iot'];
+const AVR109_BOARDS = ['leonardo', 'micro'];
+const ESP_BOARDS = ['esp32', 'esp8266'];
+const STM32_BOARDS = ['portenta_h7', 'giga_r1'];
+const UF2_ONLY_BOARDS = ['nano_33_ble', 'rp2040_connect'];
 
 export function ArduinoUploadDialog({
   open,
@@ -267,13 +271,39 @@ export function ArduinoUploadDialog({
               <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded space-y-2">
                 <p className="font-medium text-foreground">USB Serial Upload (SAM-BA Protocol)</p>
                 <ol className="list-decimal list-inside space-y-1 text-xs">
-                  <li>Connect your Uno R4 WiFi via USB-C</li>
+                  <li>Connect your board via USB</li>
                   <li>Click "Upload Sketch" — you'll be prompted to select the serial port</li>
                   <li>The board will automatically enter bootloader mode (1200-baud reset)</li>
                   <li>You may need to select the port again after the board resets</li>
                 </ol>
               </div>
-              <p className="text-xs text-muted-foreground">Uses SAM-BA protocol over Web Serial. No manual reset needed.</p>
+            </div>
+          )}
+
+          {config.uploadMethod === 'serial' && AVR109_BOARDS.includes(config.boardId) && (
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded space-y-2">
+              <p className="font-medium text-foreground">USB Serial Upload (Caterina/AVR109)</p>
+              <p className="text-xs">Connect via USB. The board will auto-reset into bootloader mode. You may need to select the port twice.</p>
+            </div>
+          )}
+
+          {config.uploadMethod === 'serial' && ESP_BOARDS.includes(config.boardId) && (
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded space-y-2">
+              <p className="font-medium text-foreground">USB Serial Upload (esptool)</p>
+              <p className="text-xs">Connect via USB. If auto-reset doesn't work, hold the BOOT button while clicking Upload.</p>
+            </div>
+          )}
+
+          {config.uploadMethod === 'serial' && STM32_BOARDS.includes(config.boardId) && (
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded space-y-2">
+              <p className="font-medium text-foreground">USB Serial Upload (STM32 Bootloader)</p>
+              <p className="text-xs">Connect via USB. The board will enter system bootloader mode via 1200-baud touch.</p>
+            </div>
+          )}
+
+          {UF2_ONLY_BOARDS.includes(config.boardId) && (
+            <div className="text-sm text-amber-500 bg-amber-500/10 p-2 rounded">
+              This board uses UF2 mass storage for flashing, which browsers cannot access. Use Arduino IDE or drag-and-drop the .uf2 file to the board's drive.
             </div>
           )}
 
@@ -308,9 +338,9 @@ export function ArduinoUploadDialog({
           )}
 
 
-          {!isVerifiedBoard && (
+          {!isVerifiedBoard && !UF2_ONLY_BOARDS.includes(config.boardId) && (
             <div className="text-sm text-amber-500 whitespace-pre-wrap bg-amber-500/10 p-2 rounded">
-              This board is currently available for planning/simulation only. Web compile + flash is verified for Uno, Nano, Mega, Leonardo, Micro, and Uno R4 WiFi.
+              This board is currently available for planning/simulation only.
             </div>
           )}
 
