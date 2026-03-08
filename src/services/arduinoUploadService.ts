@@ -192,48 +192,27 @@ export class ArduinoUploadService {
   }
 
   /**
-   * Flash via WebUSB DFU for ARM-based boards (Uno R4 WiFi)
+   * Flash via SAM-BA protocol over WebSerial for ARM-based boards (Uno R4 WiFi)
    */
-  private static async flashViaDFU(
+  private static async flashViaSamba(
     binaryBase64: string,
     onProgress?: (message: string, percent?: number) => void
   ): Promise<void> {
-    if (!navigator.usb) {
-      throw new Error('WebUSB API not supported. Use Chrome or Edge.');
-    }
-
-    onProgress?.('Put your board in DFU mode (double-tap reset button), then select it...', 18);
-
-    let device: USBDevice;
-    try {
-      device = await requestDFUDevice();
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'NotFoundError') {
-        throw new Error(
-          'No DFU device found. Make sure your Arduino Uno R4 WiFi is in DFU mode:\n' +
-          '1. Double-tap the reset button quickly\n' +
-          '2. The LED should pulse/fade\n' +
-          '3. Try selecting the device again'
-        );
-      }
-      throw err;
-    }
-
-    // Decode base64 binary to Uint8Array
-    const binaryStr = atob(binaryBase64);
-    const firmware = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      firmware[i] = binaryStr.charCodeAt(i);
+    const serial = getSerial();
+    if (!serial) {
+      throw new Error('Web Serial API not supported. Use Chrome or Edge.');
     }
 
     try {
-      await flashDFU(device, firmware, (msg, pct) => {
-        onProgress?.(msg, pct);
-      });
+      // Step 1: Trigger bootloader via 1200-baud touch
+      await triggerBootloader((msg, pct) => onProgress?.(msg, pct));
+
+      // Step 2: Flash via SAM-BA protocol
+      await flashViaSamba(binaryBase64, (msg, pct) => onProgress?.(msg, pct));
     } catch (err) {
       throw new Error(
-        `DFU flash failed: ${err instanceof Error ? err.message : 'Unknown error'}\n` +
-        'Try double-tapping reset and retrying.'
+        `SAM-BA flash failed: ${err instanceof Error ? err.message : 'Unknown error'}\n` +
+        'Ensure the board is connected and try again.'
       );
     }
   }
