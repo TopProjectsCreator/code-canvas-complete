@@ -262,17 +262,18 @@ export function ArduinoUploadDialog({
             </>
           )}
 
-          {config.uploadMethod === 'serial' && isDFUBoard && (
+          {config.uploadMethod === 'serial' && isSambaBoard && (
             <div className="space-y-2">
               <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded space-y-2">
-                <p className="font-medium text-foreground">USB DFU Mode Required</p>
+                <p className="font-medium text-foreground">USB Serial Upload (SAM-BA Protocol)</p>
                 <ol className="list-decimal list-inside space-y-1 text-xs">
                   <li>Connect your Uno R4 WiFi via USB-C</li>
-                  <li>Double-tap the reset button quickly — the LED should pulse</li>
-                  <li>Click "Upload Sketch" — you'll be prompted to select the USB device</li>
+                  <li>Click "Upload Sketch" — you'll be prompted to select the serial port</li>
+                  <li>The board will automatically enter bootloader mode (1200-baud reset)</li>
+                  <li>You may need to select the port again after the board resets</li>
                 </ol>
               </div>
-              <p className="text-xs text-muted-foreground">Uses WebUSB DFU protocol. No serial port selection needed.</p>
+              <p className="text-xs text-muted-foreground">Uses SAM-BA protocol over Web Serial. No manual reset needed.</p>
             </div>
           )}
 
