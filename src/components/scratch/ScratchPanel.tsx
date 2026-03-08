@@ -406,8 +406,19 @@ const normalizeProjectForVm = (project: ScratchProject): ScratchProject => ({
     const costumes = target.costumes && target.costumes.length > 0
       ? target.costumes
       : [getDefaultCostumeForTarget(target)];
+
+    // Ensure every block has an `id` property matching its dictionary key.
+    // Real .sb3 files store blocks as { [id]: { opcode, ... } } without `id` inside.
+    const blocks: Record<string, ScratchBlockNode> = {};
+    if (target.blocks) {
+      for (const [key, block] of Object.entries(target.blocks)) {
+        blocks[key] = { ...block, id: block.id || key };
+      }
+    }
+
     return {
       ...target,
+      blocks,
       costumes,
       currentCostume: typeof target.currentCostume === 'number'
         ? Math.min(Math.max(0, target.currentCostume), Math.max(0, costumes.length - 1))
