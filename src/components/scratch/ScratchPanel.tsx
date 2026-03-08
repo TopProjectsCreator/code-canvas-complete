@@ -767,17 +767,22 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const stageBackdrops = stageTarget?.costumes || [];
   const stageCurrentBackdrop = Number(stageTarget?.currentCostume || 0);
   const blockLabels = useMemo(() => {
-    const map: Record<string, string> = {};
+   const map: Record<string, string> = {};
     Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
     return map;
   }, []);
+
+  const imgMime = (fmt: string | undefined) => {
+    const f = fmt || 'png';
+    return f === 'svg' ? 'image/svg+xml' : `image/${f}`;
+  };
 
   const selectedCostumes = selectedTarget?.costumes || [];
   const selectedSounds = selectedTarget?.sounds || [];
   const currentCostumeIndex = Number(selectedTarget?.currentCostume || 0);
   const activeCostume = selectedCostumes[currentCostumeIndex] || selectedCostumes[0];
   const stageCostumeSrc = activeCostume && archive?.files?.[activeCostume.md5ext]
-    ? `data:image/${activeCostume.dataFormat || 'png'};base64,${archive.files[activeCostume.md5ext]}`
+    ? `data:${imgMime(activeCostume.dataFormat)};base64,${archive.files[activeCostume.md5ext]}`
     : null;
 
   const syncFromVm = useCallback(() => {
