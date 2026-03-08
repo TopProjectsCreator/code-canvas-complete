@@ -1,13 +1,20 @@
 /**
- * WebSerial SAM-BA flasher for Arduino Uno R4 WiFi
- * 
- * The R4 WiFi uses a TinyUSB-based bootloader that speaks SAM-BA protocol
- * over CDC serial. The upload flow:
+ * WebSerial SAM-BA flasher for Arduino boards with SAM-BA bootloaders
+ *
+ * Supported chips:
+ * - Renesas RA4M1 (Arduino Uno R4 WiFi)
+ * - Atmel SAM3X8E (Arduino Due)
+ * - Atmel SAMD21G18 (Arduino Zero, MKR WiFi 1010, Nano 33 IoT)
+ *
+ * The SAM-BA protocol is shared across all these boards. Key differences
+ * are flash base address, page size, and bootloader reservation.
+ *
+ * Upload flow:
  * 1. Open port at 1200 baud then close → triggers bootloader mode
  * 2. Wait for board to re-enumerate as a new CDC serial device
- * 3. Connect at 921600 baud (or 115200 fallback)
+ * 3. Connect at appropriate baud rate
  * 4. Use SAM-BA protocol commands to write firmware to flash
- * 
+ *
  * SAM-BA protocol reference:
  * - N#\n  → switch to non-interactive (binary) mode
  * - T#\n  → switch to interactive mode (returns ">")
@@ -19,33 +26,69 @@
  * - V#\n → version string
  */
 
-// RA4M1 memory map
-const FLASH_BASE = 0x00000000;
-const FLASH_SIZE = 256 * 1024; // 256KB
-const SRAM_BASE = 0x20000000;
-const PAGE_SIZE = 2048; // RA4M1 flash page = 2KB
-const BOOTLOADER_SIZE = 0x4000; // 16KB bootloader reservation
-const USER_FLASH_BASE = FLASH_BASE + BOOTLOADER_SIZE;
+// ── Board-specific configurations ──
 
-// EEFC-equivalent for RA4M1: Flash Access Control registers
-// The RA4M1 uses the FACI (Flash Access Control Interface)
-const FACI_BASE = 0x407EC000;
-const FACI_CMD = FACI_BASE + 0x100; // FACI command register area
-const FACI_FRESETREG = 0x407EFFC0; // Flash reset register
-const FACI_FSTATR = FACI_BASE + 0x10; // Flash status register
-const FACI_FENTRYR = FACI_BASE + 0x84; // Flash entry register
-const FACI_FSUINITR = FACI_BASE + 0xC0; // Flash sequencer init
+export interface SambaBoardConfig {
+  name: string;
+  flashBase: number;
+  flashSize: number;
+  pageSize: number;
+  bootloaderSize: number;
+  baudRates: number[];
+}
 
-// FACI commands
-const FACI_CMD_PROGRAM = 0xE8;
-const FACI_CMD_PROGRAM_CONFIRM = 0xD0;
-const FACI_CMD_ERASE = 0x20;
-const FACI_CMD_ERASE_CONFIRM = 0xD0;
-const FACI_CMD_FORCED_STOP = 0xB3;
-const FACI_CMD_STATUS_CLEAR = 0x50;
+export const SAMBA_BOARD_CONFIGS: Record<string, SambaBoardConfig> = {
+  uno_r4_wifi: {
+    name: 'Arduino Uno R4 WiFi',
+    flashBase: 0x00000000,
+    flashSize: 256 * 1024,
+    pageSize: 2048,        // RA4M1 flash page = 2KB
+    bootloaderSize: 0x4000, // 16KB
+    baudRates: [115200],
+  },
+  due: {
+    name: 'Arduino Due',
+    flashBase: 0x00080000,  // SAM3X8E flash starts at 0x80000
+    flashSize: 512 * 1024,
+    pageSize: 256,           // SAM3X8E page = 256 bytes
+    bootloaderSize: 0x0,     // Due native USB has no bootloader reservation
+    baudRates: [115200],
+  },
+  zero: {
+    name: 'Arduino Zero',
+    flashBase: 0x00000000,
+    flashSize: 256 * 1024,
+    pageSize: 64,            // SAMD21 page = 64 bytes (row = 256)
+    bootloaderSize: 0x2000,  // 8KB
+    baudRates: [115200],
+  },
+  mkr_wifi_1010: {
+    name: 'Arduino MKR WiFi 1010',
+    flashBase: 0x00000000,
+    flashSize: 256 * 1024,
+    pageSize: 64,
+    bootloaderSize: 0x2000,
+    baudRates: [115200],
+  },
+  nano_33_iot: {
+    name: 'Arduino Nano 33 IoT',
+    flashBase: 0x00000000,
+    flashSize: 256 * 1024,
+    pageSize: 64,
+    bootloaderSize: 0x2000,
+    baudRates: [115200],
+  },
+};
 
-// Baud rates to try (R4 WiFi bootloader typically uses 115200)
-const BAUD_RATES = [115200];
+export function isSambaBoard(boardId: string): boolean {
+  return boardId in SAMBA_BOARD_CONFIGS;
+}
+
+function getBoardConfig(boardId: string): SambaBoardConfig {
+  const cfg = SAMBA_BOARD_CONFIGS[boardId];
+  if (!cfg) throw new Error(`No SAM-BA configuration for board: ${boardId}`);
+  return cfg;
+}
 
 // Timeouts
 const RESPONSE_TIMEOUT = 3000;
