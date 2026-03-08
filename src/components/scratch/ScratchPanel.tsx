@@ -1658,7 +1658,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {selectedCostumes.map((costume, idx) => {
-                    const src = archive?.files?.[costume.md5ext] ? `data:image/${costume.dataFormat || 'png'};base64,${archive.files[costume.md5ext]}` : undefined;
+                    const src = archive?.files?.[costume.md5ext] ? `data:${imgMime(costume.dataFormat)};base64,${archive.files[costume.md5ext]}` : undefined;
                     return (
                       <button key={costume.assetId} className={`rounded-lg border-2 p-2 ${idx === currentCostumeIndex ? 'border-[#855cd6] bg-[#f0ebff]' : 'border-[#e0e0e0]'}`} onClick={() => setCurrentCostume(idx)}>
                         <div className="h-16 rounded bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
