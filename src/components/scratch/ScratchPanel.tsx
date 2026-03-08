@@ -524,7 +524,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [selectedTargetIndex, setSelectedTargetIndex] = useState(1);
   const [projectJsonDraft, setProjectJsonDraft] = useState('');
   const [jsonError, setJsonError] = useState<string | null>(null);
-  const [stagePreview, setStagePreview] = useState({ x: 180, y: 110, direction: 90, visible: true });
+  const [stagePreview, setStagePreview] = useState({ x: 0, y: 0, direction: 90, visible: true, size: 100 });
   const [spriteVisible, setSpriteVisible] = useState(true);
   const [workspaceZoom, setWorkspaceZoom] = useState(1);
   const [vmReady, setVmReady] = useState(false);
@@ -533,7 +533,16 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const costumeInputRef = useRef<HTMLInputElement>(null);
   const soundInputRef = useRef<HTMLInputElement>(null);
   const vmRef = useRef<ScratchVmLike | null>(null);
+  const rendererRef = useRef<RenderWebGL | null>(null);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const rafRef = useRef<number>(0);
+  const archiveRef = useRef<ScratchArchive | null>(archive);
+
+  // Keep archiveRef in sync for the storage adapter closure
+  useEffect(() => {
+    archiveRef.current = archive;
+  }, [archive]);
 
   const project = useMemo(() => safeParseProject(archive), [archive]);
   const selectedTarget = project.targets[Math.max(0, Math.min(project.targets.length - 1, selectedTargetIndex))];
@@ -553,7 +562,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     ? `data:image/${activeCostume.dataFormat || 'png'};base64,${archive.files[activeCostume.md5ext]}`
     : null;
 
-  const syncFromVm = () => {
+  const syncFromVm = useCallback(() => {
     const vm = vmRef.current;
     if (!vm || !vm.runtime) return;
     const preferredName = selectedTarget?.name;
@@ -567,15 +576,16 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const visible = Boolean(runtimeTarget.visible);
 
     setStagePreview({
-      x: Math.max(10, Math.min(360, 180 + x * 0.7)),
-      y: Math.max(10, Math.min(240, 110 - y * 0.6)),
+      x,
+      y,
       direction,
       visible,
+      size: 100,
     });
     setSpriteVisible(visible);
-  };
+  }, [selectedTarget?.name]);
 
-const loadVmFromArchive = async (nextArchive: ScratchArchive) => {
+  const loadVmFromArchive = useCallback(async (nextArchive: ScratchArchive) => {
     if (!vmRef.current) return;
     try {
       const normalizedArchive = ensureArchive(nextArchive);
@@ -587,45 +597,92 @@ const loadVmFromArchive = async (nextArchive: ScratchArchive) => {
       setVmError(null);
       syncFromVm();
     } catch (error) {
-      // Non-critical: VM may not support all project features
       console.warn('scratch-vm loadProject warning:', error);
       setVmError(null);
     }
-  };
+  }, [syncFromVm]);
 
+  // Initialize VM with renderer, storage, and audio engine
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
     try {
       const VmCtor = VirtualMachine as unknown as { new (): ScratchVmLike };
       const vm = new VmCtor();
+
+      // Attach renderer
+      try {
+        const renderer = new RenderWebGL(canvas);
+        vm.attachRenderer(renderer);
+        rendererRef.current = renderer;
+      } catch (e) {
+        console.warn('Failed to attach scratch-render:', e);
+      }
+
+      // Attach storage with custom web source that resolves from archive
+      try {
+        const storage = new ScratchStorage();
+        const AssetType = storage.AssetType;
+
+        storage.addWebStore(
+          [AssetType.ImageVector, AssetType.ImageBitmap, AssetType.Sound],
+          (asset: { assetId: string; dataFormat: string }) => {
+            const key = `${asset.assetId}.${asset.dataFormat}`;
+            const b64 = archiveRef.current?.files?.[key];
+            if (b64) return `data:application/octet-stream;base64,${b64}`;
+            return '';
+          }
+        );
+        vm.attachStorage(storage);
+      } catch (e) {
+        console.warn('Failed to attach scratch-storage:', e);
+      }
+
+      // Attach audio engine
+      try {
+        const audioEngine = new AudioEngine();
+        vm.attachAudioEngine(audioEngine);
+      } catch (e) {
+        console.warn('Failed to attach scratch-audio:', e);
+      }
+
       vm.start();
       vmRef.current = vm;
       setVmReady(true);
       setVmError(null);
+
+      // Start draw loop
+      const drawStep = () => {
+        if (rendererRef.current) {
+          rendererRef.current.draw();
+        }
+        syncFromVm();
+        rafRef.current = requestAnimationFrame(drawStep);
+      };
+      rafRef.current = requestAnimationFrame(drawStep);
     } catch (error) {
       setVmError(error instanceof Error ? error.message : 'Failed to initialize scratch-vm.');
     }
 
     return () => {
+      cancelAnimationFrame(rafRef.current);
       try {
         vmRef.current?.stopAll();
-      } catch {
-        // noop
-      }
+      } catch { /* noop */ }
+      try {
+        rendererRef.current?.destroy();
+      } catch { /* noop */ }
+      rendererRef.current = null;
+      vmRef.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!archive || !vmReady) return;
     loadVmFromArchive(archive);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [archive, vmReady]);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      syncFromVm();
-    }, 120);
-    return () => window.clearInterval(timer);
-  });
+  }, [archive, vmReady, loadVmFromArchive]);
 
   const updateProject = (updater: (current: ScratchProject) => ScratchProject) => {
     const nextProject = updater(project);
