@@ -1634,25 +1634,46 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           ...blockDef,
           fields: dataResolved.fields,
         };
-        const snapParentId = findSnapTarget(blocks, finalX, finalY);
+        const snapResult = findSnapTarget(blocks, finalX, finalY);
 
-        if (snapParentId && blocks[snapParentId]) {
-          const parent = blocks[snapParentId];
-          const snapX = parent.x ?? 0;
-          const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+        if (snapResult && blocks[snapResult.id]) {
+          const parent = blocks[snapResult.id];
           const vmCompatible = createVmCompatibleBlockShape(blockId, resolvedBlockDef);
-          blocks[snapParentId] = { ...parent, next: blockId };
-          blocks[blockId] = {
-            id: blockId,
-            opcode: blockDef.opcode,
-            next: null,
-            parent: snapParentId,
-            topLevel: false,
-            x: snapX,
-            y: snapY,
-            inputs: vmCompatible.inputs,
-            fields: vmCompatible.fields,
-          };
+
+          if (snapResult.type === 'substack') {
+            // Insert inside C-block mouth
+            const snapX = (parent.x ?? 0) + C_BLOCK_INDENT;
+            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const parentInputs = { ...(parent.inputs || {}), SUBSTACK: [2, blockId] };
+            blocks[snapResult.id] = { ...parent, inputs: parentInputs };
+            blocks[blockId] = {
+              id: blockId,
+              opcode: blockDef.opcode,
+              next: null,
+              parent: snapResult.id,
+              topLevel: false,
+              x: snapX,
+              y: snapY,
+              inputs: vmCompatible.inputs,
+              fields: vmCompatible.fields,
+            };
+          } else {
+            // Standard next-block snap
+            const snapX = parent.x ?? 0;
+            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            blocks[snapResult.id] = { ...parent, next: blockId };
+            blocks[blockId] = {
+              id: blockId,
+              opcode: blockDef.opcode,
+              next: null,
+              parent: snapResult.id,
+              topLevel: false,
+              x: snapX,
+              y: snapY,
+              inputs: vmCompatible.inputs,
+              fields: vmCompatible.fields,
+            };
+          }
           Object.assign(blocks, vmCompatible.extraBlocks);
         } else {
           if (isEventBlock(blockDef.opcode)) {
