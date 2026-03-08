@@ -2184,6 +2184,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         <div className="flex-1 min-w-0 relative overflow-hidden scratch-workspace" style={{ background: '#fff' }}
           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
           onDrop={handleWorkspaceDrop}
+          onPointerMove={handleWorkspacePointerMove}
+          onPointerUp={handleWorkspacePointerUp}
+          onPointerLeave={handleWorkspacePointerUp}
+          ref={workspaceRef}
         >
           <div
             className="absolute inset-0"
@@ -2198,18 +2202,31 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               const blockColor = getBlockColor(block.opcode);
               const shape = getBlockShape(block.opcode);
               const label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
+              const isDragging = block.id === dragBlockId;
               return (
                 <div
                   key={block.id}
-                  draggable
-                  onDragEnd={(e) => handleBlockDragInWorkspace(block.id, e)}
-                  className="absolute cursor-grab active:cursor-grabbing select-none"
-                  style={{ left: block.x ?? 40, top: block.y ?? 40 }}
+                  onPointerDown={(e) => handleBlockPointerDown(block.id, e)}
+                  className={`absolute select-none touch-none ${isDragging ? 'cursor-grabbing z-50 opacity-80' : 'cursor-grab'}`}
+                  style={{
+                    left: block.x ?? 40,
+                    top: block.y ?? 40,
+                    transition: isDragging ? 'none' : 'left 0.08s ease-out, top 0.08s ease-out',
+                  }}
                 >
                   <ScratchBlockShape label={label} color={blockColor} shape={shape} />
                 </div>
               );
             })}
+            {/* Snap preview indicator */}
+            {snapPreview && (
+              <div
+                className="absolute pointer-events-none z-40"
+                style={{ left: snapPreview.x, top: snapPreview.y }}
+              >
+                <div className="h-1 w-24 rounded-full bg-white shadow-[0_0_8px_2px_rgba(255,255,255,0.8)]" />
+              </div>
+            )}
           </div>
           {/* Zoom controls */}
           <div className="absolute right-3 bottom-3 flex flex-col gap-1.5">
