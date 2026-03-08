@@ -1456,6 +1456,31 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           {jsonError && <div className="text-[11px] text-red-500 mt-0.5">{jsonError}</div>}
         </div>
       )}
+
+      {/* Variable / List creation dialog */}
+      {dataPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDataPrompt(null)}>
+          <div className="bg-white rounded-xl shadow-xl p-5 w-[320px]" onClick={(e) => e.stopPropagation()}>
+            <div className="text-[15px] font-bold text-[#575e75] mb-3">
+              {dataPrompt.type === 'variable' ? 'New Variable' : 'New List'}
+            </div>
+            <div className="text-[13px] text-[#575e75] mb-1">
+              {dataPrompt.type === 'variable' ? 'Variable' : 'List'} name:
+            </div>
+            <input
+              autoFocus
+              className="w-full h-9 rounded-lg border-2 border-[#855cd6] px-3 text-[14px] outline-none"
+              value={dataPrompt.name}
+              onChange={(e) => setDataPrompt({ ...dataPrompt, name: e.target.value })}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleDataPromptSubmit(); if (e.key === 'Escape') setDataPrompt(null); }}
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setDataPrompt(null)} className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]">Cancel</button>
+              <button onClick={handleDataPromptSubmit} className="px-4 py-1.5 rounded-lg text-[13px] text-white bg-[#855cd6] hover:bg-[#7248bf]">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
