@@ -1026,22 +1026,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         const VmCtor = VirtualMachine as unknown as { new (): ScratchVmLike };
         const vm = new VmCtor();
 
-        // Dynamically import and attach renderer
-        try {
-          const renderMod = await import('scratch-render');
-          const RenderCtor = renderMod.default || renderMod;
-          if (typeof RenderCtor === 'function') {
-            const renderer = new RenderCtor(canvas);
-            vm.attachRenderer(renderer);
-            rendererRef.current = renderer;
-            useWebGLRenderer = true;
-            console.log('[Scratch] scratch-render attached successfully');
-          }
-        } catch (e) {
-          console.warn('scratch-render not available:', e);
-        }
+        projectLoadedRef.current = false;
 
-        // Dynamically import and attach storage
+        // Attach storage first; renderer depends on successful project asset resolution
         try {
           storageReadyRef.current = false;
           const storageMod = await import('scratch-storage');
