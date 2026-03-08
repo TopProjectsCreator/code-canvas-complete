@@ -1168,9 +1168,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               <div className="space-y-1.5">
                 {(categoryBlocks[activeCategory] || []).map((blockDef) => {
                   const color = categoryColors[activeCategory] || '#4c97ff';
-                  const isHat = blockDef.opcode.startsWith('event_when') || blockDef.opcode === 'control_start_as_clone';
+                  const shape = getBlockShape(blockDef.opcode);
                   return (
-                    <button
+                    <div
                       key={blockDef.label}
                       draggable
                       onDragStart={(e) => {
@@ -1178,16 +1178,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         e.dataTransfer.effectAllowed = 'copy';
                       }}
                       onClick={() => addBlock(blockDef)}
-                      className="w-full text-left text-white text-[13px] px-3 py-[6px] cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
-                      style={{
-                        backgroundColor: color,
-                        borderRadius: isHat ? '16px 16px 4px 4px' : '4px',
-                        borderBottom: `3px solid rgba(0,0,0,0.15)`,
-                        borderLeft: `3px solid rgba(0,0,0,0.05)`,
-                      }}
+                      className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                     >
-                      {blockDef.label}
-                    </button>
+                      <ScratchBlockShape label={blockDef.label} color={color} shape={shape} />
+                    </div>
                   );
                 })}
               </div>
