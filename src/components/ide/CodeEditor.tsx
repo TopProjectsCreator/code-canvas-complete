@@ -458,8 +458,8 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     return <CADEditor file={file} onContentChange={onContentChange} />;
   }
 
-  if (previewType && !isTextPreviewable && previewType !== 'cad') {
-    return <FilePreview file={file} previewType={previewType as any} />;
+  if (previewType && !isTextPreviewable) {
+    return <FilePreview file={file} previewType={previewType as 'image' | 'audio' | 'video' | 'csv' | 'markdown' | 'svg'} />;
   }
   if (isTextPreviewable && markdownPreview) {
     return (
