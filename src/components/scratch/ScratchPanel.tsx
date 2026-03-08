@@ -406,8 +406,41 @@ const normalizeProjectForVm = (project: ScratchProject): ScratchProject => ({
     const costumes = target.costumes && target.costumes.length > 0
       ? target.costumes
       : [getDefaultCostumeForTarget(target)];
+
+    // Ensure every block has an `id` property matching its dictionary key.
+    // Real .sb3 files store blocks as { [id]: { opcode, ... } } without `id` inside.
+    const blocks: Record<string, ScratchBlockNode> = {};
+    if (target.blocks) {
+      for (const [key, block] of Object.entries(target.blocks)) {
+        blocks[key] = { ...block, id: block.id || key };
+      }
+    }
+
+    // Compute positions for blocks that lack x/y by walking `next` chains
+    // from top-level blocks. In .sb3 files only top-level blocks have x/y.
+    const BLOCK_STEP = 48;
+    for (const [, block] of Object.entries(blocks)) {
+      if (!block.topLevel || block.shadow) continue;
+      let cursor = block.next;
+      let depth = 1;
+      while (cursor && blocks[cursor]) {
+        const child = blocks[cursor];
+        if (child.x === undefined || child.y === undefined) {
+          blocks[cursor] = {
+            ...child,
+            x: block.x ?? 40,
+            y: (block.y ?? 30) + depth * BLOCK_STEP,
+          };
+        }
+        cursor = child.next ?? null;
+        depth++;
+        if (depth > 200) break; // safety
+      }
+    }
+
     return {
       ...target,
+      blocks,
       costumes,
       currentCostume: typeof target.currentCostume === 'number'
         ? Math.min(Math.max(0, target.currentCostume), Math.max(0, costumes.length - 1))
@@ -1880,7 +1913,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               backgroundSize: '24px 24px',
             }}
           >
-            {selectedBlocks.filter((block) => block.opcode).map((block) => {
+            {selectedBlocks.filter((block) => block.opcode && !block.shadow && (block.x !== undefined || block.topLevel)).map((block) => {
               const blockColor = getBlockColor(block.opcode);
               const shape = getBlockShape(block.opcode);
               const label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
