@@ -645,6 +645,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [vmReady, setVmReady] = useState(false);
   const [vmError, setVmError] = useState<string | null>(null);
   const [dataPrompt, setDataPrompt] = useState<{ type: 'variable' | 'list'; name: string } | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState<LibraryMode | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const costumeInputRef = useRef<HTMLInputElement>(null);
   const soundInputRef = useRef<HTMLInputElement>(null);
