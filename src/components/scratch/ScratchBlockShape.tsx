@@ -320,6 +320,41 @@ export const ScratchBlockShape = ({
           </g>
         );
         x += inputW + 4;
+      } else if (seg.type === 'dropdown') {
+        const dropW = seg.value.length * CHAR_W + DROPDOWN_PAD * 2 + DROPDOWN_ARROW + 4;
+        const dropH = INPUT_H;
+        const dropY = (h - dropH) / 2;
+        const rad = dropH / 2;
+        elements.push(
+          <g key={i}>
+            <rect
+              x={x}
+              y={dropY}
+              width={dropW}
+              height={dropH}
+              rx={rad}
+              ry={rad}
+              fill="rgba(0,0,0,0.15)"
+            />
+            <text
+              x={x + DROPDOWN_PAD + 2}
+              y={dropY + dropH / 2 + 4}
+              fill="white"
+              fontSize="11"
+              fontFamily="'Helvetica Neue', Helvetica, Arial, sans-serif"
+              fontWeight="500"
+            >
+              {seg.value}
+            </text>
+            {/* Dropdown arrow triangle */}
+            <polygon
+              points={`${x + dropW - DROPDOWN_PAD - 6},${dropY + dropH / 2 - 2} ${x + dropW - DROPDOWN_PAD},${dropY + dropH / 2 - 2} ${x + dropW - DROPDOWN_PAD - 3},${dropY + dropH / 2 + 2}`}
+              fill="white"
+              opacity="0.8"
+            />
+          </g>
+        );
+        x += dropW + 4;
       }
     });
     return elements;
