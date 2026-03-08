@@ -91,6 +91,7 @@ export const TEMPLATES: TemplateMeta[] = [
   { id: "word", name: "Word Document", description: "Create and edit Word documents (.docx)", aiDescription: "Word document editing" },
   { id: "powerpoint", name: "PowerPoint", description: "Create presentations (.pptx)", aiDescription: "PowerPoint presentations" },
   { id: "excel", name: "Excel Spreadsheet", description: "Create spreadsheets (.xlsx)", aiDescription: "Excel spreadsheets" },
+  { id: "video", name: "Video Editor", description: "Edit and preview video files (.mp4/.webm/.ogg)", aiDescription: "Video editing and playback" },
 ];
 
 /** All template IDs in display order */
