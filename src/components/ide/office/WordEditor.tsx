@@ -26,12 +26,14 @@ interface WordEditorProps {
 export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [paragraphs, setParagraphs] = useState<string[]>([]);
   const [zoom, setZoom] = useState(100);
   const [activeTab, setActiveTab] = useState<'home' | 'insert' | 'layout' | 'references' | 'review' | 'view'>('home');
-  const [images, setImages] = useState<Array<{ id: string; dataUrl: string }>>([]);
+  const [wordCount, setWordCount] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialHtmlRef = useRef('');
+  // Track the file id we loaded so we only set innerHTML once per file
+  const loadedFileIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -52,7 +54,9 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
           const tNodes = Array.from(p.getElementsByTagNameNS('*', 't'));
           return tNodes.map(t => t.textContent || '').join('');
         });
-        setParagraphs(paras.length ? paras : ['']);
+        const lines = paras.length ? paras : [''];
+        initialHtmlRef.current = lines.map(p => `<p>${p || '<br>'}</p>`).join('');
+        loadedFileIdRef.current = file.id;
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to open document');
       } finally {
@@ -62,7 +66,28 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     load();
   }, [file.id, file.content, onContentChange]);
 
+  // Set innerHTML only once after loading
+  useEffect(() => {
+    if (!loading && !error && editorRef.current && loadedFileIdRef.current === file.id) {
+      editorRef.current.innerHTML = initialHtmlRef.current;
+      updateWordCount();
+    }
+  }, [loading, error, file.id]);
+
+  const updateWordCount = () => {
+    if (!editorRef.current) return;
+    const text = editorRef.current.innerText || '';
+    setWordCount(text.split(/\s+/).filter(Boolean).length);
+  };
+
+  const getEditorParagraphs = (): string[] => {
+    if (!editorRef.current) return [''];
+    const text = editorRef.current.innerText || '';
+    return text.split('\n');
+  };
+
   const save = useCallback(async () => {
+    const paragraphs = getEditorParagraphs();
     const bytes = decodeDataUrl(file.content || '') || (await buildNewDocx());
     const zip = await JSZip.loadAsync(bytes);
     const content = paragraphs
@@ -72,12 +97,31 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${content || '<w:p><w:r><w:t></w:t></w:r></w:p>'}</w:body></w:document>`);
     const out = new Uint8Array(await zip.generateAsync({ type: 'uint8array' }));
     onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.wordprocessingml.document', out));
-  }, [file, paragraphs, onContentChange]);
+  }, [file, onContentChange]);
 
   const handleEditorInput = () => {
-    if (!editorRef.current) return;
-    const text = editorRef.current.innerText || '';
-    setParagraphs(text.split('\n'));
+    updateWordCount();
+  };
+
+  // --- execCommand helpers ---
+  const exec = (command: string, value?: string) => {
+    document.execCommand(command, false, value);
+    editorRef.current?.focus();
+  };
+
+  // --- Insert actions ---
+  const insertTable = () => {
+    const rows = 3, cols = 3;
+    let html = '<table style="border-collapse:collapse;width:100%;margin:8px 0">';
+    for (let r = 0; r < rows; r++) {
+      html += '<tr>';
+      for (let c = 0; c < cols; c++) {
+        html += `<td style="border:1px solid hsl(var(--border));padding:6px 8px;min-width:60px" contenteditable="true">&nbsp;</td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</table><p><br></p>';
+    exec('insertHTML', html);
   };
 
   const handleImageUpload = () => fileInputRef.current?.click();
@@ -88,23 +132,64 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        const id = `img-${Date.now()}`;
-        setImages(prev => [...prev, { id, dataUrl: reader.result as string }]);
-        // Insert image placeholder into editor
-        if (editorRef.current) {
-          const img = document.createElement('img');
-          img.src = reader.result as string;
-          img.style.maxWidth = '100%';
-          img.style.borderRadius = '4px';
-          img.style.margin = '8px 0';
-          img.setAttribute('data-img-id', id);
-          editorRef.current.appendChild(img);
-          handleEditorInput();
-        }
+        exec('insertHTML', `<img src="${reader.result}" style="max-width:100%;border-radius:4px;margin:8px 0" />`);
       }
     };
     reader.readAsDataURL(f);
     e.target.value = '';
+  };
+
+  const insertLink = () => {
+    const url = prompt('Enter URL:');
+    if (url) {
+      const sel = window.getSelection();
+      const text = sel && sel.toString() ? sel.toString() : url;
+      exec('insertHTML', `<a href="${url}" style="color:hsl(217,91%,60%);text-decoration:underline" target="_blank">${text}</a>`);
+    }
+  };
+
+  const insertBookmark = () => {
+    const name = prompt('Bookmark name:');
+    if (name) {
+      exec('insertHTML', `<span style="background:hsl(48,96%,89%);padding:0 4px;border-radius:2px;font-size:0.85em" data-bookmark="${name}">🔖 ${name}</span>`);
+    }
+  };
+
+  const insertHeader = () => {
+    exec('insertHTML', `<div style="border-bottom:1px solid hsl(var(--border));padding-bottom:8px;margin-bottom:12px;color:hsl(var(--muted-foreground));font-size:0.85em">Header — ${file.name}</div>`);
+  };
+
+  const insertFooter = () => {
+    exec('insertHTML', `<div style="border-top:1px solid hsl(var(--border));padding-top:8px;margin-top:12px;color:hsl(var(--muted-foreground));font-size:0.85em">Footer — Page 1</div>`);
+  };
+
+  const insertPageNumber = () => {
+    exec('insertHTML', `<span style="color:hsl(var(--muted-foreground));font-size:0.85em">— Page 1 —</span>`);
+  };
+
+  const insertVideo = () => {
+    const url = prompt('Enter video URL (YouTube/Vimeo):');
+    if (url) {
+      exec('insertHTML', `<div style="margin:8px 0;padding:12px;background:hsl(var(--muted));border-radius:6px;text-align:center"><span style="font-size:0.85em">🎬 Video: <a href="${url}" target="_blank" style="color:hsl(217,91%,60%)">${url}</a></span></div>`);
+    }
+  };
+
+  const insertHeading = (level: 1 | 2) => {
+    const tag = `h${level}`;
+    const size = level === 1 ? '1.5em' : '1.25em';
+    exec('insertHTML', `<${tag} style="font-size:${size};font-weight:bold;margin:12px 0 4px">Heading ${level}</${tag}>`);
+  };
+
+  const insertHorizontalRule = () => {
+    exec('insertHTML', '<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0" /><p><br></p>');
+  };
+
+  const insertQuote = () => {
+    exec('insertHTML', '<blockquote style="border-left:3px solid hsl(var(--border));padding-left:12px;margin:8px 0;color:hsl(var(--muted-foreground));font-style:italic">Quote</blockquote><p><br></p>');
+  };
+
+  const insertCodeBlock = () => {
+    exec('insertHTML', '<pre style="background:hsl(var(--muted));padding:12px;border-radius:6px;font-family:monospace;font-size:0.9em;margin:8px 0;overflow-x:auto">code</pre><p><br></p>');
   };
 
   if (loading) {
@@ -154,15 +239,15 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
         </div>
 
         {/* Ribbon content */}
-        <div className="bg-background border-b border-border flex items-center gap-1 px-3 py-1.5 min-h-[40px]">
+        <div className="bg-background border-b border-border flex items-center gap-1 px-3 py-1.5 min-h-[40px] flex-wrap">
           {activeTab === 'home' && (
             <>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Undo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Redo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('undo')}><Undo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('redo')}><Redo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-1 pr-2 border-r border-border">
-                <Select defaultValue="calibri">
+                <Select defaultValue="calibri" onValueChange={(v) => exec('fontName', v)}>
                   <SelectTrigger className="h-7 w-28 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="calibri">Calibri</SelectItem>
@@ -172,30 +257,30 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
                     <SelectItem value="courier">Courier New</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select defaultValue="11">
+                <Select defaultValue="3" onValueChange={(v) => exec('fontSize', v)}>
                   <SelectTrigger className="h-7 w-14 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {[8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72].map(s => (
-                      <SelectItem key={s} value={String(s)}>{s}</SelectItem>
+                    {[{l:'8',v:'1'},{l:'10',v:'2'},{l:'11',v:'3'},{l:'12',v:'3'},{l:'14',v:'4'},{l:'18',v:'5'},{l:'24',v:'6'},{l:'36',v:'7'}].map(s => (
+                      <SelectItem key={s.l} value={s.v}>{s.l}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Bold className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Underline className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Strikethrough className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Strikethrough</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('bold')}><Bold className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('italic')}><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('underline')}><Underline className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('strikeThrough')}><Strikethrough className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Strikethrough</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignLeft className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignCenter className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignRight className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignJustify className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Justify</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('justifyLeft')}><AlignLeft className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('justifyCenter')}><AlignCenter className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('justifyRight')}><AlignRight className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('justifyFull')}><AlignJustify className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Justify</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5">
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><List className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bullets</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><ListOrdered className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Numbering</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('insertUnorderedList')}><List className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bullets</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('insertOrderedList')}><ListOrdered className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Numbering</TooltipContent></Tooltip>
               </div>
             </>
           )}
@@ -203,20 +288,27 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
           {activeTab === 'insert' && (
             <>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Table className="w-3.5 h-3.5" /> Table</Button></TooltipTrigger><TooltipContent>Insert Table</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertTable}><Table className="w-3.5 h-3.5" /> Table</Button></TooltipTrigger><TooltipContent>Insert 3×3 Table</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
                 <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={handleImageUpload}><Image className="w-3.5 h-3.5" /> Picture</Button></TooltipTrigger><TooltipContent>Insert Picture</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Film className="w-3.5 h-3.5" /> Video</Button></TooltipTrigger><TooltipContent>Insert Video</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertVideo}><Film className="w-3.5 h-3.5" /> Video</Button></TooltipTrigger><TooltipContent>Insert Video Link</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Link className="w-3.5 h-3.5" /> Link</Button></TooltipTrigger><TooltipContent>Insert Link</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Bookmark className="w-3.5 h-3.5" /> Bookmark</Button></TooltipTrigger><TooltipContent>Bookmark</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertLink}><Link className="w-3.5 h-3.5" /> Link</Button></TooltipTrigger><TooltipContent>Insert Hyperlink</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertBookmark}><Bookmark className="w-3.5 h-3.5" /> Bookmark</Button></TooltipTrigger><TooltipContent>Insert Bookmark</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertHeading(1)}><Heading1 className="w-3.5 h-3.5" /> H1</Button></TooltipTrigger><TooltipContent>Heading 1</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertHeading(2)}><Heading2 className="w-3.5 h-3.5" /> H2</Button></TooltipTrigger><TooltipContent>Heading 2</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertQuote}><Quote className="w-3.5 h-3.5" /> Quote</Button></TooltipTrigger><TooltipContent>Block Quote</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertCodeBlock}><Code className="w-3.5 h-3.5" /> Code</Button></TooltipTrigger><TooltipContent>Code Block</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertHorizontalRule}><SeparatorHorizontal className="w-3.5 h-3.5" /> Rule</Button></TooltipTrigger><TooltipContent>Horizontal Rule</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Heading1 className="w-3.5 h-3.5" /> Header</Button></TooltipTrigger><TooltipContent>Header</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><SeparatorHorizontal className="w-3.5 h-3.5" /> Footer</Button></TooltipTrigger><TooltipContent>Footer</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Type className="w-3.5 h-3.5" /> Page #</Button></TooltipTrigger><TooltipContent>Page Number</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertHeader}><Heading1 className="w-3.5 h-3.5" /> Header</Button></TooltipTrigger><TooltipContent>Document Header</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertFooter}><SeparatorHorizontal className="w-3.5 h-3.5" /> Footer</Button></TooltipTrigger><TooltipContent>Document Footer</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertPageNumber}><Type className="w-3.5 h-3.5" /> Page #</Button></TooltipTrigger><TooltipContent>Page Number</TooltipContent></Tooltip>
               </div>
             </>
           )}
@@ -232,7 +324,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
                 <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Columns className="w-3.5 h-3.5" /> Columns</Button></TooltipTrigger><TooltipContent>Columns</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><SeparatorHorizontal className="w-3.5 h-3.5" /> Breaks</Button></TooltipTrigger><TooltipContent>Page Breaks</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertHorizontalRule}><SeparatorHorizontal className="w-3.5 h-3.5" /> Breaks</Button></TooltipTrigger><TooltipContent>Page Breaks</TooltipContent></Tooltip>
               </div>
             </>
           )}
@@ -314,9 +406,6 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
                 className="outline-none min-h-[200px] text-sm leading-relaxed"
                 style={{ fontSize: Math.round(11 * (zoom / 100)) }}
                 onInput={handleEditorInput}
-                dangerouslySetInnerHTML={{
-                  __html: paragraphs.map(p => `<p>${p || '<br>'}</p>`).join('')
-                }}
               />
             </div>
           </div>
@@ -326,7 +415,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
         <div className="flex items-center justify-between px-3 py-1 bg-[#185abd] dark:bg-[#1b3a6b] text-white text-xs">
           <div className="flex items-center gap-4">
             <span>Page 1 of 1</span>
-            <span>{paragraphs.reduce((sum, p) => sum + (p.split(/\s+/).filter(Boolean).length), 0)} words</span>
+            <span>{wordCount} words</span>
           </div>
           <div className="flex items-center gap-2">
             <Button size="icon" variant="ghost" className="h-5 w-5 text-white hover:bg-white/20" onClick={() => setZoom(z => Math.max(50, z - 10))}>
