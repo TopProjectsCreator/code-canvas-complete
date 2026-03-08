@@ -1266,9 +1266,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 />
               </div>
               <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
-                <div className="rounded-full border border-[#c8d0dd] h-8 flex items-center justify-center gap-1">x <input className="w-8 bg-transparent text-center" value={Math.round((stagePreview.x - 180) / 0.7)} readOnly /></div>
-                <div className="rounded-full border border-[#c8d0dd] h-8 flex items-center justify-center gap-1">y <input className="w-8 bg-transparent text-center" value={Math.round((110 - stagePreview.y) / 0.6)} readOnly /></div>
-                <div className="rounded-full border border-[#c8d0dd] h-8 flex items-center justify-center gap-1">size <input className="w-10 bg-transparent text-center" value={Math.round(selectedTarget?.size as number || 100)} readOnly /></div>
+                <div className="rounded-full border border-[#c8d0dd] h-8 flex items-center justify-center gap-1">x <input className="w-8 bg-transparent text-center" value={Math.round(stagePreview.x)} readOnly /></div>
+                <div className="rounded-full border border-[#c8d0dd] h-8 flex items-center justify-center gap-1">y <input className="w-8 bg-transparent text-center" value={Math.round(stagePreview.y)} readOnly /></div>
+                <div className="rounded-full border border-[#c8d0dd] h-8 flex items-center justify-center gap-1">size <input className="w-10 bg-transparent text-center" value={Math.round(stagePreview.size || 100)} readOnly /></div>
                 <div className="rounded-full border border-[#c8d0dd] h-8 flex items-center justify-center gap-1">dir <input className="w-8 bg-transparent text-center" value={Math.round(stagePreview.direction || 90)} readOnly /></div>
               </div>
               <div className="mt-2 flex items-center gap-2 text-xs">
