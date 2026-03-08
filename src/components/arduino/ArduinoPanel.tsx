@@ -163,8 +163,7 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
         onUpload={async (config: UploadConfig, onProgress?: (message: string, percent?: number) => void) => {
-          const { ArduinoUploadService } = await import('@/services/arduinoUploadService');
-          if (config.uploadMethod === 'wifi') {
+          const svc = ArduinoUploadService;
             await ArduinoUploadService.uploadViaWiFi(getSketchWithLibraries(), config, onProgress);
             return;
           }
