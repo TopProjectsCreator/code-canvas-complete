@@ -1259,23 +1259,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           >
             {selectedBlocks.map((block) => {
               const blockColor = getBlockColor(block.opcode);
-              const isHat = block.opcode.startsWith('event_when') || block.opcode === 'control_start_as_clone';
+              const shape = getBlockShape(block.opcode);
+              const label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
               return (
                 <div
                   key={block.id}
                   draggable
                   onDragEnd={(e) => handleBlockDragInWorkspace(block.id, e)}
-                  className="absolute text-white px-3 py-[6px] text-[13px] min-w-[140px] cursor-grab active:cursor-grabbing select-none"
-                  style={{
-                    left: block.x ?? 40,
-                    top: block.y ?? 40,
-                    backgroundColor: blockColor,
-                    borderRadius: isHat ? '16px 16px 4px 4px' : '4px',
-                    borderBottom: '3px solid rgba(0,0,0,0.15)',
-                    borderLeft: '3px solid rgba(0,0,0,0.05)',
-                  }}
+                  className="absolute cursor-grab active:cursor-grabbing select-none"
+                  style={{ left: block.x ?? 40, top: block.y ?? 40 }}
                 >
-                  {blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ')}
+                  <ScratchBlockShape label={label} color={blockColor} shape={shape} />
                 </div>
               );
             })}
