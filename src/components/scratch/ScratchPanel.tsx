@@ -21,6 +21,8 @@ import {
 import VirtualMachine from 'scratch-vm';
 import { ScratchArchive, exportSb3, importSb3 } from '@/services/scratchSb3';
 import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
+import { ScratchLibraryDialog, type LibraryMode } from './ScratchLibraryDialog';
+import { type ScratchLibraryAsset, assetUrl } from '@/data/scratchLibrary';
 
 type ScratchInputPrimitive = string | number | boolean;
 
