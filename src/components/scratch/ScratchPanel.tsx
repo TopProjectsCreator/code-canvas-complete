@@ -932,6 +932,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }));
   };
 
+  const addSound = async (file: File) => {
     const bytes = new Uint8Array(await file.arrayBuffer());
     const assetId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 8)}`;
     const dataFormat = extensionOf(file.name) || 'wav';
