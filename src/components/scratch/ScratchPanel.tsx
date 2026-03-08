@@ -1579,14 +1579,40 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               </div>
             </div>
 
-            {/* Stage / Backdrops mini panel */}
-            <div className="w-[100px] border-l border-[#e0e0e0] bg-white p-2 flex flex-col items-center gap-1 shrink-0">
-              <div className="text-[10px] font-semibold text-[#575e75]">Stage</div>
-              <div className="w-16 h-12 rounded border border-[#d0d0d0] bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
-                {stageCostumeSrc ? <img src={stageCostumeSrc} className="max-w-full max-h-full" /> : <span className="text-xs text-[#b0b0b0]">🖼</span>}
+            {/* Stage / Backdrops panel */}
+            <div className="w-[120px] border-l border-[#e0e0e0] bg-white flex flex-col shrink-0 min-h-0">
+              <div className="px-2 pt-2 pb-1 flex items-center justify-between">
+                <div className="text-[11px] font-bold text-[#575e75]">Stage</div>
+                <button
+                  onClick={() => backdropInputRef.current?.click()}
+                  className="w-5 h-5 rounded-full bg-[#855cd6] text-white flex items-center justify-center hover:bg-[#7248bf]"
+                  title="Upload backdrop"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+                <input ref={backdropInputRef} className="hidden" type="file" accept="image/*,.svg" onChange={(e) => e.target.files?.[0] && addBackdrop(e.target.files[0])} />
               </div>
-              <div className="text-[9px] text-[#575e75]">Backdrops</div>
-              <div className="text-[10px] text-[#b0b0b0]">{project.targets[0]?.costumes?.length || 1}</div>
+              <div className="text-[9px] text-[#575e75] px-2 mb-1">Backdrops</div>
+              <div className="flex-1 overflow-y-auto px-1.5 pb-2 space-y-1.5">
+                {stageBackdrops.map((backdrop, idx) => {
+                  const src = archive?.files?.[backdrop.md5ext]
+                    ? `data:image/${backdrop.dataFormat || 'png'};base64,${archive.files[backdrop.md5ext]}`
+                    : null;
+                  const selected = idx === stageCurrentBackdrop;
+                  return (
+                    <button
+                      key={backdrop.assetId}
+                      onClick={() => setStageBackdrop(idx)}
+                      className={`w-full rounded border-2 p-1 transition-colors ${selected ? 'border-[#855cd6] bg-[#f0ebff]' : 'border-[#d0d0d0] hover:border-[#b0b0b0]'}`}
+                    >
+                      <div className="w-full aspect-[4/3] rounded bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
+                        {src ? <img src={src} alt={backdrop.name} className="max-w-full max-h-full" /> : <span className="text-xs text-[#b0b0b0]">🖼</span>}
+                      </div>
+                      <div className="text-[9px] text-[#575e75] mt-0.5 truncate text-center">{idx + 1}. {backdrop.name}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
