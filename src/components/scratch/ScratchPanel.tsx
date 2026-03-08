@@ -965,6 +965,102 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     );
   };
 
+  const addLibraryAsset = async (asset: ScratchLibraryAsset) => {
+    // Fetch the asset from the Scratch CDN
+    try {
+      const resp = await fetch(assetUrl(asset.md5ext));
+      if (!resp.ok) throw new Error('Failed to fetch asset');
+      const bytes = new Uint8Array(await resp.arrayBuffer());
+      const base64 = bytesToBase64(bytes);
+
+      if (libraryOpen === 'sounds') {
+        await updateArchiveWithProject(
+          (current) => ({
+            ...current,
+            targets: current.targets.map((target, idx) => {
+              if (idx !== selectedTargetIndex) return target;
+              const sounds = target.sounds || [];
+              return {
+                ...target,
+                sounds: [...sounds, {
+                  name: asset.name,
+                  assetId: asset.assetId,
+                  md5ext: asset.md5ext,
+                  dataFormat: asset.dataFormat,
+                  rate: asset.rate || 44100,
+                  sampleCount: asset.sampleCount || 0,
+                }],
+              };
+            }),
+          }),
+          (currentArchive) => ({
+            ...currentArchive,
+            files: { ...currentArchive.files, [asset.md5ext]: base64 },
+            fileNames: currentArchive.fileNames.includes(asset.md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, asset.md5ext],
+          }),
+        );
+      } else if (libraryOpen === 'backdrops') {
+        await updateArchiveWithProject(
+          (current) => ({
+            ...current,
+            targets: current.targets.map((target) => {
+              if (!target.isStage) return target;
+              const costumes = target.costumes || [];
+              return {
+                ...target,
+                costumes: [...costumes, {
+                  name: asset.name,
+                  assetId: asset.assetId,
+                  md5ext: asset.md5ext,
+                  dataFormat: asset.dataFormat,
+                  rotationCenterX: asset.rotationCenterX || 240,
+                  rotationCenterY: asset.rotationCenterY || 180,
+                }],
+                currentCostume: costumes.length,
+              };
+            }),
+          }),
+          (currentArchive) => ({
+            ...currentArchive,
+            files: { ...currentArchive.files, [asset.md5ext]: base64 },
+            fileNames: currentArchive.fileNames.includes(asset.md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, asset.md5ext],
+          }),
+        );
+      } else {
+        // costumes
+        await updateArchiveWithProject(
+          (current) => ({
+            ...current,
+            targets: current.targets.map((target, idx) => {
+              if (idx !== selectedTargetIndex) return target;
+              const costumes = target.costumes || [];
+              return {
+                ...target,
+                costumes: [...costumes, {
+                  name: asset.name,
+                  assetId: asset.assetId,
+                  md5ext: asset.md5ext,
+                  dataFormat: asset.dataFormat,
+                  rotationCenterX: asset.rotationCenterX || 48,
+                  rotationCenterY: asset.rotationCenterY || 48,
+                }],
+                currentCostume: costumes.length,
+              };
+            }),
+          }),
+          (currentArchive) => ({
+            ...currentArchive,
+            files: { ...currentArchive.files, [asset.md5ext]: base64 },
+            fileNames: currentArchive.fileNames.includes(asset.md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, asset.md5ext],
+          }),
+        );
+      }
+    } catch (e) {
+      console.warn('Failed to add library asset:', e);
+    }
+    setLibraryOpen(null);
+  };
+
   const addSprite = () => {
     const existing = new Set(project.targets.map((t) => t.name));
     let i = 1;
