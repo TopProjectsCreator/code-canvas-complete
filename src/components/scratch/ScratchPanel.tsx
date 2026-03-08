@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import {
   StopCircle,
   Maximize2,
@@ -19,6 +19,9 @@ import {
   Play,
 } from 'lucide-react';
 import VirtualMachine from 'scratch-vm';
+import RenderWebGL from 'scratch-render';
+import ScratchStorage from 'scratch-storage';
+import AudioEngine from 'scratch-audio';
 import { ScratchArchive, exportSb3, importSb3 } from '@/services/scratchSb3';
 
 type ScratchInputPrimitive = string | number | boolean;
