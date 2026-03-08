@@ -395,7 +395,7 @@ const getDefaultCostumeForTarget = (target: ScratchTarget) => (target.isStage
     }
   : {
       name: 'costume1',
-      assetId: 'cdx-sprite-default',
+      assetId: DEFAULT_SPRITE_ASSET_ID,
       md5ext: DEFAULT_SPRITE_COSTUME_FILE,
       dataFormat: 'svg',
       rotationCenterX: 48,
