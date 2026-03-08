@@ -389,6 +389,8 @@ const categoryColors: Record<string, string> = {
   Operators: '#59c059',
   Variables: '#ff8c1a',
   'My Blocks': '#ff6680',
+  Pen: '#0fbd8c',
+  Music: '#d65cd6',
 };
 
 const categoryRail = [
@@ -401,6 +403,8 @@ const categoryRail = [
   { name: 'Operators', color: '#59c059' },
   { name: 'Variables', color: '#ff8c1a' },
   { name: 'My Blocks', color: '#ff6680' },
+  { name: 'Pen', color: '#0fbd8c' },
+  { name: 'Music', color: '#d65cd6' },
 ];
 
 const generateId = () => Math.random().toString(36).slice(2, 10);
