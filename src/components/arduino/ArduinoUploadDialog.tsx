@@ -210,7 +210,7 @@ export function ArduinoUploadDialog({
             )}
           </div>
 
-          {config.uploadMethod === 'serial' && !isDFUBoard && (
+          {config.uploadMethod === 'serial' && !isSambaBoard && (
             <>
               <div>
                 <Label htmlFor="port">Serial Port</Label>
