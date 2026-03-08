@@ -208,6 +208,9 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
     case 'excel':
       baseTemplate = excelTemplate;
       break;
+    case 'video':
+      baseTemplate = videoTemplate;
+      break;
     default:
       baseTemplate = htmlTemplate;
       break;
