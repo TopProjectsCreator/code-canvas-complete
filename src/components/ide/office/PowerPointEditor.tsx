@@ -1,22 +1,33 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import JSZip from 'jszip';
 import { FileNode } from '@/types/ide';
 import {
   Presentation, Save, Plus, Trash2, Copy, ChevronUp, ChevronDown,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
-  Type, Square, Circle, Image, Play, Undo, Redo, Loader2,
+  Type, Square, Image, Play, Undo, Redo, Loader2,
   Table, Film, Link, Palette, Wand2, Zap, RotateCcw,
-  Eye, SlidersHorizontal, Timer, Maximize
+  Eye, SlidersHorizontal, Timer, Maximize, Move, GripVertical
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { decodeDataUrl, encodeDataUrl, parseXml, xmlEncode, buildNewPptx } from './officeUtils';
 
+interface SlideElement {
+  id: string;
+  type: 'text' | 'image';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  content: string; // text content or data URL for images
+  fontSize?: number;
+  fontWeight?: number;
+}
+
 interface SlideData {
-  texts: string[];
+  elements: SlideElement[];
 }
 
 interface PowerPointEditorProps {
@@ -24,13 +35,21 @@ interface PowerPointEditorProps {
   onContentChange: (fileId: string, content: string) => void;
 }
 
+let elementIdCounter = 0;
+const newId = () => `el-${Date.now()}-${elementIdCounter++}`;
+
 export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [slides, setSlides] = useState<SlideData[]>([]);
   const [activeSlide, setActiveSlide] = useState(0);
-  const [editingText, setEditingText] = useState<number | null>(null);
+  const [selectedElement, setSelectedElement] = useState<string | null>(null);
+  const [editingElement, setEditingElement] = useState<string | null>(null);
   const [ribbonTab, setRibbonTab] = useState<'home' | 'insert' | 'design' | 'transitions' | 'animations' | 'slideshow'>('home');
+  const [dragging, setDragging] = useState<{ id: string; startX: number; startY: number; elX: number; elY: number } | null>(null);
+  const [resizing, setResizing] = useState<{ id: string; startX: number; startY: number; elW: number; elH: number } | null>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -53,16 +72,41 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
           if (!xml) continue;
           const doc = parseXml(xml);
           const spNodes = Array.from(doc.getElementsByTagNameNS('*', 'sp'));
-          const texts: string[] = [];
+          const elements: SlideElement[] = [];
           for (const sp of spNodes) {
             const tNodes = Array.from(sp.getElementsByTagNameNS('*', 't'));
             const text = tNodes.map(n => n.textContent || '').join('');
-            if (text) texts.push(text);
+            if (text || tNodes.length > 0) {
+              const isTitle = elements.length === 0;
+              elements.push({
+                id: newId(),
+                type: 'text',
+                x: 30,
+                y: isTitle ? 30 : 100 + (elements.length - 1) * 70,
+                width: 660,
+                height: isTitle ? 60 : 50,
+                content: text,
+                fontSize: isTitle ? 28 : 16,
+                fontWeight: isTitle ? 700 : 400,
+              });
+            }
           }
-          if (texts.length === 0) texts.push('');
-          parsed.push({ texts });
+          if (elements.length === 0) {
+            elements.push(
+              { id: newId(), type: 'text', x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700 },
+              { id: newId(), type: 'text', x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400 },
+            );
+          }
+          parsed.push({ elements });
         }
-        if (parsed.length === 0) parsed.push({ texts: ['Click to add title', 'Click to add subtitle'] });
+        if (parsed.length === 0) {
+          parsed.push({
+            elements: [
+              { id: newId(), type: 'text', x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700 },
+              { id: newId(), type: 'text', x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400 },
+            ]
+          });
+        }
         setSlides(parsed);
         setActiveSlide(0);
       } catch (e) {
@@ -74,12 +118,53 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     load();
   }, [file.id, file.content, onContentChange]);
 
+  // Mouse move/up for drag and resize
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (dragging) {
+        const dx = e.clientX - dragging.startX;
+        const dy = e.clientY - dragging.startY;
+        setSlides(prev => prev.map((s, i) =>
+          i === activeSlide ? {
+            ...s,
+            elements: s.elements.map(el =>
+              el.id === dragging.id ? { ...el, x: Math.max(0, dragging.elX + dx), y: Math.max(0, dragging.elY + dy) } : el
+            )
+          } : s
+        ));
+      }
+      if (resizing) {
+        const dx = e.clientX - resizing.startX;
+        const dy = e.clientY - resizing.startY;
+        setSlides(prev => prev.map((s, i) =>
+          i === activeSlide ? {
+            ...s,
+            elements: s.elements.map(el =>
+              el.id === resizing.id ? { ...el, width: Math.max(40, resizing.elW + dx), height: Math.max(20, resizing.elH + dy) } : el
+            )
+          } : s
+        ));
+      }
+    };
+    const handleMouseUp = () => {
+      setDragging(null);
+      setResizing(null);
+    };
+    if (dragging || resizing) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [dragging, resizing, activeSlide]);
+
   const save = useCallback(async () => {
     const bytes = decodeDataUrl(file.content || '') || (await buildNewPptx());
     const zip = await JSZip.loadAsync(bytes);
-
-    // Update content types and presentation rels for all slides
     const slideCount = slides.length;
+
     const overrides = slides.map((_, i) =>
       `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`
     ).join('');
@@ -91,9 +176,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   ${overrides}
 </Types>`);
 
-    const sldIdLst = slides.map((_, i) =>
-      `<p:sldId id="${256 + i}" r:id="rId${i + 1}"/>`
-    ).join('');
+    const sldIdLst = slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 1}"/>`).join('');
     zip.file('ppt/presentation.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:sldIdLst>${sldIdLst}</p:sldIdLst></p:presentation>`);
 
@@ -103,20 +186,18 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     zip.folder('ppt')?.folder('_rels')?.file('presentation.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`);
 
-    // Remove old slides
     const existingSlides = Object.keys(zip.files).filter(n => /^ppt\/slides\/slide\d+\.xml$/i.test(n));
     for (const f of existingSlides) zip.remove(f);
 
     slides.forEach((slide, idx) => {
-      const shapes = slide.texts.map((text, ti) => {
-        const y = ti === 0 ? 274638 : 1600200 + (ti - 1) * 600000;
-        const fontSize = ti === 0 ? 4400 : 2400;
-        const lines = text.split('\n').map(line =>
-          `<a:p><a:r><a:rPr lang="en-US" sz="${fontSize}" dirty="0"/><a:t>${xmlEncode(line)}</a:t></a:r></a:p>`
+      const textEls = slide.elements.filter(el => el.type === 'text');
+      const shapes = textEls.map((el, ti) => {
+        const lines = el.content.split('\n').map(line =>
+          `<a:p><a:r><a:rPr lang="en-US" sz="${(el.fontSize || 16) * 100}" dirty="0"/><a:t>${xmlEncode(line)}</a:t></a:r></a:p>`
         ).join('');
         return `<p:sp>
           <p:nvSpPr><p:cNvPr id="${ti + 2}" name="TextBox ${ti + 1}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>
-          <p:spPr><a:xfrm><a:off x="457200" y="${y}"/><a:ext cx="8229600" cy="857250"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
+          <p:spPr><a:xfrm><a:off x="${Math.round(el.x * 12700)}" y="${Math.round(el.y * 12700)}"/><a:ext cx="${Math.round(el.width * 12700)}" cy="${Math.round(el.height * 12700)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
           <p:txBody><a:bodyPr/><a:lstStyle/>${lines || '<a:p><a:endParaRPr lang="en-US"/></a:p>'}</p:txBody>
         </p:sp>`;
       }).join('');
@@ -134,7 +215,12 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   }, [file, slides, onContentChange]);
 
   const addSlide = () => {
-    const newSlides = [...slides, { texts: ['Click to add title', 'Click to add subtitle'] }];
+    const newSlides = [...slides, {
+      elements: [
+        { id: newId(), type: 'text' as const, x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700 },
+        { id: newId(), type: 'text' as const, x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400 },
+      ]
+    }];
     setSlides(newSlides);
     setActiveSlide(newSlides.length - 1);
   };
@@ -148,7 +234,8 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
 
   const duplicateSlide = (idx: number) => {
     const newSlides = [...slides];
-    newSlides.splice(idx + 1, 0, { texts: [...slides[idx].texts] });
+    const cloned: SlideData = { elements: slides[idx].elements.map(el => ({ ...el, id: newId() })) };
+    newSlides.splice(idx + 1, 0, cloned);
     setSlides(newSlides);
     setActiveSlide(idx + 1);
   };
@@ -162,16 +249,55 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     setActiveSlide(newIdx);
   };
 
-  const updateText = (slideIdx: number, textIdx: number, value: string) => {
+  const updateElementContent = (elId: string, value: string) => {
     setSlides(prev => prev.map((s, i) =>
-      i === slideIdx ? { ...s, texts: s.texts.map((t, ti) => ti === textIdx ? value : t) } : s
+      i === activeSlide ? { ...s, elements: s.elements.map(el => el.id === elId ? { ...el, content: value } : el) } : s
     ));
   };
 
   const addTextBox = () => {
+    const el: SlideElement = { id: newId(), type: 'text', x: 100, y: 200, width: 400, height: 50, content: 'New text box', fontSize: 16, fontWeight: 400 };
+    setSlides(prev => prev.map((s, i) => i === activeSlide ? { ...s, elements: [...s.elements, el] } : s));
+    setSelectedElement(el.id);
+  };
+
+  const addImage = (dataUrl: string) => {
+    const img = new window.Image();
+    img.onload = () => {
+      const maxW = 400;
+      const scale = Math.min(1, maxW / img.width);
+      const el: SlideElement = {
+        id: newId(), type: 'image',
+        x: 160, y: 100,
+        width: Math.round(img.width * scale),
+        height: Math.round(img.height * scale),
+        content: dataUrl,
+      };
+      setSlides(prev => prev.map((s, i) => i === activeSlide ? { ...s, elements: [...s.elements, el] } : s));
+      setSelectedElement(el.id);
+    };
+    img.src = dataUrl;
+  };
+
+  const handleImageUpload = () => fileInputRef.current?.click();
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') addImage(reader.result);
+    };
+    reader.readAsDataURL(f);
+    e.target.value = '';
+  };
+
+  const deleteElement = (id: string) => {
     setSlides(prev => prev.map((s, i) =>
-      i === activeSlide ? { ...s, texts: [...s.texts, 'New text box'] } : s
+      i === activeSlide ? { ...s, elements: s.elements.filter(el => el.id !== id) } : s
     ));
+    setSelectedElement(null);
+    setEditingElement(null);
   };
 
   if (loading) {
@@ -192,38 +318,26 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   return (
     <TooltipProvider>
       <div className="flex-1 flex flex-col bg-[#f3f3f3] dark:bg-[#1e1e1e] overflow-hidden">
-        {/* Ribbon / Toolbar */}
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
+
+        {/* Ribbon */}
         <div className="bg-background border-b border-border">
-          {/* Title bar */}
           <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/50">
             <div className="flex items-center gap-2">
               <Presentation className="w-5 h-5 text-orange-500" />
               <span className="text-sm font-semibold">{file.name}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Button size="sm" variant="ghost" onClick={save}>
-                <Save className="w-4 h-4 mr-1" /> Save
-              </Button>
-            </div>
+            <Button size="sm" variant="ghost" onClick={save}><Save className="w-4 h-4 mr-1" /> Save</Button>
           </div>
 
-          {/* Ribbon tabs */}
           <div className="flex items-center gap-1 px-2 py-0.5 text-xs border-b border-border/50">
             {(['home', 'insert', 'design', 'transitions', 'animations', 'slideshow'] as const).map(tab => (
-              <span
-                key={tab}
-                className={cn(
-                  "px-3 py-1 rounded-t cursor-pointer capitalize",
-                  ribbonTab === tab ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50"
-                )}
-                onClick={() => setRibbonTab(tab)}
-              >
+              <span key={tab} className={cn("px-3 py-1 rounded-t cursor-pointer capitalize", ribbonTab === tab ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted/50")} onClick={() => setRibbonTab(tab)}>
                 {tab === 'slideshow' ? 'Slide Show' : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </span>
             ))}
           </div>
 
-          {/* Ribbon content */}
           <div className="flex items-center gap-1 px-3 py-1.5 min-h-[40px]">
             {ribbonTab === 'home' && (
               <>
@@ -243,18 +357,18 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 </div>
                 <div className="flex items-center gap-0.5">
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={addTextBox}><Type className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Text Box</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleImageUpload}><Image className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Insert Image</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Square className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Shape</TooltipContent></Tooltip>
                 </div>
               </>
             )}
-
             {ribbonTab === 'insert' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={addTextBox}><Type className="w-3.5 h-3.5" /> Text Box</Button></TooltipTrigger><TooltipContent>Insert Text Box</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Image className="w-3.5 h-3.5" /> Picture</Button></TooltipTrigger><TooltipContent>Insert Picture</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={handleImageUpload}><Image className="w-3.5 h-3.5" /> Picture</Button></TooltipTrigger><TooltipContent>Insert Picture</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Film className="w-3.5 h-3.5" /> Video</Button></TooltipTrigger><TooltipContent>Insert Video</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
@@ -266,7 +380,6 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 </div>
               </>
             )}
-
             {ribbonTab === 'design' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
@@ -278,7 +391,6 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 </div>
               </>
             )}
-
             {ribbonTab === 'transitions' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
@@ -292,7 +404,6 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 </div>
               </>
             )}
-
             {ribbonTab === 'animations' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
@@ -301,11 +412,10 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Zap className="w-3.5 h-3.5" /> Fly In</Button></TooltipTrigger><TooltipContent>Fly In</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Eye className="w-3.5 h-3.5" /> Preview</Button></TooltipTrigger><TooltipContent>Preview Animation</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Eye className="w-3.5 h-3.5" /> Preview</Button></TooltipTrigger><TooltipContent>Preview</TooltipContent></Tooltip>
                 </div>
               </>
             )}
-
             {ribbonTab === 'slideshow' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
@@ -326,61 +436,35 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
           <div className="w-48 border-r border-border bg-background flex flex-col">
             <div className="p-2 border-b border-border flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">Slides</span>
-              <div className="flex gap-0.5">
-                <Tooltip><TooltipTrigger asChild>
-                  <Button size="icon" variant="ghost" className="h-6 w-6" onClick={addSlide}>
-                    <Plus className="w-3 h-3" />
-                  </Button>
-                </TooltipTrigger><TooltipContent>New Slide</TooltipContent></Tooltip>
-              </div>
+              <Tooltip><TooltipTrigger asChild>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={addSlide}><Plus className="w-3 h-3" /></Button>
+              </TooltipTrigger><TooltipContent>New Slide</TooltipContent></Tooltip>
             </div>
             <ScrollArea className="flex-1">
               <div className="p-2 space-y-2">
                 {slides.map((slide, idx) => (
                   <div
                     key={idx}
-                    className={cn(
-                      "group relative cursor-pointer rounded border-2 transition-all",
-                      idx === activeSlide
-                        ? "border-primary shadow-sm"
-                        : "border-transparent hover:border-muted-foreground/30"
-                    )}
-                    onClick={() => setActiveSlide(idx)}
+                    className={cn("group relative cursor-pointer rounded border-2 transition-all", idx === activeSlide ? "border-primary shadow-sm" : "border-transparent hover:border-muted-foreground/30")}
+                    onClick={() => { setActiveSlide(idx); setSelectedElement(null); setEditingElement(null); }}
                   >
-                    {/* Slide number */}
-                    <div className="absolute -left-0.5 top-0 text-[10px] text-muted-foreground font-mono">
-                      {idx + 1}
-                    </div>
-                    {/* Thumbnail */}
-                    <div className="ml-3 aspect-[16/9] bg-white dark:bg-[#2d2d2d] rounded-sm p-2 overflow-hidden">
-                      {slide.texts.map((text, ti) => (
-                        <p
-                          key={ti}
-                          className={cn(
-                            "truncate",
-                            ti === 0
-                              ? "text-[8px] font-bold text-foreground/80"
-                              : "text-[6px] text-muted-foreground"
-                          )}
-                        >
-                          {text || (ti === 0 ? 'Title' : 'Content')}
-                        </p>
+                    <div className="absolute -left-0.5 top-0 text-[10px] text-muted-foreground font-mono">{idx + 1}</div>
+                    <div className="ml-3 aspect-[16/9] bg-white dark:bg-[#2d2d2d] rounded-sm p-1 overflow-hidden relative">
+                      {slide.elements.map(el => (
+                        el.type === 'text' ? (
+                          <p key={el.id} className="truncate text-[6px] text-muted-foreground" style={{ position: 'absolute', left: el.x * 0.19, top: el.y * 0.19, fontSize: (el.fontSize || 16) * 0.19, fontWeight: el.fontWeight }}>
+                            {el.content || 'Text'}
+                          </p>
+                        ) : (
+                          <img key={el.id} src={el.content} className="object-cover" style={{ position: 'absolute', left: el.x * 0.19, top: el.y * 0.19, width: el.width * 0.19, height: el.height * 0.19 }} alt="" />
+                        )
                       ))}
                     </div>
-                    {/* Actions on hover */}
                     <div className="absolute top-0 right-0 hidden group-hover:flex bg-background/90 rounded-bl border-l border-b border-border">
-                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); moveSlide(idx, -1); }}>
-                        <ChevronUp className="w-3 h-3" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); moveSlide(idx, 1); }}>
-                        <ChevronDown className="w-3 h-3" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); duplicateSlide(idx); }}>
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                      <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive" onClick={(e) => { e.stopPropagation(); deleteSlide(idx); }}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
+                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); moveSlide(idx, -1); }}><ChevronUp className="w-3 h-3" /></Button>
+                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); moveSlide(idx, 1); }}><ChevronDown className="w-3 h-3" /></Button>
+                      <Button size="icon" variant="ghost" className="h-5 w-5" onClick={(e) => { e.stopPropagation(); duplicateSlide(idx); }}><Copy className="w-3 h-3" /></Button>
+                      <Button size="icon" variant="ghost" className="h-5 w-5 text-destructive" onClick={(e) => { e.stopPropagation(); deleteSlide(idx); }}><Trash2 className="w-3 h-3" /></Button>
                     </div>
                   </div>
                 ))}
@@ -389,58 +473,108 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
           </div>
 
           {/* Slide canvas */}
-          <div className="flex-1 flex items-center justify-center p-6 overflow-auto bg-[#e8e8e8] dark:bg-[#1a1a1a]">
-            <div
-              className="relative bg-white dark:bg-[#2d2d2d] shadow-xl rounded-sm"
-              style={{ width: 720, height: 405, minWidth: 720 }}
-            >
-              {currentSlide?.texts.map((text, ti) => (
-                <div
-                  key={ti}
-                  className={cn(
-                    "absolute left-8 right-8 cursor-text rounded transition-all",
-                    ti === 0 ? "top-8" : `top-[${100 + (ti - 1) * 60}px]`,
-                    editingText === ti
-                      ? "ring-2 ring-primary bg-primary/5"
-                      : "hover:ring-1 hover:ring-muted-foreground/30"
-                  )}
-                  style={{ top: ti === 0 ? 32 : 100 + (ti - 1) * 70 }}
-                  onClick={() => setEditingText(ti)}
-                >
-                  {editingText === ti ? (
-                    <textarea
-                      className="w-full bg-transparent outline-none resize-none p-2"
-                      style={{
-                        fontSize: ti === 0 ? 28 : 16,
-                        fontWeight: ti === 0 ? 700 : 400,
-                        minHeight: ti === 0 ? 40 : 30,
-                        color: 'inherit',
-                      }}
-                      value={text}
-                      autoFocus
-                      onChange={(e) => updateText(activeSlide, ti, e.target.value)}
-                      onBlur={() => setEditingText(null)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Escape') setEditingText(null);
-                      }}
-                    />
-                  ) : (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex items-center justify-center p-6 overflow-auto bg-[#e8e8e8] dark:bg-[#1a1a1a]">
+              <div
+                ref={canvasRef}
+                className="relative bg-white dark:bg-[#2d2d2d] shadow-xl rounded-sm select-none"
+                style={{ width: 720, height: 405, minWidth: 720 }}
+                onClick={(e) => {
+                  if (e.target === canvasRef.current) {
+                    setSelectedElement(null);
+                    setEditingElement(null);
+                  }
+                }}
+              >
+                {currentSlide?.elements.map(el => {
+                  const isSelected = selectedElement === el.id;
+                  const isEditing = editingElement === el.id;
+
+                  return (
                     <div
+                      key={el.id}
                       className={cn(
-                        "p-2 whitespace-pre-wrap",
-                        !text && "text-muted-foreground/40 italic"
+                        "absolute cursor-move group/el",
+                        isSelected && "ring-2 ring-primary",
+                        !isSelected && "hover:ring-1 hover:ring-muted-foreground/30"
                       )}
-                      style={{
-                        fontSize: ti === 0 ? 28 : 16,
-                        fontWeight: ti === 0 ? 700 : 400,
+                      style={{ left: el.x, top: el.y, width: el.width, height: el.height }}
+                      onClick={(e) => { e.stopPropagation(); setSelectedElement(el.id); }}
+                      onDoubleClick={() => { if (el.type === 'text') setEditingElement(el.id); }}
+                      onMouseDown={(e) => {
+                        if (isEditing) return;
+                        e.preventDefault();
+                        setSelectedElement(el.id);
+                        setDragging({ id: el.id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y });
                       }}
                     >
-                      {text || (ti === 0 ? 'Click to add title' : 'Click to add text')}
+                      {el.type === 'text' ? (
+                        isEditing ? (
+                          <textarea
+                            className="w-full h-full bg-transparent outline-none resize-none p-1"
+                            style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, color: 'inherit' }}
+                            value={el.content}
+                            autoFocus
+                            onChange={(e) => updateElementContent(el.id, e.target.value)}
+                            onBlur={() => setEditingElement(null)}
+                            onKeyDown={(e) => { if (e.key === 'Escape') setEditingElement(null); }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <div className="w-full h-full p-1 whitespace-pre-wrap overflow-hidden" style={{ fontSize: el.fontSize, fontWeight: el.fontWeight }}>
+                            {el.content || <span className="text-muted-foreground/40 italic">Click to add text</span>}
+                          </div>
+                        )
+                      ) : (
+                        <img src={el.content} alt="" className="w-full h-full object-contain pointer-events-none" draggable={false} />
+                      )}
+
+                      {/* Resize handle */}
+                      {isSelected && (
+                        <>
+                          <div
+                            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-primary rounded-sm cursor-se-resize"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setResizing({ id: el.id, startX: e.clientX, startY: e.clientY, elW: el.width, elH: el.height });
+                            }}
+                          />
+                          {/* Delete button */}
+                          <Button
+                            size="icon"
+                            variant="destructive"
+                            className="absolute -top-3 -right-3 h-5 w-5 rounded-full opacity-0 group-hover/el:opacity-100 transition-opacity"
+                            onClick={(e) => { e.stopPropagation(); deleteElement(el.id); }}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Properties bar when element selected */}
+            {selectedElement && (() => {
+              const el = currentSlide?.elements.find(e => e.id === selectedElement);
+              if (!el) return null;
+              return (
+                <div className="px-3 py-1.5 border-t border-border bg-background flex items-center gap-3 text-xs">
+                  <span className="text-muted-foreground font-medium">{el.type === 'text' ? 'Text Box' : 'Image'}</span>
+                  <span className="text-muted-foreground">X: {Math.round(el.x)}</span>
+                  <span className="text-muted-foreground">Y: {Math.round(el.y)}</span>
+                  <span className="text-muted-foreground">W: {Math.round(el.width)}</span>
+                  <span className="text-muted-foreground">H: {Math.round(el.height)}</span>
+                  <div className="flex-1" />
+                  <Button size="sm" variant="ghost" className="h-6 text-xs text-destructive" onClick={() => deleteElement(selectedElement)}>
+                    <Trash2 className="w-3 h-3 mr-1" /> Delete
+                  </Button>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
