@@ -915,6 +915,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [spriteVisible, setSpriteVisible] = useState(true);
   const [workspaceZoom, setWorkspaceZoom] = useState(1);
   const [vmReady, setVmReady] = useState(false);
+
+  // Pointer-based drag state for smooth block dragging
+  const dragRef = useRef<{
+    blockId: string;
+    startX: number;
+    startY: number;
+    offsetX: number;
+    offsetY: number;
+    originalBlock: ScratchBlockNode;
+    detached: boolean;
+  } | null>(null);
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const [dragBlockId, setDragBlockId] = useState<string | null>(null);
+  const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const [vmError, setVmError] = useState<string | null>(null);
   const [dataPrompt, setDataPrompt] = useState<{ type: 'variable' | 'list'; name: string } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState<LibraryMode | null>(null);
@@ -1735,59 +1750,191 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     } catch { /* ignore */ }
   };
 
-  const handleBlockDragInWorkspace = (blockId: string, e: React.DragEvent) => {
-    const rect = e.currentTarget.closest('.scratch-workspace')?.getBoundingClientRect();
-    if (!rect) return;
-    const x = (e.clientX - rect.left) / workspaceZoom;
-    const y = (e.clientY - rect.top) / workspaceZoom;
-    updateProject((current) => ({
-      ...current,
-      targets: current.targets.map((target, idx) => {
-        if (idx !== selectedTargetIndex) return target;
-        const blocks = { ...(target.blocks || {}) };
-        const block = blocks[blockId];
-        if (!block) return target;
+  // ── Pointer-based block dragging ──
+  const getWorkspaceCoords = useCallback((clientX: number, clientY: number) => {
+    const ws = workspaceRef.current;
+    if (!ws) return { x: 0, y: 0 };
+    const rect = ws.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) / workspaceZoom,
+      y: (clientY - rect.top) / workspaceZoom,
+    };
+  }, [workspaceZoom]);
 
-        // Detach from old parent (could be next or SUBSTACK)
-        if (block.parent && blocks[block.parent]) {
-          const oldParent = { ...blocks[block.parent] };
-          if (oldParent.next === blockId) {
-            oldParent.next = null;
-          }
-          // Also clear SUBSTACK if it referenced this block
-          if (oldParent.inputs) {
-            const substackVal = oldParent.inputs.SUBSTACK as unknown[];
-            if (substackVal && substackVal[1] === blockId) {
-              oldParent.inputs = { ...oldParent.inputs, SUBSTACK: [2, null] };
-            }
-          }
-          blocks[block.parent] = oldParent;
+  const getBlockStack = useCallback((blocks: Record<string, ScratchBlockNode>, startId: string): string[] => {
+    const ids: string[] = [startId];
+    let current = blocks[startId];
+    while (current?.next && blocks[current.next]) {
+      ids.push(current.next);
+      current = blocks[current.next];
+    }
+    // Also include SUBSTACK children recursively
+    for (const id of [...ids]) {
+      const b = blocks[id];
+      if (b?.inputs) {
+        const sub = b.inputs.SUBSTACK as unknown[];
+        if (sub && sub[1] && typeof sub[1] === 'string' && blocks[sub[1]]) {
+          ids.push(...getBlockStack(blocks, sub[1] as string));
         }
+      }
+    }
+    return ids;
+  }, []);
 
-        // Try snapping to a new parent
-        const snapResult = findSnapTarget(blocks, x, y, blockId);
-        if (snapResult && blocks[snapResult.id]) {
-          const parent = blocks[snapResult.id];
-          if (snapResult.type === 'substack') {
+  const handleBlockPointerDown = useCallback((blockId: string, e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const { x, y } = getWorkspaceCoords(e.clientX, e.clientY);
+    const block = selectedTarget?.blocks?.[blockId];
+    if (!block) return;
+
+    dragRef.current = {
+      blockId,
+      startX: x,
+      startY: y,
+      offsetX: x - (block.x ?? 0),
+      offsetY: y - (block.y ?? 0),
+      originalBlock: { ...block },
+      detached: false,
+    };
+    setDragBlockId(blockId);
+    setDragPos({ x: block.x ?? 0, y: block.y ?? 0 });
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  }, [getWorkspaceCoords, selectedTarget]);
+
+  const handleWorkspacePointerMove = useCallback((e: React.PointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+
+    const { x, y } = getWorkspaceCoords(e.clientX, e.clientY);
+    const newX = x - drag.offsetX;
+    const newY = y - drag.offsetY;
+    setDragPos({ x: newX, y: newY });
+
+    // Detach from parent on first move
+    if (!drag.detached) {
+      drag.detached = true;
+      updateProject((current) => ({
+        ...current,
+        targets: current.targets.map((target, idx) => {
+          if (idx !== selectedTargetIndex) return target;
+          const blocks = { ...(target.blocks || {}) };
+          const block = blocks[drag.blockId];
+          if (!block) return target;
+          if (block.parent && blocks[block.parent]) {
+            const oldParent = { ...blocks[block.parent] };
+            if (oldParent.next === drag.blockId) {
+              oldParent.next = null;
+            }
+            if (oldParent.inputs) {
+              const substackVal = oldParent.inputs.SUBSTACK as unknown[];
+              if (substackVal && substackVal[1] === drag.blockId) {
+                oldParent.inputs = { ...oldParent.inputs, SUBSTACK: [2, null] };
+              }
+            }
+            blocks[block.parent] = oldParent;
+          }
+          blocks[drag.blockId] = { ...block, x: newX, y: newY, parent: null, topLevel: true };
+
+          // Move child stack too
+          const stackIds = getBlockStack(blocks, drag.blockId).slice(1);
+          const dx = newX - (drag.originalBlock.x ?? 0);
+          const dy = newY - (drag.originalBlock.y ?? 0);
+          stackIds.forEach(sid => {
+            if (blocks[sid]) {
+              blocks[sid] = { ...blocks[sid], x: (blocks[sid].x ?? 0) + dx, y: (blocks[sid].y ?? 0) + dy };
+            }
+          });
+
+          return { ...target, blocks };
+        }),
+      }));
+    } else {
+      // Update position during drag
+      updateProject((current) => ({
+        ...current,
+        targets: current.targets.map((target, idx) => {
+          if (idx !== selectedTargetIndex) return target;
+          const blocks = { ...(target.blocks || {}) };
+          if (!blocks[drag.blockId]) return target;
+          const oldX = blocks[drag.blockId].x ?? 0;
+          const oldY = blocks[drag.blockId].y ?? 0;
+          const dx = newX - oldX;
+          const dy = newY - oldY;
+          blocks[drag.blockId] = { ...blocks[drag.blockId], x: newX, y: newY };
+          // Move child stack
+          const stackIds = getBlockStack(blocks, drag.blockId).slice(1);
+          stackIds.forEach(sid => {
+            if (blocks[sid]) {
+              blocks[sid] = { ...blocks[sid], x: (blocks[sid].x ?? 0) + dx, y: (blocks[sid].y ?? 0) + dy };
+            }
+          });
+          return { ...target, blocks };
+        }),
+      }));
+    }
+
+    // Compute snap preview
+    const blocks = selectedTarget?.blocks || {};
+    const snap = findSnapTarget(blocks, newX, newY, drag.blockId);
+    if (snap && blocks[snap.id]) {
+      const parent = blocks[snap.id];
+      const snapX = snap.type === 'substack' ? (parent.x ?? 0) + C_BLOCK_INDENT : (parent.x ?? 0);
+      const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+      setSnapPreview({ ...snap, x: snapX, y: snapY });
+    } else {
+      setSnapPreview(null);
+    }
+  }, [getWorkspaceCoords, selectedTarget, selectedTargetIndex, updateProject, getBlockStack]);
+
+  const handleWorkspacePointerUp = useCallback(() => {
+    const drag = dragRef.current;
+    if (!drag) return;
+
+    const snap = snapPreview;
+    if (snap) {
+      updateProject((current) => ({
+        ...current,
+        targets: current.targets.map((target, idx) => {
+          if (idx !== selectedTargetIndex) return target;
+          const blocks = { ...(target.blocks || {}) };
+          const block = blocks[drag.blockId];
+          if (!block || !blocks[snap.id]) return target;
+
+          const parent = blocks[snap.id];
+          if (snap.type === 'substack') {
             const snapX = (parent.x ?? 0) + C_BLOCK_INDENT;
             const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
-            const parentInputs = { ...(parent.inputs || {}), SUBSTACK: [2, blockId] };
-            blocks[snapResult.id] = { ...parent, inputs: parentInputs };
-            blocks[blockId] = { ...block, x: snapX, y: snapY, parent: snapResult.id, topLevel: false };
+            const dx = snapX - (block.x ?? 0);
+            const dy = snapY - (block.y ?? 0);
+            blocks[snap.id] = { ...parent, inputs: { ...(parent.inputs || {}), SUBSTACK: [2, drag.blockId] } };
+            blocks[drag.blockId] = { ...block, x: snapX, y: snapY, parent: snap.id, topLevel: false };
+            const stackIds = getBlockStack(blocks, drag.blockId).slice(1);
+            stackIds.forEach(sid => {
+              if (blocks[sid]) blocks[sid] = { ...blocks[sid], x: (blocks[sid].x ?? 0) + dx, y: (blocks[sid].y ?? 0) + dy };
+            });
           } else {
             const snapX = parent.x ?? 0;
             const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
-            blocks[snapResult.id] = { ...parent, next: blockId };
-            blocks[blockId] = { ...block, x: snapX, y: snapY, parent: snapResult.id, topLevel: false };
+            const dx = snapX - (block.x ?? 0);
+            const dy = snapY - (block.y ?? 0);
+            blocks[snap.id] = { ...parent, next: drag.blockId };
+            blocks[drag.blockId] = { ...block, x: snapX, y: snapY, parent: snap.id, topLevel: false };
+            const stackIds = getBlockStack(blocks, drag.blockId).slice(1);
+            stackIds.forEach(sid => {
+              if (blocks[sid]) blocks[sid] = { ...blocks[sid], x: (blocks[sid].x ?? 0) + dx, y: (blocks[sid].y ?? 0) + dy };
+            });
           }
-        } else {
-          blocks[blockId] = { ...block, x, y, parent: null, topLevel: true };
-        }
+          return { ...target, blocks };
+        }),
+      }));
+    }
 
-        return { ...target, blocks };
-      }),
-    }));
-  };
+    dragRef.current = null;
+    setDragBlockId(null);
+    setDragPos(null);
+    setSnapPreview(null);
+  }, [snapPreview, selectedTargetIndex, updateProject, getBlockStack]);
 
   const runPreview = async () => {
     if (!vmRef.current || !vmReady) return;
@@ -2037,6 +2184,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         <div className="flex-1 min-w-0 relative overflow-hidden scratch-workspace" style={{ background: '#fff' }}
           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
           onDrop={handleWorkspaceDrop}
+          onPointerMove={handleWorkspacePointerMove}
+          onPointerUp={handleWorkspacePointerUp}
+          onPointerLeave={handleWorkspacePointerUp}
+          ref={workspaceRef}
         >
           <div
             className="absolute inset-0"
@@ -2051,18 +2202,31 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               const blockColor = getBlockColor(block.opcode);
               const shape = getBlockShape(block.opcode);
               const label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
+              const isDragging = block.id === dragBlockId;
               return (
                 <div
                   key={block.id}
-                  draggable
-                  onDragEnd={(e) => handleBlockDragInWorkspace(block.id, e)}
-                  className="absolute cursor-grab active:cursor-grabbing select-none"
-                  style={{ left: block.x ?? 40, top: block.y ?? 40 }}
+                  onPointerDown={(e) => handleBlockPointerDown(block.id, e)}
+                  className={`absolute select-none touch-none ${isDragging ? 'cursor-grabbing z-50 opacity-80' : 'cursor-grab'}`}
+                  style={{
+                    left: block.x ?? 40,
+                    top: block.y ?? 40,
+                    transition: isDragging ? 'none' : 'left 0.08s ease-out, top 0.08s ease-out',
+                  }}
                 >
                   <ScratchBlockShape label={label} color={blockColor} shape={shape} />
                 </div>
               );
             })}
+            {/* Snap preview indicator */}
+            {snapPreview && (
+              <div
+                className="absolute pointer-events-none z-40"
+                style={{ left: snapPreview.x, top: snapPreview.y }}
+              >
+                <div className="h-1 w-24 rounded-full bg-white shadow-[0_0_8px_2px_rgba(255,255,255,0.8)]" />
+              </div>
+            )}
           </div>
           {/* Zoom controls */}
           <div className="absolute right-3 bottom-3 flex flex-col gap-1.5">
