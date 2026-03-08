@@ -515,7 +515,123 @@ const ensureDataRefForTarget = (target: ScratchTarget, blockDef: ScratchBlockDef
   return { target: nextTarget, fields: nextFields };
 };
 
-export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, isRunning, onRun, onStop }: ScratchPanelProps) => {
+/** Variables category flyout — matches real Scratch editor layout */
+const VariablesFlyout = ({
+  variables,
+  lists,
+  blocks,
+  color,
+  onMakeVariable,
+  onMakeList,
+  onAddBlock,
+}: {
+  variables: [string, [string, ScratchInputPrimitive]][];
+  lists: [string, [string, ScratchInputPrimitive[]]][];
+  blocks: ScratchBlockDef[];
+  color: string;
+  onMakeVariable: () => void;
+  onMakeList: () => void;
+  onAddBlock: (blockDef: ScratchBlockDef) => void;
+}) => {
+  // Split blocks into variable-related and list-related
+  const varBlocks = blocks.filter((b) => !b.opcode.includes('list') && !b.opcode.includes('List'));
+  const listBlocks = blocks.filter((b) => b.opcode.includes('list') || b.opcode.includes('List'));
+
+  return (
+    <div className="space-y-2">
+      {/* Make a Variable button */}
+      <button
+        onClick={onMakeVariable}
+        className="w-full py-2 rounded-lg text-[14px] font-semibold text-[#575e75] border-2 border-[#d0d0d0] bg-white hover:bg-[#f8f8f8] transition-colors"
+      >
+        Make a Variable
+      </button>
+
+      {/* Variable reporters */}
+      {variables.length > 0 && (
+        <div className="space-y-1.5 py-1">
+          {variables.map(([id, [name]]) => (
+            <div key={id} className="flex items-center gap-2">
+              <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#ff8c1a]" />
+              <ScratchBlockShape label={name} color={color} shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Variable blocks */}
+      {variables.length > 0 && (
+        <div className="space-y-1.5">
+          {varBlocks.map((blockDef) => {
+            const shape = getBlockShape(blockDef.opcode);
+            return (
+              <div
+                key={blockDef.label}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                onClick={() => onAddBlock(blockDef)}
+                className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
+              >
+                <ScratchBlockShape label={blockDef.label} color={color} shape={shape} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Separator */}
+      <div className="border-t border-[#e0e0e0] my-2" />
+
+      {/* Make a List button */}
+      <button
+        onClick={onMakeList}
+        className="w-full py-2 rounded-lg text-[14px] font-semibold text-[#575e75] border-2 border-[#d0d0d0] bg-white hover:bg-[#f8f8f8] transition-colors"
+      >
+        Make a List
+      </button>
+
+      {/* List reporters */}
+      {lists.length > 0 && (
+        <div className="space-y-1.5 py-1">
+          {lists.map(([id, [name]]) => (
+            <div key={id} className="flex items-center gap-2">
+              <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#e6832a]" />
+              <ScratchBlockShape label={name} color="#e6832a" shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* List blocks */}
+      {lists.length > 0 && (
+        <div className="space-y-1.5">
+          {listBlocks.map((blockDef) => {
+            const shape = getBlockShape(blockDef.opcode);
+            return (
+              <div
+                key={blockDef.label}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                onClick={() => onAddBlock(blockDef)}
+                className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
+              >
+                <ScratchBlockShape label={blockDef.label} color="#e6832a" shape={shape} />
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
   const [activeEditorTab, setActiveEditorTab] = useState<'code' | 'costumes' | 'sounds'>('code');
   const [activeCategory, setActiveCategory] = useState('Motion');
   const [selectedTargetIndex, setSelectedTargetIndex] = useState(1);
