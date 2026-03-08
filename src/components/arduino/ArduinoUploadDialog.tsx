@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { requestArduinoPort, requestAnyPort, SerialPortLike } from '@/services/serialUtils';
 import {
   Dialog,
   DialogContent,
@@ -33,7 +34,7 @@ export interface UploadConfig {
 interface ArduinoUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpload: (config: UploadConfig, onProgress?: (message: string, percent?: number) => void) => Promise<void>;
+  onUpload: (config: UploadConfig, port: SerialPortLike, onProgress?: (message: string, percent?: number) => void) => Promise<void>;
   sketchCode: string;
 }
 
@@ -141,13 +142,28 @@ export function ArduinoUploadDialog({
     setProgressPercent(0);
 
     try {
-      await onUpload(config, (message, percent) => {
+      // CRITICAL: Request serial port HERE in the click handler (user gesture)
+      // so the browser allows the permission prompt.
+      let port: SerialPortLike;
+      if (config.uploadMethod === 'serial') {
+        const isEsp = ESP_BOARDS.includes(config.boardId);
+        port = isEsp ? await requestAnyPort() : await requestArduinoPort();
+      } else {
+        // WiFi/Bluetooth don't need a serial port
+        port = null as unknown as SerialPortLike;
+      }
+
+      await onUpload(config, port, (message, percent) => {
         setProgressLog(prev => [...prev, message]);
         if (percent !== undefined) setProgressPercent(percent);
       });
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        setError('Serial port access denied. Please select a port when prompted.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Upload failed');
+      }
     } finally {
       setLoading(false);
     }
