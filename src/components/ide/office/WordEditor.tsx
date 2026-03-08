@@ -227,6 +227,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     <TooltipProvider>
       <div className="flex-1 flex flex-col bg-[#f3f3f3] dark:bg-[#1e1e1e] overflow-hidden">
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onImageFileChange} />
+        <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,video/ogg" className="hidden" onChange={onVideoFileChange} />
         {/* Title bar */}
         <div className="bg-[#185abd] dark:bg-[#1b3a6b] text-white">
           <div className="flex items-center justify-between px-3 py-1.5">
