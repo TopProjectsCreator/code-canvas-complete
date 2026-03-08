@@ -1692,12 +1692,20 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             <div className="w-[120px] border-l border-[#e0e0e0] bg-white flex flex-col shrink-0 min-h-0">
               <div className="px-2 pt-2 pb-1 flex items-center justify-between">
                 <div className="text-[11px] font-bold text-[#575e75]">Stage</div>
-                <button
-                  onClick={() => backdropInputRef.current?.click()}
-                  className="w-5 h-5 rounded-full bg-[#855cd6] text-white flex items-center justify-center hover:bg-[#7248bf]"
-                  title="Upload backdrop"
-                >
-                  <Plus className="w-3 h-3" />
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setLibraryOpen('backdrops')}
+                    className="w-5 h-5 rounded-full bg-[#4c97ff] text-white flex items-center justify-center hover:bg-[#3d79cc] text-[9px] font-bold"
+                    title="Choose backdrop"
+                  >
+                    🔍
+                  </button>
+                  <button
+                    onClick={() => backdropInputRef.current?.click()}
+                    className="w-5 h-5 rounded-full bg-[#855cd6] text-white flex items-center justify-center hover:bg-[#7248bf]"
+                    title="Upload backdrop"
+                  >
+                    <Plus className="w-3 h-3" />
                 </button>
                 <input ref={backdropInputRef} className="hidden" type="file" accept="image/*,.svg" onChange={(e) => e.target.files?.[0] && addBackdrop(e.target.files[0])} />
               </div>
