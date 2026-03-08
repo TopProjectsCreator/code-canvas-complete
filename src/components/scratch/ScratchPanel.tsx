@@ -663,6 +663,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const selectedTarget = project.targets[Math.max(0, Math.min(project.targets.length - 1, selectedTargetIndex))];
   const selectedBlocks = Object.values(selectedTarget?.blocks || {});
   const spriteTargets = project.targets.filter((target) => !target.isStage);
+  const stageTarget = project.targets.find((t) => t.isStage);
+  const stageBackdrops = stageTarget?.costumes || [];
+  const stageCurrentBackdrop = Number(stageTarget?.currentCostume || 0);
   const blockLabels = useMemo(() => {
     const map: Record<string, string> = {};
     Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
