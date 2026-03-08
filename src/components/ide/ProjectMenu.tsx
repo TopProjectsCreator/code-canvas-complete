@@ -19,7 +19,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { LanguageTemplate } from './LanguagePicker';
+import type { LanguageTemplate } from '@/data/templateRegistry';
+import { TEMPLATES } from '@/data/templateRegistry';
 import { cn } from '@/lib/utils';
 
 interface ProjectMenuProps {
@@ -28,37 +29,8 @@ interface ProjectMenuProps {
   onChangeTemplate: (template: LanguageTemplate) => void;
 }
 
-const templateOptions: { id: LanguageTemplate; name: string }[] = [
-  { id: 'html', name: 'HTML/CSS/JS' },
-  { id: 'react', name: 'React' },
-  { id: 'nodejs', name: 'Node.js' },
-  { id: 'javascript', name: 'JavaScript' },
-  { id: 'typescript', name: 'TypeScript' },
-  { id: 'python', name: 'Python' },
-  { id: 'flask', name: 'Flask' },
-  { id: 'django', name: 'Django' },
-  { id: 'java', name: 'Java' },
-  { id: 'cpp', name: 'C++' },
-  { id: 'c', name: 'C' },
-  { id: 'go', name: 'Go' },
-  { id: 'rust', name: 'Rust' },
-  { id: 'ruby', name: 'Ruby' },
-  { id: 'php', name: 'PHP' },
-  { id: 'csharp', name: 'C#' },
-  { id: 'bash', name: 'Bash' },
-  { id: 'lua', name: 'Lua' },
-  { id: 'r', name: 'R' },
-  { id: 'haskell', name: 'Haskell' },
-  { id: 'zig', name: 'Zig' },
-  { id: 'nim', name: 'Nim' },
-  { id: 'lisp', name: 'Common Lisp' },
-  { id: 'd', name: 'D' },
-  { id: 'groovy', name: 'Groovy' },
-  { id: 'pascal', name: 'Pascal' },
-  { id: 'perl', name: 'Perl' },
-  { id: 'arduino', name: 'Arduino' },
-  { id: 'scratch', name: 'Scratch' },
-];
+// Derive from registry — skip 'blank' since it doesn't make sense as a "change to" option
+const templateOptions = TEMPLATES.filter((t) => t.id !== 'blank').map((t) => ({ id: t.id, name: t.name }));
 
 export const ProjectMenu = ({ projectName, onRename, onChangeTemplate }: ProjectMenuProps) => {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
