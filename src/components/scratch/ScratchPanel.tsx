@@ -1468,16 +1468,40 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
   const SNAP_DISTANCE = 40;
   const BLOCK_HEIGHT = 42;
+  const C_BLOCK_INDENT = 24;
 
-  const findSnapTarget = (blocks: Record<string, ScratchBlockNode>, dropX: number, dropY: number, excludeId?: string): string | null => {
+  const cBlockOpcodes = new Set([
+    'control_forever', 'control_repeat', 'control_if', 'control_if_else',
+    'control_repeat_until', 'control_wait_until',
+  ]);
+
+  type SnapResult = { id: string; type: 'next' | 'substack' } | null;
+
+  const findSnapTarget = (blocks: Record<string, ScratchBlockNode>, dropX: number, dropY: number, excludeId?: string): SnapResult => {
     for (const [id, block] of Object.entries(blocks)) {
       if (id === excludeId) continue;
-      if (block.next) continue; // already has a next block
       const bx = block.x ?? 0;
       const by = block.y ?? 0;
-      // Check if drop is near the bottom of this block
-      if (Math.abs(dropX - bx) < 80 && Math.abs(dropY - (by + BLOCK_HEIGHT)) < SNAP_DISTANCE) {
-        return id;
+
+      // Check if this is a C-block and the drop is inside its mouth (SUBSTACK)
+      if (cBlockOpcodes.has(block.opcode)) {
+        const substackInput = block.inputs?.SUBSTACK as unknown[];
+        const hasSubstack = substackInput && substackInput[1];
+        if (!hasSubstack) {
+          // Inside the C-block mouth: slightly indented, one row below
+          const mouthX = bx + C_BLOCK_INDENT;
+          const mouthY = by + BLOCK_HEIGHT;
+          if (Math.abs(dropX - mouthX) < 80 && Math.abs(dropY - mouthY) < SNAP_DISTANCE) {
+            return { id, type: 'substack' };
+          }
+        }
+      }
+
+      // Standard next-block snap (below this block)
+      if (!block.next) {
+        if (Math.abs(dropX - bx) < 80 && Math.abs(dropY - (by + BLOCK_HEIGHT)) < SNAP_DISTANCE) {
+          return { id, type: 'next' };
+        }
       }
     }
     return null;
@@ -1610,25 +1634,46 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           ...blockDef,
           fields: dataResolved.fields,
         };
-        const snapParentId = findSnapTarget(blocks, finalX, finalY);
+        const snapResult = findSnapTarget(blocks, finalX, finalY);
 
-        if (snapParentId && blocks[snapParentId]) {
-          const parent = blocks[snapParentId];
-          const snapX = parent.x ?? 0;
-          const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+        if (snapResult && blocks[snapResult.id]) {
+          const parent = blocks[snapResult.id];
           const vmCompatible = createVmCompatibleBlockShape(blockId, resolvedBlockDef);
-          blocks[snapParentId] = { ...parent, next: blockId };
-          blocks[blockId] = {
-            id: blockId,
-            opcode: blockDef.opcode,
-            next: null,
-            parent: snapParentId,
-            topLevel: false,
-            x: snapX,
-            y: snapY,
-            inputs: vmCompatible.inputs,
-            fields: vmCompatible.fields,
-          };
+
+          if (snapResult.type === 'substack') {
+            // Insert inside C-block mouth
+            const snapX = (parent.x ?? 0) + C_BLOCK_INDENT;
+            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const parentInputs = { ...(parent.inputs || {}), SUBSTACK: [2, blockId] };
+            blocks[snapResult.id] = { ...parent, inputs: parentInputs };
+            blocks[blockId] = {
+              id: blockId,
+              opcode: blockDef.opcode,
+              next: null,
+              parent: snapResult.id,
+              topLevel: false,
+              x: snapX,
+              y: snapY,
+              inputs: vmCompatible.inputs,
+              fields: vmCompatible.fields,
+            };
+          } else {
+            // Standard next-block snap
+            const snapX = parent.x ?? 0;
+            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            blocks[snapResult.id] = { ...parent, next: blockId };
+            blocks[blockId] = {
+              id: blockId,
+              opcode: blockDef.opcode,
+              next: null,
+              parent: snapResult.id,
+              topLevel: false,
+              x: snapX,
+              y: snapY,
+              inputs: vmCompatible.inputs,
+              fields: vmCompatible.fields,
+            };
+          }
           Object.assign(blocks, vmCompatible.extraBlocks);
         } else {
           if (isEventBlock(blockDef.opcode)) {
@@ -1701,19 +1746,38 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         const block = blocks[blockId];
         if (!block) return target;
 
-        // Detach from old parent
+        // Detach from old parent (could be next or SUBSTACK)
         if (block.parent && blocks[block.parent]) {
-          blocks[block.parent] = { ...blocks[block.parent], next: null };
+          const oldParent = { ...blocks[block.parent] };
+          if (oldParent.next === blockId) {
+            oldParent.next = null;
+          }
+          // Also clear SUBSTACK if it referenced this block
+          if (oldParent.inputs) {
+            const substackVal = oldParent.inputs.SUBSTACK as unknown[];
+            if (substackVal && substackVal[1] === blockId) {
+              oldParent.inputs = { ...oldParent.inputs, SUBSTACK: [2, null] };
+            }
+          }
+          blocks[block.parent] = oldParent;
         }
 
         // Try snapping to a new parent
-        const snapParentId = findSnapTarget(blocks, x, y, blockId);
-        if (snapParentId && blocks[snapParentId]) {
-          const parent = blocks[snapParentId];
-          const snapX = parent.x ?? 0;
-          const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
-          blocks[snapParentId] = { ...parent, next: blockId };
-          blocks[blockId] = { ...block, x: snapX, y: snapY, parent: snapParentId, topLevel: false };
+        const snapResult = findSnapTarget(blocks, x, y, blockId);
+        if (snapResult && blocks[snapResult.id]) {
+          const parent = blocks[snapResult.id];
+          if (snapResult.type === 'substack') {
+            const snapX = (parent.x ?? 0) + C_BLOCK_INDENT;
+            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            const parentInputs = { ...(parent.inputs || {}), SUBSTACK: [2, blockId] };
+            blocks[snapResult.id] = { ...parent, inputs: parentInputs };
+            blocks[blockId] = { ...block, x: snapX, y: snapY, parent: snapResult.id, topLevel: false };
+          } else {
+            const snapX = parent.x ?? 0;
+            const snapY = (parent.y ?? 0) + BLOCK_HEIGHT;
+            blocks[snapResult.id] = { ...parent, next: blockId };
+            blocks[blockId] = { ...block, x: snapX, y: snapY, parent: snapResult.id, topLevel: false };
+          }
         } else {
           blocks[blockId] = { ...block, x, y, parent: null, topLevel: true };
         }
