@@ -375,8 +375,10 @@ const categoryRail = [
 const generateId = () => Math.random().toString(36).slice(2, 10);
 const formatJson = (value: unknown) => JSON.stringify(value, null, 2);
 
-const DEFAULT_STAGE_COSTUME_FILE = 'cdx-stage-default.svg';
-const DEFAULT_SPRITE_COSTUME_FILE = 'cdx-sprite-default.svg';
+const DEFAULT_STAGE_ASSET_ID = 'cd21514d0531fdffb22204e0ec5ed84a';
+const DEFAULT_SPRITE_ASSET_ID = 'bcf454acf82e4504149f7ffe07081dbc';
+const DEFAULT_STAGE_COSTUME_FILE = `${DEFAULT_STAGE_ASSET_ID}.svg`;
+const DEFAULT_SPRITE_COSTUME_FILE = `${DEFAULT_SPRITE_ASSET_ID}.svg`;
 const DEFAULT_STAGE_COSTUME_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360"><defs><linearGradient id="bg" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#87ceeb"/><stop offset="1" stop-color="#dff3ff"/></linearGradient></defs><rect width="480" height="360" fill="url(#bg)"/><circle cx="410" cy="70" r="40" fill="#ffd35a"/><rect y="260" width="480" height="100" fill="#95d08f"/></svg>`;
 const DEFAULT_SPRITE_COSTUME_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><ellipse cx="48" cy="76" rx="28" ry="14" fill="#d18f3b"/><circle cx="36" cy="40" r="20" fill="#f8a64a"/><circle cx="60" cy="40" r="20" fill="#f8a64a"/><circle cx="48" cy="58" r="20" fill="#f8a64a"/><circle cx="42" cy="56" r="3" fill="#222"/><circle cx="54" cy="56" r="3" fill="#222"/></svg>`;
 
@@ -385,7 +387,7 @@ const utf8ToBase64 = (value: string) => btoa(unescape(encodeURIComponent(value))
 const getDefaultCostumeForTarget = (target: ScratchTarget) => (target.isStage
   ? {
       name: 'backdrop1',
-      assetId: 'cdx-stage-default',
+      assetId: DEFAULT_STAGE_ASSET_ID,
       md5ext: DEFAULT_STAGE_COSTUME_FILE,
       dataFormat: 'svg',
       rotationCenterX: 240,
@@ -393,7 +395,7 @@ const getDefaultCostumeForTarget = (target: ScratchTarget) => (target.isStage
     }
   : {
       name: 'costume1',
-      assetId: 'cdx-sprite-default',
+      assetId: DEFAULT_SPRITE_ASSET_ID,
       md5ext: DEFAULT_SPRITE_COSTUME_FILE,
       dataFormat: 'svg',
       rotationCenterX: 48,
