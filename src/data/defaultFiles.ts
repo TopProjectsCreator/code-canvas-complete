@@ -37,6 +37,7 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   word: 'Word Document',
   powerpoint: 'PowerPoint',
   excel: 'Excel Spreadsheet',
+  video: 'Video Editor',
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
