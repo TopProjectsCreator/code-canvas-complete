@@ -703,9 +703,20 @@ const VariablesFlyout = ({
         </div>
       )}
 
-      {/* List blocks */}
+      {/* List selector + blocks */}
       {lists.length > 0 && (
         <div className="space-y-1.5">
+          {lists.length > 1 && (
+            <select
+              value={activeListId || ''}
+              onChange={(e) => setSelectedListId(e.target.value)}
+              className="w-full rounded-lg border-2 border-[#e6832a] bg-white px-2 py-1.5 text-[13px] text-[#575e75] font-semibold outline-none cursor-pointer"
+            >
+              {lists.map(([id, [name]]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
+            </select>
+          )}
           {listBlocks.map((blockDef) => {
             const shape = getBlockShape(blockDef.opcode);
             return (
@@ -713,10 +724,13 @@ const VariablesFlyout = ({
                 key={blockDef.label}
                 draggable
                 onDragStart={(e) => {
-                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
+                  const patched = activeListId && activeListName
+                    ? { ...blockDef, fields: { ...blockDef.fields, LIST: [activeListName, activeListId] } }
+                    : blockDef;
+                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(patched));
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
-                onClick={() => onAddBlock(blockDef)}
+                onClick={() => handleAddListBlock(blockDef)}
                 className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
               >
                 <ScratchBlockShape label={resolveListLabel(blockDef.label)} color="#e6832a" shape={shape} />
