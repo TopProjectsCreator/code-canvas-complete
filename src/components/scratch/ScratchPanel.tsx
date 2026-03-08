@@ -1041,8 +1041,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         try {
           const storageMod = await import('scratch-storage');
           const StorageCtor = storageMod.default || storageMod;
+          console.log('[Scratch] scratch-storage module type:', typeof StorageCtor, Object.keys(storageMod));
+          let storage: any = null;
           if (typeof StorageCtor === 'function') {
-            const storage = new StorageCtor();
+            try { storage = new StorageCtor(); } catch (e2) {
+              console.warn('[Scratch] scratch-storage constructor failed:', e2);
+            }
+          }
+          if (storage && storage.addWebStore) {
             const AssetType = storage.AssetType;
             storage.addWebStore(
               [AssetType.ImageVector, AssetType.ImageBitmap, AssetType.Sound],
@@ -1057,6 +1063,43 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             );
             vm.attachStorage(storage);
             console.log('[Scratch] scratch-storage attached successfully');
+          } else {
+            // Fallback: create minimal storage shim so VM can load assets from archive
+            console.warn('[Scratch] scratch-storage constructor unavailable, using shim');
+            const shim = {
+              AssetType: { ImageVector: 'ImageVector', ImageBitmap: 'ImageBitmap', Sound: 'Sound' },
+              DataFormat: { SVG: 'svg', PNG: 'png', WAV: 'wav', MP3: 'mp3' },
+              addWebStore: () => {},
+              load: (assetType: string, assetId: string, dataFormat?: string) => {
+                const fmt = dataFormat || 'svg';
+                const key = `${assetId}.${fmt}`;
+                const b64 = archiveRef.current?.files?.[key];
+                if (b64) {
+                  const bin = atob(b64);
+                  const bytes = new Uint8Array(bin.length);
+                  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                  return Promise.resolve({ data: bytes, assetType, dataFormat: fmt });
+                }
+                return Promise.resolve(null);
+              },
+              get: (assetId: string) => {
+                // Check all formats
+                for (const fmt of ['svg', 'png', 'wav', 'mp3']) {
+                  const key = `${assetId}.${fmt}`;
+                  if (archiveRef.current?.files?.[key]) {
+                    const b64 = archiveRef.current.files[key];
+                    const bin = atob(b64);
+                    const bytes = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                    return { data: bytes, dataFormat: fmt };
+                  }
+                }
+                return null;
+              },
+              store: () => Promise.resolve(),
+            };
+            vm.attachStorage(shim as any);
+            console.log('[Scratch] storage shim attached');
           }
         } catch (e) {
           console.warn('scratch-storage not available:', e);
