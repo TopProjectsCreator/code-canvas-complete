@@ -1245,10 +1245,74 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }));
   };
 
+  const deleteVariable = (id: string) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const vars = { ...(target.variables || {}) };
+        delete vars[id];
+        return { ...target, variables: vars };
+      }),
+    }));
+  };
+
+  const deleteList = (id: string) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const l = { ...(target.lists || {}) };
+        delete l[id];
+        return { ...target, lists: l };
+      }),
+    }));
+  };
+
+  const renameVariable = (id: string, oldName: string) => {
+    setDataPrompt({ type: 'variable', name: oldName });
+    // After submit, we need to update the variable name in-place
+    // We'll handle this by deleting + re-creating — but simpler: just update directly
+    // Use a special rename flow
+    setRenameTarget({ type: 'variable', id, oldName });
+  };
+
+  const renameList = (id: string, oldName: string) => {
+    setDataPrompt({ type: 'list', name: oldName });
+    setRenameTarget({ type: 'list', id, oldName });
+  };
+
+  const [renameTarget, setRenameTarget] = useState<{ type: 'variable' | 'list'; id: string; oldName: string } | null>(null);
+
   const handleDataPromptSubmit = () => {
     if (!dataPrompt || !dataPrompt.name.trim()) return;
-    if (dataPrompt.type === 'variable') createVariable(dataPrompt.name.trim());
-    else createList(dataPrompt.name.trim());
+    if (renameTarget) {
+      // Rename in-place
+      const newName = dataPrompt.name.trim();
+      updateProject((current) => ({
+        ...current,
+        targets: current.targets.map((target, idx) => {
+          if (idx !== selectedTargetIndex) return target;
+          if (renameTarget.type === 'variable') {
+            const vars = { ...(target.variables || {}) };
+            if (vars[renameTarget.id]) {
+              vars[renameTarget.id] = [newName, vars[renameTarget.id][1]];
+            }
+            return { ...target, variables: vars };
+          } else {
+            const l = { ...(target.lists || {}) };
+            if (l[renameTarget.id]) {
+              l[renameTarget.id] = [newName, l[renameTarget.id][1]];
+            }
+            return { ...target, lists: l };
+          }
+        }),
+      }));
+      setRenameTarget(null);
+    } else {
+      if (dataPrompt.type === 'variable') createVariable(dataPrompt.name.trim());
+      else createList(dataPrompt.name.trim());
+    }
     setDataPrompt(null);
   };
 
