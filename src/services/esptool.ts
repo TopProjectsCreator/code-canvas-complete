@@ -1,73 +1,33 @@
 /**
  * Minimal esptool-compatible flasher for ESP32 and ESP8266 via WebSerial
  *
- * Uses the SLIP-framed ROM bootloader protocol:
- * 1. Enter bootloader (hold GPIO0 low during reset, or use RTS/DTR toggling)
- * 2. SLIP sync handshake
- * 3. Detect chip
- * 4. Upload flash stub to RAM for fast flashing (optional — we use ROM commands for simplicity)
- * 5. Erase + write flash in 4KB blocks
- * 6. MD5 verification
- * 7. Reset to run
- *
- * SLIP framing: 0xC0 delimiters, 0xDB 0xDC = 0xC0, 0xDB 0xDD = 0xDB
- *
- * Protocol: each command is a SLIP frame with:
- *   [0] direction (0x00 = request)
- *   [1] command opcode
- *   [2-3] data length (LE)
- *   [4-7] checksum (for data commands) or value
- *   [8..] data payload
- *
- * Response: direction=0x01, same opcode, data length, value(4 bytes), data, status(2 bytes)
+ * IMPORTANT: All requestPort() calls removed. Port must be pre-acquired
+ * in a user gesture context and passed in.
  */
+
+import { SerialPortLike } from './serialUtils';
 
 const SLIP_END = 0xc0;
 const SLIP_ESC = 0xdb;
 const SLIP_ESC_END = 0xdc;
 const SLIP_ESC_ESC = 0xdd;
 
-// ESP bootloader commands
 const ESP_SYNC = 0x08;
 const ESP_READ_REG = 0x0a;
-const ESP_MEM_BEGIN = 0x05;
-const ESP_MEM_DATA = 0x07;
-const ESP_MEM_END = 0x06;
 const ESP_FLASH_BEGIN = 0x02;
 const ESP_FLASH_DATA = 0x03;
 const ESP_FLASH_END = 0x04;
-const ESP_SPI_SET_PARAMS = 0x0b;
-const ESP_CHANGE_BAUDRATE = 0x0f;
-const ESP_SPI_FLASH_MD5 = 0x13;
 
-// Chip magic values (read from 0x40001000)
 const CHIP_DETECT_MAGIC_REG = 0x40001000;
 const ESP8266_MAGIC = 0xfff0c101;
 const ESP32_MAGIC = 0x00f01d83;
 
+const ESP_FLASH_WRITE_SIZE = 0x4000;
 const FLASH_SECTOR_SIZE = 4096;
-const FLASH_BLOCK_SIZE = 0x400; // 1KB write blocks for ROM loader
-const ESP_FLASH_WRITE_SIZE = 0x4000; // 16KB for ROM loader (max per command)
 const SYNC_TIMEOUT = 3000;
 const CMD_TIMEOUT = 5000;
 const FLASH_TIMEOUT = 30000;
-
 const DEFAULT_BAUD = 115200;
-
-interface SerialPortLike {
-  open(options: { baudRate: number }): Promise<void>;
-  close(): Promise<void>;
-  readable: ReadableStream<Uint8Array> | null;
-  writable: WritableStream<Uint8Array> | null;
-  setSignals?(signals: { dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void>;
-}
-
-interface SerialLike {
-  requestPort(options?: { filters?: Array<{ usbVendorId?: number }> }): Promise<SerialPortLike>;
-}
-
-const getSerial = (): SerialLike | undefined =>
-  (navigator as unknown as { serial?: SerialLike }).serial;
 
 type ProgressCb = (message: string, percent: number) => void;
 
@@ -107,11 +67,7 @@ async function slipReadFrame(
         inFrame = true;
         frame.length = 0;
       } else if (inFrame) {
-        if (byte === SLIP_ESC) {
-          // next byte is escaped
-          continue;
-        }
-        // Handle escape sequences
+        if (byte === SLIP_ESC) continue;
         if (frame.length > 0 && frame[frame.length - 1] === SLIP_ESC) {
           frame.pop();
           if (byte === SLIP_ESC_END) frame.push(SLIP_END);
@@ -126,8 +82,6 @@ async function slipReadFrame(
   throw new Error('SLIP frame read timeout');
 }
 
-// ── Command helpers ──
-
 function espChecksum(data: Uint8Array): number {
   let chk = 0xef;
   for (const b of data) chk ^= b;
@@ -136,11 +90,10 @@ function espChecksum(data: Uint8Array): number {
 
 function buildCommand(opcode: number, data: Uint8Array, checksum = 0): Uint8Array {
   const pkt = new Uint8Array(8 + data.length);
-  pkt[0] = 0x00; // request
+  pkt[0] = 0x00;
   pkt[1] = opcode;
   pkt[2] = data.length & 0xff;
   pkt[3] = (data.length >> 8) & 0xff;
-  // checksum in bytes 4-7 (LE 32-bit)
   pkt[4] = checksum & 0xff;
   pkt[5] = (checksum >> 8) & 0xff;
   pkt[6] = (checksum >> 16) & 0xff;
@@ -160,32 +113,26 @@ async function sendCommand(
   const cmd = buildCommand(opcode, data, checksum);
   await writer.write(slipEncode(cmd));
 
-  // Read response
   const frame = await slipReadFrame(reader, timeout);
   if (frame.length < 8) throw new Error(`Short response: ${frame.length} bytes`);
-  if (frame[0] !== 0x01) throw new Error(`Not a response frame: dir=0x${frame[0].toString(16)}`);
-  if (frame[1] !== opcode) throw new Error(`Opcode mismatch: expected 0x${opcode.toString(16)}, got 0x${frame[1].toString(16)}`);
+  if (frame[0] !== 0x01) throw new Error(`Not a response frame`);
+  if (frame[1] !== opcode) throw new Error(`Opcode mismatch`);
 
   const value = frame[4] | (frame[5] << 8) | (frame[6] << 16) | ((frame[7] << 24) >>> 0);
   const respData = frame.subarray(8);
 
-  // Last 2 bytes of data are status
   if (respData.length >= 2) {
     const status = respData[respData.length - 2];
     if (status !== 0) {
-      const errCode = respData[respData.length - 1];
-      throw new Error(`Command 0x${opcode.toString(16)} failed: status=${status}, error=0x${errCode.toString(16)}`);
+      throw new Error(`Command 0x${opcode.toString(16)} failed: status=${status}`);
     }
   }
 
   return { value, data: respData.subarray(0, respData.length - 2) };
 }
 
-// ── Bootloader entry ──
-
 async function enterBootloader(port: SerialPortLike): Promise<void> {
   if (!port.setSignals) return;
-  // Classic esptool reset sequence: RTS=DTR toggle
   await port.setSignals({ dataTerminalReady: false, requestToSend: true });
   await new Promise(r => setTimeout(r, 100));
   await port.setSignals({ dataTerminalReady: true, requestToSend: false });
@@ -197,18 +144,13 @@ async function syncBootloader(
   writer: WritableStreamDefaultWriter<Uint8Array>,
   reader: ReadableStreamDefaultReader<Uint8Array>
 ): Promise<void> {
-  // Sync payload: 0x07 0x07 0x12 0x20 + 32 x 0x55
   const syncData = new Uint8Array(36);
-  syncData[0] = 0x07;
-  syncData[1] = 0x07;
-  syncData[2] = 0x12;
-  syncData[3] = 0x20;
+  syncData[0] = 0x07; syncData[1] = 0x07; syncData[2] = 0x12; syncData[3] = 0x20;
   syncData.fill(0x55, 4);
 
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
       await sendCommand(writer, reader, ESP_SYNC, syncData, 0, SYNC_TIMEOUT);
-      // Drain extra sync responses
       for (let i = 0; i < 7; i++) {
         try { await slipReadFrame(reader, 200); } catch { break; }
       }
@@ -217,7 +159,7 @@ async function syncBootloader(
       await new Promise(r => setTimeout(r, 50));
     }
   }
-  throw new Error('Failed to sync with ESP bootloader. Ensure GPIO0 is held low during reset.');
+  throw new Error('Failed to sync with ESP bootloader. Hold BOOT button during reset.');
 }
 
 async function detectChip(
@@ -225,23 +167,10 @@ async function detectChip(
   reader: ReadableStreamDefaultReader<Uint8Array>
 ): Promise<'esp32' | 'esp8266'> {
   const addrData = new Uint8Array(4);
-  const dv = new DataView(addrData.buffer);
-  dv.setUint32(0, CHIP_DETECT_MAGIC_REG, true);
-
+  new DataView(addrData.buffer).setUint32(0, CHIP_DETECT_MAGIC_REG, true);
   const { value } = await sendCommand(writer, reader, ESP_READ_REG, addrData);
-
-  if (value === ESP32_MAGIC) return 'esp32';
   if (value === ESP8266_MAGIC) return 'esp8266';
-  // Assume ESP32 for unknown values (many variants)
   return 'esp32';
-}
-
-// ── Flash commands ──
-
-function u32LE(n: number): Uint8Array {
-  const b = new Uint8Array(4);
-  new DataView(b.buffer).setUint32(0, n, true);
-  return b;
 }
 
 async function flashBegin(
@@ -252,13 +181,12 @@ async function flashBegin(
 ): Promise<void> {
   const numBlocks = Math.ceil(size / ESP_FLASH_WRITE_SIZE);
   const eraseSize = Math.ceil(size / FLASH_SECTOR_SIZE) * FLASH_SECTOR_SIZE;
-
   const data = new Uint8Array(16);
-  new DataView(data.buffer).setUint32(0, eraseSize, true);
-  new DataView(data.buffer).setUint32(4, numBlocks, true);
-  new DataView(data.buffer).setUint32(8, ESP_FLASH_WRITE_SIZE, true);
-  new DataView(data.buffer).setUint32(12, offset, true);
-
+  const dv = new DataView(data.buffer);
+  dv.setUint32(0, eraseSize, true);
+  dv.setUint32(4, numBlocks, true);
+  dv.setUint32(8, ESP_FLASH_WRITE_SIZE, true);
+  dv.setUint32(12, offset, true);
   await sendCommand(writer, reader, ESP_FLASH_BEGIN, data, 0, FLASH_TIMEOUT);
 }
 
@@ -269,17 +197,13 @@ async function flashBlock(
   seq: number
 ): Promise<void> {
   const header = new Uint8Array(16);
-  new DataView(header.buffer).setUint32(0, blockData.length, true);
-  new DataView(header.buffer).setUint32(4, seq, true);
-  new DataView(header.buffer).setUint32(8, 0, true); // unused
-  new DataView(header.buffer).setUint32(12, 0, true); // unused
-
+  const dv = new DataView(header.buffer);
+  dv.setUint32(0, blockData.length, true);
+  dv.setUint32(4, seq, true);
   const payload = new Uint8Array(header.length + blockData.length);
   payload.set(header);
   payload.set(blockData, header.length);
-
-  const chk = espChecksum(blockData);
-  await sendCommand(writer, reader, ESP_FLASH_DATA, payload, chk, FLASH_TIMEOUT);
+  await sendCommand(writer, reader, ESP_FLASH_DATA, payload, espChecksum(blockData), FLASH_TIMEOUT);
 }
 
 async function flashEnd(
@@ -291,63 +215,47 @@ async function flashEnd(
   new DataView(data.buffer).setUint32(0, reboot ? 0 : 1, true);
   try {
     await sendCommand(writer, reader, ESP_FLASH_END, data, 0, 2000);
-  } catch {
-    // Board may reboot before responding
-  }
+  } catch { /* board may reboot */ }
 }
 
 // ── Public API ──
 
 /**
- * Flash raw binary firmware to an ESP32 or ESP8266 via ROM bootloader.
- * firmwareBase64: base64-encoded binary firmware image.
- * flashOffset: destination address (0x10000 for ESP32 app, 0x0 for ESP8266).
+ * Flash firmware to ESP32/ESP8266 via ROM bootloader.
+ * @param port - Pre-acquired serial port (from user gesture)
  */
 export async function flashViaEsptool(
   firmwareBase64: string,
+  port: SerialPortLike,
   chipHint: 'esp32' | 'esp8266' = 'esp32',
   onProgress?: ProgressCb
 ): Promise<void> {
-  const serial = getSerial();
-  if (!serial) throw new Error('Web Serial API not supported. Use Chrome or Edge.');
-
-  // Decode firmware
   const binaryStr = atob(firmwareBase64);
   const firmware = new Uint8Array(binaryStr.length);
   for (let i = 0; i < binaryStr.length; i++) firmware[i] = binaryStr.charCodeAt(i);
   if (firmware.length === 0) throw new Error('Empty firmware');
 
-  onProgress?.('Select the ESP board serial port...', 2);
-  const port = await serial.requestPort();
-
   await port.open({ baudRate: DEFAULT_BAUD });
-
   const reader = port.readable!.getReader();
   const writer = port.writable!.getWriter();
 
   try {
-    // Enter bootloader
     onProgress?.('Entering bootloader mode...', 5);
     await enterBootloader(port);
     await new Promise(r => setTimeout(r, 200));
 
-    // Sync
     onProgress?.('Syncing with bootloader...', 8);
     await syncBootloader(writer, reader);
 
-    // Detect chip
     onProgress?.('Detecting chip...', 10);
     const chip = await detectChip(writer, reader);
     onProgress?.(`Detected: ${chip.toUpperCase()}`, 12);
 
-    // Flash offset: ESP32 app partition typically at 0x10000, ESP8266 at 0x0
     const flashOffset = chip === 'esp32' ? 0x10000 : 0x0;
 
-    // Begin flash
     onProgress?.('Erasing flash region...', 15);
     await flashBegin(writer, reader, firmware.length, flashOffset);
 
-    // Write blocks
     const blockSize = ESP_FLASH_WRITE_SIZE;
     const totalBlocks = Math.ceil(firmware.length / blockSize);
 
@@ -357,17 +265,13 @@ export async function flashViaEsptool(
       const chunk = new Uint8Array(blockSize);
       chunk.fill(0xff);
       chunk.set(firmware.subarray(offset, end));
-
       const pct = 15 + Math.round((i / totalBlocks) * 75);
       onProgress?.(`Writing block ${i + 1}/${totalBlocks}...`, pct);
-
       await flashBlock(writer, reader, chunk, i);
     }
 
-    // Finish and reboot
     onProgress?.('Finalizing flash...', 93);
     await flashEnd(writer, reader, true);
-
     onProgress?.('Upload complete! Board is restarting.', 100);
   } finally {
     try { reader.releaseLock(); } catch { /**/ }
