@@ -416,6 +416,28 @@ const normalizeProjectForVm = (project: ScratchProject): ScratchProject => ({
       }
     }
 
+    // Compute positions for blocks that lack x/y by walking `next` chains
+    // from top-level blocks. In .sb3 files only top-level blocks have x/y.
+    const BLOCK_STEP = 48;
+    for (const [, block] of Object.entries(blocks)) {
+      if (!block.topLevel || block.shadow) continue;
+      let cursor = block.next;
+      let depth = 1;
+      while (cursor && blocks[cursor]) {
+        const child = blocks[cursor];
+        if (child.x === undefined || child.y === undefined) {
+          blocks[cursor] = {
+            ...child,
+            x: block.x ?? 40,
+            y: (block.y ?? 30) + depth * BLOCK_STEP,
+          };
+        }
+        cursor = child.next ?? null;
+        depth++;
+        if (depth > 200) break; // safety
+      }
+    }
+
     return {
       ...target,
       blocks,
