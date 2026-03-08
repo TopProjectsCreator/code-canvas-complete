@@ -986,7 +986,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   }, [selectedTarget?.name]);
 
   const loadVmFromArchive = useCallback(async (nextArchive: ScratchArchive) => {
-    if (!vmRef.current) return;
+    if (!vmRef.current || !storageReadyRef.current) return;
     try {
       const normalizedArchive = ensureArchive(nextArchive);
       console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames);
