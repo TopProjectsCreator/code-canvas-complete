@@ -576,38 +576,61 @@ const createVmCompatibleBlockShape = (
   const nextFields = { ...(blockDef.fields || {}) };
   const extraBlocks: Record<string, ScratchBlockNode> = {};
 
-  if (blockDef.opcode === 'motion_goto' || blockDef.opcode === 'motion_glideto') {
+  const createShadow = (inputKey: string, opcode: string, fieldKey: string, defaultValue: string) => {
     const menuId = generateId();
-    const toValue = getFieldOption(blockDef.fields, 'TO', '_random_');
     extraBlocks[menuId] = {
       id: menuId,
-      opcode: 'motion_goto_menu',
+      opcode,
       parent: blockId,
       topLevel: false,
       shadow: true,
-      fields: { TO: [toValue, null] },
+      fields: { [fieldKey]: [defaultValue, null] },
       inputs: {},
       next: null,
     };
-    nextInputs.TO = [1, menuId];
-    delete nextFields.TO;
+    nextInputs[inputKey] = [1, menuId];
+    delete nextFields[fieldKey];
+  };
+
+  const op = blockDef.opcode;
+
+  // Motion menus
+  if (op === 'motion_goto') createShadow('TO', 'motion_goto_menu', 'TO', getFieldOption(blockDef.fields, 'TO', '_random_'));
+  if (op === 'motion_glideto') createShadow('TO', 'motion_glideto_menu', 'TO', getFieldOption(blockDef.fields, 'TO', '_random_'));
+  if (op === 'motion_pointtowards') createShadow('TOWARDS', 'motion_pointtowards_menu', 'TOWARDS', getFieldOption(blockDef.fields, 'TOWARDS', '_mouse_'));
+
+  // Looks menus
+  if (op === 'looks_switchcostumeto') createShadow('COSTUME', 'looks_costume', 'COSTUME', getFieldOption(blockDef.fields, 'COSTUME', 'costume1'));
+  if (op === 'looks_switchbackdropto') createShadow('BACKDROP', 'looks_backdrops', 'BACKDROP', getFieldOption(blockDef.fields, 'BACKDROP', 'backdrop1'));
+
+  // Sound menus
+  if (op === 'sound_playuntildone' || op === 'sound_play') createShadow('SOUND_MENU', 'sound_sounds_menu', 'SOUND_MENU', getFieldOption(blockDef.fields, 'SOUND_MENU', 'pop'));
+
+  // Control menus
+  if (op === 'control_create_clone_of') createShadow('CLONE_OPTION', 'control_create_clone_of_menu', 'CLONE_OPTION', getFieldOption(blockDef.fields, 'CLONE_OPTION', '_myself_'));
+
+  // Sensing menus
+  if (op === 'sensing_touchingobject') createShadow('TOUCHINGOBJECTMENU', 'sensing_touchingobjectmenu', 'TOUCHINGOBJECTMENU', getFieldOption(blockDef.fields, 'TOUCHINGOBJECTMENU', '_mouse_'));
+  if (op === 'sensing_distanceto') createShadow('DISTANCETOMENU', 'sensing_distancetomenu', 'DISTANCETOMENU', getFieldOption(blockDef.fields, 'DISTANCETOMENU', '_mouse_'));
+  if (op === 'sensing_keypressed') createShadow('KEY_OPTION', 'sensing_keyoptions', 'KEY_OPTION', getFieldOption(blockDef.fields, 'KEY_OPTION', 'space'));
+  if (op === 'sensing_of') createShadow('OBJECT', 'sensing_of_object_menu', 'OBJECT', getFieldOption(blockDef.fields, 'OBJECT', '_stage_'));
+
+  // Sensing color inputs
+  if (op === 'sensing_touchingcolor' && !nextInputs.COLOR) {
+    nextInputs.COLOR = [1, [9, '#0000ff']];
+  }
+  if (op === 'sensing_coloristouchingcolor') {
+    if (!nextInputs.COLOR) nextInputs.COLOR = [1, [9, '#0000ff']];
+    if (!nextInputs.COLOR2) nextInputs.COLOR2 = [1, [9, '#ff0000']];
   }
 
-  if (blockDef.opcode === 'motion_pointtowards') {
-    const menuId = generateId();
-    const towardValue = getFieldOption(blockDef.fields, 'TOWARDS', '_mouse_');
-    extraBlocks[menuId] = {
-      id: menuId,
-      opcode: 'motion_pointtowards_menu',
-      parent: blockId,
-      topLevel: false,
-      shadow: true,
-      fields: { TOWARDS: [towardValue, null] },
-      inputs: {},
-      next: null,
-    };
-    nextInputs.TOWARDS = [1, menuId];
-    delete nextFields.TOWARDS;
+  // Music extension menus
+  if (op === 'music_setInstrument') createShadow('INSTRUMENT', 'music_menu_INSTRUMENT', 'INSTRUMENT', getFieldOption(blockDef.fields, 'INSTRUMENT', '1'));
+  if (op === 'music_playDrumForBeats') createShadow('DRUM', 'music_menu_DRUM', 'DRUM', getFieldOption(blockDef.fields, 'DRUM', '1'));
+
+  // Pen color param menus
+  if (op === 'pen_changePenColorParamBy' || op === 'pen_setPenColorParamTo') {
+    createShadow('COLOR_PARAM', 'pen_menu_colorParam', 'colorParam', getFieldOption(blockDef.fields, 'COLOR_PARAM', 'color'));
   }
 
   return {
