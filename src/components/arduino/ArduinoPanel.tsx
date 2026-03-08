@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArduinoUploadService } from '@/services/arduinoUploadService';
 import { BreadboardVisualizer } from './BreadboardVisualizer';
 import { LibraryManager } from './LibraryManager';
 import { ArduinoUploadDialog, UploadConfig } from './ArduinoUploadDialog';
@@ -162,7 +163,6 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}
         onUpload={async (config: UploadConfig, onProgress?: (message: string, percent?: number) => void) => {
-          const { ArduinoUploadService } = await import('@/services/arduinoUploadService');
           if (config.uploadMethod === 'wifi') {
             await ArduinoUploadService.uploadViaWiFi(getSketchWithLibraries(), config, onProgress);
             return;
