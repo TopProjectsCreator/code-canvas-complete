@@ -42,6 +42,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
   const [sheets] = useState(['Sheet1']);
   const [activeSheet] = useState(0);
   const [colWidths] = useState<number[]>(Array(DEFAULT_COLS).fill(80));
+  const [ribbonTab, setRibbonTab] = useState<'home' | 'insert' | 'formulas' | 'data' | 'review' | 'view'>('home');
   const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
