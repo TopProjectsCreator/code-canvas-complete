@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { FileNode } from '@/types/ide';
 import {
   Box, RotateCcw, ZoomIn, ZoomOut, Eye, Layers, Sun, Moon,
-  Maximize, Info, Download, Grid3X3, Move, Loader2
+  Maximize, Info, Download, Grid3X3, Move, Loader2, Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -199,6 +199,31 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const [modelColor, setModelColor] = useState('#6366f1');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const loadCADFile = (f: File) => {
+    const reader = new FileReader();
+    reader.onload = () => onContentChange(file.id, reader.result as string);
+    reader.readAsDataURL(f);
+  };
+
+  const handleCADUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.stl,.obj';
+    input.onchange = (e) => {
+      const f = (e.target as HTMLInputElement).files?.[0];
+      if (f) loadCADFile(f);
+    };
+    input.click();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const f = e.dataTransfer.files[0];
+    if (f) loadCADFile(f);
+  };
 
   const geometry = useMemo(() => {
     const content = file.content || '';
@@ -355,8 +380,22 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
 
           {/* Viewport overlay hints */}
           {!geometry && !error && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm text-white/70 text-sm px-4 py-2 rounded-lg">
-              Upload a <strong>.stl</strong> or <strong>.obj</strong> file to view it here
+            <div
+              className={cn(
+                "absolute inset-0 flex flex-col items-center justify-center z-10 transition-colors",
+                dragOver && "bg-primary/10 ring-2 ring-primary ring-inset"
+              )}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+            >
+              <div className="bg-black/60 backdrop-blur-sm text-white/70 text-sm px-6 py-4 rounded-lg flex flex-col items-center gap-3">
+                <Upload className={cn("w-8 h-8 transition-transform", dragOver && "scale-110 text-primary")} />
+                <span>{dragOver ? 'Drop 3D file here' : 'Drag & drop a .stl or .obj file'}</span>
+                <Button variant="outline" size="sm" className="gap-2 text-white/80 border-white/20 hover:bg-white/10" onClick={handleCADUpload}>
+                  <Upload className="w-3.5 h-3.5" /> Browse Files
+                </Button>
+              </div>
             </div>
           )}
 
