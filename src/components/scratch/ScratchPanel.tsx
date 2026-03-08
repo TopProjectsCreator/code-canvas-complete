@@ -986,11 +986,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     if (!vmRef.current) return;
     try {
       const normalizedArchive = ensureArchive(nextArchive);
+      console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames);
       const data = await exportSb3(normalizedArchive);
       const ab = data.buffer instanceof ArrayBuffer
         ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
         : data.slice().buffer;
+      console.log('[Scratch] Loading project into VM, size:', ab.byteLength);
       await vmRef.current.loadProject(ab);
+      console.log('[Scratch] Project loaded successfully, targets:', vmRef.current.runtime?.targets?.length);
       setVmError(null);
       syncFromVm();
     } catch (error) {
