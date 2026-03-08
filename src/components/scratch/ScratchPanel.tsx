@@ -915,6 +915,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [spriteVisible, setSpriteVisible] = useState(true);
   const [workspaceZoom, setWorkspaceZoom] = useState(1);
   const [vmReady, setVmReady] = useState(false);
+
+  // Pointer-based drag state for smooth block dragging
+  const dragRef = useRef<{
+    blockId: string;
+    startX: number;
+    startY: number;
+    offsetX: number;
+    offsetY: number;
+    originalBlock: ScratchBlockNode;
+    detached: boolean;
+  } | null>(null);
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const [dragBlockId, setDragBlockId] = useState<string | null>(null);
+  const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const [vmError, setVmError] = useState<string | null>(null);
   const [dataPrompt, setDataPrompt] = useState<{ type: 'variable' | 'list'; name: string } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState<LibraryMode | null>(null);
