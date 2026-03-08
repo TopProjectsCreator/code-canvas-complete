@@ -1779,6 +1779,15 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
         </div>
       )}
+      {/* Asset Library Dialog */}
+      {libraryOpen && (
+        <ScratchLibraryDialog
+          mode={libraryOpen}
+          open={true}
+          onClose={() => setLibraryOpen(null)}
+          onSelect={addLibraryAsset}
+        />
+      )}
     </div>
   );
 };
