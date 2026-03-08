@@ -446,7 +446,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   // Check if this file should be previewed instead of edited
   const previewType = getPreviewType(file.name);
   // Binary types always show preview only (no editable source)
-  const binaryPreviewTypes = ['image', 'video', 'audio', 'cad'];
+  const binaryPreviewTypes = ['image', 'video', 'audio', 'cad', 'rtf'];
   const isTextPreviewable = previewType && !binaryPreviewTypes.includes(previewType);
   
   if (previewType === 'office') {
@@ -457,12 +457,20 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     return <VideoEditor file={file} onContentChange={onContentChange} />;
   }
 
+  if (previewType === 'audio') {
+    return <AudioEditor file={file} onContentChange={onContentChange} />;
+  }
+
+  if (previewType === 'rtf') {
+    return <RTFEditor file={file} onContentChange={onContentChange} />;
+  }
+
   if (previewType === 'cad') {
     return <CADEditor file={file} onContentChange={onContentChange} />;
   }
 
   if (previewType && !isTextPreviewable) {
-    return <FilePreview file={file} previewType={previewType as 'image' | 'audio' | 'video' | 'csv' | 'markdown' | 'svg'} />;
+    return <FilePreview file={file} previewType={previewType as 'image' | 'csv' | 'markdown' | 'svg'} />;
   }
   if (isTextPreviewable && markdownPreview) {
     return (
