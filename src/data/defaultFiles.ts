@@ -1,5 +1,5 @@
 import { FileNode } from '@/types/ide';
-import { LanguageTemplate } from '@/components/ide/LanguagePicker';
+import { LanguageTemplate } from '@/data/templateRegistry';
 import { getArduinoTemplateFiles } from './arduinoTemplates';
 
 const tutorialTitles: Record<LanguageTemplate, string> = {
