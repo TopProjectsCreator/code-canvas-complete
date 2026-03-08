@@ -25,41 +25,10 @@ import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
 import { useAttachments } from "@/hooks/useAttachments";
 
-export type LanguageTemplate =
-  | "blank"
-  | "html"
-  | "javascript"
-  | "typescript"
-  | "python"
-  | "java"
-  | "cpp"
-  | "c"
-  | "go"
-  | "rust"
-  | "ruby"
-  | "php"
-  | "csharp"
-  | "bash"
-  | "lua"
-  | "perl"
-  | "r"
-  | "haskell"
-  | "nim"
-  | "zig"
-  | "lisp"
-  | "d"
-  | "groovy"
-  | "pascal"
-  | "react"
-  | "nodejs"
-  | "flask"
-  | "django"
-  | "sqlite"
-  | "arduino"
-  | "scratch"
-  | "word"
-  | "powerpoint"
-  | "excel";
+// Re-export the type so existing imports from this file still work
+export type { LanguageTemplate } from "@/data/templateRegistry";
+import type { LanguageTemplate } from "@/data/templateRegistry";
+import { TEMPLATES, TEMPLATE_IDS } from "@/data/templateRegistry";
 
 interface LanguageOption {
   id: LanguageTemplate;
@@ -77,43 +46,6 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
-
-const TEMPLATE_IDS: LanguageTemplate[] = [
-  "blank",
-  "html",
-  "javascript",
-  "typescript",
-  "python",
-  "java",
-  "cpp",
-  "c",
-  "go",
-  "rust",
-  "ruby",
-  "php",
-  "csharp",
-  "bash",
-  "lua",
-  "perl",
-  "r",
-  "haskell",
-  "nim",
-  "zig",
-  "lisp",
-  "d",
-  "groovy",
-  "pascal",
-  "react",
-  "nodejs",
-  "flask",
-  "django",
-  "sqlite",
-  "arduino",
-  "scratch",
-  "word",
-  "powerpoint",
-  "excel",
-];
 
 const languages: LanguageOption[] = [
   {
