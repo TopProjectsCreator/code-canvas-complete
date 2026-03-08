@@ -4,7 +4,9 @@ import { FileNode } from '@/types/ide';
 import {
   Presentation, Save, Plus, Trash2, Copy, ChevronUp, ChevronDown,
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
-  Type, Square, Circle, Image, Play, Undo, Redo, Loader2
+  Type, Square, Circle, Image, Play, Undo, Redo, Loader2,
+  Table, Film, Link, Palette, Wand2, Zap, RotateCcw,
+  Eye, SlidersHorizontal, Timer, Maximize
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
