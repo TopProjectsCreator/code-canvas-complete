@@ -237,15 +237,19 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'change y by [10]', opcode: 'motion_changeyby', inputs: { DY: [1, [4, '10']] } },
     { label: 'set y to [0]', opcode: 'motion_sety', inputs: { Y: [1, [4, '0']] } },
     { label: 'if on edge, bounce', opcode: 'motion_ifonedgebounce' },
+    { label: 'set rotation style {left-right}', opcode: 'motion_setrotationstyle', fields: { STYLE: ['left-right', null] } },
+    { label: 'x position', opcode: 'motion_xposition' },
+    { label: 'y position', opcode: 'motion_yposition' },
+    { label: 'direction', opcode: 'motion_direction' },
   ],
   Looks: [
     { label: 'say [Hello!] for [2] seconds', opcode: 'looks_sayforsecs', inputs: { MESSAGE: [1, [10, 'Hello!']], SECS: [1, [4, '2']] } },
     { label: 'say [Hello!]', opcode: 'looks_say', inputs: { MESSAGE: [1, [10, 'Hello!']] } },
     { label: 'think [Hmm...] for [2] seconds', opcode: 'looks_thinkforsecs', inputs: { MESSAGE: [1, [10, 'Hmm...']], SECS: [1, [4, '2']] } },
     { label: 'think [Hmm...]', opcode: 'looks_think', inputs: { MESSAGE: [1, [10, 'Hmm...']] } },
-    { label: 'switch costume to {costume1}', opcode: 'looks_switchcostumeto' },
+    { label: 'switch costume to {costume1}', opcode: 'looks_switchcostumeto', fields: { COSTUME: ['costume1', null] } },
     { label: 'next costume', opcode: 'looks_nextcostume' },
-    { label: 'switch backdrop to {backdrop1}', opcode: 'looks_switchbackdropto' },
+    { label: 'switch backdrop to {backdrop1}', opcode: 'looks_switchbackdropto', fields: { BACKDROP: ['backdrop1', null] } },
     { label: 'next backdrop', opcode: 'looks_nextbackdrop' },
     { label: 'change size by [10]', opcode: 'looks_changesizeby', inputs: { CHANGE: [1, [4, '10']] } },
     { label: 'set size to [100] %', opcode: 'looks_setsizeto', inputs: { SIZE: [1, [4, '100']] } },
@@ -256,22 +260,26 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'hide', opcode: 'looks_hide' },
     { label: 'go to {front} layer', opcode: 'looks_gotofrontback', fields: { FRONT_BACK: ['front', null] } },
     { label: 'go {backward} [1] layers', opcode: 'looks_goforwardbackwardlayers', inputs: { NUM: [1, [4, '1']] }, fields: { FORWARD_BACKWARD: ['backward', null] } },
+    { label: 'costume #', opcode: 'looks_costumenumbername', fields: { NUMBER_NAME: ['number', null] } },
+    { label: 'backdrop #', opcode: 'looks_backdropnumbername', fields: { NUMBER_NAME: ['number', null] } },
+    { label: 'size', opcode: 'looks_size' },
   ],
   Sound: [
-    { label: 'play sound {Meow} until done', opcode: 'sound_playuntildone' },
-    { label: 'start sound {Meow}', opcode: 'sound_play' },
+    { label: 'play sound {Meow} until done', opcode: 'sound_playuntildone', fields: { SOUND_MENU: ['pop', null] } },
+    { label: 'start sound {Meow}', opcode: 'sound_play', fields: { SOUND_MENU: ['pop', null] } },
     { label: 'stop all sounds', opcode: 'sound_stopallsounds' },
     { label: 'change {pitch} effect by [10]', opcode: 'sound_changeeffectby', inputs: { VALUE: [1, [4, '10']] }, fields: { EFFECT: ['PITCH', null] } },
     { label: 'set {pitch} effect to [100]', opcode: 'sound_seteffectto', inputs: { VALUE: [1, [4, '100']] }, fields: { EFFECT: ['PITCH', null] } },
     { label: 'clear sound effects', opcode: 'sound_cleareffects' },
     { label: 'change volume by [-10]', opcode: 'sound_changevolumeby', inputs: { VOLUME: [1, [4, '-10']] } },
     { label: 'set volume to [100] %', opcode: 'sound_setvolumeto', inputs: { VOLUME: [1, [4, '100']] } },
+    { label: 'volume', opcode: 'sound_volume' },
   ],
   Events: [
     { label: 'when 🏴 clicked', opcode: 'event_whenflagclicked' },
     { label: 'when {space} key pressed', opcode: 'event_whenkeypressed', fields: { KEY_OPTION: ['space', null] } },
     { label: 'when this sprite clicked', opcode: 'event_whenthisspriteclicked' },
-    { label: 'when backdrop switches to {backdrop1}', opcode: 'event_whenbackdropswitchesto' },
+    { label: 'when backdrop switches to {backdrop1}', opcode: 'event_whenbackdropswitchesto', fields: { BACKDROP: ['backdrop1', null] } },
     { label: 'when {loudness} > [10]', opcode: 'event_whengreaterthan', inputs: { VALUE: [1, [4, '10']] }, fields: { WHENGREATERTHANMENU: ['LOUDNESS', null] } },
     { label: 'when I receive {message1}', opcode: 'event_whenbroadcastreceived', fields: { BROADCAST_OPTION: ['message1', null] } },
     { label: 'broadcast {message1}', opcode: 'event_broadcast', inputs: { BROADCAST_INPUT: [1, [11, 'message1', 'message1']] } },
@@ -292,8 +300,8 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
   ],
   Sensing: [
     { label: 'touching {mouse-pointer} ?', opcode: 'sensing_touchingobject', fields: { TOUCHINGOBJECTMENU: ['_mouse_', null] } },
-    { label: 'touching color?', opcode: 'sensing_touchingcolor' },
-    { label: 'color is touching?', opcode: 'sensing_coloristouchingcolor' },
+    { label: 'touching color [#0000ff] ?', opcode: 'sensing_touchingcolor', inputs: { COLOR: [1, [9, '#0000ff']] } },
+    { label: 'color [#0000ff] is touching [#ff0000] ?', opcode: 'sensing_coloristouchingcolor', inputs: { COLOR: [1, [9, '#0000ff']], COLOR2: [1, [9, '#ff0000']] } },
     { label: 'distance to {mouse-pointer}', opcode: 'sensing_distanceto', fields: { DISTANCETOMENU: ['_mouse_', null] } },
     { label: 'ask [What is your name?] and wait', opcode: 'sensing_askandwait', inputs: { QUESTION: [1, [10, 'What is your name?']] } },
     { label: 'answer', opcode: 'sensing_answer' },
@@ -301,11 +309,13 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'mouse down?', opcode: 'sensing_mousedown' },
     { label: 'mouse x', opcode: 'sensing_mousex' },
     { label: 'mouse y', opcode: 'sensing_mousey' },
+    { label: '{backdrop #} of {Stage}', opcode: 'sensing_of', inputs: { PROPERTY: [1, [10, 'backdrop #']] }, fields: { OBJECT: ['_stage_', null] } },
     { label: 'loudness', opcode: 'sensing_loudness' },
     { label: 'timer', opcode: 'sensing_timer' },
     { label: 'reset timer', opcode: 'sensing_resettimer' },
     { label: 'current {year}', opcode: 'sensing_current', fields: { CURRENTMENU: ['YEAR', null] } },
     { label: 'days since 2000', opcode: 'sensing_dayssince2000' },
+    { label: 'username', opcode: 'sensing_username' },
   ],
   Operators: [
     { label: '[  ] + [  ]', opcode: 'operator_add', inputs: { NUM1: [1, [4, '']], NUM2: [1, [4, '']] } },
@@ -338,6 +348,7 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'insert [thing] at [1] of my list', opcode: 'data_insertatlist', inputs: { ITEM: [1, [10, 'thing']], INDEX: [1, [4, '1']] } },
     { label: 'replace item [1] of my list with [thing]', opcode: 'data_replaceitemoflist', inputs: { INDEX: [1, [4, '1']], ITEM: [1, [10, 'thing']] } },
     { label: 'item [1] of my list', opcode: 'data_itemoflist', inputs: { INDEX: [1, [4, '1']] } },
+    { label: 'item # of [thing] in my list', opcode: 'data_itemnumoflist', inputs: { ITEM: [1, [10, 'thing']] } },
     { label: 'length of my list', opcode: 'data_lengthoflist' },
     { label: 'my list contains [thing] ?', opcode: 'data_listcontainsitem', inputs: { ITEM: [1, [10, 'thing']] } },
     { label: 'show my list', opcode: 'data_showlist' },
@@ -345,6 +356,26 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
   ],
   'My Blocks': [
     { label: 'Make a Block', opcode: 'procedures_definition' },
+  ],
+  Pen: [
+    { label: 'erase all', opcode: 'pen_clear' },
+    { label: 'stamp', opcode: 'pen_stamp' },
+    { label: 'pen down', opcode: 'pen_penDown' },
+    { label: 'pen up', opcode: 'pen_penUp' },
+    { label: 'set pen color to [#0000ff]', opcode: 'pen_setPenColorToColor', inputs: { COLOR: [1, [9, '#0000ff']] } },
+    { label: 'change pen {color} by [10]', opcode: 'pen_changePenColorParamBy', inputs: { VALUE: [1, [4, '10']] }, fields: { COLOR_PARAM: ['color', null] } },
+    { label: 'set pen {color} to [50]', opcode: 'pen_setPenColorParamTo', inputs: { VALUE: [1, [4, '50']] }, fields: { COLOR_PARAM: ['color', null] } },
+    { label: 'change pen size by [1]', opcode: 'pen_changePenSizeBy', inputs: { SIZE: [1, [4, '1']] } },
+    { label: 'set pen size to [1]', opcode: 'pen_setPenSizeTo', inputs: { SIZE: [1, [4, '1']] } },
+  ],
+  Music: [
+    { label: 'play drum {1} for [0.25] beats', opcode: 'music_playDrumForBeats', inputs: { BEATS: [1, [4, '0.25']] }, fields: { DRUM: ['1', null] } },
+    { label: 'rest for [0.25] beats', opcode: 'music_restForBeats', inputs: { BEATS: [1, [4, '0.25']] } },
+    { label: 'play note [60] for [0.25] beats', opcode: 'music_playNoteForBeats', inputs: { NOTE: [1, [4, '60']], BEATS: [1, [4, '0.25']] } },
+    { label: 'set instrument to {1}', opcode: 'music_setInstrument', fields: { INSTRUMENT: ['1', null] } },
+    { label: 'set tempo to [60]', opcode: 'music_setTempo', inputs: { TEMPO: [1, [4, '60']] } },
+    { label: 'change tempo by [20]', opcode: 'music_changeTempo', inputs: { TEMPO: [1, [4, '20']] } },
+    { label: 'tempo', opcode: 'music_getTempo' },
   ],
 };
 
@@ -358,6 +389,8 @@ const categoryColors: Record<string, string> = {
   Operators: '#59c059',
   Variables: '#ff8c1a',
   'My Blocks': '#ff6680',
+  Pen: '#0fbd8c',
+  Music: '#d65cd6',
 };
 
 const categoryRail = [
@@ -370,6 +403,8 @@ const categoryRail = [
   { name: 'Operators', color: '#59c059' },
   { name: 'Variables', color: '#ff8c1a' },
   { name: 'My Blocks', color: '#ff6680' },
+  { name: 'Pen', color: '#0fbd8c' },
+  { name: 'Music', color: '#d65cd6' },
 ];
 
 const generateId = () => Math.random().toString(36).slice(2, 10);
@@ -502,7 +537,15 @@ const getBlockColor = (opcode: string) => (!opcode ? '#4c97ff' : opcode.startsWi
             : opcode.startsWith('operator_') ? '#59c059'
               : opcode.startsWith('data_') ? '#ff8c1a'
                 : opcode.startsWith('procedures_') ? '#ff6680'
-                  : '#4c97ff');
+                  : opcode.startsWith('pen_') ? '#0fbd8c'
+                    : opcode.startsWith('music_') ? '#d65cd6'
+                      : '#4c97ff');
+
+const getExtensionId = (opcode: string): string | null => {
+  if (opcode.startsWith('pen_')) return 'pen';
+  if (opcode.startsWith('music_')) return 'music';
+  return null;
+};
 
 const extensionOf = (name: string) => {
   const idx = name.lastIndexOf('.');
@@ -533,38 +576,61 @@ const createVmCompatibleBlockShape = (
   const nextFields = { ...(blockDef.fields || {}) };
   const extraBlocks: Record<string, ScratchBlockNode> = {};
 
-  if (blockDef.opcode === 'motion_goto' || blockDef.opcode === 'motion_glideto') {
+  const createShadow = (inputKey: string, opcode: string, fieldKey: string, defaultValue: string) => {
     const menuId = generateId();
-    const toValue = getFieldOption(blockDef.fields, 'TO', '_random_');
     extraBlocks[menuId] = {
       id: menuId,
-      opcode: 'motion_goto_menu',
+      opcode,
       parent: blockId,
       topLevel: false,
       shadow: true,
-      fields: { TO: [toValue, null] },
+      fields: { [fieldKey]: [defaultValue, null] },
       inputs: {},
       next: null,
     };
-    nextInputs.TO = [1, menuId];
-    delete nextFields.TO;
+    nextInputs[inputKey] = [1, menuId];
+    delete nextFields[fieldKey];
+  };
+
+  const op = blockDef.opcode;
+
+  // Motion menus
+  if (op === 'motion_goto') createShadow('TO', 'motion_goto_menu', 'TO', getFieldOption(blockDef.fields, 'TO', '_random_'));
+  if (op === 'motion_glideto') createShadow('TO', 'motion_glideto_menu', 'TO', getFieldOption(blockDef.fields, 'TO', '_random_'));
+  if (op === 'motion_pointtowards') createShadow('TOWARDS', 'motion_pointtowards_menu', 'TOWARDS', getFieldOption(blockDef.fields, 'TOWARDS', '_mouse_'));
+
+  // Looks menus
+  if (op === 'looks_switchcostumeto') createShadow('COSTUME', 'looks_costume', 'COSTUME', getFieldOption(blockDef.fields, 'COSTUME', 'costume1'));
+  if (op === 'looks_switchbackdropto') createShadow('BACKDROP', 'looks_backdrops', 'BACKDROP', getFieldOption(blockDef.fields, 'BACKDROP', 'backdrop1'));
+
+  // Sound menus
+  if (op === 'sound_playuntildone' || op === 'sound_play') createShadow('SOUND_MENU', 'sound_sounds_menu', 'SOUND_MENU', getFieldOption(blockDef.fields, 'SOUND_MENU', 'pop'));
+
+  // Control menus
+  if (op === 'control_create_clone_of') createShadow('CLONE_OPTION', 'control_create_clone_of_menu', 'CLONE_OPTION', getFieldOption(blockDef.fields, 'CLONE_OPTION', '_myself_'));
+
+  // Sensing menus
+  if (op === 'sensing_touchingobject') createShadow('TOUCHINGOBJECTMENU', 'sensing_touchingobjectmenu', 'TOUCHINGOBJECTMENU', getFieldOption(blockDef.fields, 'TOUCHINGOBJECTMENU', '_mouse_'));
+  if (op === 'sensing_distanceto') createShadow('DISTANCETOMENU', 'sensing_distancetomenu', 'DISTANCETOMENU', getFieldOption(blockDef.fields, 'DISTANCETOMENU', '_mouse_'));
+  if (op === 'sensing_keypressed') createShadow('KEY_OPTION', 'sensing_keyoptions', 'KEY_OPTION', getFieldOption(blockDef.fields, 'KEY_OPTION', 'space'));
+  if (op === 'sensing_of') createShadow('OBJECT', 'sensing_of_object_menu', 'OBJECT', getFieldOption(blockDef.fields, 'OBJECT', '_stage_'));
+
+  // Sensing color inputs
+  if (op === 'sensing_touchingcolor' && !nextInputs.COLOR) {
+    nextInputs.COLOR = [1, [9, '#0000ff']];
+  }
+  if (op === 'sensing_coloristouchingcolor') {
+    if (!nextInputs.COLOR) nextInputs.COLOR = [1, [9, '#0000ff']];
+    if (!nextInputs.COLOR2) nextInputs.COLOR2 = [1, [9, '#ff0000']];
   }
 
-  if (blockDef.opcode === 'motion_pointtowards') {
-    const menuId = generateId();
-    const towardValue = getFieldOption(blockDef.fields, 'TOWARDS', '_mouse_');
-    extraBlocks[menuId] = {
-      id: menuId,
-      opcode: 'motion_pointtowards_menu',
-      parent: blockId,
-      topLevel: false,
-      shadow: true,
-      fields: { TOWARDS: [towardValue, null] },
-      inputs: {},
-      next: null,
-    };
-    nextInputs.TOWARDS = [1, menuId];
-    delete nextFields.TOWARDS;
+  // Music extension menus
+  if (op === 'music_setInstrument') createShadow('INSTRUMENT', 'music_menu_INSTRUMENT', 'INSTRUMENT', getFieldOption(blockDef.fields, 'INSTRUMENT', '1'));
+  if (op === 'music_playDrumForBeats') createShadow('DRUM', 'music_menu_DRUM', 'DRUM', getFieldOption(blockDef.fields, 'DRUM', '1'));
+
+  // Pen color param menus
+  if (op === 'pen_changePenColorParamBy' || op === 'pen_setPenColorParamTo') {
+    createShadow('COLOR_PARAM', 'pen_menu_colorParam', 'colorParam', getFieldOption(blockDef.fields, 'COLOR_PARAM', 'color'));
   }
 
   return {
@@ -1110,6 +1176,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         vm.start();
         vmRef.current = vm;
+
+        // Load built-in extensions (pen, music)
+        try {
+          const em = (vm as any).extensionManager;
+          if (em?.loadExtensionIdSync) {
+            em.loadExtensionIdSync('pen');
+            em.loadExtensionIdSync('music');
+          } else if (em?.loadExtensionURL) {
+            em.loadExtensionURL('pen').catch(() => {});
+            em.loadExtensionURL('music').catch(() => {});
+          }
+          console.log('[Scratch] Extensions loaded');
+        } catch (e) {
+          console.warn('[Scratch] Extension loading:', e);
+        }
 
         // Handle "ask and wait" blocks — VM emits QUESTION, waits for ANSWER
         const rt = vm.runtime as any;
@@ -1685,8 +1766,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const finalX = dropX ?? 40;
     const finalY = dropY ?? (30 + blockCount * 55);
 
-    updateProject((current) => ({
+    const extId = getExtensionId(blockDef.opcode);
+    updateProject((current) => {
+      const extensions = extId && !current.extensions?.includes(extId)
+        ? [...(current.extensions as string[] || []), extId]
+        : current.extensions;
+      return {
       ...current,
+      extensions,
       targets: current.targets.map((target, idx) => {
         if (idx !== selectedTargetIndex) return target;
 
@@ -1779,7 +1866,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         return { ...dataResolved.target, blocks };
       }),
-    }));
+      };
+    });
   };
 
   const handleWorkspaceDrop = (e: React.DragEvent) => {
