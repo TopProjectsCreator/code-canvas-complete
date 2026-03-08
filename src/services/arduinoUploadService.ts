@@ -2,7 +2,7 @@ import { UploadConfig } from '@/components/arduino/ArduinoUploadDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { isVerifiedWebFlashBoard } from '@/data/arduinoTemplates';
 import { flashHex } from './stk500';
-import { requestDFUDevice, flashDFU } from './dfuFlash';
+import { triggerBootloader, flashViaSamba } from './sambaFlash';
 
 interface SerialPortLike {
   open(options: { baudRate: number }): Promise<void>;
