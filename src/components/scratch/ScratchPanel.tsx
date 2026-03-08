@@ -1885,7 +1885,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     } else {
       setSnapPreview(null);
     }
-  }, [getWorkspaceCoords, selectedTarget, selectedTargetIndex, updateProject, getBlockStack, findSnapTarget]);
+  }, [getWorkspaceCoords, selectedTarget, selectedTargetIndex, updateProject, getBlockStack]);
 
   const handleWorkspacePointerUp = useCallback(() => {
     const drag = dragRef.current;
