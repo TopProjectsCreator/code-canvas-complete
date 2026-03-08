@@ -338,9 +338,9 @@ export function ArduinoUploadDialog({
           )}
 
 
-          {!isVerifiedBoard && (
+          {!isVerifiedBoard && !UF2_ONLY_BOARDS.includes(config.boardId) && (
             <div className="text-sm text-amber-500 whitespace-pre-wrap bg-amber-500/10 p-2 rounded">
-              This board is currently available for planning/simulation only. Web compile + flash is verified for Uno, Nano, Mega, Leonardo, Micro, and Uno R4 WiFi.
+              This board is currently available for planning/simulation only.
             </div>
           )}
 
