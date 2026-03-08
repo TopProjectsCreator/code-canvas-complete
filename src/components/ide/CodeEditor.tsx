@@ -14,7 +14,7 @@ interface CodeEditorProps {
 const getPreviewType = (fileName: string): 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'office' | null => {
   const ext = fileName.split('.').pop()?.toLowerCase();
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp'];
-  const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogv'];
+  const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogv', 'ogg'];
   const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'];
   
   if (ext === 'svg') return 'svg';
