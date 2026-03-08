@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { FileNode } from '@/types/ide';
 import {
   Box, RotateCcw, ZoomIn, ZoomOut, Eye, Layers, Sun, Moon,
-  Maximize, Info, Download, Grid3X3, Move, Loader2
+  Maximize, Info, Download, Grid3X3, Move, Loader2, Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
