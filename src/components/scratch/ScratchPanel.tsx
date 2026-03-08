@@ -1606,9 +1606,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   lists={Object.entries(selectedTarget?.lists || {})}
                   blocks={categoryBlocks['Variables'] || []}
                   color={categoryColors['Variables'] || '#ff8c1a'}
-                  onMakeVariable={() => setDataPrompt({ type: 'variable', name: 'my variable' })}
-                  onMakeList={() => setDataPrompt({ type: 'list', name: 'my list' })}
+                  onMakeVariable={() => { setRenameTarget(null); setDataPrompt({ type: 'variable', name: 'my variable' }); }}
+                  onMakeList={() => { setRenameTarget(null); setDataPrompt({ type: 'list', name: 'my list' }); }}
                   onAddBlock={addBlock}
+                  onDeleteVariable={deleteVariable}
+                  onDeleteList={deleteList}
+                  onRenameVariable={renameVariable}
+                  onRenameList={renameList}
                 />
               ) : (
               <div className="space-y-1.5">
