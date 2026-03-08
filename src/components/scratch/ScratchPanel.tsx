@@ -767,17 +767,22 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const stageBackdrops = stageTarget?.costumes || [];
   const stageCurrentBackdrop = Number(stageTarget?.currentCostume || 0);
   const blockLabels = useMemo(() => {
-    const map: Record<string, string> = {};
+   const map: Record<string, string> = {};
     Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
     return map;
   }, []);
+
+  const imgMime = (fmt: string | undefined) => {
+    const f = fmt || 'png';
+    return f === 'svg' ? 'image/svg+xml' : `image/${f}`;
+  };
 
   const selectedCostumes = selectedTarget?.costumes || [];
   const selectedSounds = selectedTarget?.sounds || [];
   const currentCostumeIndex = Number(selectedTarget?.currentCostume || 0);
   const activeCostume = selectedCostumes[currentCostumeIndex] || selectedCostumes[0];
   const stageCostumeSrc = activeCostume && archive?.files?.[activeCostume.md5ext]
-    ? `data:image/${activeCostume.dataFormat || 'png'};base64,${archive.files[activeCostume.md5ext]}`
+    ? `data:${imgMime(activeCostume.dataFormat)};base64,${archive.files[activeCostume.md5ext]}`
     : null;
 
   const syncFromVm = useCallback(() => {
@@ -1653,7 +1658,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {selectedCostumes.map((costume, idx) => {
-                    const src = archive?.files?.[costume.md5ext] ? `data:image/${costume.dataFormat || 'png'};base64,${archive.files[costume.md5ext]}` : undefined;
+                    const src = archive?.files?.[costume.md5ext] ? `data:${imgMime(costume.dataFormat)};base64,${archive.files[costume.md5ext]}` : undefined;
                     return (
                       <button key={costume.assetId} className={`rounded-lg border-2 p-2 ${idx === currentCostumeIndex ? 'border-[#855cd6] bg-[#f0ebff]' : 'border-[#e0e0e0]'}`} onClick={() => setCurrentCostume(idx)}>
                         <div className="h-16 rounded bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
@@ -1830,7 +1835,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   const mappedIndex = project.targets.findIndex((t) => t.name === target.name && !t.isStage);
                   const selected = mappedIndex === selectedTargetIndex;
                   const costumeSrc = target.costumes?.[0]?.md5ext && archive?.files?.[target.costumes[0].md5ext]
-                    ? `data:image/${target.costumes[0].dataFormat || 'png'};base64,${archive.files[target.costumes[0].md5ext]}`
+                    ? `data:${imgMime(target.costumes[0].dataFormat)};base64,${archive.files[target.costumes[0].md5ext]}`
                     : null;
                   return (
                     <button
@@ -1879,7 +1884,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               <div className="flex-1 overflow-y-auto px-1.5 pb-2 space-y-1.5">
                 {stageBackdrops.map((backdrop, idx) => {
                   const src = archive?.files?.[backdrop.md5ext]
-                    ? `data:image/${backdrop.dataFormat || 'png'};base64,${archive.files[backdrop.md5ext]}`
+                    ? `data:${imgMime(backdrop.dataFormat)};base64,${archive.files[backdrop.md5ext]}`
                     : null;
                   const selected = idx === stageCurrentBackdrop;
                   return (
