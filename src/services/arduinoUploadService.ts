@@ -2,7 +2,7 @@ import { UploadConfig } from '@/components/arduino/ArduinoUploadDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { isVerifiedWebFlashBoard } from '@/data/arduinoTemplates';
 import { flashHex } from './stk500';
-import { requestDFUDevice, flashDFU } from './dfuFlash';
+import { triggerBootloader, flashViaSamba as sambaFlash } from './sambaFlash';
 
 interface SerialPortLike {
   open(options: { baudRate: number }): Promise<void>;
@@ -21,8 +21,8 @@ interface SerialLike {
 const getSerial = (): SerialLike | undefined =>
   (navigator as unknown as { serial?: SerialLike }).serial;
 
-// ARM-based boards that use DFU instead of STK500v1
-const DFU_BOARDS = ['uno_r4_wifi'];
+// ARM-based boards that use SAM-BA protocol instead of STK500v1
+const SAMBA_BOARDS = ['uno_r4_wifi'];
 const OTA_BRIDGE_URL = import.meta.env.VITE_OTA_BRIDGE_URL || 'http://127.0.0.1:3232';
 const OTA_BRIDGE_TOKEN = import.meta.env.VITE_OTA_BRIDGE_TOKEN;
 const REQUEST_TIMEOUT_MS = 45000;
@@ -109,9 +109,9 @@ export class ArduinoUploadService {
     }
 
     const compileResult = await compileResponse.json();
-    const isDFU = DFU_BOARDS.includes(boardId);
+    const isSamba = SAMBA_BOARDS.includes(boardId);
 
-    if (isDFU) {
+    if (isSamba) {
       if (!compileResult.binary) {
         throw new Error('Compilation did not produce binary output for this board');
       }
@@ -180,60 +180,39 @@ export class ArduinoUploadService {
     config: UploadConfig,
     onProgress?: (message: string, percent?: number) => void
   ): Promise<void> {
-    const isDFU = DFU_BOARDS.includes(config.boardId);
+    const isSamba = SAMBA_BOARDS.includes(config.boardId);
     const compileResult = await this.compileSketch(sketch, config.boardId, onProgress);
 
     // Stage 2: Flash
-    if (isDFU) {
-      await this.flashViaDFU(compileResult.binary!, onProgress);
+    if (isSamba) {
+      await this.flashViaSamba(compileResult.binary!, onProgress);
     } else {
       await this.flashViaSTK500(compileResult.hex!, config, onProgress);
     }
   }
 
   /**
-   * Flash via WebUSB DFU for ARM-based boards (Uno R4 WiFi)
+   * Flash via SAM-BA protocol over WebSerial for ARM-based boards (Uno R4 WiFi)
    */
-  private static async flashViaDFU(
+  private static async flashViaSamba(
     binaryBase64: string,
     onProgress?: (message: string, percent?: number) => void
   ): Promise<void> {
-    if (!navigator.usb) {
-      throw new Error('WebUSB API not supported. Use Chrome or Edge.');
-    }
-
-    onProgress?.('Put your board in DFU mode (double-tap reset button), then select it...', 18);
-
-    let device: USBDevice;
-    try {
-      device = await requestDFUDevice();
-    } catch (err) {
-      if (err instanceof DOMException && err.name === 'NotFoundError') {
-        throw new Error(
-          'No DFU device found. Make sure your Arduino Uno R4 WiFi is in DFU mode:\n' +
-          '1. Double-tap the reset button quickly\n' +
-          '2. The LED should pulse/fade\n' +
-          '3. Try selecting the device again'
-        );
-      }
-      throw err;
-    }
-
-    // Decode base64 binary to Uint8Array
-    const binaryStr = atob(binaryBase64);
-    const firmware = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      firmware[i] = binaryStr.charCodeAt(i);
+    const serial = getSerial();
+    if (!serial) {
+      throw new Error('Web Serial API not supported. Use Chrome or Edge.');
     }
 
     try {
-      await flashDFU(device, firmware, (msg, pct) => {
-        onProgress?.(msg, pct);
-      });
+      // Step 1: Trigger bootloader via 1200-baud touch
+      await triggerBootloader((msg, pct) => onProgress?.(msg, pct));
+
+      // Step 2: Flash via SAM-BA protocol
+      await sambaFlash(binaryBase64, (msg, pct) => onProgress?.(msg, pct));
     } catch (err) {
       throw new Error(
-        `DFU flash failed: ${err instanceof Error ? err.message : 'Unknown error'}\n` +
-        'Try double-tapping reset and retrying.'
+        `SAM-BA flash failed: ${err instanceof Error ? err.message : 'Unknown error'}\n` +
+        'Ensure the board is connected and try again.'
       );
     }
   }
