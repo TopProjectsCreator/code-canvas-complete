@@ -447,6 +447,10 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     return <OfficeEditor file={file} onContentChange={onContentChange} />;
   }
 
+  if (previewType === 'video') {
+    return <VideoEditor file={file} onContentChange={onContentChange} />;
+  }
+
   if (previewType && !isTextPreviewable) {
     return <FilePreview file={file} previewType={previewType} />;
   }
