@@ -1117,6 +1117,32 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     loadVmFromArchive(archive);
   }, [archive, vmReady, loadVmFromArchive]);
 
+  // Sync with parent isRunning state (e.g. header Run/Stop button)
+  const prevIsRunning = useRef(isRunning);
+  useEffect(() => {
+    if (!vmReady || !vmRef.current) {
+      prevIsRunning.current = isRunning;
+      return;
+    }
+    if (isRunning && !prevIsRunning.current) {
+      // Parent triggered run (header button) — start VM
+      try {
+        vmRef.current.greenFlag();
+        setTimeout(() => syncFromVm(), 120);
+      } catch (error) {
+        setVmError(error instanceof Error ? error.message : 'VM runtime error.');
+        onStop();
+      }
+    } else if (!isRunning && prevIsRunning.current) {
+      // Parent triggered stop — stop VM
+      try {
+        vmRef.current.stopAll();
+        syncFromVm();
+      } catch { /* noop */ }
+    }
+    prevIsRunning.current = isRunning;
+  }, [isRunning, vmReady, syncFromVm, onStop]);
+
   const updateProject = (updater: (current: ScratchProject) => ScratchProject) => {
     const nextProject = updater(project);
     const nextJson = formatJson(nextProject);
@@ -1643,27 +1669,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   };
 
   const runPreview = async () => {
-    try {
-      if (!vmRef.current) return;
-      onRun();
-      vmRef.current.greenFlag();
-      setTimeout(() => {
-        syncFromVm();
-      }, 120);
-    } catch (error) {
-      setVmError(error instanceof Error ? error.message : 'VM runtime error.');
-      onStop();
-    }
+    if (!vmRef.current || !vmReady) return;
+    onRun(); // Effect will call greenFlag()
   };
 
   const handleVmStop = () => {
-    try {
-      vmRef.current?.stopAll();
-      syncFromVm();
-    } catch {
-      // noop
-    }
-    onStop();
+    onStop(); // Effect will call stopAll()
   };
 
   const handleImport = async (file: File) => {
