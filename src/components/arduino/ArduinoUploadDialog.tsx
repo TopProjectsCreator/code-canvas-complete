@@ -289,7 +289,7 @@ export function ArduinoUploadDialog({
             </div>
           )}
 
-          {config.uploadMethod === 'bluetooth' && !isDFUBoard && (
+          {config.uploadMethod === 'bluetooth' && !isSambaBoard && (
             <div>
               <Label htmlFor="btdevice">Bluetooth Device Name / MAC</Label>
               <Input
