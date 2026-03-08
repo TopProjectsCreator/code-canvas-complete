@@ -170,7 +170,7 @@ const drawFallbackStage = (
 
     const x = (rt?.x ?? 0) + w / 2;
     const y = h / 2 - (rt?.y ?? 0);
-    const bitmapRes = costume.bitmapResolution || (costume.dataFormat === 'svg' ? 1 : 2);
+    const bitmapRes = (costume as Record<string, unknown>).bitmapResolution as number || (costume.dataFormat === 'svg' ? 1 : 2);
     const cx = (costume.rotationCenterX || 0) / bitmapRes;
     const cy = (costume.rotationCenterY || 0) / bitmapRes;
     const drawW = img.naturalWidth / bitmapRes;
