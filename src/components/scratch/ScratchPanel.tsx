@@ -7,7 +7,7 @@ import {
   Volume2,
   Brush,
   Code2,
-  Search,
+  // Search removed - unused
   ZoomIn,
   ZoomOut,
   CircleMinus,
