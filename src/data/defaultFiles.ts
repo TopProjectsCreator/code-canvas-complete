@@ -37,6 +37,7 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   word: 'Word Document',
   powerpoint: 'PowerPoint',
   excel: 'Excel Spreadsheet',
+  video: 'Video Editor',
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
@@ -206,6 +207,9 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case 'excel':
       baseTemplate = excelTemplate;
+      break;
+    case 'video':
+      baseTemplate = videoTemplate;
       break;
     default:
       baseTemplate = htmlTemplate;
@@ -2030,6 +2034,47 @@ This project contains an Excel spreadsheet. Click on \`Spreadsheet.xlsx\` to ope
 - Double-click or type to edit cells
 - Sheet tabs
 - Save to .xlsx format
+`
+      }
+    ]
+  }
+];
+
+const videoTemplate: FileNode[] = [
+  {
+    id: 'video-project',
+    name: 'Video Project',
+    type: 'folder',
+    children: [
+      {
+        id: 'sample-video',
+        name: 'sample.mp4',
+        type: 'file',
+        language: 'video',
+        content: ''
+      },
+      {
+        id: 'readme-md',
+        name: 'README.md',
+        type: 'file',
+        language: 'markdown',
+        content: `# Video Editor Project
+
+This project contains a video editor. Upload \`.mp4\`, \`.webm\`, or \`.ogg\` files to get started.
+
+## Features
+- Play/pause, skip, fullscreen
+- Visual thumbnail timeline with scrubbing
+- Draggable trim handles (Set In/Out)
+- Playback speed control (0.5× – 2×)
+- Volume control with mute
+- Frame capture (download as PNG)
+- Video info panel (resolution, duration)
+
+## Getting Started
+1. Use "Upload Files" in the file tree to add a video
+2. Click the video file to open the editor
+3. Use the timeline to scrub and trim
 `
       }
     ]
