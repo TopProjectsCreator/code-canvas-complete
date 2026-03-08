@@ -109,7 +109,7 @@ export class ArduinoUploadService {
     }
 
     const compileResult = await compileResponse.json();
-    const isDFU = DFU_BOARDS.includes(boardId);
+    const isSamba = SAMBA_BOARDS.includes(boardId);
 
     if (isDFU) {
       if (!compileResult.binary) {
