@@ -241,8 +241,7 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'abs of ( )', opcode: 'operator_mathop', inputs: { NUM: [1, [4, '']] }, fields: { OPERATOR: ['abs', null] } },
   ],
   Variables: [
-    { label: 'Make a Variable', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] }, action: 'create_variable' },
-    { label: 'Make a List', opcode: 'data_addtolist', inputs: { ITEM: [1, [10, 'thing']] }, action: 'create_list' },
+    // These are the block templates — "Make a Variable"/"Make a List" buttons are rendered separately in the flyout
     { label: 'set my variable to 0', opcode: 'data_setvariableto', inputs: { VALUE: [1, [10, '0']] } },
     { label: 'change my variable by 1', opcode: 'data_changevariableby', inputs: { VALUE: [1, [4, '1']] } },
     { label: 'show variable', opcode: 'data_showvariable' },
