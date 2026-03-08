@@ -930,6 +930,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const rafRef = useRef<number>(0);
   const archiveRef = useRef<ScratchArchive | null>(archive);
   const storageReadyRef = useRef(false);
+  const projectLoadedRef = useRef(false);
 
   // Keep archiveRef in sync for the storage adapter closure
   useEffect(() => {
