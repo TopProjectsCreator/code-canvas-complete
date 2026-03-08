@@ -897,7 +897,41 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     );
   };
 
-  const addSound = async (file: File) => {
+  const addBackdrop = async (file: File) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const assetId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 8)}`;
+    const dataFormat = extensionOf(file.name) || 'png';
+    const md5ext = `${assetId}.${dataFormat}`;
+    const base64 = bytesToBase64(bytes);
+
+    await updateArchiveWithProject(
+      (current) => ({
+        ...current,
+        targets: current.targets.map((target) => {
+          if (!target.isStage) return target;
+          const costumes = target.costumes || [];
+          return {
+            ...target,
+            costumes: [...costumes, { name: file.name.replace(/\.[^/.]+$/, ''), assetId, md5ext, dataFormat, rotationCenterX: 240, rotationCenterY: 180 }],
+            currentCostume: costumes.length,
+          };
+        }),
+      }),
+      (currentArchive) => ({
+        ...currentArchive,
+        files: { ...currentArchive.files, [md5ext]: base64 },
+        fileNames: currentArchive.fileNames.includes(md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, md5ext],
+      }),
+    );
+  };
+
+  const setStageBackdrop = (index: number) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target) => target.isStage ? { ...target, currentCostume: index } : target),
+    }));
+  };
+
     const bytes = new Uint8Array(await file.arrayBuffer());
     const assetId = `${Date.now().toString(16)}${Math.random().toString(16).slice(2, 8)}`;
     const dataFormat = extensionOf(file.name) || 'wav';
