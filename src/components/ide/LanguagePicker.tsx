@@ -333,6 +333,27 @@ const languages: LanguageOption[] = [
     description: "Visual block programming with .sb3 import/export",
     color: "from-orange-400 to-blue-500",
   },
+  {
+    id: "word",
+    name: "Word Document",
+    icon: <FileText className="w-8 h-8" />,
+    description: "Create and edit Word documents (.docx)",
+    color: "from-blue-500 to-blue-700",
+  },
+  {
+    id: "powerpoint",
+    name: "PowerPoint",
+    icon: <FileText className="w-8 h-8" />,
+    description: "Create presentations (.pptx)",
+    color: "from-orange-500 to-red-500",
+  },
+  {
+    id: "excel",
+    name: "Excel Spreadsheet",
+    icon: <FileText className="w-8 h-8" />,
+    description: "Create spreadsheets (.xlsx)",
+    color: "from-green-500 to-green-700",
+  },
 ];
 
 // AI Template Assistant component
