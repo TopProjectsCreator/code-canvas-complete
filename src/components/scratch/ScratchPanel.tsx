@@ -639,9 +639,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
       // Attach renderer
       try {
-        const renderer = new RenderWebGL(canvas);
-        vm.attachRenderer(renderer);
-        rendererRef.current = renderer;
+        if (RenderWebGL) {
+          const renderer = new RenderWebGL(canvas);
+          vm.attachRenderer(renderer);
+          rendererRef.current = renderer;
+        }
       } catch (e) {
         console.warn('Failed to attach scratch-render:', e);
       }
