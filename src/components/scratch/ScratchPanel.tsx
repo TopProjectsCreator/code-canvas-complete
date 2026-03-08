@@ -1054,24 +1054,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           }
 
           const storage = new StorageCtor();
-          // scratchFetch and setMetadata may be getter-only on the prototype;
-          // use Object.defineProperty to safely override them.
-          try {
-            if (typeof storage.scratchFetch !== 'function') {
-              Object.defineProperty(storage, 'scratchFetch', {
-                value: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
-                writable: true, configurable: true,
-              });
-            }
-          } catch { /* already defined, that's fine */ }
-          try {
-            if (typeof storage.setMetadata !== 'function') {
-              Object.defineProperty(storage, 'setMetadata', {
-                value: () => undefined,
-                writable: true, configurable: true,
-              });
-            }
-          } catch { /* already defined, that's fine */ }
 
           const AssetType = storage.AssetType;
           storage.addWebStore(
@@ -1195,6 +1177,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     if (isRunning && !prevIsRunning.current) {
       // Parent triggered run (header button) — start VM
       try {
+        if (!projectLoadedRef.current) {
+          setVmError('Project not loaded yet. Please press Run again.');
+          onStop();
+          return;
+        }
         vmRef.current.greenFlag();
         setTimeout(() => syncFromVm(), 120);
       } catch (error) {
@@ -1738,7 +1725,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
   const runPreview = async () => {
     if (!vmRef.current || !vmReady) return;
-    onRun(); // Effect will call greenFlag()
+    const currentArchive = ensureArchive(archive);
+    await loadVmFromArchive(currentArchive);
+    onRun(); // Effect will call greenFlag() on freshly loaded project
   };
 
   const handleVmStop = () => {
