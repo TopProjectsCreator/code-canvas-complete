@@ -277,7 +277,7 @@ export function ArduinoUploadDialog({
             </div>
           )}
 
-          {config.uploadMethod === 'wifi' && !isDFUBoard && (
+          {config.uploadMethod === 'wifi' && !isSambaBoard && (
             <div>
               <Label htmlFor="ipaddress">Board IP Address</Label>
               <Input
