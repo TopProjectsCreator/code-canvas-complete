@@ -1884,7 +1884,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               <div className="flex-1 overflow-y-auto px-1.5 pb-2 space-y-1.5">
                 {stageBackdrops.map((backdrop, idx) => {
                   const src = archive?.files?.[backdrop.md5ext]
-                    ? `data:image/${backdrop.dataFormat || 'png'};base64,${archive.files[backdrop.md5ext]}`
+                    ? `data:${imgMime(backdrop.dataFormat)};base64,${archive.files[backdrop.md5ext]}`
                     : null;
                   const selected = idx === stageCurrentBackdrop;
                   return (
