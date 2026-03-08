@@ -21,6 +21,8 @@ import {
 import VirtualMachine from 'scratch-vm';
 import { ScratchArchive, exportSb3, importSb3 } from '@/services/scratchSb3';
 import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
+import { ScratchLibraryDialog, type LibraryMode } from './ScratchLibraryDialog';
+import { type ScratchLibraryAsset, assetUrl } from '@/data/scratchLibrary';
 
 type ScratchInputPrimitive = string | number | boolean;
 
@@ -643,6 +645,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [vmReady, setVmReady] = useState(false);
   const [vmError, setVmError] = useState<string | null>(null);
   const [dataPrompt, setDataPrompt] = useState<{ type: 'variable' | 'list'; name: string } | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState<LibraryMode | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const costumeInputRef = useRef<HTMLInputElement>(null);
   const soundInputRef = useRef<HTMLInputElement>(null);
@@ -960,6 +963,102 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         fileNames: currentArchive.fileNames.includes(md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, md5ext],
       }),
     );
+  };
+
+  const addLibraryAsset = async (asset: ScratchLibraryAsset) => {
+    // Fetch the asset from the Scratch CDN
+    try {
+      const resp = await fetch(assetUrl(asset.md5ext));
+      if (!resp.ok) throw new Error('Failed to fetch asset');
+      const bytes = new Uint8Array(await resp.arrayBuffer());
+      const base64 = bytesToBase64(bytes);
+
+      if (libraryOpen === 'sounds') {
+        await updateArchiveWithProject(
+          (current) => ({
+            ...current,
+            targets: current.targets.map((target, idx) => {
+              if (idx !== selectedTargetIndex) return target;
+              const sounds = target.sounds || [];
+              return {
+                ...target,
+                sounds: [...sounds, {
+                  name: asset.name,
+                  assetId: asset.assetId,
+                  md5ext: asset.md5ext,
+                  dataFormat: asset.dataFormat,
+                  rate: asset.rate || 44100,
+                  sampleCount: asset.sampleCount || 0,
+                }],
+              };
+            }),
+          }),
+          (currentArchive) => ({
+            ...currentArchive,
+            files: { ...currentArchive.files, [asset.md5ext]: base64 },
+            fileNames: currentArchive.fileNames.includes(asset.md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, asset.md5ext],
+          }),
+        );
+      } else if (libraryOpen === 'backdrops') {
+        await updateArchiveWithProject(
+          (current) => ({
+            ...current,
+            targets: current.targets.map((target) => {
+              if (!target.isStage) return target;
+              const costumes = target.costumes || [];
+              return {
+                ...target,
+                costumes: [...costumes, {
+                  name: asset.name,
+                  assetId: asset.assetId,
+                  md5ext: asset.md5ext,
+                  dataFormat: asset.dataFormat,
+                  rotationCenterX: asset.rotationCenterX || 240,
+                  rotationCenterY: asset.rotationCenterY || 180,
+                }],
+                currentCostume: costumes.length,
+              };
+            }),
+          }),
+          (currentArchive) => ({
+            ...currentArchive,
+            files: { ...currentArchive.files, [asset.md5ext]: base64 },
+            fileNames: currentArchive.fileNames.includes(asset.md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, asset.md5ext],
+          }),
+        );
+      } else {
+        // costumes
+        await updateArchiveWithProject(
+          (current) => ({
+            ...current,
+            targets: current.targets.map((target, idx) => {
+              if (idx !== selectedTargetIndex) return target;
+              const costumes = target.costumes || [];
+              return {
+                ...target,
+                costumes: [...costumes, {
+                  name: asset.name,
+                  assetId: asset.assetId,
+                  md5ext: asset.md5ext,
+                  dataFormat: asset.dataFormat,
+                  rotationCenterX: asset.rotationCenterX || 48,
+                  rotationCenterY: asset.rotationCenterY || 48,
+                }],
+                currentCostume: costumes.length,
+              };
+            }),
+          }),
+          (currentArchive) => ({
+            ...currentArchive,
+            files: { ...currentArchive.files, [asset.md5ext]: base64 },
+            fileNames: currentArchive.fileNames.includes(asset.md5ext) ? currentArchive.fileNames : [...currentArchive.fileNames, asset.md5ext],
+          }),
+        );
+      }
+    } catch (e) {
+      console.warn('Failed to add library asset:', e);
+    }
+    setLibraryOpen(null);
   };
 
   const addSprite = () => {
@@ -1375,11 +1474,16 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               )
             ) : activeEditorTab === 'costumes' ? (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-1">
                   <span className="text-sm font-semibold text-[#575e75]">Costumes ({selectedCostumes.length})</span>
-                  <button className="px-3 py-1 rounded-full bg-[#855cd6] text-white text-xs flex items-center gap-1" onClick={() => costumeInputRef.current?.click()}>
-                    <Upload className="w-3 h-3" /> Upload
-                  </button>
+                  <div className="flex gap-1">
+                    <button className="px-2.5 py-1 rounded-full bg-[#855cd6] text-white text-xs flex items-center gap-1" onClick={() => setLibraryOpen('costumes')}>
+                      Choose
+                    </button>
+                    <button className="px-2.5 py-1 rounded-full bg-[#575e75] text-white text-xs flex items-center gap-1" onClick={() => costumeInputRef.current?.click()}>
+                      <Upload className="w-3 h-3" /> Upload
+                    </button>
+                  </div>
                   <input ref={costumeInputRef} className="hidden" type="file" accept="image/*,.svg" onChange={(e) => e.target.files?.[0] && addCostume(e.target.files[0])} />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -1398,11 +1502,16 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-1">
                   <span className="text-sm font-semibold text-[#575e75]">Sounds ({selectedSounds.length})</span>
-                  <button className="px-3 py-1 rounded-full bg-[#855cd6] text-white text-xs flex items-center gap-1" onClick={() => soundInputRef.current?.click()}>
-                    <Upload className="w-3 h-3" /> Upload
-                  </button>
+                  <div className="flex gap-1">
+                    <button className="px-2.5 py-1 rounded-full bg-[#cf63cf] text-white text-xs flex items-center gap-1" onClick={() => setLibraryOpen('sounds')}>
+                      Choose
+                    </button>
+                    <button className="px-2.5 py-1 rounded-full bg-[#575e75] text-white text-xs flex items-center gap-1" onClick={() => soundInputRef.current?.click()}>
+                      <Upload className="w-3 h-3" /> Upload
+                    </button>
+                  </div>
                   <input ref={soundInputRef} className="hidden" type="file" accept="audio/*" onChange={(e) => e.target.files?.[0] && addSound(e.target.files[0])} />
                 </div>
                 <div className="space-y-1.5">
@@ -1583,13 +1692,22 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             <div className="w-[120px] border-l border-[#e0e0e0] bg-white flex flex-col shrink-0 min-h-0">
               <div className="px-2 pt-2 pb-1 flex items-center justify-between">
                 <div className="text-[11px] font-bold text-[#575e75]">Stage</div>
-                <button
-                  onClick={() => backdropInputRef.current?.click()}
-                  className="w-5 h-5 rounded-full bg-[#855cd6] text-white flex items-center justify-center hover:bg-[#7248bf]"
-                  title="Upload backdrop"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setLibraryOpen('backdrops')}
+                    className="w-5 h-5 rounded-full bg-[#4c97ff] text-white flex items-center justify-center hover:bg-[#3d79cc] text-[9px] font-bold"
+                    title="Choose backdrop"
+                  >
+                    🔍
+                  </button>
+                  <button
+                    onClick={() => backdropInputRef.current?.click()}
+                    className="w-5 h-5 rounded-full bg-[#855cd6] text-white flex items-center justify-center hover:bg-[#7248bf]"
+                    title="Upload backdrop"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
                 <input ref={backdropInputRef} className="hidden" type="file" accept="image/*,.svg" onChange={(e) => e.target.files?.[0] && addBackdrop(e.target.files[0])} />
               </div>
               <div className="text-[9px] text-[#575e75] px-2 mb-1">Backdrops</div>
@@ -1661,6 +1779,15 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             </div>
           </div>
         </div>
+      )}
+      {/* Asset Library Dialog */}
+      {libraryOpen && (
+        <ScratchLibraryDialog
+          mode={libraryOpen}
+          open={true}
+          onClose={() => setLibraryOpen(null)}
+          onSelect={addLibraryAsset}
+        />
       )}
     </div>
   );
