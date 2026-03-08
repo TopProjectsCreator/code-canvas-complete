@@ -1178,6 +1178,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       } catch { /* noop */ }
       rendererRef.current = null;
       vmRef.current = null;
+      projectLoadedRef.current = false;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
