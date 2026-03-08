@@ -599,76 +599,91 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }
   }, [syncFromVm]);
 
-  // Initialize VM with renderer, storage, and audio engine
+  // Initialize VM with renderer, storage, and audio engine (dynamic imports)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    let cancelled = false;
 
-    try {
-      const VmCtor = VirtualMachine as unknown as { new (): ScratchVmLike };
-      const vm = new VmCtor();
-
-      // Attach renderer
+    const initVm = async () => {
       try {
-        if (RenderWebGL) {
-          const renderer = new RenderWebGL(canvas);
-          vm.attachRenderer(renderer);
-          rendererRef.current = renderer;
+        const VmCtor = VirtualMachine as unknown as { new (): ScratchVmLike };
+        const vm = new VmCtor();
+
+        // Dynamically import and attach renderer
+        try {
+          const renderMod = await import('scratch-render');
+          const RenderCtor = renderMod.default || renderMod;
+          if (typeof RenderCtor === 'function') {
+            const renderer = new RenderCtor(canvas);
+            vm.attachRenderer(renderer);
+            rendererRef.current = renderer;
+          }
+        } catch (e) {
+          console.warn('scratch-render not available:', e);
         }
-      } catch (e) {
-        console.warn('Failed to attach scratch-render:', e);
-      }
 
-      // Attach storage with custom web source that resolves from archive
-      try {
-        if (ScratchStorageCtor) {
-          const storage = new ScratchStorageCtor();
-          const AssetType = storage.AssetType;
-
-          storage.addWebStore(
-            [AssetType.ImageVector, AssetType.ImageBitmap, AssetType.Sound],
-            (asset: { assetId: string; dataFormat: string }) => {
-              const key = `${asset.assetId}.${asset.dataFormat}`;
-              const b64 = archiveRef.current?.files?.[key];
-              if (b64) return `data:application/octet-stream;base64,${b64}`;
-              return '';
-            }
-          );
-          vm.attachStorage(storage);
+        // Dynamically import and attach storage
+        try {
+          const storageMod = await import('scratch-storage');
+          const StorageCtor = storageMod.default || storageMod;
+          if (typeof StorageCtor === 'function') {
+            const storage = new StorageCtor();
+            const AssetType = storage.AssetType;
+            storage.addWebStore(
+              [AssetType.ImageVector, AssetType.ImageBitmap, AssetType.Sound],
+              (asset: { assetId: string; dataFormat: string }) => {
+                const key = `${asset.assetId}.${asset.dataFormat}`;
+                const b64 = archiveRef.current?.files?.[key];
+                if (b64) return `data:application/octet-stream;base64,${b64}`;
+                return '';
+              }
+            );
+            vm.attachStorage(storage);
+          }
+        } catch (e) {
+          console.warn('scratch-storage not available:', e);
         }
-      } catch (e) {
-        console.warn('Failed to attach scratch-storage:', e);
-      }
 
-      // Attach audio engine
-      try {
-        if (AudioEngineCtor) {
-          const audioEngine = new AudioEngineCtor();
-          vm.attachAudioEngine(audioEngine);
+        // Dynamically import and attach audio engine
+        try {
+          const audioMod = await import('scratch-audio');
+          const AudioCtor = audioMod.default || audioMod;
+          if (typeof AudioCtor === 'function') {
+            const audioEngine = new AudioCtor();
+            vm.attachAudioEngine(audioEngine);
+          }
+        } catch (e) {
+          console.warn('scratch-audio not available:', e);
         }
-      } catch (e) {
-        console.warn('Failed to attach scratch-audio:', e);
-      }
 
-      vm.start();
-      vmRef.current = vm;
-      setVmReady(true);
-      setVmError(null);
+        if (cancelled) return;
 
-      // Start draw loop
-      const drawStep = () => {
-        if (rendererRef.current) {
-          rendererRef.current.draw();
-        }
-        syncFromVm();
+        vm.start();
+        vmRef.current = vm;
+        setVmReady(true);
+        setVmError(null);
+
+        // Start draw loop
+        const drawStep = () => {
+          if (rendererRef.current) {
+            rendererRef.current.draw();
+          }
+          syncFromVm();
+          rafRef.current = requestAnimationFrame(drawStep);
+        };
         rafRef.current = requestAnimationFrame(drawStep);
-      };
-      rafRef.current = requestAnimationFrame(drawStep);
-    } catch (error) {
-      setVmError(error instanceof Error ? error.message : 'Failed to initialize scratch-vm.');
-    }
+      } catch (error) {
+        if (!cancelled) {
+          setVmError(error instanceof Error ? error.message : 'Failed to initialize scratch-vm.');
+        }
+      }
+    };
+
+    initVm();
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(rafRef.current);
       try {
         vmRef.current?.stopAll();
