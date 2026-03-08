@@ -5,6 +5,50 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/**
+ * Template list — kept in sync with src/data/templateRegistry.ts.
+ * We duplicate the minimal data here because edge functions can't import from src/.
+ * Format: { id, description } — used to build the system prompt dynamically.
+ */
+const TEMPLATES: { id: string; desc: string }[] = [
+  { id: "blank", desc: "Empty project, start from scratch" },
+  { id: "html", desc: "HTML/CSS/JS website" },
+  { id: "react", desc: "React components & UI" },
+  { id: "nodejs", desc: "Node.js server with Express" },
+  { id: "javascript", desc: "Plain JavaScript (Node.js)" },
+  { id: "typescript", desc: "TypeScript with types" },
+  { id: "python", desc: "Python scripting, AI, data science" },
+  { id: "flask", desc: "Python Flask web framework" },
+  { id: "django", desc: "Python Django web framework" },
+  { id: "java", desc: "Java enterprise apps" },
+  { id: "cpp", desc: "C++ high-performance" },
+  { id: "c", desc: "C systems/embedded" },
+  { id: "go", desc: "Go backend development" },
+  { id: "rust", desc: "Rust memory-safe systems" },
+  { id: "zig", desc: "Zig modern systems language" },
+  { id: "nim", desc: "Nim compiled language" },
+  { id: "ruby", desc: "Ruby web development" },
+  { id: "php", desc: "PHP server-side scripting" },
+  { id: "csharp", desc: "C# .NET and games" },
+  { id: "sqlite", desc: "SQL database queries" },
+  { id: "r", desc: "R statistical computing" },
+  { id: "haskell", desc: "Haskell functional programming" },
+  { id: "lisp", desc: "Common Lisp" },
+  { id: "d", desc: "D systems programming" },
+  { id: "groovy", desc: "Groovy JVM scripting" },
+  { id: "pascal", desc: "Pascal structured programming" },
+  { id: "lua", desc: "Lua game scripting" },
+  { id: "perl", desc: "Perl text processing" },
+  { id: "bash", desc: "Bash shell scripting" },
+  { id: "arduino", desc: "Arduino embedded systems" },
+  { id: "scratch", desc: "Scratch visual block programming" },
+  { id: "word", desc: "Word document editing" },
+  { id: "powerpoint", desc: "PowerPoint presentations" },
+  { id: "excel", desc: "Excel spreadsheets" },
+];
+
+const templateList = TEMPLATES.map((t) => `- ${t.id}: ${t.desc}`).join("\n");
+
 const SYSTEM_PROMPT = `You are a helpful assistant embedded in an online IDE that is for Code Canvas Complete. This is a custom-built online IDE experience. Your job is to help users pick the right programming template for their project.
 
 IMPORTANT PLATFORM FACTS:
@@ -18,35 +62,7 @@ IMPORTANT PLATFORM FACTS:
 Users may attach images, PDFs, or other files to show you what they want to build (e.g. screenshots, mockups, documents). Analyze them and recommend the best template.
 
 Available templates:
-- blank: Empty project, start from scratch
-- html: HTML/CSS/JS website
-- react: React components & UI
-- nodejs: Node.js server with Express
-- javascript: Plain JavaScript (Node.js)
-- typescript: TypeScript with types
-- python: Python scripting, AI, data science
-- flask: Python Flask web framework
-- django: Python Django web framework
-- java: Java enterprise apps
-- cpp: C++ high-performance
-- c: C systems/embedded
-- go: Go backend development
-- rust: Rust memory-safe systems
-- zig: Zig modern systems language
-- nim: Nim compiled language
-- ruby: Ruby web development
-- php: PHP server-side scripting
-- csharp: C# .NET and games
-- sqlite: SQL database queries
-- r: R statistical computing
-- haskell: Haskell functional programming
-- lisp: Common Lisp
-- d: D systems programming
-- groovy: Groovy JVM scripting
-- pascal: Pascal structured programming
-- lua: Lua game scripting
-- perl: Perl text processing
-- bash: Bash shell scripting
+${templateList}
 
 When recommending a template, always include the template ID in your response wrapped like this: [template:id] (e.g. [template:python]).
 Keep responses concise (2-3 sentences max). Be friendly and helpful. If the user describes what they want to build, recommend the best template and explain why briefly.
@@ -65,8 +81,6 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Messages may contain multimodal content (content as array with text + image_url parts)
-    // Pass them through as-is since the gateway supports OpenAI-compatible format
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
