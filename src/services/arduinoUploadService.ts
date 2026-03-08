@@ -111,7 +111,7 @@ export class ArduinoUploadService {
     const compileResult = await compileResponse.json();
     const isSamba = SAMBA_BOARDS.includes(boardId);
 
-    if (isDFU) {
+    if (isSamba) {
       if (!compileResult.binary) {
         throw new Error('Compilation did not produce binary output for this board');
       }
