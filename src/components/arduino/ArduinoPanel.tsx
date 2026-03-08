@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ArduinoUploadService } from '@/services/arduinoUploadService';
 import { BreadboardVisualizer } from './BreadboardVisualizer';
 import { LibraryManager } from './LibraryManager';
 import { ArduinoUploadDialog, UploadConfig } from './ArduinoUploadDialog';
