@@ -926,7 +926,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     originalBlock: ScratchBlockNode;
     detached: boolean;
   } | null>(null);
-  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const [dragBlockId, setDragBlockId] = useState<string | null>(null);
   const [dragBlockId, setDragBlockId] = useState<string | null>(null);
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
