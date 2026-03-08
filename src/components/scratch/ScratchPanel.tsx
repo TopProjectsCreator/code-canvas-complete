@@ -1083,23 +1083,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           console.warn('scratch-storage not available:', e);
         }
 
-        // Dynamically import and attach renderer (after storage)
-        if (storageReadyRef.current) {
-          try {
-            const renderMod = await import('scratch-render');
-            const RenderCtor = (renderMod as any)?.default || renderMod;
-            if (typeof RenderCtor === 'function') {
-              const renderer = new RenderCtor(canvas);
-              vm.attachRenderer(renderer);
-              rendererRef.current = renderer;
-              useWebGLRenderer = true;
-              console.log('[Scratch] scratch-render attached successfully');
-            }
-          } catch (e) {
-            useWebGLRenderer = false;
-            console.warn('scratch-render not available:', e);
-          }
-        }
+        // Keep 2D fallback renderer as primary path for compatibility in this environment
+        useWebGLRenderer = false;
 
         // Dynamically import and attach audio engine
         try {
