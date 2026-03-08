@@ -37,7 +37,11 @@ interface ArduinoUploadDialogProps {
   sketchCode: string;
 }
 
-const SAMBA_BOARDS = ['uno_r4_wifi'];
+const SAMBA_BOARDS = ['uno_r4_wifi', 'due', 'zero', 'mkr_wifi_1010', 'nano_33_iot'];
+const AVR109_BOARDS = ['leonardo', 'micro'];
+const ESP_BOARDS = ['esp32', 'esp8266'];
+const STM32_BOARDS = ['portenta_h7', 'giga_r1'];
+const UF2_ONLY_BOARDS = ['nano_33_ble', 'rp2040_connect'];
 
 export function ArduinoUploadDialog({
   open,
