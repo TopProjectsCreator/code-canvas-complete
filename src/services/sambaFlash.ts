@@ -292,35 +292,28 @@ class SambaConnection {
 // ── Flash Operations ──
 
 /**
- * The Arduino R4 WiFi bootloader (TinyUSB-based) accepts BOSSA-compatible
- * SAM-BA commands. For the RA4M1, flash writing works by:
- * 1. Writing data to an SRAM buffer
- * 2. Using FACI registers to program flash pages
- * 
- * However, the Arduino bootloader abstracts this — it accepts direct
- * S (write) commands to flash addresses and handles the FACI internally.
- * This is the "simple" mode used by bossac for Arduino boards.
+ * The Arduino bootloaders (BOSSA-compatible) accept direct S (write) commands
+ * to flash addresses and handle erase-before-write internally.
  */
 
 async function eraseAndWriteFlash(
   samba: SambaConnection,
   firmware: Uint8Array,
+  config: SambaBoardConfig,
   onProgress?: ProgressCallback
 ): Promise<void> {
-  const totalPages = Math.ceil(firmware.length / PAGE_SIZE);
+  const userFlashBase = config.flashBase + config.bootloaderSize;
+  const totalPages = Math.ceil(firmware.length / config.pageSize);
   onProgress?.(`Writing ${firmware.length} bytes (${totalPages} pages)...`, 20);
 
   for (let page = 0; page < totalPages; page++) {
-    const offset = page * PAGE_SIZE;
-    const end = Math.min(offset + PAGE_SIZE, firmware.length);
-    const pageData = new Uint8Array(PAGE_SIZE);
-    pageData.fill(0xFF); // Erased flash state
+    const offset = page * config.pageSize;
+    const end = Math.min(offset + config.pageSize, firmware.length);
+    const pageData = new Uint8Array(config.pageSize);
+    pageData.fill(0xFF);
     pageData.set(firmware.subarray(offset, end));
 
-    const flashAddr = USER_FLASH_BASE + offset;
-
-    // Write page data to flash via SAM-BA S command
-    // The Arduino bootloader handles erase-before-write internally
+    const flashAddr = userFlashBase + offset;
     await samba.writeBuffer(flashAddr, pageData);
 
     const pct = 20 + Math.round(((page + 1) / totalPages) * 70);
@@ -331,14 +324,15 @@ async function eraseAndWriteFlash(
 async function verifyFlash(
   samba: SambaConnection,
   firmware: Uint8Array,
+  config: SambaBoardConfig,
   onProgress?: ProgressCallback
 ): Promise<boolean> {
+  const userFlashBase = config.flashBase + config.bootloaderSize;
   onProgress?.('Verifying flash...', 92);
 
-  // Verify first few words to confirm write succeeded
   const wordsToCheck = Math.min(16, Math.floor(firmware.length / 4));
   for (let i = 0; i < wordsToCheck; i++) {
-    const addr = USER_FLASH_BASE + i * 4;
+    const addr = userFlashBase + i * 4;
     const expected = firmware[i * 4] |
       (firmware[i * 4 + 1] << 8) |
       (firmware[i * 4 + 2] << 16) |
@@ -351,7 +345,6 @@ async function verifyFlash(
         return false;
       }
     } catch {
-      // If read fails, skip verification (some bootloaders don't support read-back)
       onProgress?.('Verification read not supported, skipping...', 94);
       return true;
     }
@@ -364,25 +357,26 @@ async function verifyFlash(
 // ── Public API ──
 
 /**
- * Trigger the R4 WiFi bootloader by performing a 1200-baud touch.
- * Opens the port at 1200 baud, waits briefly, then closes.
+ * Trigger bootloader by performing a 1200-baud touch.
+ * Works for all SAM-BA boards (R4 WiFi, Due, Zero, MKR, Nano 33 IoT).
  */
-export async function triggerBootloader(onProgress?: ProgressCallback): Promise<void> {
+export async function triggerBootloader(
+  onProgress?: ProgressCallback,
+  boardName = 'Arduino'
+): Promise<void> {
   const serial = getSerial();
   if (!serial) throw new Error('Web Serial API not supported. Use Chrome or Edge.');
 
-  onProgress?.('Select the Arduino R4 WiFi serial port...', 5);
+  onProgress?.(`Select the ${boardName} serial port...`, 5);
 
   let port: SerialPortLike;
   try {
     port = await serial.requestPort({
-      filters: [
-        { usbVendorId: 0x2341 }, // Arduino
-      ],
+      filters: [{ usbVendorId: 0x2341 }],
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === 'NotFoundError') {
-      throw new Error('No Arduino device found. Connect your R4 WiFi and try again.');
+      throw new Error(`No Arduino device found. Connect your ${boardName} and try again.`);
     }
     throw err;
   }
@@ -391,7 +385,6 @@ export async function triggerBootloader(onProgress?: ProgressCallback): Promise<
 
   try {
     await port.open({ baudRate: 1200 });
-    // Toggle DTR to trigger reset
     if (port.setSignals) {
       await port.setSignals({ dataTerminalReady: false });
       await new Promise(r => setTimeout(r, 100));
@@ -407,31 +400,33 @@ export async function triggerBootloader(onProgress?: ProgressCallback): Promise<
   }
 
   onProgress?.('Board resetting into bootloader mode...', 10);
-  // Wait for board to re-enumerate
   await new Promise(r => setTimeout(r, BOOT_WAIT_MS));
 }
 
 /**
  * Connect to the SAM-BA bootloader and flash firmware.
  * Call triggerBootloader() first, then call this with the binary firmware.
+ * boardId determines flash geometry (page size, base address, etc).
  */
 export async function flashViaSamba(
   firmwareBase64: string,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  boardId = 'uno_r4_wifi'
 ): Promise<void> {
+  const config = getBoardConfig(boardId);
   const serial = getSerial();
   if (!serial) throw new Error('Web Serial API not supported. Use Chrome or Edge.');
 
-  // Decode base64 binary to Uint8Array
   const binaryStr = atob(firmwareBase64);
   const firmware = new Uint8Array(binaryStr.length);
   for (let i = 0; i < binaryStr.length; i++) {
     firmware[i] = binaryStr.charCodeAt(i);
   }
 
+  const maxSize = config.flashSize - config.bootloaderSize;
   if (firmware.length === 0) throw new Error('Empty firmware');
-  if (firmware.length > FLASH_SIZE - BOOTLOADER_SIZE) {
-    throw new Error(`Firmware too large: ${firmware.length} bytes (max ${FLASH_SIZE - BOOTLOADER_SIZE})`);
+  if (firmware.length > maxSize) {
+    throw new Error(`Firmware too large: ${firmware.length} bytes (max ${maxSize})`);
   }
 
   onProgress?.('Select the bootloader serial port (may be a new port)...', 12);
@@ -439,9 +434,7 @@ export async function flashViaSamba(
   let port: SerialPortLike;
   try {
     port = await serial.requestPort({
-      filters: [
-        { usbVendorId: 0x2341 }, // Arduino
-      ],
+      filters: [{ usbVendorId: 0x2341 }],
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === 'NotFoundError') {
@@ -453,11 +446,10 @@ export async function flashViaSamba(
     throw err;
   }
 
-  // Try connecting at supported baud rates
   let connected = false;
   let lastError: Error | null = null;
 
-  for (const baud of BAUD_RATES) {
+  for (const baud of config.baudRates) {
     try {
       onProgress?.(`Connecting at ${baud} baud...`, 14);
       await port.open({ baudRate: baud });
@@ -480,25 +472,19 @@ export async function flashViaSamba(
   }
 
   const samba = new SambaConnection(port, writer, reader);
+  const userFlashBase = config.flashBase + config.bootloaderSize;
 
   try {
-    // Initialize SAM-BA connection
     onProgress?.('Initializing SAM-BA connection...', 16);
     const version = await samba.init();
     onProgress?.(`Connected to bootloader: ${version}`, 18);
 
-    // Write firmware
-    await eraseAndWriteFlash(samba, firmware, onProgress);
+    await eraseAndWriteFlash(samba, firmware, config, onProgress);
+    await verifyFlash(samba, firmware, config, onProgress);
 
-    // Verify
-    await verifyFlash(samba, firmware, onProgress);
-
-    // Reset board to run user application
     onProgress?.('Resetting board...', 97);
     try {
-      // Jump to user application at USER_FLASH_BASE
-      // Read the initial stack pointer and reset vector
-      await samba.execute(USER_FLASH_BASE);
+      await samba.execute(userFlashBase);
     } catch {
       // Board may disconnect during reset — that's expected
     }
@@ -516,8 +502,25 @@ export async function flashViaSamba(
 }
 
 /**
- * Combined flow: trigger bootloader + flash
+ * Combined flow: trigger bootloader + flash (for any SAM-BA board)
  */
+export async function flashSambaBoard(
+  firmwareBase64: string,
+  boardId: string,
+  onProgress?: ProgressCallback
+): Promise<void> {
+  const config = getBoardConfig(boardId);
+  await triggerBootloader(onProgress, config.name);
+  await flashViaSamba(firmwareBase64, onProgress, boardId);
+}
+
+// Legacy alias
+export async function flashR4WiFi(
+  firmwareBase64: string,
+  onProgress?: ProgressCallback
+): Promise<void> {
+  await flashSambaBoard(firmwareBase64, 'uno_r4_wifi', onProgress);
+}
 export async function flashR4WiFi(
   firmwareBase64: string,
   onProgress?: ProgressCallback
