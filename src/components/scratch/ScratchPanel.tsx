@@ -78,6 +78,9 @@ interface ScratchVmLike {
   stopAll: () => void;
   greenFlag: () => void;
   loadProject: (projectData: ArrayBuffer) => Promise<void>;
+  attachRenderer: (renderer: unknown) => void;
+  attachStorage: (storage: unknown) => void;
+  attachAudioEngine: (audioEngine: unknown) => void;
 }
 
 interface ScratchPanelProps {
