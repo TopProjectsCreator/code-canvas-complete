@@ -371,8 +371,8 @@ const ensureArchive = (archive: ScratchArchive | null): ScratchArchive => {
 };
 
 const makeNumberInput = (value: string) => [1, [4, value]];
-const isEventBlock = (opcode: string) => opcode.startsWith('event_');
-const getBlockColor = (opcode: string) => (opcode.startsWith('motion_') ? '#4c97ff'
+const isEventBlock = (opcode: string) => opcode?.startsWith('event_');
+const getBlockColor = (opcode: string) => (!opcode ? '#4c97ff' : opcode.startsWith('motion_') ? '#4c97ff'
   : opcode.startsWith('looks_') ? '#9966ff'
     : opcode.startsWith('sound_') ? '#cf63cf'
       : opcode.startsWith('event_') ? '#ffbf00'
@@ -1445,7 +1445,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               backgroundSize: '24px 24px',
             }}
           >
-            {selectedBlocks.map((block) => {
+            {selectedBlocks.filter((block) => block.opcode).map((block) => {
               const blockColor = getBlockColor(block.opcode);
               const shape = getBlockShape(block.opcode);
               const label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
