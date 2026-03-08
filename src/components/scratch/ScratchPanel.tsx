@@ -526,6 +526,10 @@ const VariablesFlyout = ({
   onMakeVariable,
   onMakeList,
   onAddBlock,
+  onDeleteVariable,
+  onDeleteList,
+  onRenameVariable,
+  onRenameList,
 }: {
   variables: [string, [string, ScratchInputPrimitive]][];
   lists: [string, [string, ScratchInputPrimitive[]]][];
@@ -534,13 +538,34 @@ const VariablesFlyout = ({
   onMakeVariable: () => void;
   onMakeList: () => void;
   onAddBlock: (blockDef: ScratchBlockDef) => void;
+  onDeleteVariable: (id: string) => void;
+  onDeleteList: (id: string) => void;
+  onRenameVariable: (id: string, oldName: string) => void;
+  onRenameList: (id: string, oldName: string) => void;
 }) => {
-  // Split blocks into variable-related and list-related
+  const [contextMenu, setContextMenu] = useState<{
+    x: number; y: number; type: 'variable' | 'list'; id: string; name: string;
+    allNames: string[];
+  } | null>(null);
+
   const varBlocks = blocks.filter((b) => !b.opcode.includes('list') && !b.opcode.includes('List'));
   const listBlocks = blocks.filter((b) => b.opcode.includes('list') || b.opcode.includes('List'));
 
+  const varNames = variables.map(([, [name]]) => name);
+  const listNames = lists.map(([, [name]]) => name);
+
+  // Replace "my variable" in block labels with the first variable name
+  const resolveVarLabel = (label: string) => {
+    if (varNames.length > 0) return label.replace('my variable', varNames[0]);
+    return label;
+  };
+  const resolveListLabel = (label: string) => {
+    if (listNames.length > 0) return label.replace('my list', listNames[0]);
+    return label;
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" onClick={() => setContextMenu(null)}>
       {/* Make a Variable button */}
       <button
         onClick={onMakeVariable}
@@ -555,7 +580,21 @@ const VariablesFlyout = ({
           {variables.map(([id, [name]]) => (
             <div key={id} className="flex items-center gap-2">
               <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#ff8c1a]" />
-              <ScratchBlockShape label={name} color={color} shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
+              <div
+                className="cursor-pointer"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ x: e.clientX, y: e.clientY, type: 'variable', id, name, allNames: varNames });
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setContextMenu((prev) =>
+                    prev?.id === id ? null : { x: e.clientX, y: e.clientY, type: 'variable', id, name, allNames: varNames }
+                  );
+                }}
+              >
+                <ScratchBlockShape label={name} color={color} shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
+              </div>
             </div>
           ))}
         </div>
@@ -577,7 +616,7 @@ const VariablesFlyout = ({
                 onClick={() => onAddBlock(blockDef)}
                 className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
               >
-                <ScratchBlockShape label={blockDef.label} color={color} shape={shape} />
+                <ScratchBlockShape label={resolveVarLabel(blockDef.label)} color={color} shape={shape} />
               </div>
             );
           })}
@@ -601,7 +640,21 @@ const VariablesFlyout = ({
           {lists.map(([id, [name]]) => (
             <div key={id} className="flex items-center gap-2">
               <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#e6832a]" />
-              <ScratchBlockShape label={name} color="#e6832a" shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
+              <div
+                className="cursor-pointer"
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setContextMenu({ x: e.clientX, y: e.clientY, type: 'list', id, name, allNames: listNames });
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setContextMenu((prev) =>
+                    prev?.id === id ? null : { x: e.clientX, y: e.clientY, type: 'list', id, name, allNames: listNames }
+                  );
+                }}
+              >
+                <ScratchBlockShape label={name} color="#e6832a" shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
+              </div>
             </div>
           ))}
         </div>
@@ -623,10 +676,53 @@ const VariablesFlyout = ({
                 onClick={() => onAddBlock(blockDef)}
                 className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
               >
-                <ScratchBlockShape label={blockDef.label} color="#e6832a" shape={shape} />
+                <ScratchBlockShape label={resolveListLabel(blockDef.label)} color="#e6832a" shape={shape} />
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Context menu for variable/list reporters */}
+      {contextMenu && (
+        <div
+          className="fixed z-[100] rounded-lg shadow-xl border border-[#d0d0d0] bg-[#ffd948] py-2 min-w-[200px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* List all items of this type with a checkmark on the selected one */}
+          {contextMenu.allNames.map((n) => (
+            <div
+              key={n}
+              className="px-4 py-1.5 text-[13px] font-bold text-white hover:bg-[#eec530] cursor-pointer flex items-center gap-2"
+            >
+              {n === contextMenu.name && <span>✓</span>}
+              <span className={n === contextMenu.name ? '' : 'ml-5'}>{n}</span>
+            </div>
+          ))}
+          <div className="border-t border-[#eec530] my-1" />
+          <button
+            onClick={() => {
+              contextMenu.type === 'variable'
+                ? onRenameVariable(contextMenu.id, contextMenu.name)
+                : onRenameList(contextMenu.id, contextMenu.name);
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-4 py-1.5 text-[13px] font-bold text-white hover:bg-[#eec530]"
+          >
+            Rename {contextMenu.type}
+          </button>
+          <button
+            onClick={() => {
+              contextMenu.type === 'variable'
+                ? onDeleteVariable(contextMenu.id)
+                : onDeleteList(contextMenu.id);
+              setContextMenu(null);
+            }}
+            className="w-full text-left px-4 py-1.5 text-[13px] font-bold text-white hover:bg-[#eec530]"
+          >
+            Delete the "{contextMenu.name}" {contextMenu.type}
+          </button>
         </div>
       )}
     </div>
@@ -646,6 +742,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [vmError, setVmError] = useState<string | null>(null);
   const [dataPrompt, setDataPrompt] = useState<{ type: 'variable' | 'list'; name: string } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState<LibraryMode | null>(null);
+  const [renameTarget, setRenameTarget] = useState<{ type: 'variable' | 'list'; id: string; oldName: string } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const costumeInputRef = useRef<HTMLInputElement>(null);
   const soundInputRef = useRef<HTMLInputElement>(null);
@@ -1149,10 +1246,74 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }));
   };
 
+  const deleteVariable = (id: string) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const vars = { ...(target.variables || {}) };
+        delete vars[id];
+        return { ...target, variables: vars };
+      }),
+    }));
+  };
+
+  const deleteList = (id: string) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const l = { ...(target.lists || {}) };
+        delete l[id];
+        return { ...target, lists: l };
+      }),
+    }));
+  };
+
+  const renameVariable = (id: string, oldName: string) => {
+    setDataPrompt({ type: 'variable', name: oldName });
+    // After submit, we need to update the variable name in-place
+    // We'll handle this by deleting + re-creating — but simpler: just update directly
+    // Use a special rename flow
+    setRenameTarget({ type: 'variable', id, oldName });
+  };
+
+  const renameList = (id: string, oldName: string) => {
+    setDataPrompt({ type: 'list', name: oldName });
+    setRenameTarget({ type: 'list', id, oldName });
+  };
+
+  // renameTarget state moved to top of component (line ~746)
+
   const handleDataPromptSubmit = () => {
     if (!dataPrompt || !dataPrompt.name.trim()) return;
-    if (dataPrompt.type === 'variable') createVariable(dataPrompt.name.trim());
-    else createList(dataPrompt.name.trim());
+    if (renameTarget) {
+      // Rename in-place
+      const newName = dataPrompt.name.trim();
+      updateProject((current) => ({
+        ...current,
+        targets: current.targets.map((target, idx) => {
+          if (idx !== selectedTargetIndex) return target;
+          if (renameTarget.type === 'variable') {
+            const vars = { ...(target.variables || {}) };
+            if (vars[renameTarget.id]) {
+              vars[renameTarget.id] = [newName, vars[renameTarget.id][1]];
+            }
+            return { ...target, variables: vars };
+          } else {
+            const l = { ...(target.lists || {}) };
+            if (l[renameTarget.id]) {
+              l[renameTarget.id] = [newName, l[renameTarget.id][1]];
+            }
+            return { ...target, lists: l };
+          }
+        }),
+      }));
+      setRenameTarget(null);
+    } else {
+      if (dataPrompt.type === 'variable') createVariable(dataPrompt.name.trim());
+      else createList(dataPrompt.name.trim());
+    }
     setDataPrompt(null);
   };
 
@@ -1446,9 +1607,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   lists={Object.entries(selectedTarget?.lists || {})}
                   blocks={categoryBlocks['Variables'] || []}
                   color={categoryColors['Variables'] || '#ff8c1a'}
-                  onMakeVariable={() => setDataPrompt({ type: 'variable', name: 'my variable' })}
-                  onMakeList={() => setDataPrompt({ type: 'list', name: 'my list' })}
+                  onMakeVariable={() => { setRenameTarget(null); setDataPrompt({ type: 'variable', name: 'my variable' }); }}
+                  onMakeList={() => { setRenameTarget(null); setDataPrompt({ type: 'list', name: 'my list' }); }}
                   onAddBlock={addBlock}
+                  onDeleteVariable={deleteVariable}
+                  onDeleteList={deleteList}
+                  onRenameVariable={renameVariable}
+                  onRenameList={renameList}
                 />
               ) : (
               <div className="space-y-1.5">
