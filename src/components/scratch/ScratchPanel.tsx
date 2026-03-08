@@ -1040,69 +1040,56 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         // Dynamically import and attach storage
         try {
+          storageReadyRef.current = false;
           const storageMod = await import('scratch-storage');
-          const StorageCtor = storageMod.default || storageMod;
-          console.log('[Scratch] scratch-storage module type:', typeof StorageCtor, Object.keys(storageMod));
-          let storage: any = null;
-          if (typeof StorageCtor === 'function') {
-            try { storage = new StorageCtor(); } catch (e2) {
-              console.warn('[Scratch] scratch-storage constructor failed:', e2);
+          const resolveStorageCtor = (mod: any): ((new () => any) | null) => {
+            const candidates = [
+              mod?.default?.default,
+              mod?.default,
+              mod?.ScratchStorage,
+              mod?.default?.ScratchStorage,
+              mod,
+            ];
+            for (const candidate of candidates) {
+              if (typeof candidate === 'function') return candidate as new () => any;
             }
+            return null;
+          };
+
+          const StorageCtor = resolveStorageCtor(storageMod);
+          console.log('[Scratch] scratch-storage exports:', Object.keys(storageMod || {}));
+
+          if (!StorageCtor) {
+            throw new Error('scratch-storage constructor not found');
           }
-          if (storage && storage.addWebStore) {
-            const AssetType = storage.AssetType;
-            storage.addWebStore(
-              [AssetType.ImageVector, AssetType.ImageBitmap, AssetType.Sound],
-              (asset: { assetId: string; dataFormat: string }) => {
-                const key = `${asset.assetId}.${asset.dataFormat}`;
-                const b64 = archiveRef.current?.files?.[key];
-                if (b64) {
-                  return `data:application/octet-stream;base64,${b64}`;
-                }
-                return '';
+
+          const storage = new StorageCtor();
+          if (typeof storage.scratchFetch !== 'function') {
+            storage.scratchFetch = (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init);
+          }
+          if (typeof storage.setMetadata !== 'function') {
+            storage.setMetadata = () => undefined;
+          }
+
+          const AssetType = storage.AssetType;
+          storage.addWebStore(
+            [AssetType.ImageVector, AssetType.ImageBitmap, AssetType.Sound],
+            (asset: { assetId: string; dataFormat: string }) => {
+              const key = `${asset.assetId}.${asset.dataFormat}`;
+              const b64 = archiveRef.current?.files?.[key];
+              if (b64) {
+                return `data:application/octet-stream;base64,${b64}`;
               }
-            );
-            vm.attachStorage(storage);
-            console.log('[Scratch] scratch-storage attached successfully');
-          } else {
-            // Fallback: create minimal storage shim so VM can load assets from archive
-            console.warn('[Scratch] scratch-storage constructor unavailable, using shim');
-            const shim = {
-              AssetType: { ImageVector: 'ImageVector', ImageBitmap: 'ImageBitmap', Sound: 'Sound' },
-              DataFormat: { SVG: 'svg', PNG: 'png', WAV: 'wav', MP3: 'mp3' },
-              addWebStore: () => {},
-              load: (assetType: string, assetId: string, dataFormat?: string) => {
-                const fmt = dataFormat || 'svg';
-                const key = `${assetId}.${fmt}`;
-                const b64 = archiveRef.current?.files?.[key];
-                if (b64) {
-                  const bin = atob(b64);
-                  const bytes = new Uint8Array(bin.length);
-                  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-                  return Promise.resolve({ data: bytes, assetType, dataFormat: fmt });
-                }
-                return Promise.resolve(null);
-              },
-              get: (assetId: string) => {
-                // Check all formats
-                for (const fmt of ['svg', 'png', 'wav', 'mp3']) {
-                  const key = `${assetId}.${fmt}`;
-                  if (archiveRef.current?.files?.[key]) {
-                    const b64 = archiveRef.current.files[key];
-                    const bin = atob(b64);
-                    const bytes = new Uint8Array(bin.length);
-                    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-                    return { data: bytes, dataFormat: fmt };
-                  }
-                }
-                return null;
-              },
-              store: () => Promise.resolve(),
-            };
-            vm.attachStorage(shim as any);
-            console.log('[Scratch] storage shim attached');
-          }
+              return '';
+            }
+          );
+
+          vm.attachStorage(storage);
+          storageReadyRef.current = true;
+          console.log('[Scratch] scratch-storage attached successfully');
         } catch (e) {
+          storageReadyRef.current = false;
+          setVmError('Storage initialization failed');
           console.warn('scratch-storage not available:', e);
         }
 
