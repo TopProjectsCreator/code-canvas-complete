@@ -537,7 +537,15 @@ const getBlockColor = (opcode: string) => (!opcode ? '#4c97ff' : opcode.startsWi
             : opcode.startsWith('operator_') ? '#59c059'
               : opcode.startsWith('data_') ? '#ff8c1a'
                 : opcode.startsWith('procedures_') ? '#ff6680'
-                  : '#4c97ff');
+                  : opcode.startsWith('pen_') ? '#0fbd8c'
+                    : opcode.startsWith('music_') ? '#d65cd6'
+                      : '#4c97ff');
+
+const getExtensionId = (opcode: string): string | null => {
+  if (opcode.startsWith('pen_')) return 'pen';
+  if (opcode.startsWith('music_')) return 'music';
+  return null;
+};
 
 const extensionOf = (name: string) => {
   const idx = name.lastIndexOf('.');
