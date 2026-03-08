@@ -1177,6 +1177,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     if (isRunning && !prevIsRunning.current) {
       // Parent triggered run (header button) — start VM
       try {
+        if (!projectLoadedRef.current) {
+          setVmError('Project not loaded yet. Please press Run again.');
+          onStop();
+          return;
+        }
         vmRef.current.greenFlag();
         setTimeout(() => syncFromVm(), 120);
       } catch (error) {
