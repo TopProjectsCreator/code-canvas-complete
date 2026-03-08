@@ -5,7 +5,10 @@ import {
   FileText, Save, Bold, Italic, Underline, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Undo, Redo, Type, Minus, Plus,
-  Loader2, Printer
+  Loader2, Table, Image, Link, Columns,
+  BookOpen, CheckSquare, MessageSquare, Eye, LayoutGrid,
+  Heading1, Heading2, Quote, Code, SeparatorHorizontal,
+  FileImage, Film, Bookmark, Search, Replace, SpellCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -13,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { decodeDataUrl, encodeDataUrl, parseXml, xmlEncode, buildNewDocx } from './officeUtils';
+import { cn } from '@/lib/utils';
 
 interface WordEditorProps {
   file: FileNode;
@@ -24,6 +28,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const [error, setError] = useState<string | null>(null);
   const [paragraphs, setParagraphs] = useState<string[]>([]);
   const [zoom, setZoom] = useState(100);
+  const [activeTab, setActiveTab] = useState<'home' | 'insert' | 'layout' | 'references' | 'review' | 'view'>('home');
   const editorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -103,94 +108,150 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
 
           {/* Ribbon tabs */}
           <div className="flex items-center gap-1 px-2 text-xs bg-[#185abd]/80 dark:bg-[#1b3a6b]/80">
-            <span className="px-3 py-1 bg-white/20 rounded-t font-medium">Home</span>
-            <span className="px-3 py-1 hover:bg-white/10 rounded-t cursor-pointer">Insert</span>
-            <span className="px-3 py-1 hover:bg-white/10 rounded-t cursor-pointer">Layout</span>
-            <span className="px-3 py-1 hover:bg-white/10 rounded-t cursor-pointer">References</span>
-            <span className="px-3 py-1 hover:bg-white/10 rounded-t cursor-pointer">Review</span>
-            <span className="px-3 py-1 hover:bg-white/10 rounded-t cursor-pointer">View</span>
+            {(['home', 'insert', 'layout', 'references', 'review', 'view'] as const).map(tab => (
+              <span
+                key={tab}
+                className={cn(
+                  "px-3 py-1 rounded-t cursor-pointer capitalize",
+                  activeTab === tab ? "bg-white/20 font-medium" : "hover:bg-white/10"
+                )}
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab === 'references' ? 'References' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </span>
+            ))}
           </div>
         </div>
 
         {/* Ribbon content */}
-        <div className="bg-background border-b border-border flex items-center gap-1 px-3 py-1.5">
-          {/* Undo/Redo */}
-          <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><Undo className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><Redo className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
-          </div>
+        <div className="bg-background border-b border-border flex items-center gap-1 px-3 py-1.5 min-h-[40px]">
+          {activeTab === 'home' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Undo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Redo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-1 pr-2 border-r border-border">
+                <Select defaultValue="calibri">
+                  <SelectTrigger className="h-7 w-28 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="calibri">Calibri</SelectItem>
+                    <SelectItem value="arial">Arial</SelectItem>
+                    <SelectItem value="times">Times New Roman</SelectItem>
+                    <SelectItem value="georgia">Georgia</SelectItem>
+                    <SelectItem value="courier">Courier New</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select defaultValue="11">
+                  <SelectTrigger className="h-7 w-14 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72].map(s => (
+                      <SelectItem key={s} value={String(s)}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Bold className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Underline className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Strikethrough className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Strikethrough</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignLeft className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignCenter className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignRight className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignJustify className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Justify</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><List className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bullets</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><ListOrdered className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Numbering</TooltipContent></Tooltip>
+              </div>
+            </>
+          )}
 
-          {/* Font */}
-          <div className="flex items-center gap-1 pr-2 border-r border-border">
-            <Select defaultValue="calibri">
-              <SelectTrigger className="h-7 w-28 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="calibri">Calibri</SelectItem>
-                <SelectItem value="arial">Arial</SelectItem>
-                <SelectItem value="times">Times New Roman</SelectItem>
-                <SelectItem value="georgia">Georgia</SelectItem>
-                <SelectItem value="courier">Courier New</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select defaultValue="11">
-              <SelectTrigger className="h-7 w-14 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 72].map(s => (
-                  <SelectItem key={s} value={String(s)}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {activeTab === 'insert' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Table className="w-3.5 h-3.5" /> Table</Button></TooltipTrigger><TooltipContent>Insert Table</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Image className="w-3.5 h-3.5" /> Picture</Button></TooltipTrigger><TooltipContent>Insert Picture</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Film className="w-3.5 h-3.5" /> Video</Button></TooltipTrigger><TooltipContent>Insert Video</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Link className="w-3.5 h-3.5" /> Link</Button></TooltipTrigger><TooltipContent>Insert Link</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Bookmark className="w-3.5 h-3.5" /> Bookmark</Button></TooltipTrigger><TooltipContent>Bookmark</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Heading1 className="w-3.5 h-3.5" /> Header</Button></TooltipTrigger><TooltipContent>Header</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><SeparatorHorizontal className="w-3.5 h-3.5" /> Footer</Button></TooltipTrigger><TooltipContent>Footer</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Type className="w-3.5 h-3.5" /> Page #</Button></TooltipTrigger><TooltipContent>Page Number</TooltipContent></Tooltip>
+              </div>
+            </>
+          )}
 
-          {/* Formatting */}
-          <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><Bold className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><Italic className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><Underline className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><Strikethrough className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Strikethrough</TooltipContent></Tooltip>
-          </div>
+          {activeTab === 'layout' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><LayoutGrid className="w-3.5 h-3.5" /> Margins</Button></TooltipTrigger><TooltipContent>Page Margins</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><FileImage className="w-3.5 h-3.5" /> Orientation</Button></TooltipTrigger><TooltipContent>Page Orientation</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Type className="w-3.5 h-3.5" /> Size</Button></TooltipTrigger><TooltipContent>Paper Size</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Columns className="w-3.5 h-3.5" /> Columns</Button></TooltipTrigger><TooltipContent>Columns</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><SeparatorHorizontal className="w-3.5 h-3.5" /> Breaks</Button></TooltipTrigger><TooltipContent>Page Breaks</TooltipContent></Tooltip>
+              </div>
+            </>
+          )}
 
-          {/* Alignment */}
-          <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><AlignLeft className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><AlignCenter className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><AlignRight className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><AlignJustify className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Justify</TooltipContent></Tooltip>
-          </div>
+          {activeTab === 'references' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><BookOpen className="w-3.5 h-3.5" /> Table of Contents</Button></TooltipTrigger><TooltipContent>Table of Contents</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Quote className="w-3.5 h-3.5" /> Footnote</Button></TooltipTrigger><TooltipContent>Insert Footnote</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Code className="w-3.5 h-3.5" /> Endnote</Button></TooltipTrigger><TooltipContent>Insert Endnote</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Bookmark className="w-3.5 h-3.5" /> Bibliography</Button></TooltipTrigger><TooltipContent>Bibliography</TooltipContent></Tooltip>
+              </div>
+            </>
+          )}
 
-          {/* Lists */}
-          <div className="flex items-center gap-0.5">
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><List className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Bullets</TooltipContent></Tooltip>
-            <Tooltip><TooltipTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7"><ListOrdered className="w-3.5 h-3.5" /></Button>
-            </TooltipTrigger><TooltipContent>Numbering</TooltipContent></Tooltip>
-          </div>
+          {activeTab === 'review' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><SpellCheck className="w-3.5 h-3.5" /> Spelling</Button></TooltipTrigger><TooltipContent>Spelling & Grammar</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><MessageSquare className="w-3.5 h-3.5" /> Comment</Button></TooltipTrigger><TooltipContent>New Comment</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><CheckSquare className="w-3.5 h-3.5" /> Track Changes</Button></TooltipTrigger><TooltipContent>Track Changes</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Search className="w-3.5 h-3.5" /> Find</Button></TooltipTrigger><TooltipContent>Find</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Replace className="w-3.5 h-3.5" /> Replace</Button></TooltipTrigger><TooltipContent>Replace</TooltipContent></Tooltip>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'view' && (
+            <>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Eye className="w-3.5 h-3.5" /> Reading</Button></TooltipTrigger><TooltipContent>Reading View</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><LayoutGrid className="w-3.5 h-3.5" /> Print Layout</Button></TooltipTrigger><TooltipContent>Print Layout</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground">Zoom:</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setZoom(z => Math.max(50, z - 10))}><Minus className="w-3 h-3" /></Button>
+                <span className="text-xs w-8 text-center">{zoom}%</span>
+                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setZoom(z => Math.min(200, z + 10))}><Plus className="w-3 h-3" /></Button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Ruler (decorative) */}
