@@ -1282,7 +1282,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setRenameTarget({ type: 'list', id, oldName });
   };
 
-  const [renameTarget, setRenameTarget] = useState<{ type: 'variable' | 'list'; id: string; oldName: string } | null>(null);
+  // renameTarget state moved to top of component (line ~746)
 
   const handleDataPromptSubmit = () => {
     if (!dataPrompt || !dataPrompt.name.trim()) return;
