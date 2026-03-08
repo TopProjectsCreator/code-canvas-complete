@@ -7,7 +7,7 @@ import {
   Volume2,
   Brush,
   Code2,
-  Search,
+  // Search removed - unused
   ZoomIn,
   ZoomOut,
   CircleMinus,
@@ -1076,130 +1076,160 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }
   };
 
+  const [showJson, setShowJson] = useState(false);
+
   return (
-    <div className="h-full bg-[#f1f4fa] flex flex-col text-[#4d4d4d]">
-      <div className="h-9 border-b border-[#c8d0dd] bg-[#d9e3f2] px-2 flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setActiveEditorTab('code')}
-            className={`px-4 h-7 rounded-t-xl text-sm flex items-center gap-1 ${activeEditorTab === 'code' ? 'bg-white text-[#6b5ce7] font-semibold' : 'bg-[#c9d3e4]'}`}
-          >
-            <Code2 className="w-4 h-4" /> Code
-          </button>
-          <button
-            onClick={() => setActiveEditorTab('costumes')}
-            className={`px-4 h-7 rounded-t-xl text-sm flex items-center gap-1 ${activeEditorTab === 'costumes' ? 'bg-white text-[#5a6b8a] font-semibold' : 'bg-[#c9d3e4]'}`}
-          >
-            <Brush className="w-4 h-4" /> Costumes
-          </button>
-          <button
-            onClick={() => setActiveEditorTab('sounds')}
-            className={`px-4 h-7 rounded-t-xl text-sm flex items-center gap-1 ${activeEditorTab === 'sounds' ? 'bg-white text-[#5a6b8a] font-semibold' : 'bg-[#c9d3e4]'}`}
-          >
-            <Volume2 className="w-4 h-4" /> Sounds
-          </button>
+    <div className="h-full flex flex-col" style={{ background: '#855cd6' }}>
+      {/* ===== TOP MENU BAR (Scratch purple) ===== */}
+      <div className="h-12 flex items-center px-3 gap-4 shrink-0" style={{ background: '#855cd6' }}>
+        {/* Logo / brand */}
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+            <span className="text-white font-bold text-sm">S</span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className={`text-[11px] px-2 py-0.5 rounded-full border ${vmReady ? 'border-green-400 text-green-700 bg-green-50' : 'border-amber-400 text-amber-700 bg-amber-50'}`}>
-            {vmReady ? 'VM Ready' : 'VM Starting'}
-          </span>
-          <button onClick={runPreview} className="text-green-600" title="Green Flag" disabled={isRunning || !vmReady}>
-            <Flag className="w-5 h-5 fill-green-500" />
+        {/* File actions */}
+        <div className="flex items-center gap-1">
+          <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10 flex items-center gap-1.5">
+            <Upload className="w-3.5 h-3.5" /> File
           </button>
-          <button onClick={handleVmStop} className="text-red-500" title="Stop">
-            <StopCircle className="w-5 h-5 fill-red-300" />
-          </button>
-          <button onClick={handleExport} className="px-2 py-1 text-xs rounded bg-white border border-[#c8d0dd]">Export .sb3</button>
-          <button onClick={() => importInputRef.current?.click()} className="px-2 py-1 text-xs rounded bg-white border border-[#c8d0dd]">Import .sb3</button>
-          <input
-            ref={importInputRef}
-            className="hidden"
-            type="file"
-            accept=".sb3"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleImport(file);
-            }}
-          />
+          <input ref={importInputRef} className="hidden" type="file" accept=".sb3" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
+          <button onClick={handleExport} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Save</button>
+          <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Debug</button>
         </div>
+
+        <div className="flex-1" />
+
+        {/* VM status */}
+        <span className={`text-[11px] px-2 py-0.5 rounded-full ${vmReady ? 'bg-white/20 text-white' : 'bg-yellow-400/30 text-yellow-100'}`}>
+          {vmReady ? '● Ready' : '○ Starting'}
+        </span>
       </div>
 
-      <div className="flex-1 min-h-0 grid grid-cols-[340px_1fr_520px]">
-        <div className="border-r border-[#c8d0dd] bg-[#f3f5fb] flex min-h-0">
-          <div className="w-[74px] border-r border-[#d6ddea] p-2 space-y-2 overflow-y-auto">
-            {categoryRail.map((cat) => (
-              <button
-                key={cat.name}
-                onClick={() => setActiveCategory(cat.name)}
-                className={`w-full flex flex-col items-center text-[12px] gap-0.5 ${activeCategory === cat.name ? 'text-[#3373cc] font-semibold' : 'text-[#5e6a83]'}`}
-              >
-                <span className={`w-7 h-7 rounded-full border ${activeCategory === cat.name ? 'border-[#3373cc] ring-2 ring-[#4c97ff]/30' : 'border-[#aeb8cc]'}`} style={{ backgroundColor: cat.color }} />
-                {cat.name}
-              </button>
-            ))}
+      {/* ===== TABS BAR (Code / Costumes / Sounds) ===== */}
+      <div className="h-11 flex items-end px-2 shrink-0" style={{ background: '#855cd6' }}>
+        {[
+          { key: 'code' as const, icon: <Code2 className="w-4 h-4" />, label: 'Code' },
+          { key: 'costumes' as const, icon: <Brush className="w-4 h-4" />, label: 'Costumes' },
+          { key: 'sounds' as const, icon: <Volume2 className="w-4 h-4" />, label: 'Sounds' },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveEditorTab(tab.key)}
+            className={`px-5 h-9 rounded-t-lg text-[13px] font-semibold flex items-center gap-1.5 transition-colors ${
+              activeEditorTab === tab.key
+                ? 'bg-white text-[#855cd6]'
+                : 'bg-[#7953c7] text-white/80 hover:bg-[#7248bf]'
+            }`}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ===== MAIN CONTENT ===== */}
+      <div className="flex-1 min-h-0 flex bg-white">
+        {/* --- LEFT: Category rail + Block flyout --- */}
+        <div className="flex min-h-0 shrink-0" style={{ width: 340 }}>
+          {/* Category rail */}
+          <div className="w-[64px] bg-[#f9f9f9] border-r border-[#e0e0e0] py-2 flex flex-col items-center gap-1 overflow-y-auto shrink-0">
+            {categoryRail.map((cat) => {
+              const isActive = activeCategory === cat.name;
+              return (
+                <button
+                  key={cat.name}
+                  onClick={() => setActiveCategory(cat.name)}
+                  className={`w-full flex flex-col items-center gap-0.5 py-1.5 text-[10px] leading-tight transition-colors ${
+                    isActive ? 'font-bold' : 'text-[#575e75]'
+                  }`}
+                  style={isActive ? { color: cat.color } : undefined}
+                >
+                  <span
+                    className="w-6 h-6 rounded-full"
+                    style={{
+                      backgroundColor: cat.color,
+                      boxShadow: isActive ? `0 0 0 2px white, 0 0 0 4px ${cat.color}` : 'none',
+                    }}
+                  />
+                  <span className="mt-0.5">{cat.name}</span>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="flex-1 p-2 overflow-y-auto">
-            <div className="text-[28px] leading-none mb-1" style={{ color: categoryColors[activeCategory] || '#4c97ff' }}>{activeCategory}</div>
+          {/* Block flyout */}
+          <div className="flex-1 overflow-y-auto py-3 px-3" style={{ background: '#f9f9f9' }}>
+            <div className="text-[18px] font-bold mb-3" style={{ color: categoryColors[activeCategory] || '#4c97ff' }}>
+              {activeCategory}
+            </div>
             {activeEditorTab === 'code' ? (
-              <div className="space-y-2 pr-2">
-                {(categoryBlocks[activeCategory] || []).map((blockDef) => (
-                  <button
-                    key={blockDef.label}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
-                      e.dataTransfer.effectAllowed = 'copy';
-                    }}
-                    onClick={() => addBlock(blockDef)}
-                    className="w-full text-left rounded-2xl text-white text-[15px] px-4 py-2 shadow-[inset_0_-2px_0_rgba(0,0,0,0.2)] hover:brightness-110 cursor-grab active:cursor-grabbing"
-                    style={{ backgroundColor: categoryColors[activeCategory] || '#4c97ff' }}
-                  >
-                    {blockDef.label}
-                  </button>
-                ))}
+              <div className="space-y-1.5">
+                {(categoryBlocks[activeCategory] || []).map((blockDef) => {
+                  const color = categoryColors[activeCategory] || '#4c97ff';
+                  const isHat = blockDef.opcode.startsWith('event_when') || blockDef.opcode === 'control_start_as_clone';
+                  return (
+                    <button
+                      key={blockDef.label}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
+                        e.dataTransfer.effectAllowed = 'copy';
+                      }}
+                      onClick={() => addBlock(blockDef)}
+                      className="w-full text-left text-white text-[13px] px-3 py-[6px] cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
+                      style={{
+                        backgroundColor: color,
+                        borderRadius: isHat ? '16px 16px 4px 4px' : '4px',
+                        borderBottom: `3px solid rgba(0,0,0,0.15)`,
+                        borderLeft: `3px solid rgba(0,0,0,0.05)`,
+                      }}
+                    >
+                      {blockDef.label}
+                    </button>
+                  );
+                })}
               </div>
             ) : activeEditorTab === 'costumes' ? (
-              <div className="h-full rounded-lg border border-[#cfdbef] bg-white p-3 text-sm text-[#5a6682] flex flex-col gap-3">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="font-semibold">Costumes ({selectedCostumes.length})</div>
-                  <button className="px-3 py-1.5 rounded-full border border-[#c6d3ea] flex items-center gap-1" onClick={() => costumeInputRef.current?.click()}>
+                  <span className="text-sm font-semibold text-[#575e75]">Costumes ({selectedCostumes.length})</span>
+                  <button className="px-3 py-1 rounded-full bg-[#855cd6] text-white text-xs flex items-center gap-1" onClick={() => costumeInputRef.current?.click()}>
                     <Upload className="w-3 h-3" /> Upload
                   </button>
                   <input ref={costumeInputRef} className="hidden" type="file" accept="image/*,.svg" onChange={(e) => e.target.files?.[0] && addCostume(e.target.files[0])} />
                 </div>
-                <div className="grid grid-cols-2 gap-2 overflow-auto">
+                <div className="grid grid-cols-2 gap-2">
                   {selectedCostumes.map((costume, idx) => {
                     const src = archive?.files?.[costume.md5ext] ? `data:image/${costume.dataFormat || 'png'};base64,${archive.files[costume.md5ext]}` : undefined;
                     return (
-                      <button key={costume.assetId} className={`rounded-lg border p-2 text-left ${idx === currentCostumeIndex ? 'border-[#7a5cff] bg-[#f2efff]' : 'border-[#d7deec]'}`} onClick={() => setCurrentCostume(idx)}>
-                        <div className="h-16 rounded bg-[#f4f7ff] border border-[#e3e9f5] flex items-center justify-center overflow-hidden">
-                          {src ? <img src={src} alt={costume.name} className="max-h-full max-w-full" /> : <span>🎭</span>}
+                      <button key={costume.assetId} className={`rounded-lg border-2 p-2 ${idx === currentCostumeIndex ? 'border-[#855cd6] bg-[#f0ebff]' : 'border-[#e0e0e0]'}`} onClick={() => setCurrentCostume(idx)}>
+                        <div className="h-16 rounded bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
+                          {src ? <img src={src} alt={costume.name} className="max-h-full max-w-full" /> : <span className="text-2xl">🎭</span>}
                         </div>
-                        <div className="mt-1 text-xs truncate">{costume.name}</div>
+                        <div className="mt-1 text-[11px] text-[#575e75] truncate text-center">{idx + 1}. {costume.name}</div>
                       </button>
                     );
                   })}
                 </div>
               </div>
             ) : (
-              <div className="h-full rounded-lg border border-[#cfdbef] bg-white p-3 text-sm text-[#5a6682] flex flex-col gap-3">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="font-semibold">Sounds ({selectedSounds.length})</div>
-                  <button className="px-3 py-1.5 rounded-full border border-[#c6d3ea] flex items-center gap-1" onClick={() => soundInputRef.current?.click()}>
+                  <span className="text-sm font-semibold text-[#575e75]">Sounds ({selectedSounds.length})</span>
+                  <button className="px-3 py-1 rounded-full bg-[#855cd6] text-white text-xs flex items-center gap-1" onClick={() => soundInputRef.current?.click()}>
                     <Upload className="w-3 h-3" /> Upload
                   </button>
                   <input ref={soundInputRef} className="hidden" type="file" accept="audio/*" onChange={(e) => e.target.files?.[0] && addSound(e.target.files[0])} />
                 </div>
-                <div className="space-y-2 overflow-auto">
+                <div className="space-y-1.5">
                   {selectedSounds.map((sound) => {
                     const src = archive?.files?.[sound.md5ext] ? `data:audio/${sound.dataFormat || 'wav'};base64,${archive.files[sound.md5ext]}` : '';
                     return (
-                      <div key={sound.assetId} className="rounded-lg border border-[#d7deec] p-2 flex items-center justify-between gap-2">
-                        <div className="truncate">{sound.name}</div>
+                      <div key={sound.assetId} className="rounded-lg border border-[#e0e0e0] bg-white p-2 flex items-center justify-between">
+                        <span className="text-[13px] text-[#575e75] truncate">{sound.name}</span>
                         <button
-                          className="w-7 h-7 rounded-full border border-[#c4cee2] flex items-center justify-center"
+                          className="w-7 h-7 rounded-full bg-[#855cd6] text-white flex items-center justify-center"
                           onClick={() => {
                             if (!src) return;
                             if (!audioPreviewRef.current) audioPreviewRef.current = new Audio();
@@ -1218,8 +1248,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
         </div>
 
-        <div
-          className="relative bg-[#f9fafc] overflow-hidden scratch-workspace"
+        {/* --- CENTER: Workspace --- */}
+        <div className="flex-1 min-w-0 relative overflow-hidden scratch-workspace" style={{ background: '#fff' }}
           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
           onDrop={handleWorkspaceDrop}
         >
@@ -1228,35 +1258,69 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             style={{
               transform: `scale(${workspaceZoom})`,
               transformOrigin: 'top left',
-              backgroundImage: 'radial-gradient(#d8deea 1px, transparent 1px)',
-              backgroundSize: '32px 32px',
+              backgroundImage: 'radial-gradient(#e0e0e0 1px, transparent 1px)',
+              backgroundSize: '24px 24px',
             }}
           >
             {selectedBlocks.map((block) => {
               const blockColor = getBlockColor(block.opcode);
+              const isHat = block.opcode.startsWith('event_when') || block.opcode === 'control_start_as_clone';
               return (
                 <div
                   key={block.id}
                   draggable
                   onDragEnd={(e) => handleBlockDragInWorkspace(block.id, e)}
-                  className="absolute rounded-2xl text-white px-3 py-2 text-[13px] min-w-[200px] shadow cursor-grab active:cursor-grabbing select-none border-b-2 border-black/20"
-                  style={{ left: block.x ?? 40, top: block.y ?? 40, backgroundColor: blockColor }}
+                  className="absolute text-white px-3 py-[6px] text-[13px] min-w-[140px] cursor-grab active:cursor-grabbing select-none"
+                  style={{
+                    left: block.x ?? 40,
+                    top: block.y ?? 40,
+                    backgroundColor: blockColor,
+                    borderRadius: isHat ? '16px 16px 4px 4px' : '4px',
+                    borderBottom: '3px solid rgba(0,0,0,0.15)',
+                    borderLeft: '3px solid rgba(0,0,0,0.05)',
+                  }}
                 >
-                  <div className="font-medium">{blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ')}</div>
+                  {blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ')}
                 </div>
               );
             })}
           </div>
-          <div className="absolute right-3 bottom-3 flex flex-col gap-2">
-            <button className="w-9 h-9 rounded-full bg-white border border-[#c8d0dd] flex items-center justify-center" onClick={() => setWorkspaceZoom((z) => Math.min(1.4, z + 0.1))}><ZoomIn className="w-4 h-4" /></button>
-            <button className="w-9 h-9 rounded-full bg-white border border-[#c8d0dd] flex items-center justify-center" onClick={() => setWorkspaceZoom((z) => Math.max(0.7, z - 0.1))}><ZoomOut className="w-4 h-4" /></button>
-            <button className="w-9 h-9 rounded-full bg-white border border-[#c8d0dd] flex items-center justify-center" onClick={() => setWorkspaceZoom(1)}><CircleMinus className="w-4 h-4" /></button>
+          {/* Zoom controls */}
+          <div className="absolute right-3 bottom-3 flex flex-col gap-1.5">
+            <button className="w-8 h-8 rounded-full bg-[#855cd6] text-white flex items-center justify-center shadow-md hover:bg-[#7248bf]" onClick={() => setWorkspaceZoom((z) => Math.min(1.4, z + 0.1))}><ZoomIn className="w-4 h-4" /></button>
+            <button className="w-8 h-8 rounded-full bg-[#855cd6] text-white flex items-center justify-center shadow-md hover:bg-[#7248bf]" onClick={() => setWorkspaceZoom((z) => Math.max(0.7, z - 0.1))}><ZoomOut className="w-4 h-4" /></button>
+            <button className="w-8 h-8 rounded-full bg-white border border-[#d0d0d0] text-[#575e75] flex items-center justify-center shadow-md" onClick={() => setWorkspaceZoom(1)}><CircleMinus className="w-4 h-4" /></button>
           </div>
         </div>
 
-        <div className="border-l border-[#c8d0dd] bg-[#e5edf9] grid grid-rows-[430px_1fr] min-h-0">
-          <div className="p-2">
-              <div className="rounded-xl bg-white border border-[#c8d0dd] h-full relative overflow-hidden flex items-center justify-center">
+        {/* --- RIGHT: Stage + Sprite info + Sprite list --- */}
+        <div className="shrink-0 flex flex-col min-h-0 border-l border-[#e0e0e0]" style={{ width: 480 }}>
+          {/* Stage area with green flag / stop */}
+          <div className="bg-[#e8edf1] p-2">
+            {/* Green flag & stop controls */}
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <button
+                onClick={runPreview}
+                disabled={isRunning || !vmReady}
+                className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-[#d0f0d0] transition-colors"
+                title="Green Flag"
+              >
+                <Flag className="w-5 h-5 text-[#4caf50]" style={{ fill: '#4caf50' }} />
+              </button>
+              <button
+                onClick={handleVmStop}
+                className="w-9 h-9 rounded-md flex items-center justify-center hover:bg-[#fdd] transition-colors"
+                title="Stop"
+              >
+                <StopCircle className="w-5 h-5 text-[#ec5959]" style={{ fill: '#ec5959' }} />
+              </button>
+              <div className="flex-1" />
+              <button className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/60" title="Fullscreen">
+                <Maximize2 className="w-4 h-4 text-[#575e75]" />
+              </button>
+            </div>
+            {/* Canvas */}
+            <div className="rounded-lg bg-white border border-[#d0d0d0] overflow-hidden" style={{ aspectRatio: '480/360' }}>
               <canvas
                 ref={canvasRef}
                 width={480}
@@ -1267,79 +1331,109 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             </div>
           </div>
 
-          <div className="border-t border-[#c8d0dd] min-h-0 grid grid-rows-[120px_1fr]">
-            <div className="p-2 bg-white border-b border-[#d7deeb]">
-              <div className="grid grid-cols-[68px_1fr] items-center gap-2 text-sm text-[#4f5f80]">
-                <div className="font-semibold">Sprite</div>
-                <input
-                  value={selectedTarget?.name || 'Sprite1'}
-                  onChange={(e) => {
-                    const nextName = e.target.value;
-                    updateProject((current) => ({
-                      ...current,
-                      targets: current.targets.map((target, idx) => idx === selectedTargetIndex ? { ...target, name: nextName } : target),
-                    }));
-                  }}
-                  className="h-8 rounded-full border border-[#c8d0dd] px-3"
-                />
+          {/* Sprite info pane */}
+          <div className="bg-white border-t border-b border-[#e0e0e0] px-3 py-2 shrink-0">
+            <div className="flex items-center gap-3 text-[13px] text-[#575e75]">
+              <span className="font-semibold text-[#575e75]">Sprite</span>
+              <input
+                value={selectedTarget?.name || 'Sprite1'}
+                onChange={(e) => {
+                  const nextName = e.target.value;
+                  updateProject((current) => ({
+                    ...current,
+                    targets: current.targets.map((target, idx) => idx === selectedTargetIndex ? { ...target, name: nextName } : target),
+                  }));
+                }}
+                className="h-7 rounded border border-[#d0d0d0] px-2 flex-1 text-[13px] min-w-0"
+              />
+              <div className="flex items-center gap-1 text-[12px]">
+                <span className="text-[#b5b5b5]">↔</span> x
+                <input className="w-10 h-7 rounded border border-[#d0d0d0] text-center text-[12px]" value={Math.round(stagePreview.x)} readOnly />
               </div>
-              <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
-                <div className="rounded-full border border-[#c8d0dd] h-8 flex items-center justify-center gap-1">x <input className="w-8 bg-transparent text-center" value={Math.round(stagePreview.x)} readOnly /></div>
-                <div className="rounded-full border border-[#c8d0dd] h-8 flex items-center justify-center gap-1">y <input className="w-8 bg-transparent text-center" value={Math.round(stagePreview.y)} readOnly /></div>
-                <div className="rounded-full border border-[#c8d0dd] h-8 flex items-center justify-center gap-1">size <input className="w-10 bg-transparent text-center" value={Math.round(stagePreview.size || 100)} readOnly /></div>
-                <div className="rounded-full border border-[#c8d0dd] h-8 flex items-center justify-center gap-1">dir <input className="w-8 bg-transparent text-center" value={Math.round(stagePreview.direction || 90)} readOnly /></div>
+              <div className="flex items-center gap-1 text-[12px]">
+                <span className="text-[#b5b5b5]">↕</span> y
+                <input className="w-10 h-7 rounded border border-[#d0d0d0] text-center text-[12px]" value={Math.round(stagePreview.y)} readOnly />
               </div>
-              <div className="mt-2 flex items-center gap-2 text-xs">
-                <span>Show</span>
-                <button className="w-8 h-8 rounded border border-[#c8d0dd] flex items-center justify-center" onClick={() => setSpriteVisible(true)}><Eye className="w-4 h-4 text-[#6b5ce7]" /></button>
-                <button className="w-8 h-8 rounded border border-[#c8d0dd] flex items-center justify-center" onClick={() => setSpriteVisible(false)}><EyeOff className="w-4 h-4 text-[#6b5ce7]" /></button>
-                <button className="w-8 h-8 rounded border border-[#c8d0dd] flex items-center justify-center" onClick={() => setStagePreview((p) => ({ ...p, direction: p.direction - 15 }))}><RotateCcw className="w-4 h-4" /></button>
-                <button className="w-8 h-8 rounded border border-[#c8d0dd] flex items-center justify-center" onClick={() => setStagePreview((p) => ({ ...p, direction: p.direction + 15 }))}><RotateCw className="w-4 h-4" /></button>
+            </div>
+            <div className="flex items-center gap-3 mt-1.5 text-[12px] text-[#575e75]">
+              <div className="flex items-center gap-1">
+                Show
+                <button onClick={() => setSpriteVisible(true)} className={`w-6 h-6 rounded flex items-center justify-center ${spriteVisible ? 'bg-[#855cd6] text-white' : 'bg-[#f0f0f0]'}`}><Eye className="w-3 h-3" /></button>
+                <button onClick={() => setSpriteVisible(false)} className={`w-6 h-6 rounded flex items-center justify-center ${!spriteVisible ? 'bg-[#855cd6] text-white' : 'bg-[#f0f0f0]'}`}><EyeOff className="w-3 h-3" /></button>
+              </div>
+              <div className="flex items-center gap-1">
+                Size <input className="w-10 h-6 rounded border border-[#d0d0d0] text-center text-[11px]" value={Math.round(stagePreview.size || 100)} readOnly />
+              </div>
+              <div className="flex items-center gap-1">
+                Direction <input className="w-10 h-6 rounded border border-[#d0d0d0] text-center text-[11px]" value={Math.round(stagePreview.direction || 90)} readOnly />
+              </div>
+            </div>
+          </div>
+
+          {/* Sprite list + Stage/Backdrops tabs */}
+          <div className="flex-1 min-h-0 flex">
+            {/* Sprite list */}
+            <div className="flex-1 overflow-y-auto p-2 bg-[#f0f4f8]">
+              <div className="flex flex-wrap gap-2 content-start">
+                {spriteTargets.map((target, index) => {
+                  const mappedIndex = project.targets.findIndex((t) => t.name === target.name && !t.isStage);
+                  const selected = mappedIndex === selectedTargetIndex;
+                  const costumeSrc = target.costumes?.[0]?.md5ext && archive?.files?.[target.costumes[0].md5ext]
+                    ? `data:image/${target.costumes[0].dataFormat || 'png'};base64,${archive.files[target.costumes[0].md5ext]}`
+                    : null;
+                  return (
+                    <button
+                      key={target.name + index}
+                      onClick={() => setSelectedTargetIndex(mappedIndex)}
+                      className={`w-[80px] rounded-lg border-2 p-1.5 flex flex-col items-center transition-colors ${
+                        selected ? 'border-[#855cd6] bg-[#ede7ff]' : 'border-[#d0d0d0] bg-white hover:border-[#b0b0b0]'
+                      }`}
+                    >
+                      <div className="w-14 h-14 rounded bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
+                        {costumeSrc ? <img src={costumeSrc} alt={target.name} className="max-w-full max-h-full" /> : <span className="text-2xl">🐱</span>}
+                      </div>
+                      <div className="text-[10px] mt-1 text-[#575e75] truncate w-full text-center">{target.name}</div>
+                    </button>
+                  );
+                })}
+                <button onClick={addSprite} className="w-[80px] h-[90px] rounded-lg border-2 border-dashed border-[#b0b0b0] bg-white/60 flex items-center justify-center hover:border-[#855cd6] transition-colors">
+                  <Plus className="w-5 h-5 text-[#855cd6]" />
+                </button>
               </div>
             </div>
 
-            <div className="p-2 overflow-y-auto bg-[#dfe7f7] flex gap-2">
-              {spriteTargets.map((target, index) => {
-                const mappedIndex = project.targets.findIndex((t) => t.name === target.name && !t.isStage);
-                const selected = mappedIndex === selectedTargetIndex;
-                return (
-                  <button
-                    key={target.name + index}
-                    onClick={() => setSelectedTargetIndex(mappedIndex)}
-                    className={`w-[95px] h-[92px] rounded-xl border-2 flex flex-col items-center justify-center ${selected ? 'border-[#7b61ff] bg-[#ede7ff]' : 'border-[#b9c5dc] bg-white'}`}
-                  >
-                    <div className="text-3xl">{target.costumes?.length ? '🎭' : '🐱'}</div>
-                    <div className="text-xs mt-1">{target.name}</div>
-                  </button>
-                );
-              })}
-              <button onClick={addSprite} className="w-[95px] h-[92px] rounded-xl border border-dashed border-[#9db0d3] bg-white/70 flex items-center justify-center">
-                <Plus className="w-5 h-5 text-[#6b7ea8]" />
-              </button>
+            {/* Stage / Backdrops mini panel */}
+            <div className="w-[100px] border-l border-[#e0e0e0] bg-white p-2 flex flex-col items-center gap-1 shrink-0">
+              <div className="text-[10px] font-semibold text-[#575e75]">Stage</div>
+              <div className="w-16 h-12 rounded border border-[#d0d0d0] bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
+                {stageCostumeSrc ? <img src={stageCostumeSrc} className="max-w-full max-h-full" /> : <span className="text-xs text-[#b0b0b0]">🖼</span>}
+              </div>
+              <div className="text-[9px] text-[#575e75]">Backdrops</div>
+              <div className="text-[10px] text-[#b0b0b0]">{project.targets[0]?.costumes?.length || 1}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="h-[180px] border-t border-[#c8d0dd] bg-white p-2">
-        <div className="flex items-center justify-between mb-1">
-          <div className="text-xs font-semibold text-[#6a7b9a]">Raw project.json (compatibility view)</div>
-          <div className="flex items-center gap-2">
-            {vmError && <span className="text-[11px] text-red-500 max-w-[480px] truncate">VM error: {vmError}</span>}
-            <button onClick={applyJsonDraft} className="text-xs px-2 py-1 rounded border border-[#c8d0dd]">Apply</button>
+      {/* ===== JSON DEBUG (collapsible) ===== */}
+      {showJson && (
+        <div className="h-[160px] border-t border-[#d0d0d0] bg-[#fafafa] p-2 shrink-0">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-semibold text-[#575e75]">project.json</span>
+            <div className="flex items-center gap-2">
+              {vmError && <span className="text-[11px] text-red-500 max-w-[300px] truncate">⚠ {vmError}</span>}
+              <button onClick={applyJsonDraft} className="text-[11px] px-2 py-0.5 rounded bg-[#855cd6] text-white">Apply</button>
+            </div>
           </div>
-        </div>
-        <div className="relative h-[136px]">
           <textarea
-            className="w-full h-full border border-[#d4ddec] rounded bg-[#f9fbff] p-2 text-[11px] font-mono"
+            className="w-full h-[120px] border border-[#d0d0d0] rounded bg-white p-2 text-[11px] font-mono resize-none"
             value={projectJsonDraft || archive?.projectJson || formatJson(project)}
             onChange={(e) => setProjectJsonDraft(e.target.value)}
             spellCheck={false}
           />
-          <Search className="absolute right-2 top-2 w-3 h-3 text-[#8b95a8]" />
+          {jsonError && <div className="text-[11px] text-red-500 mt-0.5">{jsonError}</div>}
         </div>
-        {jsonError && <div className="text-[11px] text-red-500 mt-1">{jsonError}</div>}
-      </div>
+      )}
     </div>
   );
 };
