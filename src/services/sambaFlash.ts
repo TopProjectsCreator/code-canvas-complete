@@ -521,10 +521,3 @@ export async function flashR4WiFi(
 ): Promise<void> {
   await flashSambaBoard(firmwareBase64, 'uno_r4_wifi', onProgress);
 }
-export async function flashR4WiFi(
-  firmwareBase64: string,
-  onProgress?: ProgressCallback
-): Promise<void> {
-  await triggerBootloader(onProgress);
-  await flashViaSamba(firmwareBase64, onProgress);
-}
