@@ -4,6 +4,8 @@ import { FindReplace } from './FindReplace';
 import { FilePreview } from './FilePreview';
 import { OfficeEditor } from './OfficeEditor';
 import { VideoEditor } from './VideoEditor';
+import { AudioEditor } from './AudioEditor';
+import { RTFEditor } from './RTFEditor';
 import { CADEditor } from './CADEditor';
 
 interface CodeEditorProps {
@@ -12,13 +14,14 @@ interface CodeEditorProps {
 }
 
 // Helper to detect file types that should be previewed instead of edited
-const getPreviewType = (fileName: string): 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'office' | 'cad' | null => {
+const getPreviewType = (fileName: string): 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'office' | 'cad' | 'rtf' | null => {
   const ext = fileName.split('.').pop()?.toLowerCase();
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp'];
   const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogv', 'ogg'];
-  const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'];
+  const audioExtensions = ['mp3', 'wav', 'flac', 'aac', 'm4a'];
   const cadExtensions = ['stl', 'obj'];
   
+  if (ext === 'rtf') return 'rtf';
   if (ext === 'svg') return 'svg';
   if (ext === 'md' || ext === 'markdown') return 'markdown';
   if (ext === 'csv') return 'csv';
@@ -443,7 +446,7 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   // Check if this file should be previewed instead of edited
   const previewType = getPreviewType(file.name);
   // Binary types always show preview only (no editable source)
-  const binaryPreviewTypes = ['image', 'video', 'audio', 'cad'];
+  const binaryPreviewTypes = ['image', 'video', 'audio', 'cad', 'rtf'];
   const isTextPreviewable = previewType && !binaryPreviewTypes.includes(previewType);
   
   if (previewType === 'office') {
@@ -454,12 +457,20 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     return <VideoEditor file={file} onContentChange={onContentChange} />;
   }
 
+  if (previewType === 'audio') {
+    return <AudioEditor file={file} onContentChange={onContentChange} />;
+  }
+
+  if (previewType === 'rtf') {
+    return <RTFEditor file={file} onContentChange={onContentChange} />;
+  }
+
   if (previewType === 'cad') {
     return <CADEditor file={file} onContentChange={onContentChange} />;
   }
 
   if (previewType && !isTextPreviewable) {
-    return <FilePreview file={file} previewType={previewType as 'image' | 'audio' | 'video' | 'csv' | 'markdown' | 'svg'} />;
+    return <FilePreview file={file} previewType={previewType as 'image' | 'csv' | 'markdown' | 'svg'} />;
   }
   if (isTextPreviewable && markdownPreview) {
     return (
