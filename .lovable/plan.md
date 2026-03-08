@@ -1,86 +1,99 @@
-## Add Browser-Native Shell via WebContainers (Node.js)
 
-### Overview
 
-Integrate `@webcontainer/api` to provide a real Node.js shell (jsh) directly in the browser. Shell/bash/JS commands run locally via WebContainers. Compiled languages (Python, C, Rust, etc.) continue using the existing edge function (Wandbox + optional container backend -- both kept intact).
+## Make the Scratch VM Fully Functional
 
-### Files to Change
-
-**1. Install `@webcontainer/api**`
-
-- Add the package dependency
-
-**2. New file: `src/hooks/useWebContainer.ts**`
-
-- Singleton pattern: one WebContainer instance shared across the app
-- `boot()` on first use, expose status (`idle` | `booting` | `ready` | `error`)
-- `spawn(command, args)` -- runs a command, returns stdout/stderr as string arrays
-- `writeFile(path, content)` / `readFile(path)` for syncing project files
-- `teardown()` cleanup on unmount
-- Lazy boot: container only starts when the user first runs a shell command
-
-**3. Update `src/hooks/useCodeExecution.ts**`
-
-- Import `useWebContainer`
-- New routing logic at the top of `executeCode`:
-  - If language is `shell`, `bash`, or `javascript` and WebContainer is available, run via WebContainer's `jsh` or `node`
-  - Otherwise, fall through to existing edge function path (Wandbox/container -- untouched)
-- `executeShellCommand` routes through WebContainer when ready
-- Keep all existing session tracking and edge function code as-is (container backend still works for those who configure it)
-
-**4. Update `src/components/ide/Terminal.tsx**`
-
-- Import `useWebContainer` for boot status
-- Show a "Booting shell..." indicator on first command if container is still starting
-- No structural changes to the terminal UI -- commands still flow through `useCodeExecution`
-- If the use is attempting to use pip or uv or something not supported without setting up container runner,  They will be alerted that it wont work and detailed instructions how to make it work.
-
-**5. Update `vite.config.ts**`
-
-- Add required COOP/COEP headers for WebContainers:
-
-```text
-server.headers:
-  Cross-Origin-Embedder-Policy: require-corp
-  Cross-Origin-Opener-Policy: same-origin
-```
-
-**6. Update `README.md**`
-
-- Add a section explaining that shell commands now run via WebContainers in-browser for Node.js
-- Keep the existing container runner documentation for users who want full Linux shell with Python/system tools
-- Note the COOP/COEP header requirement for production deployments
-
-7. **System Instructions**
-  Edit the system instructions so that the bots know of this limitation.
-8. Settings
-  Keep a setting so that users who really want to can use the wandbox api instead of this.
+### Problem
+The current Scratch VM integration only instantiates `scratch-vm` and calls `start()`/`greenFlag()`, but never attaches the three required companion modules: **renderer**, **storage**, and **audio engine**. Without these, scripts execute blindly with no visual output, assets fail to load, and sounds do not play.
 
 ### Architecture
 
+The Scratch ecosystem requires four packages working together:
+
 ```text
-Terminal Command
-    |
-    +-- shell/bash/js --> WebContainer (in-browser, real Node.js shell)
-    |                     (npm, npx, node all work natively)
-    |
-    +-- python/c/rust/go/etc --> Edge Function
-                                   |
-                                   +-- Wandbox (default)
-                                   +-- Container backend (if configured)
+scratch-vm  (already installed)
+  ├── attachRenderer()   ←  scratch-render  (WebGL canvas)
+  ├── attachStorage()    ←  scratch-storage  (asset loading)
+  └── attachAudioEngine() ← scratch-audio   (Web Audio API)
 ```
 
-### What stays the same
+### Plan
 
-- Edge function `execute-code` is untouched -- Wandbox and container backend remain
-- `EXECUTOR_MODE` env var still works for container deployments
-- All compiled language execution unchanged
-- AI chat shell commands route through the same `useCodeExecution` hook
+**1. Install missing packages**
 
-### Technical Notes
+Add `scratch-render`, `scratch-storage`, and `scratch-audio` as dependencies. These are the official Scratch Foundation packages that `scratch-vm` already declares as peer/bundled dependencies.
 
-- WebContainers require SharedArrayBuffer, which needs COOP/COEP headers
-- The COEP `require-corp` header may break loading cross-origin resources (images, fonts from CDNs) unless they have CORS headers. We'll use `credentialless` instead of `require-corp` to avoid this issue where possible.
-- Boot time is ~2-3 seconds on first use, then instant for subsequent commands. 
+**2. Rewrite VM initialization in ScratchPanel.tsx**
 
-&nbsp;
+Replace the current bare `new VirtualMachine(); vm.start()` with proper setup:
+
+- Create a `<canvas>` element (480x360, the standard Scratch stage size) in the preview area, replacing the current emoji/image placeholder.
+- Instantiate `ScratchRender(canvas)` and call `vm.attachRenderer(renderer)`.
+- Instantiate `ScratchStorage()`, register a custom web source that resolves asset URLs from the in-memory `archive.files` map (base64 decode), then call `vm.attachStorage(storage)`.
+- Instantiate `AudioEngine()` and call `vm.attachAudioEngine(audioEngine)`.
+- Start a `requestAnimationFrame` draw loop calling `renderer.draw()`.
+- On `greenFlag()`, the VM will now actually execute scripts with visual and audio feedback.
+
+**3. Replace the placeholder preview with a real canvas**
+
+The right-side stage panel (lines 1176-1189) currently shows a positioned emoji. Replace with:
+- A `<canvas ref={canvasRef} width={480} height={360} />` element.
+- The renderer draws directly to this canvas.
+- Remove the manual `stagePreview` x/y/direction state — instead read sprite properties from the renderer or VM runtime targets in the draw loop.
+
+**4. Wire up syncFromVm for real-time sprite property display**
+
+Keep the sprite info panel (x, y, size, direction) but read values from `vm.runtime.targets` during the animation frame callback instead of the current 120ms interval, which is unreliable.
+
+**5. Fix project loading flow**
+
+- When the archive changes, export it to `.sb3` ArrayBuffer and call `vm.loadProject(ab)` as currently done — but now with storage attached, the VM can actually resolve costume/sound assets from the archive.
+- The custom storage web source will intercept asset requests and serve them from the base64 `archive.files` map, so no network requests are needed.
+
+**6. Add type declarations**
+
+Create `src/vite-env-scratch-render.d.ts`, `src/vite-env-scratch-audio.d.ts`, `src/vite-env-scratch-storage.d.ts` module declarations since these packages lack TypeScript types.
+
+**7. Handle cleanup**
+
+On unmount: stop the animation frame loop, call `renderer.destroy()` if available, disconnect audio engine, and `vm.stopAll()`.
+
+### Technical Details
+
+**Custom storage adapter** (key piece for offline/in-memory asset loading):
+```typescript
+const storage = new ScratchStorage();
+const AssetType = storage.AssetType;
+
+// Register a "web source" that reads from archive.files
+storage.addWebStore(
+  [AssetType.ImageVector, AssetType.ImageBitmap, AssetType.Sound],
+  (asset) => {
+    // Return a data URI or handle via the archive's base64 map
+    const key = `${asset.assetId}.${asset.dataFormat}`;
+    const b64 = currentArchiveRef.current?.files?.[key];
+    if (b64) return `data:application/octet-stream;base64,${b64}`;
+    return ''; // fallback
+  }
+);
+vm.attachStorage(storage);
+```
+
+**Render loop:**
+```typescript
+const drawStep = () => {
+  renderer.draw();
+  rafId = requestAnimationFrame(drawStep);
+};
+drawStep();
+```
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `package.json` | Add `scratch-render`, `scratch-storage`, `scratch-audio` |
+| `src/components/scratch/ScratchPanel.tsx` | Major rewrite of VM init, preview canvas, storage adapter, audio engine, draw loop |
+| `src/vite-env-scratch-render.d.ts` | New type declaration |
+| `src/vite-env-scratch-audio.d.ts` | New type declaration |
+| `src/vite-env-scratch-storage.d.ts` | New type declaration |
+
