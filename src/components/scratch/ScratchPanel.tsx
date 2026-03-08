@@ -1054,24 +1054,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           }
 
           const storage = new StorageCtor();
-          // scratchFetch and setMetadata may be getter-only on the prototype;
-          // use Object.defineProperty to safely override them.
-          try {
-            if (typeof storage.scratchFetch !== 'function') {
-              Object.defineProperty(storage, 'scratchFetch', {
-                value: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
-                writable: true, configurable: true,
-              });
-            }
-          } catch { /* already defined, that's fine */ }
-          try {
-            if (typeof storage.setMetadata !== 'function') {
-              Object.defineProperty(storage, 'setMetadata', {
-                value: () => undefined,
-                writable: true, configurable: true,
-              });
-            }
-          } catch { /* already defined, that's fine */ }
 
           const AssetType = storage.AssetType;
           storage.addWebStore(
