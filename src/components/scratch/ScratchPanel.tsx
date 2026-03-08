@@ -1502,11 +1502,16 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-1">
                   <span className="text-sm font-semibold text-[#575e75]">Sounds ({selectedSounds.length})</span>
-                  <button className="px-3 py-1 rounded-full bg-[#855cd6] text-white text-xs flex items-center gap-1" onClick={() => soundInputRef.current?.click()}>
-                    <Upload className="w-3 h-3" /> Upload
-                  </button>
+                  <div className="flex gap-1">
+                    <button className="px-2.5 py-1 rounded-full bg-[#cf63cf] text-white text-xs flex items-center gap-1" onClick={() => setLibraryOpen('sounds')}>
+                      Choose
+                    </button>
+                    <button className="px-2.5 py-1 rounded-full bg-[#575e75] text-white text-xs flex items-center gap-1" onClick={() => soundInputRef.current?.click()}>
+                      <Upload className="w-3 h-3" /> Upload
+                    </button>
+                  </div>
                   <input ref={soundInputRef} className="hidden" type="file" accept="audio/*" onChange={(e) => e.target.files?.[0] && addSound(e.target.files[0])} />
                 </div>
                 <div className="space-y-1.5">
