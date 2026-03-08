@@ -41,7 +41,8 @@ const darken = (hex: string, amount = 0.15) => {
 type LabelSegment =
   | { type: 'text'; value: string }
   | { type: 'reporter'; value: string }
-  | { type: 'boolean'; value: string };
+  | { type: 'boolean'; value: string }
+  | { type: 'dropdown'; value: string };
 
 const parseLabel = (label: string): LabelSegment[] => {
   const segments: LabelSegment[] = [];
@@ -61,6 +62,12 @@ const parseLabel = (label: string): LabelSegment[] => {
       if (end === -1) { current += label[i]; i++; continue; }
       segments.push({ type: 'boolean', value: label.slice(i + 1, end) });
       i = end + 1;
+    } else if (label[i] === '{') {
+      if (current) { segments.push({ type: 'text', value: current }); current = ''; }
+      const end = label.indexOf('}', i + 1);
+      if (end === -1) { current += label[i]; i++; continue; }
+      segments.push({ type: 'dropdown', value: label.slice(i + 1, end) });
+      i = end + 1;
     } else {
       current += label[i];
       i++;
@@ -69,6 +76,9 @@ const parseLabel = (label: string): LabelSegment[] => {
   if (current) segments.push({ type: 'text', value: current });
   return segments;
 };
+
+const DROPDOWN_PAD = 6;
+const DROPDOWN_ARROW = 8;
 
 /** Measure total width needed for parsed segments */
 const measureSegments = (segments: LabelSegment[]): number => {
@@ -80,6 +90,8 @@ const measureSegments = (segments: LabelSegment[]): number => {
       w += Math.max(seg.value.length * CHAR_W + INPUT_PAD * 2 + 4, 28) + 4;
     } else if (seg.type === 'boolean') {
       w += Math.max(seg.value.length * CHAR_W + BOOL_H + 4, 32) + 4;
+    } else if (seg.type === 'dropdown') {
+      w += seg.value.length * CHAR_W + DROPDOWN_PAD * 2 + DROPDOWN_ARROW + 8;
     }
   }
   w += 10; // right padding
@@ -308,6 +320,41 @@ export const ScratchBlockShape = ({
           </g>
         );
         x += inputW + 4;
+      } else if (seg.type === 'dropdown') {
+        const dropW = seg.value.length * CHAR_W + DROPDOWN_PAD * 2 + DROPDOWN_ARROW + 4;
+        const dropH = INPUT_H;
+        const dropY = (h - dropH) / 2;
+        const rad = dropH / 2;
+        elements.push(
+          <g key={i}>
+            <rect
+              x={x}
+              y={dropY}
+              width={dropW}
+              height={dropH}
+              rx={rad}
+              ry={rad}
+              fill="rgba(0,0,0,0.15)"
+            />
+            <text
+              x={x + DROPDOWN_PAD + 2}
+              y={dropY + dropH / 2 + 4}
+              fill="white"
+              fontSize="11"
+              fontFamily="'Helvetica Neue', Helvetica, Arial, sans-serif"
+              fontWeight="500"
+            >
+              {seg.value}
+            </text>
+            {/* Dropdown arrow triangle */}
+            <polygon
+              points={`${x + dropW - DROPDOWN_PAD - 6},${dropY + dropH / 2 - 2} ${x + dropW - DROPDOWN_PAD},${dropY + dropH / 2 - 2} ${x + dropW - DROPDOWN_PAD - 3},${dropY + dropH / 2 + 2}`}
+              fill="white"
+              opacity="0.8"
+            />
+          </g>
+        );
+        x += dropW + 4;
       }
     });
     return elements;
