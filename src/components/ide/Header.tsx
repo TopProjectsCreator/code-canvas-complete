@@ -218,7 +218,24 @@ export const Header = ({
           {starsCount > 0 && <span>{starsCount}</span>}
         </button>
 
+        {/* Presence avatars */}
+        <PresenceAvatars presence={presence} />
+
         <div className="w-px h-5 bg-border mx-1 hidden sm:block" />
+
+        {/* Collab button */}
+        <button
+          onClick={onCollab}
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground relative"
+          title="Collaboration"
+        >
+          <Users className="w-4 h-4" />
+          {presence.length > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-success text-[9px] text-white flex items-center justify-center font-bold">
+              {presence.length}
+            </span>
+          )}
+        </button>
         
         <button 
           onClick={onShare}
