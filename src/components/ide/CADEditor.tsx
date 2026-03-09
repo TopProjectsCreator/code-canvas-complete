@@ -788,11 +788,9 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                   >
                     <Sparkles className="w-3.5 h-3.5" /> Text to 3D
                   </Button>
-                  {!hasCustomKey('meshy') && (
-                    <div className="text-center text-white/40 text-[10px] mt-2">
-                      Requires Meshy API key (User Menu → API Keys)
-                    </div>
-                  )}
+                  <div className="text-center text-white/40 text-[10px] mt-2">
+                    Supports: Meshy, Sloyd, Tripo, ModelsLab, Fal.ai, Neural4D
+                  </div>
                 </div>
               </div>
             </div>
