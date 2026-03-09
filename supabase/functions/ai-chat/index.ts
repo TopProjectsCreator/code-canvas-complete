@@ -344,6 +344,13 @@ serve(async (req) => {
       }
     }
 
+    // Fetch user's enabled MCP servers and agent skills
+    const serviceSupabaseForContext = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : supabase;
+    const [{ data: mcpServers }, { data: agentSkills }] = await Promise.all([
+      serviceSupabaseForContext.from("mcp_servers").select("name, url, description, api_key, is_enabled").eq("user_id", userId).eq("is_enabled", true),
+      serviceSupabaseForContext.from("agent_skills").select("name, description, instruction, is_enabled").eq("user_id", userId).eq("is_enabled", true),
+    ]);
+
     // Build context
     let contextSection = "";
     if (currentFile) {
@@ -356,6 +363,12 @@ serve(async (req) => {
     }
     if (workflows && workflows.length > 0) {
       contextSection += `\n\n### 🔧 Existing Workflows\n${workflows.map((w: any) => `- **${w.name}** (${w.type}): \`${w.command}\``).join("\n")}`;
+    }
+    if (mcpServers && mcpServers.length > 0) {
+      contextSection += `\n\n### 🔌 Connected MCP Servers\nThe user has the following MCP (Model Context Protocol) servers configured. You can reference these when the user asks about external tools or data sources:\n${(mcpServers as any[]).map((s: any) => `- **${s.name}**: ${s.url}${s.description ? ` — ${s.description}` : ""}`).join("\n")}`;
+    }
+    if (agentSkills && agentSkills.length > 0) {
+      contextSection += `\n\n### 🧠 Active Agent Skills\nFollow these custom instructions provided by the user:\n${(agentSkills as any[]).map((s: any) => `#### ${s.name}${s.description ? ` (${s.description})` : ""}\n${s.instruction}`).join("\n\n")}`;
     }
 
     const systemPrompt = agentMode
