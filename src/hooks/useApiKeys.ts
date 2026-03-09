@@ -187,6 +187,23 @@ export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]
     { id: 'text-to-3d', label: 'Text to 3D' },
     { id: 'image-to-3d', label: 'Image to 3D' },
   ],
+  sloyd: [
+    { id: 'text-to-3d', label: 'Text to 3D' },
+  ],
+  tripo: [
+    { id: 'text-to-3d', label: 'Text to 3D' },
+    { id: 'image-to-3d', label: 'Image to 3D' },
+  ],
+  modelslab: [
+    { id: 'text-to-3d', label: 'Text to 3D' },
+  ],
+  fal: [
+    { id: 'hyper3d-rodin', label: 'Hyper3D Rodin' },
+    { id: 'trellis', label: 'Trellis' },
+  ],
+  neural4d: [
+    { id: 'text-to-3d', label: 'Text to 3D' },
+  ],
 };
 
 const DAILY_LIMITS: Record<string, number> = {
