@@ -275,6 +275,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   >([]);
   const editedFilesRef = useRef<Set<string>>(new Set());
   const { executeCode, executeShellCommand, isExecuting } = useCodeExecution();
+  const collab = useCollaboration(currentProject?.id);
 
   const addHistoryEntry = useCallback(
     (type: (typeof historyEntries)[0]["type"], label: string, detail?: string) => {
