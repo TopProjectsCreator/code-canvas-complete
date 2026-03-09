@@ -252,6 +252,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showGitImportDialog, setShowGitImportDialog] = useState(false);
+  const [showCollabDialog, setShowCollabDialog] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
