@@ -12,7 +12,8 @@ export type AIProvider =
   | 'xai' 
   | 'cohere' 
   | 'openrouter'
-  | 'github';
+  | 'github'
+  | 'meshy';
 
 export interface UserApiKey {
   id: string;
