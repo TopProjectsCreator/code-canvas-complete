@@ -5,72 +5,91 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Comprehensive curated skills library
-const SKILLS_LIBRARY = [
-  // Programming
-  { name: "Python Expert", description: "Expert at writing, debugging, and explaining Python code with best practices and type hints.", category: "Programming", instruction: "Act as an expert Python developer. Always use best practices, type hints, docstrings, and write modular, testable code. Prefer pathlib over os.path, f-strings over format(), and dataclasses/pydantic for data models." },
-  { name: "JavaScript/TypeScript Pro", description: "Modern JS/TS specialist with deep knowledge of ES2024+ features and patterns.", category: "Programming", instruction: "Act as a senior JavaScript/TypeScript developer. Use modern syntax (optional chaining, nullish coalescing, top-level await). Prefer TypeScript with strict mode. Write clean, well-typed code." },
-  { name: "Rust Developer", description: "Systems programming expert in Rust with focus on safety and performance.", category: "Programming", instruction: "Act as a Rust developer. Emphasize ownership, borrowing, and lifetime concepts. Write idiomatic Rust using Result/Option, iterators, and pattern matching." },
-  { name: "Go Developer", description: "Backend specialist in Go with focus on concurrency and simplicity.", category: "Programming", instruction: "Act as a Go developer. Write idiomatic Go with proper error handling, goroutines, channels, and clean package structure." },
-  { name: "C++ Expert", description: "Modern C++ specialist focusing on C++20/23 features and performance.", category: "Programming", instruction: "Act as a C++ expert. Use modern C++ (smart pointers, RAII, ranges, concepts). Avoid raw pointers and manual memory management." },
-  { name: "Java Architect", description: "Enterprise Java developer with Spring Boot and microservices expertise.", category: "Programming", instruction: "Act as a Java architect. Use Spring Boot best practices, proper dependency injection, and clean architecture patterns." },
-  { name: "Swift Developer", description: "iOS/macOS developer with SwiftUI and UIKit expertise.", category: "Programming", instruction: "Act as a Swift developer. Write clean SwiftUI views, use Combine for reactive programming, and follow Apple HIG." },
-  { name: "Kotlin Developer", description: "Android and backend Kotlin specialist with coroutines expertise.", category: "Programming", instruction: "Act as a Kotlin developer. Use coroutines, flow, and Jetpack Compose. Write idiomatic Kotlin with null safety." },
-
-  // Web Development
-  { name: "React Developer", description: "Specialist in React 19, hooks, Server Components, and modern frontend architecture.", category: "Web", instruction: "Act as a Senior React Developer. Write clean, accessible, and performant functional components using hooks. Prefer composition over inheritance, custom hooks for logic reuse." },
-  { name: "Next.js Expert", description: "Full-stack Next.js developer with App Router and RSC expertise.", category: "Web", instruction: "Act as a Next.js expert. Use App Router, Server Components, Server Actions, and proper caching strategies. Optimize for Core Web Vitals." },
-  { name: "Vue.js Developer", description: "Vue 3 specialist with Composition API and Nuxt expertise.", category: "Web", instruction: "Act as a Vue.js developer. Use Composition API with script setup, composables for logic reuse, and Pinia for state management." },
-  { name: "CSS/Tailwind Expert", description: "Frontend styling specialist with responsive design and animation skills.", category: "Web", instruction: "Act as a CSS expert. Write maintainable styles using Tailwind CSS, CSS Grid, Flexbox. Create smooth animations and ensure responsive design." },
-  { name: "Full-Stack Engineer", description: "End-to-end web developer covering frontend, backend, and deployment.", category: "Web", instruction: "Act as a full-stack engineer. Design clean APIs, write type-safe code across the stack, and consider security, performance, and scalability." },
-  { name: "Angular Developer", description: "Enterprise Angular specialist with RxJS and NgRx expertise.", category: "Web", instruction: "Act as an Angular developer. Use standalone components, signals, RxJS best practices, and proper module architecture." },
-
-  // AI & ML
-  { name: "ML Engineer", description: "Machine learning specialist with PyTorch, TensorFlow, and scikit-learn.", category: "AI & ML", instruction: "Act as an ML Engineer. Design and implement ML pipelines, select appropriate models, and explain trade-offs between approaches." },
-  { name: "Prompt Engineer", description: "Expert at crafting effective prompts for LLMs and generative AI.", category: "AI & ML", instruction: "Act as a Prompt Engineer. Help craft clear, effective prompts. Use techniques like chain-of-thought, few-shot examples, and structured outputs." },
-  { name: "Data Scientist", description: "Analyzes data and provides insights using pandas, SQL, and visualization.", category: "AI & ML", instruction: "Act as a Data Scientist. Provide code and explanations for data cleaning, analysis, visualization, and statistical modeling." },
-  { name: "Computer Vision Expert", description: "Image and video processing specialist with deep learning models.", category: "AI & ML", instruction: "Act as a Computer Vision expert. Guide on model selection, data augmentation, transfer learning, and deployment of vision models." },
-  { name: "NLP Specialist", description: "Natural language processing expert with transformers and embeddings.", category: "AI & ML", instruction: "Act as an NLP specialist. Help with text processing, embeddings, fine-tuning language models, and building NLP pipelines." },
-
-  // DevOps & Cloud
-  { name: "DevOps Engineer", description: "CI/CD, containerization, and infrastructure automation specialist.", category: "DevOps", instruction: "Act as a DevOps Engineer. Write clean Dockerfiles, CI/CD pipelines, Terraform configs. Focus on reliability, observability, and automation." },
-  { name: "AWS Architect", description: "Cloud architecture specialist with deep AWS services knowledge.", category: "DevOps", instruction: "Act as an AWS Solutions Architect. Design scalable, cost-effective architectures using appropriate AWS services. Follow Well-Architected Framework." },
-  { name: "Kubernetes Expert", description: "Container orchestration specialist with Helm and operator patterns.", category: "DevOps", instruction: "Act as a Kubernetes expert. Write clean manifests, use Helm charts, and design for high availability and auto-scaling." },
-
-  // Design
-  { name: "UX Designer", description: "Helps design intuitive and beautiful user interfaces with accessibility focus.", category: "Design", instruction: "Act as a UX/UI Designer. Provide advice on layout, typography, accessibility, color theory, and interaction design. Follow WCAG guidelines." },
-  { name: "Design System Architect", description: "Creates scalable component libraries and design tokens.", category: "Design", instruction: "Act as a Design System Architect. Define consistent tokens, component APIs, and documentation. Ensure accessibility and cross-platform consistency." },
-  { name: "Motion Designer", description: "Animation and micro-interaction specialist for web and mobile.", category: "Design", instruction: "Act as a Motion Designer. Create meaningful animations using Framer Motion, CSS transitions, and Lottie. Follow animation best practices for performance." },
-
-  // Writing & Documentation
-  { name: "Technical Writer", description: "Creates clear and concise technical documentation and API docs.", category: "Writing", instruction: "Act as a Technical Writer. Write clear, concise documentation with well-structured Markdown. Include code examples, diagrams, and troubleshooting guides." },
-  { name: "Code Reviewer", description: "Reviews code for quality, security, and best practices.", category: "Writing", instruction: "Act as a Senior Code Reviewer. Identify bugs, security issues, performance problems, and style violations. Suggest concrete improvements with examples." },
-  { name: "API Documentation Writer", description: "Creates comprehensive REST and GraphQL API documentation.", category: "Writing", instruction: "Act as an API documentation writer. Write clear endpoint descriptions, request/response examples, error codes, and authentication guides." },
-
-  // Security
-  { name: "Security Engineer", description: "Application security specialist with OWASP and penetration testing expertise.", category: "Security", instruction: "Act as a Security Engineer. Identify vulnerabilities (OWASP Top 10), suggest remediations, and write secure code patterns. Never suggest insecure shortcuts." },
-  { name: "Cryptography Expert", description: "Encryption, hashing, and secure communication specialist.", category: "Security", instruction: "Act as a Cryptography expert. Recommend appropriate algorithms, key management strategies, and secure implementation patterns." },
-
-  // Database
-  { name: "Database Architect", description: "SQL and NoSQL database design and optimization specialist.", category: "Database", instruction: "Act as a Database Architect. Design normalized schemas, write efficient queries, create proper indexes, and plan migration strategies." },
-  { name: "PostgreSQL Expert", description: "Deep PostgreSQL specialist with advanced features and performance tuning.", category: "Database", instruction: "Act as a PostgreSQL expert. Use CTEs, window functions, JSONB, full-text search, and explain query optimization with EXPLAIN ANALYZE." },
-
-  // Testing
-  { name: "QA Engineer", description: "Testing strategy specialist with unit, integration, and E2E testing.", category: "Testing", instruction: "Act as a QA Engineer. Write comprehensive tests using appropriate frameworks. Cover edge cases, error paths, and integration scenarios." },
-  { name: "Test Automation Expert", description: "Automated testing specialist with Playwright, Cypress, and Jest.", category: "Testing", instruction: "Act as a Test Automation expert. Write reliable, maintainable tests. Use page object pattern, proper selectors, and test data management." },
-
-  // Mobile
-  { name: "React Native Developer", description: "Cross-platform mobile developer with native module expertise.", category: "Mobile", instruction: "Act as a React Native developer. Write performant cross-platform code, handle navigation, state management, and native integrations." },
-  { name: "Flutter Developer", description: "Cross-platform mobile specialist with Dart and Material Design.", category: "Mobile", instruction: "Act as a Flutter developer. Write clean widget trees, use BLoC/Riverpod for state, and create custom animations." },
-
-  // Misc
-  { name: "Accessibility Expert", description: "WCAG compliance and inclusive design specialist.", category: "Accessibility", instruction: "Act as an Accessibility Expert. Ensure WCAG 2.2 AA compliance. Check semantic HTML, ARIA attributes, keyboard navigation, color contrast, and screen reader compatibility." },
-  { name: "Performance Engineer", description: "Web and application performance optimization specialist.", category: "Performance", instruction: "Act as a Performance Engineer. Optimize bundle size, rendering, network requests, and Core Web Vitals. Use profiling tools and suggest concrete improvements." },
-  { name: "System Design Expert", description: "Distributed systems architect for scalable applications.", category: "Architecture", instruction: "Act as a System Design expert. Design scalable, reliable distributed systems. Consider CAP theorem, caching strategies, load balancing, and data partitioning." },
-  { name: "Git Expert", description: "Version control specialist with advanced Git workflows.", category: "Tools", instruction: "Act as a Git expert. Help with branching strategies, rebasing, cherry-picking, bisecting, and resolving complex merge conflicts." },
-  { name: "Regex Master", description: "Regular expression specialist for pattern matching and text processing.", category: "Tools", instruction: "Act as a Regex expert. Write efficient, readable regular expressions with explanations. Consider edge cases and performance." },
-  { name: "Shell Scripting Pro", description: "Bash/Zsh scripting expert for automation and system administration.", category: "Tools", instruction: "Act as a Shell scripting expert. Write portable, well-commented scripts with proper error handling, argument parsing, and logging." },
+const CATEGORIES = [
+  'frontend-development', 'backend-development', 'general', 'data-science-ai',
+  'ai-ml', 'javascript', 'cloud', 'mobile-development', 'testing-qa',
+  'devops', 'security', 'database', 'design', 'documentation',
+  'python', 'rust', 'go', 'java', 'typescript',
+  'infrastructure', 'networking', 'blockchain', 'gaming', 'iot',
 ];
+
+interface ParsedSkill {
+  name: string;
+  description: string;
+  category: string;
+  stars: number;
+  author: string;
+  url: string;
+}
+
+function parseSkillsFromMarkdown(markdown: string, categoryLabel: string): ParsedSkill[] {
+  const skills: ParsedSkill[] = [];
+
+  // Pattern: [**skill-name** \n\n stars \n\n description \n\n author \n\n date](url)
+  // The markdown has skills as link blocks like:
+  // [**name** \\ \\ 12345 \\ \\ description text \\ \\ author \\ \\ date](url)
+  const skillBlocks = markdown.split(/\[(?=\*\*[a-z0-9])/i);
+
+  for (const block of skillBlocks) {
+    try {
+      // Extract name
+      const nameMatch = block.match(/\*\*([^*]+)\*\*/);
+      if (!nameMatch) continue;
+      const name = nameMatch[1].trim();
+
+      // Extract URL
+      const urlMatch = block.match(/\]\((https:\/\/ai-skills\.io\/skill\/[^)]+)\)/);
+      const url = urlMatch ? urlMatch[1] : '';
+
+      // Extract star count (a number on its own line)
+      const starsMatch = block.match(/\\?\n\\?\n([\d,]+)\\?\n/);
+      const stars = starsMatch ? parseInt(starsMatch[1].replace(/,/g, ''), 10) : 0;
+
+      // Extract description - text between stars count and author
+      // Clean up the block text
+      const cleanBlock = block.replace(/\\\\/g, '').replace(/\\n/g, '\n').replace(/\n+/g, '\n');
+      const lines = cleanBlock.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      
+      // Find description: typically the longest line that's not the name, not a number, not a short author
+      let description = '';
+      for (const line of lines) {
+        if (line.startsWith('**') || line.startsWith('[') || line.startsWith(']')) continue;
+        if (/^[\d,]+$/.test(line)) continue;
+        if (/^\d{4}-\d{2}-\d{2}/.test(line)) continue;
+        if (line.length > description.length && line.length > 10) {
+          description = line;
+        }
+      }
+
+      // Extract author - usually a short word before the date
+      let author = '';
+      for (const line of lines) {
+        if (/^[a-zA-Z0-9_-]{2,30}$/.test(line) && !line.startsWith('**')) {
+          author = line;
+        }
+      }
+
+      if (name && description) {
+        skills.push({
+          name,
+          description: description.slice(0, 300),
+          category: categoryLabel,
+          stars,
+          author,
+          url,
+        });
+      }
+    } catch {
+      // skip malformed blocks
+    }
+  }
+
+  return skills;
+}
+
+function categorySlugToLabel(slug: string): string {
+  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -78,32 +97,163 @@ Deno.serve(async (req) => {
   }
 
   try {
-    let { search } = {} as { search?: string };
+    const apiKey = Deno.env.get('FIRECRAWL_API_KEY');
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'Firecrawl not configured. Connect Firecrawl in settings.' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    let search = '';
+    let category = '';
+    let mode = 'categories'; // 'categories' | 'category' | 'search' | 'top'
     try {
       const body = await req.json();
-      search = body?.search;
-    } catch {
-      // no body is fine
+      search = body?.search || '';
+      category = body?.category || '';
+      mode = body?.mode || 'categories';
+    } catch { /* no body */ }
+
+    // Mode: browse categories (homepage)
+    if (mode === 'categories') {
+      const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://ai-skills.io/', formats: ['markdown'], waitFor: 3000 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return new Response(JSON.stringify({ error: data.error || 'Firecrawl scrape failed' }), {
+          status: res.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const md = data.data?.markdown || data.markdown || '';
+      // Parse categories from the homepage markdown
+      const categories: { slug: string; label: string; description: string; count: number }[] = [];
+      const catRegex = /\[?\*\*([^*]+)\*\*[^]*?(\d[\d,]*)\s*skills\]\(https:\/\/ai-skills\.io\/category\/([a-z0-9-]+)\)/g;
+      let match;
+      while ((match = catRegex.exec(md)) !== null) {
+        categories.push({
+          label: match[1].trim(),
+          count: parseInt(match[2].replace(/,/g, ''), 10),
+          slug: match[3],
+          description: '',
+        });
+      }
+      
+      // Fallback: simpler pattern
+      if (categories.length === 0) {
+        const simpleRegex = /\*\*([^*]+)\*\*[\s\\]*([^\n[]+?)[\s\\]*(\d[\d,]*)\s*skills/g;
+        while ((match = simpleRegex.exec(md)) !== null) {
+          const label = match[1].trim();
+          const desc = match[2].replace(/\\/g, '').trim();
+          const count = parseInt(match[3].replace(/,/g, ''), 10);
+          const slug = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+          categories.push({ label, description: desc, count, slug });
+        }
+      }
+
+      return new Response(JSON.stringify({ categories }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    let results = SKILLS_LIBRARY;
-    if (search && search.trim()) {
-      const q = search.toLowerCase();
-      results = SKILLS_LIBRARY.filter(s =>
-        s.name.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q)
-      );
+    // Mode: top starred
+    if (mode === 'top') {
+      const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: 'https://ai-skills.io/top-starred', formats: ['markdown'], waitFor: 5000 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return new Response(JSON.stringify({ error: data.error || 'Scrape failed' }), {
+          status: res.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      const md = data.data?.markdown || data.markdown || '';
+      const skills = parseSkillsFromMarkdown(md, 'Top Starred');
+      return new Response(JSON.stringify({ skills }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
-    return new Response(JSON.stringify({ skills: results }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Mode: browse a specific category
+    if (mode === 'category' && category) {
+      const slug = category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      const res = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: `https://ai-skills.io/category/${slug}`, formats: ['markdown'], waitFor: 5000 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return new Response(JSON.stringify({ error: data.error || 'Scrape failed' }), {
+          status: res.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      const md = data.data?.markdown || data.markdown || '';
+      const skills = parseSkillsFromMarkdown(md, categorySlugToLabel(slug));
+      return new Response(JSON.stringify({ skills }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Mode: search using Firecrawl search
+    if (mode === 'search' && search.trim()) {
+      const res = await fetch('https://api.firecrawl.dev/v1/search', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `site:ai-skills.io ${search}`,
+          limit: 20,
+          scrapeOptions: { formats: ['markdown'] },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return new Response(JSON.stringify({ error: data.error || 'Search failed' }), {
+          status: res.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const results = data.data || [];
+      const skills: ParsedSkill[] = [];
+      for (const result of results) {
+        const url = result.url || '';
+        // Only include skill detail pages
+        if (!url.includes('/skill/')) continue;
+        const md = result.markdown || '';
+        
+        // Parse from skill detail page format
+        const nameMatch = md.match(/\|\s*name\s*\|\s*([^|]+)\|/);
+        const descMatch = md.match(/\|\s*description\s*\|\s*([^|]+)\|/);
+        const authorMatch = md.match(/\|\s*author\s*\|\s*([^|]+)\|/);
+        
+        const name = nameMatch ? nameMatch[1].trim() : (result.title || '').replace(/ - ai-skills.io.*/, '');
+        const description = descMatch ? descMatch[1].trim() : (result.description || '');
+        const author = authorMatch ? authorMatch[1].trim() : '';
+
+        if (name && description) {
+          skills.push({ name, description: description.slice(0, 300), category: 'Search Result', stars: 0, author, url });
+        }
+      }
+      
+      return new Response(JSON.stringify({ skills }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Default: return empty
+    return new Response(JSON.stringify({ skills: [], categories: [] }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
+
   } catch (error) {
     console.error('Edge function error:', error);
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 500, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
