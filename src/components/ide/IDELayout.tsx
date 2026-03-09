@@ -1711,6 +1711,12 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         onProjectUpdated={setCurrentProject}
       />
 
+      <CollabDialog
+        open={showCollabDialog}
+        onOpenChange={setShowCollabDialog}
+        projectId={currentProject?.id}
+      />
+
       <GitProviderImportDialog
         open={showGitImportDialog}
         onOpenChange={setShowGitImportDialog}
