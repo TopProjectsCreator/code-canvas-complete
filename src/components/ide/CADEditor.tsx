@@ -410,11 +410,21 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const [textPrompt, setTextPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState('');
+  const [selected3DProvider, setSelected3DProvider] = useState<'meshy' | 'sloyd' | 'tripo' | 'modelslab' | 'fal' | 'neural4d'>('meshy');
   
   // GLB geometry state (for async loaded models)
   const [glbGeometry, setGlbGeometry] = useState<THREE.BufferGeometry | null>(null);
   
   const { hasCustomKey } = useApiKeys();
+
+  const PROVIDERS_3D = [
+    { id: 'meshy', label: 'Meshy AI', desc: 'Preview + refine workflow' },
+    { id: 'sloyd', label: 'Sloyd AI', desc: 'Game-ready assets' },
+    { id: 'tripo', label: 'Tripo AI', desc: 'Detailed models' },
+    { id: 'modelslab', label: 'ModelsLab', desc: 'Customizable params' },
+    { id: 'fal', label: 'Fal.ai', desc: 'Hyper3D Rodin / Trellis' },
+    { id: 'neural4d', label: 'Neural4D', desc: 'Fast (<90s), STL export' },
+  ] as const;
 
   const loadCADFile = (f: File) => {
     const reader = new FileReader();
