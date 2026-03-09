@@ -7,8 +7,9 @@ import { FileNode } from '@/types/ide';
 import {
   Box, RotateCcw, ZoomIn, ZoomOut, Eye, Layers, Sun, Moon,
   Maximize, Info, Download, Grid3X3, Move, Loader2, Upload,
-  Circle, Triangle, Cylinder, Hexagon, Sparkles
+  Circle, Triangle, Cylinder, Hexagon, Sparkles, FileDown
 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
