@@ -85,9 +85,9 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
             <Settings className="w-4 h-4 mr-2" />
             Settings
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => openSettings('apikeys')}>
+          <DropdownMenuItem onClick={() => openSettings('ai')}>
             <Key className="w-4 h-4 mr-2" />
-            API Keys
+            AI Settings
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => signOut()} className="text-destructive">
