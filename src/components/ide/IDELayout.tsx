@@ -2007,8 +2007,14 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
 
           {/* AI Chat Sidebar - Mobile: full screen, Desktop: sidebar */}
           <AIChat
-            isOpen={isAIChatOpen}
-            onClose={() => setIsAIChatOpen(false)}
+            isOpen={isAIChatOpen || mobileActivePanel === 'ai'}
+            onClose={() => {
+              if (isMobile) {
+                setMobileActivePanel('editor');
+              } else {
+                setIsAIChatOpen(false);
+              }
+            }}
             currentFile={activeFileWithContent}
             consoleOutput={terminalHistory}
             onInsertCode={(code) => {
