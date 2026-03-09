@@ -285,6 +285,15 @@ export function useCollaboration(projectId: string | undefined) {
       return false;
     }
     toast({ title: 'Invitation sent', description: `Invited ${email} as ${role}` });
+    // Trigger desktop notification for the inviter's confirmation
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        const settings = JSON.parse(localStorage.getItem('ide-notification-settings') || '{}');
+        if (settings.desktopEnabled) {
+          new Notification('Collaboration invite sent', { body: `Invited ${email} as ${role}`, icon: '/favicon.ico' });
+        }
+      }
+    } catch {}
     fetchCollaborators();
     return true;
   };
