@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_skills: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          instruction: string
+          is_enabled: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          instruction: string
+          is_enabled?: boolean
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          instruction?: string
+          is_enabled?: boolean
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_usage_tracking: {
         Row: {
           created_at: string
@@ -37,6 +73,42 @@ export type Database = {
           model_tier?: string
           request_count?: number
           usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      mcp_servers: {
+        Row: {
+          api_key: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_enabled: boolean
+          name: string
+          updated_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          api_key?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          name: string
+          updated_at?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          api_key?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_enabled?: boolean
+          name?: string
+          updated_at?: string
+          url?: string
           user_id?: string
         }
         Relationships: []
