@@ -1653,6 +1653,17 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     [handleSelectTemplate, toast, addHistoryEntry],
   );
 
+  // On mobile, sync mobile panel state with AI chat
+  useEffect(() => {
+    if (isMobile) {
+      if (mobileActivePanel === 'ai') {
+        setIsAIChatOpen(true);
+      } else {
+        setIsAIChatOpen(false);
+      }
+    }
+  }, [mobileActivePanel, isMobile]);
+
   // Show language picker if no template selected
   if (!selectedTemplate) {
     return (
@@ -1667,16 +1678,6 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       </>
     );
   }
-  // On mobile, sync mobile panel state with AI chat
-  useEffect(() => {
-    if (isMobile) {
-      if (mobileActivePanel === 'ai') {
-        setIsAIChatOpen(true);
-      } else {
-        setIsAIChatOpen(false);
-      }
-    }
-  }, [mobileActivePanel, isMobile]);
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
