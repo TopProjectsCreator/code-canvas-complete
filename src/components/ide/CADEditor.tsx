@@ -642,6 +642,32 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                 />
               ))}
             </div>
+
+            {/* Export dropdown */}
+            {displayGeometry && (
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-white/70 hover:text-white hover:bg-white/10 ml-1 border-l border-[#333] pl-2">
+                        <FileDown className="w-3.5 h-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>Export Model</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => exportToSTL(displayGeometry, file.name)}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export as STL
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportToOBJ(displayGeometry, file.name)}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export as OBJ
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
