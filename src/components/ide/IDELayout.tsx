@@ -16,6 +16,8 @@ import { ProjectsDialog } from "./ProjectsDialog";
 import { SaveProjectDialog } from "./SaveProjectDialog";
 import { ShareDialog } from "./ShareDialog";
 import { GitProviderImportDialog } from "./GitProviderImportDialog";
+import { CollabDialog, PresenceAvatars } from "./CollabDialog";
+import { useCollaboration } from "@/hooks/useCollaboration";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { useCodeExecution } from "@/hooks/useCodeExecution";
@@ -250,6 +252,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showGitImportDialog, setShowGitImportDialog] = useState(false);
+  const [showCollabDialog, setShowCollabDialog] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
@@ -272,6 +275,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   >([]);
   const editedFilesRef = useRef<Set<string>>(new Set());
   const { executeCode, executeShellCommand, isExecuting } = useCodeExecution();
+  const collab = useCollaboration(currentProject?.id);
 
   const addHistoryEntry = useCallback(
     (type: (typeof historyEntries)[0]["type"], label: string, detail?: string) => {
@@ -1677,6 +1681,8 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         onStar={handleStar}
         onShare={() => setShowShareDialog(true)}
         onGitImport={() => setShowGitImportDialog(true)}
+        onCollab={() => setShowCollabDialog(true)}
+        presence={collab.presence}
         isStarred={isStarred}
         isForking={isForking}
         starsCount={currentProject?.stars_count || 0}
@@ -1705,6 +1711,12 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         onOpenChange={setShowShareDialog}
         project={currentProject}
         onProjectUpdated={setCurrentProject}
+      />
+
+      <CollabDialog
+        open={showCollabDialog}
+        onOpenChange={setShowCollabDialog}
+        projectId={currentProject?.id}
       />
 
       <GitProviderImportDialog
