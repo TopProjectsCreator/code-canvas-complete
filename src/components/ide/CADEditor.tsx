@@ -369,7 +369,8 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                 />
               )}
 
-              <Environment preset={darkBg ? 'night' : 'city'} />
+              {/* Use simple hemisphere light instead of Environment preset to avoid external HDR fetch */}
+              <hemisphereLight args={[darkBg ? '#1a1a2e' : '#87ceeb', darkBg ? '#111' : '#fff', 0.6]} />
             </Suspense>
 
             <OrbitControls makeDefault enableDamping dampingFactor={0.1} />
