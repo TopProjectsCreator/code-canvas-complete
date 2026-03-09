@@ -1845,40 +1845,122 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
           </div>
         )}
 
-        {/* Main content area */}
+        {/* Main content area - Mobile: stacked panels, Desktop: resizable */}
         <div className="flex-1 flex overflow-hidden">
-          <ResizablePanelGroup direction="horizontal" className="flex-1">
-            {/* Editor panel - hidden for scratch template */}
-            {selectedTemplate !== "scratch" && (
-              <>
-                <ResizablePanel defaultSize={50} minSize={30}>
-                  <div className="h-full flex flex-col">
-                    <EditorTabs
-                      tabs={openTabs}
-                      activeTabId={activeTabId}
-                      onTabClick={handleTabClick}
-                      onTabClose={handleTabClose}
-                    />
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                      <CodeEditor file={activeFileWithContent} onContentChange={handleContentChange} />
-                      <Terminal
-                        history={terminalHistory}
-                        onCommand={handleCommand}
-                        isMinimized={isTerminalMinimized}
-                        onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
-                        stdinPrompt={stdinPrompt}
-                        onStdinSubmit={handleStdinSubmit}
-                      />
-                    </div>
+          {isMobile ? (
+            // Mobile: Single panel view with bottom nav switcher
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Editor Panel */}
+              {mobileActivePanel === 'editor' && selectedTemplate !== "scratch" && (
+                <div className="h-full flex flex-col">
+                  <EditorTabs
+                    tabs={openTabs}
+                    activeTabId={activeTabId}
+                    onTabClick={handleTabClick}
+                    onTabClose={handleTabClose}
+                  />
+                  <div className="flex-1 overflow-hidden">
+                    <CodeEditor file={activeFileWithContent} onContentChange={handleContentChange} />
                   </div>
-                </ResizablePanel>
+                </div>
+              )}
 
-                <ResizableHandle withHandle className="bg-border" />
-              </>
-            )}
+              {/* Preview Panel */}
+              {mobileActivePanel === 'preview' && (
+                <div className="h-full flex flex-col">
+                  {selectedTemplate === "arduino" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
+                      <ArduinoPanel
+                        files={files}
+                        onFileUpdate={handleContentChange}
+                        onAddFile={addFile}
+                        currentTemplate={selectedTemplate}
+                      />
+                    </Suspense>
+                  ) : selectedTemplate === "scratch" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
+                      <ScratchPanel
+                        archive={scratchArchive}
+                        onArchiveChange={setScratchArchive}
+                        onProjectJsonUpdate={(json) => {
+                          setFiles((prev) =>
+                            prev.map((node) => {
+                              if (node.type !== "folder") return node;
+                              return {
+                                ...node,
+                                children: (node.children || []).map((child) =>
+                                  child.name === "project.json" ? { ...child, content: json } : child,
+                                ),
+                              };
+                            }),
+                          );
+                        }}
+                        isRunning={isRunning}
+                        onRun={() => setIsRunning(true)}
+                        onStop={handleStop}
+                      />
+                    </Suspense>
+                  ) : (
+                    <Preview
+                      htmlContent={htmlContent}
+                      cssContent={cssContent}
+                      jsContent={jsContent}
+                      isRunning={isRunning}
+                    />
+                  )}
+                </div>
+              )}
 
-            {/* Preview panel or Arduino/Scratch panel */}
-            <ResizablePanel defaultSize={selectedTemplate === "scratch" ? 100 : 50} minSize={20}>
+              {/* Terminal Panel */}
+              {mobileActivePanel === 'terminal' && (
+                <div className="h-full flex flex-col">
+                  <Terminal
+                    history={terminalHistory}
+                    onCommand={handleCommand}
+                    isMinimized={false}
+                    onToggleMinimize={() => {}}
+                    stdinPrompt={stdinPrompt}
+                    onStdinSubmit={handleStdinSubmit}
+                  />
+                </div>
+              )}
+
+              {/* AI Panel is handled by AIChat component */}
+            </div>
+          ) : (
+            // Desktop: Resizable panels
+            <ResizablePanelGroup direction="horizontal" className="flex-1">
+              {/* Editor panel - hidden for scratch template */}
+              {selectedTemplate !== "scratch" && (
+                <>
+                  <ResizablePanel defaultSize={50} minSize={30}>
+                    <div className="h-full flex flex-col">
+                      <EditorTabs
+                        tabs={openTabs}
+                        activeTabId={activeTabId}
+                        onTabClick={handleTabClick}
+                        onTabClose={handleTabClose}
+                      />
+                      <div className="flex-1 flex flex-col overflow-hidden">
+                        <CodeEditor file={activeFileWithContent} onContentChange={handleContentChange} />
+                        <Terminal
+                          history={terminalHistory}
+                          onCommand={handleCommand}
+                          isMinimized={isTerminalMinimized}
+                          onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
+                          stdinPrompt={stdinPrompt}
+                          onStdinSubmit={handleStdinSubmit}
+                        />
+                      </div>
+                    </div>
+                  </ResizablePanel>
+
+                  <ResizableHandle withHandle className="bg-border" />
+                </>
+              )}
+
+              {/* Preview panel or Arduino/Scratch panel */}
+              <ResizablePanel defaultSize={selectedTemplate === "scratch" ? 100 : 50} minSize={20}>
               {selectedTemplate === "arduino" ? (
                 <Suspense fallback={<div className="p-4 text-gray-400">Loading Arduino panel...</div>}>
                   <ArduinoPanel
