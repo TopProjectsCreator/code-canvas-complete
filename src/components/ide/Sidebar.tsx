@@ -65,7 +65,7 @@ interface SidebarProps {
   onInvite: () => void;
 }
 
-type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'settings' | 'history';
+type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'history';
 
 export const Sidebar = ({ 
   files, 
