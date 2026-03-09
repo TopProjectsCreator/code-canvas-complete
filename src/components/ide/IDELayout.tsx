@@ -10,6 +10,7 @@ import { CodeEditor } from "./CodeEditor";
 import { Terminal } from "./Terminal";
 import { Preview } from "./Preview";
 import { LanguagePicker } from "./LanguagePicker";
+import { MobileBottomNav } from "./MobileBottomNav";
 import type { LanguageTemplate } from "@/data/templateRegistry";
 import { AIChat } from "./AIChat";
 import { ProjectsDialog } from "./ProjectsDialog";
@@ -19,12 +20,14 @@ import { GitProviderImportDialog } from "./GitProviderImportDialog";
 import { CollabDialog, PresenceAvatars } from "./CollabDialog";
 import { useCollaboration } from "@/hooks/useCollaboration";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { useCodeExecution } from "@/hooks/useCodeExecution";
 import { useProjects, Project } from "@/hooks/useProjects";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ScratchArchive, importSb3 } from "@/services/scratchSb3";
 
 const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ default: m.ArduinoPanel })));
@@ -217,6 +220,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const { addCustomTheme } = useTheme();
   const navigate = useNavigate();
   const { currentProject, setCurrentProject, loadProject, forkProject, toggleStar } = useProjects();
+  const isMobile = useIsMobile();
 
   const [localProjectName, setLocalProjectName] = useState("my-canvas");
   const [selectedTemplate, setSelectedTemplate] = useState<LanguageTemplate | null>(null);
@@ -243,6 +247,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
+  const [mobileActivePanel, setMobileActivePanel] = useState<'editor' | 'preview' | 'terminal' | 'ai'>('editor');
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [originalFileContents, setOriginalFileContents] = useState<Record<string, string>>({});
   const [gitState, setGitState] = useState<GitState>(initialGitState);
@@ -1648,6 +1653,17 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
     [handleSelectTemplate, toast, addHistoryEntry],
   );
 
+  // On mobile, sync mobile panel state with AI chat
+  useEffect(() => {
+    if (isMobile) {
+      if (mobileActivePanel === 'ai') {
+        setIsAIChatOpen(true);
+      } else {
+        setIsAIChatOpen(false);
+      }
+    }
+  }, [mobileActivePanel, isMobile]);
+
   // Show language picker if no template selected
   if (!selectedTemplate) {
     return (
@@ -1662,6 +1678,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       </>
     );
   }
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Header
@@ -1670,8 +1687,14 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         onRun={handleRun}
         onStop={handleStop}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        onToggleAIChat={() => setIsAIChatOpen(!isAIChatOpen)}
-        isAIChatOpen={isAIChatOpen}
+        onToggleAIChat={() => {
+          if (isMobile) {
+            setMobileActivePanel('ai');
+          } else {
+            setIsAIChatOpen(!isAIChatOpen);
+          }
+        }}
+        isAIChatOpen={isAIChatOpen || mobileActivePanel === 'ai'}
         isAILoading={isAILoading}
         onOpenProjects={() => setShowProjectsDialog(true)}
         onSaveProject={() => setShowSaveDialog(true)}
@@ -1725,15 +1748,12 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         onImport={handleGitImport}
       />
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <div
-          className={cn(
-            "transition-all duration-200 border-r border-border overflow-hidden",
-            isSidebarOpen ? "w-64" : "w-0",
-          )}
-        >
-          <Sidebar
+      <div className="flex-1 flex overflow-hidden pb-0 md:pb-0" style={{ paddingBottom: isMobile ? '56px' : '0' }}>
+        {/* Sidebar - Desktop: slide panel, Mobile: drawer overlay */}
+        {isMobile ? (
+          <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+            <SheetContent side="left" className="w-[280px] p-0">
+              <Sidebar
             files={files}
             onFileSelect={handleFileSelect}
             onCreateFile={handleCreateFile}
@@ -1773,44 +1793,178 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
               addHistoryEntry("file-edit", `Rolled back to: ${entry.label}`);
               toast({ title: "Rolled back", description: `Restored state from "${entry.label}"` });
             }}
-            onInvite={() => setShowShareDialog(true)}
-          />
-        </div>
-
-        {/* Main content area */}
-        <div className="flex-1 flex overflow-hidden">
-          <ResizablePanelGroup direction="horizontal" className="flex-1">
-            {/* Editor panel - hidden for scratch template */}
-            {selectedTemplate !== "scratch" && (
-              <>
-                <ResizablePanel defaultSize={50} minSize={30}>
-                  <div className="h-full flex flex-col">
-                    <EditorTabs
-                      tabs={openTabs}
-                      activeTabId={activeTabId}
-                      onTabClick={handleTabClick}
-                      onTabClose={handleTabClose}
-                    />
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                      <CodeEditor file={activeFileWithContent} onContentChange={handleContentChange} />
-                      <Terminal
-                        history={terminalHistory}
-                        onCommand={handleCommand}
-                        isMinimized={isTerminalMinimized}
-                        onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
-                        stdinPrompt={stdinPrompt}
-                        onStdinSubmit={handleStdinSubmit}
-                      />
-                    </div>
-                  </div>
-                </ResizablePanel>
-
-                <ResizableHandle withHandle className="bg-border" />
-              </>
+                onInvite={() => setShowShareDialog(true)}
+              />
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <div
+            className={cn(
+              "hidden md:block transition-all duration-200 border-r border-border overflow-hidden",
+              isSidebarOpen ? "w-64" : "w-0",
             )}
+          >
+            <Sidebar
+              files={files}
+              onFileSelect={handleFileSelect}
+              onCreateFile={handleCreateFile}
+              onDeleteFile={handleDeleteFile}
+              onRenameFile={handleRenameFile}
+              onUploadFiles={handleUploadFiles}
+              onImportScratchProject={handleImportScratchProject}
+              activeFileId={activeTab?.fileId || null}
+              currentLanguage={selectedTemplate || "javascript"}
+              gitState={gitState}
+              onGitCommit={handleGitCommit}
+              onGitStageFile={handleGitStageFile}
+              onGitUnstageFile={handleGitUnstageFile}
+              onGitDiscardChanges={handleGitDiscardChanges}
+              onGitCreateBranch={handleGitCreateBranch}
+              onGitSwitchBranch={handleGitSwitchBranch}
+              onGitInitRepo={handleGitInitRepo}
+              workflows={workflows}
+              onRunWorkflow={handleRunWorkflow}
+              onCreateWorkflow={handleCreateWorkflow}
+              onUpdateWorkflow={handleUpdateWorkflow}
+              onDeleteWorkflow={handleDeleteWorkflow}
+              currentlyRunningWorkflow={currentlyRunningWorkflow}
+              historyEntries={historyEntries}
+              onRestoreEntry={(entry) => {
+                if (!entry.snapshot) {
+                  toast({
+                    title: "Cannot rollback",
+                    description: "This event has no restorable snapshot.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setFiles(entry.snapshot.files);
+                setFileContents(entry.snapshot.fileContents);
+                setHasUnsavedChanges(true);
+                addHistoryEntry("file-edit", `Rolled back to: ${entry.label}`);
+                toast({ title: "Rolled back", description: `Restored state from "${entry.label}"` });
+              }}
+              onInvite={() => setShowShareDialog(true)}
+            />
+          </div>
+        )}
 
-            {/* Preview panel or Arduino/Scratch panel */}
-            <ResizablePanel defaultSize={selectedTemplate === "scratch" ? 100 : 50} minSize={20}>
+        {/* Main content area - Mobile: stacked panels, Desktop: resizable */}
+        <div className="flex-1 flex overflow-hidden">
+          {isMobile ? (
+            // Mobile: Single panel view with bottom nav switcher
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Editor Panel */}
+              {mobileActivePanel === 'editor' && selectedTemplate !== "scratch" && (
+                <div className="h-full flex flex-col">
+                  <EditorTabs
+                    tabs={openTabs}
+                    activeTabId={activeTabId}
+                    onTabClick={handleTabClick}
+                    onTabClose={handleTabClose}
+                  />
+                  <div className="flex-1 overflow-hidden">
+                    <CodeEditor file={activeFileWithContent} onContentChange={handleContentChange} />
+                  </div>
+                </div>
+              )}
+
+              {/* Preview Panel */}
+              {mobileActivePanel === 'preview' && (
+                <div className="h-full flex flex-col">
+                  {selectedTemplate === "arduino" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
+                      <ArduinoPanel
+                        files={files}
+                        onFileUpdate={handleContentChange}
+                        onAddFile={addFile}
+                        currentTemplate={selectedTemplate}
+                      />
+                    </Suspense>
+                  ) : selectedTemplate === "scratch" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
+                      <ScratchPanel
+                        archive={scratchArchive}
+                        onArchiveChange={setScratchArchive}
+                        onProjectJsonUpdate={(json) => {
+                          setFiles((prev) =>
+                            prev.map((node) => {
+                              if (node.type !== "folder") return node;
+                              return {
+                                ...node,
+                                children: (node.children || []).map((child) =>
+                                  child.name === "project.json" ? { ...child, content: json } : child,
+                                ),
+                              };
+                            }),
+                          );
+                        }}
+                        isRunning={isRunning}
+                        onRun={() => setIsRunning(true)}
+                        onStop={handleStop}
+                      />
+                    </Suspense>
+                  ) : (
+                    <Preview
+                      htmlContent={htmlContent}
+                      cssContent={cssContent}
+                      jsContent={jsContent}
+                      isRunning={isRunning}
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Terminal Panel */}
+              {mobileActivePanel === 'terminal' && (
+                <div className="h-full flex flex-col">
+                  <Terminal
+                    history={terminalHistory}
+                    onCommand={handleCommand}
+                    isMinimized={false}
+                    onToggleMinimize={() => {}}
+                    stdinPrompt={stdinPrompt}
+                    onStdinSubmit={handleStdinSubmit}
+                  />
+                </div>
+              )}
+
+              {/* AI Panel is handled by AIChat component */}
+            </div>
+          ) : (
+            // Desktop: Resizable panels
+            <ResizablePanelGroup direction="horizontal" className="flex-1">
+              {/* Editor panel - hidden for scratch template */}
+              {selectedTemplate !== "scratch" && (
+                <>
+                  <ResizablePanel defaultSize={50} minSize={30}>
+                    <div className="h-full flex flex-col">
+                      <EditorTabs
+                        tabs={openTabs}
+                        activeTabId={activeTabId}
+                        onTabClick={handleTabClick}
+                        onTabClose={handleTabClose}
+                      />
+                      <div className="flex-1 flex flex-col overflow-hidden">
+                        <CodeEditor file={activeFileWithContent} onContentChange={handleContentChange} />
+                        <Terminal
+                          history={terminalHistory}
+                          onCommand={handleCommand}
+                          isMinimized={isTerminalMinimized}
+                          onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
+                          stdinPrompt={stdinPrompt}
+                          onStdinSubmit={handleStdinSubmit}
+                        />
+                      </div>
+                    </div>
+                  </ResizablePanel>
+
+                  <ResizableHandle withHandle className="bg-border" />
+                </>
+              )}
+
+              {/* Preview panel or Arduino/Scratch panel */}
+              <ResizablePanel defaultSize={selectedTemplate === "scratch" ? 100 : 50} minSize={20}>
               {selectedTemplate === "arduino" ? (
                 <Suspense fallback={<div className="p-4 text-gray-400">Loading Arduino panel...</div>}>
                   <ArduinoPanel
@@ -1851,13 +2005,20 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                   isRunning={isRunning}
                 />
               )}
-            </ResizablePanel>
-          </ResizablePanelGroup>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          )}
 
-          {/* AI Chat Sidebar */}
+          {/* AI Chat Sidebar - Mobile: full screen, Desktop: sidebar */}
           <AIChat
-            isOpen={isAIChatOpen}
-            onClose={() => setIsAIChatOpen(false)}
+            isOpen={isAIChatOpen || mobileActivePanel === 'ai'}
+            onClose={() => {
+              if (isMobile) {
+                setMobileActivePanel('editor');
+              } else {
+                setIsAIChatOpen(false);
+              }
+            }}
             currentFile={activeFileWithContent}
             consoleOutput={terminalHistory}
             onInsertCode={(code) => {
@@ -2115,6 +2276,16 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             }}
           />
         </div>
+
+        {/* Mobile Bottom Navigation */}
+        {isMobile && (
+          <MobileBottomNav
+            activePanel={mobileActivePanel}
+            onPanelChange={setMobileActivePanel}
+            showPreview={selectedTemplate !== 'typescript' && selectedTemplate !== 'python'}
+            showTerminal={selectedTemplate !== 'scratch'}
+          />
+        )}
       </div>
     </div>
   );

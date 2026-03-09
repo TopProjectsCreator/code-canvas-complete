@@ -859,7 +859,10 @@ export const AIChat = ({
   if (!isOpen) return null;
 
   return (
-    <div className="h-full flex flex-col bg-card border-l border-border relative" style={{ width: panelWidth }}>
+    <div
+      className="h-full flex flex-col bg-card border-l border-border relative"
+      style={{ width: window.innerWidth < 768 ? '100%' : panelWidth }}
+    >
       {/* Resize handle */}
       <div
         onMouseDown={handleResizeMouseDown}
