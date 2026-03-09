@@ -38,6 +38,9 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   powerpoint: 'PowerPoint',
   excel: 'Excel Spreadsheet',
   video: 'Video Editor',
+  audio: 'Audio Editor',
+  rtf: 'Rich Text',
+  cad: '3D CAD Viewer',
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
@@ -210,6 +213,15 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case 'video':
       baseTemplate = videoTemplate;
+      break;
+    case 'audio':
+      baseTemplate = audioTemplate;
+      break;
+    case 'rtf':
+      baseTemplate = rtfTemplate;
+      break;
+    case 'cad':
+      baseTemplate = cadTemplate;
       break;
     default:
       baseTemplate = htmlTemplate;
@@ -2034,6 +2046,108 @@ This project contains an Excel spreadsheet. Click on \`Spreadsheet.xlsx\` to ope
 - Double-click or type to edit cells
 - Sheet tabs
 - Save to .xlsx format
+`
+      }
+    ]
+  }
+];
+
+const audioTemplate: FileNode[] = [
+  {
+    id: 'audio-project',
+    name: 'Audio Project',
+    type: 'folder',
+    children: [
+      {
+        id: 'sample-audio',
+        name: 'sample.mp3',
+        type: 'file',
+        language: 'audio',
+        content: ''
+      },
+      {
+        id: 'readme-md',
+        name: 'README.md',
+        type: 'file',
+        language: 'markdown',
+        content: `# Audio Editor Project
+
+Upload \`.mp3\`, \`.wav\`, or \`.ogg\` files to get started.
+
+## Features
+- Waveform visualization
+- Play/pause, skip forward/back
+- Playback speed control
+- Volume control with mute
+- Trim in/out points
+`
+      }
+    ]
+  }
+];
+
+const rtfTemplate: FileNode[] = [
+  {
+    id: 'rtf-project',
+    name: 'Rich Text Project',
+    type: 'folder',
+    children: [
+      {
+        id: 'document-rtf',
+        name: 'Document.rtf',
+        type: 'file',
+        language: 'rtf',
+        content: '{\\rtf1\\ansi\\deff0 Hello, start editing your rich text document here.}'
+      },
+      {
+        id: 'readme-md',
+        name: 'README.md',
+        type: 'file',
+        language: 'markdown',
+        content: `# Rich Text Project
+
+Click on \`Document.rtf\` to open the rich text editor.
+
+## Features
+- Bold, italic, underline formatting
+- Text alignment
+- Lists and headings
+- Export as RTF
+`
+      }
+    ]
+  }
+];
+
+const cadTemplate: FileNode[] = [
+  {
+    id: 'cad-project',
+    name: 'CAD Project',
+    type: 'folder',
+    children: [
+      {
+        id: 'model-stl',
+        name: 'model.stl',
+        type: 'file',
+        language: 'cad',
+        content: ''
+      },
+      {
+        id: 'readme-md',
+        name: 'README.md',
+        type: 'file',
+        language: 'markdown',
+        content: `# 3D CAD Viewer Project
+
+Upload \`.stl\` or \`.obj\` files to view 3D models.
+
+## Features
+- Interactive 3D orbit controls
+- Wireframe toggle
+- Grid and background options
+- Model info (vertices, faces)
+- Color customization
+- Drag & drop upload
 `
       }
     ]
