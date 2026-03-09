@@ -58,6 +58,34 @@ const PROVIDER_TESTS: Record<string, { url: string; method: string; headers: (ke
     method: "GET",
     headers: (key) => ({ Authorization: `Bearer ${key}` }),
   },
+  sloyd: {
+    url: "https://api.sloyd.ai/v1/models",
+    method: "GET",
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+  },
+  tripo: {
+    url: "https://api.tripo3d.ai/v2/openapi/task",
+    method: "GET",
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+  },
+  modelslab: {
+    url: "https://modelslab.com/api/v6/3d/text2model",
+    method: "POST",
+    headers: (key) => ({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ key: "test", prompt: "test", negative_prompt: "", guidance_scale: 15, num_inference_steps: 64, seed: null }),
+  },
+  fal: {
+    url: "https://fal.run/fal-ai/hyper3d-rodin/text-to-3d",
+    method: "POST",
+    headers: (key) => ({ Authorization: `Key ${key}`, "Content-Type": "application/json" }),
+    body: JSON.stringify({ prompt: "test" }),
+  },
+  neural4d: {
+    url: "https://api.neural4d.com/v1/generate",
+    method: "POST",
+    headers: (key) => ({ Authorization: `Bearer ${key}`, "Content-Type": "application/json" }),
+    body: JSON.stringify({ prompt: "test" }),
+  },
 };
 
 serve(async (req) => {
