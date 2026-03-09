@@ -217,6 +217,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const { addCustomTheme } = useTheme();
   const navigate = useNavigate();
   const { currentProject, setCurrentProject, loadProject, forkProject, toggleStar } = useProjects();
+  const isMobile = useIsMobile();
 
   const [localProjectName, setLocalProjectName] = useState("my-canvas");
   const [selectedTemplate, setSelectedTemplate] = useState<LanguageTemplate | null>(null);
