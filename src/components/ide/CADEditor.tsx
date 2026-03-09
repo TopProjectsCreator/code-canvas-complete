@@ -816,6 +816,31 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Provider Selection */}
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  3D Generation Provider
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PROVIDERS_3D.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelected3DProvider(p.id)}
+                      disabled={generating}
+                      className={cn(
+                        "text-left p-2 rounded-lg border transition-colors",
+                        selected3DProvider === p.id
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:bg-accent"
+                      )}
+                    >
+                      <div className="text-xs font-medium">{p.label}</div>
+                      <div className="text-[10px] text-muted-foreground">{p.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="text-sm text-muted-foreground mb-2 block">
                   Describe the 3D model you want to create
@@ -827,11 +852,13 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                   disabled={generating}
                 />
               </div>
-              {!hasCustomKey('meshy') && (
+
+              {!hasCustomKey(selected3DProvider as 'meshy' | 'sloyd' | 'tripo' | 'modelslab' | 'fal' | 'neural4d') && (
                 <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-                  <strong>API Key Required:</strong> Click your avatar (top right) → API Keys → scroll to "Meshy (Text-to-3D)" and add your key.
+                  <strong>API Key Required:</strong> Click your avatar (top right) → Settings → API Keys → add your {PROVIDERS_3D.find(p => p.id === selected3DProvider)?.label} key.
                 </div>
               )}
+
               {genProgress && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -845,7 +872,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
               </Button>
               <Button
                 onClick={handleTextTo3D}
-                disabled={!textPrompt.trim() || generating || !hasCustomKey('meshy')}
+                disabled={!textPrompt.trim() || generating || !hasCustomKey(selected3DProvider as 'meshy' | 'sloyd' | 'tripo' | 'modelslab' | 'fal' | 'neural4d')}
               >
                 {generating ? (
                   <>
