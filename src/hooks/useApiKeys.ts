@@ -13,7 +13,12 @@ export type AIProvider =
   | 'cohere' 
   | 'openrouter'
   | 'github'
-  | 'meshy';
+  | 'meshy'
+  | 'sloyd'
+  | 'tripo'
+  | 'modelslab'
+  | 'fal'
+  | 'neural4d';
 
 export interface UserApiKey {
   id: string;
