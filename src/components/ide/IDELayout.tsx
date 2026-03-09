@@ -1789,9 +1789,61 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
               addHistoryEntry("file-edit", `Rolled back to: ${entry.label}`);
               toast({ title: "Rolled back", description: `Restored state from "${entry.label}"` });
             }}
-            onInvite={() => setShowShareDialog(true)}
-          />
-        </div>
+                onInvite={() => setShowShareDialog(true)}
+              />
+            </SheetContent>
+          </Sheet>
+        ) : (
+          <div
+            className={cn(
+              "hidden md:block transition-all duration-200 border-r border-border overflow-hidden",
+              isSidebarOpen ? "w-64" : "w-0",
+            )}
+          >
+            <Sidebar
+              files={files}
+              onFileSelect={handleFileSelect}
+              onCreateFile={handleCreateFile}
+              onDeleteFile={handleDeleteFile}
+              onRenameFile={handleRenameFile}
+              onUploadFiles={handleUploadFiles}
+              onImportScratchProject={handleImportScratchProject}
+              activeFileId={activeTab?.fileId || null}
+              currentLanguage={selectedTemplate || "javascript"}
+              gitState={gitState}
+              onGitCommit={handleGitCommit}
+              onGitStageFile={handleGitStageFile}
+              onGitUnstageFile={handleGitUnstageFile}
+              onGitDiscardChanges={handleGitDiscardChanges}
+              onGitCreateBranch={handleGitCreateBranch}
+              onGitSwitchBranch={handleGitSwitchBranch}
+              onGitInitRepo={handleGitInitRepo}
+              workflows={workflows}
+              onRunWorkflow={handleRunWorkflow}
+              onCreateWorkflow={handleCreateWorkflow}
+              onUpdateWorkflow={handleUpdateWorkflow}
+              onDeleteWorkflow={handleDeleteWorkflow}
+              currentlyRunningWorkflow={currentlyRunningWorkflow}
+              historyEntries={historyEntries}
+              onRestoreEntry={(entry) => {
+                if (!entry.snapshot) {
+                  toast({
+                    title: "Cannot rollback",
+                    description: "This event has no restorable snapshot.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setFiles(entry.snapshot.files);
+                setFileContents(entry.snapshot.fileContents);
+                setHasUnsavedChanges(true);
+                addHistoryEntry("file-edit", `Rolled back to: ${entry.label}`);
+                toast({ title: "Rolled back", description: `Restored state from "${entry.label}"` });
+              }}
+              onInvite={() => setShowShareDialog(true)}
+            />
+          </div>
+        )}
 
         {/* Main content area */}
         <div className="flex-1 flex overflow-hidden">
