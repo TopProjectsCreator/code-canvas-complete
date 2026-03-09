@@ -226,12 +226,18 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
         </DialogHeader>
 
         <Tabs defaultValue={defaultTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="profile" className="gap-1.5 text-xs">
               <User className="w-3.5 h-3.5" /> Profile
             </TabsTrigger>
             <TabsTrigger value="apikeys" className="gap-1.5 text-xs">
               <Key className="w-3.5 h-3.5" /> API Keys
+            </TabsTrigger>
+            <TabsTrigger value="mcp" className="gap-1.5 text-xs">
+              <Server className="w-3.5 h-3.5" /> MCP
+            </TabsTrigger>
+            <TabsTrigger value="skills" className="gap-1.5 text-xs">
+              <Sparkles className="w-3.5 h-3.5" /> Skills
             </TabsTrigger>
             <TabsTrigger value="appearance" className="gap-1.5 text-xs">
               <Palette className="w-3.5 h-3.5" /> Theme
