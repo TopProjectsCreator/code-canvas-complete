@@ -7,8 +7,9 @@ import { FileNode } from '@/types/ide';
 import {
   Box, RotateCcw, ZoomIn, ZoomOut, Eye, Layers, Sun, Moon,
   Maximize, Info, Download, Grid3X3, Move, Loader2, Upload,
-  Circle, Triangle, Cylinder, Hexagon, Sparkles
+  Circle, Triangle, Cylinder, Hexagon, Sparkles, FileDown
 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -51,6 +52,150 @@ function createPrimitiveGeometry(type: PrimitiveType): THREE.BufferGeometry {
     default:
       return new THREE.BoxGeometry(2, 2, 2);
   }
+}
+
+/**
+ * Export BufferGeometry to binary STL format
+ */
+function exportToSTL(geometry: THREE.BufferGeometry, filename: string): void {
+  const positions = geometry.getAttribute('position');
+  if (!positions) return;
+
+  // Handle indexed geometry
+  const indices = geometry.index;
+  let triangleCount: number;
+  
+  if (indices) {
+    triangleCount = indices.count / 3;
+  } else {
+    triangleCount = positions.count / 3;
+  }
+
+  // STL binary format: 80 byte header + 4 byte triangle count + 50 bytes per triangle
+  const bufferSize = 84 + triangleCount * 50;
+  const buffer = new ArrayBuffer(bufferSize);
+  const view = new DataView(buffer);
+  const uint8 = new Uint8Array(buffer);
+
+  // Write header (80 bytes, can be anything)
+  const header = 'Exported from Lovable IDE CAD Editor';
+  for (let i = 0; i < 80; i++) {
+    uint8[i] = i < header.length ? header.charCodeAt(i) : 0;
+  }
+
+  // Write triangle count
+  view.setUint32(80, triangleCount, true);
+
+  // Compute normals if not present
+  geometry.computeVertexNormals();
+  const normals = geometry.getAttribute('normal');
+
+  let offset = 84;
+  const v = new THREE.Vector3();
+  const n = new THREE.Vector3();
+
+  for (let i = 0; i < triangleCount; i++) {
+    // Get vertex indices
+    const i0 = indices ? indices.getX(i * 3) : i * 3;
+    const i1 = indices ? indices.getX(i * 3 + 1) : i * 3 + 1;
+    const i2 = indices ? indices.getX(i * 3 + 2) : i * 3 + 2;
+
+    // Compute face normal (average of vertex normals)
+    n.set(0, 0, 0);
+    if (normals) {
+      n.x = (normals.getX(i0) + normals.getX(i1) + normals.getX(i2)) / 3;
+      n.y = (normals.getY(i0) + normals.getY(i1) + normals.getY(i2)) / 3;
+      n.z = (normals.getZ(i0) + normals.getZ(i1) + normals.getZ(i2)) / 3;
+      n.normalize();
+    }
+
+    // Write normal
+    view.setFloat32(offset, n.x, true); offset += 4;
+    view.setFloat32(offset, n.y, true); offset += 4;
+    view.setFloat32(offset, n.z, true); offset += 4;
+
+    // Write vertices
+    for (const idx of [i0, i1, i2]) {
+      view.setFloat32(offset, positions.getX(idx), true); offset += 4;
+      view.setFloat32(offset, positions.getY(idx), true); offset += 4;
+      view.setFloat32(offset, positions.getZ(idx), true); offset += 4;
+    }
+
+    // Attribute byte count (unused)
+    view.setUint16(offset, 0, true); offset += 2;
+  }
+
+  // Trigger download
+  const blob = new Blob([buffer], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.replace(/\.[^.]+$/, '') + '.stl';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Export BufferGeometry to OBJ format
+ */
+function exportToOBJ(geometry: THREE.BufferGeometry, filename: string): void {
+  const positions = geometry.getAttribute('position');
+  if (!positions) return;
+
+  geometry.computeVertexNormals();
+  const normals = geometry.getAttribute('normal');
+  const indices = geometry.index;
+
+  let obj = '# Exported from Lovable IDE CAD Editor\n';
+  obj += `# Vertices: ${positions.count}\n\n`;
+
+  // Write vertices
+  for (let i = 0; i < positions.count; i++) {
+    obj += `v ${positions.getX(i).toFixed(6)} ${positions.getY(i).toFixed(6)} ${positions.getZ(i).toFixed(6)}\n`;
+  }
+  obj += '\n';
+
+  // Write normals
+  if (normals) {
+    for (let i = 0; i < normals.count; i++) {
+      obj += `vn ${normals.getX(i).toFixed(6)} ${normals.getY(i).toFixed(6)} ${normals.getZ(i).toFixed(6)}\n`;
+    }
+    obj += '\n';
+  }
+
+  // Write faces
+  if (indices) {
+    for (let i = 0; i < indices.count; i += 3) {
+      const a = indices.getX(i) + 1;
+      const b = indices.getX(i + 1) + 1;
+      const c = indices.getX(i + 2) + 1;
+      if (normals) {
+        obj += `f ${a}//${a} ${b}//${b} ${c}//${c}\n`;
+      } else {
+        obj += `f ${a} ${b} ${c}\n`;
+      }
+    }
+  } else {
+    for (let i = 0; i < positions.count; i += 3) {
+      const a = i + 1;
+      const b = i + 2;
+      const c = i + 3;
+      if (normals) {
+        obj += `f ${a}//${a} ${b}//${b} ${c}//${c}\n`;
+      } else {
+        obj += `f ${a} ${b} ${c}\n`;
+      }
+    }
+  }
+
+  // Trigger download
+  const blob = new Blob([obj], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename.replace(/\.[^.]+$/, '') + '.obj';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 /**
@@ -497,6 +642,32 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                 />
               ))}
             </div>
+
+            {/* Export dropdown */}
+            {displayGeometry && (
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 text-white/70 hover:text-white hover:bg-white/10 ml-1 border-l border-[#333] pl-2">
+                        <FileDown className="w-3.5 h-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent>Export Model</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => exportToSTL(displayGeometry, file.name)}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export as STL
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportToOBJ(displayGeometry, file.name)}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export as OBJ
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
 
