@@ -243,6 +243,7 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
+  const [mobileActivePanel, setMobileActivePanel] = useState<'editor' | 'preview' | 'terminal' | 'ai'>('editor');
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [originalFileContents, setOriginalFileContents] = useState<Record<string, string>>({});
   const [gitState, setGitState] = useState<GitState>(initialGitState);
