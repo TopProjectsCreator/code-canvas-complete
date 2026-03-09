@@ -26,7 +26,7 @@ interface SettingsDialogProps {
   defaultTab?: string;
 }
 
-const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'meshy'];
+const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'meshy', 'sloyd', 'tripo', 'modelslab', 'fal', 'neural4d'];
 
 const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; label: string }> = {
   openai: { prefix: ['sk-'], minLength: 30, label: 'sk-...' },
