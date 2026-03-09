@@ -53,6 +53,11 @@ const PROVIDER_TESTS: Record<string, { url: string; method: string; headers: (ke
     method: "GET",
     headers: (key) => ({ Authorization: `token ${key}`, "User-Agent": "Lovable-IDE" }),
   },
+  meshy: {
+    url: "https://api.meshy.ai/openapi/v1/text-to-3d",
+    method: "GET",
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+  },
 };
 
 serve(async (req) => {
