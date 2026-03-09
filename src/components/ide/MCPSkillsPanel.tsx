@@ -270,6 +270,8 @@ export function AgentSkillsPanel() {
           ))}
         </div>
       )}
+
+      <SkillsLibraryDialog open={showLibrary} onOpenChange={setShowLibrary} />
     </div>
   );
 }
