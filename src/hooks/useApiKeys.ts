@@ -173,6 +173,10 @@ export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]
     { id: 'Phi-4', label: 'Phi-4' },
     { id: 'DeepSeek-R1', label: 'DeepSeek R1' },
   ],
+  meshy: [
+    { id: 'text-to-3d', label: 'Text to 3D' },
+    { id: 'image-to-3d', label: 'Image to 3D' },
+  ],
 };
 
 const DAILY_LIMITS: Record<string, number> = {
