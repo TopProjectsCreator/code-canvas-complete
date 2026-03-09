@@ -326,8 +326,8 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
               </div>
             </TabsContent>
 
-            {/* API Keys Tab */}
-            <TabsContent value="apikeys" className="space-y-4 mt-0">
+            {/* AI Tab (Keys + MCP + Skills + Compare + Stats) */}
+            <TabsContent value="ai" className="space-y-6 mt-0">
               {/* Rate Limits */}
               <div className="space-y-2">
                 <h4 className="text-sm font-medium flex items-center gap-1.5">
@@ -361,7 +361,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                   Your API Keys (BYOK)
                 </h4>
                 
-                <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
                   {PROVIDERS.map(provider => {
                     const info = PROVIDER_INFO[provider];
                     const hasKey = existingKeys.has(provider);
@@ -461,15 +461,29 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                   })}
                 </div>
               </div>
-            </TabsContent>
 
-            {/* MCP Tab */}
-            <TabsContent value="mcp" className="mt-0">
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* AI Comparison */}
+              <AIComparisonPanel />
+
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* Usage Stats */}
+              <AIUsageStats />
+
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* MCP Servers */}
               <MCPServersPanel />
-            </TabsContent>
 
-            {/* Skills Tab */}
-            <TabsContent value="skills" className="mt-0">
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* Agent Skills */}
               <AgentSkillsPanel />
             </TabsContent>
 
