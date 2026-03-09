@@ -568,6 +568,8 @@ export const Sidebar = ({
         onSubmit={handleNewFile}
         defaultType={newFileType}
       />
+
+      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
     </div>
   );
 };
