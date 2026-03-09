@@ -16,6 +16,8 @@ import { ProjectsDialog } from "./ProjectsDialog";
 import { SaveProjectDialog } from "./SaveProjectDialog";
 import { ShareDialog } from "./ShareDialog";
 import { GitProviderImportDialog } from "./GitProviderImportDialog";
+import { CollabDialog, PresenceAvatars } from "./CollabDialog";
+import { useCollaboration } from "@/hooks/useCollaboration";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { cn } from "@/lib/utils";
 import { useCodeExecution } from "@/hooks/useCodeExecution";
