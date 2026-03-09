@@ -13,14 +13,7 @@ import {
   FolderPlus,
   Upload,
   FileText,
-  Palette,
-  Check,
   Zap,
-  Pencil,
-  Trash2,
-  Share2,
-  Download,
-  BookOpen
 } from 'lucide-react';
 import { FileNode, GitState, Workflow } from '@/types/ide';
 import { FileTree } from './FileTree';
@@ -30,13 +23,9 @@ import { PackagePanel } from './PackagePanel';
 import { WorkflowsPanel } from './WorkflowsPanel';
 import { HistoryPanel, HistoryEntry } from './HistoryPanel';
 import { FileIcon } from './FileIcon';
-import { ThemeCreator } from './ThemeCreator';
-import { ThemeImportDialog, getThemeShareUrl } from './ThemeImportDialog';
-import { ThemeLibrary } from './ThemeLibrary';
+import { SettingsDialog } from './SettingsDialog';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
-import { useTheme, themeInfo, IDETheme } from '@/contexts/ThemeContext';
-import { toast } from 'sonner';
 
 // Settings Panel Component
 const SettingsPanel = () => {
