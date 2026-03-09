@@ -1,19 +1,78 @@
 import { useState, useRef, useCallback, Suspense, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, GizmoHelper, GizmoViewport, Center, Html } from '@react-three/drei';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, Center, Html } from '@react-three/drei';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { FileNode } from '@/types/ide';
 import {
   Box, RotateCcw, ZoomIn, ZoomOut, Eye, Layers, Sun, Moon,
-  Maximize, Info, Download, Grid3X3, Move, Loader2, Upload
+  Maximize, Info, Download, Grid3X3, Move, Loader2, Upload,
+  Circle, Triangle, Cylinder, Hexagon, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useApiKeys } from '@/hooks/useApiKeys';
 
 interface CADEditorProps {
   file: FileNode;
   onContentChange: (fileId: string, content: string) => void;
+}
+
+// Primitive shape types
+type PrimitiveType = 'cube' | 'sphere' | 'cylinder' | 'cone' | 'torus';
+
+const PRIMITIVES: { type: PrimitiveType; label: string; icon: React.ReactNode }[] = [
+  { type: 'cube', label: 'Cube', icon: <Box className="w-4 h-4" /> },
+  { type: 'sphere', label: 'Sphere', icon: <Circle className="w-4 h-4" /> },
+  { type: 'cylinder', label: 'Cylinder', icon: <Cylinder className="w-4 h-4" /> },
+  { type: 'cone', label: 'Cone', icon: <Triangle className="w-4 h-4" /> },
+  { type: 'torus', label: 'Torus', icon: <Hexagon className="w-4 h-4" /> },
+];
+
+/**
+ * Create procedural geometry for primitive shapes
+ */
+function createPrimitiveGeometry(type: PrimitiveType): THREE.BufferGeometry {
+  switch (type) {
+    case 'cube':
+      return new THREE.BoxGeometry(2, 2, 2);
+    case 'sphere':
+      return new THREE.SphereGeometry(1.2, 32, 32);
+    case 'cylinder':
+      return new THREE.CylinderGeometry(1, 1, 2, 32);
+    case 'cone':
+      return new THREE.ConeGeometry(1, 2, 32);
+    case 'torus':
+      return new THREE.TorusGeometry(1, 0.4, 16, 48);
+    default:
+      return new THREE.BoxGeometry(2, 2, 2);
+  }
+}
+
+/**
+ * Parse GLB/GLTF binary data into BufferGeometry
+ */
+function parseGLB(buffer: ArrayBuffer): Promise<THREE.BufferGeometry> {
+  return new Promise((resolve, reject) => {
+    const loader = new GLTFLoader();
+    loader.parse(buffer, '', (gltf) => {
+      let geometry: THREE.BufferGeometry | null = null;
+      gltf.scene.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh && !geometry) {
+          geometry = (child as THREE.Mesh).geometry;
+        }
+      });
+      if (geometry) {
+        resolve(geometry);
+      } else {
+        reject(new Error('No mesh found in GLB file'));
+      }
+    }, (err) => reject(err));
+  });
 }
 
 /**
@@ -200,6 +259,17 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  
+  // Text-to-3D state
+  const [textTo3DOpen, setTextTo3DOpen] = useState(false);
+  const [textPrompt, setTextPrompt] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState('');
+  
+  // GLB geometry state (for async loaded models)
+  const [glbGeometry, setGlbGeometry] = useState<THREE.BufferGeometry | null>(null);
+  
+  const { hasCustomKey } = useApiKeys();
 
   const loadCADFile = (f: File) => {
     const reader = new FileReader();
@@ -210,7 +280,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const handleCADUpload = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.stl,.obj';
+    input.accept = '.stl,.obj,.glb,.gltf';
     input.onchange = (e) => {
       const f = (e.target as HTMLInputElement).files?.[0];
       if (f) loadCADFile(f);
@@ -225,6 +295,79 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
     if (f) loadCADFile(f);
   };
 
+  const handleSelectPrimitive = (type: PrimitiveType) => {
+    // Store primitive marker in file content
+    onContentChange(file.id, `primitive:${type}`);
+    setGlbGeometry(null);
+  };
+
+  const handleTextTo3D = async () => {
+    if (!textPrompt.trim()) return;
+    
+    setGenerating(true);
+    setGenProgress('Starting generation...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-3d', {
+        body: { prompt: textPrompt.trim() },
+      });
+      
+      if (error) throw new Error(error.message);
+      
+      if (data?.status === 'polling') {
+        // Start polling for result
+        setGenProgress('Generating 3D model...');
+        await pollForResult(data.taskId);
+      } else if (data?.glbUrl) {
+        await loadGLBFromUrl(data.glbUrl);
+        setTextTo3DOpen(false);
+        setTextPrompt('');
+      } else {
+        throw new Error(data?.error || 'Generation failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Text-to-3D failed');
+    } finally {
+      setGenerating(false);
+      setGenProgress('');
+    }
+  };
+
+  const pollForResult = async (taskId: string) => {
+    const maxAttempts = 60; // 5 minutes max
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, 5000)); // Poll every 5s
+      
+      const { data, error } = await supabase.functions.invoke('generate-3d', {
+        body: { taskId },
+      });
+      
+      if (error) throw new Error(error.message);
+      
+      if (data?.status === 'SUCCEEDED' && data?.glbUrl) {
+        await loadGLBFromUrl(data.glbUrl);
+        setTextTo3DOpen(false);
+        setTextPrompt('');
+        return;
+      } else if (data?.status === 'FAILED') {
+        throw new Error('3D generation failed');
+      }
+      
+      setGenProgress(`Generating... ${Math.min(90, Math.round((i / maxAttempts) * 100))}%`);
+    }
+    throw new Error('Generation timed out');
+  };
+
+  const loadGLBFromUrl = async (url: string) => {
+    const response = await fetch(url);
+    const buffer = await response.arrayBuffer();
+    const geometry = await parseGLB(buffer);
+    setGlbGeometry(geometry);
+    // Store as data URL for persistence
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    onContentChange(file.id, `data:model/gltf-binary;base64,${base64}`);
+  };
+
   const geometry = useMemo(() => {
     const content = file.content || '';
     if (!content.trim()) return null;
@@ -232,7 +375,26 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Check for primitive marker
+      if (content.startsWith('primitive:')) {
+        const type = content.replace('primitive:', '') as PrimitiveType;
+        return createPrimitiveGeometry(type);
+      }
+      
       const ext = file.name.split('.').pop()?.toLowerCase();
+
+      // Check for GLB data URL
+      if (content.startsWith('data:model/gltf-binary')) {
+        // GLB needs async parsing, handle separately
+        const b64 = content.split(',')[1] || '';
+        const binary = atob(b64);
+        const buffer = new ArrayBuffer(binary.length);
+        const view = new Uint8Array(buffer);
+        for (let i = 0; i < binary.length; i++) view[i] = binary.charCodeAt(i);
+        parseGLB(buffer).then(setGlbGeometry).catch(e => setError(e.message));
+        return null;
+      }
 
       if (ext === 'stl') {
         // STL: decode base64 to ArrayBuffer
@@ -258,6 +420,21 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
         }
         return parseOBJ(text);
       }
+      
+      if (ext === 'glb' || ext === 'gltf') {
+        // GLB/GLTF: decode and parse async
+        const isDataUrl = content.startsWith('data:');
+        let b64 = content;
+        if (isDataUrl) {
+          b64 = content.split(',')[1] || '';
+        }
+        const binary = atob(b64);
+        const buffer = new ArrayBuffer(binary.length);
+        const view = new Uint8Array(buffer);
+        for (let i = 0; i < binary.length; i++) view[i] = binary.charCodeAt(i);
+        parseGLB(buffer).then(setGlbGeometry).catch(e => setError(e.message));
+        return null;
+      }
 
       setError(`Unsupported format: .${ext}`);
       return null;
@@ -268,6 +445,9 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
       setLoading(false);
     }
   }, [file.content, file.name]);
+
+  // Use glbGeometry if available (for async loaded GLB files)
+  const displayGeometry = glbGeometry || geometry;
 
   const colors = ['#6366f1', '#ef4444', '#22c55e', '#f59e0b', '#06b6d4', '#ec4899', '#8b5cf6', '#64748b'];
 
@@ -321,9 +501,9 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
         </div>
 
         {/* Info bar */}
-        {showInfo && geometry && (
+        {showInfo && displayGeometry && (
           <div className="px-4 py-1.5 bg-[#1a1a1a] border-b border-[#333]">
-            <SceneInfo geometry={geometry} />
+            <SceneInfo geometry={displayGeometry} />
           </div>
         )}
 
@@ -352,8 +532,8 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                 </div>
               </Html>
             }>
-              {geometry ? (
-                <Model geometry={geometry} wireframe={wireframe} color={modelColor} />
+              {displayGeometry ? (
+                <Model geometry={displayGeometry} wireframe={wireframe} color={modelColor} />
               ) : (
                 <DemoCube />
               )}
@@ -380,7 +560,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
           </Canvas>
 
           {/* Viewport overlay hints */}
-          {!geometry && !error && (
+          {!displayGeometry && !error && (
             <div
               className={cn(
                 "absolute inset-0 flex flex-col items-center justify-center z-10 transition-colors",
@@ -390,12 +570,49 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
             >
-              <div className="bg-black/60 backdrop-blur-sm text-white/70 text-sm px-6 py-4 rounded-lg flex flex-col items-center gap-3">
+              <div className="bg-black/60 backdrop-blur-sm text-white/70 text-sm px-6 py-5 rounded-lg flex flex-col items-center gap-4 max-w-xs">
                 <Upload className={cn("w-8 h-8 transition-transform", dragOver && "scale-110 text-primary")} />
-                <span>{dragOver ? 'Drop 3D file here' : 'Drag & drop a .stl or .obj file'}</span>
+                <span>{dragOver ? 'Drop 3D file here' : 'Drag & drop a .stl, .obj, or .glb file'}</span>
                 <Button variant="outline" size="sm" className="gap-2 text-white/80 border-white/20 hover:bg-white/10" onClick={handleCADUpload}>
                   <Upload className="w-3.5 h-3.5" /> Browse Files
                 </Button>
+
+                {/* Starter shapes */}
+                <div className="w-full border-t border-white/20 pt-4 mt-1">
+                  <div className="text-center text-white/50 text-xs mb-3">or start with a shape</div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {PRIMITIVES.map(p => (
+                      <Button
+                        key={p.type}
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-white/70 border-white/20 hover:bg-white/10 hover:text-white"
+                        onClick={() => handleSelectPrimitive(p.type)}
+                      >
+                        {p.icon}
+                        {p.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Text to 3D */}
+                <div className="w-full border-t border-white/20 pt-4 mt-1">
+                  <div className="text-center text-white/50 text-xs mb-3">or generate from text</div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 text-white/80 border-white/20 hover:bg-white/10"
+                    onClick={() => setTextTo3DOpen(true)}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" /> Text to 3D
+                  </Button>
+                  {!hasCustomKey('meshy') && (
+                    <div className="text-center text-white/40 text-[10px] mt-2">
+                      Requires Meshy API key (add in Settings → API Keys)
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -407,6 +624,63 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
             <div>Scroll: Zoom</div>
           </div>
         </div>
+
+        {/* Text to 3D Dialog */}
+        <Dialog open={textTo3DOpen} onOpenChange={setTextTo3DOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Text to 3D
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  Describe the 3D model you want to create
+                </label>
+                <Input
+                  value={textPrompt}
+                  onChange={(e) => setTextPrompt(e.target.value)}
+                  placeholder="e.g., a wooden chair, a red sports car, a medieval sword"
+                  disabled={generating}
+                />
+              </div>
+              {!hasCustomKey('meshy') && (
+                <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+                  <strong>API Key Required:</strong> Add your Meshy API key in Settings → API Keys to use Text-to-3D generation.
+                </div>
+              )}
+              {genProgress && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {genProgress}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setTextTo3DOpen(false)} disabled={generating}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleTextTo3D}
+                disabled={!textPrompt.trim() || generating || !hasCustomKey('meshy')}
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );
