@@ -13,14 +13,7 @@ import {
   FolderPlus,
   Upload,
   FileText,
-  Palette,
-  Check,
   Zap,
-  Pencil,
-  Trash2,
-  Share2,
-  Download,
-  BookOpen
 } from 'lucide-react';
 import { FileNode, GitState, Workflow } from '@/types/ide';
 import { FileTree } from './FileTree';
@@ -30,253 +23,10 @@ import { PackagePanel } from './PackagePanel';
 import { WorkflowsPanel } from './WorkflowsPanel';
 import { HistoryPanel, HistoryEntry } from './HistoryPanel';
 import { FileIcon } from './FileIcon';
-import { ThemeCreator } from './ThemeCreator';
-import { ThemeImportDialog, getThemeShareUrl } from './ThemeImportDialog';
-import { ThemeLibrary } from './ThemeLibrary';
+import { SettingsDialog } from './SettingsDialog';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
-import { useTheme, themeInfo, IDETheme } from '@/contexts/ThemeContext';
-import { toast } from 'sonner';
 
-// Settings Panel Component
-const SettingsPanel = () => {
-  const { theme, setTheme, customThemes, addCustomTheme, deleteCustomTheme, updateCustomTheme } = useTheme();
-  const themes = Object.keys(themeInfo) as IDETheme[];
-  const [showCreator, setShowCreator] = useState(false);
-  const [showLibrary, setShowLibrary] = useState(false);
-  const [showImport, setShowImport] = useState(false);
-  const [editingTheme, setEditingTheme] = useState<import('@/contexts/ThemeContext').CustomTheme | undefined>();
-  const [shellExecutorMode, setShellExecutorMode] = useState<'webcontainer' | 'wandbox'>(() => {
-    if (typeof window === 'undefined') return 'webcontainer';
-    const saved = window.localStorage.getItem('ide.shellExecutorMode');
-    return saved === 'wandbox' ? 'wandbox' : 'webcontainer';
-  });
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('ide.shellExecutorMode', shellExecutorMode);
-    window.dispatchEvent(new Event('ide-shell-executor-mode-changed'));
-  }, [shellExecutorMode]);
-
-  const handleShareTheme = (ct: import('@/contexts/ThemeContext').CustomTheme) => {
-    const url = getThemeShareUrl(ct);
-    navigator.clipboard.writeText(url);
-    toast.success('Theme share link copied to clipboard!');
-  };
-
-  if (showCreator) {
-    return (
-      <ThemeCreator
-        existingTheme={editingTheme}
-        onSave={(ct) => {
-          if (editingTheme) {
-            updateCustomTheme(ct);
-          } else {
-            addCustomTheme(ct);
-          }
-          setShowCreator(false);
-          setEditingTheme(undefined);
-        }}
-        onBack={() => {
-          setShowCreator(false);
-          setEditingTheme(undefined);
-        }}
-      />
-    );
-  }
-
-  if (showLibrary) {
-    return (
-      <ThemeLibrary
-        onImport={(ct) => {
-          addCustomTheme(ct);
-        }}
-        onBack={() => setShowLibrary(false)}
-        existingThemeNames={customThemes.map((t) => t.name)}
-      />
-    );
-  }
-
-  return (
-    <div className="flex flex-col h-full overflow-auto ide-scrollbar">
-      <div className="p-3 border-b border-border">
-        <h3 className="text-sm font-medium mb-3">Canvas Settings</h3>
-        <div className="space-y-3">
-          <label className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Auto-save</span>
-            <input type="checkbox" defaultChecked className="accent-primary" />
-          </label>
-          <label className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Word wrap</span>
-            <input type="checkbox" defaultChecked className="accent-primary" />
-          </label>
-          <div className="space-y-1">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm text-muted-foreground">Shell executor</span>
-              <select
-                value={shellExecutorMode}
-                onChange={(e) => setShellExecutorMode(e.target.value as 'webcontainer' | 'wandbox')}
-                className="bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
-              >
-                <option value="webcontainer">WebContainer (browser Node.js)</option>
-                <option value="wandbox">Wandbox API</option>
-              </select>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Use WebContainer for native Node.js shell commands in browser, or switch back to Wandbox routing.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-3">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Palette className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-medium">Theme</h3>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowLibrary(true)}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              title="Browse community library"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setShowImport(true)}
-              className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              title="Import shared theme"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => { setEditingTheme(undefined); setShowCreator(true); }}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-              New
-            </button>
-          </div>
-        </div>
-
-        {/* Custom themes */}
-        {customThemes.length > 0 && (
-          <div className="mb-2">
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium px-2">Custom</span>
-            <div className="space-y-1 mt-1">
-              {customThemes.map((ct) => (
-                <div
-                  key={ct.id}
-                  className={cn(
-                    'w-full flex items-center justify-between p-2 rounded-md text-left transition-colors group',
-                    theme === `custom-${ct.id}`
-                      ? 'bg-primary/20 text-primary'
-                      : 'hover:bg-accent'
-                  )}
-                >
-                  <button
-                    onClick={() => setTheme(`custom-${ct.id}`)}
-                    className="flex-1 text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="flex gap-0.5">
-                        {[ct.colors.background, ct.colors.primary, ct.colors.syntaxKeyword].map((c, i) => (
-                          <div key={i} className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: c }} />
-                        ))}
-                      </div>
-                      <div className="text-sm font-medium">{ct.name}</div>
-                    </div>
-                  </button>
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => handleShareTheme(ct)}
-                      className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-                      title="Copy share link"
-                    >
-                      <Share2 className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        // Publish to community library (stored in localStorage for now)
-                        const published = JSON.parse(localStorage.getItem('ide-published-themes') || '[]');
-                        if (published.some((p: any) => p.name === ct.name)) {
-                          toast.info(`"${ct.name}" is already in the community library`);
-                          return;
-                        }
-                        published.push({ name: ct.name, author: 'you', tags: ['community'], colors: ct.colors });
-                        localStorage.setItem('ide-published-themes', JSON.stringify(published));
-                        toast.success(`"${ct.name}" published to community library!`);
-                      }}
-                      className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-                      title="Publish to community library"
-                    >
-                      <Upload className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => { setEditingTheme(ct); setShowCreator(true); }}
-                      className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-                      title="Edit"
-                    >
-                      <Pencil className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => deleteCustomTheme(ct.id)}
-                      className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                  {theme === `custom-${ct.id}` && (
-                    <Check className="w-4 h-4 text-primary shrink-0 ml-1" />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Built-in themes */}
-        <div>
-          {customThemes.length > 0 && (
-            <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium px-2">Built-in</span>
-          )}
-          <div className="space-y-1 mt-1">
-            {themes.map((themeKey) => (
-              <button
-                key={themeKey}
-                onClick={() => setTheme(themeKey)}
-                className={cn(
-                  'w-full flex items-center justify-between p-2 rounded-md text-left transition-colors',
-                  theme === themeKey
-                    ? 'bg-primary/20 text-primary'
-                    : 'hover:bg-accent'
-                )}
-              >
-                <div>
-                  <div className="text-sm font-medium">{themeInfo[themeKey].name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {themeInfo[themeKey].description}
-                  </div>
-                </div>
-                {theme === themeKey && (
-                  <Check className="w-4 h-4 text-primary shrink-0" />
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <ThemeImportDialog
-        open={showImport}
-        onOpenChange={setShowImport}
-        onImport={(ct) => addCustomTheme(ct)}
-      />
-    </div>
-  );
-};
 
 interface SearchResult {
   file: FileNode;
@@ -315,7 +65,7 @@ interface SidebarProps {
   onInvite: () => void;
 }
 
-type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'settings' | 'history';
+type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'history';
 
 export const Sidebar = ({ 
   files, 
@@ -351,6 +101,7 @@ export const Sidebar = ({
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
@@ -556,7 +307,6 @@ export const Sidebar = ({
     { id: 'git' as const, icon: GitBranch, label: 'Version Control' },
     { id: 'packages' as const, icon: Package, label: 'Packages' },
     { id: 'workflows' as const, icon: Zap, label: 'Workflows' },
-    { id: 'settings' as const, icon: Settings, label: 'Settings' },
   ];
 
   const handleNewFile = (name: string, type: 'file' | 'folder') => {
@@ -624,6 +374,13 @@ export const Sidebar = ({
             <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-primary rounded-r" />
           )}
           <History className="w-[18px] h-[18px]" />
+        </button>
+        <button
+          onClick={() => setShowSettings(true)}
+          className="w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          title="Settings"
+        >
+          <Settings className="w-[18px] h-[18px]" />
         </button>
       </div>
 
@@ -798,9 +555,7 @@ export const Sidebar = ({
           />
         )}
 
-        {activeTab === 'settings' && (
-          <SettingsPanel />
-        )}
+        
 
         {activeTab === 'history' && (
           <HistoryPanel entries={historyEntries} onRestoreEntry={onRestoreEntry} />
@@ -813,6 +568,8 @@ export const Sidebar = ({
         onSubmit={handleNewFile}
         defaultType={newFileType}
       />
+
+      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
     </div>
   );
 };
