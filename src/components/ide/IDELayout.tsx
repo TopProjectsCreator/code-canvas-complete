@@ -1664,6 +1664,17 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       </>
     );
   }
+  // On mobile, sync mobile panel state with AI chat
+  useEffect(() => {
+    if (isMobile) {
+      if (mobileActivePanel === 'ai') {
+        setIsAIChatOpen(true);
+      } else {
+        setIsAIChatOpen(false);
+      }
+    }
+  }, [mobileActivePanel, isMobile]);
+
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
       <Header
@@ -1672,8 +1683,14 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         onRun={handleRun}
         onStop={handleStop}
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        onToggleAIChat={() => setIsAIChatOpen(!isAIChatOpen)}
-        isAIChatOpen={isAIChatOpen}
+        onToggleAIChat={() => {
+          if (isMobile) {
+            setMobileActivePanel('ai');
+          } else {
+            setIsAIChatOpen(!isAIChatOpen);
+          }
+        }}
+        isAIChatOpen={isAIChatOpen || mobileActivePanel === 'ai'}
         isAILoading={isAILoading}
         onOpenProjects={() => setShowProjectsDialog(true)}
         onSaveProject={() => setShowSaveDialog(true)}
