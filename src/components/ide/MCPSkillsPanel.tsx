@@ -9,8 +9,9 @@ import { cn } from '@/lib/utils';
 import {
   Plus, Trash2, Server, Sparkles, Globe, Eye, EyeOff,
   Loader2, Pencil, Check, X, Zap, Brain, Code, FileText,
-  Lightbulb, Wrench, Shield, Bug
+  Lightbulb, Wrench, Shield, Bug, Library
 } from 'lucide-react';
+import { SkillsLibraryDialog } from './SkillsLibraryDialog';
 
 const SKILL_ICONS: Record<string, React.ReactNode> = {
   sparkles: <Sparkles className="w-4 h-4" />,
