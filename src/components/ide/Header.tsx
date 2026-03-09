@@ -107,7 +107,7 @@ export const Header = ({
       </div>
 
       {/* Center section - Run button - Replit's prominent green button */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center hidden sm:flex">
         <button
           onClick={isRunning ? onStop : onRun}
           onMouseEnter={() => setIsHovered(true)}
