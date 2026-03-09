@@ -77,12 +77,13 @@ export const Header = ({
   const { user } = useAuth();
 
   return (
-    <header className="flex items-center justify-between h-12 px-3 bg-background border-b border-border">
+    <header className="flex items-center justify-between h-12 px-2 sm:px-3 bg-background border-b border-border">
       {/* Left section */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <button 
           onClick={onToggleSidebar}
-          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors lg:hidden"
+          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Toggle sidebar"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -106,7 +107,7 @@ export const Header = ({
       </div>
 
       {/* Center section - Run button - Replit's prominent green button */}
-      <div className="absolute left-1/2 -translate-x-1/2 flex items-center">
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center hidden sm:flex">
         <button
           onClick={isRunning ? onStop : onRun}
           onMouseEnter={() => setIsHovered(true)}
@@ -140,23 +141,41 @@ export const Header = ({
       </div>
 
       {/* Right section */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5 sm:gap-1">
+        {/* Run/Stop button on mobile only */}
+        <button
+          onClick={isRunning ? onStop : onRun}
+          className={cn(
+            'sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold text-sm transition-all',
+            isRunning
+              ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground'
+              : 'bg-success hover:brightness-110 text-white'
+          )}
+        >
+          {isRunning ? (
+            <Square className="w-3.5 h-3.5 fill-current" />
+          ) : (
+            <Play className="w-3.5 h-3.5 fill-current" />
+          )}
+        </button>
+
         {/* AI Chat Toggle - Replit style */}
         <button 
           onClick={onToggleAIChat}
           className={cn(
-            'relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors',
+            'relative flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors',
             isAIChatOpen 
               ? 'bg-violet-500/20 text-violet-400' 
               : 'hover:bg-accent text-muted-foreground hover:text-foreground'
           )}
+          aria-label="Toggle AI chat"
         >
           {isAILoading ? (
             <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
           ) : (
             <Sparkles className="w-4 h-4" />
           )}
-          <span className="hidden sm:inline">AI</span>
+          <span className="hidden md:inline">AI</span>
           {isAILoading && (
             <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
           )}
