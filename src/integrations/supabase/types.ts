@@ -77,6 +77,107 @@ export type Database = {
         }
         Relationships: []
       }
+      code_comments: {
+        Row: {
+          content: string
+          created_at: string
+          file_path: string
+          id: string
+          line_number: number
+          parent_id: string | null
+          project_id: string
+          resolved: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          file_path: string
+          id?: string
+          line_number: number
+          parent_id?: string | null
+          project_id: string
+          resolved?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          file_path?: string
+          id?: string
+          line_number?: number
+          parent_id?: string | null
+          project_id?: string
+          resolved?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "code_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "code_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "code_comments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      code_reviews: {
+        Row: {
+          created_at: string
+          description: string | null
+          file_paths: string[] | null
+          id: string
+          project_id: string
+          requester_id: string
+          reviewer_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          file_paths?: string[] | null
+          id?: string
+          project_id: string
+          requester_id: string
+          reviewer_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          file_paths?: string[] | null
+          id?: string
+          project_id?: string
+          requester_id?: string
+          reviewer_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "code_reviews_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mcp_servers: {
         Row: {
           api_key: string | null
@@ -139,6 +240,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      project_collaborators: {
+        Row: {
+          accepted: boolean
+          created_at: string
+          id: string
+          invited_by: string
+          invited_email: string | null
+          project_id: string
+          role: Database["public"]["Enums"]["collab_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accepted?: boolean
+          created_at?: string
+          id?: string
+          invited_by: string
+          invited_email?: string | null
+          project_id: string
+          role?: Database["public"]["Enums"]["collab_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accepted?: boolean
+          created_at?: string
+          id?: string
+          invited_by?: string
+          invited_email?: string | null
+          project_id?: string
+          role?: Database["public"]["Enums"]["collab_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_collaborators_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_stars: {
         Row: {
@@ -279,6 +424,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      collab_role: "viewer" | "editor" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -407,6 +553,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      collab_role: ["viewer", "editor", "admin"],
     },
   },
 } as const
