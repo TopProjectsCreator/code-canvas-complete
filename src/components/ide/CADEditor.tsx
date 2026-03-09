@@ -780,7 +780,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                   </Button>
                   {!hasCustomKey('meshy') && (
                     <div className="text-center text-white/40 text-[10px] mt-2">
-                      Requires Meshy API key (add in Settings → API Keys)
+                      Requires Meshy API key (add via AI Chat → Key icon)
                     </div>
                   )}
                 </div>
