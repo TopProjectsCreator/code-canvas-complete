@@ -16,11 +16,13 @@ import { useApiKeys, AIProvider, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   User, Palette, Keyboard, Check, Upload, Loader2, Key, Shield, Zap,
-  ExternalLink, Eye, EyeOff, Trash2, CheckCircle, XCircle, Settings2, Server, Sparkles, Bell
+  ExternalLink, Eye, EyeOff, Trash2, CheckCircle, XCircle, Settings2, Server, Sparkles, Bell, Brain, BarChart3
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MCPServersPanel, AgentSkillsPanel } from './MCPSkillsPanel';
 import { NotificationSettings } from './NotificationSettings';
+import { AIComparisonPanel } from './AIComparisonPanel';
+import { AIUsageStats } from './AIUsageStats';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -227,18 +229,12 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
         </DialogHeader>
 
         <Tabs defaultValue={defaultTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="profile" className="gap-1 text-xs">
               <User className="w-3.5 h-3.5" /> Profile
             </TabsTrigger>
-            <TabsTrigger value="apikeys" className="gap-1 text-xs">
-              <Key className="w-3.5 h-3.5" /> Keys
-            </TabsTrigger>
-            <TabsTrigger value="mcp" className="gap-1 text-xs">
-              <Server className="w-3.5 h-3.5" /> MCP
-            </TabsTrigger>
-            <TabsTrigger value="skills" className="gap-1 text-xs">
-              <Sparkles className="w-3.5 h-3.5" /> Skills
+            <TabsTrigger value="ai" className="gap-1 text-xs">
+              <Brain className="w-3.5 h-3.5" /> AI
             </TabsTrigger>
             <TabsTrigger value="notifications" className="gap-1 text-xs">
               <Bell className="w-3.5 h-3.5" /> Notify
@@ -330,8 +326,8 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
               </div>
             </TabsContent>
 
-            {/* API Keys Tab */}
-            <TabsContent value="apikeys" className="space-y-4 mt-0">
+            {/* AI Tab (Keys + MCP + Skills + Compare + Stats) */}
+            <TabsContent value="ai" className="space-y-6 mt-0">
               {/* Rate Limits */}
               <div className="space-y-2">
                 <h4 className="text-sm font-medium flex items-center gap-1.5">
@@ -365,7 +361,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                   Your API Keys (BYOK)
                 </h4>
                 
-                <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
+                <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
                   {PROVIDERS.map(provider => {
                     const info = PROVIDER_INFO[provider];
                     const hasKey = existingKeys.has(provider);
@@ -465,15 +461,29 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                   })}
                 </div>
               </div>
-            </TabsContent>
 
-            {/* MCP Tab */}
-            <TabsContent value="mcp" className="mt-0">
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* AI Comparison */}
+              <AIComparisonPanel />
+
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* Usage Stats */}
+              <AIUsageStats />
+
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* MCP Servers */}
               <MCPServersPanel />
-            </TabsContent>
 
-            {/* Skills Tab */}
-            <TabsContent value="skills" className="mt-0">
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* Agent Skills */}
               <AgentSkillsPanel />
             </TabsContent>
 
