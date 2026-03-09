@@ -2272,6 +2272,16 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
             }}
           />
         </div>
+
+        {/* Mobile Bottom Navigation */}
+        {isMobile && (
+          <MobileBottomNav
+            activePanel={mobileActivePanel}
+            onPanelChange={setMobileActivePanel}
+            showPreview={selectedTemplate !== 'typescript' && selectedTemplate !== 'python'}
+            showTerminal={selectedTemplate !== 'scratch'}
+          />
+        )}
       </div>
     </div>
   );
