@@ -39,7 +39,10 @@ export type LanguageTemplate =
   | "word"
   | "powerpoint"
   | "excel"
-  | "video";
+  | "video"
+  | "audio"
+  | "rtf"
+  | "cad";
 
 export interface TemplateMeta {
   id: LanguageTemplate;
@@ -92,6 +95,9 @@ export const TEMPLATES: TemplateMeta[] = [
   { id: "powerpoint", name: "PowerPoint", description: "Create presentations (.pptx)", aiDescription: "PowerPoint presentations" },
   { id: "excel", name: "Excel Spreadsheet", description: "Create spreadsheets (.xlsx)", aiDescription: "Excel spreadsheets" },
   { id: "video", name: "Video Editor", description: "Edit and preview video files (.mp4/.webm/.ogg)", aiDescription: "Video editing and playback" },
+  { id: "audio", name: "Audio Editor", description: "Edit and preview audio files (.mp3/.wav/.ogg)", aiDescription: "Audio editing and playback" },
+  { id: "rtf", name: "Rich Text", description: "Create and edit rich text documents (.rtf)", aiDescription: "Rich text document editing" },
+  { id: "cad", name: "3D CAD Viewer", description: "View and inspect 3D models (.stl/.obj)", aiDescription: "3D CAD model viewing (STL/OBJ)" },
 ];
 
 /** All template IDs in display order */
