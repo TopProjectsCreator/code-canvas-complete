@@ -904,10 +904,10 @@ export const AIChat = ({
 
       {/* Removed - model selector moved to input area */}
       
-      <ApiKeysDialog open={showApiKeys} onOpenChange={(open) => {
+      <SettingsDialog open={showApiKeys} onOpenChange={(open) => {
         setShowApiKeys(open);
         if (!open) refetchApiKeys();
-      }} />
+      }} defaultTab="apikeys" />
 
       {/* Current file indicator */}
       {currentFile && (
