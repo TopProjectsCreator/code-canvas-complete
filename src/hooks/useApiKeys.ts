@@ -44,6 +44,11 @@ export const PROVIDER_INFO: Record<AIProvider, { label: string; placeholder: str
   openrouter: { label: 'OpenRouter', placeholder: 'sk-or-...', docsUrl: 'https://openrouter.ai/keys' },
   github: { label: 'GitHub', placeholder: 'ghp_... or github_pat_...', docsUrl: 'https://github.com/settings/tokens' },
   meshy: { label: 'Meshy (Text-to-3D)', placeholder: 'msy_...', docsUrl: 'https://docs.meshy.ai/api-introduction' },
+  sloyd: { label: 'Sloyd (Text-to-3D)', placeholder: 'sloyd_...', docsUrl: 'https://www.sloyd.ai/docs' },
+  tripo: { label: 'Tripo (Text-to-3D)', placeholder: 'tsk_...', docsUrl: 'https://platform.tripo3d.ai/docs' },
+  modelslab: { label: 'ModelsLab (Text-to-3D)', placeholder: '...', docsUrl: 'https://docs.modelslab.com' },
+  fal: { label: 'Fal.ai (Text-to-3D)', placeholder: '...', docsUrl: 'https://fal.ai/docs' },
+  neural4d: { label: 'Neural4D (Text-to-3D)', placeholder: '...', docsUrl: 'https://neural4d.com/docs' },
 };
 
 export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]> = {
