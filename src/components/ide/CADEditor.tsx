@@ -410,11 +410,21 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const [textPrompt, setTextPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState('');
+  const [selected3DProvider, setSelected3DProvider] = useState<'meshy' | 'sloyd' | 'tripo' | 'modelslab' | 'fal' | 'neural4d'>('meshy');
   
   // GLB geometry state (for async loaded models)
   const [glbGeometry, setGlbGeometry] = useState<THREE.BufferGeometry | null>(null);
   
   const { hasCustomKey } = useApiKeys();
+
+  const PROVIDERS_3D = [
+    { id: 'meshy', label: 'Meshy AI', desc: 'Preview + refine workflow' },
+    { id: 'sloyd', label: 'Sloyd AI', desc: 'Game-ready assets' },
+    { id: 'tripo', label: 'Tripo AI', desc: 'Detailed models' },
+    { id: 'modelslab', label: 'ModelsLab', desc: 'Customizable params' },
+    { id: 'fal', label: 'Fal.ai', desc: 'Hyper3D Rodin / Trellis' },
+    { id: 'neural4d', label: 'Neural4D', desc: 'Fast (<90s), STL export' },
+  ] as const;
 
   const loadCADFile = (f: File) => {
     const reader = new FileReader();
@@ -454,7 +464,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
     
     try {
       const { data, error } = await supabase.functions.invoke('generate-3d', {
-        body: { prompt: textPrompt.trim() },
+        body: { prompt: textPrompt.trim(), provider: selected3DProvider },
       });
       
       if (error) throw new Error(error.message);
@@ -484,7 +494,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
       await new Promise(r => setTimeout(r, 5000)); // Poll every 5s
       
       const { data, error } = await supabase.functions.invoke('generate-3d', {
-        body: { taskId },
+        body: { taskId, provider: selected3DProvider },
       });
       
       if (error) throw new Error(error.message);
@@ -778,11 +788,9 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                   >
                     <Sparkles className="w-3.5 h-3.5" /> Text to 3D
                   </Button>
-                  {!hasCustomKey('meshy') && (
-                    <div className="text-center text-white/40 text-[10px] mt-2">
-                      Requires Meshy API key (User Menu → API Keys)
-                    </div>
-                  )}
+                  <div className="text-center text-white/40 text-[10px] mt-2">
+                    Supports: Meshy, Sloyd, Tripo, ModelsLab, Fal.ai, Neural4D
+                  </div>
                 </div>
               </div>
             </div>
@@ -806,6 +814,31 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Provider Selection */}
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  3D Generation Provider
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {PROVIDERS_3D.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelected3DProvider(p.id)}
+                      disabled={generating}
+                      className={cn(
+                        "text-left p-2 rounded-lg border transition-colors",
+                        selected3DProvider === p.id
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:bg-accent"
+                      )}
+                    >
+                      <div className="text-xs font-medium">{p.label}</div>
+                      <div className="text-[10px] text-muted-foreground">{p.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="text-sm text-muted-foreground mb-2 block">
                   Describe the 3D model you want to create
@@ -817,11 +850,13 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                   disabled={generating}
                 />
               </div>
-              {!hasCustomKey('meshy') && (
+
+              {!hasCustomKey(selected3DProvider as 'meshy' | 'sloyd' | 'tripo' | 'modelslab' | 'fal' | 'neural4d') && (
                 <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-                  <strong>API Key Required:</strong> Click your avatar (top right) → API Keys → scroll to "Meshy (Text-to-3D)" and add your key.
+                  <strong>API Key Required:</strong> Click your avatar (top right) → Settings → API Keys → add your {PROVIDERS_3D.find(p => p.id === selected3DProvider)?.label} key.
                 </div>
               )}
+
               {genProgress && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -835,7 +870,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
               </Button>
               <Button
                 onClick={handleTextTo3D}
-                disabled={!textPrompt.trim() || generating || !hasCustomKey('meshy')}
+                disabled={!textPrompt.trim() || generating || !hasCustomKey(selected3DProvider as 'meshy' | 'sloyd' | 'tripo' | 'modelslab' | 'fal' | 'neural4d')}
               >
                 {generating ? (
                   <>
