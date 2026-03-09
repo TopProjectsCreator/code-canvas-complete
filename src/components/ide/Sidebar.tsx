@@ -375,6 +375,13 @@ export const Sidebar = ({
           )}
           <History className="w-[18px] h-[18px]" />
         </button>
+        <button
+          onClick={() => setShowSettings(true)}
+          className="w-9 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+          title="Settings"
+        >
+          <Settings className="w-[18px] h-[18px]" />
+        </button>
       </div>
 
       {/* Panel content */}
