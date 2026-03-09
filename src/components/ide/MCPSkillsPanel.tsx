@@ -165,6 +165,7 @@ export function AgentSkillsPanel() {
   const [instruction, setInstruction] = useState('');
   const [icon, setIcon] = useState('sparkles');
   const [saving, setSaving] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
 
   if (!user) {
     return (
