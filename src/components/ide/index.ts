@@ -16,3 +16,4 @@ export { PackagePanel } from './PackagePanel';
 export { WorkflowsPanel } from './WorkflowsPanel';
 export { FilePreview } from './FilePreview';
 export { GitProviderImportDialog } from './GitProviderImportDialog';
+export { SettingsDialog } from './SettingsDialog';
