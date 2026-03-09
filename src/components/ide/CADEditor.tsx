@@ -494,7 +494,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
       await new Promise(r => setTimeout(r, 5000)); // Poll every 5s
       
       const { data, error } = await supabase.functions.invoke('generate-3d', {
-        body: { taskId },
+        body: { taskId, provider: selected3DProvider },
       });
       
       if (error) throw new Error(error.message);
