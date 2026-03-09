@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MCPServersPanel, AgentSkillsPanel } from './MCPSkillsPanel';
+import { NotificationSettings } from './NotificationSettings';
 
 interface SettingsDialogProps {
   open: boolean;
