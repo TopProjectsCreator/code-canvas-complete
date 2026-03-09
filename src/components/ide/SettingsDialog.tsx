@@ -477,6 +477,11 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
               <AgentSkillsPanel />
             </TabsContent>
 
+            {/* Notifications Tab */}
+            <TabsContent value="notifications" className="mt-0">
+              <NotificationSettings />
+            </TabsContent>
+
             {/* Appearance Tab */}
             <TabsContent value="appearance" className="space-y-4 mt-0">
               <div>
