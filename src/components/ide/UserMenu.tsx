@@ -11,8 +11,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthDialog } from '@/components/auth/AuthDialog';
-import { AccountSettingsDialog } from './AccountSettingsDialog';
-import { User, LogOut, Settings, FolderOpen } from 'lucide-react';
+import { SettingsDialog } from './SettingsDialog';
+import { User, LogOut, Settings, FolderOpen, Key } from 'lucide-react';
 
 interface UserMenuProps {
   onOpenProjects: () => void;
@@ -22,6 +22,7 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
   const { user, profile, signOut, loading } = useAuth();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState('profile');
 
   if (loading) {
     return (
@@ -50,6 +51,11 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
     ? profile.display_name.slice(0, 2).toUpperCase()
     : user.email?.slice(0, 2).toUpperCase() || 'U';
 
+  const openSettings = (tab: string) => {
+    setSettingsTab(tab);
+    setShowSettings(true);
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -75,9 +81,13 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
             <FolderOpen className="w-4 h-4 mr-2" />
             My Projects
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setShowSettings(true)}>
+          <DropdownMenuItem onClick={() => openSettings('profile')}>
             <Settings className="w-4 h-4 mr-2" />
-            Account Settings
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => openSettings('apikeys')}>
+            <Key className="w-4 h-4 mr-2" />
+            API Keys
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => signOut()} className="text-destructive">
@@ -87,7 +97,7 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AccountSettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+      <SettingsDialog open={showSettings} onOpenChange={setShowSettings} defaultTab={settingsTab} />
     </>
   );
 };
