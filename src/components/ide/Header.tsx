@@ -77,12 +77,13 @@ export const Header = ({
   const { user } = useAuth();
 
   return (
-    <header className="flex items-center justify-between h-12 px-3 bg-background border-b border-border">
+    <header className="flex items-center justify-between h-12 px-2 sm:px-3 bg-background border-b border-border">
       {/* Left section */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2">
         <button 
           onClick={onToggleSidebar}
-          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors lg:hidden"
+          className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Toggle sidebar"
         >
           <Menu className="w-5 h-5" />
         </button>
