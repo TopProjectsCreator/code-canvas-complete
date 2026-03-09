@@ -307,7 +307,6 @@ export const Sidebar = ({
     { id: 'git' as const, icon: GitBranch, label: 'Version Control' },
     { id: 'packages' as const, icon: Package, label: 'Packages' },
     { id: 'workflows' as const, icon: Zap, label: 'Workflows' },
-    { id: 'settings' as const, icon: Settings, label: 'Settings' },
   ];
 
   const handleNewFile = (name: string, type: 'file' | 'folder') => {
