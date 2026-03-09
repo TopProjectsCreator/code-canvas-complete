@@ -819,7 +819,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
               </div>
               {!hasCustomKey('meshy') && (
                 <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
-                  <strong>API Key Required:</strong> Add your Meshy API key in Settings → API Keys to use Text-to-3D generation.
+                  <strong>API Key Required:</strong> Add your Meshy API key via the AI Chat panel (click the key icon at the bottom), then scroll down to find "Meshy (Text-to-3D)".
                 </div>
               )}
               {genProgress && (
