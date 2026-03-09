@@ -910,7 +910,7 @@ export const AIChat = ({
       <SettingsDialog open={showApiKeys} onOpenChange={(open) => {
         setShowApiKeys(open);
         if (!open) refetchApiKeys();
-      }} defaultTab="apikeys" />
+      }} defaultTab="ai" />
 
       {/* Current file indicator */}
       {currentFile && (
