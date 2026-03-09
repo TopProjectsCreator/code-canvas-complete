@@ -39,6 +39,8 @@ interface HeaderProps {
   onStar: () => void;
   onShare: () => void;
   onGitImport: () => void;
+  onCollab: () => void;
+  presence: PresenceState[];
   isStarred: boolean;
   isForking: boolean;
   starsCount: number;
@@ -63,6 +65,8 @@ export const Header = ({
   onStar,
   onShare,
   onGitImport,
+  onCollab,
+  presence,
   isStarred,
   isForking,
   starsCount,
