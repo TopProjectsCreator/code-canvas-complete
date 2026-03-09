@@ -26,7 +26,7 @@ interface SettingsDialogProps {
   defaultTab?: string;
 }
 
-const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'meshy'];
+const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'meshy', 'sloyd', 'tripo', 'modelslab', 'fal', 'neural4d'];
 
 const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; label: string }> = {
   openai: { prefix: ['sk-'], minLength: 30, label: 'sk-...' },
@@ -39,6 +39,11 @@ const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; lab
   openrouter: { prefix: ['sk-or-'], minLength: 20, label: 'sk-or-...' },
   github: { prefix: ['ghp_', 'github_pat_'], minLength: 20, label: 'ghp_... or github_pat_...' },
   meshy: { prefix: ['msy_'], minLength: 20, label: 'msy_...' },
+  sloyd: { prefix: ['sloyd_'], minLength: 20, label: 'sloyd_...' },
+  tripo: { prefix: ['tsk_'], minLength: 20, label: 'tsk_...' },
+  modelslab: { minLength: 20, label: '20+ characters' },
+  fal: { minLength: 20, label: '20+ characters' },
+  neural4d: { minLength: 20, label: '20+ characters' },
 };
 
 function validateKeyFormat(provider: AIProvider, key: string): string | null {
