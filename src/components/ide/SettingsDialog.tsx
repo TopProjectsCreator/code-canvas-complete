@@ -16,7 +16,7 @@ import { useApiKeys, AIProvider, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   User, Palette, Keyboard, Check, Upload, Loader2, Key, Shield, Zap,
-  ExternalLink, Eye, EyeOff, Trash2, CheckCircle, XCircle, Settings2, Server, Sparkles
+  ExternalLink, Eye, EyeOff, Trash2, CheckCircle, XCircle, Settings2, Server, Sparkles, Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MCPServersPanel, AgentSkillsPanel } from './MCPSkillsPanel';
