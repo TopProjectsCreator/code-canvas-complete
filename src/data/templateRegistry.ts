@@ -39,7 +39,10 @@ export type LanguageTemplate =
   | "word"
   | "powerpoint"
   | "excel"
-  | "video";
+  | "video"
+  | "audio"
+  | "rtf"
+  | "cad";
 
 export interface TemplateMeta {
   id: LanguageTemplate;
