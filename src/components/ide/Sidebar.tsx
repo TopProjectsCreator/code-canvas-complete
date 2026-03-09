@@ -548,9 +548,7 @@ export const Sidebar = ({
           />
         )}
 
-        {activeTab === 'settings' && (
-          <SettingsPanel />
-        )}
+        
 
         {activeTab === 'history' && (
           <HistoryPanel entries={historyEntries} onRestoreEntry={onRestoreEntry} />
