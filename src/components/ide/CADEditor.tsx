@@ -464,7 +464,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
     
     try {
       const { data, error } = await supabase.functions.invoke('generate-3d', {
-        body: { prompt: textPrompt.trim() },
+        body: { prompt: textPrompt.trim(), provider: selected3DProvider },
       });
       
       if (error) throw new Error(error.message);
