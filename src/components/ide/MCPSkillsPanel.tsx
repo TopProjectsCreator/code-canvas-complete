@@ -9,8 +9,9 @@ import { cn } from '@/lib/utils';
 import {
   Plus, Trash2, Server, Sparkles, Globe, Eye, EyeOff,
   Loader2, Pencil, Check, X, Zap, Brain, Code, FileText,
-  Lightbulb, Wrench, Shield, Bug
+  Lightbulb, Wrench, Shield, Bug, Library
 } from 'lucide-react';
+import { SkillsLibraryDialog } from './SkillsLibraryDialog';
 
 const SKILL_ICONS: Record<string, React.ReactNode> = {
   sparkles: <Sparkles className="w-4 h-4" />,
@@ -164,6 +165,7 @@ export function AgentSkillsPanel() {
   const [instruction, setInstruction] = useState('');
   const [icon, setIcon] = useState('sparkles');
   const [saving, setSaving] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
 
   if (!user) {
     return (
@@ -199,9 +201,14 @@ export function AgentSkillsPanel() {
             Custom instructions and capabilities for the AI agent
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)} className="gap-1.5">
-          <Plus className="w-3.5 h-3.5" /> Add
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="secondary" onClick={() => setShowLibrary(true)} className="gap-1.5">
+            <Library className="w-3.5 h-3.5" /> Library
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)} className="gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> Add
+          </Button>
+        </div>
       </div>
 
       {showForm && (
@@ -263,6 +270,8 @@ export function AgentSkillsPanel() {
           ))}
         </div>
       )}
+
+      <SkillsLibraryDialog open={showLibrary} onOpenChange={setShowLibrary} />
     </div>
   );
 }
