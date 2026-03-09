@@ -210,17 +210,35 @@ export function useCollaboration(projectId: string | undefined) {
     return () => { supabase.removeChannel(channel); };
   }, [projectId, user, profile]);
 
-  // Realtime comments subscription
+  // Realtime comments subscription + desktop notifications
   useEffect(() => {
     if (!projectId) return;
     const channel = supabase
       .channel(`comments:${projectId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'code_comments', filter: `project_id=eq.${projectId}` }, (payload) => {
+        // Show desktop notification for new comments by others
+        if (payload.new && (payload.new as any).user_id !== user?.id) {
+          try {
+            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+              const settings = JSON.parse(localStorage.getItem('ide-notification-settings') || '{}');
+              if (settings.desktopEnabled) {
+                new Notification('New code comment', {
+                  body: `Comment on ${(payload.new as any).file_path}:${(payload.new as any).line_number}`,
+                  icon: '/favicon.ico',
+                  tag: `comment-${(payload.new as any).id}`,
+                });
+              }
+            }
+          } catch {}
+        }
+        fetchComments();
+      })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'code_comments', filter: `project_id=eq.${projectId}` }, () => {
         fetchComments();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [projectId, fetchComments]);
+  }, [projectId, fetchComments, user]);
 
   // Update presence
   const updatePresence = useCallback(async (updates: Partial<PresenceState>) => {
@@ -267,6 +285,15 @@ export function useCollaboration(projectId: string | undefined) {
       return false;
     }
     toast({ title: 'Invitation sent', description: `Invited ${email} as ${role}` });
+    // Trigger desktop notification for the inviter's confirmation
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        const settings = JSON.parse(localStorage.getItem('ide-notification-settings') || '{}');
+        if (settings.desktopEnabled) {
+          new Notification('Collaboration invite sent', { body: `Invited ${email} as ${role}`, icon: '/favicon.ico' });
+        }
+      }
+    } catch {}
     fetchCollaborators();
     return true;
   };
