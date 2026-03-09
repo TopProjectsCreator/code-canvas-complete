@@ -1681,6 +1681,8 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         onStar={handleStar}
         onShare={() => setShowShareDialog(true)}
         onGitImport={() => setShowGitImportDialog(true)}
+        onCollab={() => setShowCollabDialog(true)}
+        presence={collab.presence}
         isStarred={isStarred}
         isForking={isForking}
         starsCount={currentProject?.stars_count || 0}
