@@ -214,6 +214,15 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
     case 'video':
       baseTemplate = videoTemplate;
       break;
+    case 'audio':
+      baseTemplate = audioTemplate;
+      break;
+    case 'rtf':
+      baseTemplate = rtfTemplate;
+      break;
+    case 'cad':
+      baseTemplate = cadTemplate;
+      break;
     default:
       baseTemplate = htmlTemplate;
       break;
