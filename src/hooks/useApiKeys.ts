@@ -12,7 +12,8 @@ export type AIProvider =
   | 'xai' 
   | 'cohere' 
   | 'openrouter'
-  | 'github';
+  | 'github'
+  | 'meshy';
 
 export interface UserApiKey {
   id: string;
@@ -37,6 +38,7 @@ export const PROVIDER_INFO: Record<AIProvider, { label: string; placeholder: str
   cohere: { label: 'Cohere', placeholder: '...', docsUrl: 'https://dashboard.cohere.com/api-keys' },
   openrouter: { label: 'OpenRouter', placeholder: 'sk-or-...', docsUrl: 'https://openrouter.ai/keys' },
   github: { label: 'GitHub', placeholder: 'ghp_... or github_pat_...', docsUrl: 'https://github.com/settings/tokens' },
+  meshy: { label: 'Meshy (Text-to-3D)', placeholder: 'msy_...', docsUrl: 'https://docs.meshy.ai/api-introduction' },
 };
 
 export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]> = {
@@ -170,6 +172,10 @@ export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]
     { id: 'AI21-Jamba-1.5-Large', label: 'Jamba 1.5 Large' },
     { id: 'Phi-4', label: 'Phi-4' },
     { id: 'DeepSeek-R1', label: 'DeepSeek R1' },
+  ],
+  meshy: [
+    { id: 'text-to-3d', label: 'Text to 3D' },
+    { id: 'image-to-3d', label: 'Image to 3D' },
   ],
 };
 
