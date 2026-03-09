@@ -12,7 +12,7 @@ interface ApiKeysDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github'];
+const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'meshy'];
 
 // Format validation rules per provider
 const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; label: string }> = {
