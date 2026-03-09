@@ -1744,15 +1744,12 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
         onImport={handleGitImport}
       />
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <div
-          className={cn(
-            "transition-all duration-200 border-r border-border overflow-hidden",
-            isSidebarOpen ? "w-64" : "w-0",
-          )}
-        >
-          <Sidebar
+      <div className="flex-1 flex overflow-hidden pb-0 md:pb-0" style={{ paddingBottom: isMobile ? '56px' : '0' }}>
+        {/* Sidebar - Desktop: slide panel, Mobile: drawer overlay */}
+        {isMobile ? (
+          <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+            <SheetContent side="left" className="w-[280px] p-0">
+              <Sidebar
             files={files}
             onFileSelect={handleFileSelect}
             onCreateFile={handleCreateFile}
