@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAgentChat } from '@/hooks/useAgentChat';
 import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion } from '@/types/agent';
 import { useApiKeys, PROVIDER_MODELS, PROVIDER_INFO } from '@/hooks/useApiKeys';
-import { ApiKeysDialog } from './ApiKeysDialog';
+import { SettingsDialog } from './SettingsDialog';
 import { getDiffLines } from '@/lib/diffUtils';
 import { useAttachments, ChatAttachment } from '@/hooks/useAttachments';
 import { ChatWidgetRenderer } from './ChatWidgets';
@@ -904,10 +904,10 @@ export const AIChat = ({
 
       {/* Removed - model selector moved to input area */}
       
-      <ApiKeysDialog open={showApiKeys} onOpenChange={(open) => {
+      <SettingsDialog open={showApiKeys} onOpenChange={(open) => {
         setShowApiKeys(open);
         if (!open) refetchApiKeys();
-      }} />
+      }} defaultTab="apikeys" />
 
       {/* Current file indicator */}
       {currentFile && (
