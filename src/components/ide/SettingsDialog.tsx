@@ -463,6 +463,16 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
               </div>
             </TabsContent>
 
+            {/* MCP Tab */}
+            <TabsContent value="mcp" className="mt-0">
+              <MCPServersPanel />
+            </TabsContent>
+
+            {/* Skills Tab */}
+            <TabsContent value="skills" className="mt-0">
+              <AgentSkillsPanel />
+            </TabsContent>
+
             {/* Appearance Tab */}
             <TabsContent value="appearance" className="space-y-4 mt-0">
               <div>
