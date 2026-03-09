@@ -2001,10 +2001,11 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                   isRunning={isRunning}
                 />
               )}
-            </ResizablePanel>
-          </ResizablePanelGroup>
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          )}
 
-          {/* AI Chat Sidebar */}
+          {/* AI Chat Sidebar - Mobile: full screen, Desktop: sidebar */}
           <AIChat
             isOpen={isAIChatOpen}
             onClose={() => setIsAIChatOpen(false)}
