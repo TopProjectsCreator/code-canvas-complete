@@ -1,86 +1,101 @@
-## Add Browser-Native Shell via WebContainers (Node.js)
 
-### Overview
+## Plan: Add Starter Shapes + Text-to-3D Generation for CAD Editor
 
-Integrate `@webcontainer/api` to provide a real Node.js shell (jsh) directly in the browser. Shell/bash/JS commands run locally via WebContainers. Compiled languages (Python, C, Rust, etc.) continue using the existing edge function (Wandbox + optional container backend -- both kept intact).
+### Summary
+1. Add a "Start with Shape" menu with built-in primitives (cube, sphere, cylinder, cone, torus)
+2. Add Text-to-3D generation that calls external providers (Meshy, Stability AI) when users provide an API key
 
-### Files to Change
+---
 
-**1. Install `@webcontainer/api**`
+### 1. Add Starter Shape Primitives
 
-- Add the package dependency
+**File: `src/components/ide/CADEditor.tsx`**
 
-**2. New file: `src/hooks/useWebContainer.ts**`
+- Add a dropdown/button group in the empty state overlay with primitive shape options
+- Options: Cube, Sphere, Cylinder, Cone, Torus
+- When selected, generate procedural geometry using Three.js built-in geometries
+- Store as a special marker in file content (e.g., `primitive:cube`) so it persists
+- Update parsing logic to detect `primitive:*` and generate corresponding BufferGeometry
 
-- Singleton pattern: one WebContainer instance shared across the app
-- `boot()` on first use, expose status (`idle` | `booting` | `ready` | `error`)
-- `spawn(command, args)` -- runs a command, returns stdout/stderr as string arrays
-- `writeFile(path, content)` / `readFile(path)` for syncing project files
-- `teardown()` cleanup on unmount
-- Lazy boot: container only starts when the user first runs a shell command
-
-**3. Update `src/hooks/useCodeExecution.ts**`
-
-- Import `useWebContainer`
-- New routing logic at the top of `executeCode`:
-  - If language is `shell`, `bash`, or `javascript` and WebContainer is available, run via WebContainer's `jsh` or `node`
-  - Otherwise, fall through to existing edge function path (Wandbox/container -- untouched)
-- `executeShellCommand` routes through WebContainer when ready
-- Keep all existing session tracking and edge function code as-is (container backend still works for those who configure it)
-
-**4. Update `src/components/ide/Terminal.tsx**`
-
-- Import `useWebContainer` for boot status
-- Show a "Booting shell..." indicator on first command if container is still starting
-- No structural changes to the terminal UI -- commands still flow through `useCodeExecution`
-- If the use is attempting to use pip or uv or something not supported without setting up container runner,  They will be alerted that it wont work and detailed instructions how to make it work.
-
-**5. Update `vite.config.ts**`
-
-- Add required COOP/COEP headers for WebContainers:
-
+**UI Flow:**
 ```text
-server.headers:
-  Cross-Origin-Embedder-Policy: require-corp
-  Cross-Origin-Opener-Policy: same-origin
+┌─────────────────────────────────────────┐
+│  Drag & drop a .stl or .obj file        │
+│                                         │
+│  [Browse Files]                         │
+│                                         │
+│  ── or start with a shape ──            │
+│                                         │
+│  [⬡Cube] [◯Sphere] [⬡Cylinder]          │
+│  [▲Cone] [◎Torus]                       │
+│                                         │
+│  ── or generate from text ──            │
+│  [✨ Text to 3D]                        │
+└─────────────────────────────────────────┘
 ```
 
-**6. Update `README.md**`
+---
 
-- Add a section explaining that shell commands now run via WebContainers in-browser for Node.js
-- Keep the existing container runner documentation for users who want full Linux shell with Python/system tools
-- Note the COOP/COEP header requirement for production deployments
+### 2. Text-to-3D Generation
 
-7. **System Instructions**
-  Edit the system instructions so that the bots know of this limitation.
-8. Settings
-  Keep a setting so that users who really want to can use the wandbox api instead of this.
+**New Provider in `useApiKeys.ts`:**
+- Add `meshy` provider (Meshy.ai is a leading text-to-3D API)
+- Include in `PROVIDER_INFO` and `PROVIDER_MODELS`
 
-### Architecture
+**New Edge Function: `supabase/functions/generate-3d/index.ts`**
+- Accept prompt text and provider choice
+- Call Meshy API (`POST https://api.meshy.ai/openapi/v1/text-to-3d`)
+- Return a GLB/OBJ URL or base64 model data
+- Support polling for async generation (Meshy uses task IDs)
 
-```text
-Terminal Command
-    |
-    +-- shell/bash/js --> WebContainer (in-browser, real Node.js shell)
-    |                     (npm, npx, node all work natively)
-    |
-    +-- python/c/rust/go/etc --> Edge Function
-                                   |
-                                   +-- Wandbox (default)
-                                   +-- Container backend (if configured)
+**CADEditor UI additions:**
+- Add "Text to 3D" button that opens a dialog/input
+- User enters prompt (e.g., "a wooden chair")
+- If no Meshy API key configured, show prompt to add key via API Keys dialog
+- On submit: call edge function, show loading state, load result into viewer
+- Support GLB format parsing (add `parseGLB` or use `@react-three/drei` GLTFLoader)
+
+---
+
+### 3. Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/ide/CADEditor.tsx` | Add starter shape buttons, Text-to-3D dialog, primitive geometry generation, GLB loading |
+| `src/hooks/useApiKeys.ts` | Add `meshy` provider to `AIProvider` type, `PROVIDER_INFO`, `PROVIDER_MODELS` |
+| `src/components/ide/ApiKeysDialog.tsx` | Add `meshy` to providers list |
+| `supabase/functions/validate-api-key/index.ts` | Add Meshy validation endpoint |
+| `supabase/functions/generate-3d/index.ts` | **New** - Edge function for text-to-3D generation |
+
+---
+
+### 4. Technical Details
+
+**Primitive geometry generation (Three.js):**
+```typescript
+function createPrimitiveGeometry(type: string): THREE.BufferGeometry {
+  switch (type) {
+    case 'cube': return new THREE.BoxGeometry(2, 2, 2);
+    case 'sphere': return new THREE.SphereGeometry(1.2, 32, 32);
+    case 'cylinder': return new THREE.CylinderGeometry(1, 1, 2, 32);
+    case 'cone': return new THREE.ConeGeometry(1, 2, 32);
+    case 'torus': return new THREE.TorusGeometry(1, 0.4, 16, 48);
+    default: return new THREE.BoxGeometry(2, 2, 2);
+  }
+}
 ```
 
-### What stays the same
+**Meshy API flow:**
+1. POST `/v1/text-to-3d` with `{ mode: "preview", prompt, art_style }` → returns `task_id`
+2. Poll `GET /v1/text-to-3d/{task_id}` until status = `SUCCEEDED`
+3. Download GLB from `model_urls.glb`
+4. Load into viewer using GLTFLoader
 
-- Edge function `execute-code` is untouched -- Wandbox and container backend remain
-- `EXECUTOR_MODE` env var still works for container deployments
-- All compiled language execution unchanged
-- AI chat shell commands route through the same `useCodeExecution` hook
+---
 
-### Technical Notes
-
-- WebContainers require SharedArrayBuffer, which needs COOP/COEP headers
-- The COEP `require-corp` header may break loading cross-origin resources (images, fonts from CDNs) unless they have CORS headers. We'll use `credentialless` instead of `require-corp` to avoid this issue where possible.
-- Boot time is ~2-3 seconds on first use, then instant for subsequent commands. 
-
-&nbsp;
+### 5. Implementation Order
+1. Add starter shape primitives (no external dependencies)
+2. Add Meshy provider to API keys system
+3. Create generate-3d edge function
+4. Add Text-to-3D UI in CADEditor
+5. Add GLB/GLTF loading support
