@@ -46,6 +46,9 @@ const TEMPLATES: { id: string; desc: string }[] = [
   { id: "powerpoint", desc: "PowerPoint presentations" },
   { id: "excel", desc: "Excel spreadsheets" },
   { id: "video", desc: "Video editing and playback" },
+  { id: "audio", desc: "Audio editing and playback" },
+  { id: "rtf", desc: "Rich text document editing" },
+  { id: "cad", desc: "3D CAD model viewing (STL/OBJ)" },
 ];
 
 const templateList = TEMPLATES.map((t) => `- ${t.id}: ${t.desc}`).join("\n");
