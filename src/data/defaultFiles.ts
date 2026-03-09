@@ -38,6 +38,9 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   powerpoint: 'PowerPoint',
   excel: 'Excel Spreadsheet',
   video: 'Video Editor',
+  audio: 'Audio Editor',
+  rtf: 'Rich Text',
+  cad: '3D CAD Viewer',
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
