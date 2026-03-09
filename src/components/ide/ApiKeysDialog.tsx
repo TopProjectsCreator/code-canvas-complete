@@ -12,7 +12,7 @@ interface ApiKeysDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github'];
+const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'meshy'];
 
 // Format validation rules per provider
 const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; label: string }> = {
@@ -25,6 +25,7 @@ const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; lab
   cohere: { minLength: 20, label: '20+ characters' },
   openrouter: { prefix: ['sk-or-'], minLength: 20, label: 'sk-or-...' },
   github: { prefix: ['ghp_', 'github_pat_'], minLength: 20, label: 'ghp_... or github_pat_...' },
+  meshy: { prefix: ['msy_'], minLength: 20, label: 'msy_...' },
 };
 
 function validateKeyFormat(provider: AIProvider, key: string): string | null {
