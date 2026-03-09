@@ -10,8 +10,11 @@ import {
   Sparkles,
   Save,
   Loader2,
-  GitBranch
+  GitBranch,
+  Users
 } from 'lucide-react';
+import { PresenceAvatars } from './CollabDialog';
+import type { PresenceState } from '@/hooks/useCollaboration';
 import { ProjectMenu } from './ProjectMenu';
 import type { LanguageTemplate } from '@/data/templateRegistry';
 import { cn } from '@/lib/utils';
