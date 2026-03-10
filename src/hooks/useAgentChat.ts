@@ -676,7 +676,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
       // Handle shell command execution
       const shellExecutionSummaries: Array<{ command: string; output: string; success: boolean }> = [];
-      if (processed.shellCommands && processed.shellCommands.length > 0) {
+      if (processed.shellCommands && processed.shellCommands.length > 0 && (autonomyConfig?.shell !== false)) {
         for (const cmd of processed.shellCommands) {
           const shellKey = `shell:${cmd}`;
           if (executedActionsRef.current.has(shellKey)) continue;
