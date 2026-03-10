@@ -22,6 +22,7 @@ import { ChatWidgetRenderer } from './ChatWidgets';
 import { useAutonomyMode, type AutonomyPreset, type AutonomyConfig } from '@/hooks/useAutonomyMode';
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { WhileYouWaitArcade } from './WhileYouWaitArcade';
 
 interface QuickAction {
   id: string;
@@ -1291,12 +1292,15 @@ export const AIChat = ({
         {/* Loading indicator when waiting for response */}
         {isLoading && messages[messages.length - 1]?.role === 'user' && (
           <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0 mt-1">
               <Bot className="w-4 h-4 text-white" />
             </div>
-            <div className="bg-muted rounded-xl px-3 py-2 flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-              <span className="text-xs text-muted-foreground">{currentStep || 'Thinking...'}</span>
+            <div className="flex-1 min-w-0">
+              <div className="bg-muted rounded-xl px-3 py-2 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <span className="text-xs text-muted-foreground">{currentStep || 'Thinking...'}</span>
+              </div>
+              <WhileYouWaitArcade />
             </div>
           </div>
         )}
