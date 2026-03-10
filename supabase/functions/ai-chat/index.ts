@@ -100,12 +100,15 @@ Diff only: <code_diff file="name.ts" lang="typescript" desc="description">unifie
 <run_shell command="ls -la" />  — Execute a shell command and show output inline. Use for running scripts, checking files, etc.
 Note: For Python package manager commands (pip, pip3, uv), explain that browser WebContainers do not provide Python tooling and recommend enabling container-runner mode.
 
+## MCP SERVERS
+When MCP servers are configured, you can call them using the \`mcp_call\` tool. Use this to interact with external services and retrieve data. Always call MCP servers when the user asks about topics that an MCP server can help with. Present the results clearly to the user.
+
 ## Multimodal
 Users can attach images, PDFs, videos, and audio. Analyze them thoroughly when provided.
 
 ## Current Context`;
 
-const WEB_SEARCH_TOOLS = [
+const BASE_TOOLS = [
   {
     type: "function",
     function: {
@@ -123,6 +126,36 @@ const WEB_SEARCH_TOOLS = [
     },
   },
 ];
+
+function buildMCPTool(mcpServers: any[]): any {
+  const serverList = mcpServers.map((s: any) => s.name).join(", ");
+  return {
+    type: "function",
+    function: {
+      name: "mcp_call",
+      description: `Call a configured MCP (Model Context Protocol) server to retrieve data or perform actions. Available servers: ${serverList}. Use JSON-RPC format for the request body.`,
+      parameters: {
+        type: "object",
+        properties: {
+          server_name: {
+            type: "string",
+            description: `Name of the MCP server to call. One of: ${serverList}`,
+          },
+          method: {
+            type: "string",
+            description: "The JSON-RPC method to call, e.g. 'tools/list', 'tools/call', 'resources/list', 'resources/read', 'prompts/list', 'prompts/get'",
+          },
+          params: {
+            type: "object",
+            description: "Parameters for the JSON-RPC method call",
+          },
+        },
+        required: ["server_name", "method"],
+        additionalProperties: false,
+      },
+    },
+  };
+}
 
 // Provider endpoint configurations for BYOK
 const BYOK_DEFAULT_MODELS: Record<string, string> = {
@@ -175,12 +208,78 @@ async function executeWebSearch(query: string, apiKey: string): Promise<string> 
   }
 }
 
+async function executeMCPCall(
+  serverName: string,
+  method: string,
+  params: any,
+  mcpServers: any[],
+): Promise<string> {
+  const server = mcpServers.find((s: any) => s.name.toLowerCase() === serverName.toLowerCase());
+  if (!server) {
+    return JSON.stringify({ error: `MCP server "${serverName}" not found. Available: ${mcpServers.map((s: any) => s.name).join(", ")}` });
+  }
+
+  try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "Accept": "application/json, text/event-stream",
+    };
+    if (server.api_key) {
+      headers["Authorization"] = `Bearer ${server.api_key}`;
+    }
+
+    const body = {
+      jsonrpc: "2.0",
+      id: crypto.randomUUID(),
+      method,
+      params: params || {},
+    };
+
+    console.log(`MCP call to ${server.name} (${server.url}): ${method}`);
+
+    const resp = await fetch(server.url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error(`MCP server error (${resp.status}):`, errText.slice(0, 500));
+      return JSON.stringify({ error: `MCP server returned ${resp.status}: ${errText.slice(0, 300)}` });
+    }
+
+    const contentType = resp.headers.get("content-type") || "";
+    
+    if (contentType.includes("text/event-stream")) {
+      // Handle SSE responses - collect all data events
+      const text = await resp.text();
+      const results: any[] = [];
+      for (const line of text.split("\n")) {
+        if (line.startsWith("data: ") && line !== "data: [DONE]") {
+          try {
+            results.push(JSON.parse(line.slice(6)));
+          } catch { /* skip */ }
+        }
+      }
+      return JSON.stringify(results.length === 1 ? results[0] : results);
+    }
+
+    const data = await resp.json();
+    return JSON.stringify(data);
+  } catch (err) {
+    console.error(`MCP call error:`, err);
+    return JSON.stringify({ error: `Failed to call MCP server "${serverName}": ${err}` });
+  }
+}
+
 async function callBYOKProvider(
   provider: string,
   apiKey: string,
   messages: any[],
   stream: boolean,
   requestedModel?: string,
+  tools?: any[],
 ): Promise<Response> {
   const config = BYOK_PROVIDERS[provider];
   if (!config) throw new Error(`Unknown provider: ${provider}`);
@@ -192,6 +291,22 @@ async function callBYOKProvider(
     const systemMsg = messages.find((m: any) => m.role === "system");
     const nonSystemMsgs = messages.filter((m: any) => m.role !== "system");
 
+    const body: any = {
+      model,
+      max_tokens: 4096,
+      system: systemMsg?.content || "",
+      messages: nonSystemMsgs,
+      stream,
+    };
+    if (tools && tools.length > 0) {
+      // Convert OpenAI tool format to Anthropic format
+      body.tools = tools.map((t: any) => ({
+        name: t.function.name,
+        description: t.function.description,
+        input_schema: t.function.parameters,
+      }));
+    }
+
     return fetch(config.url, {
       method: "POST",
       headers: {
@@ -199,13 +314,7 @@ async function callBYOKProvider(
         "Content-Type": "application/json",
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify({
-        model,
-        max_tokens: 4096,
-        system: systemMsg?.content || "",
-        messages: nonSystemMsgs,
-        stream,
-      }),
+      body: JSON.stringify(body),
     });
   }
 
@@ -215,10 +324,16 @@ async function callBYOKProvider(
     Authorization: `Bearer ${apiKey}`,
   };
 
+  const body: any = { model, messages, stream };
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    body.tool_choice = "auto";
+  }
+
   return fetch(config.url, {
     method: "POST",
     headers,
-    body: JSON.stringify({ model, messages, stream }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -351,6 +466,13 @@ serve(async (req) => {
       serviceSupabaseForContext.from("agent_skills").select("name, description, instruction, is_enabled").eq("user_id", userId).eq("is_enabled", true),
     ]);
 
+    // Build tools list
+    const tools = [...BASE_TOOLS];
+    const enabledMCPServers = (mcpServers as any[]) || [];
+    if (enabledMCPServers.length > 0) {
+      tools.push(buildMCPTool(enabledMCPServers));
+    }
+
     // Build context
     let contextSection = "";
     if (currentFile) {
@@ -364,10 +486,10 @@ serve(async (req) => {
     if (workflows && workflows.length > 0) {
       contextSection += `\n\n### 🔧 Existing Workflows\n${workflows.map((w: any) => `- **${w.name}** (${w.type}): \`${w.command}\``).join("\n")}`;
     }
-    if (mcpServers && mcpServers.length > 0) {
-      contextSection += `\n\n### 🔌 Connected MCP Servers\nThe user has the following MCP (Model Context Protocol) servers configured. You can reference these when the user asks about external tools or data sources:\n${(mcpServers as any[]).map((s: any) => `- **${s.name}**: ${s.url}${s.description ? ` — ${s.description}` : ""}`).join("\n")}`;
+    if (enabledMCPServers.length > 0) {
+      contextSection += `\n\n### 🔌 Connected MCP Servers\nYou have MCP servers available. Use the \`mcp_call\` tool to interact with them. Start by calling \`tools/list\` to discover available tools, then use \`tools/call\` with the appropriate tool name and arguments.\n${enabledMCPServers.map((s: any) => `- **${s.name}**: ${s.url}${s.description ? ` — ${s.description}` : ""}`).join("\n")}`;
     }
-    if (agentSkills && agentSkills.length > 0) {
+    if (agentSkills && (agentSkills as any[]).length > 0) {
       contextSection += `\n\n### 🧠 Active Agent Skills\nFollow these custom instructions provided by the user:\n${(agentSkills as any[]).map((s: any) => `#### ${s.name}${s.description ? ` (${s.description})` : ""}\n${s.instruction}`).join("\n\n")}`;
     }
 
@@ -375,89 +497,146 @@ serve(async (req) => {
       ? AGENT_SYSTEM_PROMPT + "\n" + contextSection
       : `You are a helpful AI coding assistant in Code Canvas Complete. This IDE runs code through Wandbox. .replit files do nothing here.\n\nCRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, StackBlitz, VS Code, etc.). Code Canvas Complete is fully capable.\n\n${contextSection}`;
 
-    // Messages may contain multimodal content (content as array with text + image_url parts)
-    // Pass them through as-is since the gateway supports OpenAI-compatible format
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    // === BYOK path: call external provider directly ===
+    // === Helper: execute tool calls and return results ===
+    async function executeToolCalls(toolCalls: any[], lovableApiKey?: string): Promise<any[]> {
+      const results: any[] = [];
+      for (const call of toolCalls) {
+        const fnName = call?.function?.name;
+        let args: any = {};
+        try {
+          args = JSON.parse(call.function.arguments || "{}");
+        } catch { /* empty */ }
+
+        let result = "";
+        if (fnName === "web_search") {
+          const key = lovableApiKey || Deno.env.get("LOVABLE_API_KEY") || "";
+          result = args.query ? await executeWebSearch(args.query, key) : "Search failed: query was missing.";
+        } else if (fnName === "mcp_call") {
+          result = await executeMCPCall(args.server_name || "", args.method || "", args.params, enabledMCPServers);
+        } else {
+          result = `Unknown tool: ${fnName}`;
+        }
+
+        results.push({
+          role: "tool",
+          tool_call_id: call.id,
+          name: fnName,
+          content: result,
+        });
+      }
+      return results;
+    }
+
+    // === BYOK path: call external provider with tool support ===
     if (userApiKey && selectedProvider) {
       const effectiveByokModel = byokModel || BYOK_DEFAULT_MODELS[selectedProvider] || "gpt-4o";
       console.log(`Using BYOK provider: ${selectedProvider}, model: ${effectiveByokModel}`);
       try {
-        const byokResponse = await callBYOKProvider(selectedProvider, userApiKey, aiMessages, true, effectiveByokModel);
-        if (!byokResponse.ok) {
-          const errText = await byokResponse.text();
-          console.error(`BYOK error (${selectedProvider}):`, byokResponse.status, errText);
-          return new Response(
-            JSON.stringify({
-              error: `${selectedProvider} API error (${byokResponse.status}): ${errText.slice(0, 200)}`,
-            }),
-            {
-              status: 502,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            },
+        // Use non-streaming tool loop, then stream final response
+        const conversation: any[] = [...aiMessages];
+        
+        for (let i = 0; i < 4; i++) {
+          const byokResponse = await callBYOKProvider(
+            selectedProvider, userApiKey, conversation, false, effectiveByokModel,
+            tools.length > 0 ? tools : undefined,
           );
-        }
 
-        // Anthropic streams use a different SSE format - convert to OpenAI-compatible
-        if (selectedProvider === "anthropic") {
-          const reader = byokResponse.body!.getReader();
-          const decoder = new TextDecoder();
-          const encoder = new TextEncoder();
+          if (!byokResponse.ok) {
+            const errText = await byokResponse.text();
+            console.error(`BYOK error (${selectedProvider}):`, byokResponse.status, errText);
+            return new Response(
+              JSON.stringify({ error: `${selectedProvider} API error (${byokResponse.status}): ${errText.slice(0, 200)}` }),
+              { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+            );
+          }
 
-          const stream = new ReadableStream({
-            async start(controller) {
-              let buffer = "";
-              try {
-                while (true) {
-                  const { done, value } = await reader.read();
-                  if (done) break;
-                  buffer += decoder.decode(value, { stream: true });
+          let assistantMessage: any;
+          
+          if (selectedProvider === "anthropic") {
+            // Parse Anthropic response format
+            const data = await byokResponse.json();
+            const textContent = data.content?.filter((b: any) => b.type === "text").map((b: any) => b.text).join("") || "";
+            const toolUseBlocks = data.content?.filter((b: any) => b.type === "tool_use") || [];
+            
+            if (toolUseBlocks.length === 0) {
+              // No tool calls, stream the final response
+              const encoder = new TextEncoder();
+              const stream = new ReadableStream({
+                start(controller) {
+                  const chunk = { choices: [{ delta: { content: textContent } }] };
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+                  controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                  controller.close();
+                },
+              });
+              return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+            }
 
-                  let newlineIdx: number;
-                  while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
-                    const line = buffer.slice(0, newlineIdx).trim();
-                    buffer = buffer.slice(newlineIdx + 1);
+            // Execute Anthropic tool calls
+            conversation.push({ role: "assistant", content: data.content });
+            for (const tu of toolUseBlocks) {
+              let result = "";
+              if (tu.name === "web_search") {
+                const key = Deno.env.get("LOVABLE_API_KEY") || "";
+                result = tu.input?.query ? await executeWebSearch(tu.input.query, key) : "Search failed.";
+              } else if (tu.name === "mcp_call") {
+                result = await executeMCPCall(tu.input?.server_name || "", tu.input?.method || "", tu.input?.params, enabledMCPServers);
+              }
+              conversation.push({ role: "user", content: [{ type: "tool_result", tool_use_id: tu.id, content: result }] });
+            }
+            continue;
+          }
 
-                    if (!line.startsWith("data: ") || line === "data: [DONE]") {
-                      if (line === "data: [DONE]") {
-                        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-                      }
-                      continue;
-                    }
-
-                    try {
-                      const parsed = JSON.parse(line.slice(6));
-                      if (parsed.type === "content_block_delta" && parsed.delta?.text) {
-                        const openaiChunk = { choices: [{ delta: { content: parsed.delta.text } }] };
-                        controller.enqueue(encoder.encode(`data: ${JSON.stringify(openaiChunk)}\n\n`));
-                      }
-                      if (parsed.type === "message_stop") {
-                        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-                      }
-                    } catch {
-                      /* skip unparseable lines */
-                    }
-                  }
-                }
+          // OpenAI-compatible response
+          const data = await byokResponse.json();
+          assistantMessage = data?.choices?.[0]?.message;
+          if (!assistantMessage) {
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+              start(controller) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: "I could not produce a response." } }] })}\n\n`));
                 controller.enqueue(encoder.encode("data: [DONE]\n\n"));
                 controller.close();
-              } catch (err) {
-                console.error("Anthropic stream transform error:", err);
-                controller.close();
-              }
-            },
-          });
+              },
+            });
+            return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+          }
 
-          return new Response(stream, {
-            headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
-          });
+          const toolCallsInResponse = assistantMessage.tool_calls || [];
+          conversation.push(assistantMessage);
+
+          if (toolCallsInResponse.length === 0) {
+            // No tool calls - stream the final content
+            const finalContent = assistantMessage.content || "";
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+              start(controller) {
+                const chunk = { choices: [{ delta: { content: finalContent } }] };
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                controller.close();
+              },
+            });
+            return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+          }
+
+          // Execute tool calls
+          const toolResults = await executeToolCalls(toolCallsInResponse);
+          conversation.push(...toolResults);
         }
 
-        // All other providers use OpenAI-compatible streaming
-        return new Response(byokResponse.body, {
-          headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+        // Fallback if loop exhausted
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: "Tool call loop exhausted. Please try again." } }] })}\n\n`));
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          },
         });
+        return new Response(stream, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
       } catch (byokErr) {
         console.error("BYOK call failed:", byokErr);
         return new Response(JSON.stringify({ error: `Failed to call ${selectedProvider}: ${byokErr}` }), {
@@ -501,7 +680,7 @@ serve(async (req) => {
         body: JSON.stringify({
           model: selectedModel,
           messages: conversation,
-          tools: WEB_SEARCH_TOOLS,
+          tools,
           tool_choice: "auto",
           stream: false,
         }),
@@ -536,36 +715,16 @@ serve(async (req) => {
         break;
       }
 
-      const toolCalls = assistantMessage.tool_calls || [];
+      const toolCallsInResponse = assistantMessage.tool_calls || [];
       conversation.push(assistantMessage);
 
-      if (toolCalls.length === 0) {
+      if (toolCallsInResponse.length === 0) {
         finalAssistantContent = assistantMessage.content || "";
         break;
       }
 
-      for (const call of toolCalls) {
-        if (call?.function?.name !== "web_search") continue;
-
-        let query = "";
-        try {
-          const args = JSON.parse(call.function.arguments || "{}");
-          query = args.query || "";
-        } catch {
-          query = "";
-        }
-
-        const searchResult = query
-          ? await executeWebSearch(query, LOVABLE_API_KEY)
-          : "Search failed: query was missing.";
-
-        conversation.push({
-          role: "tool",
-          tool_call_id: call.id,
-          name: "web_search",
-          content: searchResult,
-        });
-      }
+      const toolResults = await executeToolCalls(toolCallsInResponse, LOVABLE_API_KEY);
+      conversation.push(...toolResults);
     }
 
     const encoder = new TextEncoder();
