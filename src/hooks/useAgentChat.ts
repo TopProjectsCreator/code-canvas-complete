@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
+import type { AutonomyConfig } from '@/hooks/useAutonomyMode';
 import { supabase } from '@/integrations/supabase/client';
 import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion, QuestionOption, ChatWidget, ChatWidgetType } from '@/types/agent';
 import { Workflow } from '@/types/ide';
@@ -55,9 +56,10 @@ interface UseAgentChatProps {
   onRenameFile?: (oldName: string, newName: string) => void;
   onDeleteFile?: (name: string) => void;
   workflows?: Workflow[];
+  autonomyConfig?: AutonomyConfig;
 }
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, workflows = [] }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, workflows = [], autonomyConfig }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
       id: '1',
@@ -674,7 +676,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
       // Handle shell command execution
       const shellExecutionSummaries: Array<{ command: string; output: string; success: boolean }> = [];
-      if (processed.shellCommands && processed.shellCommands.length > 0) {
+      if (processed.shellCommands && processed.shellCommands.length > 0 && (autonomyConfig?.shell !== false)) {
         for (const cmd of processed.shellCommands) {
           const shellKey = `shell:${cmd}`;
           if (executedActionsRef.current.has(shellKey)) continue;
