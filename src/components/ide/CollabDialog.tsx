@@ -207,6 +207,12 @@ function InviteTab({ collab, hasProject = true }: { collab: ReturnType<typeof us
 
   return (
     <div className="space-y-4">
+      {!hasProject && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-warning/30 bg-warning/10 text-warning text-xs">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>Save your project first before inviting collaborators.</span>
+        </div>
+      )}
       <div>
         <h4 className="text-sm font-medium mb-1">Invite a collaborator</h4>
         <p className="text-xs text-muted-foreground mb-4">
