@@ -261,19 +261,29 @@ export function useCollaboration(projectId: string | undefined) {
 
   // Invite collaborator
   const inviteCollaborator = async (email: string, role: CollabRole) => {
-    if (!projectId || !user) return false;
+    if (!projectId) {
+      toast({ title: 'Save project first', description: 'You need to save your project before inviting collaborators.', variant: 'destructive' });
+      return false;
+    }
+    if (!user) return false;
 
-    // Find user by email via profiles (we search by display_name or check auth)
-    // For simplicity, look up user via their email in auth metadata
-    const { data: existingProfiles } = await supabase
-      .from('profiles')
-      .select('user_id, display_name');
+    // Look up the invited user by email from profiles + auth
+    // Since profiles don't store email, we search for a user with matching email via a simple approach:
+    // Insert the collaborator row with invited_email set; the invited user accepts when they log in.
+    // We need a valid user_id for the FK — use a placeholder approach:
+    // First try to find an existing user with that email by querying profiles via RPC or edge function.
+    // For now, we'll search if any profile's user has this email.
+    
+    let targetUserId = user.id; // fallback placeholder
 
-    // We need to search by email - but profiles don't store email
-    // We'll store invited_email and the user accepts when they log in
+    // Try to find user by email using Supabase auth admin (not available client-side)
+    // Instead, we insert with the invited_email and set accepted=false
+    // The user_id is a required FK field, so we use the inviter as placeholder
+    // This is a known limitation - proper implementation needs server-side email lookup
+
     const { error } = await supabase.from('project_collaborators').insert({
       project_id: projectId,
-      user_id: user.id, // Placeholder - will be updated when user accepts
+      user_id: targetUserId,
       invited_by: user.id,
       role,
       invited_email: email,
@@ -281,7 +291,12 @@ export function useCollaboration(projectId: string | undefined) {
     });
 
     if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      // Handle duplicate invites gracefully
+      if (error.code === '23505') {
+        toast({ title: 'Already invited', description: `${email} has already been invited to this project.`, variant: 'destructive' });
+      } else {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
       return false;
     }
     toast({ title: 'Invitation sent', description: `Invited ${email} as ${role}` });
