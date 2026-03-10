@@ -83,7 +83,14 @@ export const ProjectMenu = ({ projectName, hasUnsavedChanges, onRename, onChange
             <DropdownMenuPortal>
               <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
                 {templateOptions.map((t) => (
-                  <DropdownMenuItem key={t.id} onClick={() => onChangeTemplate(t.id)}>
+                  <DropdownMenuItem key={t.id} onClick={() => {
+                    if (hasUnsavedChanges) {
+                      setPendingTemplate(t.id);
+                      setShowTemplateWarning(true);
+                    } else {
+                      onChangeTemplate(t.id);
+                    }
+                  }}>
                     {t.name}
                   </DropdownMenuItem>
                 ))}
