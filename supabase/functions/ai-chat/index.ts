@@ -372,8 +372,11 @@ serve(async (req) => {
     }
 
     const userId = claimsData.claims.sub;
-    const { messages, currentFile, consoleErrors, workflows, agentMode, model, byokProvider, byokModel } =
-      await req.json();
+    const { 
+      messages, currentFile, consoleErrors, workflows, agentMode, model, byokProvider, byokModel,
+      temperature: reqTemperature, maxTokens: reqMaxTokens, thinkingBudget: reqThinkingBudget,
+      enableWebSearch, enableCodeExecution, enableMCP,
+    } = await req.json();
 
     // Check if user has a custom API key for the selected BYOK provider
     let userApiKey: string | null = null;
