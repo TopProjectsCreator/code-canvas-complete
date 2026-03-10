@@ -114,6 +114,8 @@ VITE_SUPABASE_ANON_KEY=...
 # VITE_LOVABLE_AI_BASE_URL=https://...
 # VITE_LOVABLE_DB_BASE_URL=https://...
 # VITE_LOVABLE_DB_TOKEN=...
+# Optional publishing host override for public project subdomains:
+# VITE_PUBLISH_BASE_DOMAIN=codecanvas.app
 ```
 
 If running Edge Functions locally/remotely, configure function secrets in Supabase as needed (for example service role keys and any AI gateway keys used by your setup).
@@ -321,6 +323,19 @@ npm run preview -- --host 0.0.0.0 --port 3000
 2. Configure required environment variables in project settings.
 3. Use the platform publish/deploy flow to build and host the app.
 4. Deploy Supabase Edge Functions separately via Supabase CLI.
+
+---
+
+### Publishing to subdomains
+
+Projects can be published to a subdomain (for example `hugecanvas.codecanvas.app`).
+
+- Set `VITE_PUBLISH_BASE_DOMAIN` to your own base domain in each deployment.
+- If omitted, Code Canvas derives the base domain from the current hostname, so forks/self-hosted deployments still work.
+- Configure wildcard DNS (`*.your-domain.tld`) and point it to your deployment host.
+- Configure wildcard TLS for that domain.
+
+Published routes resolve by subdomain label and load the matching public project.
 
 ---
 

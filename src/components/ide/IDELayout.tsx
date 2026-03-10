@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, useRef, lazy, Suspense, useMemo } from "react";
 import { applyDiff } from "@/lib/diffUtils";
 import { useNavigate } from "react-router-dom";
 import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from "@/types/ide";
@@ -29,12 +29,15 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ScratchArchive, importSb3 } from "@/services/scratchSb3";
+import { createDataProvider } from "@/integrations/data/provider";
+import { buildProjectShareUrl } from "@/lib/publishing";
 
 const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ default: m.ArduinoPanel })));
 const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then((m) => ({ default: m.ScratchPanel })));
 
 interface IDELayoutProps {
   projectId?: string;
+  publishSlug?: string | null;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -214,8 +217,9 @@ const getDefaultWorkflows = (template: LanguageTemplate): Workflow[] => {
   return baseWorkflows;
 };
 
-export const IDELayout = ({ projectId }: IDELayoutProps) => {
+export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const { user } = useAuth();
+  const dataProvider = useMemo(() => createDataProvider(), []);
   const { toast } = useToast();
   const { addCustomTheme } = useTheme();
   const navigate = useNavigate();
@@ -373,6 +377,16 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
       });
     }
   }, [projectId, currentProject, loadProject, user, navigate, toast]);
+
+  useEffect(() => {
+    if (!publishSlug || currentProject) return;
+    dataProvider.getProjectByPublishSlug(publishSlug).then((project) => {
+      if (!project) return;
+      setCurrentProject(project);
+      setFiles(project.files);
+      setSelectedTemplate(project.language as LanguageTemplate);
+    });
+  }, [publishSlug, currentProject, dataProvider, setCurrentProject]);
 
   // Get the active file
   const activeTab = openTabs.find((tab) => tab.id === activeTabId);
@@ -2160,12 +2174,14 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                 });
                 return;
               }
-              const { error } = await (await import("@/integrations/supabase/client")).supabase
-                .from("projects")
-                .update({ is_public: true })
-                .eq("id", currentProject.id);
-              if (!error) {
-                setCurrentProject({ ...currentProject, is_public: true });
+              const updatedProject = await dataProvider.updateProject({
+                ...currentProject,
+                is_public: true,
+                publish_slug: currentProject.publish_slug || currentProject.name.toLowerCase().replace(/\s+/g, "-"),
+                published_at: new Date().toISOString(),
+              });
+              if (updatedProject) {
+                setCurrentProject(updatedProject);
                 toast({ title: "Project is now public", description: "Anyone with the link can view this project" });
               }
             }}
@@ -2178,19 +2194,17 @@ export const IDELayout = ({ projectId }: IDELayoutProps) => {
                 });
                 return;
               }
-              const { error } = await (await import("@/integrations/supabase/client")).supabase
-                .from("projects")
-                .update({ is_public: false })
-                .eq("id", currentProject.id);
-              if (!error) {
-                setCurrentProject({ ...currentProject, is_public: false });
+              const updatedProject = await dataProvider.updateProject({
+                ...currentProject,
+                is_public: false,
+              });
+              if (updatedProject) {
+                setCurrentProject(updatedProject);
                 toast({ title: "Project is now private", description: "Only you can access this project" });
               }
             }}
             onGetProjectLink={() => {
-              const link = currentProject
-                ? `${window.location.origin}/project/${currentProject.id}`
-                : window.location.href;
+              const link = currentProject ? buildProjectShareUrl(currentProject.id) : window.location.href;
               navigator.clipboard.writeText(link);
               toast({ title: "Link copied!", description: link });
             }}
