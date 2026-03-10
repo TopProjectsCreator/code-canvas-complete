@@ -101,7 +101,7 @@ export const CollabDialog = ({ open, onOpenChange, projectId }: CollabDialogProp
               <TeamTab collab={collab} userId={user.id} />
             </TabsContent>
             <TabsContent value="invite" className="mt-0">
-              <InviteTab collab={collab} />
+              <InviteTab collab={collab} hasProject={hasProject} />
             </TabsContent>
             <TabsContent value="comments" className="mt-0">
               <CommentsTab collab={collab} userId={user.id} />
