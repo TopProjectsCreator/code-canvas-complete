@@ -280,11 +280,14 @@ async function callBYOKProvider(
   stream: boolean,
   requestedModel?: string,
   tools?: any[],
+  options?: { temperature?: number; maxTokens?: number; thinkingBudget?: number },
 ): Promise<Response> {
   const config = BYOK_PROVIDERS[provider];
   if (!config) throw new Error(`Unknown provider: ${provider}`);
 
   const model = requestedModel || BYOK_DEFAULT_MODELS[provider] || "gpt-4o";
+  const temperature = options?.temperature ?? 0.7;
+  const maxTokens = options?.maxTokens ?? 4096;
 
   // Anthropic has a different API format
   if (provider === "anthropic") {
@@ -293,13 +296,17 @@ async function callBYOKProvider(
 
     const body: any = {
       model,
-      max_tokens: 4096,
+      max_tokens: maxTokens,
       system: systemMsg?.content || "",
       messages: nonSystemMsgs,
       stream,
+      temperature,
     };
+    if (options?.thinkingBudget && options.thinkingBudget > 0) {
+      body.thinking = { type: "enabled", budget_tokens: options.thinkingBudget };
+      delete body.temperature; // Anthropic doesn't allow temperature with thinking
+    }
     if (tools && tools.length > 0) {
-      // Convert OpenAI tool format to Anthropic format
       body.tools = tools.map((t: any) => ({
         name: t.function.name,
         description: t.function.description,
@@ -324,7 +331,11 @@ async function callBYOKProvider(
     Authorization: `Bearer ${apiKey}`,
   };
 
-  const body: any = { model, messages, stream };
+  const body: any = { model, messages, stream, temperature, max_tokens: maxTokens };
+  if (options?.thinkingBudget && options.thinkingBudget > 0) {
+    // For Gemini/OpenAI reasoning models
+    body.reasoning_effort = options.thinkingBudget > 16384 ? "high" : options.thinkingBudget > 4096 ? "medium" : "low";
+  }
   if (tools && tools.length > 0) {
     body.tools = tools;
     body.tool_choice = "auto";
