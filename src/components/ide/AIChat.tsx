@@ -6,7 +6,7 @@ import {
   GitBranch, GitCommit as GitCommitIcon, Download, Globe, Lock, Link2, Twitter,
   Linkedin, Mail, Share2, GitFork, Star, History, MessageCircleQuestion, Save,
   PlayCircle, Music, Key, Settings, Diff, Paperclip, Image, FileVideo, FileAudio, FileText,
-  GripVertical, ArrowUp, ArrowDown
+  GripVertical, ArrowUp, ArrowDown, Shield, ShieldCheck, ShieldAlert, SlidersHorizontal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -19,6 +19,9 @@ import { SettingsDialog } from './SettingsDialog';
 import { getDiffLines } from '@/lib/diffUtils';
 import { useAttachments, ChatAttachment } from '@/hooks/useAttachments';
 import { ChatWidgetRenderer } from './ChatWidgets';
+import { useAutonomyMode, type AutonomyPreset, type AutonomyConfig } from '@/hooks/useAutonomyMode';
+import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface QuickAction {
   id: string;
@@ -674,6 +677,9 @@ export const AIChat = ({
     clearAttachments, openFilePicker, buildContentParts, acceptString,
   } = useAttachments();
 
+  const { preset, setPreset, config: autonomyConfig, customConfig, updateCustomField } = useAutonomyMode();
+  const [showAutonomyConfig, setShowAutonomyConfig] = useState(false);
+
   const { 
     messages, 
     isLoading, 
@@ -719,6 +725,7 @@ export const AIChat = ({
     onRenameFile,
     onDeleteFile,
     workflows,
+    autonomyConfig,
   });
 
   const { apiKeys, fetchApiKeys: refetchApiKeys } = useApiKeys();
@@ -822,6 +829,64 @@ export const AIChat = ({
     applyCodeChange(change);
     setAppliedChanges(prev => new Set(prev).add(changeId));
   };
+
+  // Auto-apply logic based on autonomy mode
+  useEffect(() => {
+    if (!autonomyConfig.codeChanges) return;
+    messages.forEach(msg => {
+      if (msg.role !== 'assistant' || msg.isStreaming) return;
+      msg.steps?.forEach(step => {
+        if (step.type === 'code_change' && step.codeChange && !appliedChanges.has(step.id)) {
+          handleApplyChange(step.codeChange, step.id);
+        }
+      });
+    });
+  }, [messages, autonomyConfig.codeChanges, appliedChanges]);
+
+  // Auto-apply tool calls (theme, git, share) based on autonomy mode
+  useEffect(() => {
+    messages.forEach(msg => {
+      if (msg.role !== 'assistant' || msg.isStreaming) return;
+      msg.steps?.forEach(step => {
+        if (step.type !== 'tool_call' || !step.toolCall || step.toolCall.status !== 'pending' || appliedChanges.has(step.id)) return;
+        const tc = step.toolCall;
+
+        // Theme auto-apply
+        if (autonomyConfig.theme && (tc.name === 'set_theme' || tc.name === 'create_custom_theme')) {
+          setAppliedChanges(prev => new Set(prev).add(step.id));
+          if (tc.name === 'set_theme' && onSetTheme) onSetTheme(tc.arguments.theme as string);
+          else if (tc.name === 'create_custom_theme' && onCreateCustomTheme) {
+            onCreateCustomTheme(tc.arguments.name as string, tc.arguments.colors as import('@/contexts/ThemeContext').CustomThemeColors);
+          }
+        }
+
+        // Git auto-apply
+        if (autonomyConfig.git && ['git_commit', 'git_init', 'git_create_branch', 'git_import'].includes(tc.name)) {
+          setAppliedChanges(prev => new Set(prev).add(step.id));
+          if (tc.name === 'git_commit' && onGitCommit) onGitCommit(tc.arguments.message as string);
+          else if (tc.name === 'git_init' && onGitInit) onGitInit();
+          else if (tc.name === 'git_create_branch' && onGitCreateBranch) onGitCreateBranch(tc.arguments.branchName as string);
+          else if (tc.name === 'git_import' && onGitImport) onGitImport(tc.arguments.url as string);
+        }
+
+        // Share auto-apply
+        if (autonomyConfig.share && ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email', 'fork_project', 'star_project', 'view_history', 'save_project', 'run_project'].includes(tc.name)) {
+          setAppliedChanges(prev => new Set(prev).add(step.id));
+          if (tc.name === 'make_public' && onMakePublic) onMakePublic();
+          else if (tc.name === 'make_private' && onMakePrivate) onMakePrivate();
+          else if (tc.name === 'get_project_link' && onGetProjectLink) onGetProjectLink();
+          else if (tc.name === 'share_twitter' && onShareTwitter) onShareTwitter();
+          else if (tc.name === 'share_linkedin' && onShareLinkedin) onShareLinkedin();
+          else if (tc.name === 'share_email' && onShareEmail) onShareEmail();
+          else if (tc.name === 'fork_project' && onForkProject) onForkProject();
+          else if (tc.name === 'star_project' && onStarProject) onStarProject();
+          else if (tc.name === 'view_history' && onViewHistory) onViewHistory();
+          else if (tc.name === 'save_project' && onSaveProject) onSaveProject();
+          else if (tc.name === 'run_project' && onRunProject) onRunProject();
+        }
+      });
+    });
+  }, [messages, autonomyConfig, appliedChanges]);
 
   // Resizable width
   const [panelWidth, setPanelWidth] = useState(320);
@@ -1295,6 +1360,78 @@ export const AIChat = ({
               ))}
 
               <div className="flex-1" />
+
+              {/* Autonomy mode picker */}
+              <Popover open={showAutonomyConfig} onOpenChange={setShowAutonomyConfig}>
+                <PopoverTrigger asChild>
+                  <button
+                    className={cn(
+                      'p-1 rounded transition-colors flex items-center gap-1',
+                      preset === 'full' ? 'text-green-400 hover:bg-green-500/10' :
+                      preset === 'human' ? 'text-muted-foreground hover:bg-accent' :
+                      'text-amber-400 hover:bg-amber-500/10'
+                    )}
+                    title={`Autonomy: ${preset === 'full' ? 'Full Auto' : preset === 'human' ? 'Human in Loop' : 'Custom'}`}
+                  >
+                    {preset === 'full' ? <ShieldCheck className="w-3 h-3" /> :
+                     preset === 'human' ? <Shield className="w-3 h-3" /> :
+                     <SlidersHorizontal className="w-3 h-3" />}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="end" side="top">
+                  <div className="p-2 border-b border-border">
+                    <p className="text-[11px] font-medium text-foreground mb-1.5">Autonomy Mode</p>
+                    <div className="flex gap-1">
+                      {([
+                        { id: 'full' as AutonomyPreset, label: 'Full Auto', icon: <ShieldCheck className="w-3 h-3" />, color: 'text-green-400' },
+                        { id: 'human' as AutonomyPreset, label: 'Manual', icon: <Shield className="w-3 h-3" />, color: 'text-muted-foreground' },
+                        { id: 'custom' as AutonomyPreset, label: 'Custom', icon: <SlidersHorizontal className="w-3 h-3" />, color: 'text-amber-400' },
+                      ]).map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => setPreset(m.id)}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium transition-all',
+                            preset === m.id
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
+                          )}
+                        >
+                          {m.icon}
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="p-2 text-[10px] text-muted-foreground">
+                    {preset === 'full' && 'All actions auto-applied instantly.'}
+                    {preset === 'human' && 'You approve every action manually.'}
+                    {preset === 'custom' && (
+                      <div className="space-y-1.5">
+                        {([
+                          { key: 'codeChanges' as const, label: 'File Changes' },
+                          { key: 'shell' as const, label: 'Shell Commands' },
+                          { key: 'theme' as const, label: 'Theme Changes' },
+                          { key: 'git' as const, label: 'Git Actions' },
+                          { key: 'share' as const, label: 'Share / Project' },
+                          { key: 'packages' as const, label: 'Install Packages' },
+                          { key: 'workflows' as const, label: 'Workflows' },
+                        ]).map(item => (
+                          <div key={item.key} className="flex items-center justify-between">
+                            <span className="text-foreground">{item.label}</span>
+                            <Switch
+                              checked={customConfig[item.key]}
+                              onCheckedChange={(v) => updateCustomField(item.key, v)}
+                              className="scale-75"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
               <button
                 onClick={() => setShowApiKeys(true)}
                 className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
