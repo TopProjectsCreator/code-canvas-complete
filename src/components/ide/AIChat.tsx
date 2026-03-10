@@ -1359,6 +1359,78 @@ export const AIChat = ({
               ))}
 
               <div className="flex-1" />
+
+              {/* Autonomy mode picker */}
+              <Popover open={showAutonomyConfig} onOpenChange={setShowAutonomyConfig}>
+                <PopoverTrigger asChild>
+                  <button
+                    className={cn(
+                      'p-1 rounded transition-colors flex items-center gap-1',
+                      preset === 'full' ? 'text-green-400 hover:bg-green-500/10' :
+                      preset === 'human' ? 'text-muted-foreground hover:bg-accent' :
+                      'text-amber-400 hover:bg-amber-500/10'
+                    )}
+                    title={`Autonomy: ${preset === 'full' ? 'Full Auto' : preset === 'human' ? 'Human in Loop' : 'Custom'}`}
+                  >
+                    {preset === 'full' ? <ShieldCheck className="w-3 h-3" /> :
+                     preset === 'human' ? <Shield className="w-3 h-3" /> :
+                     <SlidersHorizontal className="w-3 h-3" />}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="end" side="top">
+                  <div className="p-2 border-b border-border">
+                    <p className="text-[11px] font-medium text-foreground mb-1.5">Autonomy Mode</p>
+                    <div className="flex gap-1">
+                      {([
+                        { id: 'full' as AutonomyPreset, label: 'Full Auto', icon: <ShieldCheck className="w-3 h-3" />, color: 'text-green-400' },
+                        { id: 'human' as AutonomyPreset, label: 'Manual', icon: <Shield className="w-3 h-3" />, color: 'text-muted-foreground' },
+                        { id: 'custom' as AutonomyPreset, label: 'Custom', icon: <SlidersHorizontal className="w-3 h-3" />, color: 'text-amber-400' },
+                      ]).map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => setPreset(m.id)}
+                          className={cn(
+                            'flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium transition-all',
+                            preset === m.id
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
+                          )}
+                        >
+                          {m.icon}
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="p-2 text-[10px] text-muted-foreground">
+                    {preset === 'full' && 'All actions auto-applied instantly.'}
+                    {preset === 'human' && 'You approve every action manually.'}
+                    {preset === 'custom' && (
+                      <div className="space-y-1.5">
+                        {([
+                          { key: 'codeChanges' as const, label: 'File Changes' },
+                          { key: 'shell' as const, label: 'Shell Commands' },
+                          { key: 'theme' as const, label: 'Theme Changes' },
+                          { key: 'git' as const, label: 'Git Actions' },
+                          { key: 'share' as const, label: 'Share / Project' },
+                          { key: 'packages' as const, label: 'Install Packages' },
+                          { key: 'workflows' as const, label: 'Workflows' },
+                        ]).map(item => (
+                          <div key={item.key} className="flex items-center justify-between">
+                            <span className="text-foreground">{item.label}</span>
+                            <Switch
+                              checked={customConfig[item.key]}
+                              onCheckedChange={(v) => updateCustomField(item.key, v)}
+                              className="scale-75"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
               <button
                 onClick={() => setShowApiKeys(true)}
                 className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
