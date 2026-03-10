@@ -480,12 +480,22 @@ serve(async (req) => {
       serviceSupabaseForContext.from("agent_skills").select("name, description, instruction, is_enabled").eq("user_id", userId).eq("is_enabled", true),
     ]);
 
-    // Build tools list
-    const tools = [...BASE_TOOLS];
+    // Build tools list based on toggles (default to enabled if not specified)
+    const tools: any[] = [];
     const enabledMCPServers = (mcpServers as any[]) || [];
-    if (enabledMCPServers.length > 0) {
+    if (enableWebSearch !== false) {
+      tools.push(...BASE_TOOLS);
+    }
+    if (enableMCP !== false && enabledMCPServers.length > 0) {
       tools.push(buildMCPTool(enabledMCPServers));
     }
+    
+    // Build provider options from request params
+    const providerOptions = {
+      temperature: reqTemperature,
+      maxTokens: reqMaxTokens,
+      thinkingBudget: reqThinkingBudget,
+    };
 
     // Build context
     let contextSection = "";
