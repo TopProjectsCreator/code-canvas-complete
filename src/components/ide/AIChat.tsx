@@ -677,6 +677,9 @@ export const AIChat = ({
     clearAttachments, openFilePicker, buildContentParts, acceptString,
   } = useAttachments();
 
+  const { preset, setPreset, config: autonomyConfig, customConfig, updateCustomField } = useAutonomyMode();
+  const [showAutonomyConfig, setShowAutonomyConfig] = useState(false);
+
   const { 
     messages, 
     isLoading, 
