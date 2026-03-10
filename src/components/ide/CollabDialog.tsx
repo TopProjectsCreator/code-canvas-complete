@@ -46,6 +46,7 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; label: string; colo
 };
 
 export const CollabDialog = ({ open, onOpenChange, projectId }: CollabDialogProps) => {
+  const hasProject = !!projectId;
   const { user } = useAuth();
   const collab = useCollaboration(projectId);
 
