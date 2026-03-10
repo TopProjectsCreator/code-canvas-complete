@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Pencil, LayoutTemplate, Check, X } from 'lucide-react';
+import { ChevronDown, Pencil, LayoutTemplate, Check, X, AlertTriangle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,12 +12,14 @@ import {
   DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import type { LanguageTemplate } from '@/data/templateRegistry';
 import { TEMPLATES } from '@/data/templateRegistry';
@@ -25,6 +27,7 @@ import { cn } from '@/lib/utils';
 
 interface ProjectMenuProps {
   projectName: string;
+  hasUnsavedChanges?: boolean;
   onRename: (newName: string) => void;
   onChangeTemplate: (template: LanguageTemplate) => void;
 }
