@@ -101,6 +101,7 @@ export const Header = ({
         {/* Project name dropdown */}
         <ProjectMenu
           projectName={projectName}
+          hasUnsavedChanges={hasUnsavedChanges}
           onRename={onRenameProject}
           onChangeTemplate={onChangeTemplate}
         />
