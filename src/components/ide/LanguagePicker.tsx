@@ -153,11 +153,13 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
     let assistantSoFar = "";
 
     try {
+      const { data: { session } } = await (await import("@/integrations/supabase/client")).supabase.auth.getSession();
+      const authToken = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/template-assistant`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
           messages: [...allMessages.slice(0, -1).map((m) => ({ role: m.role, content: m.content })), apiMessage],
