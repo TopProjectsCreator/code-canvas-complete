@@ -725,6 +725,7 @@ export const AIChat = ({
     onRenameFile,
     onDeleteFile,
     workflows,
+    autonomyConfig,
   });
 
   const { apiKeys, fetchApiKeys: refetchApiKeys } = useApiKeys();
