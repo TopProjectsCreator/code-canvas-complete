@@ -46,6 +46,7 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; label: string; colo
 };
 
 export const CollabDialog = ({ open, onOpenChange, projectId }: CollabDialogProps) => {
+  const hasProject = !!projectId;
   const { user } = useAuth();
   const collab = useCollaboration(projectId);
 
@@ -100,7 +101,7 @@ export const CollabDialog = ({ open, onOpenChange, projectId }: CollabDialogProp
               <TeamTab collab={collab} userId={user.id} />
             </TabsContent>
             <TabsContent value="invite" className="mt-0">
-              <InviteTab collab={collab} />
+              <InviteTab collab={collab} hasProject={hasProject} />
             </TabsContent>
             <TabsContent value="comments" className="mt-0">
               <CommentsTab collab={collab} userId={user.id} />
@@ -191,7 +192,7 @@ function TeamTab({ collab, userId }: { collab: ReturnType<typeof useCollaboratio
 }
 
 // ─── Invite Tab ───
-function InviteTab({ collab }: { collab: ReturnType<typeof useCollaboration> }) {
+function InviteTab({ collab, hasProject = true }: { collab: ReturnType<typeof useCollaboration>; hasProject?: boolean }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CollabRole>('editor');
   const [sending, setSending] = useState(false);
@@ -206,6 +207,12 @@ function InviteTab({ collab }: { collab: ReturnType<typeof useCollaboration> }) 
 
   return (
     <div className="space-y-4">
+      {!hasProject && (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-warning/30 bg-warning/10 text-warning text-xs">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>Save your project first before inviting collaborators.</span>
+        </div>
+      )}
       <div>
         <h4 className="text-sm font-medium mb-1">Invite a collaborator</h4>
         <p className="text-xs text-muted-foreground mb-4">
@@ -245,7 +252,7 @@ function InviteTab({ collab }: { collab: ReturnType<typeof useCollaboration> }) 
           </SelectContent>
         </Select>
 
-        <Button onClick={handleInvite} disabled={!email.trim() || sending} className="w-full gap-2">
+        <Button onClick={handleInvite} disabled={!email.trim() || sending || !hasProject} className="w-full gap-2">
           {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
           Send Invitation
         </Button>
