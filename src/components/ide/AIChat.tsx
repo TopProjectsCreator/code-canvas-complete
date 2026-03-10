@@ -6,7 +6,7 @@ import {
   GitBranch, GitCommit as GitCommitIcon, Download, Globe, Lock, Link2, Twitter,
   Linkedin, Mail, Share2, GitFork, Star, History, MessageCircleQuestion, Save,
   PlayCircle, Music, Key, Settings, Diff, Paperclip, Image, FileVideo, FileAudio, FileText,
-  GripVertical, ArrowUp, ArrowDown
+  GripVertical, ArrowUp, ArrowDown, Shield, ShieldCheck, ShieldAlert, SlidersHorizontal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
@@ -19,6 +19,9 @@ import { SettingsDialog } from './SettingsDialog';
 import { getDiffLines } from '@/lib/diffUtils';
 import { useAttachments, ChatAttachment } from '@/hooks/useAttachments';
 import { ChatWidgetRenderer } from './ChatWidgets';
+import { useAutonomyMode, type AutonomyPreset, type AutonomyConfig } from '@/hooks/useAutonomyMode';
+import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface QuickAction {
   id: string;
