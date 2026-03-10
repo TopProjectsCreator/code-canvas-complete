@@ -127,6 +127,40 @@ export const ProjectMenu = ({ projectName, hasUnsavedChanges, onRename, onChange
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Template Change Warning Dialog */}
+      <Dialog open={showTemplateWarning} onOpenChange={setShowTemplateWarning}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-full bg-warning/15">
+                <AlertTriangle className="w-5 h-5 text-warning" />
+              </div>
+              <DialogTitle>Unsaved changes</DialogTitle>
+            </div>
+            <DialogDescription>
+              Switching templates will discard all unsaved changes in your current project. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowTemplateWarning(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (pendingTemplate) {
+                  onChangeTemplate(pendingTemplate);
+                }
+                setShowTemplateWarning(false);
+                setPendingTemplate(null);
+              }}
+            >
+              Discard &amp; switch
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
