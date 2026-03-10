@@ -547,7 +547,7 @@ const javaTemplate: FileNode[] = [
     children: [
       {
         id: 'main-java',
-        name: 'Main.java',
+        name: 'prog.java',
         type: 'file',
         language: 'java',
         content: `// Welcome to Java!
