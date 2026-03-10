@@ -35,8 +35,10 @@ interface ProjectMenuProps {
 // Derive from registry — skip 'blank' since it doesn't make sense as a "change to" option
 const templateOptions = TEMPLATES.filter((t) => t.id !== 'blank').map((t) => ({ id: t.id, name: t.name }));
 
-export const ProjectMenu = ({ projectName, onRename, onChangeTemplate }: ProjectMenuProps) => {
+export const ProjectMenu = ({ projectName, hasUnsavedChanges, onRename, onChangeTemplate }: ProjectMenuProps) => {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [showTemplateWarning, setShowTemplateWarning] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<LanguageTemplate | null>(null);
   const [newName, setNewName] = useState(projectName);
   const inputRef = useRef<HTMLInputElement>(null);
 
