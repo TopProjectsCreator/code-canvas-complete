@@ -324,6 +324,8 @@ export type Database = {
           is_public: boolean | null
           language: string | null
           name: string
+          publish_slug: string | null
+          published_at: string | null
           stars_count: number | null
           updated_at: string
           user_id: string
@@ -337,6 +339,8 @@ export type Database = {
           is_public?: boolean | null
           language?: string | null
           name: string
+          publish_slug?: string | null
+          published_at?: string | null
           stars_count?: number | null
           updated_at?: string
           user_id: string
@@ -350,6 +354,8 @@ export type Database = {
           is_public?: boolean | null
           language?: string | null
           name?: string
+          publish_slug?: string | null
+          published_at?: string | null
           stars_count?: number | null
           updated_at?: string
           user_id?: string
