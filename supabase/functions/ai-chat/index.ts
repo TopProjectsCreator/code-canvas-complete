@@ -565,6 +565,7 @@ serve(async (req) => {
           const byokResponse = await callBYOKProvider(
             selectedProvider, userApiKey, conversation, false, effectiveByokModel,
             tools.length > 0 ? tools : undefined,
+            providerOptions,
           );
 
           if (!byokResponse.ok) {
