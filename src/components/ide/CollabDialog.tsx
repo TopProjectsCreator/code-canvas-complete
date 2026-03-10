@@ -252,7 +252,7 @@ function InviteTab({ collab, hasProject = true }: { collab: ReturnType<typeof us
           </SelectContent>
         </Select>
 
-        <Button onClick={handleInvite} disabled={!email.trim() || sending} className="w-full gap-2">
+        <Button onClick={handleInvite} disabled={!email.trim() || sending || !hasProject} className="w-full gap-2">
           {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
           Send Invitation
         </Button>
