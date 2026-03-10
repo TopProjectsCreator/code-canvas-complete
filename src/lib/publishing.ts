@@ -42,6 +42,7 @@ export const buildPublishedProjectUrl = (publishSlug: string, host?: string): st
 
 export const isPublishedHost = (host?: string): boolean => {
   const hostname = (host ?? (typeof window !== 'undefined' ? window.location.hostname : '')).toLowerCase();
+  if (PREVIEW_HOST_PATTERN.test(hostname)) return false;
   const baseDomain = resolvePublishBaseDomain(hostname);
   return !!(hostname && baseDomain && hostname !== baseDomain && hostname.endsWith(`.${baseDomain}`));
 };
