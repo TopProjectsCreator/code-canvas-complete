@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Pencil, LayoutTemplate, Check, X } from 'lucide-react';
+import { ChevronDown, Pencil, LayoutTemplate, Check, X, AlertTriangle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,12 +12,14 @@ import {
   DropdownMenuPortal,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import type { LanguageTemplate } from '@/data/templateRegistry';
 import { TEMPLATES } from '@/data/templateRegistry';
@@ -25,6 +27,7 @@ import { cn } from '@/lib/utils';
 
 interface ProjectMenuProps {
   projectName: string;
+  hasUnsavedChanges?: boolean;
   onRename: (newName: string) => void;
   onChangeTemplate: (template: LanguageTemplate) => void;
 }
@@ -32,8 +35,10 @@ interface ProjectMenuProps {
 // Derive from registry — skip 'blank' since it doesn't make sense as a "change to" option
 const templateOptions = TEMPLATES.filter((t) => t.id !== 'blank').map((t) => ({ id: t.id, name: t.name }));
 
-export const ProjectMenu = ({ projectName, onRename, onChangeTemplate }: ProjectMenuProps) => {
+export const ProjectMenu = ({ projectName, hasUnsavedChanges, onRename, onChangeTemplate }: ProjectMenuProps) => {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
+  const [showTemplateWarning, setShowTemplateWarning] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<LanguageTemplate | null>(null);
   const [newName, setNewName] = useState(projectName);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -78,7 +83,14 @@ export const ProjectMenu = ({ projectName, onRename, onChangeTemplate }: Project
             <DropdownMenuPortal>
               <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
                 {templateOptions.map((t) => (
-                  <DropdownMenuItem key={t.id} onClick={() => onChangeTemplate(t.id)}>
+                  <DropdownMenuItem key={t.id} onClick={() => {
+                    if (hasUnsavedChanges) {
+                      setPendingTemplate(t.id);
+                      setShowTemplateWarning(true);
+                    } else {
+                      onChangeTemplate(t.id);
+                    }
+                  }}>
                     {t.name}
                   </DropdownMenuItem>
                 ))}
@@ -113,6 +125,40 @@ export const ProjectMenu = ({ projectName, onRename, onChangeTemplate }: Project
               <Check className="w-4 h-4" />
             </button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Change Warning Dialog */}
+      <Dialog open={showTemplateWarning} onOpenChange={setShowTemplateWarning}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-full bg-warning/15">
+                <AlertTriangle className="w-5 h-5 text-warning" />
+              </div>
+              <DialogTitle>Unsaved changes</DialogTitle>
+            </div>
+            <DialogDescription>
+              Switching templates will discard all unsaved changes in your current project. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowTemplateWarning(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (pendingTemplate) {
+                  onChangeTemplate(pendingTemplate);
+                }
+                setShowTemplateWarning(false);
+                setPendingTemplate(null);
+              }}
+            >
+              Discard &amp; switch
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
