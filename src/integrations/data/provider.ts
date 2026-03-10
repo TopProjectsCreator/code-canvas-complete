@@ -12,6 +12,8 @@ export interface ProjectRecord {
   is_public: boolean;
   forked_from: string | null;
   stars_count: number;
+  publish_slug: string | null;
+  published_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -42,6 +44,8 @@ interface CreateProjectInput {
   files: FileNode[];
   language: string;
   is_public: boolean;
+  publish_slug?: string | null;
+  published_at?: string | null;
   forked_from?: string | null;
 }
 
@@ -53,6 +57,8 @@ interface UpdateProjectInput {
   files: FileNode[];
   language: string;
   is_public: boolean;
+  publish_slug?: string | null;
+  published_at?: string | null;
 }
 
 export interface DataProvider {
@@ -61,6 +67,7 @@ export interface DataProvider {
   createProject: (payload: CreateProjectInput) => Promise<ProjectRecord>;
   updateProject: (payload: UpdateProjectInput) => Promise<ProjectRecord>;
   getProjectById: (projectId: string) => Promise<ProjectRecord>;
+  getProjectByPublishSlug: (publishSlug: string) => Promise<ProjectRecord | null>;
   deleteProject: (projectId: string, userId: string) => Promise<void>;
   getExistingStar: (projectId: string, userId: string) => Promise<{ id: string } | null>;
   createStar: (projectId: string, userId: string) => Promise<void>;
@@ -105,6 +112,8 @@ const supabaseProvider: DataProvider = {
         language: payload.language,
         description: payload.description,
         is_public: payload.is_public,
+        publish_slug: payload.publish_slug,
+        published_at: payload.published_at,
       })
       .eq('id', payload.id)
       .eq('user_id', payload.user_id)
@@ -117,6 +126,16 @@ const supabaseProvider: DataProvider = {
     const { data, error } = await supabase.from('projects').select('*').eq('id', projectId).single();
     if (error) throw error;
     return normalizeProjectFiles(data as any);
+  },
+  async getProjectByPublishSlug(publishSlug) {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('publish_slug', publishSlug)
+      .eq('is_public', true)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? normalizeProjectFiles(data as any) : null;
   },
   async deleteProject(projectId, userId) {
     const { error } = await supabase.from('projects').delete().eq('id', projectId).eq('user_id', userId);
@@ -198,6 +217,13 @@ const createManagedDataProvider = (platform: 'replit' | 'lovable'): DataProvider
     createProject: (payload) => call<ProjectRecord>('/projects', { method: 'POST', body: JSON.stringify(payload) }),
     updateProject: ({ id, ...payload }) => call<ProjectRecord>(`/projects/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
     getProjectById: (projectId) => call<ProjectRecord>(`/projects/${projectId}`),
+    getProjectByPublishSlug: async (publishSlug) => {
+      try {
+        return await call<ProjectRecord | null>(`/projects/published/${encodeURIComponent(publishSlug)}`);
+      } catch {
+        return null;
+      }
+    },
     deleteProject: (projectId, userId) => call<void>(`/projects/${projectId}?user_id=${encodeURIComponent(userId)}`, { method: 'DELETE' }),
     getExistingStar: (projectId, userId) => call<{ id: string } | null>(`/project-stars/find?project_id=${encodeURIComponent(projectId)}&user_id=${encodeURIComponent(userId)}`),
     createStar: (projectId, userId) => call<void>('/project-stars', { method: 'POST', body: JSON.stringify({ project_id: projectId, user_id: userId }) }),

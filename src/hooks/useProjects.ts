@@ -14,6 +14,8 @@ export interface Project {
   is_public: boolean;
   forked_from: string | null;
   stars_count: number;
+  publish_slug: string | null;
+  published_at: string | null;
   created_at: string;
   updated_at: string;
 }
