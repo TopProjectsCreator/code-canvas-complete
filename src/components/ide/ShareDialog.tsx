@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -11,18 +11,20 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Copy, 
-  Check, 
-  Globe, 
-  Lock, 
-  Link2, 
-  Twitter, 
+import {
+  Copy,
+  Check,
+  Globe,
+  Lock,
+  Link2,
+  Twitter,
   Linkedin,
-  Mail 
+  Mail,
+  Rocket,
 } from 'lucide-react';
 import { Project } from '@/hooks/useProjects';
-import { supabase } from '@/integrations/supabase/client';
+import { createDataProvider } from '@/integrations/data/provider';
+import { buildProjectShareUrl, buildPublishedProjectUrl, resolvePublishBaseDomain, sanitizePublishSlug } from '@/lib/publishing';
 
 interface ShareDialogProps {
   open: boolean;
@@ -31,19 +33,30 @@ interface ShareDialogProps {
   onProjectUpdated: (project: Project) => void;
 }
 
-export const ShareDialog = ({ 
-  open, 
-  onOpenChange, 
+export const ShareDialog = ({
+  open,
+  onOpenChange,
   project,
-  onProjectUpdated 
+  onProjectUpdated,
 }: ShareDialogProps) => {
   const { toast } = useToast();
+  const dataProvider = useMemo(() => createDataProvider(), []);
   const [copied, setCopied] = useState(false);
   const [isPublic, setIsPublic] = useState(project?.is_public ?? false);
+  const [publishSlug, setPublishSlug] = useState(project?.publish_slug ?? '');
   const [updating, setUpdating] = useState(false);
 
-  const shareUrl = project 
-    ? `${window.location.origin}/project/${project.id}` 
+  useEffect(() => {
+    setIsPublic(project?.is_public ?? false);
+    setPublishSlug(project?.publish_slug ?? '');
+  }, [project]);
+
+  const fallbackSlug = sanitizePublishSlug(project?.name || 'my-canvas');
+  const slugToUse = sanitizePublishSlug(publishSlug) || fallbackSlug;
+  const publishUrl = slugToUse ? buildPublishedProjectUrl(slugToUse) : '';
+
+  const shareUrl = project
+    ? (isPublic && slugToUse ? publishUrl : buildProjectShareUrl(project.id))
     : window.location.href;
 
   const handleCopy = async () => {
@@ -53,32 +66,32 @@ export const ShareDialog = ({
       toast({ title: 'Link copied to clipboard!' });
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast({ 
-        title: 'Failed to copy', 
+      toast({
+        title: 'Failed to copy',
         description: 'Please copy the link manually',
-        variant: 'destructive' 
+        variant: 'destructive',
       });
     }
   };
 
-  const handleTogglePublic = async (checked: boolean) => {
+  const updateVisibility = async (checked: boolean) => {
     if (!project) return;
-    
+
     setUpdating(true);
     try {
-      const { error } = await supabase
-        .from('projects')
-        .update({ is_public: checked })
-        .eq('id', project.id);
-
-      if (error) throw error;
-
+      const payload = {
+        ...project,
+        is_public: checked,
+        publish_slug: checked ? slugToUse : project.publish_slug,
+        published_at: checked ? new Date().toISOString() : project.published_at,
+      };
+      const updated = await dataProvider.updateProject(payload);
       setIsPublic(checked);
-      onProjectUpdated({ ...project, is_public: checked });
-      
+      onProjectUpdated(updated as Project);
+
       toast({
         title: checked ? 'Project is now public' : 'Project is now private',
-        description: checked 
+        description: checked
           ? 'Anyone with the link can view this project'
           : 'Only you can access this project',
       });
@@ -93,10 +106,21 @@ export const ShareDialog = ({
     }
   };
 
+  const handlePublish = async () => {
+    if (!project) return;
+
+    if (!slugToUse) {
+      toast({ title: 'Choose a subdomain', description: 'Subdomain cannot be empty.', variant: 'destructive' });
+      return;
+    }
+
+    await updateVisibility(true);
+  };
+
   const handleSocialShare = (platform: 'twitter' | 'linkedin' | 'email') => {
     const title = project?.name || 'Check out my project';
     const text = `Check out "${title}" on Code Canvas Complete!`;
-    
+
     let url = '';
     switch (platform) {
       case 'twitter':
@@ -109,9 +133,11 @@ export const ShareDialog = ({
         url = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(text + '\n\n' + shareUrl)}`;
         break;
     }
-    
+
     window.open(url, '_blank', 'noopener,noreferrer');
   };
+
+  const baseDomain = resolvePublishBaseDomain();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -119,15 +145,33 @@ export const ShareDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Link2 className="w-5 h-5" />
-            Share Project
+            Publish Project
           </DialogTitle>
           <DialogDescription>
-            Share your project with others or make it public
+            Deploy to a subdomain and share your project publicly.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Visibility toggle */}
+          {project && (
+            <div className="space-y-3">
+              <Label>Subdomain</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={publishSlug}
+                  onChange={(e) => setPublishSlug(sanitizePublishSlug(e.target.value))}
+                  placeholder="my-canvas"
+                  className="font-mono text-sm"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">.{baseDomain}</span>
+              </div>
+              <Button className="w-full gap-2" onClick={handlePublish} disabled={updating}>
+                <Rocket className="w-4 h-4" />
+                Publish
+              </Button>
+            </div>
+          )}
+
           {project && (
             <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/30">
               <div className="flex items-center gap-3">
@@ -137,73 +181,35 @@ export const ShareDialog = ({
                   <Lock className="w-5 h-5 text-muted-foreground" />
                 )}
                 <div>
-                  <Label className="text-sm font-medium">
-                    {isPublic ? 'Public' : 'Private'}
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    {isPublic 
-                      ? 'Anyone can view and fork this project' 
-                      : 'Only you can access this project'}
-                  </p>
+                  <Label className="text-sm font-medium">{isPublic ? 'Public' : 'Private'}</Label>
                 </div>
               </div>
-              <Switch
-                checked={isPublic}
-                onCheckedChange={handleTogglePublic}
-                disabled={updating}
-              />
+              <Switch checked={isPublic} onCheckedChange={updateVisibility} disabled={updating} />
             </div>
           )}
 
-          {/* Share link */}
           <div className="space-y-2">
             <Label>Project Link</Label>
             <div className="flex gap-2">
-              <Input
-                value={shareUrl}
-                readOnly
-                className="font-mono text-sm"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleCopy}
-                className="shrink-0"
-              >
-                {copied ? (
-                  <Check className="w-4 h-4 text-green-500" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
+              <Input value={shareUrl} readOnly className="font-mono text-sm" />
+              <Button variant="outline" size="icon" onClick={handleCopy} className="shrink-0">
+                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
               </Button>
             </div>
           </div>
 
-          {/* Social sharing */}
           <div className="space-y-2">
             <Label>Share on</Label>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1 gap-2"
-                onClick={() => handleSocialShare('twitter')}
-              >
+              <Button variant="outline" className="flex-1 gap-2" onClick={() => handleSocialShare('twitter')}>
                 <Twitter className="w-4 h-4" />
                 Twitter
               </Button>
-              <Button
-                variant="outline"
-                className="flex-1 gap-2"
-                onClick={() => handleSocialShare('linkedin')}
-              >
+              <Button variant="outline" className="flex-1 gap-2" onClick={() => handleSocialShare('linkedin')}>
                 <Linkedin className="w-4 h-4" />
                 LinkedIn
               </Button>
-              <Button
-                variant="outline"
-                className="flex-1 gap-2"
-                onClick={() => handleSocialShare('email')}
-              >
+              <Button variant="outline" className="flex-1 gap-2" onClick={() => handleSocialShare('email')}>
                 <Mail className="w-4 h-4" />
                 Email
               </Button>
@@ -212,7 +218,7 @@ export const ShareDialog = ({
 
           {!project && (
             <p className="text-sm text-muted-foreground text-center">
-              Save your project first to get a shareable link
+              Save your project first to get a publishable link
             </p>
           )}
         </div>
