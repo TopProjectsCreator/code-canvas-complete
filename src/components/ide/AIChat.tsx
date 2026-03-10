@@ -829,6 +829,64 @@ export const AIChat = ({
     setAppliedChanges(prev => new Set(prev).add(changeId));
   };
 
+  // Auto-apply logic based on autonomy mode
+  useEffect(() => {
+    if (!autonomyConfig.codeChanges) return;
+    messages.forEach(msg => {
+      if (msg.role !== 'assistant' || msg.isStreaming) return;
+      msg.steps?.forEach(step => {
+        if (step.type === 'code_change' && step.codeChange && !appliedChanges.has(step.id)) {
+          handleApplyChange(step.codeChange, step.id);
+        }
+      });
+    });
+  }, [messages, autonomyConfig.codeChanges, appliedChanges]);
+
+  // Auto-apply tool calls (theme, git, share) based on autonomy mode
+  useEffect(() => {
+    messages.forEach(msg => {
+      if (msg.role !== 'assistant' || msg.isStreaming) return;
+      msg.steps?.forEach(step => {
+        if (step.type !== 'tool_call' || !step.toolCall || step.toolCall.status !== 'pending' || appliedChanges.has(step.id)) return;
+        const tc = step.toolCall;
+
+        // Theme auto-apply
+        if (autonomyConfig.theme && (tc.name === 'set_theme' || tc.name === 'create_custom_theme')) {
+          setAppliedChanges(prev => new Set(prev).add(step.id));
+          if (tc.name === 'set_theme' && onSetTheme) onSetTheme(tc.arguments.theme as string);
+          else if (tc.name === 'create_custom_theme' && onCreateCustomTheme) {
+            onCreateCustomTheme(tc.arguments.name as string, tc.arguments.colors as import('@/contexts/ThemeContext').CustomThemeColors);
+          }
+        }
+
+        // Git auto-apply
+        if (autonomyConfig.git && ['git_commit', 'git_init', 'git_create_branch', 'git_import'].includes(tc.name)) {
+          setAppliedChanges(prev => new Set(prev).add(step.id));
+          if (tc.name === 'git_commit' && onGitCommit) onGitCommit(tc.arguments.message as string);
+          else if (tc.name === 'git_init' && onGitInit) onGitInit();
+          else if (tc.name === 'git_create_branch' && onGitCreateBranch) onGitCreateBranch(tc.arguments.branchName as string);
+          else if (tc.name === 'git_import' && onGitImport) onGitImport(tc.arguments.url as string);
+        }
+
+        // Share auto-apply
+        if (autonomyConfig.share && ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email', 'fork_project', 'star_project', 'view_history', 'save_project', 'run_project'].includes(tc.name)) {
+          setAppliedChanges(prev => new Set(prev).add(step.id));
+          if (tc.name === 'make_public' && onMakePublic) onMakePublic();
+          else if (tc.name === 'make_private' && onMakePrivate) onMakePrivate();
+          else if (tc.name === 'get_project_link' && onGetProjectLink) onGetProjectLink();
+          else if (tc.name === 'share_twitter' && onShareTwitter) onShareTwitter();
+          else if (tc.name === 'share_linkedin' && onShareLinkedin) onShareLinkedin();
+          else if (tc.name === 'share_email' && onShareEmail) onShareEmail();
+          else if (tc.name === 'fork_project' && onForkProject) onForkProject();
+          else if (tc.name === 'star_project' && onStarProject) onStarProject();
+          else if (tc.name === 'view_history' && onViewHistory) onViewHistory();
+          else if (tc.name === 'save_project' && onSaveProject) onSaveProject();
+          else if (tc.name === 'run_project' && onRunProject) onRunProject();
+        }
+      });
+    });
+  }, [messages, autonomyConfig, appliedChanges]);
+
   // Resizable width
   const [panelWidth, setPanelWidth] = useState(320);
   const isResizingRef = useRef(false);
