@@ -8,8 +8,11 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import { isPublishedHost } from "./lib/publishing";
 
 const queryClient = new QueryClient();
+
+const RootRoute = () => (isPublishedHost() ? <Index /> : <Landing />);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -20,7 +23,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Landing />} />
+              <Route path="/" element={<RootRoute />} />
               <Route path="/editor" element={<Index />} />
               <Route path="/project/:projectId" element={<Index />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
