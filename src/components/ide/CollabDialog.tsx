@@ -192,7 +192,7 @@ function TeamTab({ collab, userId }: { collab: ReturnType<typeof useCollaboratio
 }
 
 // ─── Invite Tab ───
-function InviteTab({ collab }: { collab: ReturnType<typeof useCollaboration> }) {
+function InviteTab({ collab, hasProject = true }: { collab: ReturnType<typeof useCollaboration>; hasProject?: boolean }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CollabRole>('editor');
   const [sending, setSending] = useState(false);
