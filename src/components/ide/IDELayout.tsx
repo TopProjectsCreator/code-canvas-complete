@@ -1220,8 +1220,6 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     if (
       selectedTemplate === "html" ||
       selectedTemplate === "nodejs" ||
-      selectedTemplate === "flask" ||
-      selectedTemplate === "django"
     ) {
       const htmlFile = findFileByName(files, "index.html");
       if (htmlFile) {
