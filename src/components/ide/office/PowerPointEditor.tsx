@@ -117,7 +117,21 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
       }
     };
     load();
-  }, [file.id, file.content, onContentChange]);
+  }, [file.id]); // Only reload when file ID changes, not content
+
+  // Auto-save when slides change
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (loading || slides.length === 0) return;
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      return;
+    }
+    const timer = setTimeout(() => {
+      save();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [slides, loading, save]);
 
   // Mouse move/up for drag and resize
   useEffect(() => {
