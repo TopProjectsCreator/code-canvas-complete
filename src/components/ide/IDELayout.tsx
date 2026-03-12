@@ -1769,6 +1769,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             <SheetContent side="left" className="w-[280px] p-0">
               <Sidebar
             files={files}
+            fileContents={fileContents}
             onFileSelect={handleFileSelect}
             onCreateFile={handleCreateFile}
             onDeleteFile={handleDeleteFile}
