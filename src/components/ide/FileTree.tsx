@@ -197,6 +197,18 @@ const FileItem = ({
                 <div className="border-t border-border my-1" />
               </>
             )}
+            {node.type === 'file' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  downloadFile(node);
+                  setShowMenu(false);
+                }}
+                className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+              >
+                <Download className="w-3 h-3" /> Download
+              </button>
+            )}
             <button
               onClick={(e) => {
                 e.stopPropagation();
