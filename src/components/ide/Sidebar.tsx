@@ -35,6 +35,7 @@ interface SearchResult {
 
 interface SidebarProps {
   files: FileNode[];
+  fileContents: Record<string, string>;
   onFileSelect: (file: FileNode) => void;
   onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
   onDeleteFile: (fileId: string) => void;
