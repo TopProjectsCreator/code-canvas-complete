@@ -13,8 +13,8 @@ const MIME_MAP: Record<string, string> = {
   zip: 'application/zip',
 };
 
-const downloadFile = (node: FileNode) => {
-  const content = node.content || '';
+const downloadFile = (node: FileNode, currentContent?: string) => {
+  const content = currentContent ?? node.content ?? '';
   const ext = node.name.split('.').pop()?.toLowerCase() || '';
   const isBinary = BINARY_EXTENSIONS.includes(ext);
 
@@ -44,6 +44,7 @@ const downloadFile = (node: FileNode) => {
 
 interface FileTreeProps {
   files: FileNode[];
+  fileContents?: Record<string, string>;
   onFileSelect: (file: FileNode) => void;
   onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
   onDeleteFile: (fileId: string) => void;
@@ -54,6 +55,7 @@ interface FileTreeProps {
 
 interface FileItemProps {
   node: FileNode;
+  fileContents?: Record<string, string>;
   onFileSelect: (file: FileNode) => void;
   onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
   onDeleteFile: (fileId: string) => void;
@@ -63,7 +65,8 @@ interface FileItemProps {
 }
 
 const FileItem = ({ 
-  node, 
+  node,
+  fileContents,
   onFileSelect, 
   onCreateFile, 
   onDeleteFile, 
@@ -201,7 +204,7 @@ const FileItem = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  downloadFile(node);
+                  downloadFile(node, fileContents?.[node.id]);
                   setShowMenu(false);
                 }}
                 className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
@@ -237,6 +240,7 @@ const FileItem = ({
             <FileItem
               key={child.id}
               node={child}
+              fileContents={fileContents}
               onFileSelect={onFileSelect}
               onCreateFile={onCreateFile}
               onDeleteFile={onDeleteFile}
@@ -252,7 +256,8 @@ const FileItem = ({
 };
 
 export const FileTree = ({ 
-  files, 
+  files,
+  fileContents,
   onFileSelect, 
   onCreateFile, 
   onDeleteFile, 
@@ -266,6 +271,7 @@ export const FileTree = ({
         <FileItem
           key={node.id}
           node={node}
+          fileContents={fileContents}
           onFileSelect={onFileSelect}
           onCreateFile={onCreateFile}
           onDeleteFile={onDeleteFile}
