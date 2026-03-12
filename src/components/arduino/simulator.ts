@@ -141,18 +141,92 @@ const nodeId = (point: { componentId?: string; pinIndex?: number }) => {
   return `${point.componentId ?? 'free'}:${point.pinIndex ?? 0}`;
 };
 
-const resistorFactor = (resistance: string) => {
-  const m = resistance.trim().toUpperCase().match(/([\d.]+)\s*([KMR]?)/);
-  if (!m) return 0.5;
+const parseResistanceOhms = (resistance: string) => {
+  const raw = resistance.trim().toUpperCase().replace('Ω', '');
+  const compact = raw.replace(/\s+/g, '');
+
+  if (/^\d+(?:\.\d+)?R\d+(?:\.\d+)?$/.test(compact)) {
+    const [whole, frac] = compact.split('R');
+    const ohms = Number(`${whole}.${frac}`);
+    return Number.isFinite(ohms) && ohms > 0 ? ohms : 220;
+  }
+
+  const m = compact.match(/([\d.]+)\s*([KMR]?)/);
+  if (!m) return 220;
   let ohms = Number(m[1]);
+  if (!Number.isFinite(ohms) || ohms <= 0) return 220;
   if (m[2] === 'K') ohms *= 1_000;
   if (m[2] === 'M') ohms *= 1_000_000;
-  const raw = 220 / (220 + ohms);
-  return Math.max(0.02, Math.min(1, raw));
+  return ohms;
+};
+
+const propagationFactorForResistance = (ohms: number) => {
+  // Approximate divider against an implicit load to keep the graph model stable.
+  const loadOhms = 220;
+  const raw = loadOhms / (loadOhms + Math.max(1, ohms));
+  return Math.max(0.01, Math.min(1, raw));
+};
+
+const ledForwardVoltage = (compType: string, color?: string) => {
+  if (compType === 'rgb_led') return 2.1;
+  const c = (color || '').toUpperCase();
+  if (c === '#0066FF' || c === '#FFFFFF' || c === '#AA00FF') return 2.9;
+  if (c === '#00CC00') return 2.1;
+  return 1.9;
+};
+
+const estimateLedBrightness = (voltage: number, seriesOhms: number, vf: number) => {
+  if (voltage <= vf) return 0;
+  const currentMa = ((voltage - vf) / Math.max(1, seriesOhms)) * 1000;
+  return Math.max(0, Math.min(1, currentMa / 20));
+};
+
+class DisjointSet {
+  private parent = new Map<string, string>();
+
+  find(x: string): string {
+    if (!this.parent.has(x)) this.parent.set(x, x);
+    const p = this.parent.get(x)!;
+    if (p === x) return x;
+    const root = this.find(p);
+    this.parent.set(x, root);
+    return root;
+  }
+
+  union(a: string, b: string) {
+    const ra = this.find(a);
+    const rb = this.find(b);
+    if (ra !== rb) this.parent.set(ra, rb);
+  }
+}
+
+const estimateSeriesResistance = (
+  compId: string,
+  aIdx: number,
+  bIdx: number,
+  resistorInfo: Array<{ a: string; b: string; ohms: number }>,
+  wireSets: DisjointSet,
+) => {
+  const groupA = wireSets.find(`${compId}:${aIdx}`);
+  const groupB = wireSets.find(`${compId}:${bIdx}`);
+  let best = Number.POSITIVE_INFINITY;
+
+  resistorInfo.forEach(({ a, b, ohms }) => {
+    const ga = wireSets.find(a);
+    const gb = wireSets.find(b);
+    const touchesA = ga === groupA || gb === groupA;
+    const touchesB = ga === groupB || gb === groupB;
+    if (touchesA || touchesB) best = Math.min(best, ohms);
+  });
+
+  return Number.isFinite(best) ? best : 220;
 };
 
 const buildGraph = (circuit: BreadboardCircuit, wires: Wire[]) => {
   const graph = new Map<string, Array<{ to: string; factor: number }>>();
+  const wireSets = new DisjointSet();
+  const resistorInfo: Array<{ a: string; b: string; ohms: number }> = [];
+
   const push = (a: string, b: string, factor: number) => {
     if (!graph.has(a)) graph.set(a, []);
     graph.get(a)!.push({ to: b, factor });
@@ -161,6 +235,7 @@ const buildGraph = (circuit: BreadboardCircuit, wires: Wire[]) => {
   wires.forEach((w) => {
     const a = nodeId(w.from);
     const b = nodeId(w.to);
+    wireSets.union(a, b);
     push(a, b, 1);
     push(b, a, 1);
   });
@@ -171,12 +246,14 @@ const buildGraph = (circuit: BreadboardCircuit, wires: Wire[]) => {
     if (comp.type !== 'resistor') return;
     const a = `${comp.id}:0`;
     const b = `${comp.id}:1`;
-    const factor = resistorFactor(comp.properties.resistance || '1K');
+    const ohms = parseResistanceOhms(comp.properties.resistance || '1K');
+    const factor = propagationFactorForResistance(ohms);
+    resistorInfo.push({ a, b, ohms });
     push(a, b, factor);
     push(b, a, factor);
   });
 
-  return graph;
+  return { graph, wireSets, resistorInfo };
 };
 
 const propagate = (graph: Map<string, Array<{ to: string; factor: number }>>, start: string, startValue: number) => {
@@ -197,7 +274,7 @@ const propagate = (graph: Map<string, Array<{ to: string; factor: number }>>, st
 };
 
 const evaluateCircuit = (rt: Runtime, circuit: BreadboardCircuit, wires: Wire[]) => {
-  const graph = buildGraph(circuit, wires);
+  const { graph, wireSets, resistorInfo } = buildGraph(circuit, wires);
   const propagated: Record<string, number> = {};
 
   Object.entries(rt.pinLevels).forEach(([pin, level]) => {
@@ -215,8 +292,25 @@ const evaluateCircuit = (rt: Runtime, circuit: BreadboardCircuit, wires: Wire[])
   circuit.components.forEach((comp) => {
     const pinA = propagated[`${comp.id}:0`] ?? 0;
     const pinB = propagated[`${comp.id}:1`] ?? 0;
+    const forwardVoltage = Math.max(0, pinA - pinB);
+
+    if (comp.type === 'led') {
+      const seriesOhms = estimateSeriesResistance(comp.id, 0, 1, resistorInfo, wireSets);
+      const vf = ledForwardVoltage(comp.type, comp.properties.color);
+      ledBrightness[comp.id] = estimateLedBrightness(forwardVoltage * 5, seriesOhms, vf);
+    }
+
+    if (comp.type === 'rgb_led') {
+      const common = propagated[`${comp.id}:3`] ?? 0;
+      const channels = [0, 1, 2].map((idx) => {
+        const chanV = Math.max(0, (propagated[`${comp.id}:${idx}`] ?? 0) - common);
+        const seriesOhms = estimateSeriesResistance(comp.id, idx, 3, resistorInfo, wireSets);
+        return estimateLedBrightness(chanV * 5, seriesOhms, ledForwardVoltage(comp.type));
+      });
+      ledBrightness[comp.id] = Math.max(...channels);
+    }
+
     const voltage = Math.abs(pinA - pinB);
-    if (comp.type === 'led' || comp.type === 'rgb_led') ledBrightness[comp.id] = Math.max(0, Math.min(1, voltage));
     if (comp.type === 'buzzer' || comp.type === 'piezo') {
       buzzerLevels[comp.id] = Math.max(0, Math.min(1, voltage));
       const attachedPin = Object.keys(rt.toneByPin).find((pin) => (propagated[`${comp.id}:0`] ?? 0) > 0.1 && propagated[`board:${pin}`] !== undefined);
