@@ -3,6 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 
 interface ComponentPropertyEditorProps {
   component: ArduinoComponent;
@@ -113,6 +114,25 @@ function SelectProp({ label, value, options, onChange }: {
           ))}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+function TextProp({ label, value, onChange, type = 'text' }: {
+  label: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  type?: 'text' | 'number';
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Input
+        className="h-7 text-xs"
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      />
     </div>
   );
 }
@@ -423,15 +443,106 @@ export function ComponentPropertyEditor({ component, onUpdate }: ComponentProper
 
       {/* Current Sensor */}
       {component.type === 'current_sensor' && (
-        <SelectProp label="Range"
-          value={props.range || '±5A'}
-          options={[
-            { label: '±5A', value: '±5A' },
-            { label: '±20A', value: '±20A' },
-            { label: '±30A', value: '±30A' },
-          ]}
-          onChange={v => updateProp('range', v)} />
+        <>
+          <SelectProp label="Range"
+            value={props.range || '±5A'}
+            options={[
+              { label: '±5A', value: '±5A' },
+              { label: '±20A', value: '±20A' },
+              { label: '±30A', value: '±30A' },
+            ]}
+            onChange={v => updateProp('range', v)} />
+          <TextProp label="Part Number" value={props.partNumber || 'ACS712'} onChange={v => updateProp('partNumber', v)} />
+        </>
       )}
+
+      {component.type === 'thermistor' && (
+        <>
+          <SelectProp label="Nominal Resistance"
+            value={props.nominal || '10K'}
+            options={['1K', '4.7K', '10K', '47K', '100K'].map(v => ({ label: `${v}Ω`, value: v }))}
+            onChange={v => updateProp('nominal', v)} />
+          <TextProp label="Beta Value" value={props.beta || 3950} type="number" onChange={v => updateProp('beta', Number(v) || 3950)} />
+        </>
+      )}
+      {component.type === 'photo_diode' && (
+        <TextProp label="Wavelength (nm)" value={props.wavelength || 940} type="number" onChange={v => updateProp('wavelength', Number(v) || 940)} />
+      )}
+      {component.type === 'battery_holder' && (
+        <>
+          <TextProp label="Cells" value={props.cells || 2} type="number" onChange={v => updateProp('cells', Number(v) || 1)} />
+          <TextProp label="Cell Voltage (V)" value={props.cellVoltage || 1.5} type="number" onChange={v => updateProp('cellVoltage', Number(v) || 1.5)} />
+        </>
+      )}
+      {component.type === 'reed_switch' && (
+        <div className="flex items-center justify-between">
+          <Label className="text-xs">Normally Open</Label>
+          <Switch checked={props.normallyOpen ?? true} onCheckedChange={v => updateProp('normallyOpen', v)} />
+        </div>
+      )}
+      {component.type === 'tilt_sensor' && <TextProp label="Trigger Angle (°)" value={props.angle || 45} type="number" onChange={v => updateProp('angle', Number(v) || 45)} />}
+      {component.type === 'rotary_encoder' && <TextProp label="Position" value={props.position || 0} type="number" onChange={v => updateProp('position', Number(v) || 0)} />}
+      {component.type === 'joystick' && (
+        <>
+          <TextProp label="X" value={props.xAxis || 512} type="number" onChange={v => updateProp('xAxis', Number(v) || 0)} />
+          <TextProp label="Y" value={props.yAxis || 512} type="number" onChange={v => updateProp('yAxis', Number(v) || 0)} />
+        </>
+      )}
+      {component.type === 'keypad_4x4' && <TextProp label="Pressed Key" value={props.key || '1'} onChange={v => updateProp('key', v)} />}
+      {component.type === 'triac' && <TextProp label="Part Number" value={props.partNumber || 'BT136'} onChange={v => updateProp('partNumber', v)} />}
+      {component.type === 'ssr' && <TextProp label="Load Voltage" value={props.loadVoltage || '24VAC'} onChange={v => updateProp('loadVoltage', v)} />}
+      {component.type === 'op_amp' && <TextProp label="Part Number" value={props.partNumber || 'LM358'} onChange={v => updateProp('partNumber', v)} />}
+      {component.type === 'logic_level_shifter' && <TextProp label="Channels" value={props.channels || 4} type="number" onChange={v => updateProp('channels', Number(v) || 4)} />}
+      {component.type === 'boost_converter' && <TextProp label="Output Voltage (V)" value={props.vout || 5} type="number" onChange={v => updateProp('vout', Number(v) || 5)} />}
+      {component.type === 'buck_converter' && <TextProp label="Output Voltage (V)" value={props.vout || 3.3} type="number" onChange={v => updateProp('vout', Number(v) || 3.3)} />}
+      {component.type === 'hall_sensor' && <TextProp label="Threshold" value={props.threshold || 500} type="number" onChange={v => updateProp('threshold', Number(v) || 500)} />}
+      {component.type === 'pir_sensor' && <TextProp label="Hold Time (s)" value={props.holdTime || 3} type="number" onChange={v => updateProp('holdTime', Number(v) || 3)} />}
+      {component.type === 'ultrasonic' && <TextProp label="Distance (cm)" value={props.distance || 100} type="number" onChange={v => updateProp('distance', Number(v) || 100)} />}
+      {component.type === 'flame_sensor' && <TextProp label="Intensity" value={props.intensity || 300} type="number" onChange={v => updateProp('intensity', Number(v) || 300)} />}
+      {component.type === 'gas_sensor' && <TextProp label="Gas PPM" value={props.ppm || 400} type="number" onChange={v => updateProp('ppm', Number(v) || 400)} />}
+      {component.type === 'sound_sensor' && <TextProp label="Level" value={props.level || 300} type="number" onChange={v => updateProp('level', Number(v) || 300)} />}
+      {component.type === 'soil_sensor' && <TextProp label="Moisture" value={props.moisture || 50} type="number" onChange={v => updateProp('moisture', Number(v) || 50)} />}
+      {component.type === 'rain_sensor' && <TextProp label="Wetness" value={props.wetness || 0} type="number" onChange={v => updateProp('wetness', Number(v) || 0)} />}
+      {component.type === 'dht11' && <TextProp label="Humidity %" value={props.humidity || 50} type="number" onChange={v => updateProp('humidity', Number(v) || 50)} />}
+      {component.type === 'dht22' && <TextProp label="Humidity %" value={props.humidity || 50} type="number" onChange={v => updateProp('humidity', Number(v) || 50)} />}
+      {component.type === 'ds18b20' && <TextProp label="Temperature °C" value={props.temp || 25} type="number" onChange={v => updateProp('temp', Number(v) || 25)} />}
+      {component.type === 'bme280' && <TextProp label="Pressure hPa" value={props.pressure || 1013} type="number" onChange={v => updateProp('pressure', Number(v) || 1013)} />}
+      {component.type === 'mpu6050' && <TextProp label="Tilt °" value={props.tilt || 0} type="number" onChange={v => updateProp('tilt', Number(v) || 0)} />}
+      {component.type === 'bh1750' && <TextProp label="Lux" value={props.lux || 120} type="number" onChange={v => updateProp('lux', Number(v) || 120)} />}
+      {component.type === 'tof_sensor' && <TextProp label="Distance mm" value={props.distance || 250} type="number" onChange={v => updateProp('distance', Number(v) || 250)} />}
+      {component.type === 'fingerprint_sensor' && <TextProp label="Template Count" value={props.templates || 0} type="number" onChange={v => updateProp('templates', Number(v) || 0)} />}
+      {component.type === 'rfid_rc522' && <TextProp label="UID" value={props.uid || 'DE AD BE EF'} onChange={v => updateProp('uid', v)} />}
+      {component.type === 'piezo' && <TextProp label="Frequency (Hz)" value={props.frequency || 2000} type="number" onChange={v => updateProp('frequency', Number(v) || 2000)} />}
+      {component.type === 'stepper_motor' && <TextProp label="Steps/Rev" value={props.steps || 200} type="number" onChange={v => updateProp('steps', Number(v) || 200)} />}
+      {component.type === 'dc_fan' && <TextProp label="Duty %" value={props.duty || 50} type="number" onChange={v => updateProp('duty', Number(v) || 50)} />}
+      {component.type === 'oled_display' && <TextProp label="Text" value={props.text || 'OLED'} onChange={v => updateProp('text', v)} />}
+      {component.type === 'tft_display' && <TextProp label="Text" value={props.text || 'TFT'} onChange={v => updateProp('text', v)} />}
+      {component.type === 'ws2812_strip' && <TextProp label="LED Count" value={props.count || 8} type="number" onChange={v => updateProp('count', Number(v) || 1)} />}
+      {component.type === 'neopixel_ring' && <TextProp label="LED Count" value={props.count || 16} type="number" onChange={v => updateProp('count', Number(v) || 1)} />}
+      {component.type === 'eeprom' && <TextProp label="Size" value={props.size || '24LC256'} onChange={v => updateProp('size', v)} />}
+      {component.type === 'rtc_module' && <TextProp label="Date/Time" value={props.datetime || '2026-01-01 12:00'} onChange={v => updateProp('datetime', v)} />}
+      {component.type === 'load_cell_amp' && <TextProp label="Weight (g)" value={props.weight || 0} type="number" onChange={v => updateProp('weight', Number(v) || 0)} />}
+      {component.type === 'stepper_driver' && <TextProp label="Microstep" value={props.microstep || '1/16'} onChange={v => updateProp('microstep', v)} />}
+      {component.type === 'dac_module' && <TextProp label="Output (V)" value={props.output || 1.2} type="number" onChange={v => updateProp('output', Number(v) || 0)} />}
+      {component.type === 'adc_module' && <TextProp label="Input (V)" value={props.input || 1.2} type="number" onChange={v => updateProp('input', Number(v) || 0)} />}
+      {component.type === 'ir_receiver' && <TextProp label="Protocol" value={props.protocol || 'NEC'} onChange={v => updateProp('protocol', v)} />}
+      {component.type === 'ir_emitter' && <TextProp label="Code" value={props.code || '0x20DF10EF'} onChange={v => updateProp('code', v)} />}
+      {component.type === 'gps_module' && <TextProp label="Coordinates" value={props.coords || '37.7749,-122.4194'} onChange={v => updateProp('coords', v)} />}
+      {component.type === 'gsm_module' && <TextProp label="Signal dBm" value={props.signal || -70} type="number" onChange={v => updateProp('signal', Number(v) || -70)} />}
+      {component.type === 'wifi_module' && <TextProp label="SSID" value={props.ssid || 'MyWiFi'} onChange={v => updateProp('ssid', v)} />}
+      {component.type === 'bluetooth_module' && <TextProp label="Device Name" value={props.name || 'HC-05'} onChange={v => updateProp('name', v)} />}
+      {component.type === 'nrf24' && <TextProp label="Channel" value={props.channel || 76} type="number" onChange={v => updateProp('channel', Number(v) || 76)} />}
+      {component.type === 'lora_module' && <TextProp label="Frequency MHz" value={props.frequency || 868} type="number" onChange={v => updateProp('frequency', Number(v) || 868)} />}
+      {component.type === 'can_module' && <TextProp label="Bitrate" value={props.bitrate || '500k'} onChange={v => updateProp('bitrate', v)} />}
+      {component.type === 'rs485_module' && <TextProp label="Baud" value={props.baud || 9600} type="number" onChange={v => updateProp('baud', Number(v) || 9600)} />}
+      {component.type === 'usb_ttl' && <TextProp label="Baud" value={props.baud || 115200} type="number" onChange={v => updateProp('baud', Number(v) || 115200)} />}
+      {component.type === 'ethernet_w5500' && <TextProp label="IP" value={props.ip || '192.168.1.100'} onChange={v => updateProp('ip', v)} />}
+      {component.type === 'sd_card' && <TextProp label="Capacity" value={props.capacity || '16GB'} onChange={v => updateProp('capacity', v)} />}
+      {component.type === 'barrel_jack' && <TextProp label="Input Voltage" value={props.vin || '9V'} onChange={v => updateProp('vin', v)} />}
+      {component.type === 'terminal_block' && <TextProp label="Label" value={props.labelText || 'TB1'} onChange={v => updateProp('labelText', v)} />}
+      {component.type === 'screw_terminal_2p' && <TextProp label="Label" value={props.labelText || 'J1'} onChange={v => updateProp('labelText', v)} />}
+      {component.type === 'screw_terminal_3p' && <TextProp label="Label" value={props.labelText || 'J2'} onChange={v => updateProp('labelText', v)} />}
+      {component.type === 'poe_module' && <TextProp label="Output Voltage" value={props.vout || '5V'} onChange={v => updateProp('vout', v)} />}
     </div>
   );
 }
