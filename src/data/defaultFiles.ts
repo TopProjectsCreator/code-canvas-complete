@@ -29,8 +29,6 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   pascal: "Pascal",
   react: "React",
   nodejs: "Node.js",
-  flask: "Flask",
-  django: "Django",
   sqlite: "SQLite",
   arduino: "Arduino",
   scratch: "Scratch Blocks",
@@ -117,12 +115,6 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case "nodejs":
       baseTemplate = nodejsTemplate;
-      break;
-    case "flask":
-      baseTemplate = flaskTemplate;
-      break;
-    case "django":
-      baseTemplate = djangoTemplate;
       break;
     case "sqlite":
       baseTemplate = sqliteTemplate;
@@ -1356,122 +1348,6 @@ server.listen(PORT, () => {
     "start": "node index.js"
   }
 }`,
-      },
-    ],
-  },
-];
-
-const flaskTemplate: FileNode[] = [
-  {
-    id: "root",
-    name: "my-flask-app",
-    type: "folder",
-    children: [
-      {
-        id: "app-py",
-        name: "app.py",
-        type: "file",
-        language: "python",
-        content: `# Flask - Lightweight Python Web Framework
-from flask import Flask, jsonify, request
-
-app = Flask(__name__)
-
-# Sample data
-users = [
-    {"id": 1, "name": "Alice"},
-    {"id": 2, "name": "Bob"}
-]
-
-@app.route('/')
-def home():
-    return jsonify({"message": "Hello from Flask! 🐍"})
-
-@app.route('/api/users', methods=['GET'])
-def get_users():
-    return jsonify(users)
-
-@app.route('/api/users', methods=['POST'])
-def create_user():
-    data = request.get_json()
-    new_user = {
-        "id": len(users) + 1,
-        "name": data.get("name", "Unknown")
-    }
-    users.append(new_user)
-    return jsonify(new_user), 201
-
-if __name__ == '__main__':
-    print("Starting Flask server...")
-    print("Visit http://localhost:5000")
-    app.run(debug=True, port=5000)`,
-      },
-      {
-        id: "requirements",
-        name: "requirements.txt",
-        type: "file",
-        language: "text",
-        content: `flask==3.0.0`,
-      },
-    ],
-  },
-];
-
-const djangoTemplate: FileNode[] = [
-  {
-    id: "root",
-    name: "my-django-app",
-    type: "folder",
-    children: [
-      {
-        id: "manage-py",
-        name: "manage.py",
-        type: "file",
-        language: "python",
-        content: `#!/usr/bin/env python
-# Django project management script
-import os
-import sys
-
-def main():
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
-    from django.core.management import execute_from_command_line
-    execute_from_command_line(sys.argv)
-
-if __name__ == '__main__':
-    main()`,
-      },
-      {
-        id: "views-py",
-        name: "views.py",
-        type: "file",
-        language: "python",
-        content: `# Django Views
-from django.http import JsonResponse
-from django.views import View
-
-class HomeView(View):
-    def get(self, request):
-        return JsonResponse({
-            "message": "Hello from Django! 🎸",
-            "framework": "Django",
-            "version": "5.0"
-        })
-
-class UserListView(View):
-    def get(self, request):
-        users = [
-            {"id": 1, "name": "Alice"},
-            {"id": 2, "name": "Bob"}
-        ]
-        return JsonResponse({"users": users})`,
-      },
-      {
-        id: "requirements",
-        name: "requirements.txt",
-        type: "file",
-        language: "text",
-        content: `django==5.0`,
       },
     ],
   },
