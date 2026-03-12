@@ -217,6 +217,20 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.presentationml.presentation', out));
   }, [file, slides, onContentChange]);
 
+  // Auto-save when slides change
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (loading || slides.length === 0) return;
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      return;
+    }
+    const timer = setTimeout(() => {
+      save();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [slides, loading, save]);
+
   const addSlide = () => {
     const newSlides = [...slides, {
       elements: [
