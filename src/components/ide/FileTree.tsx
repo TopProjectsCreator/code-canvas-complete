@@ -1,8 +1,46 @@
 import { useState, useRef } from 'react';
-import { ChevronRight, ChevronDown, Plus, MoreHorizontal, Trash2, Edit2 } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, MoreHorizontal, Trash2, Edit2, Download } from 'lucide-react';
 import { FileNode } from '@/types/ide';
 import { FileIcon } from './FileIcon';
 import { cn } from '@/lib/utils';
+
+const BINARY_EXTENSIONS = ['pptx', 'docx', 'xlsx', 'pdf', 'zip', 'stl', 'obj', 'glb', 'gltf'];
+const MIME_MAP: Record<string, string> = {
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pdf: 'application/pdf',
+  zip: 'application/zip',
+};
+
+const downloadFile = (node: FileNode) => {
+  const content = node.content || '';
+  const ext = node.name.split('.').pop()?.toLowerCase() || '';
+  const isBinary = BINARY_EXTENSIONS.includes(ext);
+
+  let blob: Blob;
+  if (isBinary && content) {
+    // Decode base64 / data-url to binary
+    const base64 = content.startsWith('data:') ? content.split(',')[1] || '' : content;
+    try {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      blob = new Blob([bytes], { type: MIME_MAP[ext] || 'application/octet-stream' });
+    } catch {
+      blob = new Blob([content], { type: 'text/plain' });
+    }
+  } else {
+    blob = new Blob([content], { type: 'text/plain' });
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = node.name;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 interface FileTreeProps {
   files: FileNode[];
@@ -158,6 +196,18 @@ const FileItem = ({
                 </button>
                 <div className="border-t border-border my-1" />
               </>
+            )}
+            {node.type === 'file' && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  downloadFile(node);
+                  setShowMenu(false);
+                }}
+                className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
+              >
+                <Download className="w-3 h-3" /> Download
+              </button>
             )}
             <button
               onClick={(e) => {
