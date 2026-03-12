@@ -35,6 +35,8 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const initialHtmlRef = useRef('');
   // Track the file id we loaded so we only set innerHTML once per file
   const loadedFileIdRef = useRef<string | null>(null);
+  // Track last saved ZIP bytes so save() doesn't read stale file.content
+  const lastZipBytesRef = useRef<Uint8Array | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -46,6 +48,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
           bytes = await buildNewDocx();
           onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.wordprocessingml.document', bytes));
         }
+        lastZipBytesRef.current = bytes;
         const zip = await JSZip.loadAsync(bytes);
         const xml = await zip.file('word/document.xml')?.async('string');
         if (!xml) throw new Error('Missing word/document.xml');
@@ -90,16 +93,17 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
 
   const save = useCallback(async () => {
     const paragraphs = getEditorParagraphs();
-    const bytes = decodeDataUrl(file.content || '') || (await buildNewDocx());
-    const zip = await JSZip.loadAsync(bytes);
+    const baseBytes = lastZipBytesRef.current || (await buildNewDocx());
+    const zip = await JSZip.loadAsync(baseBytes);
     const content = paragraphs
       .map(line => `<w:p><w:r><w:t xml:space="preserve">${xmlEncode(line)}</w:t></w:r></w:p>`)
       .join('');
     zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${content || '<w:p><w:r><w:t></w:t></w:r></w:p>'}</w:body></w:document>`);
     const out = new Uint8Array(await zip.generateAsync({ type: 'uint8array' }));
+    lastZipBytesRef.current = out;
     onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.wordprocessingml.document', out));
-  }, [file, onContentChange]);
+  }, [file.id, onContentChange]);
 
 
   // Auto-save on editor input (debounced)
