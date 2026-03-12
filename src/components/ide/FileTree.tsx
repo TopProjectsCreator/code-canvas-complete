@@ -271,6 +271,7 @@ export const FileTree = ({
         <FileItem
           key={node.id}
           node={node}
+          fileContents={fileContents}
           onFileSelect={onFileSelect}
           onCreateFile={onCreateFile}
           onDeleteFile={onDeleteFile}
