@@ -251,7 +251,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
-  const [mobileActivePanel, setMobileActivePanel] = useState<'editor' | 'preview' | 'terminal' | 'ai'>('editor');
+  const [mobileActivePanel, setMobileActivePanel] = useState<"editor" | "preview" | "terminal" | "ai">("editor");
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
   const [originalFileContents, setOriginalFileContents] = useState<Record<string, string>>({});
   const [gitState, setGitState] = useState<GitState>(initialGitState);
@@ -1209,7 +1209,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         {
           id: generateId(),
           type: "info",
-          content: "🔧 Ready to go! Use \"Upload to Board\" to flash your Arduino, or try the simulator to test your circuit virtually.",
+          content:
+            '🔧 Ready to go! Use "Upload to Board" to flash your Arduino, or try the simulator to test your circuit virtually.',
           timestamp: new Date(),
         },
       ]);
@@ -1217,10 +1218,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     }
 
     // For HTML/web templates, always prioritize index.html (JS runs inside the preview)
-    if (
-      selectedTemplate === "html" ||
-      selectedTemplate === "nodejs" ||
-    ) {
+    if (selectedTemplate === "html" || selectedTemplate === "nodejs") {
       const htmlFile = findFileByName(files, "index.html");
       if (htmlFile) {
         fileToRun = { ...htmlFile, content: fileContents[htmlFile.id] ?? htmlFile.content };
@@ -1668,7 +1666,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   // On mobile, sync mobile panel state with AI chat
   useEffect(() => {
     if (isMobile) {
-      if (mobileActivePanel === 'ai') {
+      if (mobileActivePanel === "ai") {
         setIsAIChatOpen(true);
       } else {
         setIsAIChatOpen(false);
@@ -1701,12 +1699,12 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         onToggleAIChat={() => {
           if (isMobile) {
-            setMobileActivePanel('ai');
+            setMobileActivePanel("ai");
           } else {
             setIsAIChatOpen(!isAIChatOpen);
           }
         }}
-        isAIChatOpen={isAIChatOpen || mobileActivePanel === 'ai'}
+        isAIChatOpen={isAIChatOpen || mobileActivePanel === "ai"}
         isAILoading={isAILoading}
         onOpenProjects={() => setShowProjectsDialog(true)}
         onSaveProject={() => setShowSaveDialog(true)}
@@ -1748,11 +1746,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         onProjectUpdated={setCurrentProject}
       />
 
-      <CollabDialog
-        open={showCollabDialog}
-        onOpenChange={setShowCollabDialog}
-        projectId={currentProject?.id}
-      />
+      <CollabDialog open={showCollabDialog} onOpenChange={setShowCollabDialog} projectId={currentProject?.id} />
 
       <GitProviderImportDialog
         open={showGitImportDialog}
@@ -1760,52 +1754,52 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         onImport={handleGitImport}
       />
 
-      <div className="flex-1 flex overflow-hidden pb-0 md:pb-0" style={{ paddingBottom: isMobile ? '56px' : '0' }}>
+      <div className="flex-1 flex overflow-hidden pb-0 md:pb-0" style={{ paddingBottom: isMobile ? "56px" : "0" }}>
         {/* Sidebar - Desktop: slide panel, Mobile: drawer overlay */}
         {isMobile ? (
           <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
             <SheetContent side="left" className="w-[280px] p-0">
               <Sidebar
-            files={files}
-            fileContents={fileContents}
-            onFileSelect={handleFileSelect}
-            onCreateFile={handleCreateFile}
-            onDeleteFile={handleDeleteFile}
-            onRenameFile={handleRenameFile}
-            onUploadFiles={handleUploadFiles}
-            onImportScratchProject={handleImportScratchProject}
-            activeFileId={activeTab?.fileId || null}
-            currentLanguage={selectedTemplate || "javascript"}
-            gitState={gitState}
-            onGitCommit={handleGitCommit}
-            onGitStageFile={handleGitStageFile}
-            onGitUnstageFile={handleGitUnstageFile}
-            onGitDiscardChanges={handleGitDiscardChanges}
-            onGitCreateBranch={handleGitCreateBranch}
-            onGitSwitchBranch={handleGitSwitchBranch}
-            onGitInitRepo={handleGitInitRepo}
-            workflows={workflows}
-            onRunWorkflow={handleRunWorkflow}
-            onCreateWorkflow={handleCreateWorkflow}
-            onUpdateWorkflow={handleUpdateWorkflow}
-            onDeleteWorkflow={handleDeleteWorkflow}
-            currentlyRunningWorkflow={currentlyRunningWorkflow}
-            historyEntries={historyEntries}
-            onRestoreEntry={(entry) => {
-              if (!entry.snapshot) {
-                toast({
-                  title: "Cannot rollback",
-                  description: "This event has no restorable snapshot.",
-                  variant: "destructive",
-                });
-                return;
-              }
-              setFiles(entry.snapshot.files);
-              setFileContents(entry.snapshot.fileContents);
-              setHasUnsavedChanges(true);
-              addHistoryEntry("file-edit", `Rolled back to: ${entry.label}`);
-              toast({ title: "Rolled back", description: `Restored state from "${entry.label}"` });
-            }}
+                files={files}
+                fileContents={fileContents}
+                onFileSelect={handleFileSelect}
+                onCreateFile={handleCreateFile}
+                onDeleteFile={handleDeleteFile}
+                onRenameFile={handleRenameFile}
+                onUploadFiles={handleUploadFiles}
+                onImportScratchProject={handleImportScratchProject}
+                activeFileId={activeTab?.fileId || null}
+                currentLanguage={selectedTemplate || "javascript"}
+                gitState={gitState}
+                onGitCommit={handleGitCommit}
+                onGitStageFile={handleGitStageFile}
+                onGitUnstageFile={handleGitUnstageFile}
+                onGitDiscardChanges={handleGitDiscardChanges}
+                onGitCreateBranch={handleGitCreateBranch}
+                onGitSwitchBranch={handleGitSwitchBranch}
+                onGitInitRepo={handleGitInitRepo}
+                workflows={workflows}
+                onRunWorkflow={handleRunWorkflow}
+                onCreateWorkflow={handleCreateWorkflow}
+                onUpdateWorkflow={handleUpdateWorkflow}
+                onDeleteWorkflow={handleDeleteWorkflow}
+                currentlyRunningWorkflow={currentlyRunningWorkflow}
+                historyEntries={historyEntries}
+                onRestoreEntry={(entry) => {
+                  if (!entry.snapshot) {
+                    toast({
+                      title: "Cannot rollback",
+                      description: "This event has no restorable snapshot.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  setFiles(entry.snapshot.files);
+                  setFileContents(entry.snapshot.fileContents);
+                  setHasUnsavedChanges(true);
+                  addHistoryEntry("file-edit", `Rolled back to: ${entry.label}`);
+                  toast({ title: "Rolled back", description: `Restored state from "${entry.label}"` });
+                }}
                 onInvite={() => setShowShareDialog(true)}
               />
             </SheetContent>
@@ -1869,7 +1863,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             // Mobile: Single panel view with bottom nav switcher
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Editor Panel */}
-              {mobileActivePanel === 'editor' && selectedTemplate !== "scratch" && (
+              {mobileActivePanel === "editor" && selectedTemplate !== "scratch" && (
                 <div className="h-full flex flex-col">
                   <EditorTabs
                     tabs={openTabs}
@@ -1884,7 +1878,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               )}
 
               {/* Preview Panel */}
-              {mobileActivePanel === 'preview' && (
+              {mobileActivePanel === "preview" && (
                 <div className="h-full flex flex-col">
                   {selectedTemplate === "arduino" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
@@ -1930,7 +1924,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               )}
 
               {/* Terminal Panel */}
-              {mobileActivePanel === 'terminal' && (
+              {mobileActivePanel === "terminal" && (
                 <div className="h-full flex flex-col">
                   <Terminal
                     history={terminalHistory}
@@ -1979,56 +1973,56 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
               {/* Preview panel or Arduino/Scratch panel */}
               <ResizablePanel defaultSize={selectedTemplate === "scratch" ? 100 : 50} minSize={20}>
-              {selectedTemplate === "arduino" ? (
-                <Suspense fallback={<div className="p-4 text-gray-400">Loading Arduino panel...</div>}>
-                  <ArduinoPanel
-                    files={files}
-                    onFileUpdate={handleContentChange}
-                    onAddFile={addFile}
-                    currentTemplate={selectedTemplate}
-                  />
-                </Suspense>
-              ) : selectedTemplate === "scratch" ? (
-                <Suspense fallback={<div className="p-4 text-gray-400">Loading Scratch panel...</div>}>
-                  <ScratchPanel
-                    archive={scratchArchive}
-                    onArchiveChange={setScratchArchive}
-                    onProjectJsonUpdate={(json) => {
-                      setFiles((prev) =>
-                        prev.map((node) => {
-                          if (node.type !== "folder") return node;
-                          return {
-                            ...node,
-                            children: (node.children || []).map((child) =>
-                              child.name === "project.json" ? { ...child, content: json } : child,
-                            ),
-                          };
-                        }),
-                      );
-                    }}
+                {selectedTemplate === "arduino" ? (
+                  <Suspense fallback={<div className="p-4 text-gray-400">Loading Arduino panel...</div>}>
+                    <ArduinoPanel
+                      files={files}
+                      onFileUpdate={handleContentChange}
+                      onAddFile={addFile}
+                      currentTemplate={selectedTemplate}
+                    />
+                  </Suspense>
+                ) : selectedTemplate === "scratch" ? (
+                  <Suspense fallback={<div className="p-4 text-gray-400">Loading Scratch panel...</div>}>
+                    <ScratchPanel
+                      archive={scratchArchive}
+                      onArchiveChange={setScratchArchive}
+                      onProjectJsonUpdate={(json) => {
+                        setFiles((prev) =>
+                          prev.map((node) => {
+                            if (node.type !== "folder") return node;
+                            return {
+                              ...node,
+                              children: (node.children || []).map((child) =>
+                                child.name === "project.json" ? { ...child, content: json } : child,
+                              ),
+                            };
+                          }),
+                        );
+                      }}
+                      isRunning={isRunning}
+                      onRun={() => setIsRunning(true)}
+                      onStop={handleStop}
+                    />
+                  </Suspense>
+                ) : (
+                  <Preview
+                    htmlContent={htmlContent}
+                    cssContent={cssContent}
+                    jsContent={jsContent}
                     isRunning={isRunning}
-                    onRun={() => setIsRunning(true)}
-                    onStop={handleStop}
                   />
-                </Suspense>
-              ) : (
-                <Preview
-                  htmlContent={htmlContent}
-                  cssContent={cssContent}
-                  jsContent={jsContent}
-                  isRunning={isRunning}
-                />
-              )}
+                )}
               </ResizablePanel>
             </ResizablePanelGroup>
           )}
 
           {/* AI Chat Sidebar - Mobile: full screen, Desktop: sidebar */}
           <AIChat
-            isOpen={isAIChatOpen || mobileActivePanel === 'ai'}
+            isOpen={isAIChatOpen || mobileActivePanel === "ai"}
             onClose={() => {
               if (isMobile) {
-                setMobileActivePanel('editor');
+                setMobileActivePanel("editor");
               } else {
                 setIsAIChatOpen(false);
               }
@@ -2296,8 +2290,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           <MobileBottomNav
             activePanel={mobileActivePanel}
             onPanelChange={setMobileActivePanel}
-            showPreview={selectedTemplate !== 'typescript' && selectedTemplate !== 'python'}
-            showTerminal={selectedTemplate !== 'scratch'}
+            showPreview={selectedTemplate !== "typescript" && selectedTemplate !== "python"}
+            showTerminal={selectedTemplate !== "scratch"}
           />
         )}
       </div>
