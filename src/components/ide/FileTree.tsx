@@ -240,6 +240,7 @@ const FileItem = ({
             <FileItem
               key={child.id}
               node={child}
+              fileContents={fileContents}
               onFileSelect={onFileSelect}
               onCreateFile={onCreateFile}
               onDeleteFile={onDeleteFile}
