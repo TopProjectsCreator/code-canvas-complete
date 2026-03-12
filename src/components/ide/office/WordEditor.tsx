@@ -65,7 +65,8 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
       }
     };
     load();
-  }, [file.id, file.content, onContentChange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.id]); // Only reload when file ID changes
 
   // Set innerHTML only once after loading
   useEffect(() => {
