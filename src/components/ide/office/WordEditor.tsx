@@ -101,8 +101,15 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.wordprocessingml.document', out));
   }, [file, onContentChange]);
 
+
+  // Auto-save on editor input (debounced)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleEditorInput = () => {
     updateWordCount();
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      save();
+    }, 500);
   };
 
   // --- execCommand helpers ---
