@@ -89,7 +89,8 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
       }
     };
     load();
-  }, [file.id, file.content, onContentChange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.id]); // Only reload when file ID changes
 
   useEffect(() => {
     setFormulaBarValue(grid[selectedCell[0]]?.[selectedCell[1]] || '');
