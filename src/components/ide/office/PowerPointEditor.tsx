@@ -51,6 +51,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -116,7 +117,9 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
       }
     };
     load();
-  }, [file.id, file.content, onContentChange]);
+  }, [file.id]); // Only reload when file ID changes, not content
+
+
 
   // Mouse move/up for drag and resize
   useEffect(() => {
@@ -213,6 +216,20 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     const out = new Uint8Array(await zip.generateAsync({ type: 'uint8array' }));
     onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.presentationml.presentation', out));
   }, [file, slides, onContentChange]);
+
+  // Auto-save when slides change
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (loading || slides.length === 0) return;
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      return;
+    }
+    const timer = setTimeout(() => {
+      save();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [slides, loading, save]);
 
   const addSlide = () => {
     const newSlides = [...slides, {
