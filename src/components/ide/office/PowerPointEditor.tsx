@@ -213,7 +213,16 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
       });
 
       const out = await pptx.write({ outputType: 'arraybuffer' });
-      const bytes = new Uint8Array(out);
+      let bytes: Uint8Array;
+      if (out instanceof ArrayBuffer) {
+        bytes = new Uint8Array(out);
+      } else if (out instanceof Uint8Array) {
+        bytes = out;
+      } else if (out instanceof Blob) {
+        bytes = new Uint8Array(await out.arrayBuffer());
+      } else {
+        bytes = new TextEncoder().encode(String(out));
+      }
       onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.presentationml.presentation', bytes));
       setError(null);
     } catch (e) {
