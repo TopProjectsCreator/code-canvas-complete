@@ -44,6 +44,7 @@ const downloadFile = (node: FileNode, currentContent?: string) => {
 
 interface FileTreeProps {
   files: FileNode[];
+  fileContents?: Record<string, string>;
   onFileSelect: (file: FileNode) => void;
   onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
   onDeleteFile: (fileId: string) => void;
