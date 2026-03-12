@@ -129,6 +129,20 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', out));
   }, [file, grid, onContentChange]);
 
+  // Auto-save when grid changes
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (loading || grid.length === 0) return;
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      return;
+    }
+    const timer = setTimeout(() => {
+      save();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [grid, loading, save]);
+
   const updateCell = (row: number, col: number, value: string) => {
     setGrid(prev => {
       const next = prev.map(r => [...r]);
