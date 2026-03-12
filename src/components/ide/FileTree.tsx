@@ -13,8 +13,8 @@ const MIME_MAP: Record<string, string> = {
   zip: 'application/zip',
 };
 
-const downloadFile = (node: FileNode) => {
-  const content = node.content || '';
+const downloadFile = (node: FileNode, currentContent?: string) => {
+  const content = currentContent ?? node.content || '';
   const ext = node.name.split('.').pop()?.toLowerCase() || '';
   const isBinary = BINARY_EXTENSIONS.includes(ext);
 
