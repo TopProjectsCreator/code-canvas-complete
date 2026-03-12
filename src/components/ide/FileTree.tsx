@@ -14,7 +14,7 @@ const MIME_MAP: Record<string, string> = {
 };
 
 const downloadFile = (node: FileNode, currentContent?: string) => {
-  const content = currentContent ?? node.content || '';
+  const content = currentContent ?? node.content ?? '';
   const ext = node.name.split('.').pop()?.toLowerCase() || '';
   const isBinary = BINARY_EXTENSIONS.includes(ext);
 

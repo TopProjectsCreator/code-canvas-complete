@@ -449,6 +449,7 @@ export const Sidebar = ({
             <div className="flex-1 overflow-auto ide-scrollbar">
               <FileTree
                 files={files}
+                fileContents={fileContents}
                 onFileSelect={onFileSelect}
                 onCreateFile={onCreateFile}
                 onDeleteFile={onDeleteFile}
