@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import JSZip from 'jszip';
+import PptxGenJS from 'pptxgenjs';
 import { FileNode } from '@/types/ide';
 import {
   Presentation, Save, Plus, Trash2, Copy, ChevronUp, ChevronDown,
@@ -37,6 +38,16 @@ interface PowerPointEditorProps {
 
 let elementIdCounter = 0;
 const newId = () => `el-${Date.now()}-${elementIdCounter++}`;
+
+const CANVAS_W = 720;
+const CANVAS_H = 405;
+const SLIDE_W_IN = 10;
+const SLIDE_H_IN = 5.625;
+
+const toSlideX = (x: number) => (x / CANVAS_W) * SLIDE_W_IN;
+const toSlideY = (y: number) => (y / CANVAS_H) * SLIDE_H_IN;
+const toSlideW = (w: number) => (w / CANVAS_W) * SLIDE_W_IN;
+const toSlideH = (h: number) => (h / CANVAS_H) * SLIDE_H_IN;
 
 export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProps) => {
   const [loading, setLoading] = useState(true);
@@ -164,58 +175,51 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   }, [dragging, resizing, activeSlide]);
 
   const save = useCallback(async () => {
-    const bytes = decodeDataUrl(file.content || '') || (await buildNewPptx());
-    const zip = await JSZip.loadAsync(bytes);
-    const slideCount = slides.length;
+    try {
+      const pptx = new PptxGenJS();
+      pptx.defineLayout({ name: 'CANVAS_16_9', width: SLIDE_W_IN, height: SLIDE_H_IN });
+      pptx.layout = 'CANVAS_16_9';
 
-    const overrides = slides.map((_, i) =>
-      `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`
-    ).join('');
-    zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-  <Default Extension="xml" ContentType="application/xml"/>
-  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
-  ${overrides}
-</Types>`);
+      slides.forEach((slideData) => {
+        const slide = pptx.addSlide();
 
-    const sldIdLst = slides.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 1}"/>`).join('');
-    zip.file('ppt/presentation.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:sldIdLst>${sldIdLst}</p:sldIdLst></p:presentation>`);
+        slideData.elements.forEach((el) => {
+          const x = toSlideX(el.x);
+          const y = toSlideY(el.y);
+          const w = toSlideW(el.width);
+          const h = toSlideH(el.height);
 
-    const rels = slides.map((_, i) =>
-      `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${i + 1}.xml"/>`
-    ).join('');
-    zip.folder('ppt')?.folder('_rels')?.file('presentation.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`);
+          if (el.type === 'image' && el.content?.startsWith('data:image/')) {
+            try {
+              slide.addImage({ data: el.content, x, y, w, h });
+            } catch {
+              // Skip invalid image payloads instead of failing whole save
+            }
+            return;
+          }
 
-    const existingSlides = Object.keys(zip.files).filter(n => /^ppt\/slides\/slide\d+\.xml$/i.test(n));
-    for (const f of existingSlides) zip.remove(f);
+          slide.addText(el.content || '', {
+            x,
+            y,
+            w,
+            h,
+            fontSize: el.fontSize || 16,
+            bold: (el.fontWeight || 400) >= 600,
+            valign: 'top',
+            breakLine: true,
+            color: '1A1A1A',
+          });
+        });
+      });
 
-    slides.forEach((slide, idx) => {
-      const textEls = slide.elements.filter(el => el.type === 'text');
-      const shapes = textEls.map((el, ti) => {
-        const lines = el.content.split('\n').map(line =>
-          `<a:p><a:r><a:rPr lang="en-US" sz="${(el.fontSize || 16) * 100}" dirty="0"/><a:t>${xmlEncode(line)}</a:t></a:r></a:p>`
-        ).join('');
-        return `<p:sp>
-          <p:nvSpPr><p:cNvPr id="${ti + 2}" name="TextBox ${ti + 1}"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>
-          <p:spPr><a:xfrm><a:off x="${Math.round(el.x * 12700)}" y="${Math.round(el.y * 12700)}"/><a:ext cx="${Math.round(el.width * 12700)}" cy="${Math.round(el.height * 12700)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>
-          <p:txBody><a:bodyPr/><a:lstStyle/>${lines || '<a:p><a:endParaRPr lang="en-US"/></a:p>'}</p:txBody>
-        </p:sp>`;
-      }).join('');
-
-      zip.file(`ppt/slides/slide${idx + 1}.xml`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-  <p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
-    ${shapes}
-  </p:spTree></p:cSld>
-</p:sld>`);
-    });
-
-    const out = new Uint8Array(await zip.generateAsync({ type: 'uint8array' }));
-    onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.presentationml.presentation', out));
-  }, [file, slides, onContentChange]);
+      const out = await pptx.write({ outputType: 'arraybuffer' });
+      const bytes = new Uint8Array(out);
+      onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.presentationml.presentation', bytes));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save presentation');
+    }
+  }, [file.id, slides, onContentChange]);
 
   // Auto-save when slides change
   const initialLoadDone = useRef(false);
