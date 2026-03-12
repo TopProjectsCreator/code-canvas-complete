@@ -89,7 +89,8 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
       }
     };
     load();
-  }, [file.id, file.content, onContentChange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.id]); // Only reload when file ID changes
 
   useEffect(() => {
     setFormulaBarValue(grid[selectedCell[0]]?.[selectedCell[1]] || '');
@@ -127,6 +128,20 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     const out = new Uint8Array(await zip.generateAsync({ type: 'uint8array' }));
     onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', out));
   }, [file, grid, onContentChange]);
+
+  // Auto-save when grid changes
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (loading || grid.length === 0) return;
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true;
+      return;
+    }
+    const timer = setTimeout(() => {
+      save();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [grid, loading, save]);
 
   const updateCell = (row: number, col: number, value: string) => {
     setGrid(prev => {
