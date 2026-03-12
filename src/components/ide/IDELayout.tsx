@@ -1821,6 +1821,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           >
             <Sidebar
               files={files}
+              fileContents={fileContents}
               onFileSelect={handleFileSelect}
               onCreateFile={handleCreateFile}
               onDeleteFile={handleDeleteFile}
