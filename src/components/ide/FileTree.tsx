@@ -204,7 +204,7 @@ const FileItem = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  downloadFile(node);
+                  downloadFile(node, fileContents?.[node.id]);
                   setShowMenu(false);
                 }}
                 className="w-full px-3 py-1.5 text-sm text-left hover:bg-accent flex items-center gap-2"
