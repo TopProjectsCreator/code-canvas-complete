@@ -51,6 +51,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const load = async () => {
       setLoading(true);
