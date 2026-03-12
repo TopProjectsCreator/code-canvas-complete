@@ -256,7 +256,8 @@ const FileItem = ({
 };
 
 export const FileTree = ({ 
-  files, 
+  files,
+  fileContents,
   onFileSelect, 
   onCreateFile, 
   onDeleteFile, 
