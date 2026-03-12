@@ -65,7 +65,8 @@ interface FileItemProps {
 }
 
 const FileItem = ({ 
-  node, 
+  node,
+  fileContents,
   onFileSelect, 
   onCreateFile, 
   onDeleteFile, 
