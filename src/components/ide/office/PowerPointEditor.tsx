@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { decodeDataUrl, encodeDataUrl, parseXml, xmlEncode, buildNewPptx } from './officeUtils';
+import { decodeDataUrl, encodeDataUrl, parseXml, buildNewPptx } from './officeUtils';
 
 interface SlideElement {
   id: string;
