@@ -75,8 +75,6 @@ const templateVisuals: Record<LanguageTemplate, { icon: React.ReactNode; color: 
   pascal: { icon: <Code2 className="w-8 h-8" />, color: "from-blue-300 to-blue-500" },
   react: { icon: <Globe className="w-8 h-8" />, color: "from-cyan-400 to-blue-500" },
   nodejs: { icon: <TerminalIcon className="w-8 h-8" />, color: "from-green-500 to-green-700" },
-  flask: { icon: <Globe className="w-8 h-8" />, color: "from-gray-400 to-gray-600" },
-  django: { icon: <Globe className="w-8 h-8" />, color: "from-green-600 to-emerald-700" },
   sqlite: { icon: <Braces className="w-8 h-8" />, color: "from-blue-400 to-cyan-500" },
   arduino: { icon: <Cpu className="w-8 h-8" />, color: "from-cyan-500 to-blue-600" },
   scratch: { icon: <Bot className="w-8 h-8" />, color: "from-orange-400 to-blue-500" },
@@ -153,7 +151,9 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
     let assistantSoFar = "";
 
     try {
-      const { data: { session } } = await (await import("@/integrations/supabase/client")).supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await (await import("@/integrations/supabase/client")).supabase.auth.getSession();
       const authToken = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/template-assistant`, {
         method: "POST",
