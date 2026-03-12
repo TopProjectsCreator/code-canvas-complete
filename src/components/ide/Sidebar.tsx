@@ -35,6 +35,7 @@ interface SearchResult {
 
 interface SidebarProps {
   files: FileNode[];
+  fileContents: Record<string, string>;
   onFileSelect: (file: FileNode) => void;
   onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
   onDeleteFile: (fileId: string) => void;
@@ -68,7 +69,8 @@ interface SidebarProps {
 type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'history';
 
 export const Sidebar = ({ 
-  files, 
+  files,
+  fileContents,
   onFileSelect, 
   onCreateFile, 
   onDeleteFile, 
@@ -447,6 +449,7 @@ export const Sidebar = ({
             <div className="flex-1 overflow-auto ide-scrollbar">
               <FileTree
                 files={files}
+                fileContents={fileContents}
                 onFileSelect={onFileSelect}
                 onCreateFile={onCreateFile}
                 onDeleteFile={onDeleteFile}
