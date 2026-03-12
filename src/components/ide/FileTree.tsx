@@ -55,6 +55,7 @@ interface FileTreeProps {
 
 interface FileItemProps {
   node: FileNode;
+  fileContents?: Record<string, string>;
   onFileSelect: (file: FileNode) => void;
   onCreateFile: (parentId: string | null, name: string, type: 'file' | 'folder') => void;
   onDeleteFile: (fileId: string) => void;
