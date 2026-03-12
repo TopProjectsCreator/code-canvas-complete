@@ -69,7 +69,8 @@ interface SidebarProps {
 type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'history';
 
 export const Sidebar = ({ 
-  files, 
+  files,
+  fileContents,
   onFileSelect, 
   onCreateFile, 
   onDeleteFile, 
