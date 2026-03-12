@@ -1,226 +1,174 @@
-import { FileNode } from '@/types/ide';
-import { LanguageTemplate } from '@/data/templateRegistry';
-import { getArduinoTemplateFiles } from './arduinoTemplates';
+import { FileNode } from "@/types/ide";
+import { LanguageTemplate } from "@/data/templateRegistry";
+import { getArduinoTemplateFiles } from "./arduinoTemplates";
 
 const tutorialTitles: Record<LanguageTemplate, string> = {
-  blank: 'Blank Canvas',
-  html: 'HTML/CSS/JS',
-  javascript: 'JavaScript',
-  typescript: 'TypeScript',
-  python: 'Python',
-  java: 'Java',
-  cpp: 'C++',
-  c: 'C',
-  go: 'Go',
-  rust: 'Rust',
-  ruby: 'Ruby',
-  php: 'PHP',
-  csharp: 'C#',
-  bash: 'Bash',
-  lua: 'Lua',
-  perl: 'Perl',
-  r: 'R',
-  haskell: 'Haskell',
-  nim: 'Nim',
-  zig: 'Zig',
-  lisp: 'Common Lisp',
-  d: 'D',
-  groovy: 'Groovy',
-  pascal: 'Pascal',
-  react: 'React',
-  nodejs: 'Node.js',
-  flask: 'Flask',
-  django: 'Django',
-  sqlite: 'SQLite',
-  arduino: 'Arduino',
-  scratch: 'Scratch Blocks',
-  word: 'Word Document',
-  powerpoint: 'PowerPoint',
-  excel: 'Excel Spreadsheet',
-  video: 'Video Editor',
-  audio: 'Audio Editor',
-  rtf: 'Rich Text',
-  cad: '3D CAD Viewer',
+  blank: "Blank Canvas",
+  html: "HTML/CSS/JS",
+  javascript: "JavaScript",
+  typescript: "TypeScript",
+  python: "Python",
+  java: "Java",
+  cpp: "C++",
+  c: "C",
+  go: "Go",
+  rust: "Rust",
+  ruby: "Ruby",
+  php: "PHP",
+  csharp: "C#",
+  bash: "Bash",
+  lua: "Lua",
+  perl: "Perl",
+  r: "R",
+  haskell: "Haskell",
+  nim: "Nim",
+  zig: "Zig",
+  lisp: "Common Lisp",
+  d: "D",
+  groovy: "Groovy",
+  pascal: "Pascal",
+  react: "React",
+  nodejs: "Node.js",
+  flask: "Flask",
+  django: "Django",
+  sqlite: "SQLite",
+  arduino: "Arduino",
+  scratch: "Scratch Blocks",
+  word: "Word Document",
+  powerpoint: "PowerPoint",
+  excel: "Excel Spreadsheet",
+  video: "Video Editor",
+  audio: "Audio Editor",
+  rtf: "Rich Text",
+  cad: "3D CAD Viewer",
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
   nodes.map((node) => ({
     ...node,
-    children: node.children ? cloneFileNodes(node.children) : undefined
+    children: node.children ? cloneFileNodes(node.children) : undefined,
   }));
 
 const withTutorialFolder = (template: LanguageTemplate, templateFiles: FileNode[]): FileNode[] => {
-  const files = cloneFileNodes(templateFiles);
-  const rootFolder = files.find((node) => node.type === 'folder');
-
-  if (!rootFolder) {
-    return files;
-  }
-
-  rootFolder.children = rootFolder.children || [];
-
-  if (rootFolder.children.some((child) => child.type === 'folder' && child.name === '.tutorial')) {
-    return files;
-  }
-
-  const starterFiles = rootFolder.children
-    .filter((child) => child.name !== '.tutorial')
-    .map((child) => `- ${child.type === 'folder' ? '📁' : '📄'} ${child.name}`)
-    .join('\n');
-
-  rootFolder.children.push({
-    id: `${template}-tutorial-folder`,
-    name: '.tutorial',
-    type: 'folder',
-    children: [
-      {
-        id: `${template}-tutorial-start-here`,
-        name: 'START_HERE.md',
-        type: 'file',
-        language: 'markdown',
-        content: `# ${tutorialTitles[template]} starter guide
-
-This folder explains the sample starter code in your **${tutorialTitles[template]}** canvas.
-
-## Project structure
-
-${starterFiles || '- (No starter files yet)'}
-
-## How to explore this starter
-
-1. Open each starter file and read the top comments first.
-2. Run the project and make one small change at a time.
-3. Use this folder to keep your own notes as you learn.
-
-## Suggested first edits
-
-- Change the main output text.
-- Add one extra function or UI element.
-- Run again and compare behavior.
-`
-      }
-    ]
-  });
-
-  return files;
+  return cloneFileNodes(templateFiles);
 };
 
 export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
   let baseTemplate: FileNode[];
 
   switch (template) {
-    case 'blank':
+    case "blank":
       baseTemplate = blankTemplate;
       break;
-    case 'html':
+    case "html":
       baseTemplate = htmlTemplate;
       break;
-    case 'javascript':
+    case "javascript":
       baseTemplate = javascriptTemplate;
       break;
-    case 'typescript':
+    case "typescript":
       baseTemplate = typescriptTemplate;
       break;
-    case 'python':
+    case "python":
       baseTemplate = pythonTemplate;
       break;
-    case 'java':
+    case "java":
       baseTemplate = javaTemplate;
       break;
-    case 'cpp':
+    case "cpp":
       baseTemplate = cppTemplate;
       break;
-    case 'c':
+    case "c":
       baseTemplate = cTemplate;
       break;
-    case 'go':
+    case "go":
       baseTemplate = goTemplate;
       break;
-    case 'rust':
+    case "rust":
       baseTemplate = rustTemplate;
       break;
-    case 'ruby':
+    case "ruby":
       baseTemplate = rubyTemplate;
       break;
-    case 'php':
+    case "php":
       baseTemplate = phpTemplate;
       break;
-    case 'csharp':
+    case "csharp":
       baseTemplate = csharpTemplate;
       break;
-    case 'bash':
+    case "bash":
       baseTemplate = bashTemplate;
       break;
-    case 'lua':
+    case "lua":
       baseTemplate = luaTemplate;
       break;
-    case 'perl':
+    case "perl":
       baseTemplate = perlTemplate;
       break;
-    case 'r':
+    case "r":
       baseTemplate = rTemplate;
       break;
-    case 'haskell':
+    case "haskell":
       baseTemplate = haskellTemplate;
       break;
     // New templates
-    case 'react':
+    case "react":
       baseTemplate = reactTemplate;
       break;
-    case 'nodejs':
+    case "nodejs":
       baseTemplate = nodejsTemplate;
       break;
-    case 'flask':
+    case "flask":
       baseTemplate = flaskTemplate;
       break;
-    case 'django':
+    case "django":
       baseTemplate = djangoTemplate;
       break;
-    case 'sqlite':
+    case "sqlite":
       baseTemplate = sqliteTemplate;
       break;
-    case 'nim':
+    case "nim":
       baseTemplate = nimTemplate;
       break;
-    case 'zig':
+    case "zig":
       baseTemplate = zigTemplate;
       break;
-    case 'lisp':
+    case "lisp":
       baseTemplate = lispTemplate;
       break;
-    case 'd':
+    case "d":
       baseTemplate = dTemplate;
       break;
-    case 'groovy':
+    case "groovy":
       baseTemplate = groovyTemplate;
       break;
-    case 'pascal':
+    case "pascal":
       baseTemplate = pascalTemplate;
       break;
-    case 'arduino':
-      return withTutorialFolder(template, getArduinoTemplateFiles('uno'));
-    case 'scratch':
+    case "arduino":
+      return withTutorialFolder(template, getArduinoTemplateFiles("uno"));
+    case "scratch":
       baseTemplate = scratchTemplate;
       break;
-    case 'word':
+    case "word":
       baseTemplate = wordTemplate;
       break;
-    case 'powerpoint':
+    case "powerpoint":
       baseTemplate = powerpointTemplate;
       break;
-    case 'excel':
+    case "excel":
       baseTemplate = excelTemplate;
       break;
-    case 'video':
+    case "video":
       baseTemplate = videoTemplate;
       break;
-    case 'audio':
+    case "audio":
       baseTemplate = audioTemplate;
       break;
-    case 'rtf':
+    case "rtf":
       baseTemplate = rtfTemplate;
       break;
-    case 'cad':
+    case "cad":
       baseTemplate = cadTemplate;
       break;
     default:
@@ -233,15 +181,15 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
 
 const htmlTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'index-html',
-        name: 'index.html',
-        type: 'file',
-        language: 'html',
+        id: "index-html",
+        name: "index.html",
+        type: "file",
+        language: "html",
         content: `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -259,13 +207,13 @@ const htmlTemplate: FileNode[] = [
   </div>
   <script src="script.js"></script>
 </body>
-</html>`
+</html>`,
       },
       {
-        id: 'style-css',
-        name: 'style.css',
-        type: 'file',
-        language: 'css',
+        id: "style-css",
+        name: "style.css",
+        type: "file",
+        language: "css",
         content: `* {
   margin: 0;
   padding: 0;
@@ -327,13 +275,13 @@ button:hover {
   min-height: 50px;
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.3);
-}`
+}`,
       },
       {
-        id: 'script-js',
-        name: 'script.js',
-        type: 'file',
-        language: 'javascript',
+        id: "script-js",
+        name: "script.js",
+        type: "file",
+        language: "javascript",
         content: `// Welcome to your JavaScript file!
 
 let clickCount = 0;
@@ -346,13 +294,13 @@ document.getElementById('clickMe').addEventListener('click', () => {
 });
 
 // Try editing this code and click Run!
-console.log('Hello from your Canvas! 🚀');`
+console.log('Hello from your Canvas! 🚀');`,
       },
       {
-        id: 'readme',
-        name: 'README.md',
-        type: 'file',
-        language: 'markdown',
+        id: "readme",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
         content: `# My Awesome Canvas
 
 Welcome to your new Canvas! This is a simple HTML/CSS/JavaScript project.
@@ -363,23 +311,23 @@ Welcome to your new Canvas! This is a simple HTML/CSS/JavaScript project.
 2. Click the **Run** button to see your changes
 3. View the output in the preview pane
 
-Happy coding! 🎉`
-      }
-    ]
-  }
+Happy coding! 🎉`,
+      },
+    ],
+  },
 ];
 
 const javascriptTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'index-js',
-        name: 'index.js',
-        type: 'file',
-        language: 'javascript',
+        id: "index-js",
+        name: "index.js",
+        type: "file",
+        language: "javascript",
         content: `// Welcome to JavaScript!
 // Type your code here and run it
 
@@ -401,36 +349,36 @@ async function fetchData() {
   console.log('Data fetched!');
 }
 
-fetchData();`
+fetchData();`,
       },
       {
-        id: 'readme',
-        name: 'README.md',
-        type: 'file',
-        language: 'markdown',
+        id: "readme",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
         content: `# JavaScript Canvas
 
 Write and run JavaScript code.
 
 ## Quick Start
 
-Run \`node index.js\` in the shell to execute your code.`
-      }
-    ]
-  }
+Run \`node index.js\` in the shell to execute your code.`,
+      },
+    ],
+  },
 ];
 
 const typescriptTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'index-ts',
-        name: 'index.ts',
-        type: 'file',
-        language: 'typescript',
+        id: "index-ts",
+        name: "index.ts",
+        type: "file",
+        language: "typescript",
         content: `// Welcome to TypeScript!
 // Enjoy the power of static typing
 
@@ -458,13 +406,13 @@ function identity<T>(value: T): T {
 }
 
 console.log(identity<number>(42));
-console.log(identity<string>('Hello TypeScript!'));`
+console.log(identity<string>('Hello TypeScript!'));`,
       },
       {
-        id: 'tsconfig',
-        name: 'tsconfig.json',
-        type: 'file',
-        language: 'json',
+        id: "tsconfig",
+        name: "tsconfig.json",
+        type: "file",
+        language: "json",
         content: `{
   "compilerOptions": {
     "target": "ES2020",
@@ -477,23 +425,23 @@ console.log(identity<string>('Hello TypeScript!'));`
   },
   "include": ["*.ts"],
   "exclude": ["node_modules"]
-}`
-      }
-    ]
-  }
+}`,
+      },
+    ],
+  },
 ];
 
 const pythonTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-py',
-        name: 'main.py',
-        type: 'file',
-        language: 'python',
+        id: "main-py",
+        name: "main.py",
+        type: "file",
+        language: "python",
         content: `# Welcome to Python!
 # A beginner-friendly programming language
 
@@ -523,37 +471,37 @@ class Calculator:
 
 calc = Calculator()
 calc.add(5).multiply(3)
-print(f"Result: {calc.result}")  # Output: 15`
+print(f"Result: {calc.result}")  # Output: 15`,
       },
       {
-        id: 'requirements',
-        name: 'requirements.txt',
-        type: 'file',
-        language: 'text',
+        id: "requirements",
+        name: "requirements.txt",
+        type: "file",
+        language: "text",
         content: `# Add your Python dependencies here
 # Example:
 # requests==2.28.0
-# numpy==1.24.0`
-      }
-    ]
-  }
+# numpy==1.24.0`,
+      },
+    ],
+  },
 ];
 
 const javaTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-java',
-        name: 'prog.java',
-        type: 'file',
-        language: 'java',
+        id: "main-java",
+        name: "prog.java",
+        type: "file",
+        language: "java",
         content: `// Welcome to Java!
 // Object-oriented programming at its finest
 
-public class Main {
+public class Java {
     public static void main(String[] args) {
         System.out.println("Hello, World!");
         
@@ -581,23 +529,23 @@ class Greeter {
     public void greet() {
         System.out.println("Hello, " + name + "!");
     }
-}`
-      }
-    ]
-  }
+}`,
+      },
+    ],
+  },
 ];
 
 const cppTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-cpp',
-        name: 'main.cpp',
-        type: 'file',
-        language: 'cpp',
+        id: "main-cpp",
+        name: "main.cpp",
+        type: "file",
+        language: "cpp",
         content: `// Welcome to C++!
 // High-performance programming
 
@@ -635,13 +583,13 @@ int main() {
     cout << "Sum: " << sum << endl;
     
     return 0;
-}`
+}`,
       },
       {
-        id: 'makefile',
-        name: 'Makefile',
-        type: 'file',
-        language: 'makefile',
+        id: "makefile",
+        name: "Makefile",
+        type: "file",
+        language: "makefile",
         content: `CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra
 
@@ -652,23 +600,23 @@ clean:
 \trm -f main
 
 run: main
-\t./main`
-      }
-    ]
-  }
+\t./main`,
+      },
+    ],
+  },
 ];
 
 const cTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-c',
-        name: 'main.c',
-        type: 'file',
-        language: 'c',
+        id: "main-c",
+        name: "main.c",
+        type: "file",
+        language: "c",
         content: `/* Welcome to C!
    The foundation of modern programming */
 
@@ -697,13 +645,13 @@ int main() {
     printf("Sum: %d\\n", sum);
     
     return 0;
-}`
+}`,
       },
       {
-        id: 'makefile',
-        name: 'Makefile',
-        type: 'file',
-        language: 'makefile',
+        id: "makefile",
+        name: "Makefile",
+        type: "file",
+        language: "makefile",
         content: `CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
 
@@ -714,23 +662,23 @@ clean:
 \trm -f main
 
 run: main
-\t./main`
-      }
-    ]
-  }
+\t./main`,
+      },
+    ],
+  },
 ];
 
 const goTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-go',
-        name: 'main.go',
-        type: 'file',
-        language: 'go',
+        id: "main-go",
+        name: "main.go",
+        type: "file",
+        language: "go",
         content: `// Welcome to Go!
 // Simple, fast, and reliable
 
@@ -768,32 +716,32 @@ func main() {
 \t//     fmt.Println("Hello from goroutine!")
 \t// }()
 \t// time.Sleep(time.Second)
-}`
+}`,
       },
       {
-        id: 'go-mod',
-        name: 'go.mod',
-        type: 'file',
-        language: 'go',
+        id: "go-mod",
+        name: "go.mod",
+        type: "file",
+        language: "go",
         content: `module my-canvas
 
-go 1.21`
-      }
-    ]
-  }
+go 1.21`,
+      },
+    ],
+  },
 ];
 
 const rustTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-rs',
-        name: 'main.rs',
-        type: 'file',
-        language: 'rust',
+        id: "main-rs",
+        name: "main.rs",
+        type: "file",
+        language: "rust",
         content: `// Welcome to Rust!
 // Memory safety without garbage collection
 
@@ -827,35 +775,35 @@ impl Greeter {
     fn greet(&self) {
         println!("Hello, {}!", self.name);
     }
-}`
+}`,
       },
       {
-        id: 'cargo-toml',
-        name: 'Cargo.toml',
-        type: 'file',
-        language: 'toml',
+        id: "cargo-toml",
+        name: "Cargo.toml",
+        type: "file",
+        language: "toml",
         content: `[package]
 name = "my-canvas"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]`
-      }
-    ]
-  }
+[dependencies]`,
+      },
+    ],
+  },
 ];
 
 const rubyTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-rb',
-        name: 'main.rb',
-        type: 'file',
-        language: 'ruby',
+        id: "main-rb",
+        name: "main.rb",
+        type: "file",
+        language: "ruby",
         content: `# Welcome to Ruby!
 # A programmer's best friend
 
@@ -885,33 +833,33 @@ greeter = Greeter.new("Ruby Developer")
 greeter.greet
 
 # Block example
-3.times { |i| puts "Count: #{i + 1}" }`
+3.times { |i| puts "Count: #{i + 1}" }`,
       },
       {
-        id: 'gemfile',
-        name: 'Gemfile',
-        type: 'file',
-        language: 'ruby',
+        id: "gemfile",
+        name: "Gemfile",
+        type: "file",
+        language: "ruby",
         content: `source 'https://rubygems.org'
 
 # Add your gems here
-# gem 'rails'`
-      }
-    ]
-  }
+# gem 'rails'`,
+      },
+    ],
+  },
 ];
 
 const phpTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'index-php',
-        name: 'index.php',
-        type: 'file',
-        language: 'php',
+        id: "index-php",
+        name: "index.php",
+        type: "file",
+        language: "php",
         content: `<?php
 // Welcome to PHP!
 // The web's favorite scripting language
@@ -951,23 +899,23 @@ class Greeter {
 ];
 
 echo "User: {\$user['name']} ({\$user['email']})\\n";
-?>`
-      }
-    ]
-  }
+?>`,
+      },
+    ],
+  },
 ];
 
 const csharpTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-cs',
-        name: 'Main.cs',
-        type: 'file',
-        language: 'csharp',
+        id: "main-cs",
+        name: "Main.cs",
+        type: "file",
+        language: "csharp",
         content: `// Welcome to C#!
 // Versatile and powerful
 
@@ -1011,23 +959,23 @@ class Greeter
     }
 }
 
-record User(string Name, string Email);`
-      }
-    ]
-  }
+record User(string Name, string Email);`,
+      },
+    ],
+  },
 ];
 
 const bashTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'script-sh',
-        name: 'script.sh',
-        type: 'file',
-        language: 'bash',
+        id: "script-sh",
+        name: "script.sh",
+        type: "file",
+        language: "bash",
         content: `#!/bin/bash
 # Welcome to Bash!
 # The power of the command line
@@ -1070,10 +1018,10 @@ echo "Today is: \$current_date"
 
 # File operations (example)
 echo "Current directory: \$(pwd)"
-echo "Files: \$(ls -la 2>/dev/null | head -5)"`
-      }
-    ]
-  }
+echo "Files: \$(ls -la 2>/dev/null | head -5)"`,
+      },
+    ],
+  },
 ];
 
 // Keep default as HTML template for backwards compatibility
@@ -1091,49 +1039,49 @@ export const findFileById = (files: FileNode[], id: string): FileNode | null => 
 };
 
 export const getFileLanguage = (filename: string): string => {
-  const ext = filename.split('.').pop()?.toLowerCase();
+  const ext = filename.split(".").pop()?.toLowerCase();
   const languageMap: Record<string, string> = {
-    html: 'html',
-    css: 'css',
-    js: 'javascript',
-    ts: 'typescript',
-    tsx: 'typescript',
-    jsx: 'javascript',
-    json: 'json',
-    sb3: 'binary',
-    md: 'markdown',
-    py: 'python',
-    rb: 'ruby',
-    go: 'go',
-    rs: 'rust',
-    java: 'java',
-    c: 'c',
-    cpp: 'cpp',
-    h: 'c',
-    hpp: 'cpp',
-    php: 'php',
-    cs: 'csharp',
-    sh: 'bash',
-    toml: 'toml',
-    lua: 'lua',
-    pl: 'perl',
-    r: 'r',
-    hs: 'haskell',
+    html: "html",
+    css: "css",
+    js: "javascript",
+    ts: "typescript",
+    tsx: "typescript",
+    jsx: "javascript",
+    json: "json",
+    sb3: "binary",
+    md: "markdown",
+    py: "python",
+    rb: "ruby",
+    go: "go",
+    rs: "rust",
+    java: "java",
+    c: "c",
+    cpp: "cpp",
+    h: "c",
+    hpp: "cpp",
+    php: "php",
+    cs: "csharp",
+    sh: "bash",
+    toml: "toml",
+    lua: "lua",
+    pl: "perl",
+    r: "r",
+    hs: "haskell",
   };
-  return languageMap[ext || ''] || 'text';
+  return languageMap[ext || ""] || "text";
 };
 
 const luaTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-lua',
-        name: 'main.lua',
-        type: 'file',
-        language: 'lua',
+        id: "main-lua",
+        name: "main.lua",
+        type: "file",
+        language: "lua",
         content: `-- Welcome to Lua!
 -- A lightweight, embeddable scripting language
 
@@ -1173,23 +1121,23 @@ end
 local myCounter = counter()
 print("Count: " .. myCounter())  -- 1
 print("Count: " .. myCounter())  -- 2
-print("Count: " .. myCounter())  -- 3`
-      }
-    ]
-  }
+print("Count: " .. myCounter())  -- 3`,
+      },
+    ],
+  },
 ];
 
 const scratchTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'scratch-project',
-    type: 'folder',
+    id: "root",
+    name: "scratch-project",
+    type: "folder",
     children: [
       {
-        id: 'scratch-readme',
-        name: 'README.md',
-        type: 'file',
-        language: 'markdown',
+        id: "scratch-readme",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
         content: `# Scratch Blocks IDE
 
 Use the Scratch panel to build scripts visually.
@@ -1198,13 +1146,13 @@ Use the Scratch panel to build scripts visually.
 - Drag blocks into the scripts area
 - Run with the green flag button
 - Export back to .sb3 for Scratch compatibility
-`
+`,
       },
       {
-        id: 'scratch-project-json',
-        name: 'project.json',
-        type: 'file',
-        language: 'json',
+        id: "scratch-project-json",
+        name: "project.json",
+        type: "file",
+        language: "json",
         content: `{
   "targets": [],
   "monitors": [],
@@ -1214,23 +1162,23 @@ Use the Scratch panel to build scripts visually.
     "vm": "0.2.0",
     "agent": "code-canvas"
   }
-}`
-      }
-    ]
-  }
+}`,
+      },
+    ],
+  },
 ];
 
 const perlTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-pl',
-        name: 'main.pl',
-        type: 'file',
-        language: 'perl',
+        id: "main-pl",
+        name: "main.pl",
+        type: "file",
+        language: "perl",
         content: `#!/usr/bin/perl
 # Welcome to Perl!
 # The practical extraction and report language
@@ -1269,25 +1217,25 @@ if ($text =~ /quick (\\w+)/) {
 
 # String manipulation
 my @words = split / /, $text;
-print "Words: ", join(", ", @words), "\\n";`
-      }
-    ]
-  }
+print "Words: ", join(", ", @words), "\\n";`,
+      },
+    ],
+  },
 ];
 
 // ============= NEW TEMPLATES =============
 
 const reactTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-react-app',
-    type: 'folder',
+    id: "root",
+    name: "my-react-app",
+    type: "folder",
     children: [
       {
-        id: 'app-jsx',
-        name: 'App.jsx',
-        type: 'file',
-        language: 'javascript',
+        id: "app-jsx",
+        name: "App.jsx",
+        type: "file",
+        language: "javascript",
         content: `function App() {
   const [count, setCount] = React.useState(0);
 
@@ -1302,13 +1250,13 @@ const reactTemplate: FileNode[] = [
       </div>
     </div>
   );
-}`
+}`,
       },
       {
-        id: 'index-html',
-        name: 'index.html',
-        type: 'file',
-        language: 'html',
+        id: "index-html",
+        name: "index.html",
+        type: "file",
+        language: "html",
         content: `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1331,30 +1279,30 @@ const reactTemplate: FileNode[] = [
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <!-- APP_JSX_PLACEHOLDER -->
 </body>
-</html>`
+</html>`,
       },
       {
-        id: 'style-css',
-        name: 'style.css',
-        type: 'file',
-        language: 'css',
-        content: `/* Add your custom styles here */`
-      }
-    ]
-  }
+        id: "style-css",
+        name: "style.css",
+        type: "file",
+        language: "css",
+        content: `/* Add your custom styles here */`,
+      },
+    ],
+  },
 ];
 
 const nodejsTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-express-app',
-    type: 'folder',
+    id: "root",
+    name: "my-express-app",
+    type: "folder",
     children: [
       {
-        id: 'index-js',
-        name: 'index.js',
-        type: 'file',
-        language: 'javascript',
+        id: "index-js",
+        name: "index.js",
+        type: "file",
+        language: "javascript",
         content: `// Simple Node.js HTTP server (no dependencies needed)
 const http = require('http');
 const PORT = 3000;
@@ -1393,13 +1341,13 @@ server.listen(PORT, () => {
   console.log('GET / -> { message: "Hello from Node.js! 🚀" }');
   console.log('GET /api/users -> [{ id: 1, name: "Alice" }, { id: 2, name: "Bob" }]');
   server.close();
-});`
+});`,
       },
       {
-        id: 'package-json',
-        name: 'package.json',
-        type: 'file',
-        language: 'json',
+        id: "package-json",
+        name: "package.json",
+        type: "file",
+        language: "json",
         content: `{
   "name": "nodejs-app",
   "version": "1.0.0",
@@ -1407,23 +1355,23 @@ server.listen(PORT, () => {
   "scripts": {
     "start": "node index.js"
   }
-}`
-      }
-    ]
-  }
+}`,
+      },
+    ],
+  },
 ];
 
 const flaskTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-flask-app',
-    type: 'folder',
+    id: "root",
+    name: "my-flask-app",
+    type: "folder",
     children: [
       {
-        id: 'app-py',
-        name: 'app.py',
-        type: 'file',
-        language: 'python',
+        id: "app-py",
+        name: "app.py",
+        type: "file",
+        language: "python",
         content: `# Flask - Lightweight Python Web Framework
 from flask import Flask, jsonify, request
 
@@ -1456,30 +1404,30 @@ def create_user():
 if __name__ == '__main__':
     print("Starting Flask server...")
     print("Visit http://localhost:5000")
-    app.run(debug=True, port=5000)`
+    app.run(debug=True, port=5000)`,
       },
       {
-        id: 'requirements',
-        name: 'requirements.txt',
-        type: 'file',
-        language: 'text',
-        content: `flask==3.0.0`
-      }
-    ]
-  }
+        id: "requirements",
+        name: "requirements.txt",
+        type: "file",
+        language: "text",
+        content: `flask==3.0.0`,
+      },
+    ],
+  },
 ];
 
 const djangoTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-django-app',
-    type: 'folder',
+    id: "root",
+    name: "my-django-app",
+    type: "folder",
     children: [
       {
-        id: 'manage-py',
-        name: 'manage.py',
-        type: 'file',
-        language: 'python',
+        id: "manage-py",
+        name: "manage.py",
+        type: "file",
+        language: "python",
         content: `#!/usr/bin/env python
 # Django project management script
 import os
@@ -1491,13 +1439,13 @@ def main():
     execute_from_command_line(sys.argv)
 
 if __name__ == '__main__':
-    main()`
+    main()`,
       },
       {
-        id: 'views-py',
-        name: 'views.py',
-        type: 'file',
-        language: 'python',
+        id: "views-py",
+        name: "views.py",
+        type: "file",
+        language: "python",
         content: `# Django Views
 from django.http import JsonResponse
 from django.views import View
@@ -1516,30 +1464,30 @@ class UserListView(View):
             {"id": 1, "name": "Alice"},
             {"id": 2, "name": "Bob"}
         ]
-        return JsonResponse({"users": users})`
+        return JsonResponse({"users": users})`,
       },
       {
-        id: 'requirements',
-        name: 'requirements.txt',
-        type: 'file',
-        language: 'text',
-        content: `django==5.0`
-      }
-    ]
-  }
+        id: "requirements",
+        name: "requirements.txt",
+        type: "file",
+        language: "text",
+        content: `django==5.0`,
+      },
+    ],
+  },
 ];
 
 const sqliteTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-sql-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-sql-canvas",
+    type: "folder",
     children: [
       {
-        id: 'schema-sql',
-        name: 'schema.sql',
-        type: 'file',
-        language: 'sql',
+        id: "schema-sql",
+        name: "schema.sql",
+        type: "file",
+        language: "sql",
         content: `-- SQLite Database Schema
 -- Create tables
 
@@ -1570,13 +1518,13 @@ INSERT INTO posts (user_id, title, content) VALUES
 
 -- Query examples
 SELECT * FROM users;
-SELECT u.username, p.title FROM users u JOIN posts p ON u.id = p.user_id;`
+SELECT u.username, p.title FROM users u JOIN posts p ON u.id = p.user_id;`,
       },
       {
-        id: 'queries-sql',
-        name: 'queries.sql',
-        type: 'file',
-        language: 'sql',
+        id: "queries-sql",
+        name: "queries.sql",
+        type: "file",
+        language: "sql",
         content: `-- Common SQL Query Examples
 
 -- Select all users
@@ -1603,23 +1551,23 @@ GROUP BY user_id;
 
 -- Subquery
 SELECT * FROM users 
-WHERE id IN (SELECT DISTINCT user_id FROM posts);`
-      }
-    ]
-  }
+WHERE id IN (SELECT DISTINCT user_id FROM posts);`,
+      },
+    ],
+  },
 ];
 
 const rTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-r',
-        name: 'main.r',
-        type: 'file',
-        language: 'r',
+        id: "main-r",
+        name: "main.r",
+        type: "file",
+        language: "r",
         content: `# Welcome to R!
 # Statistical computing and data analysis
 
@@ -1650,23 +1598,23 @@ factorial_r <- function(n) {
   return(n * factorial_r(n - 1))
 }
 
-cat("Factorial of 5:", factorial_r(5), "\\n")`
-      }
-    ]
-  }
+cat("Factorial of 5:", factorial_r(5), "\\n")`,
+      },
+    ],
+  },
 ];
 
 const haskellTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-hs',
-        name: 'Main.hs',
-        type: 'file',
-        language: 'haskell',
+        id: "main-hs",
+        name: "Main.hs",
+        type: "file",
+        language: "haskell",
         content: `-- Welcome to Haskell!
 -- Pure functional programming
 
@@ -1695,23 +1643,23 @@ main = do
     putStrLn $ "Doubled: " ++ show doubled
     
     let evens = filter even [1..20]
-    putStrLn $ "Evens: " ++ show evens`
-      }
-    ]
-  }
+    putStrLn $ "Evens: " ++ show evens`,
+      },
+    ],
+  },
 ];
 
 const nimTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-nim',
-        name: 'main.nim',
-        type: 'file',
-        language: 'nim',
+        id: "main-nim",
+        name: "main.nim",
+        type: "file",
+        language: "nim",
         content: `# Welcome to Nim!
 # Efficient and expressive
 
@@ -1737,23 +1685,23 @@ echo "Factorial of 5: " & $factorial(5)
 
 # Sequences
 var numbers = @[1, 2, 3, 4, 5]
-echo "Numbers: " & $numbers`
-      }
-    ]
-  }
+echo "Numbers: " & $numbers`,
+      },
+    ],
+  },
 ];
 
 const zigTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-zig',
-        name: 'main.zig',
-        type: 'file',
-        language: 'zig',
+        id: "main-zig",
+        name: "main.zig",
+        type: "file",
+        language: "zig",
         content: `const std = @import("std");
 
 pub fn main() void {
@@ -1772,23 +1720,23 @@ pub fn main() void {
         sum += n;
     }
     std.debug.print("Sum: {}\\n", .{sum});
-}`
-      }
-    ]
-  }
+}`,
+      },
+    ],
+  },
 ];
 
 const lispTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-lisp',
-        name: 'main.lisp',
-        type: 'file',
-        language: 'lisp',
+        id: "main-lisp",
+        name: "main.lisp",
+        type: "file",
+        language: "lisp",
         content: `; Welcome to Common Lisp!
 ; The original programmable programming language
 
@@ -1811,23 +1759,23 @@ const lispTemplate: FileNode[] = [
 (let ((numbers '(1 2 3 4 5)))
   (format t "Numbers: ~a~%" numbers)
   (format t "Sum: ~a~%" (reduce #'+ numbers))
-  (format t "Doubled: ~a~%" (mapcar (lambda (x) (* x 2)) numbers)))`
-      }
-    ]
-  }
+  (format t "Doubled: ~a~%" (mapcar (lambda (x) (* x 2)) numbers)))`,
+      },
+    ],
+  },
 ];
 
 const dTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-d',
-        name: 'main.d',
-        type: 'file',
-        language: 'd',
+        id: "main-d",
+        name: "main.d",
+        type: "file",
+        language: "d",
         content: `import std.stdio;
 
 void main() {
@@ -1846,23 +1794,23 @@ void main() {
 long factorial(int n) {
     if (n <= 1) return 1;
     return n * factorial(n - 1);
-}`
-      }
-    ]
-  }
+}`,
+      },
+    ],
+  },
 ];
 
 const groovyTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-groovy',
-        name: 'main.groovy',
-        type: 'file',
-        language: 'groovy',
+        id: "main-groovy",
+        name: "main.groovy",
+        type: "file",
+        language: "groovy",
         content: `// Welcome to Groovy!
 println "Hello, World!"
 
@@ -1883,23 +1831,23 @@ println greet("World")
 // Factorial
 def factorial
 factorial = { n -> n <= 1 ? 1 : n * factorial(n - 1) }
-println "Factorial of 5: \${factorial(5)}"`
-      }
-    ]
-  }
+println "Factorial of 5: \${factorial(5)}"`,
+      },
+    ],
+  },
 ];
 
 const pascalTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-pas',
-        name: 'main.pas',
-        type: 'file',
-        language: 'pascal',
+        id: "main-pas",
+        name: "main.pas",
+        type: "file",
+        language: "pascal",
         content: `program Hello;
 
 function Factorial(n: Integer): Integer;
@@ -1921,52 +1869,52 @@ begin
   WriteLn('Sum 1-10: ', sum);
   
   WriteLn('Factorial of 5: ', Factorial(5));
-end.`
-      }
-    ]
-  }
+end.`,
+      },
+    ],
+  },
 ];
 
 const blankTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-canvas',
-    type: 'folder',
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
     children: [
       {
-        id: 'main-txt',
-        name: 'main.txt',
-        type: 'file',
-        language: 'text',
+        id: "main-txt",
+        name: "main.txt",
+        type: "file",
+        language: "text",
         content: `# Welcome to your blank Canvas!
 # 
 # This is an empty project. Create new files using
 # the sidebar or drag and drop files here.
 #
-# Happy coding! 🚀`
-      }
-    ]
-  }
+# Happy coding! 🚀`,
+      },
+    ],
+  },
 ];
 
 const wordTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-document',
-    type: 'folder',
+    id: "root",
+    name: "my-document",
+    type: "folder",
     children: [
       {
-        id: 'document-docx',
-        name: 'Document.docx',
-        type: 'file',
-        language: 'docx',
-        content: ''
+        id: "document-docx",
+        name: "Document.docx",
+        type: "file",
+        language: "docx",
+        content: "",
       },
       {
-        id: 'readme-md',
-        name: 'README.md',
-        type: 'file',
-        language: 'markdown',
+        id: "readme-md",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
         content: `# Word Document Project
 
 This project contains a Word document. Click on \`Document.docx\` to open the Word-like editor.
@@ -1977,30 +1925,30 @@ This project contains a Word document. Click on \`Document.docx\` to open the Wo
 - Bold, italic, underline formatting
 - Text alignment
 - Save to .docx format
-`
-      }
-    ]
-  }
+`,
+      },
+    ],
+  },
 ];
 
 const powerpointTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-presentation',
-    type: 'folder',
+    id: "root",
+    name: "my-presentation",
+    type: "folder",
     children: [
       {
-        id: 'presentation-pptx',
-        name: 'Presentation.pptx',
-        type: 'file',
-        language: 'pptx',
-        content: ''
+        id: "presentation-pptx",
+        name: "Presentation.pptx",
+        type: "file",
+        language: "pptx",
+        content: "",
       },
       {
-        id: 'readme-md',
-        name: 'README.md',
-        type: 'file',
-        language: 'markdown',
+        id: "readme-md",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
         content: `# PowerPoint Project
 
 This project contains a PowerPoint presentation. Click on \`Presentation.pptx\` to open the slide editor.
@@ -2011,30 +1959,30 @@ This project contains a PowerPoint presentation. Click on \`Presentation.pptx\` 
 - Add, delete, duplicate, reorder slides
 - Ribbon toolbar with formatting
 - Save to .pptx format
-`
-      }
-    ]
-  }
+`,
+      },
+    ],
+  },
 ];
 
 const excelTemplate: FileNode[] = [
   {
-    id: 'root',
-    name: 'my-spreadsheet',
-    type: 'folder',
+    id: "root",
+    name: "my-spreadsheet",
+    type: "folder",
     children: [
       {
-        id: 'spreadsheet-xlsx',
-        name: 'Spreadsheet.xlsx',
-        type: 'file',
-        language: 'xlsx',
-        content: ''
+        id: "spreadsheet-xlsx",
+        name: "Spreadsheet.xlsx",
+        type: "file",
+        language: "xlsx",
+        content: "",
       },
       {
-        id: 'readme-md',
-        name: 'README.md',
-        type: 'file',
-        language: 'markdown',
+        id: "readme-md",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
         content: `# Excel Spreadsheet Project
 
 This project contains an Excel spreadsheet. Click on \`Spreadsheet.xlsx\` to open the spreadsheet editor.
@@ -2046,30 +1994,30 @@ This project contains an Excel spreadsheet. Click on \`Spreadsheet.xlsx\` to ope
 - Double-click or type to edit cells
 - Sheet tabs
 - Save to .xlsx format
-`
-      }
-    ]
-  }
+`,
+      },
+    ],
+  },
 ];
 
 const audioTemplate: FileNode[] = [
   {
-    id: 'audio-project',
-    name: 'Audio Project',
-    type: 'folder',
+    id: "audio-project",
+    name: "Audio Project",
+    type: "folder",
     children: [
       {
-        id: 'sample-audio',
-        name: 'sample.mp3',
-        type: 'file',
-        language: 'audio',
-        content: ''
+        id: "sample-audio",
+        name: "sample.mp3",
+        type: "file",
+        language: "audio",
+        content: "",
       },
       {
-        id: 'readme-md',
-        name: 'README.md',
-        type: 'file',
-        language: 'markdown',
+        id: "readme-md",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
         content: `# Audio Editor Project
 
 Upload \`.mp3\`, \`.wav\`, or \`.ogg\` files to get started.
@@ -2080,30 +2028,30 @@ Upload \`.mp3\`, \`.wav\`, or \`.ogg\` files to get started.
 - Playback speed control
 - Volume control with mute
 - Trim in/out points
-`
-      }
-    ]
-  }
+`,
+      },
+    ],
+  },
 ];
 
 const rtfTemplate: FileNode[] = [
   {
-    id: 'rtf-project',
-    name: 'Rich Text Project',
-    type: 'folder',
+    id: "rtf-project",
+    name: "Rich Text Project",
+    type: "folder",
     children: [
       {
-        id: 'document-rtf',
-        name: 'Document.rtf',
-        type: 'file',
-        language: 'rtf',
-        content: '{\\rtf1\\ansi\\deff0 Hello, start editing your rich text document here.}'
+        id: "document-rtf",
+        name: "Document.rtf",
+        type: "file",
+        language: "rtf",
+        content: "{\\rtf1\\ansi\\deff0 Hello, start editing your rich text document here.}",
       },
       {
-        id: 'readme-md',
-        name: 'README.md',
-        type: 'file',
-        language: 'markdown',
+        id: "readme-md",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
         content: `# Rich Text Project
 
 Click on \`Document.rtf\` to open the rich text editor.
@@ -2113,30 +2061,30 @@ Click on \`Document.rtf\` to open the rich text editor.
 - Text alignment
 - Lists and headings
 - Export as RTF
-`
-      }
-    ]
-  }
+`,
+      },
+    ],
+  },
 ];
 
 const cadTemplate: FileNode[] = [
   {
-    id: 'cad-project',
-    name: 'CAD Project',
-    type: 'folder',
+    id: "cad-project",
+    name: "CAD Project",
+    type: "folder",
     children: [
       {
-        id: 'model-stl',
-        name: 'model.stl',
-        type: 'file',
-        language: 'cad',
-        content: ''
+        id: "model-stl",
+        name: "model.stl",
+        type: "file",
+        language: "cad",
+        content: "",
       },
       {
-        id: 'readme-md',
-        name: 'README.md',
-        type: 'file',
-        language: 'markdown',
+        id: "readme-md",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
         content: `# 3D CAD Viewer Project
 
 Upload \`.stl\` or \`.obj\` files to view 3D models.
@@ -2148,30 +2096,30 @@ Upload \`.stl\` or \`.obj\` files to view 3D models.
 - Model info (vertices, faces)
 - Color customization
 - Drag & drop upload
-`
-      }
-    ]
-  }
+`,
+      },
+    ],
+  },
 ];
 
 const videoTemplate: FileNode[] = [
   {
-    id: 'video-project',
-    name: 'Video Project',
-    type: 'folder',
+    id: "video-project",
+    name: "Video Project",
+    type: "folder",
     children: [
       {
-        id: 'sample-video',
-        name: 'sample.mp4',
-        type: 'file',
-        language: 'video',
-        content: ''
+        id: "sample-video",
+        name: "sample.mp4",
+        type: "file",
+        language: "video",
+        content: "",
       },
       {
-        id: 'readme-md',
-        name: 'README.md',
-        type: 'file',
-        language: 'markdown',
+        id: "readme-md",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
         content: `# Video Editor Project
 
 This project contains a video editor. Upload \`.mp4\`, \`.webm\`, or \`.ogg\` files to get started.
@@ -2189,8 +2137,8 @@ This project contains a video editor. Upload \`.mp4\`, \`.webm\`, or \`.ogg\` fi
 1. Use "Upload Files" in the file tree to add a video
 2. Click the video file to open the editor
 3. Use the timeline to scrub and trim
-`
-      }
-    ]
-  }
+`,
+      },
+    ],
+  },
 ];
