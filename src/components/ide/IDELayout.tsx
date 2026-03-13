@@ -1443,15 +1443,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     [setCurrentProject],
   );
 
-  // Merge file contents with current edits for saving
-  const getFilesWithContent = useCallback((): FileNode[] => {
+  // Merge file contents with current edits — used for saving and for panels that need latest content
+  const filesWithContent = useMemo((): FileNode[] => {
     const mergeContent = (nodes: FileNode[]): FileNode[] => {
       return nodes.map((node) => {
         if (node.type === "file") {
-          return {
-            ...node,
-            content: fileContents[node.id] ?? node.content,
-          };
+          const updated = fileContents[node.id];
+          return updated !== undefined ? { ...node, content: updated } : node;
         }
         if (node.children) {
           return {
@@ -1464,6 +1462,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     };
     return mergeContent(files);
   }, [files, fileContents]);
+
+  const getFilesWithContent = useCallback((): FileNode[] => filesWithContent, [filesWithContent]);
 
   const handleProjectSaved = useCallback(
     (project: Project) => {
@@ -1883,7 +1883,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                   {selectedTemplate === "arduino" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
                       <ArduinoPanel
-                        files={files}
+                        files={filesWithContent}
                         onFileUpdate={handleContentChange}
                         onAddFile={addFile}
                         currentTemplate={selectedTemplate}
@@ -1976,7 +1976,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                 {selectedTemplate === "arduino" ? (
                   <Suspense fallback={<div className="p-4 text-gray-400">Loading Arduino panel...</div>}>
                     <ArduinoPanel
-                      files={files}
+                      files={filesWithContent}
                       onFileUpdate={handleContentChange}
                       onAddFile={addFile}
                       currentTemplate={selectedTemplate}
