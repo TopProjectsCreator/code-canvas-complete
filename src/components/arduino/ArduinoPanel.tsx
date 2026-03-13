@@ -59,18 +59,21 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
         console.error('Failed to parse circuit.json');
       }
     }
-  }, [circuitFile?.id]);
+  }, [circuitFile?.id, circuitFile?.content]);
 
 
   useEffect(() => {
     const code = sketchFile?.content || '';
     if (circuit.code === code) return;
-    const updated = { ...circuit, code };
-    setCircuit(updated);
-    if (circuitFile?.id) {
-      onFileUpdate(circuitFile.id, JSON.stringify(updated, null, 2));
-    }
-  }, [sketchFile?.content]);
+    setCircuit(prev => {
+      if (prev.code === code) return prev;
+      const updated = { ...prev, code };
+      if (circuitFile?.id) {
+        onFileUpdate(circuitFile.id, JSON.stringify(updated, null, 2));
+      }
+      return updated;
+    });
+  }, [sketchFile?.content, circuitFile?.id, onFileUpdate]);
 
   const getSketchWithLibraries = (): string => {
     const libraryIncludes = selectedLibraries
