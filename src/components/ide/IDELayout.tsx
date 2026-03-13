@@ -1976,7 +1976,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                 {selectedTemplate === "arduino" ? (
                   <Suspense fallback={<div className="p-4 text-gray-400">Loading Arduino panel...</div>}>
                     <ArduinoPanel
-                      files={files}
+                      files={filesWithContent}
                       onFileUpdate={handleContentChange}
                       onAddFile={addFile}
                       currentTemplate={selectedTemplate}
