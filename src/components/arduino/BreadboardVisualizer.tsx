@@ -327,14 +327,24 @@ export function BreadboardVisualizer({
         </div>
 
         {toolMode === 'wire' && (
-          <div className="flex gap-1 mr-2 border-r border-border pr-2">
-            {WIRE_COLORS.slice(0, 6).map(color => (
+          <div className="flex gap-1 mr-2 border-r border-border pr-2 items-center flex-wrap">
+            {WIRE_COLORS.map(color => (
               <button key={color}
-                className={`w-5 h-5 rounded-full border-2 ${wireColor === color ? 'border-foreground scale-125' : 'border-muted'}`}
+                className={`w-5 h-5 rounded-full border-2 transition-transform ${wireColor === color ? 'border-foreground scale-125' : 'border-muted'}`}
                 style={{ backgroundColor: color }}
                 onClick={() => setWireColor(color)}
+                title={color}
               />
             ))}
+            <label className="relative w-5 h-5 rounded-full border-2 border-dashed border-muted-foreground cursor-pointer flex items-center justify-center overflow-hidden" title="Custom color">
+              <span className="text-[10px] leading-none text-muted-foreground">+</span>
+              <input
+                type="color"
+                value={wireColor}
+                onChange={(e) => setWireColor(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+              />
+            </label>
           </div>
         )}
 
