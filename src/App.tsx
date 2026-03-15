@@ -8,6 +8,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import Docs from "./pages/Docs";
 import { isPublishedHost } from "./lib/publishing";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,8 @@ const App = () => (
               <Route path="/" element={<RootRoute />} />
               <Route path="/editor" element={<Index />} />
               <Route path="/project/:projectId" element={<Index />} />
+              <Route path="/docs" element={<Docs />} />
+              <Route path="/docs/:slug" element={<Docs />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
