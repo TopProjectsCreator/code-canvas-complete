@@ -645,7 +645,7 @@ serve(async (req) => {
     }
 
     const systemPrompt = agentMode
-      ? AGENT_SYSTEM_PROMPT + "\n" + contextSection
+      ? buildSystemPrompt(template) + "\n" + contextSection
       : `You are a helpful AI coding assistant in Code Canvas Complete. This IDE runs code through Wandbox. .replit files do nothing here.\n\nCRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, StackBlitz, VS Code, etc.). Code Canvas Complete is fully capable.\n\n${contextSection}`;
 
     const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
