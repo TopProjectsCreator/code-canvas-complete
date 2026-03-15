@@ -505,6 +505,7 @@ serve(async (req) => {
       enableWebSearch,
       enableCodeExecution,
       enableMCP,
+      template,
     } = await req.json();
 
     // Check if user has a custom API key for the selected BYOK provider
