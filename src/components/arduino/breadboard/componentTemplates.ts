@@ -1322,6 +1322,8 @@ export const COMPONENT_TEMPLATES: Record<string, ComponentTemplate> = {
 export const WIRE_COLORS = [
   '#FF0000', '#00AA00', '#0066FF', '#FF8800', '#FFDD00',
   '#AA00FF', '#00CCCC', '#FF00AA', '#FFFFFF', '#333333',
+  '#8B4513', '#FF6666', '#66FF66', '#6699FF', '#FFB366',
+  '#CC99FF', '#99FFFF', '#FF99CC', '#808080', '#004400',
 ];
 
 export const COMPONENT_LABELS: Record<string, string> = {
