@@ -665,7 +665,8 @@ export const AIChat = ({
   onRunProject,
   onChangeTemplate,
   onRenameFile,
-  onDeleteFile
+  onDeleteFile,
+  currentTemplate
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
