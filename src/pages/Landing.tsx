@@ -1,73 +1,73 @@
 import { useNavigate } from 'react-router-dom';
-import { 
-  Zap, Code2, Play, Terminal, GitBranch, Cpu, 
+import {
+  Zap, Code2, Play, Terminal, GitBranch, Cpu,
   Sparkles, Globe, Users, ArrowRight, ChevronRight,
-  Palette, Box, Music, FileText, Layers
-} from 'lucide-react';
+  Palette, Box, Music, FileText, Layers } from
+'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const features = [
-  {
-    icon: <Code2 className="w-5 h-5" />,
-    title: 'Multi-Language Editor',
-    description: 'Write in 20+ languages with syntax highlighting, IntelliSense, and real-time error detection.',
-  },
-  {
-    icon: <Play className="w-5 h-5" />,
-    title: 'Instant Preview',
-    description: 'See your changes live with hot-reload for web projects. Run code in-browser with zero setup.',
-  },
-  {
-    icon: <Sparkles className="w-5 h-5" />,
-    title: 'AI Assistant',
-    description: 'Generate, refactor, and debug code with a built-in AI chat that understands your entire project.',
-  },
-  {
-    icon: <Terminal className="w-5 h-5" />,
-    title: 'Integrated Terminal',
-    description: 'Full terminal emulation powered by WebContainers. Install packages and run commands natively.',
-  },
-  {
-    icon: <Cpu className="w-5 h-5" />,
-    title: 'Arduino & Hardware',
-    description: 'Write, compile, and flash Arduino sketches directly from the browser with breadboard simulation.',
-  },
-  {
-    icon: <Box className="w-5 h-5" />,
-    title: '3D & CAD Editor',
-    description: 'View and generate 3D models with text-to-3D AI from 6 different providers.',
-  },
-  {
-    icon: <Palette className="w-5 h-5" />,
-    title: 'Scratch Blocks',
-    description: 'Visual block-based programming for beginners. Export to .sb3 and run Scratch projects.',
-  },
-  {
-    icon: <GitBranch className="w-5 h-5" />,
-    title: 'Git Integration',
-    description: 'Import from GitHub, GitLab, or Bitbucket. Built-in version history and branching.',
-  },
-  {
-    icon: <Music className="w-5 h-5" />,
-    title: 'Media Editors',
-    description: 'Edit audio, video, images, and office documents — all within the same workspace.',
-  },
-  {
-    icon: <Layers className="w-5 h-5" />,
-    title: 'Custom Themes',
-    description: 'Choose from 7 built-in themes or create and share your own with the theme builder.',
-  },
-  {
-    icon: <Globe className="w-5 h-5" />,
-    title: 'Share & Collaborate',
-    description: 'Publish projects, fork others\' work, and star your favorites.',
-  },
-  {
-    icon: <FileText className="w-5 h-5" />,
-    title: 'Office Suite',
-    description: 'Built-in Word, Excel, and PowerPoint editors for documentation alongside your code.',
-  },
-];
+{
+  icon: <Code2 className="w-5 h-5" />,
+  title: 'Multi-Language Editor',
+  description: 'Write in 20+ languages with syntax highlighting, IntelliSense, and real-time error detection.'
+},
+{
+  icon: <Play className="w-5 h-5" />,
+  title: 'Instant Preview',
+  description: 'See your changes live with hot-reload for web projects. Run code in-browser with zero setup.'
+},
+{
+  icon: <Sparkles className="w-5 h-5" />,
+  title: 'AI Assistant',
+  description: 'Generate, refactor, and debug code with a built-in AI chat that understands your entire project.'
+},
+{
+  icon: <Terminal className="w-5 h-5" />,
+  title: 'Integrated Terminal',
+  description: 'Full terminal emulation powered by WebContainers. Install packages and run commands natively.'
+},
+{
+  icon: <Cpu className="w-5 h-5" />,
+  title: 'Arduino & Hardware',
+  description: 'Write, compile, and flash Arduino sketches directly from the browser with breadboard simulation.'
+},
+{
+  icon: <Box className="w-5 h-5" />,
+  title: '3D & CAD Editor',
+  description: 'View and generate 3D models with text-to-3D AI from 6 different providers.'
+},
+{
+  icon: <Palette className="w-5 h-5" />,
+  title: 'Scratch Blocks',
+  description: 'Visual block-based programming for beginners. Export to .sb3 and run Scratch projects.'
+},
+{
+  icon: <GitBranch className="w-5 h-5" />,
+  title: 'Git Integration',
+  description: 'Import from GitHub, GitLab, or Bitbucket. Built-in version history and branching.'
+},
+{
+  icon: <Music className="w-5 h-5" />,
+  title: 'Media Editors',
+  description: 'Edit audio, video, images, and office documents — all within the same workspace.'
+},
+{
+  icon: <Layers className="w-5 h-5" />,
+  title: 'Custom Themes',
+  description: 'Choose from 7 built-in themes or create and share your own with the theme builder.'
+},
+{
+  icon: <Globe className="w-5 h-5" />,
+  title: 'Share & Collaborate',
+  description: 'Publish projects, fork others\' work, and star your favorites.'
+},
+{
+  icon: <FileText className="w-5 h-5" />,
+  title: 'Office Suite',
+  description: 'Built-in Word, Excel, and PowerPoint editors for documentation alongside your code.'
+}];
+
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -119,19 +119,19 @@ export default function Landing() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               onClick={() => navigate('/editor')}
-              className="text-base px-8 h-12 gap-2 shadow-lg shadow-primary/20"
-            >
+              className="text-base px-8 h-12 gap-2 shadow-lg shadow-primary/20">
+              
               Open Editor <ChevronRight className="w-4 h-4" />
             </Button>
-            <Button 
-              variant="outline" 
-              size="lg" 
+            <Button
+              variant="outline"
+              size="lg"
               onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-              className="text-base px-8 h-12"
-            >
+              className="text-base px-8 h-12">
+              
               See Features
             </Button>
           </div>
@@ -177,18 +177,18 @@ export default function Landing() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {features.map((f) => (
-              <div
-                key={f.title}
-                className="group p-5 rounded-xl border border-border bg-card/50 hover:bg-card hover:border-primary/20 transition-all duration-300"
-              >
+            {features.map((f) =>
+            <div
+              key={f.title}
+              className="group p-5 rounded-xl border border-border bg-card/50 hover:bg-card hover:border-primary/20 transition-all duration-300">
+              
                 <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:bg-primary/15 transition-colors">
                   {f.icon}
                 </div>
                 <h3 className="font-semibold mb-1.5">{f.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{f.description}</p>
+                <p className="text-muted-foreground leading-relaxed text-xs">{f.description}</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </section>
@@ -207,11 +207,11 @@ export default function Landing() {
                 No account required. Jump straight into the editor and start creating — 
                 sign up later to save and share your work.
               </p>
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 onClick={() => navigate('/editor')}
-                className="text-base px-10 h-12 gap-2 shadow-lg shadow-primary/20"
-              >
+                className="text-base px-10 h-12 gap-2 shadow-lg shadow-primary/20">
+                
                 Launch Editor <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
@@ -231,6 +231,6 @@ export default function Landing() {
           <p>Built with passion for developers everywhere.</p>
         </div>
       </footer>
-    </div>
-  );
+    </div>);
+
 }
