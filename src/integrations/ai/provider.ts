@@ -14,6 +14,7 @@ interface ChatPayload {
   model: string;
   byokProvider?: string;
   byokModel?: string;
+  template?: string;
 }
 
 interface MusicPayload {
