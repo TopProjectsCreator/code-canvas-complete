@@ -168,6 +168,10 @@ export function BreadboardCanvas({
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hovered, setHovered] = useState<string | null>(null);
 
+  // Dynamic board layout based on selected board
+  const boardLayout = useMemo(() => generateBoardPins(circuit.boardId), [circuit.boardId]);
+  const boardTheme = BOARD_THEMES[circuit.boardId] || BOARD_THEMES.uno;
+
   const toCanvasCoords = (e: React.MouseEvent | React.DragEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
     return {
