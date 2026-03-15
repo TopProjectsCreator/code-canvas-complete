@@ -2282,6 +2282,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               const target = findFileByName(files, name);
               if (target) handleDeleteFile(target.id);
             }}
+            currentTemplate={selectedTemplate || undefined}
           />
         </div>
 

@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { 
   Palette, Coins, Dices, Calculator as CalcIcon, Loader2, 
-  TrendingUp, TrendingDown, RotateCw, FileCode, ArrowRight
+  TrendingUp, TrendingDown, RotateCw, FileCode, ArrowRight,
+  BookOpen, Timer, Key, ArrowLeftRight, ListChecks, Braces, RegexIcon
 } from 'lucide-react';
 import type { ChatWidget } from '@/types/agent';
 
@@ -472,6 +473,236 @@ const GenericTagWidget = ({ widget }: { widget: ChatWidget }) => (
   </SimpleInfoWidget>
 );
 
+// ─── Docs Link Widget ───
+const DocsLinkWidget = ({ widget }: { widget: ChatWidget }) => {
+  const slug = (widget.config?.slug as string) || 'welcome';
+  const title = (widget.config?.title as string) || 'Documentation';
+
+  return (
+    <div className="border border-border rounded-lg overflow-hidden bg-muted/30 my-2">
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b border-border">
+        <BookOpen className="w-3.5 h-3.5 text-primary" />
+        <span className="text-xs font-medium text-foreground">Documentation</span>
+      </div>
+      <div className="p-3 flex items-center justify-between">
+        <div>
+          <span className="text-sm font-medium text-foreground">{title}</span>
+          <p className="text-[10px] text-muted-foreground">View in the docs hub</p>
+        </div>
+        <a
+          href={`/docs/${slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
+        >
+          <BookOpen className="w-3 h-3" /> Open
+        </a>
+      </div>
+    </div>
+  );
+};
+
+// ─── Countdown Widget ───
+const CountdownWidget = ({ widget }: { widget: ChatWidget }) => {
+  const totalSeconds = Number(widget.config?.seconds) || 60;
+  const label = (widget.config?.label as string) || 'Countdown';
+  const [secondsLeft, setSecondsLeft] = useState(totalSeconds);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    if (!running || secondsLeft <= 0) return;
+    const id = setInterval(() => setSecondsLeft(s => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(id);
+  }, [running, secondsLeft]);
+
+  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, '0');
+  const ss = String(secondsLeft % 60).padStart(2, '0');
+  const pct = ((totalSeconds - secondsLeft) / totalSeconds) * 100;
+
+  return (
+    <SimpleInfoWidget title={label} icon={<Timer className="w-3.5 h-3.5 text-primary" />}>
+      <div className="space-y-2">
+        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xl font-mono text-foreground">{mm}:{ss}</span>
+          <div className="flex gap-1">
+            <button onClick={() => setRunning(v => !v)} className="px-2 py-1 rounded bg-primary text-primary-foreground text-[10px]">
+              {running ? 'Pause' : secondsLeft === 0 ? 'Done' : 'Start'}
+            </button>
+            <button onClick={() => { setSecondsLeft(totalSeconds); setRunning(false); }} className="px-2 py-1 rounded bg-muted text-foreground text-[10px]">
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+    </SimpleInfoWidget>
+  );
+};
+
+// ─── Password Generator Widget ───
+const PasswordGeneratorWidget = ({ widget }: { widget: ChatWidget }) => {
+  const length = Number(widget.config?.length) || 16;
+  const generate = () => {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=';
+    return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  };
+  const [password, setPassword] = useState(generate);
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <SimpleInfoWidget title="Password Generator" icon={<Key className="w-3.5 h-3.5 text-primary" />}>
+      <div className="space-y-2">
+        <div className="bg-background border border-border rounded px-2 py-1.5 font-mono text-sm text-foreground break-all select-all">
+          {password}
+        </div>
+        <div className="flex gap-1">
+          <button onClick={() => setPassword(generate())} className="px-2 py-1 rounded bg-primary text-primary-foreground text-[10px]">
+            Regenerate
+          </button>
+          <button onClick={() => { navigator.clipboard.writeText(password); setCopied(true); setTimeout(() => setCopied(false), 1500); }} className="px-2 py-1 rounded bg-muted text-foreground text-[10px]">
+            {copied ? '✓ Copied' : 'Copy'}
+          </button>
+        </div>
+      </div>
+    </SimpleInfoWidget>
+  );
+};
+
+// ─── Unit Converter Widget ───
+const UnitConverterWidget = () => {
+  const [value, setValue] = useState('16');
+  const [mode, setMode] = useState<'px-rem' | 'hex-rgb'>('px-rem');
+
+  const convert = () => {
+    if (mode === 'px-rem') {
+      const px = parseFloat(value);
+      if (isNaN(px)) return '—';
+      return `${(px / 16).toFixed(4)}rem`;
+    }
+    if (mode === 'hex-rgb') {
+      const hex = value.replace('#', '');
+      if (hex.length !== 6 && hex.length !== 3) return '—';
+      const full = hex.length === 3 ? hex.split('').map(c => c + c).join('') : hex;
+      const r = parseInt(full.slice(0, 2), 16);
+      const g = parseInt(full.slice(2, 4), 16);
+      const b = parseInt(full.slice(4, 6), 16);
+      return `rgb(${r}, ${g}, ${b})`;
+    }
+    return '—';
+  };
+
+  return (
+    <SimpleInfoWidget title="Unit Converter" icon={<ArrowLeftRight className="w-3.5 h-3.5 text-primary" />}>
+      <div className="space-y-2">
+        <div className="flex gap-1">
+          {(['px-rem', 'hex-rgb'] as const).map(m => (
+            <button key={m} onClick={() => setMode(m)} className={cn('px-2 py-0.5 rounded text-[10px]', mode === m ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground')}>
+              {m === 'px-rem' ? 'px → rem' : 'hex → rgb'}
+            </button>
+          ))}
+        </div>
+        <input value={value} onChange={e => setValue(e.target.value)} className="w-full bg-background border border-border rounded px-2 py-1 text-sm text-foreground font-mono" placeholder={mode === 'px-rem' ? '16' : '#ff6600'} />
+        <div className="bg-background border border-border rounded px-2 py-1.5 font-mono text-sm text-foreground">{convert()}</div>
+      </div>
+    </SimpleInfoWidget>
+  );
+};
+
+// ─── Progress Tracker Widget ───
+const ProgressTrackerWidget = ({ widget }: { widget: ChatWidget }) => {
+  const steps = ((widget.config?.steps as string) || 'Step 1,Step 2,Step 3').split(',').map(s => s.trim());
+  const current = Number(widget.config?.current) || 0;
+
+  return (
+    <SimpleInfoWidget title="Progress" icon={<ListChecks className="w-3.5 h-3.5 text-primary" />}>
+      <div className="space-y-1.5">
+        {steps.map((step, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <div className={cn(
+              'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border',
+              i < current ? 'bg-primary text-primary-foreground border-primary' :
+              i === current ? 'border-primary text-primary bg-primary/20' :
+              'border-border text-muted-foreground'
+            )}>
+              {i < current ? '✓' : i + 1}
+            </div>
+            <span className={cn('text-xs', i <= current ? 'text-foreground' : 'text-muted-foreground')}>{step}</span>
+          </div>
+        ))}
+      </div>
+    </SimpleInfoWidget>
+  );
+};
+
+// ─── JSON Viewer Widget ───
+const JsonViewerWidget = ({ widget }: { widget: ChatWidget }) => {
+  const data = widget.config?.data || widget.config || {};
+  const [expanded, setExpanded] = useState(true);
+
+  return (
+    <SimpleInfoWidget title="JSON Viewer" icon={<Braces className="w-3.5 h-3.5 text-primary" />}>
+      <div className="space-y-1">
+        <button onClick={() => setExpanded(v => !v)} className="text-[10px] text-primary hover:underline">
+          {expanded ? 'Collapse' : 'Expand'}
+        </button>
+        {expanded && (
+          <pre className="bg-background border border-border rounded p-2 text-[11px] font-mono text-foreground overflow-auto max-h-48 whitespace-pre-wrap">
+            {JSON.stringify(data, null, 2)}
+          </pre>
+        )}
+      </div>
+    </SimpleInfoWidget>
+  );
+};
+
+// ─── Regex Tester Widget ───
+const RegexTesterWidget = () => {
+  const [pattern, setPattern] = useState('');
+  const [flags, setFlags] = useState('g');
+  const [testStr, setTestStr] = useState('');
+  const [matches, setMatches] = useState<string[]>([]);
+  const [error, setError] = useState('');
+
+  const test = useCallback(() => {
+    if (!pattern) { setMatches([]); setError(''); return; }
+    try {
+      const re = new RegExp(pattern, flags);
+      const m = testStr.match(re);
+      setMatches(m || []);
+      setError('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Invalid regex');
+      setMatches([]);
+    }
+  }, [pattern, flags, testStr]);
+
+  useEffect(() => { test(); }, [test]);
+
+  return (
+    <SimpleInfoWidget title="Regex Tester" icon={<RegexIcon className="w-3.5 h-3.5 text-primary" />}>
+      <div className="space-y-2">
+        <div className="flex gap-1">
+          <input value={pattern} onChange={e => setPattern(e.target.value)} className="flex-1 bg-background border border-border rounded px-2 py-1 text-xs font-mono text-foreground" placeholder="pattern" />
+          <input value={flags} onChange={e => setFlags(e.target.value)} className="w-12 bg-background border border-border rounded px-1 py-1 text-xs font-mono text-foreground text-center" placeholder="gi" />
+        </div>
+        <textarea value={testStr} onChange={e => setTestStr(e.target.value)} rows={2} className="w-full bg-background border border-border rounded px-2 py-1 text-xs font-mono text-foreground resize-none" placeholder="Test string..." />
+        {error ? (
+          <div className="text-destructive text-[10px]">{error}</div>
+        ) : matches.length > 0 ? (
+          <div className="text-[10px] text-foreground">
+            <span className="text-primary font-medium">{matches.length} match{matches.length !== 1 ? 'es' : ''}:</span>{' '}
+            {matches.slice(0, 10).map((m, i) => <code key={i} className="bg-primary/20 px-1 rounded mx-0.5">{m}</code>)}
+          </div>
+        ) : pattern ? (
+          <div className="text-[10px] text-muted-foreground">No matches</div>
+        ) : null}
+      </div>
+    </SimpleInfoWidget>
+  );
+};
+
 // ─── Main renderer ───
 export const ChatWidgetRenderer = ({ 
   widget, 
@@ -489,6 +720,13 @@ export const ChatWidgetRenderer = ({
     case 'stock': return <StockWidget widget={widget} />;
     case 'change_template': return <TemplateChangeWidget widget={widget} onChangeTemplate={onChangeTemplate} />;
     case 'pomodoro': return <PomodoroWidget widget={widget} />;
+    case 'docs_link': return <DocsLinkWidget widget={widget} />;
+    case 'countdown': return <CountdownWidget widget={widget} />;
+    case 'password_generator': return <PasswordGeneratorWidget widget={widget} />;
+    case 'unit_converter': return <UnitConverterWidget />;
+    case 'progress_tracker': return <ProgressTrackerWidget widget={widget} />;
+    case 'json_viewer': return <JsonViewerWidget widget={widget} />;
+    case 'regex_tester': return <RegexTesterWidget />;
     case 'project_stats':
     case 'logic_visualizer':
     case 'asset_search':
