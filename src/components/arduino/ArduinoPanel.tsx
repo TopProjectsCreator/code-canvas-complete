@@ -146,17 +146,64 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Flash Memory</Label>
-              <p className="text-sm text-gray-300">{arduinoBoards[circuit.boardId]?.flash || 32}KB</p>
-            </div>
-            <div>
+            {(() => {
+              const board = arduinoBoards[circuit.boardId];
+              if (!board) return null;
+              return (
+                <>
+                  <div>
+                    <Label>CPU</Label>
+                    <p className="text-sm text-gray-300">{board.cpu}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Flash Memory</Label>
+                      <p className="text-sm text-gray-300">{board.flash}KB</p>
+                    </div>
+                    <div>
+                      <Label>RAM</Label>
+                      <p className="text-sm text-gray-300">{board.ram}KB</p>
+                    </div>
+                    <div>
+                      <Label>Digital Pins</Label>
+                      <p className="text-sm text-gray-300">{board.pins}</p>
+                    </div>
+                    <div>
+                      <Label>Voltage</Label>
+                      <p className="text-sm text-gray-300">{board.voltage}V</p>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Connectivity</Label>
+                    <div className="flex gap-2 mt-1 flex-wrap">
+                      {board.serial && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700">Serial</span>
+                      )}
+                      {board.wifi && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-green-900/50 text-green-300 border border-green-700">WiFi</span>
+                      )}
+                      {board.bluetooth && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-purple-900/50 text-purple-300 border border-purple-700">Bluetooth</span>
+                      )}
+                      {!board.wifi && !board.bluetooth && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-600">Wired Only</span>
+                      )}
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+            <div className="border-t border-slate-700 pt-3">
               <Label>Selected Libraries</Label>
               <p className="text-sm text-gray-300">{selectedLibraries.length}</p>
             </div>
             <div>
               <Label>Components</Label>
               <p className="text-sm text-gray-300">{circuit.components.length}</p>
+            </div>
+            <div>
+              <Label>Wires</Label>
+              <p className="text-sm text-gray-300">{circuit.wires?.length || 0}</p>
             </div>
           </Card>
         </TabsContent>

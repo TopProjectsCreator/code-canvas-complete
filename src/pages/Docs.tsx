@@ -5,22 +5,13 @@ import {
   BookOpen,
   CircleHelp,
   Compass,
-  ExternalLink,
   FileText,
   Layers,
-  Rocket,
   Search,
-  Sparkles,
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
-  DOCS_CATEGORIES,
-  DOCS_PAGES,
-  TOTAL_DOC_PAGES,
-  getDocImageUrl,
-} from "@/data/docsContent";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { DOCS_CATEGORIES, DOCS_PAGES, TOTAL_DOC_PAGES } from "@/data/docsContent";
 
 export default function Docs() {
   const { slug } = useParams<{ slug: string }>();
@@ -60,8 +51,8 @@ export default function Docs() {
               </div>
               <h1 className="text-3xl font-bold tracking-tight md:text-4xl">CodeCanvas Documentation</h1>
               <p className="max-w-3xl text-muted-foreground">
-                A complete knowledge base with {TOTAL_DOC_PAGES} guided pages, long-form walkthroughs,
-                practical quickstarts, and FAQ-driven troubleshooting.
+                A complete knowledge base with {TOTAL_DOC_PAGES} guided pages covering onboarding, editor
+                workflows, AI, runtime, hardware, Scratch, deployment, and collaboration.
               </p>
             </div>
             <div className="flex gap-2">
@@ -123,70 +114,66 @@ export default function Docs() {
                 <section className="space-y-4">
                   <h2 className="text-2xl font-semibold tracking-tight">Start here</h2>
                   <p className="text-muted-foreground">
-                    Explore a docs experience inspired by modern product docs portals: discover quickstarts,
-                    implementation runbooks, FAQs, and resource links from every page.
+                    Pick a page from the left to open a full guide with concepts, examples, and walkthrough
+                    steps. If you are new, begin with <strong>Welcome to CodeCanvas</strong>, then continue
+                    through the rest of the <strong>Get started</strong> section.
                   </p>
                 </section>
 
                 <section className="grid gap-4 md:grid-cols-3">
                   <article className="rounded-xl border border-border bg-background p-4">
                     <Compass className="mb-3 h-5 w-5 text-primary" />
-                    <h3 className="mb-1 font-semibold">Learning paths</h3>
-                    <p className="text-sm text-muted-foreground">Follow role-based sequences and progress quickly.</p>
+                    <h3 className="mb-1 font-semibold">Guided learning paths</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Follow role-based docs sequences for students, solo makers, and professional teams.
+                    </p>
                   </article>
                   <article className="rounded-xl border border-border bg-background p-4">
                     <FileText className="mb-3 h-5 w-5 text-primary" />
-                    <h3 className="mb-1 font-semibold">Deep walkthroughs</h3>
-                    <p className="text-sm text-muted-foreground">Each page includes long execution plans and checks.</p>
+                    <h3 className="mb-1 font-semibold">Practical examples</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Every page includes copyable examples and implementation tactics.
+                    </p>
                   </article>
                   <article className="rounded-xl border border-border bg-background p-4">
                     <Layers className="mb-3 h-5 w-5 text-primary" />
-                    <h3 className="mb-1 font-semibold">Operational docs</h3>
-                    <p className="text-sm text-muted-foreground">Ship-ready guidance with troubleshooting and FAQs.</p>
+                    <h3 className="mb-1 font-semibold">Step-by-step walkthroughs</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Use concrete checklists to move from idea to publishable project.
+                    </p>
                   </article>
+                </section>
+
+                <section className="space-y-3">
+                  <h3 className="text-xl font-semibold">Recommended sequences</h3>
+                  <ul className="space-y-2 text-muted-foreground">
+                    <li>
+                      <strong>New users:</strong> Welcome → Navigation tour → First project → Template picker
+                      overview → Publish your first project.
+                    </li>
+                    <li>
+                      <strong>Team leads:</strong> Team onboarding playbook → Branch strategy guide → Diff
+                      review in CodeCanvas → Pre-release checklists.
+                    </li>
+                    <li>
+                      <strong>Educators:</strong> Starter kits for classrooms → Scratch workspace tour →
+                      Classroom facilitation tips.
+                    </li>
+                  </ul>
                 </section>
               </div>
             ) : (
-              <article className="space-y-10">
+              <article className="space-y-8">
                 <header className="space-y-4 border-b border-border pb-6">
                   <p className="text-sm text-muted-foreground">{activePage.category}</p>
                   <h2 className="text-3xl font-bold tracking-tight">{activePage.title}</h2>
                   <p className="text-muted-foreground">{activePage.summary}</p>
-                  <p className="text-muted-foreground">{activePage.introduction}</p>
                   <div className="flex flex-wrap gap-2 text-sm">
                     <span className="rounded-full border border-border px-3 py-1">Level: {activePage.level}</span>
                     <span className="rounded-full border border-border px-3 py-1">Read time: {activePage.readTime}</span>
                     <span className="rounded-full border border-border px-3 py-1">Slug: /docs/{activePage.slug}</span>
                   </div>
-                  <figure className="overflow-hidden rounded-xl border border-border bg-background">
-                    <img
-                      src={getDocImageUrl(activePage.slug)}
-                      alt={`${activePage.title} documentation illustration`}
-                      className="h-64 w-full object-cover md:h-80"
-                      loading="lazy"
-                    />
-                    <figcaption className="px-4 py-3 text-sm text-muted-foreground">
-                      Visual reference for {activePage.title}.
-                    </figcaption>
-                  </figure>
                 </header>
-
-                <section className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Rocket className="h-5 w-5 text-primary" />
-                    <h3 className="text-xl font-semibold tracking-tight">Quickstart guides</h3>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    {activePage.quickstarts.map((card) => (
-                      <article key={card.title} className="rounded-xl border border-border bg-background p-4 space-y-2">
-                        <p className="text-xs text-muted-foreground">⏱ {card.duration}</p>
-                        <h4 className="font-semibold">{card.title}</h4>
-                        <p className="text-sm text-muted-foreground">{card.description}</p>
-                        <p className="text-sm text-primary">{card.cta} →</p>
-                      </article>
-                    ))}
-                  </div>
-                </section>
 
                 {activePage.sections.map((section) => (
                   <section key={section.heading} className="space-y-3">
@@ -204,42 +191,6 @@ export default function Docs() {
                     )}
                   </section>
                 ))}
-
-                <section className="space-y-4 rounded-xl border border-border bg-background p-5">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    <h3 className="text-xl font-semibold tracking-tight">Frequently asked questions</h3>
-                  </div>
-                  <Accordion type="single" collapsible className="w-full">
-                    {activePage.faq.map((item, index) => (
-                      <AccordionItem key={item.question} value={`faq-${index}`}>
-                        <AccordionTrigger>{item.question}</AccordionTrigger>
-                        <AccordionContent className="text-muted-foreground">{item.answer}</AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                </section>
-
-                <section className="space-y-4">
-                  <h3 className="text-xl font-semibold tracking-tight">Additional resources</h3>
-                  <div className="grid gap-3 md:grid-cols-3">
-                    {activePage.resources.map((resource) => (
-                      <a
-                        key={resource.title}
-                        href={resource.href}
-                        target={resource.href.startsWith("http") ? "_blank" : undefined}
-                        rel={resource.href.startsWith("http") ? "noreferrer" : undefined}
-                        className="rounded-lg border border-border bg-background p-4 transition-colors hover:bg-secondary"
-                      >
-                        <div className="mb-1 flex items-center gap-2 text-sm font-semibold">
-                          {resource.title}
-                          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
-                        </div>
-                        <p className="text-sm text-muted-foreground">{resource.description}</p>
-                      </a>
-                    ))}
-                  </div>
-                </section>
 
                 <footer className="flex flex-col gap-3 border-t border-border pt-6 md:flex-row md:justify-between">
                   {previousPage ? (
