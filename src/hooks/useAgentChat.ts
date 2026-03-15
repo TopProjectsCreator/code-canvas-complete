@@ -534,6 +534,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       agentMode?: boolean;
       workflows?: Array<{ name: string; type: string; command: string }>;
       multimodalContent?: any; // OpenAI-compatible content parts (array) or string
+      template?: string;
     } = {}
   ) => {
     if (!messageContent.trim() || isLoading) return;
