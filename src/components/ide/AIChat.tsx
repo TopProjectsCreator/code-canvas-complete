@@ -1258,6 +1258,7 @@ export const AIChat = ({
                               } : null,
                               consoleErrors: recentErrors,
                               agentMode: true,
+                              template: currentTemplate,
                             });
                           }}
                         />
