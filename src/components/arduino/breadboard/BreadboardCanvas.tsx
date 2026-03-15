@@ -1,7 +1,8 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { ArduinoComponent, BreadboardCircuit } from '@/types/ide';
 import { COMPONENT_TEMPLATES, WIRE_COLORS } from './componentTemplates';
 import { Wire, WirePoint, ToolMode, SimulationState } from './types';
+import { arduinoBoards } from '@/data/arduinoTemplates';
 
 interface BreadboardCanvasProps {
   circuit: BreadboardCircuit;
@@ -45,24 +46,89 @@ const RAIL_BOT_MINUS_Y = RAIL_BOT_PLUS_Y + 14;
 // ── Arduino board layout (drawn below breadboard) ──
 const BOARD_Y = BB_Y + BB_H + 20;
 const BOARD_X = BB_X + 100;
-const BOARD_W = 380;
 const BOARD_H = 90;
 
-const ARDUINO_PINS = [
-  // Digital pins 0-13
-  ...Array.from({ length: 14 }, (_, i) => ({
-    label: `D${i}`, x: BOARD_X + 20 + i * 24, y: BOARD_Y + 8, type: i <= 1 ? 'uart' : (i >= 2 && i <= 13 && [3,5,6,9,10,11].includes(i)) ? 'pwm' : 'digital' as string,
-  })),
-  // Analog pins A0-A5
-  ...Array.from({ length: 6 }, (_, i) => ({
-    label: `A${i}`, x: BOARD_X + 20 + i * 24, y: BOARD_Y + BOARD_H - 8, type: 'analog' as string,
-  })),
-  // Power pins
-  { label: '5V', x: BOARD_X + BOARD_W - 80, y: BOARD_Y + BOARD_H - 8, type: 'power' },
-  { label: '3.3V', x: BOARD_X + BOARD_W - 56, y: BOARD_Y + BOARD_H - 8, type: 'power' },
-  { label: 'GND', x: BOARD_X + BOARD_W - 32, y: BOARD_Y + BOARD_H - 8, type: 'gnd' },
-  { label: 'VIN', x: BOARD_X + BOARD_W - 8, y: BOARD_Y + BOARD_H - 8, type: 'power' },
-];
+type BoardPin = { label: string; x: number; y: number; type: string };
+
+// Board color themes per board family
+const BOARD_THEMES: Record<string, { bg: [string, string]; stroke: string; text: string; title: string }> = {
+  uno:        { bg: ['#006B5B', '#004D40'], stroke: '#00897B', text: '#B2DFDB', title: 'ARDUINO UNO' },
+  nano:       { bg: ['#005566', '#003D4D'], stroke: '#00838F', text: '#B2EBF2', title: 'ARDUINO NANO' },
+  mega:       { bg: ['#1A237E', '#0D1654'], stroke: '#3949AB', text: '#C5CAE9', title: 'ARDUINO MEGA 2560' },
+  esp32:      { bg: ['#1B5E20', '#0D3B12'], stroke: '#43A047', text: '#C8E6C9', title: 'ESP32' },
+  esp8266:    { bg: ['#0D47A1', '#062B65'], stroke: '#1976D2', text: '#BBDEFB', title: 'ESP8266 NodeMCU' },
+  leonardo:   { bg: ['#006B5B', '#004D40'], stroke: '#00897B', text: '#B2DFDB', title: 'ARDUINO LEONARDO' },
+  micro:      { bg: ['#005566', '#003D4D'], stroke: '#00838F', text: '#B2EBF2', title: 'ARDUINO MICRO' },
+  due:        { bg: ['#1A237E', '#0D1654'], stroke: '#3949AB', text: '#C5CAE9', title: 'ARDUINO DUE' },
+  zero:       { bg: ['#004D40', '#00332B'], stroke: '#00897B', text: '#B2DFDB', title: 'ARDUINO ZERO' },
+  mkr_wifi_1010: { bg: ['#006B5B', '#004D40'], stroke: '#00897B', text: '#B2DFDB', title: 'MKR WIFI 1010' },
+  uno_r4_wifi: { bg: ['#880E4F', '#560027'], stroke: '#C2185B', text: '#F8BBD0', title: 'UNO R4 WIFI' },
+  nano_33_iot: { bg: ['#005566', '#003D4D'], stroke: '#00838F', text: '#B2EBF2', title: 'NANO 33 IoT' },
+  nano_33_ble: { bg: ['#4A148C', '#2A0054'], stroke: '#7B1FA2', text: '#E1BEE7', title: 'NANO 33 BLE' },
+  portenta_h7: { bg: ['#263238', '#111A1E'], stroke: '#455A64', text: '#CFD8DC', title: 'PORTENTA H7' },
+  giga_r1:    { bg: ['#1A237E', '#0D1654'], stroke: '#3949AB', text: '#C5CAE9', title: 'GIGA R1 WIFI' },
+  rp2040_connect: { bg: ['#1B5E20', '#0D3B12'], stroke: '#43A047', text: '#C8E6C9', title: 'NANO RP2040' },
+};
+
+const generateBoardPins = (boardId: string): { pins: BoardPin[]; boardW: number; chipLabel: string } => {
+  const board = arduinoBoards[boardId];
+  if (!board) {
+    // Fallback to Uno
+    return generateBoardPins('uno');
+  }
+
+  const digitalCount = Math.min(board.pins, 54);
+  const analogCount = boardId === 'mega' ? 16 : boardId === 'due' ? 12 : boardId === 'esp32' ? 18 : boardId === 'esp8266' ? 1 : 6;
+  const hasPWM = (pin: number) => {
+    if (boardId === 'mega') return [2,3,4,5,6,7,8,9,10,11,12,13,44,45,46].includes(pin);
+    if (boardId === 'esp32') return pin >= 0 && pin <= 33;
+    if (boardId === 'due') return [2,3,4,5,6,7,8,9,10,11,12,13].includes(pin);
+    return [3,5,6,9,10,11].includes(pin);
+  };
+
+  // Determine how many digital pins to show (cap visual display for large boards)
+  const maxDigitalShow = Math.min(digitalCount, 22);
+  const maxAnalogShow = Math.min(analogCount, 16);
+
+  const pinSpacing = 20;
+  const topPinCount = maxDigitalShow;
+  const botPinCount = maxAnalogShow + 4; // analog + power
+  const maxPins = Math.max(topPinCount, botPinCount);
+  const boardW = Math.max(300, maxPins * pinSpacing + 60);
+
+  const pins: BoardPin[] = [];
+
+  // Digital pins across the top
+  for (let i = 0; i < maxDigitalShow; i++) {
+    pins.push({
+      label: `D${i}`,
+      x: BOARD_X + 20 + i * pinSpacing,
+      y: BOARD_Y + 8,
+      type: i <= 1 ? 'uart' : hasPWM(i) ? 'pwm' : 'digital',
+    });
+  }
+
+  // Analog pins across the bottom
+  for (let i = 0; i < maxAnalogShow; i++) {
+    pins.push({
+      label: `A${i}`,
+      x: BOARD_X + 20 + i * pinSpacing,
+      y: BOARD_Y + BOARD_H - 8,
+      type: 'analog',
+    });
+  }
+
+  // Power pins on bottom-right
+  const powerStartX = BOARD_X + boardW - 80;
+  pins.push({ label: `${board.voltage}V`, x: powerStartX, y: BOARD_Y + BOARD_H - 8, type: 'power' });
+  if (board.voltage !== 3.3) {
+    pins.push({ label: '3.3V', x: powerStartX + 24, y: BOARD_Y + BOARD_H - 8, type: 'power' });
+  }
+  pins.push({ label: 'GND', x: powerStartX + 48, y: BOARD_Y + BOARD_H - 8, type: 'gnd' });
+  pins.push({ label: 'VIN', x: powerStartX + 72, y: BOARD_Y + BOARD_H - 8, type: 'power' });
+
+  return { pins, boardW, chipLabel: board.cpu };
+};
 
 export function snapToGrid(x: number, y: number): { x: number; y: number } {
   return {
@@ -102,6 +168,10 @@ export function BreadboardCanvas({
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [hovered, setHovered] = useState<string | null>(null);
 
+  // Dynamic board layout based on selected board
+  const boardLayout = useMemo(() => generateBoardPins(circuit.boardId), [circuit.boardId]);
+  const boardTheme = BOARD_THEMES[circuit.boardId] || BOARD_THEMES.uno;
+
   const toCanvasCoords = (e: React.MouseEvent | React.DragEvent) => {
     const rect = canvasRef.current!.getBoundingClientRect();
     return {
@@ -122,15 +192,18 @@ export function BreadboardCanvas({
   };
 
   const drawArduinoBoard = useCallback((ctx: CanvasRenderingContext2D) => {
+    const { pins, boardW, chipLabel } = boardLayout;
+    const theme = boardTheme;
+
     // Board body
     const grad = ctx.createLinearGradient(BOARD_X, BOARD_Y, BOARD_X, BOARD_Y + BOARD_H);
-    grad.addColorStop(0, '#006B5B');
-    grad.addColorStop(1, '#004D40');
+    grad.addColorStop(0, theme.bg[0]);
+    grad.addColorStop(1, theme.bg[1]);
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.roundRect(BOARD_X, BOARD_Y, BOARD_W, BOARD_H, 6);
+    ctx.roundRect(BOARD_X, BOARD_Y, boardW, BOARD_H, 6);
     ctx.fill();
-    ctx.strokeStyle = '#00897B';
+    ctx.strokeStyle = theme.stroke;
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -144,32 +217,44 @@ export function BreadboardCanvas({
     // MCU chip
     ctx.fillStyle = '#111';
     ctx.beginPath();
-    ctx.roundRect(BOARD_X + BOARD_W / 2 - 30, BOARD_Y + BOARD_H / 2 - 12, 60, 24, 2);
+    ctx.roundRect(BOARD_X + boardW / 2 - 30, BOARD_Y + BOARD_H / 2 - 12, 60, 24, 2);
     ctx.fill();
     ctx.fillStyle = '#555';
     ctx.font = '7px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('ATmega328P', BOARD_X + BOARD_W / 2, BOARD_Y + BOARD_H / 2 + 2);
+    ctx.fillText(chipLabel, BOARD_X + boardW / 2, BOARD_Y + BOARD_H / 2 + 2);
 
     // Title
-    ctx.fillStyle = '#B2DFDB';
+    ctx.fillStyle = theme.text;
     ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('ARDUINO UNO', BOARD_X + 12, BOARD_Y + 24);
+    ctx.fillText(theme.title, BOARD_X + 12, BOARD_Y + 24);
+
+    // WiFi/BT indicators
+    const board = arduinoBoards[circuit.boardId];
+    if (board) {
+      const indicators: string[] = [];
+      if (board.wifi) indicators.push('WiFi');
+      if (board.bluetooth) indicators.push('BT');
+      if (indicators.length) {
+        ctx.fillStyle = theme.text;
+        ctx.font = '7px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(indicators.join(' · '), BOARD_X + boardW - 8, BOARD_Y + 24);
+      }
+    }
 
     // Pin headers
-    ARDUINO_PINS.forEach(pin => {
-      // Pin hole
+    pins.forEach(pin => {
       ctx.fillStyle = pin.type === 'power' ? '#FF3333' : pin.type === 'gnd' ? '#333' : pin.type === 'pwm' ? '#FF8800' : pin.type === 'analog' ? '#0088FF' : '#FFD700';
       ctx.beginPath();
       ctx.arc(pin.x, pin.y, 4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#00897B';
+      ctx.strokeStyle = theme.stroke;
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      // Label
-      ctx.fillStyle = '#B2DFDB';
+      ctx.fillStyle = theme.text;
       ctx.font = '6px monospace';
       ctx.textAlign = 'center';
       const labelY = pin.y < BOARD_Y + BOARD_H / 2 ? pin.y + 14 : pin.y - 8;
@@ -178,7 +263,7 @@ export function BreadboardCanvas({
 
     // Simulation pin states
     if (simulation.running) {
-      ARDUINO_PINS.forEach(pin => {
+      pins.forEach(pin => {
         const state = simulation.pinStates['board']?.[pin.label];
         if (state !== undefined) {
           ctx.fillStyle = state > 0 ? '#00FF88' : '#333';
@@ -188,7 +273,7 @@ export function BreadboardCanvas({
         }
       });
     }
-  }, [simulation]);
+  }, [simulation, boardLayout, boardTheme, circuit.boardId]);
 
   const drawBreadboard = useCallback((ctx: CanvasRenderingContext2D) => {
     // Board background
@@ -376,7 +461,7 @@ export function BreadboardCanvas({
   };
 
   const findArduinoPinAt = (x: number, y: number) => {
-    return ARDUINO_PINS.find(p => Math.hypot(x - p.x, y - p.y) < 8);
+    return boardLayout.pins.find(p => Math.hypot(x - p.x, y - p.y) < 8);
   };
 
   const findPinAt = (x: number, y: number): WirePoint | null => {
@@ -395,7 +480,7 @@ export function BreadboardCanvas({
     // Arduino board pins
     const ardPin = findArduinoPinAt(x, y);
     if (ardPin) {
-      return { componentId: 'board', pinIndex: ARDUINO_PINS.indexOf(ardPin), x: ardPin.x, y: ardPin.y };
+      return { componentId: 'board', pinIndex: boardLayout.pins.indexOf(ardPin), x: ardPin.x, y: ardPin.y };
     }
     // Board holes
     for (let col = 0; col < COLS; col++) {
