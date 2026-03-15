@@ -66,6 +66,7 @@ interface AIChatProps {
   onChangeTemplate?: (template: string) => void;
   onRenameFile?: (oldName: string, newName: string) => void;
   onDeleteFile?: (name: string) => void;
+  currentTemplate?: string;
 }
 
 const quickActions: QuickAction[] = [
