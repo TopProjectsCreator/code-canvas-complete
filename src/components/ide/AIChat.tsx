@@ -790,6 +790,7 @@ export const AIChat = ({
       consoleErrors: recentErrors,
       agentMode: true,
       multimodalContent: attachments.length > 0 ? multimodalContent : undefined,
+      template: currentTemplate,
     });
     
     setInput('');
