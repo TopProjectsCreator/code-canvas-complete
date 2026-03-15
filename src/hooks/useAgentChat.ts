@@ -289,7 +289,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const parseChatWidgets = (content: string): { widgets: ChatWidget[], cleanContent: string } => {
     const widgets: ChatWidget[] = [];
     let cleanContent = content;
-    const widgetTypes: ChatWidgetType[] = ['color_picker', 'coin_flip', 'dice_roll', 'calculator', 'spinner', 'stock', 'change_template', 'pomodoro', 'logic_visualizer', 'asset_search', 'viewport_preview', 'a11y_audit', 'todo_tracker', 'dependency_visualizer', 'readme_generator', 'project_stats', 'code_review'];
+    const widgetTypes: ChatWidgetType[] = ['color_picker', 'coin_flip', 'dice_roll', 'calculator', 'spinner', 'stock', 'change_template', 'pomodoro', 'logic_visualizer', 'asset_search', 'viewport_preview', 'a11y_audit', 'todo_tracker', 'dependency_visualizer', 'readme_generator', 'project_stats', 'code_review', 'docs_link', 'countdown', 'password_generator', 'unit_converter', 'progress_tracker', 'json_viewer', 'regex_tester'];
     for (const wType of widgetTypes) {
       const regex = new RegExp(`<${wType}(\\s+[^>]*)?\\/?>`, 'g');
       let match;
@@ -534,6 +534,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       agentMode?: boolean;
       workflows?: Array<{ name: string; type: string; command: string }>;
       multimodalContent?: any; // OpenAI-compatible content parts (array) or string
+      template?: string;
     } = {}
   ) => {
     if (!messageContent.trim() || isLoading) return;
@@ -573,6 +574,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         model: selectedModel,
         byokProvider: aiProvider.allowsBYOK ? (byokProvider || undefined) : undefined,
         byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
+        template: context.template,
       }, {
         accessToken: session.access_token,
         signal: abortControllerRef.current.signal,

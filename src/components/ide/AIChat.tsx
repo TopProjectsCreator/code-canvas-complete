@@ -66,6 +66,7 @@ interface AIChatProps {
   onChangeTemplate?: (template: string) => void;
   onRenameFile?: (oldName: string, newName: string) => void;
   onDeleteFile?: (name: string) => void;
+  currentTemplate?: string;
 }
 
 const quickActions: QuickAction[] = [
@@ -664,7 +665,8 @@ export const AIChat = ({
   onRunProject,
   onChangeTemplate,
   onRenameFile,
-  onDeleteFile
+  onDeleteFile,
+  currentTemplate
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -766,6 +768,7 @@ export const AIChat = ({
       } : null,
       consoleErrors: recentErrors,
       agentMode: true,
+      template: currentTemplate,
     });
   };
 
@@ -787,6 +790,7 @@ export const AIChat = ({
       consoleErrors: recentErrors,
       agentMode: true,
       multimodalContent: attachments.length > 0 ? multimodalContent : undefined,
+      template: currentTemplate,
     });
     
     setInput('');
@@ -804,6 +808,7 @@ export const AIChat = ({
       } : null,
       consoleErrors: recentErrors,
       agentMode: true,
+      template: currentTemplate,
     });
   };
 
@@ -1253,6 +1258,7 @@ export const AIChat = ({
                               } : null,
                               consoleErrors: recentErrors,
                               agentMode: true,
+                              template: currentTemplate,
                             });
                           }}
                         />
