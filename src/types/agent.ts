@@ -122,7 +122,14 @@ export type ChatWidgetType =
   | 'todo_tracker'
   | 'dependency_visualizer'
   | 'readme_generator'
-  | 'code_review';
+  | 'code_review'
+  | 'docs_link'
+  | 'countdown'
+  | 'password_generator'
+  | 'unit_converter'
+  | 'progress_tracker'
+  | 'json_viewer'
+  | 'regex_tester';
 
 export interface ChatWidget {
   id: string;
