@@ -480,7 +480,7 @@ export function BreadboardCanvas({
     // Arduino board pins
     const ardPin = findArduinoPinAt(x, y);
     if (ardPin) {
-      return { componentId: 'board', pinIndex: ARDUINO_PINS.indexOf(ardPin), x: ardPin.x, y: ardPin.y };
+      return { componentId: 'board', pinIndex: boardLayout.pins.indexOf(ardPin), x: ardPin.x, y: ardPin.y };
     }
     // Board holes
     for (let col = 0; col < COLS; col++) {
