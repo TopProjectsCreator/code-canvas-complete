@@ -623,168 +623,50 @@ const docsBlueprint: Record<string, TopicSeed[]> = {
   ],
 };
 
-const hashSlug = (slug: string) =>
-  slug.split("").reduce((total, char, index) => total + char.charCodeAt(0) * (index + 1), 0);
-
-const sectionHeadingSets = [
+const autoSections = (topic: TopicSeed): DocSection[] => [
   {
-    context: "Why this guide matters",
-    outcomes: "Outcomes you can expect",
-    concepts: "Concepts and mental model",
-    example: "Worked example",
-    walkthrough: "Implementation walkthrough",
-    validation: "Quality checks before you ship",
-    pitfalls: "Frequent mistakes and how to avoid them",
-    next: "What to do next",
+    heading: "Why this matters",
+    body:
+      `${topic.summary} This page is written as a practical playbook so you can apply it immediately in real projects, not just as reference material.`,
   },
   {
-    context: "Context and goals",
-    outcomes: "What success looks like",
-    concepts: "Foundational ideas",
-    example: "Reference scenario",
-    walkthrough: "Hands-on build sequence",
-    validation: "Verification and acceptance criteria",
-    pitfalls: "Failure modes to watch for",
-    next: "Further exploration",
+    heading: "Core concepts",
+    body:
+      "Focus on creating a repeatable workflow: define goal, limit scope, validate output, and capture what you learned so your next iteration is faster.",
+    bullets: [
+      "Start with a specific outcome and a measurable definition of done.",
+      "Use one small change cycle at a time to reduce debugging overhead.",
+      "Record commands, prompts, and decisions so teammates can reproduce results.",
+    ],
   },
   {
-    context: "Problem framing",
-    outcomes: "Capabilities you'll gain",
-    concepts: "Core principles",
-    example: "Practical starter example",
-    walkthrough: "Step-by-step execution plan",
-    validation: "Checklist for production confidence",
-    pitfalls: "Troubleshooting notes",
-    next: "Advanced extensions",
+    heading: "Hands-on example",
+    body: topic.exampleTitle,
+    bullets: [topic.exampleCode],
   },
   {
-    context: "Overview",
-    outcomes: "Learning objectives",
-    concepts: "How it works in practice",
-    example: "Guided sample",
-    walkthrough: "Detailed runbook",
-    validation: "Readiness review",
-    pitfalls: "Common anti-patterns",
-    next: "Scale-up ideas",
+    heading: "Step-by-step walkthrough",
+    body:
+      "Follow these steps in order. If a step fails, stop and verify assumptions before moving to the next one.",
+    bullets: topic.walkthrough,
   },
-] as const;
-
-const expandWalkthrough = (topic: TopicSeed, category: string, slug: string) => {
-  const seed = hashSlug(slug);
-  const branchStep = seed % 2 === 0
-    ? "Create a short branch/working-note summary so other contributors can follow your decisions."
-    : "Write a one-paragraph implementation brief to align collaborators before large edits.";
-  const reviewStep = seed % 3 === 0
-    ? "Run a peer-style review pass: readability, edge cases, and maintainability comments."
-    : "Do a self-review pass focused on naming clarity, duplication, and error handling assumptions.";
-
-  return [
-    `Define the specific outcome for ${topic.title.toLowerCase()} and limit the initial scope to one deliverable.`,
-    `Collect baseline context from the ${category.toLowerCase()} area and note constraints (time, dependencies, access, runtime limits).`,
-    `Start with the smallest working slice and apply this core move: ${topic.walkthrough[0]}.`,
-    `Expand the feature in a controlled way with the next operation: ${topic.walkthrough[1]}.`,
-    `Complete the baseline loop with: ${topic.walkthrough[2]}.`,
-    "Pause and verify behavior using observable output (UI states, logs, terminal output, or generated artifacts).",
-    branchStep,
-    "Document trade-offs and unresolved risks so future contributors understand why choices were made.",
-    reviewStep,
-    "Finalize with a concise release note: what changed, how to test it, and what to improve in the next iteration.",
-  ];
-};
-
-const autoSections = (topic: TopicSeed, category: string): DocSection[] => {
-  const variant = sectionHeadingSets[hashSlug(topic.slug) % sectionHeadingSets.length];
-  const walkthrough = expandWalkthrough(topic, category, topic.slug);
-  const includeBonusSection = hashSlug(topic.slug) % 3 !== 0;
-
-  const sections: DocSection[] = [
-    {
-      heading: variant.context,
-      body:
-        `${topic.summary} This page is intentionally written in a long-form, practical style inspired by modern developer docs: clear context first, then actionable implementation detail, then validation guidance.`,
-    },
-    {
-      heading: variant.outcomes,
-      body:
-        "Use this guide as an execution playbook. If you follow the sequence and record outcomes at each checkpoint, you can replicate success across projects and teammates.",
-      bullets: [
-        "Translate broad product goals into specific implementation tasks.",
-        "Reduce uncertainty by validating in short feedback loops.",
-        "Create reusable notes/checklists that speed up future delivery.",
-        "Improve handoffs by documenting intent, decisions, and caveats.",
-      ],
-    },
-    {
-      heading: variant.concepts,
-      body:
-        "Strong docs are operational: they should explain not just what to do, but why sequence, validation, and scope discipline matter. Keep iterations small, prove each change quickly, and only then scale the solution.",
-      bullets: [
-        "Start with an explicit definition of done and measurable checkpoints.",
-        "Design for reversibility: each step should be easy to undo if behavior regresses.",
-        "Prefer concrete examples and runbooks over abstract recommendations.",
-        "Treat testing and verification as part of implementation, not a final afterthought.",
-      ],
-    },
-    {
-      heading: variant.example,
-      body: `${topic.exampleTitle}. The sample below is a baseline pattern you can adopt immediately and then adapt for your environment.`,
-      bullets: [
-        topic.exampleCode,
-        "After implementing the baseline, add one enhancement and compare complexity vs. user value before keeping it.",
-      ],
-    },
-    {
-      heading: variant.walkthrough,
-      body:
-        "This runbook is intentionally verbose. Work through each step in order, and don’t skip the verification pauses—they prevent most downstream issues.",
-      bullets: walkthrough,
-    },
-    {
-      heading: variant.validation,
-      body:
-        "Before shipping or sharing, run this acceptance pass. These checks prevent quality drift and make reviews significantly faster.",
-      bullets: [
-        "Verify the primary user flow from start to finish with realistic data.",
-        "Test at least one edge case and one failure mode, then record observed behavior.",
-        "Run build/lint/tests or equivalent smoke checks for your stack.",
-        "Confirm docs/navigation links and CTA behavior still work as expected.",
-        "Summarize verification evidence so reviewers can quickly reproduce results.",
-      ],
-    },
-    {
-      heading: variant.pitfalls,
-      body:
-        "Most delivery failures come from rushing past clarity and verification. Use this list as a pre-merge warning system.",
-      bullets: [
-        "Attempting a broad rewrite without incremental checkpoints.",
-        "Under-documenting assumptions about environment configuration or data shape.",
-        "Ignoring empty/loading/error states while only testing happy paths.",
-        "Merging changes without recording known limitations and follow-up work.",
-      ],
-    },
-  ];
-
-  if (includeBonusSection) {
-    sections.push({
-      heading: variant.next,
-      body:
-        "Once the baseline implementation is stable, run one bounded experiment to improve either developer velocity or end-user experience.",
-      bullets: [
-        "Automate one repetitive step with a script, snippet, or checklist template.",
-        "Pair with another contributor and compare workflow differences to find bottlenecks.",
-        "Capture a short internal mini-guide so this process becomes team-default behavior.",
-      ],
-    });
-  }
-
-  return sections;
-};
+  {
+    heading: "Common pitfalls",
+    body:
+      "Most issues come from skipping validation. Keep checks lightweight but consistent: run builds, smoke-test features, and confirm navigation and state transitions.",
+    bullets: [
+      "Changing too many files at once without incremental verification.",
+      "Relying on assumptions instead of checking runtime output.",
+      "Shipping without documenting caveats for collaborators.",
+    ],
+  },
+];
 
 export const DOCS_PAGES: DocPage[] = Object.entries(docsBlueprint).flatMap(([category, topics]) =>
   topics.map((topic) => ({
     ...topic,
     category,
-    sections: autoSections(topic, category),
+    sections: autoSections(topic),
   })),
 );
 
@@ -796,6 +678,3 @@ export const DOCS_CATEGORIES = Object.entries(
 ).map(([name, pages]) => ({ name, pages }));
 
 export const TOTAL_DOC_PAGES = DOCS_PAGES.length;
-
-
-export const getDocImageUrl = (slug: string) => `https://picsum.photos/seed/codecanvas-${slug}/1200/640`;
