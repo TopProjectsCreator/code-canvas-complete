@@ -192,15 +192,18 @@ export function BreadboardCanvas({
   };
 
   const drawArduinoBoard = useCallback((ctx: CanvasRenderingContext2D) => {
+    const { pins, boardW, chipLabel } = boardLayout;
+    const theme = boardTheme;
+
     // Board body
     const grad = ctx.createLinearGradient(BOARD_X, BOARD_Y, BOARD_X, BOARD_Y + BOARD_H);
-    grad.addColorStop(0, '#006B5B');
-    grad.addColorStop(1, '#004D40');
+    grad.addColorStop(0, theme.bg[0]);
+    grad.addColorStop(1, theme.bg[1]);
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.roundRect(BOARD_X, BOARD_Y, BOARD_W, BOARD_H, 6);
+    ctx.roundRect(BOARD_X, BOARD_Y, boardW, BOARD_H, 6);
     ctx.fill();
-    ctx.strokeStyle = '#00897B';
+    ctx.strokeStyle = theme.stroke;
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -214,32 +217,44 @@ export function BreadboardCanvas({
     // MCU chip
     ctx.fillStyle = '#111';
     ctx.beginPath();
-    ctx.roundRect(BOARD_X + BOARD_W / 2 - 30, BOARD_Y + BOARD_H / 2 - 12, 60, 24, 2);
+    ctx.roundRect(BOARD_X + boardW / 2 - 30, BOARD_Y + BOARD_H / 2 - 12, 60, 24, 2);
     ctx.fill();
     ctx.fillStyle = '#555';
     ctx.font = '7px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('ATmega328P', BOARD_X + BOARD_W / 2, BOARD_Y + BOARD_H / 2 + 2);
+    ctx.fillText(chipLabel, BOARD_X + boardW / 2, BOARD_Y + BOARD_H / 2 + 2);
 
     // Title
-    ctx.fillStyle = '#B2DFDB';
+    ctx.fillStyle = theme.text;
     ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('ARDUINO UNO', BOARD_X + 12, BOARD_Y + 24);
+    ctx.fillText(theme.title, BOARD_X + 12, BOARD_Y + 24);
+
+    // WiFi/BT indicators
+    const board = arduinoBoards[circuit.boardId];
+    if (board) {
+      const indicators: string[] = [];
+      if (board.wifi) indicators.push('WiFi');
+      if (board.bluetooth) indicators.push('BT');
+      if (indicators.length) {
+        ctx.fillStyle = theme.text;
+        ctx.font = '7px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(indicators.join(' · '), BOARD_X + boardW - 8, BOARD_Y + 24);
+      }
+    }
 
     // Pin headers
-    ARDUINO_PINS.forEach(pin => {
-      // Pin hole
+    pins.forEach(pin => {
       ctx.fillStyle = pin.type === 'power' ? '#FF3333' : pin.type === 'gnd' ? '#333' : pin.type === 'pwm' ? '#FF8800' : pin.type === 'analog' ? '#0088FF' : '#FFD700';
       ctx.beginPath();
       ctx.arc(pin.x, pin.y, 4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#00897B';
+      ctx.strokeStyle = theme.stroke;
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      // Label
-      ctx.fillStyle = '#B2DFDB';
+      ctx.fillStyle = theme.text;
       ctx.font = '6px monospace';
       ctx.textAlign = 'center';
       const labelY = pin.y < BOARD_Y + BOARD_H / 2 ? pin.y + 14 : pin.y - 8;
@@ -248,7 +263,7 @@ export function BreadboardCanvas({
 
     // Simulation pin states
     if (simulation.running) {
-      ARDUINO_PINS.forEach(pin => {
+      pins.forEach(pin => {
         const state = simulation.pinStates['board']?.[pin.label];
         if (state !== undefined) {
           ctx.fillStyle = state > 0 ? '#00FF88' : '#333';
@@ -258,7 +273,7 @@ export function BreadboardCanvas({
         }
       });
     }
-  }, [simulation]);
+  }, [simulation, boardLayout, boardTheme, circuit.boardId]);
 
   const drawBreadboard = useCallback((ctx: CanvasRenderingContext2D) => {
     // Board background
