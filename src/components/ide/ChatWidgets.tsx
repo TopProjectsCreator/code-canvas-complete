@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { 
   Palette, Coins, Dices, Calculator as CalcIcon, Loader2, 
-  TrendingUp, TrendingDown, RotateCw, FileCode, ArrowRight
+  TrendingUp, TrendingDown, RotateCw, FileCode, ArrowRight,
+  BookOpen, Timer, Key, ArrowLeftRight, ListChecks, Braces, RegexIcon
 } from 'lucide-react';
 import type { ChatWidget } from '@/types/agent';
 
