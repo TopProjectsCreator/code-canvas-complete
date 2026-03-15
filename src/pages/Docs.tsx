@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { DOCS_CATEGORIES, DOCS_PAGES, TOTAL_DOC_PAGES, getDocImageUrl } from "@/data/docsContent";
+import { DOCS_CATEGORIES, DOCS_PAGES, TOTAL_DOC_PAGES } from "@/data/docsContent";
 
 export default function Docs() {
   const { slug } = useParams<{ slug: string }>();
@@ -173,17 +173,6 @@ export default function Docs() {
                     <span className="rounded-full border border-border px-3 py-1">Read time: {activePage.readTime}</span>
                     <span className="rounded-full border border-border px-3 py-1">Slug: /docs/{activePage.slug}</span>
                   </div>
-                  <figure className="overflow-hidden rounded-xl border border-border bg-background">
-                    <img
-                      src={getDocImageUrl(activePage.slug)}
-                      alt={`${activePage.title} documentation illustration`}
-                      className="h-64 w-full object-cover md:h-80"
-                      loading="lazy"
-                    />
-                    <figcaption className="px-4 py-3 text-sm text-muted-foreground">
-                      Visual reference for {activePage.title}.
-                    </figcaption>
-                  </figure>
                 </header>
 
                 {activePage.sections.map((section) => (
