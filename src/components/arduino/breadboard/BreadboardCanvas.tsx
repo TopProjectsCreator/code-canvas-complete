@@ -461,7 +461,7 @@ export function BreadboardCanvas({
   };
 
   const findArduinoPinAt = (x: number, y: number) => {
-    return ARDUINO_PINS.find(p => Math.hypot(x - p.x, y - p.y) < 8);
+    return boardLayout.pins.find(p => Math.hypot(x - p.x, y - p.y) < 8);
   };
 
   const findPinAt = (x: number, y: number): WirePoint | null => {
