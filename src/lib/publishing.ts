@@ -1,6 +1,7 @@
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0']);
 
 const PREVIEW_HOST_PATTERN = /^id-preview--[a-f0-9-]+\.lovable\.app$/i;
+const LOVABLE_PROJECT_PATTERN = /^[a-f0-9-]+\.lovableproject\.com$/i;
 
 export const sanitizePublishSlug = (value: string): string =>
   value
