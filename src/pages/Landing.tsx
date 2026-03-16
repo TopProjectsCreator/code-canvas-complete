@@ -150,6 +150,11 @@ export default function Landing() {
               See Features
             </Button>
           </div>
+
+          {/* Public Canvas Search */}
+          <div className="mt-8">
+            <PublicCanvasSearch />
+          </div>
         </div>
 
         {/* Editor mockup */}
