@@ -18,6 +18,7 @@ import {
   Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PublicCanvasSearch } from "@/components/landing/PublicCanvasSearch";
 
 const features = [
   {
