@@ -5,9 +5,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { FileNode } from '@/types/ide';
 import {
-  Box, RotateCcw, ZoomIn, ZoomOut, Eye, Layers, Sun, Moon,
-  Maximize, Info, Download, Grid3X3, Move, Loader2, Upload,
-  Circle, Triangle, Cylinder, Hexagon, Sparkles, FileDown
+  Box, Layers, Sun, Moon, Info, Download, Grid3X3, Loader2, Upload,
+  Circle, Triangle, Cylinder, Hexagon, Sparkles, FileDown, Pencil,
+  Combine, Cuboid, Bolt, Ruler, ScanFace, PanelLeft, PanelRight, Grip
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -605,16 +605,38 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const displayGeometry = glbGeometry || geometry;
 
   const colors = ['#6366f1', '#ef4444', '#22c55e', '#f59e0b', '#06b6d4', '#ec4899', '#8b5cf6', '#64748b'];
+  const featureTree = [
+    'Top plane sketch',
+    'Extrude 1',
+    'Fillet edge set',
+    'Shell body',
+    'Mirror feature',
+  ];
+  const quickTools = [
+    { label: 'Sketch', icon: <Pencil className="w-3.5 h-3.5" /> },
+    { label: 'Extrude', icon: <Combine className="w-3.5 h-3.5" /> },
+    { label: 'Revolve', icon: <Grip className="w-3.5 h-3.5" /> },
+    { label: 'Loft', icon: <Cuboid className="w-3.5 h-3.5" /> },
+    { label: 'Boolean', icon: <Bolt className="w-3.5 h-3.5" /> },
+    { label: 'Measure', icon: <Ruler className="w-3.5 h-3.5" /> },
+  ];
 
   return (
     <TooltipProvider>
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between px-3 py-1.5 bg-[#1a1a1a] border-b border-[#333]">
-          <div className="flex items-center gap-2">
+      <div className="flex-1 flex flex-col overflow-hidden bg-[#0d1117] text-white">
+        <div className="flex items-center justify-between px-3 py-2 bg-[#161b22] border-b border-[#2b313c]">
+          <div className="flex items-center gap-2 min-w-0">
             <Box className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-white">{file.name}</span>
+            <span className="text-sm font-medium truncate">Part Studio · {file.name}</span>
             {loading && <Loader2 className="w-3.5 h-3.5 text-white/50 animate-spin" />}
+          </div>
+          <div className="flex items-center gap-1.5">
+            {quickTools.map((tool) => (
+              <Button key={tool.label} variant="ghost" size="sm" className="h-7 text-xs text-white/80 hover:text-white hover:bg-white/10 gap-1.5 px-2">
+                {tool.icon}
+                {tool.label}
+              </Button>
+            ))}
           </div>
           <div className="flex items-center gap-1">
             <Tooltip><TooltipTrigger asChild>
@@ -641,7 +663,6 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
               </Button>
             </TooltipTrigger><TooltipContent>Model Info</TooltipContent></Tooltip>
 
-            {/* Color picker */}
             <div className="flex items-center gap-0.5 pl-2 border-l border-[#333]">
               {colors.map(c => (
                 <button
@@ -653,7 +674,6 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
               ))}
             </div>
 
-            {/* Export dropdown */}
             {displayGeometry && (
               <DropdownMenu>
                 <Tooltip>
@@ -681,127 +701,170 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
           </div>
         </div>
 
-        {/* Info bar */}
-        {showInfo && displayGeometry && (
-          <div className="px-4 py-1.5 bg-[#1a1a1a] border-b border-[#333]">
-            <SceneInfo geometry={displayGeometry} />
-          </div>
-        )}
-
-        {/* 3D Viewport */}
-        <div className="flex-1 relative" style={{ background: darkBg ? '#111' : '#e5e7eb' }}>
-          {error && (
-            <div className="absolute inset-0 flex items-center justify-center z-10">
-              <div className="bg-destructive/90 text-white px-4 py-2 rounded-lg text-sm">{error}</div>
-            </div>
-          )}
-
-          <Canvas
-            shadows
-            camera={{ position: [5, 5, 5], fov: 50 }}
-            gl={{ antialias: true, alpha: true }}
-          >
-            <ambientLight intensity={0.4} />
-            <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-            <directionalLight position={[-5, 5, -5]} intensity={0.3} />
-
-            <Suspense fallback={
-              <Html center>
-                <div className="flex items-center gap-2 text-white/50 text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Loading model…
-                </div>
-              </Html>
-            }>
-              {displayGeometry ? (
-                <Model geometry={displayGeometry} wireframe={wireframe} color={modelColor} />
-              ) : (
-                <DemoCube />
-              )}
-
-              {showGrid && (
-                <Grid
-                  infiniteGrid
-                  cellSize={1}
-                  sectionSize={5}
-                  cellColor={darkBg ? '#333' : '#bbb'}
-                  sectionColor={darkBg ? '#555' : '#888'}
-                  fadeDistance={30}
-                />
-              )}
-
-              {/* Use simple hemisphere light instead of Environment preset to avoid external HDR fetch */}
-              <hemisphereLight args={[darkBg ? '#1a1a2e' : '#87ceeb', darkBg ? '#111' : '#fff', 0.6]} />
-            </Suspense>
-
-            <OrbitControls makeDefault enableDamping dampingFactor={0.1} />
-            <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
-              <GizmoViewport axisColors={['#ef4444', '#22c55e', '#3b82f6']} labelColor="white" />
-            </GizmoHelper>
-          </Canvas>
-
-          {/* Viewport overlay hints */}
-          {!displayGeometry && !error && (
-            <div
-              className={cn(
-                "absolute inset-0 flex flex-col items-center justify-center z-10 transition-colors",
-                dragOver && "bg-primary/10 ring-2 ring-primary ring-inset"
-              )}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-            >
-              <div className="bg-black/60 backdrop-blur-sm text-white/70 text-sm px-6 py-5 rounded-lg flex flex-col items-center gap-4 max-w-xs">
-                <Upload className={cn("w-8 h-8 transition-transform", dragOver && "scale-110 text-primary")} />
-                <span>{dragOver ? 'Drop 3D file here' : 'Drag & drop a .stl, .obj, or .glb file'}</span>
-                <Button variant="outline" size="sm" className="gap-2 text-white/80 border-white/20 hover:bg-white/10" onClick={handleCADUpload}>
-                  <Upload className="w-3.5 h-3.5" /> Browse Files
-                </Button>
-
-                {/* Starter shapes */}
-                <div className="w-full border-t border-white/20 pt-4 mt-1">
-                  <div className="text-center text-white/50 text-xs mb-3">or start with a shape</div>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {PRIMITIVES.map(p => (
-                      <Button
-                        key={p.type}
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-white/70 border-white/20 hover:bg-white/10 hover:text-white"
-                        onClick={() => handleSelectPrimitive(p.type)}
-                      >
-                        {p.icon}
-                        {p.label}
-                      </Button>
-                    ))}
+        <div className="flex-1 flex min-h-0">
+          <aside className="w-64 bg-[#0f141b] border-r border-[#2b313c] p-3 space-y-3 overflow-auto">
+            <div>
+              <div className="text-[11px] uppercase tracking-wide text-white/50 mb-2 flex items-center gap-1.5">
+                <PanelLeft className="w-3 h-3" />
+                Features
+              </div>
+              <div className="space-y-1.5">
+                {featureTree.map((item, idx) => (
+                  <div key={item} className="text-xs rounded bg-white/5 border border-white/10 px-2 py-1.5 flex items-center justify-between">
+                    <span className="truncate">{item}</span>
+                    <span className="text-[10px] text-white/40">{idx + 1}</span>
                   </div>
-                </div>
-
-                {/* Text to 3D */}
-                <div className="w-full border-t border-white/20 pt-4 mt-1">
-                  <div className="text-center text-white/50 text-xs mb-3">or generate from text</div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-2 text-white/80 border-white/20 hover:bg-white/10"
-                    onClick={() => setTextTo3DOpen(true)}
-                  >
-                    <Sparkles className="w-3.5 h-3.5" /> Text to 3D
-                  </Button>
-                  <div className="text-center text-white/40 text-[10px] mt-2">
-                    Supports: Meshy, Sloyd, Tripo, ModelsLab, Fal.ai, Neural4D
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
-          )}
+            <div className="border-t border-white/10 pt-3">
+              <div className="text-[11px] uppercase tracking-wide text-white/50 mb-2">Starter geometry</div>
+              <div className="grid grid-cols-1 gap-1.5">
+                {PRIMITIVES.map(p => (
+                  <Button
+                    key={p.type}
+                    variant="ghost"
+                    size="sm"
+                    className="justify-start h-8 text-white/80 hover:text-white hover:bg-white/10 gap-2"
+                    onClick={() => handleSelectPrimitive(p.type)}
+                  >
+                    {p.icon}
+                    {p.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </aside>
 
-          {/* Controls hint */}
-          <div className="absolute bottom-3 right-3 text-[10px] text-white/30 space-y-0.5 text-right">
-            <div>LMB: Rotate</div>
-            <div>RMB: Pan</div>
-            <div>Scroll: Zoom</div>
+          <div className="flex-1 flex flex-col min-w-0">
+            {showInfo && displayGeometry && (
+              <div className="px-4 py-1.5 bg-[#161b22] border-b border-[#2b313c]">
+                <SceneInfo geometry={displayGeometry} />
+              </div>
+            )}
+
+            <div className="flex-1 relative" style={{ background: darkBg ? '#111827' : '#dbe4f0' }}>
+              {error && (
+                <div className="absolute inset-0 flex items-center justify-center z-10">
+                  <div className="bg-destructive/90 text-white px-4 py-2 rounded-lg text-sm">{error}</div>
+                </div>
+              )}
+
+              <Canvas
+                shadows
+                camera={{ position: [5, 5, 5], fov: 50 }}
+                gl={{ antialias: true, alpha: true }}
+              >
+                <ambientLight intensity={0.4} />
+                <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
+                <directionalLight position={[-5, 5, -5]} intensity={0.3} />
+
+                <Suspense fallback={
+                  <Html center>
+                    <div className="flex items-center gap-2 text-white/50 text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading model…
+                    </div>
+                  </Html>
+                }>
+                  {displayGeometry ? (
+                    <Model geometry={displayGeometry} wireframe={wireframe} color={modelColor} />
+                  ) : (
+                    <DemoCube />
+                  )}
+
+                  {showGrid && (
+                    <Grid
+                      infiniteGrid
+                      cellSize={1}
+                      sectionSize={5}
+                      cellColor={darkBg ? '#26303c' : '#9ca9b8'}
+                      sectionColor={darkBg ? '#3f4c5d' : '#6d7d90'}
+                      fadeDistance={30}
+                    />
+                  )}
+
+                  <hemisphereLight args={[darkBg ? '#1a1a2e' : '#87ceeb', darkBg ? '#111' : '#fff', 0.6]} />
+                </Suspense>
+
+                <OrbitControls makeDefault enableDamping dampingFactor={0.1} />
+                <GizmoHelper alignment="bottom-right" margin={[60, 60]}>
+                  <GizmoViewport axisColors={['#ef4444', '#22c55e', '#3b82f6']} labelColor="white" />
+                </GizmoHelper>
+              </Canvas>
+
+              {!displayGeometry && !error && (
+                <div
+                  className={cn(
+                    "absolute inset-0 flex flex-col items-center justify-center z-10 transition-colors",
+                    dragOver && "bg-primary/10 ring-2 ring-primary ring-inset"
+                  )}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={handleDrop}
+                >
+                  <div className="bg-black/65 backdrop-blur-sm text-white/70 text-sm px-6 py-5 rounded-lg flex flex-col items-center gap-4 max-w-xs">
+                    <Upload className={cn("w-8 h-8 transition-transform", dragOver && "scale-110 text-primary")} />
+                    <span>{dragOver ? 'Drop 3D file here' : 'Drag & drop a .stl, .obj, or .glb file'}</span>
+                    <Button variant="outline" size="sm" className="gap-2 text-white/80 border-white/20 hover:bg-white/10" onClick={handleCADUpload}>
+                      <Upload className="w-3.5 h-3.5" /> Browse Files
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2 text-white/80 border-white/20 hover:bg-white/10"
+                      onClick={() => setTextTo3DOpen(true)}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" /> Generate from prompt
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <div className="absolute top-3 left-3 text-[11px] text-white/70 bg-black/45 rounded px-2 py-1">Perspective · Millimeters</div>
+              <div className="absolute bottom-3 right-3 text-[10px] text-white/30 space-y-0.5 text-right">
+                <div>LMB: Rotate</div>
+                <div>RMB: Pan</div>
+                <div>Scroll: Zoom</div>
+              </div>
+            </div>
           </div>
+
+          <aside className="w-72 bg-[#0f141b] border-l border-[#2b313c] p-3 space-y-3 overflow-auto">
+            <div className="text-[11px] uppercase tracking-wide text-white/50 mb-1 flex items-center gap-1.5">
+              <PanelRight className="w-3 h-3" />
+              Properties
+            </div>
+            <div className="rounded border border-white/10 bg-white/5 p-2.5 space-y-2">
+              <div className="text-xs text-white/80 font-medium">Active body</div>
+              <div className="text-[11px] text-white/55">{displayGeometry ? 'Imported solid body' : 'No body selected'}</div>
+              <div className="text-[11px] text-white/55 flex items-center gap-1.5"><ScanFace className="w-3 h-3" /> Appearance swatches</div>
+              <div className="flex flex-wrap gap-1">
+                {colors.map(c => (
+                  <button
+                    key={`prop-${c}`}
+                    className={cn("w-5 h-5 rounded border transition-transform", modelColor === c ? "border-white scale-110" : "border-white/20")}
+                    style={{ backgroundColor: c }}
+                    onClick={() => setModelColor(c)}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="rounded border border-white/10 bg-white/5 p-2.5 space-y-2">
+              <div className="text-xs text-white/80 font-medium">Session helpers</div>
+              <Button size="sm" variant="ghost" className="w-full justify-start text-white/70 hover:text-white hover:bg-white/10" onClick={handleCADUpload}>
+                <Upload className="w-3.5 h-3.5 mr-2" /> Import geometry
+              </Button>
+              <Button size="sm" variant="ghost" className="w-full justify-start text-white/70 hover:text-white hover:bg-white/10" onClick={() => setTextTo3DOpen(true)}>
+                <Sparkles className="w-3.5 h-3.5 mr-2" /> Text to 3D
+              </Button>
+            </div>
+          </aside>
+        </div>
+
+        <div className="h-7 border-t border-[#2b313c] bg-[#161b22] px-3 text-[11px] text-white/60 flex items-center justify-between">
+          <span>Part Studio 1 · Workspace main</span>
+          <span className="flex items-center gap-1.5"><Move className="w-3 h-3" /> Precision snap enabled</span>
         </div>
 
         {/* Text to 3D Dialog */}
