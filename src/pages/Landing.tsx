@@ -18,6 +18,7 @@ import {
   Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PublicCanvasSearch } from "@/components/landing/PublicCanvasSearch";
 
 const features = [
   {
@@ -148,6 +149,11 @@ export default function Landing() {
             >
               See Features
             </Button>
+          </div>
+
+          {/* Public Canvas Search */}
+          <div className="mt-8">
+            <PublicCanvasSearch />
           </div>
         </div>
 
