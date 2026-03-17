@@ -1,4 +1,5 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/TopProjectsCreator/code-canvas-complete)
+![Static Badge](https://img.shields.io/badge/https%3A%2F%2Fgithub.com%2FTopProjectsCreator%2Fcode-canvas-complete)
 
 
 
