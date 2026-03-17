@@ -7,7 +7,7 @@ import { FileNode } from '@/types/ide';
 import {
   Box, Layers, Sun, Moon, Info, Download, Grid3X3, Loader2, Upload,
   Circle, Triangle, Cylinder, Hexagon, Sparkles, FileDown, Pencil,
-  Combine, Cuboid, Bolt, Ruler, ScanFace, PanelLeft, PanelRight, Grip
+  Combine, Cuboid, Bolt, Ruler, ScanFace, PanelLeft, PanelRight, Grip, Move
 } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
