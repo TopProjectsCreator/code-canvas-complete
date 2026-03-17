@@ -656,11 +656,53 @@ Deno.serve(async (req: Request) => {
     };
 
     const sampleWithAddr = asmEntries.find((a: Record<string, unknown>) => a.address !== undefined);
+    const findAvrEntryPoint = (entries: Record<string, unknown>[], stubSource: string): number | null => {
+      const mainLine = stubSource.split('\n').findIndex((line) => line.includes('int main()')) + 1;
+
+      if (mainLine > 0) {
+        const sourceMappedEntry = entries.find((entry) => {
+          const source = entry.source;
+          return typeof entry.address === 'number'
+            && !!source
+            && typeof source === 'object'
+            && 'file' in source
+            && 'line' in source
+            && source.file === '<source>'
+            && typeof source.line === 'number'
+            && source.line >= mainLine
+            && source.line <= mainLine + 8;
+        });
+
+        if (sourceMappedEntry && typeof sourceMappedEntry.address === 'number') {
+          return sourceMappedEntry.address;
+        }
+      }
+
+      let sawMainLabel = false;
+      for (const entry of entries) {
+        const labels = Array.isArray(entry.labels) ? entry.labels : [];
+        const hasMainLabel = labels.some((label) => {
+          if (typeof label === 'string') return label === 'main';
+          return !!label && typeof label === 'object' && 'name' in label && label.name === 'main';
+        }) || (typeof entry.text === 'string' && /(^|\s|<)main[:>]/.test(entry.text));
+
+        if (hasMainLabel) sawMainLabel = true;
+        if (sawMainLabel && typeof entry.address === 'number') {
+          return entry.address;
+        }
+      }
+
+      return null;
+    };
+
+    const avrEntryPoint = !boardConfig.isArm ? findAvrEntryPoint(asmEntries, stubs) : null;
+
     const debugInfo = {
       totalAsmEntries: asmEntries.length,
       sampleKeys: sampleWithAddr ? Object.keys(sampleWithAddr) : [],
       sampleEntry: sampleWithAddr || null,
       firstFew: asmEntries.slice(0, 3),
+      avrEntryPoint,
     };
 
     for (const entry of asmEntries) {
