@@ -92,17 +92,51 @@ async function sendCommand(
 }
 
 /**
- * Reset the board by toggling DTR signal
+ * Reset the board by toggling DTR signal (mimics avrdude auto-reset).
+ * The Arduino auto-reset circuit uses a capacitor on DTR so it triggers
+ * on the HIGH→LOW edge. We pulse DTR low, then back high, then wait
+ * for the bootloader to start (~100-250ms depending on board).
  */
 async function resetBoard(port: SerialPortLike): Promise<void> {
   if (!port.setSignals) {
-    throw new Error('Serial port does not support setSignals (DTR toggle)');
+    // If setSignals isn't available, skip — user will need manual reset
+    return;
   }
 
-  await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-  await new Promise(r => setTimeout(r, 250));
+  // Start with DTR/RTS high (normal operating state)
   await port.setSignals({ dataTerminalReady: true, requestToSend: true });
   await new Promise(r => setTimeout(r, 50));
+
+  // Pulse DTR low — this edge triggers the auto-reset capacitor circuit
+  await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+  await new Promise(r => setTimeout(r, 50));
+
+  // Release DTR back high
+  await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+
+  // Wait for the bootloader to start (Optiboot takes ~65ms after reset)
+  await new Promise(r => setTimeout(r, 150));
+}
+
+/**
+ * Drain any stale data sitting in the serial receive buffer
+ * so sync attempts don't get confused by leftover bytes.
+ */
+async function drainInput(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
+  const drainTimeout = 100;
+  try {
+    while (true) {
+      const result = await Promise.race([
+        reader.read(),
+        new Promise<{ value: undefined; done: true }>((resolve) =>
+          setTimeout(() => resolve({ value: undefined, done: true }), drainTimeout)
+        ),
+      ]);
+      if (result.done || !result.value || result.value.length === 0) break;
+    }
+  } catch {
+    // ignore — buffer is empty
+  }
 }
 
 /**
