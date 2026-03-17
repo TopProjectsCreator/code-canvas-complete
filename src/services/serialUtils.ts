@@ -18,16 +18,21 @@ export interface SerialLike {
   getPorts(): Promise<SerialPortLike[]>;
 }
 
+export const ARDUINO_USB_VENDOR_IDS = [0x2341, 0x2a03, 0x1a86, 0x0403] as const;
+
 export const getSerial = (): SerialLike | undefined =>
   (navigator as unknown as { serial?: SerialLike }).serial;
 
 /**
  * Request a serial port from the user. MUST be called from a user gesture handler.
+ * Includes official Arduino vendor IDs plus the most common Uno USB-serial bridge vendors.
  */
 export async function requestArduinoPort(): Promise<SerialPortLike> {
   const serial = getSerial();
   if (!serial) throw new Error('Web Serial API not supported. Use Chrome or Edge.');
-  return serial.requestPort({ filters: [{ usbVendorId: 0x2341 }] });
+  return serial.requestPort({
+    filters: ARDUINO_USB_VENDOR_IDS.map((usbVendorId) => ({ usbVendorId })),
+  });
 }
 
 /**
