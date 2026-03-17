@@ -705,15 +705,31 @@ Deno.serve(async (req: Request) => {
 
     const binaryData = new Uint8Array(hexBytes.slice(0, maxAddr));
 
-    if (!boardConfig.isArm && binaryData.slice(0, 4).every((byte) => byte === 0xFF)) {
-      return new Response(
-        JSON.stringify({
-          error: 'Compilation produced an invalid AVR image with an empty reset vector.',
-          debug: debugInfo,
-          warnings: stderr || null,
-        }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // If AVR binary has empty reset vector (0xFFFF), construct RJMP to first real code
+    if (!boardConfig.isArm && binaryData.length >= 2 && binaryData[0] === 0xFF && binaryData[1] === 0xFF) {
+      // Find the first non-0xFF address (start of actual code)
+      let codeStart = -1;
+      for (let i = 0; i < binaryData.length; i += 2) {
+        if (binaryData[i] !== 0xFF || (i + 1 < binaryData.length && binaryData[i + 1] !== 0xFF)) {
+          codeStart = i;
+          break;
+        }
+      }
+      if (codeStart < 0) {
+        return new Response(
+          JSON.stringify({
+            error: 'Compilation produced an empty AVR image with no executable code.',
+            debug: debugInfo,
+            warnings: stderr || null,
+          }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      // RJMP encoding: 1100 kkkk kkkk kkkk, k = (target_word - 1)
+      // target_word = codeStart / 2, offset = target_word - 1
+      const rjmpOffset = (codeStart / 2) - 1;
+      binaryData[0] = rjmpOffset & 0xFF;
+      binaryData[1] = 0xC0 | ((rjmpOffset >> 8) & 0x0F);
     }
 
     if (boardConfig.isArm) {
