@@ -654,7 +654,12 @@ Deno.serve(async (req: Request) => {
       ? result.artifacts
           .map((artifact: Record<string, unknown>) => {
             const content = artifact.content ?? artifact.base64 ?? artifact.data;
-            return typeof content === 'string' ? content : null;
+            if (typeof content !== 'string') return null;
+            try {
+              return isElfBytes(decodeBase64(content)) ? content : null;
+            } catch {
+              return null;
+            }
           })
           .find((content: string | null): content is string => Boolean(content))
       : null;
