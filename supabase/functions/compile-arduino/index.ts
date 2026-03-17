@@ -628,6 +628,31 @@ Deno.serve(async (req: Request) => {
 
     const result = await compileResponse.json();
 
+    if (debug) {
+      return new Response(
+        JSON.stringify({
+          code: result.code,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          asmSample: Array.isArray(result.asm) ? result.asm.slice(0, 12) : result.asm,
+          artifacts: Array.isArray(result.artifacts)
+            ? result.artifacts.map((artifact: Record<string, unknown>) => ({
+                name: artifact.name ?? null,
+                type: artifact.type ?? null,
+                title: artifact.title ?? null,
+                contentLength: typeof (artifact.content ?? artifact.base64 ?? artifact.data) === 'string'
+                  ? ((artifact.content ?? artifact.base64 ?? artifact.data) as string).length
+                  : null,
+                contentPrefix: typeof (artifact.content ?? artifact.base64 ?? artifact.data) === 'string'
+                  ? ((artifact.content ?? artifact.base64 ?? artifact.data) as string).slice(0, 32)
+                  : null,
+              }))
+            : result.artifacts,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Check for compilation errors
     const stubs = boardConfig.stubs;
     const stderr = (result.stderr || []).map((s: { text: string }) => s.text).join('\n');
