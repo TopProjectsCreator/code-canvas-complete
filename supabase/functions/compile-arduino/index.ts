@@ -616,7 +616,7 @@ Deno.serve(async (req: Request) => {
           .find((content: string | null): content is string => Boolean(content))
       : null;
 
-    if (!boardConfig.isArm && artifactBase64) {
+    if (boardConfig.isArm && artifactBase64) {
       try {
         const hexOutput = elfToHex(artifactBase64);
         return new Response(
