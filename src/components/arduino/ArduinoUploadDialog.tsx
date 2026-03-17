@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { requestArduinoPort, requestAnyPort, SerialPortLike } from '@/services/serialUtils';
+import { getSerial, requestArduinoPort, requestAnyPort, SerialPortLike } from '@/services/serialUtils';
 import {
   Dialog,
   DialogContent,
@@ -18,8 +18,8 @@ import { Progress } from '@/components/ui/progress';
 declare global {
   interface Navigator {
     serial?: {
-      requestPort(): Promise<{ open: (opts: { baudRate: number }) => Promise<void>; close: () => Promise<void>; getInfo: () => { usbProductId?: number } }>;
-      getPorts(): Promise<Array<{ getInfo: () => { usbProductId?: number } }>>;
+      requestPort(options?: { filters?: Array<{ usbVendorId?: number; usbProductId?: number }> }): Promise<{ open: (opts: { baudRate: number }) => Promise<void>; close: () => Promise<void>; getInfo: () => { usbProductId?: number; usbVendorId?: number } }>;
+      getPorts(): Promise<Array<{ getInfo: () => { usbProductId?: number; usbVendorId?: number } }>>;
     };
   }
 }
@@ -44,6 +44,21 @@ const ESP_BOARDS = ['esp32', 'esp8266'];
 const STM32_BOARDS = ['portenta_h7', 'giga_r1'];
 const UF2_ONLY_BOARDS = ['nano_33_ble', 'rp2040_connect'];
 
+const getPortLabel = (
+  port: { getInfo?: () => { usbProductId?: number; usbVendorId?: number } },
+  index: number
+) => {
+  const info = port.getInfo?.() ?? {};
+  const vendorId = info.usbVendorId?.toString(16).padStart(4, '0');
+  const productId = info.usbProductId?.toString(16).padStart(4, '0');
+
+  if (vendorId || productId) {
+    return `USB Device (${[vendorId, productId].filter(Boolean).join(':')})`;
+  }
+
+  return `Port ${index + 1}`;
+};
+
 export function ArduinoUploadDialog({
   open,
   onOpenChange,
@@ -52,7 +67,7 @@ export function ArduinoUploadDialog({
 }: ArduinoUploadDialogProps) {
   const [config, setConfig] = useState<UploadConfig>({
     boardId: 'uno',
-    portName: 'COM3',
+    portName: '',
     baudRate: 115200,
     uploadMethod: 'serial',
   });
@@ -84,51 +99,51 @@ export function ArduinoUploadDialog({
 
   const detectSerialPorts = async () => {
     try {
-      const nav = navigator as unknown as { serial?: { getPorts(): Promise<Array<{ getInfo: () => { usbProductId?: number; usbVendorId?: number } }>>; requestPort(): Promise<{ getInfo: () => { usbProductId?: number; usbVendorId?: number } }> } };
-      if (!nav.serial) {
+      const serial = getSerial();
+      if (!serial) {
         setError('Web Serial API not supported in this browser. Use Chrome or Edge.');
         return;
       }
 
-      const availablePorts = await nav.serial.getPorts();
+      const availablePorts = await serial.getPorts();
       if (availablePorts.length === 0) {
+        setPorts([]);
         setError('No previously authorized ports. Click "Select Port" to grant access.');
       } else {
-        setPorts(availablePorts.map((port, index) => {
-          const info = port.getInfo();
-          return info.usbProductId ? `USB Device (${info.usbProductId.toString(16)})` : `Port ${index + 1}`;
+        const detectedPorts = availablePorts.map((port, index) => getPortLabel(port, index));
+        setPorts(detectedPorts);
+        setConfig(prev => ({
+          ...prev,
+          portName: detectedPorts.includes(prev.portName) ? prev.portName : detectedPorts[0],
         }));
         setError('');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to detect serial ports');
     }
   };
 
   const requestSerialPort = async () => {
     try {
-      const nav = navigator as unknown as { serial?: { requestPort(): Promise<{ getInfo: () => { usbProductId?: number; usbVendorId?: number } }>; getPorts(): Promise<Array<{ getInfo: () => { usbProductId?: number; usbVendorId?: number } }>> } };
-      if (!nav.serial) {
+      const serial = getSerial();
+      if (!serial) {
         setError('Web Serial API not supported in this browser. Use Chrome or Edge.');
         return;
       }
 
-      const port = await nav.serial.requestPort();
-      const info = port.getInfo();
-      const portName = info.usbProductId ? `USB Device (${info.usbProductId.toString(16)})` : 'Serial Port';
+      const port = await serial.requestPort();
+      const allPorts = await serial.getPorts();
+      const portNames = allPorts.map((candidate, index) => getPortLabel(candidate, index));
+      const selectedIndex = allPorts.findIndex((candidate) => candidate === port);
+      const portName = selectedIndex >= 0
+        ? portNames[selectedIndex]
+        : getPortLabel(port, allPorts.length);
 
-      // Refresh full list
-      const allPorts = await nav.serial.getPorts();
-      const portNames = allPorts.map((p, i) => {
-        const pInfo = p.getInfo();
-        return pInfo.usbProductId ? `USB Device (${pInfo.usbProductId.toString(16)})` : `Port ${i + 1}`;
-      });
       setPorts(portNames);
-      setConfig(prev => ({ ...prev, portName: portName }));
+      setConfig(prev => ({ ...prev, portName }));
       setError('');
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        // User cancelled the picker
+      if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'NotFoundError')) {
         return;
       }
       setError('Failed to select port');
@@ -142,14 +157,26 @@ export function ArduinoUploadDialog({
     setProgressPercent(0);
 
     try {
-      // CRITICAL: Request serial port HERE in the click handler (user gesture)
-      // so the browser allows the permission prompt.
       let port: SerialPortLike;
       if (config.uploadMethod === 'serial') {
+        const serial = getSerial();
+        const authorizedPortEntries = serial
+          ? (await serial.getPorts()).map((authorizedPort, index) => ({
+              label: getPortLabel(authorizedPort, index),
+              port: authorizedPort,
+            }))
+          : [];
+        const selectedAuthorizedPort = authorizedPortEntries.find(({ label }) => label === config.portName)?.port;
         const isEsp = ESP_BOARDS.includes(config.boardId);
-        port = isEsp ? await requestAnyPort() : await requestArduinoPort();
+
+        if (selectedAuthorizedPort) {
+          port = selectedAuthorizedPort;
+        } else if (authorizedPortEntries.length === 1) {
+          port = authorizedPortEntries[0].port;
+        } else {
+          port = isEsp ? await requestAnyPort() : await requestArduinoPort();
+        }
       } else {
-        // WiFi/Bluetooth don't need a serial port
         port = null as unknown as SerialPortLike;
       }
 
@@ -161,6 +188,8 @@ export function ArduinoUploadDialog({
     } catch (err) {
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setError('Serial port access denied. Please select a port when prompted.');
+      } else if (err instanceof DOMException && err.name === 'NotFoundError') {
+        setError('No compatible serial device was selected. If you are using a clone Uno, click "Select Port" first and choose it manually.');
       } else {
         setError(err instanceof Error ? err.message : 'Upload failed');
       }
