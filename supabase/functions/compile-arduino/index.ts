@@ -428,33 +428,48 @@ const BOARD_CONFIGS: Record<string, { compiler: string; stubs: string; args: str
 
 const SUPPORTED_BOARD_IDS = Object.keys(BOARD_CONFIGS);
 
-// ELF to Intel HEX conversion
-function elfToHex(elfBase64: string): string {
-  const elfBytes = Uint8Array.from(atob(elfBase64), c => c.charCodeAt(0));
-  
-  const is32 = elfBytes[4] === 1;
-  if (!is32) throw new Error('Only 32-bit ELF supported');
-  
+// ELF to Intel HEX / flat binary conversion
+function decodeBase64(content: string): Uint8Array {
+  return Uint8Array.from(atob(content), c => c.charCodeAt(0));
+}
+
+function isElfBytes(bytes: Uint8Array): boolean {
+  return bytes.length >= 5
+    && bytes[0] === 0x7F
+    && bytes[1] === 0x45
+    && bytes[2] === 0x4C
+    && bytes[3] === 0x46
+    && bytes[4] === 0x01;
+}
+
+function parseElfExecutable(elfBase64: string): { entry: number; segments: { paddr: number; data: Uint8Array }[] } {
+  const elfBytes = decodeBase64(elfBase64);
+
+  if (!isElfBytes(elfBytes)) {
+    throw new Error('Artifact is not a 32-bit ELF executable');
+  }
+
   const littleEndian = elfBytes[5] === 1;
   const view = new DataView(elfBytes.buffer);
-  
+
   const readU16 = (off: number) => view.getUint16(off, littleEndian);
   const readU32 = (off: number) => view.getUint32(off, littleEndian);
-  
+
+  const entry = readU32(24);
   const phoff = readU32(28);
   const phentsize = readU16(42);
   const phnum = readU16(44);
-  
+
   const segments: { paddr: number; data: Uint8Array }[] = [];
   for (let i = 0; i < phnum; i++) {
     const off = phoff + i * phentsize;
     const pType = readU32(off);
     if (pType !== 1) continue;
-    
+
     const fileOff = readU32(off + 4);
     const paddr = readU32(off + 12);
     const filesz = readU32(off + 16);
-    
+
     if (filesz > 0) {
       segments.push({
         paddr,
@@ -462,35 +477,63 @@ function elfToHex(elfBase64: string): string {
       });
     }
   }
-  
+
   if (segments.length === 0) throw new Error('No loadable segments in ELF');
-  
+  return { entry, segments };
+}
+
+function encodeHexFromBytes(bytes: Uint8Array): string {
+  let hex = '';
+  for (let i = 0; i < bytes.length; i += 16) {
+    const chunkLen = Math.min(16, bytes.length - i);
+    const addr = i & 0xFFFF;
+
+    let line = `:${toHex8(chunkLen)}${toHex16(addr)}00`;
+    let checksum = chunkLen + (addr >> 8) + (addr & 0xFF);
+
+    for (let j = 0; j < chunkLen; j++) {
+      const b = bytes[i + j];
+      line += toHex8(b);
+      checksum += b;
+    }
+
+    line += toHex8((-checksum) & 0xFF);
+    hex += line + '\n';
+  }
+
+  hex += ':00000001FF\n';
+  return hex;
+}
+
+function elfToHex(elfBase64: string): string {
+  const { segments } = parseElfExecutable(elfBase64);
   let hex = '';
   for (const seg of segments) {
     const baseAddr = seg.paddr;
     const data = seg.data;
-    
+
     for (let i = 0; i < data.length; i += 16) {
       const chunkLen = Math.min(16, data.length - i);
       const addr = (baseAddr + i) & 0xFFFF;
-      
+
       let line = `:${toHex8(chunkLen)}${toHex16(addr)}00`;
       let checksum = chunkLen + (addr >> 8) + (addr & 0xFF) + 0x00;
-      
+
       for (let j = 0; j < chunkLen; j++) {
         const b = data[i + j];
         line += toHex8(b);
         checksum += b;
       }
-      
+
       line += toHex8((-checksum) & 0xFF);
       hex += line + '\n';
     }
   }
-  
+
   hex += ':00000001FF\n';
   return hex;
 }
+
 
 function toHex8(n: number): string {
   return n.toString(16).toUpperCase().padStart(2, '0');
@@ -524,7 +567,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { sketch, board = 'uno' } = await req.json();
+    const { sketch, board = 'uno', debug = false } = await req.json();
     
     if (!sketch || typeof sketch !== 'string') {
       return new Response(
@@ -585,6 +628,31 @@ Deno.serve(async (req: Request) => {
 
     const result = await compileResponse.json();
 
+    if (debug) {
+      return new Response(
+        JSON.stringify({
+          code: result.code,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          asmSample: Array.isArray(result.asm) ? result.asm.slice(0, 12) : result.asm,
+          artifacts: Array.isArray(result.artifacts)
+            ? result.artifacts.map((artifact: Record<string, unknown>) => ({
+                name: artifact.name ?? null,
+                type: artifact.type ?? null,
+                title: artifact.title ?? null,
+                contentLength: typeof (artifact.content ?? artifact.base64 ?? artifact.data) === 'string'
+                  ? ((artifact.content ?? artifact.base64 ?? artifact.data) as string).length
+                  : null,
+                contentPrefix: typeof (artifact.content ?? artifact.base64 ?? artifact.data) === 'string'
+                  ? ((artifact.content ?? artifact.base64 ?? artifact.data) as string).slice(0, 32)
+                  : null,
+              }))
+            : result.artifacts,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Check for compilation errors
     const stubs = boardConfig.stubs;
     const stderr = (result.stderr || []).map((s: { text: string }) => s.text).join('\n');
@@ -611,23 +679,61 @@ Deno.serve(async (req: Request) => {
       ? result.artifacts
           .map((artifact: Record<string, unknown>) => {
             const content = artifact.content ?? artifact.base64 ?? artifact.data;
-            return typeof content === 'string' ? content : null;
+            if (typeof content !== 'string') return null;
+            try {
+              return isElfBytes(decodeBase64(content)) ? content : null;
+            } catch {
+              return null;
+            }
           })
           .find((content: string | null): content is string => Boolean(content))
       : null;
 
     if (!boardConfig.isArm && artifactBase64) {
       try {
-        const hexOutput = elfToHex(artifactBase64);
+        const { entry, segments } = parseElfExecutable(artifactBase64);
+        console.log('compile-arduino avr artifact', JSON.stringify({
+          board,
+          entry,
+          segmentCount: segments.length,
+          segments: segments.map((segment) => ({ paddr: segment.paddr, size: segment.data.length })),
+        }));
+
+        const maxSegmentEnd = segments.reduce((max, segment) => Math.max(max, segment.paddr + segment.data.length), 0);
+        const binaryData = new Uint8Array(maxSegmentEnd);
+        binaryData.fill(0xFF);
+
+        for (const segment of segments) {
+          binaryData.set(segment.data, segment.paddr);
+        }
+
+        if (binaryData.length >= 2 && binaryData[0] === 0xFF && binaryData[1] === 0xFF) {
+          const codeStart = entry;
+          if (codeStart < 0 || codeStart % 2 !== 0) {
+            throw new Error('ELF entry point is not a valid AVR instruction address');
+          }
+
+          const rjmpOffset = (codeStart / 2) - 1;
+          if (rjmpOffset < -2048 || rjmpOffset > 2047) {
+            throw new Error('ELF entry point is outside AVR RJMP range');
+          }
+
+          const encodedOffset = rjmpOffset & 0x0FFF;
+          binaryData[0] = encodedOffset & 0xFF;
+          binaryData[1] = 0xC0 | ((encodedOffset >> 8) & 0x0F);
+        }
+
         return new Response(
           JSON.stringify({
-            hex: hexOutput,
+            hex: encodeHexFromBytes(binaryData),
             format: 'hex',
+            size: binaryData.length,
             warnings: stderr || null,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
-      } catch {
+      } catch (artifactError) {
+        console.log('compile-arduino avr artifact failed', artifactError instanceof Error ? artifactError.message : String(artifactError));
         // Fall back to asm parsing below.
       }
     }
@@ -655,6 +761,8 @@ Deno.serve(async (req: Request) => {
         if (typeof entry.address === 'number' && entry.opcodes) {
           const opcodes = Array.isArray(entry.opcodes)
             ? entry.opcodes
+                .map((value) => typeof value === 'number' ? value : parseInt(String(value), 16))
+                .filter((value) => Number.isFinite(value) && value >= 0 && value <= 0xFF)
             : (typeof entry.opcodes === 'string'
               ? entry.opcodes.trim().split(/\s+/).map((b: string) => parseInt(b, 16))
               : []);
@@ -755,6 +863,8 @@ Deno.serve(async (req: Request) => {
         const addr = entry.address;
         const opcodes: number[] = Array.isArray(entry.opcodes)
           ? entry.opcodes
+              .map((value) => typeof value === 'number' ? value : parseInt(String(value), 16))
+              .filter((value) => Number.isFinite(value) && value >= 0 && value <= 0xFF)
           : (typeof entry.opcodes === 'string'
             ? entry.opcodes.trim().split(/\s+/).map((b: string) => parseInt(b, 16))
             : []);
