@@ -645,13 +645,38 @@ Deno.serve(async (req: Request) => {
           .find((content: string | null): content is string => Boolean(content))
       : null;
 
-    if (boardConfig.isArm && artifactBase64) {
+    if (!boardConfig.isArm && artifactBase64) {
       try {
-        const hexOutput = elfToHex(artifactBase64);
+        const { entry, segments } = parseElfExecutable(artifactBase64);
+        const maxSegmentEnd = segments.reduce((max, segment) => Math.max(max, segment.paddr + segment.data.length), 0);
+        const binaryData = new Uint8Array(maxSegmentEnd);
+        binaryData.fill(0xFF);
+
+        for (const segment of segments) {
+          binaryData.set(segment.data, segment.paddr);
+        }
+
+        if (binaryData.length >= 2 && binaryData[0] === 0xFF && binaryData[1] === 0xFF) {
+          const codeStart = entry;
+          if (codeStart < 0 || codeStart % 2 !== 0) {
+            throw new Error('ELF entry point is not a valid AVR instruction address');
+          }
+
+          const rjmpOffset = (codeStart / 2) - 1;
+          if (rjmpOffset < -2048 || rjmpOffset > 2047) {
+            throw new Error('ELF entry point is outside AVR RJMP range');
+          }
+
+          const encodedOffset = rjmpOffset & 0x0FFF;
+          binaryData[0] = encodedOffset & 0xFF;
+          binaryData[1] = 0xC0 | ((encodedOffset >> 8) & 0x0F);
+        }
+
         return new Response(
           JSON.stringify({
-            hex: hexOutput,
+            hex: encodeHexFromBytes(binaryData),
             format: 'hex',
+            size: binaryData.length,
             warnings: stderr || null,
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
