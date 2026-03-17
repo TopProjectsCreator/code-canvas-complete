@@ -9,6 +9,7 @@ import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Docs from "./pages/Docs";
+import ProfilePage from "./pages/Profile";
 import { isPublishedHost } from "./lib/publishing";
 
 const queryClient = new QueryClient();
