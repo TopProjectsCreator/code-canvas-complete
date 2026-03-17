@@ -33,20 +33,23 @@ const ARDUINO_CORE_STUBS = `
 typedef uint8_t byte;
 typedef bool boolean;
 
-// Timekeeping
+// Timekeeping (busy-wait based so sketches do not depend on interrupt vectors)
 volatile unsigned long _millis_count = 0;
-ISR(TIMER0_OVF_vect) { _millis_count++; }
 
 unsigned long millis() { return _millis_count; }
 unsigned long micros() { return _millis_count * 1000UL; }
 
 void delay(unsigned long ms) {
-  unsigned long start = millis();
-  while (millis() - start < ms) {}
+  while (ms--) {
+    _delay_ms(1);
+    _millis_count++;
+  }
 }
 
 void delayMicroseconds(unsigned int us) {
-  while (us--) { __asm__ __volatile__("nop"); }
+  while (us--) {
+    _delay_us(1);
+  }
 }
 
 // Digital I/O
