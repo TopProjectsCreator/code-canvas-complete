@@ -292,10 +292,6 @@ export async function flashHex(
   const { data, startAddress } = parseIntelHex(hexData);
   const pages = splitIntoPages(data, startAddress, PAGE_SIZE);
 
-  onProgress?.('Resetting board...', 0);
-  await resetBoard(port);
-  await new Promise(r => setTimeout(r, 200));
-
   const reader = port.readable?.getReader();
   const writer = port.writable?.getWriter();
 
