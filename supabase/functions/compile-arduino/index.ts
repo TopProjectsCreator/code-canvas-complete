@@ -567,7 +567,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { sketch, board = 'uno' } = await req.json();
+    const { sketch, board = 'uno', debug = false } = await req.json();
     
     if (!sketch || typeof sketch !== 'string') {
       return new Response(
