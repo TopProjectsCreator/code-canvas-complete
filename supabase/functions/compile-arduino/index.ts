@@ -429,11 +429,25 @@ const BOARD_CONFIGS: Record<string, { compiler: string; stubs: string; args: str
 const SUPPORTED_BOARD_IDS = Object.keys(BOARD_CONFIGS);
 
 // ELF to Intel HEX / flat binary conversion
-function parseElfExecutable(elfBase64: string): { entry: number; segments: { paddr: number; data: Uint8Array }[] } {
-  const elfBytes = Uint8Array.from(atob(elfBase64), c => c.charCodeAt(0));
+function decodeBase64(content: string): Uint8Array {
+  return Uint8Array.from(atob(content), c => c.charCodeAt(0));
+}
 
-  const is32 = elfBytes[4] === 1;
-  if (!is32) throw new Error('Only 32-bit ELF supported');
+function isElfBytes(bytes: Uint8Array): boolean {
+  return bytes.length >= 5
+    && bytes[0] === 0x7F
+    && bytes[1] === 0x45
+    && bytes[2] === 0x4C
+    && bytes[3] === 0x46
+    && bytes[4] === 0x01;
+}
+
+function parseElfExecutable(elfBase64: string): { entry: number; segments: { paddr: number; data: Uint8Array }[] } {
+  const elfBytes = decodeBase64(elfBase64);
+
+  if (!isElfBytes(elfBytes)) {
+    throw new Error('Artifact is not a 32-bit ELF executable');
+  }
 
   const littleEndian = elfBytes[5] === 1;
   const view = new DataView(elfBytes.buffer);
