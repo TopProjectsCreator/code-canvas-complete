@@ -648,6 +648,13 @@ Deno.serve(async (req: Request) => {
     if (!boardConfig.isArm && artifactBase64) {
       try {
         const { entry, segments } = parseElfExecutable(artifactBase64);
+        console.log('compile-arduino avr artifact', JSON.stringify({
+          board,
+          entry,
+          segmentCount: segments.length,
+          segments: segments.map((segment) => ({ paddr: segment.paddr, size: segment.data.length })),
+        }));
+
         const maxSegmentEnd = segments.reduce((max, segment) => Math.max(max, segment.paddr + segment.data.length), 0);
         const binaryData = new Uint8Array(maxSegmentEnd);
         binaryData.fill(0xFF);
@@ -681,7 +688,8 @@ Deno.serve(async (req: Request) => {
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
-      } catch {
+      } catch (artifactError) {
+        console.log('compile-arduino avr artifact failed', artifactError instanceof Error ? artifactError.message : String(artifactError));
         // Fall back to asm parsing below.
       }
     }
