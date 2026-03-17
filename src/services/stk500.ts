@@ -17,9 +17,9 @@ const STK_PROG_PAGE = 0x64;
 const STK_READ_PAGE = 0x74;
 const STK_READ_SIGN = 0x75;
 
-const SYNC_TIMEOUT = 2000;
 const RESPONSE_TIMEOUT = 5000;
 const PAGE_SIZE = 128; // ATmega328P page size in bytes
+const SYNC_ATTEMPT_TIMEOUT = 350;
 
 interface SerialPortLike {
   open(options: { baudRate: number }): Promise<void>;
@@ -33,42 +33,111 @@ type ResetStrategy = 'classic' | 'avrdude' | 'inverted';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/**
- * Read exactly `count` bytes from the serial port with timeout
- */
-async function readBytes(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  count: number,
-  timeout: number = RESPONSE_TIMEOUT
-): Promise<Uint8Array> {
-  const result = new Uint8Array(count);
-  let offset = 0;
-  const deadline = Date.now() + timeout;
+const toError = (error: unknown, fallback: string): Error =>
+  error instanceof Error ? error : new Error(fallback);
 
-  while (offset < count) {
-    if (Date.now() > deadline) {
-      throw new Error(`Timeout waiting for ${count} bytes (got ${offset})`);
-    }
+class BufferedSerialReader {
+  private readonly buffer: number[] = [];
+  private readLoop: Promise<void>;
+  private done = false;
+  private disposed = false;
+  private readError: Error | null = null;
 
-    const { value, done } = await Promise.race([
-      reader.read(),
-      new Promise<{ value: undefined; done: true }>((_, reject) =>
-        setTimeout(() => reject(new Error('Serial read timeout')), timeout)
-      ),
-    ]);
+  constructor(private readonly reader: ReadableStreamDefaultReader<Uint8Array>) {
+    this.readLoop = this.consume();
+  }
 
-    if (done || !value) break;
+  private async consume(): Promise<void> {
+    try {
+      while (!this.disposed) {
+        const { value, done } = await this.reader.read();
+        if (done) {
+          this.done = true;
+          return;
+        }
 
-    for (let i = 0; i < value.length && offset < count; i++) {
-      result[offset++] = value[i];
+        if (value?.length) {
+          this.buffer.push(...value);
+        }
+      }
+    } catch (error) {
+      if (!this.disposed) {
+        this.readError = toError(error, 'Serial read failed');
+      }
     }
   }
 
-  if (offset < count) {
-    throw new Error(`Expected ${count} bytes but got ${offset}`);
+  clear(): void {
+    this.buffer.length = 0;
   }
 
-  return result;
+  async readBytes(count: number, timeout: number = RESPONSE_TIMEOUT): Promise<Uint8Array> {
+    const deadline = Date.now() + timeout;
+
+    while (this.buffer.length < count) {
+      if (this.readError) {
+        throw this.readError;
+      }
+
+      if (this.done) {
+        break;
+      }
+
+      if (Date.now() >= deadline) {
+        throw new Error(`Timeout waiting for ${count} bytes (got ${this.buffer.length})`);
+      }
+
+      await sleep(10);
+    }
+
+    if (this.buffer.length < count) {
+      throw new Error(`Expected ${count} bytes but got ${this.buffer.length}`);
+    }
+
+    return new Uint8Array(this.buffer.splice(0, count));
+  }
+
+  async drainInput(quietMs = 120): Promise<void> {
+    this.clear();
+
+    let lastCount = this.buffer.length;
+    let lastChangeAt = Date.now();
+    const deadline = Date.now() + quietMs * 4;
+
+    while (Date.now() < deadline) {
+      await sleep(10);
+      const currentCount = this.buffer.length;
+
+      if (currentCount !== lastCount) {
+        lastCount = currentCount;
+        lastChangeAt = Date.now();
+      }
+
+      if (Date.now() - lastChangeAt >= quietMs) {
+        break;
+      }
+    }
+
+    this.clear();
+  }
+
+  async dispose(): Promise<void> {
+    this.disposed = true;
+
+    try {
+      await this.reader.cancel();
+    } catch {
+      // ignore cancellation errors during cleanup
+    }
+
+    await this.readLoop.catch(() => undefined);
+
+    try {
+      this.reader.releaseLock();
+    } catch {
+      // ignore release errors during cleanup
+    }
+  }
 }
 
 /**
@@ -76,14 +145,14 @@ async function readBytes(
  */
 async function sendCommand(
   writer: WritableStreamDefaultWriter<Uint8Array>,
-  reader: ReadableStreamDefaultReader<Uint8Array>,
+  reader: BufferedSerialReader,
   command: number[],
   timeout?: number
 ): Promise<Uint8Array> {
-  const data = new Uint8Array([...command, CRC_EOP]);
-  await writer.write(data);
+  reader.clear();
+  await writer.write(new Uint8Array([...command, CRC_EOP]));
 
-  const response = await readBytes(reader, 2, timeout);
+  const response = await reader.readBytes(2, timeout);
 
   if (response[0] !== STK_INSYNC) {
     throw new Error(`Expected STK_INSYNC (0x14), got 0x${response[0].toString(16)}`);
@@ -113,7 +182,7 @@ async function resetBoard(port: SerialPortLike, strategy: ResetStrategy = 'class
         await port.setSignals({ dataTerminalReady: false, requestToSend: false });
         await sleep(50);
         await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-        await sleep(200);
+        await sleep(220);
         break;
 
       case 'avrdude':
@@ -129,32 +198,11 @@ async function resetBoard(port: SerialPortLike, strategy: ResetStrategy = 'class
         await port.setSignals({ dataTerminalReady: true, requestToSend: true });
         await sleep(50);
         await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-        await sleep(200);
+        await sleep(220);
         break;
     }
   } catch {
     // Some serial drivers/bridges don't fully support signal toggling.
-  }
-}
-
-/**
- * Drain any stale data sitting in the serial receive buffer
- * so sync attempts don't get confused by leftover bytes.
- */
-async function drainInput(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
-  const drainTimeout = 100;
-  try {
-    while (true) {
-      const result = await Promise.race([
-        reader.read(),
-        new Promise<{ value: undefined; done: true }>((resolve) =>
-          setTimeout(() => resolve({ value: undefined, done: true }), drainTimeout)
-        ),
-      ]);
-      if (result.done || !result.value || result.value.length === 0) break;
-    }
-  } catch {
-    // ignore — buffer is empty
   }
 }
 
@@ -165,9 +213,9 @@ async function drainInput(reader: ReadableStreamDefaultReader<Uint8Array>): Prom
  */
 async function sync(
   writer: WritableStreamDefaultWriter<Uint8Array>,
-  reader: ReadableStreamDefaultReader<Uint8Array>,
+  reader: BufferedSerialReader,
   maxAttempts: number = 10,
-  attemptTimeout: number = 250
+  attemptTimeout: number = SYNC_ATTEMPT_TIMEOUT
 ): Promise<void> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -184,7 +232,7 @@ async function sync(
 async function syncWithFallbacks(
   port: SerialPortLike,
   writer: WritableStreamDefaultWriter<Uint8Array>,
-  reader: ReadableStreamDefaultReader<Uint8Array>,
+  reader: BufferedSerialReader,
   onProgress?: (message: string, percent: number) => void
 ): Promise<void> {
   const plans: Array<{
@@ -193,10 +241,10 @@ async function syncWithFallbacks(
     attempts: number;
     strategy?: ResetStrategy;
   }> = [
-    { label: 'Checking bootloader...', percent: 2, attempts: 4 },
-    { label: 'Resetting board...', percent: 4, attempts: 8, strategy: 'classic' },
-    { label: 'Retrying reset...', percent: 5, attempts: 10, strategy: 'avrdude' },
-    { label: 'Trying alternate reset...', percent: 6, attempts: 12, strategy: 'inverted' },
+    { label: 'Checking bootloader...', percent: 2, attempts: 3 },
+    { label: 'Resetting board...', percent: 4, attempts: 6, strategy: 'avrdude' },
+    { label: 'Retrying reset...', percent: 5, attempts: 8, strategy: 'classic' },
+    { label: 'Trying alternate reset...', percent: 6, attempts: 10, strategy: 'inverted' },
   ];
 
   for (const plan of plans) {
@@ -204,9 +252,10 @@ async function syncWithFallbacks(
 
     if (plan.strategy) {
       await resetBoard(port, plan.strategy);
+      await reader.drainInput();
+    } else {
+      reader.clear();
     }
-
-    await drainInput(reader);
 
     try {
       await sync(writer, reader, plan.attempts);
@@ -224,12 +273,12 @@ async function syncWithFallbacks(
  */
 async function readSignature(
   writer: WritableStreamDefaultWriter<Uint8Array>,
-  reader: ReadableStreamDefaultReader<Uint8Array>
+  reader: BufferedSerialReader
 ): Promise<string> {
-  const data = new Uint8Array([STK_READ_SIGN, CRC_EOP]);
-  await writer.write(data);
+  reader.clear();
+  await writer.write(new Uint8Array([STK_READ_SIGN, CRC_EOP]));
 
-  const response = await readBytes(reader, 5);
+  const response = await reader.readBytes(5);
   if (response[0] !== STK_INSYNC || response[4] !== STK_OK) {
     throw new Error('Failed to read device signature');
   }
@@ -244,11 +293,11 @@ async function readSignature(
  */
 async function loadAddress(
   writer: WritableStreamDefaultWriter<Uint8Array>,
-  reader: ReadableStreamDefaultReader<Uint8Array>,
+  reader: BufferedSerialReader,
   wordAddress: number
 ): Promise<void> {
-  const addrLow = wordAddress & 0xFF;
-  const addrHigh = (wordAddress >> 8) & 0xFF;
+  const addrLow = wordAddress & 0xff;
+  const addrHigh = (wordAddress >> 8) & 0xff;
   await sendCommand(writer, reader, [STK_LOAD_ADDRESS, addrLow, addrHigh]);
 }
 
@@ -257,11 +306,11 @@ async function loadAddress(
  */
 async function programPage(
   writer: WritableStreamDefaultWriter<Uint8Array>,
-  reader: ReadableStreamDefaultReader<Uint8Array>,
+  reader: BufferedSerialReader,
   pageData: Uint8Array
 ): Promise<void> {
-  const sizeHigh = (pageData.length >> 8) & 0xFF;
-  const sizeLow = pageData.length & 0xFF;
+  const sizeHigh = (pageData.length >> 8) & 0xff;
+  const sizeLow = pageData.length & 0xff;
   const memType = 0x46; // 'F' for flash
 
   const command = new Uint8Array([
@@ -273,9 +322,10 @@ async function programPage(
     CRC_EOP,
   ]);
 
+  reader.clear();
   await writer.write(command);
 
-  const response = await readBytes(reader, 2);
+  const response = await reader.readBytes(2);
   if (response[0] !== STK_INSYNC || response[1] !== STK_OK) {
     throw new Error('Page programming failed');
   }
@@ -286,11 +336,11 @@ async function programPage(
  */
 async function readPage(
   writer: WritableStreamDefaultWriter<Uint8Array>,
-  reader: ReadableStreamDefaultReader<Uint8Array>,
+  reader: BufferedSerialReader,
   pageLength: number
 ): Promise<Uint8Array> {
-  const sizeHigh = (pageLength >> 8) & 0xFF;
-  const sizeLow = pageLength & 0xFF;
+  const sizeHigh = (pageLength >> 8) & 0xff;
+  const sizeLow = pageLength & 0xff;
   const memType = 0x46; // 'F' for flash
 
   const command = new Uint8Array([
@@ -301,9 +351,10 @@ async function readPage(
     CRC_EOP,
   ]);
 
+  reader.clear();
   await writer.write(command);
 
-  const response = await readBytes(reader, pageLength + 2);
+  const response = await reader.readBytes(pageLength + 2);
   if (response[0] !== STK_INSYNC) {
     throw new Error('Flash verification failed to start');
   }
@@ -316,7 +367,7 @@ async function readPage(
 
 async function verifyFlash(
   writer: WritableStreamDefaultWriter<Uint8Array>,
-  reader: ReadableStreamDefaultReader<Uint8Array>,
+  reader: BufferedSerialReader,
   pages: Array<{ address: number; data: Uint8Array }>,
   onProgress?: (message: string, percent: number) => void
 ): Promise<void> {
@@ -352,12 +403,14 @@ export async function flashHex(
   const { data, startAddress } = parseIntelHex(hexData);
   const pages = splitIntoPages(data, startAddress, PAGE_SIZE);
 
-  const reader = port.readable?.getReader();
+  const baseReader = port.readable?.getReader();
   const writer = port.writable?.getWriter();
 
-  if (!reader || !writer) {
+  if (!baseReader || !writer) {
     throw new Error('Serial port is not ready for flashing');
   }
+
+  const reader = new BufferedSerialReader(baseReader);
 
   try {
     onProgress?.('Preparing upload...', 0);
@@ -389,7 +442,7 @@ export async function flashHex(
 
     onProgress?.('Upload complete!', 100);
   } finally {
-    reader.releaseLock();
+    await reader.dispose();
     writer.releaseLock();
   }
 }
