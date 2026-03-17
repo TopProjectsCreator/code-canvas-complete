@@ -29,6 +29,10 @@ interface SerialPortLike {
   setSignals?(signals: { dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void>;
 }
 
+type ResetStrategy = 'classic' | 'avrdude' | 'inverted';
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 /**
  * Read exactly `count` bytes from the serial port with timeout
  */
@@ -92,28 +96,44 @@ async function sendCommand(
 }
 
 /**
- * Reset the board by toggling DTR signal (mimics avrdude auto-reset).
- * The Arduino auto-reset circuit uses a capacitor on DTR so it triggers
- * on the HIGH→LOW edge. We pulse DTR low, then back high, then wait
- * for the bootloader to start (~100-250ms depending on board).
+ * Reset the board by toggling modem control lines.
+ * Different Uno-compatible USB bridges wire DTR/RTS slightly differently,
+ * so we support a few reset strategies and try them in order.
  */
-async function resetBoard(port: SerialPortLike): Promise<void> {
+async function resetBoard(port: SerialPortLike, strategy: ResetStrategy = 'classic'): Promise<void> {
   if (!port.setSignals) {
-    // If setSignals isn't available, skip — user will need manual reset
     return;
   }
 
   try {
-    // Mimic avrdude: toggle DTR to trigger the auto-reset capacitor circuit
-    // The falling edge of DTR triggers the reset
-    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-    await new Promise(r => setTimeout(r, 250));
-    await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+    switch (strategy) {
+      case 'classic':
+        await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+        await sleep(50);
+        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await sleep(50);
+        await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+        await sleep(200);
+        break;
 
-    // Wait for the bootloader to initialise (Optiboot ~65ms, some clones ~200ms)
-    await new Promise(r => setTimeout(r, 250));
+      case 'avrdude':
+        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await sleep(20);
+        await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+        await sleep(250);
+        break;
+
+      case 'inverted':
+        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await sleep(50);
+        await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+        await sleep(50);
+        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await sleep(200);
+        break;
+    }
   } catch {
-    // Some serial drivers don't support setSignals — continue without reset
+    // Some serial drivers/bridges don't fully support signal toggling.
   }
 }
 
@@ -139,23 +159,64 @@ async function drainInput(reader: ReadableStreamDefaultReader<Uint8Array>): Prom
 }
 
 /**
- * Attempt to synchronize with the bootloader
+ * Attempt to synchronize with the bootloader.
+ * Use short per-attempt timeouts so we can send several sync probes while the
+ * bootloader window is still open after a reset.
  */
 async function sync(
   writer: WritableStreamDefaultWriter<Uint8Array>,
   reader: ReadableStreamDefaultReader<Uint8Array>,
-  maxAttempts: number = 10
+  maxAttempts: number = 10,
+  attemptTimeout: number = 250
 ): Promise<void> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      await sendCommand(writer, reader, [STK_GET_SYNC], SYNC_TIMEOUT);
+      await sendCommand(writer, reader, [STK_GET_SYNC], attemptTimeout);
       return;
     } catch {
-      await new Promise(r => setTimeout(r, 100));
+      await sleep(50);
     }
   }
 
   throw new Error('Failed to sync with bootloader after multiple attempts. Is the board connected?');
+}
+
+async function syncWithFallbacks(
+  port: SerialPortLike,
+  writer: WritableStreamDefaultWriter<Uint8Array>,
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  onProgress?: (message: string, percent: number) => void
+): Promise<void> {
+  const plans: Array<{
+    label: string;
+    percent: number;
+    attempts: number;
+    strategy?: ResetStrategy;
+  }> = [
+    { label: 'Checking bootloader...', percent: 2, attempts: 4 },
+    { label: 'Resetting board...', percent: 4, attempts: 8, strategy: 'classic' },
+    { label: 'Retrying reset...', percent: 5, attempts: 10, strategy: 'avrdude' },
+    { label: 'Trying alternate reset...', percent: 6, attempts: 12, strategy: 'inverted' },
+  ];
+
+  for (const plan of plans) {
+    onProgress?.(plan.label, plan.percent);
+
+    if (plan.strategy) {
+      await resetBoard(port, plan.strategy);
+    }
+
+    await drainInput(reader);
+
+    try {
+      await sync(writer, reader, plan.attempts);
+      return;
+    } catch {
+      // Try the next reset strategy.
+    }
+  }
+
+  throw new Error('Failed to sync with bootloader after trying multiple reset strategies. Press reset once and try again.');
 }
 
 /**
@@ -299,25 +360,8 @@ export async function flashHex(
   }
 
   try {
-    // First reset + sync attempt
-    onProgress?.('Resetting board...', 0);
-    await resetBoard(port);
-    await drainInput(reader);
-
-    onProgress?.('Syncing with bootloader...', 5);
-    let synced = false;
-    try {
-      await sync(writer, reader, 6);
-      synced = true;
-    } catch {
-      // First attempt failed — try a second DTR reset with longer delay
-      onProgress?.('Retrying reset...', 3);
-      await resetBoard(port);
-      await new Promise(r => setTimeout(r, 300));
-      await drainInput(reader);
-      await sync(writer, reader, 12);
-      synced = true;
-    }
+    onProgress?.('Preparing upload...', 0);
+    await syncWithFallbacks(port, writer, reader, onProgress);
 
     const signature = await readSignature(writer, reader);
     onProgress?.(`Bootloader detected (${signature})`, 8);
