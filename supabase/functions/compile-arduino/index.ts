@@ -637,8 +637,9 @@ Deno.serve(async (req: Request) => {
     let maxAddr = 0;
 
     const writeBytes = (addr: number, bytes: number[]) => {
+      const byteAddr = boardConfig.isArm ? addr : addr * 2;
       for (let i = 0; i < bytes.length; i++) {
-        const pos = addr + i;
+        const pos = byteAddr + i;
         while (hexBytes.length <= pos) hexBytes.push(0xFF);
         hexBytes[pos] = bytes[i];
         if (pos + 1 > maxAddr) maxAddr = pos + 1;
