@@ -263,6 +263,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     });
   };
 
+
   const undo = () => {
     const prev = historyRef.current.pop();
     if (!prev) return;
@@ -278,49 +279,61 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   };
 
   const addSlide = () => {
-    const newSlides = [...slides, {
-      elements: [
-        { id: newId(), type: 'text' as const, x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700 },
-        { id: newId(), type: 'text' as const, x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400 },
-      ]
-    }];
-    setSlides(newSlides);
-    setActiveSlide(newSlides.length - 1);
+    let nextIndex = 0;
+    commitSlides(prev => {
+      const next = [...prev, {
+        elements: [
+          { id: newId(), type: 'text' as const, x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700 },
+          { id: newId(), type: 'text' as const, x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400 },
+        ]
+      }];
+      nextIndex = next.length - 1;
+      return next;
+    });
+    setActiveSlide(nextIndex);
   };
 
   const deleteSlide = (idx: number) => {
     if (slides.length <= 1) return;
-    const newSlides = slides.filter((_, i) => i !== idx);
-    setSlides(newSlides);
-    setActiveSlide(Math.min(activeSlide, newSlides.length - 1));
+    let nextLength = slides.length;
+    commitSlides(prev => {
+      const next = prev.filter((_, i) => i !== idx);
+      nextLength = next.length;
+      return next;
+    });
+    setActiveSlide(prev => Math.min(prev, nextLength - 1));
   };
 
   const duplicateSlide = (idx: number) => {
-    const newSlides = [...slides];
-    const cloned: SlideData = { elements: slides[idx].elements.map(el => ({ ...el, id: newId() })) };
-    newSlides.splice(idx + 1, 0, cloned);
-    setSlides(newSlides);
+    commitSlides(prev => {
+      const next = [...prev];
+      const cloned: SlideData = { elements: prev[idx].elements.map(el => ({ ...el, id: newId() })) };
+      next.splice(idx + 1, 0, cloned);
+      return next;
+    });
     setActiveSlide(idx + 1);
   };
 
   const moveSlide = (idx: number, dir: -1 | 1) => {
     const newIdx = idx + dir;
     if (newIdx < 0 || newIdx >= slides.length) return;
-    const newSlides = [...slides];
-    [newSlides[idx], newSlides[newIdx]] = [newSlides[newIdx], newSlides[idx]];
-    setSlides(newSlides);
+    commitSlides(prev => {
+      const next = [...prev];
+      [next[idx], next[newIdx]] = [next[newIdx], next[idx]];
+      return next;
+    });
     setActiveSlide(newIdx);
   };
 
   const updateElementContent = (elId: string, value: string) => {
-    setSlides(prev => prev.map((s, i) =>
+    commitSlides(prev => prev.map((s, i) =>
       i === activeSlide ? { ...s, elements: s.elements.map(el => el.id === elId ? { ...el, content: value } : el) } : s
     ));
   };
 
   const addTextBox = () => {
     const el: SlideElement = { id: newId(), type: 'text', x: 100, y: 200, width: 400, height: 50, content: 'New text box', fontSize: 16, fontWeight: 400 };
-    setSlides(prev => prev.map((s, i) => i === activeSlide ? { ...s, elements: [...s.elements, el] } : s));
+    commitSlides(prev => prev.map((s, i) => i === activeSlide ? { ...s, elements: [...s.elements, el] } : s));
     setSelectedElement(el.id);
   };
 
@@ -336,7 +349,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
         height: Math.round(img.height * scale),
         content: dataUrl,
       };
-      setSlides(prev => prev.map((s, i) => i === activeSlide ? { ...s, elements: [...s.elements, el] } : s));
+      commitSlides(prev => prev.map((s, i) => i === activeSlide ? { ...s, elements: [...s.elements, el] } : s));
       setSelectedElement(el.id);
     };
     img.src = dataUrl;
@@ -356,7 +369,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   };
 
   const deleteElement = (id: string) => {
-    setSlides(prev => prev.map((s, i) =>
+    commitSlides(prev => prev.map((s, i) =>
       i === activeSlide ? { ...s, elements: s.elements.filter(el => el.id !== id) } : s
     ));
     setSelectedElement(null);
@@ -365,7 +378,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
 
   const updateSelectedTextElement = (updater: (el: SlideElement) => SlideElement) => {
     if (!selectedElement) return;
-    setSlides(prev => prev.map((s, i) => i === activeSlide
+    commitSlides(prev => prev.map((s, i) => i === activeSlide
       ? { ...s, elements: s.elements.map(el => (el.id === selectedElement && el.type === 'text') ? updater(el) : el) }
       : s));
   };
@@ -383,7 +396,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
       fontWeight: 500,
       fontStyle: 'italic',
     };
-    setSlides(prev => prev.map((s, i) => i === activeSlide ? { ...s, elements: [...s.elements, el] } : s));
+    commitSlides(prev => prev.map((s, i) => i === activeSlide ? { ...s, elements: [...s.elements, el] } : s));
     setSelectedElement(el.id);
   };
 
@@ -507,7 +520,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setActiveSlide(0)}><Play className="w-3.5 h-3.5" /> From Beginning</Button></TooltipTrigger><TooltipContent>Start from Beginning</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setActiveSlide(activeSlide)}><Play className="w-3.5 h-3.5" /> From Current</Button></TooltipTrigger><TooltipContent>Start from Current Slide</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setPreviewMode(true)}><Play className="w-3.5 h-3.5" /> From Current</Button></TooltipTrigger><TooltipContent>Start from Current Slide</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5">
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setPreviewMode(true)}><Timer className="w-3.5 h-3.5" /> Rehearse</Button></TooltipTrigger><TooltipContent>Rehearse Timings</TooltipContent></Tooltip>
