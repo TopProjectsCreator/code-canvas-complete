@@ -428,33 +428,34 @@ const BOARD_CONFIGS: Record<string, { compiler: string; stubs: string; args: str
 
 const SUPPORTED_BOARD_IDS = Object.keys(BOARD_CONFIGS);
 
-// ELF to Intel HEX conversion
-function elfToHex(elfBase64: string): string {
+// ELF to Intel HEX / flat binary conversion
+function parseElfExecutable(elfBase64: string): { entry: number; segments: { paddr: number; data: Uint8Array }[] } {
   const elfBytes = Uint8Array.from(atob(elfBase64), c => c.charCodeAt(0));
-  
+
   const is32 = elfBytes[4] === 1;
   if (!is32) throw new Error('Only 32-bit ELF supported');
-  
+
   const littleEndian = elfBytes[5] === 1;
   const view = new DataView(elfBytes.buffer);
-  
+
   const readU16 = (off: number) => view.getUint16(off, littleEndian);
   const readU32 = (off: number) => view.getUint32(off, littleEndian);
-  
+
+  const entry = readU32(24);
   const phoff = readU32(28);
   const phentsize = readU16(42);
   const phnum = readU16(44);
-  
+
   const segments: { paddr: number; data: Uint8Array }[] = [];
   for (let i = 0; i < phnum; i++) {
     const off = phoff + i * phentsize;
     const pType = readU32(off);
     if (pType !== 1) continue;
-    
+
     const fileOff = readU32(off + 4);
     const paddr = readU32(off + 12);
     const filesz = readU32(off + 16);
-    
+
     if (filesz > 0) {
       segments.push({
         paddr,
@@ -462,35 +463,63 @@ function elfToHex(elfBase64: string): string {
       });
     }
   }
-  
+
   if (segments.length === 0) throw new Error('No loadable segments in ELF');
-  
+  return { entry, segments };
+}
+
+function encodeHexFromBytes(bytes: Uint8Array): string {
+  let hex = '';
+  for (let i = 0; i < bytes.length; i += 16) {
+    const chunkLen = Math.min(16, bytes.length - i);
+    const addr = i & 0xFFFF;
+
+    let line = `:${toHex8(chunkLen)}${toHex16(addr)}00`;
+    let checksum = chunkLen + (addr >> 8) + (addr & 0xFF);
+
+    for (let j = 0; j < chunkLen; j++) {
+      const b = bytes[i + j];
+      line += toHex8(b);
+      checksum += b;
+    }
+
+    line += toHex8((-checksum) & 0xFF);
+    hex += line + '\n';
+  }
+
+  hex += ':00000001FF\n';
+  return hex;
+}
+
+function elfToHex(elfBase64: string): string {
+  const { segments } = parseElfExecutable(elfBase64);
   let hex = '';
   for (const seg of segments) {
     const baseAddr = seg.paddr;
     const data = seg.data;
-    
+
     for (let i = 0; i < data.length; i += 16) {
       const chunkLen = Math.min(16, data.length - i);
       const addr = (baseAddr + i) & 0xFFFF;
-      
+
       let line = `:${toHex8(chunkLen)}${toHex16(addr)}00`;
       let checksum = chunkLen + (addr >> 8) + (addr & 0xFF) + 0x00;
-      
+
       for (let j = 0; j < chunkLen; j++) {
         const b = data[i + j];
         line += toHex8(b);
         checksum += b;
       }
-      
+
       line += toHex8((-checksum) & 0xFF);
       hex += line + '\n';
     }
   }
-  
+
   hex += ':00000001FF\n';
   return hex;
 }
+
 
 function toHex8(n: number): string {
   return n.toString(16).toUpperCase().padStart(2, '0');
