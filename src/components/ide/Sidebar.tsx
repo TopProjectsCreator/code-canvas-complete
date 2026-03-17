@@ -14,6 +14,7 @@ import {
   Upload,
   FileText,
   Zap,
+  Wrench,
 } from 'lucide-react';
 import { FileNode, GitState, Workflow } from '@/types/ide';
 import { FileTree } from './FileTree';
@@ -26,6 +27,7 @@ import { FileIcon } from './FileIcon';
 import { SettingsDialog } from './SettingsDialog';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
+import { ToolsPanel } from './ToolsPanel';
 
 
 interface SearchResult {
@@ -66,7 +68,7 @@ interface SidebarProps {
   onInvite: () => void;
 }
 
-type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'history';
+type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'tools' | 'history';
 
 export const Sidebar = ({ 
   files,
@@ -309,6 +311,7 @@ export const Sidebar = ({
     { id: 'git' as const, icon: GitBranch, label: 'Version Control' },
     { id: 'packages' as const, icon: Package, label: 'Packages' },
     { id: 'workflows' as const, icon: Zap, label: 'Workflows' },
+    { id: 'tools' as const, icon: Wrench, label: 'Tools' },
   ];
 
   const handleNewFile = (name: string, type: 'file' | 'folder') => {
@@ -557,6 +560,8 @@ export const Sidebar = ({
             currentlyRunning={currentlyRunningWorkflow}
           />
         )}
+
+        {activeTab === 'tools' && <ToolsPanel />}
 
         
 
