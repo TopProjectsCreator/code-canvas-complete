@@ -761,6 +761,8 @@ Deno.serve(async (req: Request) => {
         if (typeof entry.address === 'number' && entry.opcodes) {
           const opcodes = Array.isArray(entry.opcodes)
             ? entry.opcodes
+                .map((value) => typeof value === 'number' ? value : parseInt(String(value), 16))
+                .filter((value) => Number.isFinite(value) && value >= 0 && value <= 0xFF)
             : (typeof entry.opcodes === 'string'
               ? entry.opcodes.trim().split(/\s+/).map((b: string) => parseInt(b, 16))
               : []);
