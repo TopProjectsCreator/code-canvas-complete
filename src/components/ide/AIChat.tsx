@@ -9,6 +9,7 @@ import {
   GripVertical, ArrowUp, ArrowDown, Shield, ShieldCheck, ShieldAlert, SlidersHorizontal
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { explainShellCommand } from '@/lib/shellCommandHelp';
 import ReactMarkdown from 'react-markdown';
 import { FileNode, TerminalLine, Workflow } from '@/types/ide';
 import { useAuth } from '@/contexts/AuthContext';
@@ -263,6 +264,8 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, onApplyShare, i
   const isGitAction = toolCall.name === 'git_commit' || toolCall.name === 'git_init' || toolCall.name === 'git_create_branch' || toolCall.name === 'git_import';
   const isShareAction = ['make_public', 'make_private', 'get_project_link', 'share_twitter', 'share_linkedin', 'share_email', 'fork_project', 'star_project', 'view_history', 'ask_user', 'save_project', 'run_project'].includes(toolCall.name);
   const isPending = toolCall.status === 'pending';
+  const shellCommand = toolCall.name === 'run_shell' ? String((toolCall.arguments as { command?: unknown } | undefined)?.command ?? '') : '';
+  const shellExplanation = shellCommand ? explainShellCommand(shellCommand) : null;
   
   const statusIcon = (isThemeAction || isGitAction || isShareAction) && isPending
     ? isGitAction ? <GitBranch className="w-3 h-3 text-primary" /> 
@@ -317,9 +320,16 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, onApplyShare, i
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 border border-border/50 text-xs">
       {statusIcon}
       <Wrench className="w-3 h-3 text-muted-foreground" />
-      <span className="text-muted-foreground flex-1">
-        {toolCall.name.replace(/_/g, ' ')}
-      </span>
+      <div className="flex-1 min-w-0">
+        <div className="text-muted-foreground">
+          {toolCall.name.replace(/_/g, ' ')}
+        </div>
+        {shellExplanation && (
+          <div className="text-[11px] text-muted-foreground/80 mt-0.5 truncate" title={shellCommand}>
+            {shellExplanation}
+          </div>
+        )}
+      </div>
       {isThemeAction && isPending && !isApplied && onApplyTheme && (
         <button
           onClick={onApplyTheme}
@@ -1377,14 +1387,15 @@ export const AIChat = ({
                   <button
                     className={cn(
                       'p-1 rounded transition-colors flex items-center gap-1',
-                      preset === 'full' ? 'text-green-400 hover:bg-green-500/10' :
-                      preset === 'human' ? 'text-muted-foreground hover:bg-accent' :
+                      preset === 'fast' ? 'text-green-400 hover:bg-green-500/10' :
+                      preset === 'safe' ? 'text-muted-foreground hover:bg-accent' :
                       'text-amber-400 hover:bg-amber-500/10'
                     )}
-                    title={`Autonomy: ${preset === 'full' ? 'Full Auto' : preset === 'human' ? 'Human in Loop' : 'Custom'}`}
+                    title={`Autonomy: ${preset === 'fast' ? 'Fast' : preset === 'safe' ? 'Safe' : preset === 'balanced' ? 'Balanced' : 'Custom'}`}
                   >
-                    {preset === 'full' ? <ShieldCheck className="w-3 h-3" /> :
-                     preset === 'human' ? <Shield className="w-3 h-3" /> :
+                    {preset === 'fast' ? <ShieldCheck className="w-3 h-3" /> :
+                     preset === 'safe' ? <Shield className="w-3 h-3" /> :
+                     preset === 'balanced' ? <ShieldAlert className="w-3 h-3" /> :
                      <SlidersHorizontal className="w-3 h-3" />}
                   </button>
                 </PopoverTrigger>
@@ -1393,8 +1404,9 @@ export const AIChat = ({
                     <p className="text-[11px] font-medium text-foreground mb-1.5">Autonomy Mode</p>
                     <div className="flex gap-1">
                       {([
-                        { id: 'full' as AutonomyPreset, label: 'Full Auto', icon: <ShieldCheck className="w-3 h-3" />, color: 'text-green-400' },
-                        { id: 'human' as AutonomyPreset, label: 'Manual', icon: <Shield className="w-3 h-3" />, color: 'text-muted-foreground' },
+                        { id: 'safe' as AutonomyPreset, label: 'Safe', icon: <Shield className="w-3 h-3" />, color: 'text-muted-foreground' },
+                        { id: 'balanced' as AutonomyPreset, label: 'Balanced', icon: <ShieldAlert className="w-3 h-3" />, color: 'text-amber-400' },
+                        { id: 'fast' as AutonomyPreset, label: 'Fast', icon: <ShieldCheck className="w-3 h-3" />, color: 'text-green-400' },
                         { id: 'custom' as AutonomyPreset, label: 'Custom', icon: <SlidersHorizontal className="w-3 h-3" />, color: 'text-amber-400' },
                       ]).map(m => (
                         <button
@@ -1414,8 +1426,9 @@ export const AIChat = ({
                     </div>
                   </div>
                   <div className="p-2 text-[10px] text-muted-foreground">
-                    {preset === 'full' && 'All actions auto-applied instantly.'}
-                    {preset === 'human' && 'You approve every action manually.'}
+                    {preset === 'safe' && 'Manual-first mode. Auto-runs only low-risk actions.'}
+                    {preset === 'balanced' && 'Auto-applies common actions, but keeps risky operations gated.'}
+                    {preset === 'fast' && 'Maximum autonomy for rapid iteration.'}
                     {preset === 'custom' && (
                       <div className="space-y-1.5">
                         {([
@@ -1426,6 +1439,7 @@ export const AIChat = ({
                           { key: 'share' as const, label: 'Share / Project' },
                           { key: 'packages' as const, label: 'Install Packages' },
                           { key: 'workflows' as const, label: 'Workflows' },
+                          { key: 'blockDestructiveShell' as const, label: 'Block Risky Shell' },
                         ]).map(item => (
                           <div key={item.key} className="flex items-center justify-between">
                             <span className="text-foreground">{item.label}</span>
