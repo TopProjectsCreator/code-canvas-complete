@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { decodeDataUrl, encodeDataUrl, parseXml, xmlEncode, buildNewDocx } from './officeUtils';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface WordEditorProps {
   file: FileNode;
@@ -29,6 +30,11 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const [zoom, setZoom] = useState(100);
   const [activeTab, setActiveTab] = useState<'home' | 'insert' | 'layout' | 'references' | 'review' | 'view'>('home');
   const [wordCount, setWordCount] = useState(0);
+  const [pageMargin, setPageMargin] = useState(72);
+  const [isLandscape, setIsLandscape] = useState(false);
+  const [paperSize, setPaperSize] = useState<'letter' | 'a4'>('letter');
+  const [columnCount, setColumnCount] = useState(1);
+  const [trackChanges, setTrackChanges] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -37,6 +43,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const loadedFileIdRef = useRef<string | null>(null);
   // Track last saved ZIP bytes so save() doesn't read stale file.content
   const lastZipBytesRef = useRef<Uint8Array | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const load = async () => {
@@ -222,6 +229,55 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     exec('insertHTML', '<pre style="background:hsl(var(--muted));padding:12px;border-radius:6px;font-family:monospace;font-size:0.9em;margin:8px 0;overflow-x:auto">code</pre><p><br></p>');
   };
 
+  const toggleMargins = () => setPageMargin(m => m === 72 ? 54 : 72);
+  const toggleOrientation = () => setIsLandscape(v => !v);
+  const togglePaperSize = () => setPaperSize(v => v === 'letter' ? 'a4' : 'letter');
+  const toggleColumns = () => setColumnCount(c => c === 1 ? 2 : 1);
+
+  const insertTableOfContents = () => {
+    if (!editorRef.current) return;
+    const headings = Array.from(editorRef.current.querySelectorAll('h1, h2'))
+      .map((el, idx) => `${idx + 1}. ${(el.textContent || '').trim()}`)
+      .filter(Boolean);
+    const content = headings.length ? headings.join('<br/>') : 'No headings found';
+    exec('insertHTML', `<div style="margin:8px 0;padding:10px;border:1px solid hsl(var(--border));border-radius:4px"><strong>Table of Contents</strong><div style="margin-top:6px">${content}</div></div><p><br></p>`);
+  };
+
+  const insertFootnote = () => exec('insertHTML', '<sup>[1]</sup><span style="font-size:0.85em;color:hsl(var(--muted-foreground))"> Footnote text</span>');
+  const insertEndnote = () => exec('insertHTML', '<p style="font-size:0.85em;color:hsl(var(--muted-foreground));margin-top:12px">[Endnote] Add endnote here.</p>');
+  const insertBibliography = () => exec('insertHTML', '<h3 style="margin-top:12px">Bibliography</h3><p>[1] Author, Title, Year.</p>');
+
+  const runSpellingCheck = () => {
+    const text = editorRef.current?.innerText || '';
+    const repeated = (text.match(/\b(\w+)\s+\1\b/gi) || []).length;
+    toast({ title: 'Spelling scan complete', description: repeated ? `Found ${repeated} repeated word(s).` : 'No repeated words detected.' });
+  };
+
+  const insertComment = () => {
+    const comment = prompt('Comment text:')?.trim();
+    if (!comment) return;
+    exec('insertHTML', `<span style="background:hsl(48,96%,89%);padding:0 4px;border-radius:2px" data-comment="${comment}">💬 ${comment}</span>`);
+  };
+
+  const doFind = () => {
+    const term = prompt('Find text:')?.trim();
+    if (!term || !editorRef.current) return;
+    const html = editorRef.current.innerHTML;
+    const idx = html.toLowerCase().indexOf(term.toLowerCase());
+    if (idx < 0) return;
+    const match = html.slice(idx, idx + term.length);
+    editorRef.current.innerHTML = `${html.slice(0, idx)}<mark>${match}</mark>${html.slice(idx + term.length)}`;
+  };
+
+  const doReplace = () => {
+    const findText = prompt('Find text:')?.trim();
+    if (!findText || !editorRef.current) return;
+    const replaceText = prompt('Replace with:') ?? '';
+    const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    editorRef.current.innerHTML = editorRef.current.innerHTML.replace(regex, replaceText);
+    handleEditorInput();
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground gap-2">
@@ -347,12 +403,12 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
           {activeTab === 'layout' && (
             <>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><LayoutGrid className="w-3.5 h-3.5" /> Margins</Button></TooltipTrigger><TooltipContent>Page Margins</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><FileImage className="w-3.5 h-3.5" /> Orientation</Button></TooltipTrigger><TooltipContent>Page Orientation</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Type className="w-3.5 h-3.5" /> Size</Button></TooltipTrigger><TooltipContent>Paper Size</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={toggleMargins}><LayoutGrid className="w-3.5 h-3.5" /> Margins</Button></TooltipTrigger><TooltipContent>Page Margins</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={toggleOrientation}><FileImage className="w-3.5 h-3.5" /> Orientation</Button></TooltipTrigger><TooltipContent>Page Orientation</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={togglePaperSize}><Type className="w-3.5 h-3.5" /> Size</Button></TooltipTrigger><TooltipContent>Paper Size</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Columns className="w-3.5 h-3.5" /> Columns</Button></TooltipTrigger><TooltipContent>Columns</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={toggleColumns}><Columns className="w-3.5 h-3.5" /> Columns</Button></TooltipTrigger><TooltipContent>Columns</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5">
                 <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertHorizontalRule}><SeparatorHorizontal className="w-3.5 h-3.5" /> Breaks</Button></TooltipTrigger><TooltipContent>Page Breaks</TooltipContent></Tooltip>
@@ -363,14 +419,14 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
           {activeTab === 'references' && (
             <>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><BookOpen className="w-3.5 h-3.5" /> Table of Contents</Button></TooltipTrigger><TooltipContent>Table of Contents</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertTableOfContents}><BookOpen className="w-3.5 h-3.5" /> Table of Contents</Button></TooltipTrigger><TooltipContent>Table of Contents</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Quote className="w-3.5 h-3.5" /> Footnote</Button></TooltipTrigger><TooltipContent>Insert Footnote</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Code className="w-3.5 h-3.5" /> Endnote</Button></TooltipTrigger><TooltipContent>Insert Endnote</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertFootnote}><Quote className="w-3.5 h-3.5" /> Footnote</Button></TooltipTrigger><TooltipContent>Insert Footnote</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertEndnote}><Code className="w-3.5 h-3.5" /> Endnote</Button></TooltipTrigger><TooltipContent>Insert Endnote</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Bookmark className="w-3.5 h-3.5" /> Bibliography</Button></TooltipTrigger><TooltipContent>Bibliography</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertBibliography}><Bookmark className="w-3.5 h-3.5" /> Bibliography</Button></TooltipTrigger><TooltipContent>Bibliography</TooltipContent></Tooltip>
               </div>
             </>
           )}
@@ -378,15 +434,15 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
           {activeTab === 'review' && (
             <>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><SpellCheck className="w-3.5 h-3.5" /> Spelling</Button></TooltipTrigger><TooltipContent>Spelling & Grammar</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={runSpellingCheck}><SpellCheck className="w-3.5 h-3.5" /> Spelling</Button></TooltipTrigger><TooltipContent>Spelling & Grammar</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><MessageSquare className="w-3.5 h-3.5" /> Comment</Button></TooltipTrigger><TooltipContent>New Comment</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><CheckSquare className="w-3.5 h-3.5" /> Track Changes</Button></TooltipTrigger><TooltipContent>Track Changes</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertComment}><MessageSquare className="w-3.5 h-3.5" /> Comment</Button></TooltipTrigger><TooltipContent>New Comment</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setTrackChanges(v => !v)}><CheckSquare className="w-3.5 h-3.5" /> Track Changes</Button></TooltipTrigger><TooltipContent>Track Changes</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Search className="w-3.5 h-3.5" /> Find</Button></TooltipTrigger><TooltipContent>Find</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Replace className="w-3.5 h-3.5" /> Replace</Button></TooltipTrigger><TooltipContent>Replace</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={doFind}><Search className="w-3.5 h-3.5" /> Find</Button></TooltipTrigger><TooltipContent>Find</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={doReplace}><Replace className="w-3.5 h-3.5" /> Replace</Button></TooltipTrigger><TooltipContent>Replace</TooltipContent></Tooltip>
               </div>
             </>
           )}
@@ -394,8 +450,8 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
           {activeTab === 'view' && (
             <>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Eye className="w-3.5 h-3.5" /> Reading</Button></TooltipTrigger><TooltipContent>Reading View</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><LayoutGrid className="w-3.5 h-3.5" /> Print Layout</Button></TooltipTrigger><TooltipContent>Print Layout</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setZoom(120)}><Eye className="w-3.5 h-3.5" /> Reading</Button></TooltipTrigger><TooltipContent>Reading View</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setZoom(100)}><LayoutGrid className="w-3.5 h-3.5" /> Print Layout</Button></TooltipTrigger><TooltipContent>Print Layout</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-xs text-muted-foreground">Zoom:</span>
@@ -425,9 +481,9 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
             <div
               className="bg-white dark:bg-[#2d2d2d] shadow-lg rounded-sm"
               style={{
-                width: Math.round(612 * (zoom / 100)),
-                minHeight: Math.round(792 * (zoom / 100)),
-                padding: `${Math.round(72 * (zoom / 100))}px ${Math.round(72 * (zoom / 100))}px`,
+                width: Math.round((isLandscape ? 792 : 612) * (zoom / 100)),
+                minHeight: Math.round((isLandscape ? 612 : 792) * (zoom / 100)),
+                padding: `${Math.round(pageMargin * (zoom / 100))}px ${Math.round(pageMargin * (zoom / 100))}px`,
               }}
             >
               <div
@@ -435,7 +491,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
                 contentEditable
                 suppressContentEditableWarning
                 className="outline-none min-h-[200px] text-sm leading-relaxed"
-                style={{ fontSize: Math.round(11 * (zoom / 100)) }}
+                style={{ fontSize: Math.round(11 * (zoom / 100)), columnCount, columnGap: columnCount > 1 ? '24px' : undefined, borderLeft: trackChanges ? '2px solid hsl(var(--primary))' : undefined, paddingLeft: trackChanges ? '8px' : undefined }}
                 onInput={handleEditorInput}
               />
             </div>
