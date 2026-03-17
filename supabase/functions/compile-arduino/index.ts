@@ -613,10 +613,53 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Parse binary output from Godbolt
+    const artifactBase64 = Array.isArray(result.artifacts)
+      ? result.artifacts
+          .map((artifact: Record<string, unknown>) => {
+            const content = artifact.content ?? artifact.base64 ?? artifact.data;
+            return typeof content === 'string' ? content : null;
+          })
+          .find((content: string | null): content is string => Boolean(content))
+      : null;
+
+    if (!boardConfig.isArm && artifactBase64) {
+      try {
+        const hexOutput = elfToHex(artifactBase64);
+        return new Response(
+          JSON.stringify({
+            hex: hexOutput,
+            format: 'hex',
+            warnings: stderr || null,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch {
+        // Fall back to asm parsing below.
+      }
+    }
+
     const asmEntries = result.asm || [];
     const hexBytes: number[] = [];
     let maxAddr = 0;
+
+    const writeBytes = (addr: number, bytes: number[]) => {
+      for (let i = 0; i < bytes.length; i++) {
+        const pos = addr + i;
+        while (hexBytes.length <= pos) hexBytes.push(0xFF);
+        hexBytes[pos] = bytes[i];
+        if (pos + 1 > maxAddr) maxAddr = pos + 1;
+      }
+    };
+
+    const parseBytesFromText = (line: string): { addr: number; bytes: number[] } | null => {
+      const match = line.match(/^\s*([0-9a-fA-F]+):\s+((?:[0-9a-fA-F]{2}\s+)+)/);
+      if (!match) return null;
+
+      return {
+        addr: parseInt(match[1], 16),
+        bytes: match[2].trim().split(/\s+/).map((b: string) => parseInt(b, 16)),
+      };
+    };
 
     const sampleWithAddr = asmEntries.find((a: Record<string, unknown>) => a.address !== undefined);
     const debugInfo = {
@@ -629,35 +672,21 @@ Deno.serve(async (req: Request) => {
     for (const entry of asmEntries) {
       if (entry.address !== undefined && entry.opcodes) {
         const addr = entry.address;
-        const opcodes: number[] = Array.isArray(entry.opcodes) 
-          ? entry.opcodes 
-          : (typeof entry.opcodes === 'string' 
+        const opcodes: number[] = Array.isArray(entry.opcodes)
+          ? entry.opcodes
+          : (typeof entry.opcodes === 'string'
             ? entry.opcodes.trim().split(/\s+/).map((b: string) => parseInt(b, 16))
             : []);
-        
-        for (let i = 0; i < opcodes.length; i++) {
-          const pos = addr + i;
-          while (hexBytes.length <= pos) hexBytes.push(0xFF);
-          hexBytes[pos] = opcodes[i];
-          if (pos + 1 > maxAddr) maxAddr = pos + 1;
+
+        if (opcodes.length > 0) {
+          writeBytes(addr, opcodes);
         }
       }
-    }
 
-    // Fallback: try parsing hex bytes from text lines
-    if (maxAddr === 0) {
-      for (const entry of asmEntries) {
-        const line = entry.text || '';
-        const match = line.match(/^\s*([0-9a-fA-F]+):\s+((?:[0-9a-fA-F]{2}\s)+)/);
-        if (match) {
-          const addr = parseInt(match[1], 16);
-          const bytes = match[2].trim().split(/\s+/).map((b: string) => parseInt(b, 16));
-          for (let i = 0; i < bytes.length; i++) {
-            const pos = addr + i;
-            while (hexBytes.length <= pos) hexBytes.push(0xFF);
-            hexBytes[pos] = bytes[i];
-            if (pos + 1 > maxAddr) maxAddr = pos + 1;
-          }
+      if (typeof entry.text === 'string') {
+        const parsed = parseBytesFromText(entry.text);
+        if (parsed) {
+          writeBytes(parsed.addr, parsed.bytes);
         }
       }
     }
@@ -676,7 +705,17 @@ Deno.serve(async (req: Request) => {
 
     const binaryData = new Uint8Array(hexBytes.slice(0, maxAddr));
 
-    // For ARM boards, return raw binary (base64-encoded) instead of Intel HEX
+    if (!boardConfig.isArm && binaryData.slice(0, 4).every((byte) => byte === 0xFF)) {
+      return new Response(
+        JSON.stringify({
+          error: 'Compilation produced an invalid AVR image with an empty reset vector.',
+          debug: debugInfo,
+          warnings: stderr || null,
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (boardConfig.isArm) {
       return new Response(
         JSON.stringify({
@@ -689,14 +728,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // For AVR boards, return Intel HEX
     let hexOutput = '';
     for (let i = 0; i < binaryData.length; i += 16) {
       const chunkLen = Math.min(16, binaryData.length - i);
       const addr = i & 0xFFFF;
 
       let line = `:${toHex8(chunkLen)}${toHex16(addr)}00`;
-      let checksum = chunkLen + (addr >> 8) + (addr & 0xFF) + 0x00;
+      let checksum = chunkLen + (addr >> 8) + (addr & 0xFF);
 
       for (let j = 0; j < chunkLen; j++) {
         const b = binaryData[i + j];
