@@ -416,6 +416,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const [glbGeometry, setGlbGeometry] = useState<THREE.BufferGeometry | null>(null);
   
   const { hasCustomKey } = useApiKeys();
+  const [activeQuickTool, setActiveQuickTool] = useState<string | null>(null);
 
   const PROVIDERS_3D = [
     { id: 'meshy', label: 'Meshy AI', desc: 'Preview + refine workflow' },
@@ -632,7 +633,21 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
           </div>
           <div className="flex items-center gap-1.5">
             {quickTools.map((tool) => (
-              <Button key={tool.label} variant="ghost" size="sm" className="h-7 text-xs text-white/80 hover:text-white hover:bg-white/10 gap-1.5 px-2">
+              <Button
+                key={tool.label}
+                variant="ghost"
+                size="sm"
+                className={cn("h-7 text-xs hover:text-white hover:bg-white/10 gap-1.5 px-2", activeQuickTool === tool.label ? "text-primary bg-white/10" : "text-white/80")}
+                onClick={() => {
+                  setActiveQuickTool(tool.label);
+                  if (tool.label === 'Sketch') setShowGrid(true);
+                  if (tool.label === 'Extrude') handleSelectPrimitive('cube');
+                  if (tool.label === 'Revolve') handleSelectPrimitive('torus');
+                  if (tool.label === 'Loft') handleSelectPrimitive('cone');
+                  if (tool.label === 'Boolean') setWireframe(w => !w);
+                  if (tool.label === 'Measure') setShowInfo(true);
+                }}
+              >
                 {tool.icon}
                 {tool.label}
               </Button>

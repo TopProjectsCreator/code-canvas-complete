@@ -25,6 +25,9 @@ interface SlideElement {
   content: string; // text content or data URL for images
   fontSize?: number;
   fontWeight?: number;
+  fontStyle?: 'normal' | 'italic';
+  textDecoration?: 'none' | 'underline';
+  textAlign?: 'left' | 'center' | 'right';
 }
 
 interface SlideData {
@@ -61,6 +64,13 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const [resizing, setResizing] = useState<{ id: string; startX: number; startY: number; elW: number; elH: number } | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const historyRef = useRef<SlideData[][]>([]);
+  const redoRef = useRef<SlideData[][]>([]);
+  const [themeTone, setThemeTone] = useState<'light' | 'dark'>('light');
+  const [slideScale, setSlideScale] = useState(100);
+  const [transitionType, setTransitionType] = useState<'none' | 'fade' | 'push'>('none');
+  const [animationType, setAnimationType] = useState<'none' | 'appear' | 'fly'>('none');
+  const [previewMode, setPreviewMode] = useState(false);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -244,6 +254,29 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     return () => clearTimeout(timer);
   }, [slides, loading, save]);
 
+
+  const commitSlides = (updater: (prev: SlideData[]) => SlideData[]) => {
+    setSlides(prev => {
+      historyRef.current.push(JSON.parse(JSON.stringify(prev)));
+      redoRef.current = [];
+      return updater(prev);
+    });
+  };
+
+  const undo = () => {
+    const prev = historyRef.current.pop();
+    if (!prev) return;
+    redoRef.current.push(JSON.parse(JSON.stringify(slides)));
+    setSlides(prev);
+  };
+
+  const redo = () => {
+    const next = redoRef.current.pop();
+    if (!next) return;
+    historyRef.current.push(JSON.parse(JSON.stringify(slides)));
+    setSlides(next);
+  };
+
   const addSlide = () => {
     const newSlides = [...slides, {
       elements: [
@@ -330,6 +363,30 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     setEditingElement(null);
   };
 
+  const updateSelectedTextElement = (updater: (el: SlideElement) => SlideElement) => {
+    if (!selectedElement) return;
+    setSlides(prev => prev.map((s, i) => i === activeSlide
+      ? { ...s, elements: s.elements.map(el => (el.id === selectedElement && el.type === 'text') ? updater(el) : el) }
+      : s));
+  };
+
+  const insertPlaceholder = (label: string) => {
+    const el: SlideElement = {
+      id: newId(),
+      type: 'text',
+      x: 100,
+      y: 180,
+      width: 520,
+      height: 44,
+      content: `${label}`,
+      fontSize: 16,
+      fontWeight: 500,
+      fontStyle: 'italic',
+    };
+    setSlides(prev => prev.map((s, i) => i === activeSlide ? { ...s, elements: [...s.elements, el] } : s));
+    setSelectedElement(el.id);
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground gap-2">
@@ -372,23 +429,23 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             {ribbonTab === 'home' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Undo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Redo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={undo}><Undo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={redo}><Redo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Bold className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Underline className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, fontWeight: (el.fontWeight || 400) >= 600 ? 400 : 700 }))}><Bold className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, fontStyle: el.fontStyle === 'italic' ? 'normal' : 'italic' }))}><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, textDecoration: el.textDecoration === 'underline' ? 'none' : 'underline' }))}><Underline className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignLeft className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignCenter className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><AlignRight className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, textAlign: 'left' }))}><AlignLeft className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, textAlign: 'center' }))}><AlignCenter className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, textAlign: 'right' }))}><AlignRight className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5">
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={addTextBox}><Type className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Text Box</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleImageUpload}><Image className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Insert Image</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7"><Square className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Shape</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => insertPlaceholder('Shape')}><Square className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Shape</TooltipContent></Tooltip>
                 </div>
               </>
             )}
@@ -399,34 +456,34 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 </div>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={handleImageUpload}><Image className="w-3.5 h-3.5" /> Picture</Button></TooltipTrigger><TooltipContent>Insert Picture</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Film className="w-3.5 h-3.5" /> Video</Button></TooltipTrigger><TooltipContent>Insert Video</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertPlaceholder('Video')}><Film className="w-3.5 h-3.5" /> Video</Button></TooltipTrigger><TooltipContent>Insert Video</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Square className="w-3.5 h-3.5" /> Shape</Button></TooltipTrigger><TooltipContent>Insert Shape</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Table className="w-3.5 h-3.5" /> Table</Button></TooltipTrigger><TooltipContent>Insert Table</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertPlaceholder('Shape')}><Square className="w-3.5 h-3.5" /> Shape</Button></TooltipTrigger><TooltipContent>Insert Shape</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertPlaceholder('Table')}><Table className="w-3.5 h-3.5" /> Table</Button></TooltipTrigger><TooltipContent>Insert Table</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Link className="w-3.5 h-3.5" /> Link</Button></TooltipTrigger><TooltipContent>Insert Link</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertPlaceholder('Link')}><Link className="w-3.5 h-3.5" /> Link</Button></TooltipTrigger><TooltipContent>Insert Link</TooltipContent></Tooltip>
                 </div>
               </>
             )}
             {ribbonTab === 'design' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Palette className="w-3.5 h-3.5" /> Themes</Button></TooltipTrigger><TooltipContent>Slide Themes</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><SlidersHorizontal className="w-3.5 h-3.5" /> Variants</Button></TooltipTrigger><TooltipContent>Theme Variants</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setThemeTone(t => t === 'light' ? 'dark' : 'light')}><Palette className="w-3.5 h-3.5" /> Themes</Button></TooltipTrigger><TooltipContent>Slide Themes</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setSlideScale(s => s === 100 ? 90 : 100)}><SlidersHorizontal className="w-3.5 h-3.5" /> Variants</Button></TooltipTrigger><TooltipContent>Theme Variants</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Maximize className="w-3.5 h-3.5" /> Slide Size</Button></TooltipTrigger><TooltipContent>Slide Size</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setSlideScale(s => s === 100 ? 110 : 100)}><Maximize className="w-3.5 h-3.5" /> Slide Size</Button></TooltipTrigger><TooltipContent>Slide Size</TooltipContent></Tooltip>
                 </div>
               </>
             )}
             {ribbonTab === 'transitions' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><RotateCcw className="w-3.5 h-3.5" /> None</Button></TooltipTrigger><TooltipContent>No Transition</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Wand2 className="w-3.5 h-3.5" /> Fade</Button></TooltipTrigger><TooltipContent>Fade</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Zap className="w-3.5 h-3.5" /> Push</Button></TooltipTrigger><TooltipContent>Push</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setTransitionType('none')}><RotateCcw className="w-3.5 h-3.5" /> None</Button></TooltipTrigger><TooltipContent>No Transition</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setTransitionType('fade')}><Wand2 className="w-3.5 h-3.5" /> Fade</Button></TooltipTrigger><TooltipContent>Fade</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setTransitionType('push')}><Zap className="w-3.5 h-3.5" /> Push</Button></TooltipTrigger><TooltipContent>Push</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">Duration:</span>
@@ -437,23 +494,23 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             {ribbonTab === 'animations' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><RotateCcw className="w-3.5 h-3.5" /> None</Button></TooltipTrigger><TooltipContent>No Animation</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Wand2 className="w-3.5 h-3.5" /> Appear</Button></TooltipTrigger><TooltipContent>Appear</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Zap className="w-3.5 h-3.5" /> Fly In</Button></TooltipTrigger><TooltipContent>Fly In</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setAnimationType('none')}><RotateCcw className="w-3.5 h-3.5" /> None</Button></TooltipTrigger><TooltipContent>No Animation</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setAnimationType('appear')}><Wand2 className="w-3.5 h-3.5" /> Appear</Button></TooltipTrigger><TooltipContent>Appear</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setAnimationType('fly')}><Zap className="w-3.5 h-3.5" /> Fly In</Button></TooltipTrigger><TooltipContent>Fly In</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Eye className="w-3.5 h-3.5" /> Preview</Button></TooltipTrigger><TooltipContent>Preview</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setPreviewMode(v => !v)}><Eye className="w-3.5 h-3.5" /> Preview</Button></TooltipTrigger><TooltipContent>Preview</TooltipContent></Tooltip>
                 </div>
               </>
             )}
             {ribbonTab === 'slideshow' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Play className="w-3.5 h-3.5" /> From Beginning</Button></TooltipTrigger><TooltipContent>Start from Beginning</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Play className="w-3.5 h-3.5" /> From Current</Button></TooltipTrigger><TooltipContent>Start from Current Slide</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setActiveSlide(0)}><Play className="w-3.5 h-3.5" /> From Beginning</Button></TooltipTrigger><TooltipContent>Start from Beginning</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setActiveSlide(activeSlide)}><Play className="w-3.5 h-3.5" /> From Current</Button></TooltipTrigger><TooltipContent>Start from Current Slide</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs"><Timer className="w-3.5 h-3.5" /> Rehearse</Button></TooltipTrigger><TooltipContent>Rehearse Timings</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setPreviewMode(true)}><Timer className="w-3.5 h-3.5" /> Rehearse</Button></TooltipTrigger><TooltipContent>Rehearse Timings</TooltipContent></Tooltip>
                 </div>
               </>
             )}
@@ -508,7 +565,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               <div
                 ref={canvasRef}
                 className="relative bg-white dark:bg-[#2d2d2d] shadow-xl rounded-sm select-none"
-                style={{ width: 720, height: 405, minWidth: 720 }}
+                style={{ width: Math.round(720 * (slideScale / 100)), height: Math.round(405 * (slideScale / 100)), minWidth: Math.round(720 * (slideScale / 100)), background: themeTone === 'dark' ? '#1f2937' : undefined }}
                 onClick={(e) => {
                   if (e.target === canvasRef.current) {
                     setSelectedElement(null);
@@ -551,7 +608,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                             onMouseDown={(e) => e.stopPropagation()}
                           />
                         ) : (
-                          <div className="w-full h-full p-1 whitespace-pre-wrap overflow-hidden" style={{ fontSize: el.fontSize, fontWeight: el.fontWeight }}>
+                          <div className="w-full h-full p-1 whitespace-pre-wrap overflow-hidden" style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle || 'normal', textDecoration: el.textDecoration || 'none', textAlign: el.textAlign || 'left' }}>
                             {el.content || <span className="text-muted-foreground/40 italic">Click to add text</span>}
                           </div>
                         )
@@ -611,7 +668,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
         {/* Status bar */}
         <div className="flex items-center justify-between px-3 py-1 bg-background border-t border-border text-xs text-muted-foreground">
           <span>Slide {activeSlide + 1} of {slides.length}</span>
-          <span>{file.name}</span>
+          <span>{file.name} · {transitionType} / {animationType}{previewMode ? ' · preview' : ''}</span>
         </div>
       </div>
     </TooltipProvider>
