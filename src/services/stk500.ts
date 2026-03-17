@@ -1,6 +1,6 @@
 /**
  * STK500v1 protocol implementation for Arduino Uno (Optiboot bootloader)
- * Handles board reset, sync, and page-by-page flashing via Web Serial API
+ * Handles board reset, sync, page-by-page flashing, and readback verification via Web Serial API
  */
 
 import { parseIntelHex, splitIntoPages } from './hexParser';
@@ -10,11 +10,11 @@ const STK_OK = 0x10;
 const STK_INSYNC = 0x14;
 const CRC_EOP = 0x20; // "space" marks end of command
 const STK_GET_SYNC = 0x30;
-const STK_GET_PARAMETER = 0x41;
 const STK_ENTER_PROGMODE = 0x50;
 const STK_LEAVE_PROGMODE = 0x51;
 const STK_LOAD_ADDRESS = 0x55;
 const STK_PROG_PAGE = 0x64;
+const STK_READ_PAGE = 0x74;
 const STK_READ_SIGN = 0x75;
 
 const SYNC_TIMEOUT = 2000;
@@ -116,17 +116,17 @@ async function sync(
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       await sendCommand(writer, reader, [STK_GET_SYNC], SYNC_TIMEOUT);
-      return; // Success
+      return;
     } catch {
-      // Drain any garbage bytes
       await new Promise(r => setTimeout(r, 100));
     }
   }
+
   throw new Error('Failed to sync with bootloader after multiple attempts. Is the board connected?');
 }
 
 /**
- * Read device signature to verify we're talking to an ATmega328P
+ * Read device signature to confirm the bootloader is responding
  */
 async function readSignature(
   writer: WritableStreamDefaultWriter<Uint8Array>,
@@ -135,13 +135,14 @@ async function readSignature(
   const data = new Uint8Array([STK_READ_SIGN, CRC_EOP]);
   await writer.write(data);
 
-  const response = await readBytes(reader, 5); // INSYNC + 3 sig bytes + OK
-  if (response[0] !== STK_INSYNC) {
+  const response = await readBytes(reader, 5);
+  if (response[0] !== STK_INSYNC || response[4] !== STK_OK) {
     throw new Error('Failed to read device signature');
   }
 
-  const sig = `0x${response[1].toString(16)}${response[2].toString(16)}${response[3].toString(16)}`;
-  return sig;
+  return `0x${Array.from(response.slice(1, 4))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('')}`;
 }
 
 /**
@@ -187,6 +188,66 @@ async function programPage(
 }
 
 /**
+ * Read a single page of flash memory back from the board.
+ */
+async function readPage(
+  writer: WritableStreamDefaultWriter<Uint8Array>,
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  pageLength: number
+): Promise<Uint8Array> {
+  const sizeHigh = (pageLength >> 8) & 0xFF;
+  const sizeLow = pageLength & 0xFF;
+  const memType = 0x46; // 'F' for flash
+
+  const command = new Uint8Array([
+    STK_READ_PAGE,
+    sizeHigh,
+    sizeLow,
+    memType,
+    CRC_EOP,
+  ]);
+
+  await writer.write(command);
+
+  const response = await readBytes(reader, pageLength + 2);
+  if (response[0] !== STK_INSYNC) {
+    throw new Error('Flash verification failed to start');
+  }
+  if (response[response.length - 1] !== STK_OK) {
+    throw new Error('Flash verification failed to complete');
+  }
+
+  return response.slice(1, response.length - 1);
+}
+
+async function verifyFlash(
+  writer: WritableStreamDefaultWriter<Uint8Array>,
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  pages: Array<{ address: number; data: Uint8Array }>,
+  onProgress?: (message: string, percent: number) => void
+): Promise<void> {
+  const totalPages = pages.length;
+
+  for (let i = 0; i < totalPages; i++) {
+    const page = pages[i];
+    const wordAddress = page.address >> 1;
+    const percent = 90 + Math.round(((i + 1) / totalPages) * 8);
+
+    onProgress?.(`Verifying page ${i + 1}/${totalPages}...`, percent);
+
+    await loadAddress(writer, reader, wordAddress);
+    const readBack = await readPage(writer, reader, page.data.length);
+
+    for (let byteIndex = 0; byteIndex < page.data.length; byteIndex++) {
+      if (readBack[byteIndex] !== page.data[byteIndex]) {
+        const failedAddress = page.address + byteIndex;
+        throw new Error(`Flash verification failed at 0x${failedAddress.toString(16)}`);
+      }
+    }
+  }
+}
+
+/**
  * Flash an Intel HEX string to the connected Arduino board
  */
 export async function flashHex(
@@ -194,32 +255,35 @@ export async function flashHex(
   hexData: string,
   onProgress?: (message: string, percent: number) => void
 ): Promise<void> {
-  // Parse hex into binary pages
   const { data, startAddress } = parseIntelHex(hexData);
   const pages = splitIntoPages(data, startAddress, PAGE_SIZE);
 
   onProgress?.('Resetting board...', 0);
   await resetBoard(port);
-
-  // Small delay for bootloader to start
   await new Promise(r => setTimeout(r, 200));
 
-  const reader = port.readable!.getReader();
-  const writer = port.writable!.getWriter();
+  const reader = port.readable?.getReader();
+  const writer = port.writable?.getWriter();
+
+  if (!reader || !writer) {
+    throw new Error('Serial port is not ready for flashing');
+  }
 
   try {
     onProgress?.('Syncing with bootloader...', 5);
-    await sync(writer, reader);
+    await sync(writer, reader, 12);
+
+    const signature = await readSignature(writer, reader);
+    onProgress?.(`Bootloader detected (${signature})`, 8);
 
     onProgress?.('Entering programming mode...', 10);
     await sendCommand(writer, reader, [STK_ENTER_PROGMODE]);
 
-    // Flash each page
     const totalPages = pages.length;
     for (let i = 0; i < totalPages; i++) {
       const page = pages[i];
-      const wordAddress = page.address >> 1; // STK500 uses word addresses
-      const percent = 10 + Math.round((i / totalPages) * 80);
+      const wordAddress = page.address >> 1;
+      const percent = 10 + Math.round((i / totalPages) * 75);
 
       onProgress?.(`Flashing page ${i + 1}/${totalPages}...`, percent);
 
@@ -227,7 +291,10 @@ export async function flashHex(
       await programPage(writer, reader, page.data);
     }
 
-    onProgress?.('Leaving programming mode...', 95);
+    onProgress?.('Verifying flash...', 90);
+    await verifyFlash(writer, reader, pages, onProgress);
+
+    onProgress?.('Leaving programming mode...', 98);
     await sendCommand(writer, reader, [STK_LEAVE_PROGMODE]);
 
     onProgress?.('Upload complete!', 100);
