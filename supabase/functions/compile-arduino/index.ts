@@ -636,16 +636,6 @@ Deno.serve(async (req: Request) => {
     const hexBytes: number[] = [];
     let maxAddr = 0;
 
-    const writeBytes = (addr: number, bytes: number[]) => {
-      const byteAddr = boardConfig.isArm ? addr : addr * 2;
-      for (let i = 0; i < bytes.length; i++) {
-        const pos = byteAddr + i;
-        while (hexBytes.length <= pos) hexBytes.push(0xFF);
-        hexBytes[pos] = bytes[i];
-        if (pos + 1 > maxAddr) maxAddr = pos + 1;
-      }
-    };
-
     const parseBytesFromText = (line: string): { addr: number; bytes: number[] } | null => {
       const match = line.match(/^\s*([0-9a-fA-F]+):\s+((?:[0-9a-fA-F]{2}\s+)+)/);
       if (!match) return null;
@@ -654,6 +644,59 @@ Deno.serve(async (req: Request) => {
         addr: parseInt(match[1], 16),
         bytes: match[2].trim().split(/\s+/).map((b: string) => parseInt(b, 16)),
       };
+    };
+
+    const detectAvrAddressUnitBytes = (entries: Record<string, unknown>[]): 1 | 2 => {
+      const samples: Array<{ addr: number; size: number }> = [];
+
+      for (const entry of entries) {
+        let parsed: { addr: number; bytes: number[] } | null = null;
+
+        if (typeof entry.address === 'number' && entry.opcodes) {
+          const opcodes = Array.isArray(entry.opcodes)
+            ? entry.opcodes
+            : (typeof entry.opcodes === 'string'
+              ? entry.opcodes.trim().split(/\s+/).map((b: string) => parseInt(b, 16))
+              : []);
+          if (opcodes.length > 0) {
+            parsed = { addr: entry.address, bytes: opcodes };
+          }
+        }
+
+        if (!parsed && typeof entry.text === 'string') {
+          parsed = parseBytesFromText(entry.text);
+        }
+
+        if (parsed && parsed.bytes.length > 0) {
+          samples.push({ addr: parsed.addr, size: parsed.bytes.length });
+        }
+
+        if (samples.length >= 16) break;
+      }
+
+      let byteAddressScore = 0;
+      let wordAddressScore = 0;
+      for (let i = 1; i < samples.length; i++) {
+        const delta = samples[i].addr - samples[i - 1].addr;
+        if (delta <= 0) continue;
+
+        if (delta === samples[i - 1].size || delta === samples[i].size) byteAddressScore++;
+        if (delta * 2 === samples[i - 1].size || delta * 2 === samples[i].size) wordAddressScore++;
+      }
+
+      return wordAddressScore > byteAddressScore ? 2 : 1;
+    };
+
+    const avrAddressUnitBytes = boardConfig.isArm ? 1 : detectAvrAddressUnitBytes(asmEntries);
+
+    const writeBytes = (addr: number, bytes: number[]) => {
+      const byteAddr = addr * avrAddressUnitBytes;
+      for (let i = 0; i < bytes.length; i++) {
+        const pos = byteAddr + i;
+        while (hexBytes.length <= pos) hexBytes.push(0xFF);
+        hexBytes[pos] = bytes[i];
+        if (pos + 1 > maxAddr) maxAddr = pos + 1;
+      }
     };
 
     const sampleWithAddr = asmEntries.find((a: Record<string, unknown>) => a.address !== undefined);
@@ -675,7 +718,7 @@ Deno.serve(async (req: Request) => {
         });
 
         if (sourceMappedEntry && typeof sourceMappedEntry.address === 'number') {
-          return sourceMappedEntry.address;
+          return sourceMappedEntry.address * avrAddressUnitBytes;
         }
       }
 
@@ -689,7 +732,7 @@ Deno.serve(async (req: Request) => {
 
         if (hasMainLabel) sawMainLabel = true;
         if (sawMainLabel && typeof entry.address === 'number') {
-          return entry.address;
+          return entry.address * avrAddressUnitBytes;
         }
       }
 
@@ -704,6 +747,7 @@ Deno.serve(async (req: Request) => {
       sampleEntry: sampleWithAddr || null,
       firstFew: asmEntries.slice(0, 3),
       avrEntryPoint,
+      avrAddressUnitBytes,
     };
 
     for (const entry of asmEntries) {
