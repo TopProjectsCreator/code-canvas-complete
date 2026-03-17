@@ -304,8 +304,25 @@ export async function flashHex(
   }
 
   try {
+    // First reset + sync attempt
+    onProgress?.('Resetting board...', 0);
+    await resetBoard(port);
+    await drainInput(reader);
+
     onProgress?.('Syncing with bootloader...', 5);
-    await sync(writer, reader, 12);
+    let synced = false;
+    try {
+      await sync(writer, reader, 6);
+      synced = true;
+    } catch {
+      // First attempt failed — try a second DTR reset with longer delay
+      onProgress?.('Retrying reset...', 3);
+      await resetBoard(port);
+      await new Promise(r => setTimeout(r, 300));
+      await drainInput(reader);
+      await sync(writer, reader, 12);
+      synced = true;
+    }
 
     const signature = await readSignature(writer, reader);
     onProgress?.(`Bootloader detected (${signature})`, 8);
