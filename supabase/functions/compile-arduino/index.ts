@@ -216,16 +216,7 @@ void noTone(uint8_t pin) { (void)pin; }
 void setup();
 void loop();
 
-// Timer0 init for millis
-void _init_timer0() {
-  TCCR0A = (1 << WGM01) | (1 << WGM00);
-  TCCR0B = (1 << CS01) | (1 << CS00); // prescaler 64
-  TIMSK0 = (1 << TOIE0);
-}
-
 int main() {
-  _init_timer0();
-  sei();
   setup();
   while (1) loop();
   return 0;
