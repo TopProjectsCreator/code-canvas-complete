@@ -246,17 +246,14 @@ export function ArduinoUploadDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="serial">{isSambaBoard ? 'USB Serial (SAM-BA)' : 'USB Serial'}</SelectItem>
-                <SelectItem value="wifi" disabled={!arduinoBoards[config.boardId]?.wifi || isSambaBoard}>
-                  WiFi (OTA){isSambaBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.wifi ? ' — unsupported' : '')}
+                <SelectItem value="wifi" disabled={!arduinoBoards[config.boardId]?.wifi}>
+                  WiFi (OTA){!arduinoBoards[config.boardId]?.wifi ? ' — unsupported' : ''}
                 </SelectItem>
-                <SelectItem value="bluetooth" disabled={!arduinoBoards[config.boardId]?.bluetooth || isSambaBoard}>
-                  Bluetooth{isSambaBoard ? ' — not available from web app' : (!arduinoBoards[config.boardId]?.bluetooth ? ' — unsupported' : '')}
+                <SelectItem value="bluetooth" disabled={!arduinoBoards[config.boardId]?.bluetooth}>
+                  Bluetooth{!arduinoBoards[config.boardId]?.bluetooth ? ' — unsupported' : ''}
                 </SelectItem>
               </SelectContent>
             </Select>
-            {isSambaBoard && (config.uploadMethod === 'wifi' || config.uploadMethod === 'bluetooth') && (
-              <p className="text-xs text-muted-foreground mt-1">OTA/Bluetooth uploads require local network access and are not possible from a hosted web app. Use Arduino IDE instead.</p>
-            )}
           </div>
 
           {config.uploadMethod === 'serial' && !isSambaBoard && (
@@ -352,7 +349,7 @@ export function ArduinoUploadDialog({
             </div>
           )}
 
-          {config.uploadMethod === 'wifi' && !isSambaBoard && (
+          {config.uploadMethod === 'wifi' && (
             <div>
               <Label htmlFor="ipaddress">Board IP Address</Label>
               <Input
@@ -364,7 +361,7 @@ export function ArduinoUploadDialog({
             </div>
           )}
 
-          {config.uploadMethod === 'bluetooth' && !isSambaBoard && (
+          {config.uploadMethod === 'bluetooth' && (
             <div>
               <Label htmlFor="btdevice">Bluetooth Device Name / MAC</Label>
               <Input

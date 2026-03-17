@@ -43,6 +43,7 @@ This document records the implemented safeguards for production hardening:
 
 ### OTA/Bluetooth bridge
 - Endpoint configurable via `VITE_OTA_BRIDGE_URL` and `VITE_OTA_BRIDGE_TOKEN`
+- This repo includes a local bridge server at `tools/arduino-bridge/server.mjs` (`npm run bridge:arduino`)
 - Non-local remote bridges must use HTTPS
 - Available for boards with WiFi/BT capability
 
