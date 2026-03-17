@@ -103,19 +103,18 @@ async function resetBoard(port: SerialPortLike): Promise<void> {
     return;
   }
 
-  // Start with DTR/RTS high (normal operating state)
-  await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-  await new Promise(r => setTimeout(r, 50));
+  try {
+    // Mimic avrdude: toggle DTR to trigger the auto-reset capacitor circuit
+    // The falling edge of DTR triggers the reset
+    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+    await new Promise(r => setTimeout(r, 250));
+    await port.setSignals({ dataTerminalReady: true, requestToSend: true });
 
-  // Pulse DTR low — this edge triggers the auto-reset capacitor circuit
-  await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-  await new Promise(r => setTimeout(r, 50));
-
-  // Release DTR back high
-  await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-
-  // Wait for the bootloader to start (Optiboot takes ~65ms after reset)
-  await new Promise(r => setTimeout(r, 150));
+    // Wait for the bootloader to initialise (Optiboot ~65ms, some clones ~200ms)
+    await new Promise(r => setTimeout(r, 250));
+  } catch {
+    // Some serial drivers don't support setSignals — continue without reset
+  }
 }
 
 /**
