@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 
-export type AutonomyPreset = 'full' | 'human' | 'custom';
+export type AutonomyPreset = 'safe' | 'balanced' | 'fast' | 'custom';
 
 export interface AutonomyConfig {
   codeChanges: boolean;   // auto-apply file changes
@@ -10,9 +10,10 @@ export interface AutonomyConfig {
   share: boolean;         // auto-apply share/project actions
   packages: boolean;      // auto-install packages
   workflows: boolean;     // auto-create/run workflows
+  blockDestructiveShell: boolean; // block risky shell commands when auto-running
 }
 
-const FULL_CONFIG: AutonomyConfig = {
+const FAST_CONFIG: AutonomyConfig = {
   codeChanges: true,
   shell: true,
   theme: true,
@@ -20,16 +21,29 @@ const FULL_CONFIG: AutonomyConfig = {
   share: true,
   packages: true,
   workflows: true,
+  blockDestructiveShell: false,
 };
 
-const HUMAN_CONFIG: AutonomyConfig = {
+const SAFE_CONFIG: AutonomyConfig = {
   codeChanges: false,
   shell: false,
-  theme: false,
+  theme: true,
   git: false,
   share: false,
   packages: false,
   workflows: false,
+  blockDestructiveShell: true,
+};
+
+const BALANCED_CONFIG: AutonomyConfig = {
+  codeChanges: true,
+  shell: true,
+  theme: true,
+  git: false,
+  share: false,
+  packages: false,
+  workflows: true,
+  blockDestructiveShell: true,
 };
 
 const STORAGE_KEY = 'canvas-autonomy-mode';
@@ -38,22 +52,26 @@ const CUSTOM_KEY = 'canvas-autonomy-custom';
 function loadPreset(): AutonomyPreset {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
-    if (v === 'full' || v === 'human' || v === 'custom') return v;
+    if (v === 'safe' || v === 'balanced' || v === 'fast' || v === 'custom') return v;
+    // Backward-compat migration from old preset names.
+    if (v === 'human') return 'safe';
+    if (v === 'full') return 'fast';
   } catch {}
-  return 'human';
+  return 'safe';
 }
 
 function loadCustomConfig(): AutonomyConfig {
   try {
     const v = localStorage.getItem(CUSTOM_KEY);
-    if (v) return { ...HUMAN_CONFIG, ...JSON.parse(v) };
+    if (v) return { ...BALANCED_CONFIG, ...JSON.parse(v) };
   } catch {}
-  return { ...HUMAN_CONFIG, codeChanges: true };
+  return { ...BALANCED_CONFIG };
 }
 
 export function configForPreset(preset: AutonomyPreset, custom: AutonomyConfig): AutonomyConfig {
-  if (preset === 'full') return FULL_CONFIG;
-  if (preset === 'human') return HUMAN_CONFIG;
+  if (preset === 'fast') return FAST_CONFIG;
+  if (preset === 'safe') return SAFE_CONFIG;
+  if (preset === 'balanced') return BALANCED_CONFIG;
   return custom;
 }
 

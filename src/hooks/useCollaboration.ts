@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -71,6 +71,7 @@ export function useCollaboration(projectId: string | undefined) {
   const [presence, setPresence] = useState<PresenceState[]>([]);
   const [loading, setLoading] = useState(false);
   const [myRole, setMyRole] = useState<CollabRole | 'owner' | null>(null);
+  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
   // Fetch collaborators
   const fetchCollaborators = useCallback(async () => {
@@ -180,6 +181,7 @@ export function useCollaboration(projectId: string | undefined) {
     const channel = supabase.channel(`presence:${projectId}`, {
       config: { presence: { key: user.id } },
     });
+    presenceChannelRef.current = channel;
 
     channel
       .on('presence', { event: 'sync' }, () => {
@@ -207,7 +209,12 @@ export function useCollaboration(projectId: string | undefined) {
         }
       });
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (presenceChannelRef.current?.topic === channel.topic) {
+        presenceChannelRef.current = null;
+      }
+      supabase.removeChannel(channel);
+    };
   }, [projectId, user, profile]);
 
   // Realtime comments subscription + desktop notifications
@@ -243,7 +250,8 @@ export function useCollaboration(projectId: string | undefined) {
   // Update presence
   const updatePresence = useCallback(async (updates: Partial<PresenceState>) => {
     if (!projectId || !user) return;
-    const channel = supabase.channel(`presence:${projectId}`);
+    const channel = presenceChannelRef.current;
+    if (!channel) return;
     // Track is idempotent, updates the existing state
     const colorIndex = user.id.charCodeAt(0) % PRESENCE_COLORS.length;
     await channel.track({

@@ -5,6 +5,7 @@ import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, Generate
 import { Workflow } from '@/types/ide';
 import { CustomThemeColors } from '@/contexts/ThemeContext';
 import { createAIProvider } from '@/integrations/ai/provider';
+import { isPotentiallyDestructiveShellCommand } from '@/lib/agentSafety';
 
 interface CustomThemeAction {
   name: string;
@@ -683,6 +684,21 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           const shellKey = `shell:${cmd}`;
           if (executedActionsRef.current.has(shellKey)) continue;
           executedActionsRef.current.add(shellKey);
+
+          if (autonomyConfig?.blockDestructiveShell && isPotentiallyDestructiveShellCommand(cmd)) {
+            const blockedReason = `Blocked potentially destructive shell command: ${cmd}`;
+            shellExecutionSummaries.push({ command: cmd, output: blockedReason, success: false });
+            setMessages(prev => prev.map(m => {
+              if (m.id !== assistantId) return m;
+              const steps = m.steps?.map(s =>
+                s.toolCall?.name === 'run_shell' && (s.toolCall.arguments as any).command === cmd
+                  ? { ...s, content: blockedReason, toolCall: { ...s.toolCall!, status: 'failed' as const, result: blockedReason } }
+                  : s
+              );
+              return { ...m, steps };
+            }));
+            continue;
+          }
 
           // Update step to running
           setMessages(prev => prev.map(m => {
