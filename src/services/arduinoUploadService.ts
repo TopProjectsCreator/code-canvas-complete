@@ -229,23 +229,43 @@ export class ArduinoUploadService {
     config: UploadConfig,
     onProgress?: (message: string, percent?: number) => void
   ): Promise<void> {
-    onProgress?.('Opening serial port...', 18);
+    const baudRatesToTry = Array.from(new Set([
+      config.baudRate || 115200,
+      57600,
+      115200,
+    ]));
 
-    try {
-      await port.open({ baudRate: config.baudRate || 115200 });
+    let lastError: unknown;
 
-      await flashHex(port, hexData, (msg, pct) => {
-        onProgress?.(msg, pct);
-      });
+    for (let attempt = 0; attempt < baudRatesToTry.length; attempt++) {
+      const baudRate = baudRatesToTry[attempt];
+      onProgress?.(`Opening serial port at ${baudRate} baud...`, 18);
 
-      await new Promise(r => setTimeout(r, 500));
-      await port.close();
-    } catch (err) {
-      try { await port.close(); } catch { /* ignore */ }
-      throw new Error(
-        `Flash failed: ${err instanceof Error ? err.message : 'Unknown error'}`
-      );
+      try {
+        await port.open({ baudRate });
+
+        await flashHex(port, hexData, (msg, pct) => {
+          onProgress?.(msg, pct);
+        });
+
+        await new Promise(r => setTimeout(r, 500));
+        await port.close();
+        return;
+      } catch (err) {
+        lastError = err;
+        try { await port.close(); } catch { /* ignore */ }
+
+        const nextBaudRate = baudRatesToTry[attempt + 1];
+        if (nextBaudRate) {
+          onProgress?.(`Upload failed at ${baudRate} baud, retrying with ${nextBaudRate}...`, 18);
+          await new Promise(r => setTimeout(r, 250));
+        }
+      }
     }
+
+    throw new Error(
+      `Flash failed after trying ${baudRatesToTry.join(', ')} baud: ${lastError instanceof Error ? lastError.message : 'Unknown error'}`
+    );
   }
 
   static async uploadViaWiFi(
