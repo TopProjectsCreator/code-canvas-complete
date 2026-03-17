@@ -33,20 +33,23 @@ const ARDUINO_CORE_STUBS = `
 typedef uint8_t byte;
 typedef bool boolean;
 
-// Timekeeping
+// Timekeeping (busy-wait based so sketches do not depend on interrupt vectors)
 volatile unsigned long _millis_count = 0;
-ISR(TIMER0_OVF_vect) { _millis_count++; }
 
 unsigned long millis() { return _millis_count; }
 unsigned long micros() { return _millis_count * 1000UL; }
 
 void delay(unsigned long ms) {
-  unsigned long start = millis();
-  while (millis() - start < ms) {}
+  while (ms--) {
+    _delay_ms(1);
+    _millis_count++;
+  }
 }
 
 void delayMicroseconds(unsigned int us) {
-  while (us--) { __asm__ __volatile__("nop"); }
+  while (us--) {
+    _delay_us(1);
+  }
 }
 
 // Digital I/O
@@ -213,16 +216,7 @@ void noTone(uint8_t pin) { (void)pin; }
 void setup();
 void loop();
 
-// Timer0 init for millis
-void _init_timer0() {
-  TCCR0A = (1 << WGM01) | (1 << WGM00);
-  TCCR0B = (1 << CS01) | (1 << CS00); // prescaler 64
-  TIMSK0 = (1 << TOIE0);
-}
-
 int main() {
-  _init_timer0();
-  sei();
   setup();
   while (1) loop();
   return 0;
@@ -662,11 +656,53 @@ Deno.serve(async (req: Request) => {
     };
 
     const sampleWithAddr = asmEntries.find((a: Record<string, unknown>) => a.address !== undefined);
+    const findAvrEntryPoint = (entries: Record<string, unknown>[], stubSource: string): number | null => {
+      const mainLine = stubSource.split('\n').findIndex((line) => line.includes('int main()')) + 1;
+
+      if (mainLine > 0) {
+        const sourceMappedEntry = entries.find((entry) => {
+          const source = entry.source;
+          return typeof entry.address === 'number'
+            && !!source
+            && typeof source === 'object'
+            && 'file' in source
+            && 'line' in source
+            && source.file === '<source>'
+            && typeof source.line === 'number'
+            && source.line >= mainLine
+            && source.line <= mainLine + 8;
+        });
+
+        if (sourceMappedEntry && typeof sourceMappedEntry.address === 'number') {
+          return sourceMappedEntry.address;
+        }
+      }
+
+      let sawMainLabel = false;
+      for (const entry of entries) {
+        const labels = Array.isArray(entry.labels) ? entry.labels : [];
+        const hasMainLabel = labels.some((label) => {
+          if (typeof label === 'string') return label === 'main';
+          return !!label && typeof label === 'object' && 'name' in label && label.name === 'main';
+        }) || (typeof entry.text === 'string' && /(^|\s|<)main[:>]/.test(entry.text));
+
+        if (hasMainLabel) sawMainLabel = true;
+        if (sawMainLabel && typeof entry.address === 'number') {
+          return entry.address;
+        }
+      }
+
+      return null;
+    };
+
+    const avrEntryPoint = !boardConfig.isArm ? findAvrEntryPoint(asmEntries, stubs) : null;
+
     const debugInfo = {
       totalAsmEntries: asmEntries.length,
       sampleKeys: sampleWithAddr ? Object.keys(sampleWithAddr) : [],
       sampleEntry: sampleWithAddr || null,
       firstFew: asmEntries.slice(0, 3),
+      avrEntryPoint,
     };
 
     for (const entry of asmEntries) {
@@ -707,29 +743,43 @@ Deno.serve(async (req: Request) => {
 
     // If AVR binary has empty reset vector (0xFFFF), construct RJMP to first real code
     if (!boardConfig.isArm && binaryData.length >= 2 && binaryData[0] === 0xFF && binaryData[1] === 0xFF) {
-      // Find the first non-0xFF address (start of actual code)
-      let codeStart = -1;
-      for (let i = 0; i < binaryData.length; i += 2) {
-        if (binaryData[i] !== 0xFF || (i + 1 < binaryData.length && binaryData[i + 1] !== 0xFF)) {
-          codeStart = i;
-          break;
+      let codeStart = typeof avrEntryPoint === 'number' ? avrEntryPoint : -1;
+
+      if (codeStart < 0) {
+        for (let i = 0; i < binaryData.length; i += 2) {
+          if (binaryData[i] !== 0xFF || (i + 1 < binaryData.length && binaryData[i + 1] !== 0xFF)) {
+            codeStart = i;
+            break;
+          }
         }
       }
-      if (codeStart < 0) {
+
+      if (codeStart < 0 || codeStart % 2 !== 0) {
         return new Response(
           JSON.stringify({
-            error: 'Compilation produced an empty AVR image with no executable code.',
+            error: 'Compilation produced an empty AVR image with no executable entry point.',
             debug: debugInfo,
             warnings: stderr || null,
           }),
           { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      // RJMP encoding: 1100 kkkk kkkk kkkk, k = (target_word - 1)
-      // target_word = codeStart / 2, offset = target_word - 1
+
       const rjmpOffset = (codeStart / 2) - 1;
-      binaryData[0] = rjmpOffset & 0xFF;
-      binaryData[1] = 0xC0 | ((rjmpOffset >> 8) & 0x0F);
+      if (rjmpOffset < -2048 || rjmpOffset > 2047) {
+        return new Response(
+          JSON.stringify({
+            error: 'Compilation produced an AVR entry point outside RJMP range.',
+            debug: debugInfo,
+            warnings: stderr || null,
+          }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const encodedOffset = rjmpOffset & 0x0FFF;
+      binaryData[0] = encodedOffset & 0xFF;
+      binaryData[1] = 0xC0 | ((encodedOffset >> 8) & 0x0F);
     }
 
     if (boardConfig.isArm) {
