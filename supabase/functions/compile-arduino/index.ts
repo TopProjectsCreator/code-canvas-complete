@@ -743,29 +743,43 @@ Deno.serve(async (req: Request) => {
 
     // If AVR binary has empty reset vector (0xFFFF), construct RJMP to first real code
     if (!boardConfig.isArm && binaryData.length >= 2 && binaryData[0] === 0xFF && binaryData[1] === 0xFF) {
-      // Find the first non-0xFF address (start of actual code)
-      let codeStart = -1;
-      for (let i = 0; i < binaryData.length; i += 2) {
-        if (binaryData[i] !== 0xFF || (i + 1 < binaryData.length && binaryData[i + 1] !== 0xFF)) {
-          codeStart = i;
-          break;
+      let codeStart = typeof avrEntryPoint === 'number' ? avrEntryPoint : -1;
+
+      if (codeStart < 0) {
+        for (let i = 0; i < binaryData.length; i += 2) {
+          if (binaryData[i] !== 0xFF || (i + 1 < binaryData.length && binaryData[i + 1] !== 0xFF)) {
+            codeStart = i;
+            break;
+          }
         }
       }
-      if (codeStart < 0) {
+
+      if (codeStart < 0 || codeStart % 2 !== 0) {
         return new Response(
           JSON.stringify({
-            error: 'Compilation produced an empty AVR image with no executable code.',
+            error: 'Compilation produced an empty AVR image with no executable entry point.',
             debug: debugInfo,
             warnings: stderr || null,
           }),
           { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      // RJMP encoding: 1100 kkkk kkkk kkkk, k = (target_word - 1)
-      // target_word = codeStart / 2, offset = target_word - 1
+
       const rjmpOffset = (codeStart / 2) - 1;
-      binaryData[0] = rjmpOffset & 0xFF;
-      binaryData[1] = 0xC0 | ((rjmpOffset >> 8) & 0x0F);
+      if (rjmpOffset < -2048 || rjmpOffset > 2047) {
+        return new Response(
+          JSON.stringify({
+            error: 'Compilation produced an AVR entry point outside RJMP range.',
+            debug: debugInfo,
+            warnings: stderr || null,
+          }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const encodedOffset = rjmpOffset & 0x0FFF;
+      binaryData[0] = encodedOffset & 0xFF;
+      binaryData[1] = 0xC0 | ((encodedOffset >> 8) & 0x0F);
     }
 
     if (boardConfig.isArm) {
