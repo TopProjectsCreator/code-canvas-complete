@@ -9,7 +9,7 @@ import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Docs from "./pages/Docs";
-import Profile from "./pages/Profile";
+import ProfilePage from "./pages/Profile";
 import { isPublishedHost } from "./lib/publishing";
 
 const queryClient = new QueryClient();
@@ -30,7 +30,7 @@ const App = () => (
               <Route path="/project/:projectId" element={<Index />} />
               <Route path="/docs" element={<Docs />} />
               <Route path="/docs/:slug" element={<Docs />} />
-              <Route path="/profile/:userId" element={<Profile />} />
+              <Route path="/profile/:userId" element={<ProfilePage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
