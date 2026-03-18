@@ -1,13 +1,52 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calculator, Palette, Link2, QrCode, ScanLine, CheckSquare2, Copy, Trash2, Plus, RefreshCw, Download } from 'lucide-react';
+import {
+  Calculator,
+  Palette,
+  Link2,
+  QrCode,
+  ScanLine,
+  CheckSquare2,
+  Copy,
+  Trash2,
+  Plus,
+  RefreshCw,
+  Download,
+  FunctionSquare,
+  Sigma,
+  CalendarDays,
+  Sparkles,
+  FileCog,
+  WandSparkles,
+} from 'lucide-react';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 type HabitLog = Record<string, boolean>;
+
+type HabitFrequency = 'daily' | 'weekdays' | 'custom';
+type CalculatorMode = 'basic' | 'scientific' | 'graph';
+type ConverterMode = 'image' | 'json-to-csv' | 'csv-to-json' | 'text-to-base64' | 'base64-to-text' | 'url-encode' | 'url-decode';
+
+type ConverterResult = {
+  kind: 'file' | 'text';
+  content: string;
+  fileName?: string;
+  mimeType?: string;
+};
 
 interface Habit {
   id: string;
   name: string;
   color: string;
-  goalPerWeek: number;
+  frequency: HabitFrequency;
+  targetPerWeek: number;
   createdAt: string;
   logs: HabitLog;
 }
@@ -20,9 +59,12 @@ interface ShortLink {
 }
 
 const TOOL_STORAGE_KEYS = {
-  habits: 'ide-tools-habits-v1',
+  habits: 'ide-tools-habits-v2',
   links: 'ide-tools-links-v1',
 };
+
+const weekdayFormatter = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+const fullDateFormatter = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
 const todayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -38,6 +80,22 @@ const toBase62 = (num: number) => {
   return out;
 };
 
+const getWeekDates = () => Array.from({ length: 7 }, (_, index) => {
+  const offset = index - 6;
+  const date = new Date();
+  date.setDate(date.getDate() + offset);
+  return {
+    key: date.toISOString().slice(0, 10),
+    label: weekdayFormatter.format(date),
+    shortLabel: `${date.getMonth() + 1}/${date.getDate()}`,
+  };
+});
+
+const getWeekProgress = (logs: HabitLog) => {
+  const weekDates = getWeekDates();
+  return weekDates.reduce((count, day) => count + (logs[day.key] ? 1 : 0), 0);
+};
+
 const getStreak = (logs: HabitLog) => {
   let streak = 0;
   const date = new Date();
@@ -50,28 +108,215 @@ const getStreak = (logs: HabitLog) => {
   return streak;
 };
 
-const getLast7DaysProgress = (logs: HabitLog) => {
-  let done = 0;
-  const date = new Date();
-  for (let i = 0; i < 7; i += 1) {
-    const key = date.toISOString().slice(0, 10);
-    if (logs[key]) done += 1;
-    date.setDate(date.getDate() - 1);
+const formatNumber = (value: number) => {
+  if (!Number.isFinite(value)) return 'Undefined';
+  if (Math.abs(value) >= 1_000_000 || (Math.abs(value) > 0 && Math.abs(value) < 0.000001)) {
+    return value.toExponential(6);
   }
-  return done;
+  return Number(value.toFixed(10)).toString();
 };
+
+const extractIdentifiers = (expression: string) => expression.match(/[A-Za-z_][A-Za-z0-9_]*/g) ?? [];
+
+const parseMathExpression = (expression: string, xValue = 0) => {
+  const trimmed = expression.trim();
+  if (!trimmed) {
+    return { ok: true as const, value: 0 };
+  }
+
+  const safeCharacters = /^[0-9A-Za-z_+\-*/%^().,\s]*$/;
+  if (!safeCharacters.test(trimmed)) {
+    return { ok: false as const, message: 'Use numbers, x, parentheses, and supported math functions only.' };
+  }
+
+  const normalized = trimmed.replace(/\^/g, '**');
+  const allowedIdentifiers = new Set(['x', 'abs', 'sqrt', 'sin', 'cos', 'tan', 'log', 'ln', 'pow', 'mod', 'pi', 'e']);
+  const identifiers = extractIdentifiers(normalized);
+  const invalidIdentifier = identifiers.find((identifier) => !allowedIdentifiers.has(identifier));
+
+  if (invalidIdentifier) {
+    return { ok: false as const, message: `Unsupported function: ${invalidIdentifier}` };
+  }
+
+  const scope = {
+    x: xValue,
+    abs: Math.abs,
+    sqrt: Math.sqrt,
+    sin: (value: number) => Math.sin(value),
+    cos: (value: number) => Math.cos(value),
+    tan: (value: number) => Math.tan(value),
+    log: (value: number, base = 10) => Math.log(value) / Math.log(base),
+    ln: (value: number) => Math.log(value),
+    pow: (value: number, exponent: number) => Math.pow(value, exponent),
+    mod: (value: number, divisor: number) => value % divisor,
+    pi: Math.PI,
+    e: Math.E,
+  };
+
+  try {
+    const fn = Function(...Object.keys(scope), `return (${normalized});`) as (...args: number[]) => unknown;
+    const value = fn(...Object.values(scope));
+    if (typeof value !== 'number' || Number.isNaN(value)) {
+      return { ok: false as const, message: 'Expression returned an invalid number.' };
+    }
+    return { ok: true as const, value };
+  } catch {
+    return { ok: false as const, message: 'Check the expression syntax and try again.' };
+  }
+};
+
+const parseCsv = (input: string) => {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < input.length; index += 1) {
+    const character = input[index];
+    const nextCharacter = input[index + 1];
+
+    if (character === '"') {
+      if (inQuotes && nextCharacter === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (character === ',' && !inQuotes) {
+      row.push(current);
+      current = '';
+      continue;
+    }
+
+    if ((character === '\n' || character === '\r') && !inQuotes) {
+      if (character === '\r' && nextCharacter === '\n') {
+        index += 1;
+      }
+      row.push(current);
+      rows.push(row);
+      row = [];
+      current = '';
+      continue;
+    }
+
+    current += character;
+  }
+
+  if (current.length > 0 || row.length > 0) {
+    row.push(current);
+    rows.push(row);
+  }
+
+  return rows.filter((nextRow) => nextRow.some((cell) => cell.trim().length > 0));
+};
+
+const toCsvValue = (value: unknown) => {
+  const serialized = typeof value === 'string' ? value : JSON.stringify(value ?? '');
+  if (/[",\n]/.test(serialized)) {
+    return `"${serialized.replace(/"/g, '""')}"`;
+  }
+  return serialized;
+};
+
+const convertJsonToCsv = (input: string) => {
+  const parsed = JSON.parse(input) as unknown;
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new Error('Provide a JSON array of objects to convert into CSV.');
+  }
+
+  const rows = parsed as Array<Record<string, unknown>>;
+  const keys = Array.from(new Set(rows.flatMap((row) => Object.keys(row))));
+  const header = keys.join(',');
+  const body = rows
+    .map((row) => keys.map((key) => toCsvValue(row[key] ?? '')).join(','))
+    .join('\n');
+
+  return `${header}\n${body}`;
+};
+
+const convertCsvToJson = (input: string) => {
+  const rows = parseCsv(input);
+  if (rows.length < 2) {
+    throw new Error('CSV input needs a header row and at least one data row.');
+  }
+
+  const [header, ...dataRows] = rows;
+  const records = dataRows.map((row) => Object.fromEntries(header.map((key, index) => [key, row[index] ?? ''])));
+  return JSON.stringify(records, null, 2);
+};
+
+const readFileAsText = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result ?? ''));
+  reader.onerror = () => reject(new Error('Could not read the selected file.'));
+  reader.readAsText(file);
+});
+
+const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result ?? ''));
+  reader.onerror = () => reject(new Error('Could not read the selected file.'));
+  reader.readAsDataURL(file);
+});
+
+const calculatorButtons: Array<Array<{ label: string; value?: string; action?: 'clear' | 'backspace' | 'evaluate' | 'wrap-abs' | 'insert-log' | 'insert-ln' | 'insert-mod' | 'insert-x' }>> = [
+  [
+    { label: 'AC', action: 'clear' },
+    { label: '⌫', action: 'backspace' },
+    { label: 'abs', action: 'wrap-abs' },
+    { label: 'mod', action: 'insert-mod' },
+  ],
+  [
+    { label: '7', value: '7' },
+    { label: '8', value: '8' },
+    { label: '9', value: '9' },
+    { label: '÷', value: '/' },
+  ],
+  [
+    { label: '4', value: '4' },
+    { label: '5', value: '5' },
+    { label: '6', value: '6' },
+    { label: '×', value: '*' },
+  ],
+  [
+    { label: '1', value: '1' },
+    { label: '2', value: '2' },
+    { label: '3', value: '3' },
+    { label: '−', value: '-' },
+  ],
+  [
+    { label: '0', value: '0' },
+    { label: '.', value: '.' },
+    { label: '(', value: '(' },
+    { label: ')', value: ')' },
+  ],
+  [
+    { label: 'log', action: 'insert-log' },
+    { label: 'ln', action: 'insert-ln' },
+    { label: 'x', action: 'insert-x' },
+    { label: '=', action: 'evaluate' },
+  ],
+];
 
 export const ToolsPanel = () => {
   const [activeSection, setActiveSection] = useState<'calculator' | 'css' | 'habit' | 'shortener' | 'qr' | 'converter'>('calculator');
 
+  const [calculatorMode, setCalculatorMode] = useState<CalculatorMode>('scientific');
   const [calcInput, setCalcInput] = useState('');
   const [calcResult, setCalcResult] = useState<string>('0');
+  const [calcHint, setCalcHint] = useState('Ready');
+  const [graphExpression, setGraphExpression] = useState('sin(x)');
+  const [graphRange, setGraphRange] = useState(10);
 
   const [hex, setHex] = useState('#6366f1');
   const [savedColors, setSavedColors] = useState<string[]>([]);
 
   const [habits, setHabits] = useState<Habit[]>([]);
   const [habitName, setHabitName] = useState('');
+  const [habitFrequency, setHabitFrequency] = useState<HabitFrequency>('daily');
   const [habitGoal, setHabitGoal] = useState(4);
   const [habitColor, setHabitColor] = useState('#22c55e');
 
@@ -85,12 +330,13 @@ export const ToolsPanel = () => {
   const [scanError, setScanError] = useState('');
   const [scanPreview, setScanPreview] = useState('');
 
+  const [converterMode, setConverterMode] = useState<ConverterMode>('image');
   const [convertFile, setConvertFile] = useState<File | null>(null);
   const [convertFormat, setConvertFormat] = useState<'png' | 'jpeg' | 'webp'>('png');
   const [convertQuality, setConvertQuality] = useState(0.92);
-  const [convertError, setConvertError] = useState('');
-  const [convertedUrl, setConvertedUrl] = useState('');
-  const [convertedName, setConvertedName] = useState('');
+  const [converterInput, setConverterInput] = useState('');
+  const [converterError, setConverterError] = useState('');
+  const [converterResult, setConverterResult] = useState<ConverterResult | null>(null);
 
   useEffect(() => {
     try {
@@ -115,9 +361,18 @@ export const ToolsPanel = () => {
     localStorage.setItem(TOOL_STORAGE_KEYS.links, JSON.stringify(links));
   }, [links]);
 
+  useEffect(() => () => {
+    if (scanPreview) {
+      URL.revokeObjectURL(scanPreview);
+    }
+    if (converterResult?.kind === 'file' && converterResult.content.startsWith('blob:')) {
+      URL.revokeObjectURL(converterResult.content);
+    }
+  }, [scanPreview, converterResult]);
+
   const rgb = useMemo(() => {
     const c = hex.replace('#', '');
-    const full = c.length === 3 ? c.split('').map(ch => ch + ch).join('') : c;
+    const full = c.length === 3 ? c.split('').map((character) => character + character).join('') : c;
     const bigint = Number.parseInt(full, 16);
     if (!Number.isFinite(bigint)) return { r: 99, g: 102, b: 241 };
     return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
@@ -151,59 +406,130 @@ export const ToolsPanel = () => {
     return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) };
   }, [rgb]);
 
-  const evaluateExpression = () => {
-    try {
-      const safe = calcInput.replace(/[^0-9+\-*/().%\s]/g, '');
-      if (!safe.trim()) {
+  const calculatorExamples = useMemo(() => ([
+    'abs(-14)',
+    'mod(29, 6)',
+    'log(1000)',
+    'sqrt(81) + 5',
+    'sin(pi / 2)',
+    'x^2 - 4',
+  ]), []);
+
+  const graphPoints = useMemo(() => {
+    const safeRange = Math.max(2, graphRange);
+    return Array.from({ length: 121 }, (_, index) => {
+      const x = -safeRange + (index * (safeRange * 2)) / 120;
+      const evaluation = parseMathExpression(graphExpression, x);
+      return {
+        x: Number(x.toFixed(2)),
+        y: evaluation.ok && Number.isFinite(evaluation.value) ? Number(evaluation.value.toFixed(4)) : null,
+      };
+    });
+  }, [graphExpression, graphRange]);
+
+  const graphStatus = useMemo(() => {
+    const sample = parseMathExpression(graphExpression, 1);
+    if (!graphExpression.trim()) return 'Enter an expression that uses x to graph it.';
+    return sample.ok ? 'Graph ready' : sample.message;
+  }, [graphExpression]);
+
+  const insertCalcValue = (value: string) => {
+    setCalcInput((current) => `${current}${value}`);
+  };
+
+  const evaluateExpression = (expression = calcInput) => {
+    const result = parseMathExpression(expression);
+    if (!result.ok) {
+      setCalcResult('Error');
+      setCalcHint(result.message);
+      return;
+    }
+    setCalcResult(formatNumber(result.value));
+    setCalcHint('Calculated successfully');
+  };
+
+  const handleCalculatorButton = (button: { value?: string; action?: 'clear' | 'backspace' | 'evaluate' | 'wrap-abs' | 'insert-log' | 'insert-ln' | 'insert-mod' | 'insert-x' }) => {
+    if (button.value) {
+      insertCalcValue(button.value);
+      return;
+    }
+
+    switch (button.action) {
+      case 'clear':
+        setCalcInput('');
         setCalcResult('0');
-        return;
-      }
-      const result = Function(`"use strict"; return (${safe})`)();
-      setCalcResult(String(result));
-    } catch {
-      setCalcResult('Invalid expression');
+        setCalcHint('Ready');
+        break;
+      case 'backspace':
+        setCalcInput((current) => current.slice(0, -1));
+        break;
+      case 'evaluate':
+        evaluateExpression();
+        break;
+      case 'wrap-abs':
+        setCalcInput((current) => current.trim() ? `abs(${current})` : 'abs()');
+        break;
+      case 'insert-log':
+        insertCalcValue('log(');
+        break;
+      case 'insert-ln':
+        insertCalcValue('ln(');
+        break;
+      case 'insert-mod':
+        insertCalcValue('mod(');
+        break;
+      case 'insert-x':
+        insertCalcValue('x');
+        break;
+      default:
+        break;
     }
   };
 
+  const nextHabitTarget = useMemo(() => {
+    if (habitFrequency === 'daily') return 7;
+    if (habitFrequency === 'weekdays') return 5;
+    return Math.max(1, Math.min(7, habitGoal));
+  }, [habitFrequency, habitGoal]);
+
   const addHabit = () => {
     if (!habitName.trim()) return;
-    setHabits(prev => [{
+    setHabits((previous) => [{
       id: crypto.randomUUID(),
       name: habitName.trim(),
       color: habitColor,
-      goalPerWeek: Math.max(1, Math.min(7, habitGoal)),
+      frequency: habitFrequency,
+      targetPerWeek: nextHabitTarget,
       createdAt: new Date().toISOString(),
       logs: {},
-    }, ...prev]);
+    }, ...previous]);
     setHabitName('');
   };
 
-  const toggleHabitToday = (id: string) => {
-    const day = todayKey();
-    setHabits(prev => prev.map(h => h.id !== id ? h : ({
-      ...h,
+  const toggleHabitDay = (id: string, dateKey: string) => {
+    setHabits((previous) => previous.map((habit) => habit.id !== id ? habit : ({
+      ...habit,
       logs: {
-        ...h.logs,
-        [day]: !h.logs[day],
+        ...habit.logs,
+        [dateKey]: !habit.logs[dateKey],
       },
     })));
   };
 
-  const removeHabit = (id: string) => setHabits(prev => prev.filter(h => h.id !== id));
+  const removeHabit = (id: string) => setHabits((previous) => previous.filter((habit) => habit.id !== id));
 
   const createShortLink = () => {
     try {
       const parsed = new URL(longUrl.trim());
       const nextCode = (customCode.trim() || toBase62(Date.now()).slice(-6)).replace(/[^a-zA-Z0-9_-]/g, '');
-      if (!nextCode) return;
-      if (links.some(l => l.code === nextCode)) return;
+      if (!nextCode || links.some((link) => link.code === nextCode)) return;
       const item: ShortLink = {
         code: nextCode,
         url: parsed.toString(),
         createdAt: new Date().toISOString(),
         clicks: 0,
       };
-      setLinks(prev => [item, ...prev]);
+      setLinks((previous) => [item, ...previous]);
       setExpandedCode(nextCode);
       setLongUrl('');
       setCustomCode('');
@@ -213,15 +539,18 @@ export const ToolsPanel = () => {
   };
 
   const openShortLink = (code: string) => {
-    const match = links.find(link => link.code === code);
+    const match = links.find((link) => link.code === code);
     if (!match) return;
-    setLinks(prev => prev.map(link => link.code === code ? { ...link, clicks: link.clicks + 1 } : link));
+    setLinks((previous) => previous.map((link) => link.code === code ? { ...link, clicks: link.clicks + 1 } : link));
     window.open(match.url, '_blank', 'noopener,noreferrer');
   };
 
   const scanQrFromFile = async (file: File) => {
     setScanError('');
     setScanResult('');
+    if (scanPreview) {
+      URL.revokeObjectURL(scanPreview);
+    }
     const imageUrl = URL.createObjectURL(file);
     setScanPreview(imageUrl);
 
@@ -241,23 +570,30 @@ export const ToolsPanel = () => {
 
   const qrImage = `https://quickchart.io/qr?text=${encodeURIComponent(qrText || ' ')}`;
 
+  const resetConverterOutput = () => {
+    setConverterError('');
+    setConverterResult((current) => {
+      if (current?.kind === 'file' && current.content.startsWith('blob:')) {
+        URL.revokeObjectURL(current.content);
+      }
+      return null;
+    });
+  };
+
   const runImageConversion = async () => {
     if (!convertFile) {
-      setConvertError('Choose an image file to convert first.');
-      return;
+      throw new Error('Choose an image file to convert first.');
     }
 
-    setConvertError('');
-    setConvertedUrl('');
-    setConvertedName('');
-
+    const sourceUrl = URL.createObjectURL(convertFile);
     try {
-      const sourceUrl = URL.createObjectURL(convertFile);
+      const isSvg = convertFile.type === 'image/svg+xml' || convertFile.name.toLowerCase().endsWith('.svg');
+      const imageSource = isSvg ? await readFileAsDataUrl(convertFile) : sourceUrl;
       const image = await new Promise<HTMLImageElement>((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve(img);
         img.onerror = () => reject(new Error('Could not decode this image file.'));
-        img.src = sourceUrl;
+        img.src = imageSource;
       });
 
       const canvas = document.createElement('canvas');
@@ -266,13 +602,10 @@ export const ToolsPanel = () => {
       const context = canvas.getContext('2d');
 
       if (!context) {
-        setConvertError('Canvas is not available in this browser.');
-        URL.revokeObjectURL(sourceUrl);
-        return;
+        throw new Error('Canvas is not available in this browser.');
       }
 
       context.drawImage(image, 0, 0);
-      URL.revokeObjectURL(sourceUrl);
 
       const mimeType = `image/${convertFormat}`;
       const blob = await new Promise<Blob | null>((resolve) => {
@@ -280,26 +613,140 @@ export const ToolsPanel = () => {
       });
 
       if (!blob) {
-        setConvertError('Conversion failed. Try a different source file or format.');
-        return;
+        throw new Error('Conversion failed. Try a different source file or format.');
       }
 
       const nextUrl = URL.createObjectURL(blob);
       const baseName = convertFile.name.replace(/\.[^.]+$/, '');
-      setConvertedUrl(nextUrl);
-      setConvertedName(`${baseName}.${convertFormat === 'jpeg' ? 'jpg' : convertFormat}`);
-    } catch {
-      setConvertError('Could not convert this file. Try PNG, JPG, or WEBP images.');
+      return {
+        kind: 'file' as const,
+        content: nextUrl,
+        fileName: `${baseName}.${convertFormat === 'jpeg' ? 'jpg' : convertFormat}`,
+        mimeType,
+      };
+    } finally {
+      URL.revokeObjectURL(sourceUrl);
     }
   };
 
+  const runConverter = async () => {
+    resetConverterOutput();
+
+    try {
+      let result: ConverterResult;
+      switch (converterMode) {
+        case 'image':
+          result = await runImageConversion();
+          break;
+        case 'json-to-csv': {
+          const source = convertFile ? await readFileAsText(convertFile) : converterInput;
+          result = {
+            kind: 'text',
+            content: convertJsonToCsv(source),
+            fileName: 'converted.csv',
+            mimeType: 'text/csv',
+          };
+          break;
+        }
+        case 'csv-to-json': {
+          const source = convertFile ? await readFileAsText(convertFile) : converterInput;
+          result = {
+            kind: 'text',
+            content: convertCsvToJson(source),
+            fileName: 'converted.json',
+            mimeType: 'application/json',
+          };
+          break;
+        }
+        case 'text-to-base64': {
+          const source = convertFile ? await readFileAsText(convertFile) : converterInput;
+          result = {
+            kind: 'text',
+            content: btoa(unescape(encodeURIComponent(source))),
+          };
+          break;
+        }
+        case 'base64-to-text': {
+          const source = (convertFile ? await readFileAsText(convertFile) : converterInput).trim();
+          result = {
+            kind: 'text',
+            content: decodeURIComponent(escape(atob(source))),
+          };
+          break;
+        }
+        case 'url-encode':
+          result = { kind: 'text', content: encodeURIComponent(converterInput) };
+          break;
+        case 'url-decode':
+          result = { kind: 'text', content: decodeURIComponent(converterInput) };
+          break;
+        default:
+          result = { kind: 'text', content: '' };
+      }
+      setConverterResult(result);
+    } catch (error) {
+      setConverterError(error instanceof Error ? error.message : 'Conversion failed.');
+    }
+  };
+
+  const weekDates = useMemo(() => getWeekDates(), []);
+
+  const converterModeMeta: Record<ConverterMode, { title: string; description: string; acceptsFile: boolean; inputLabel: string }> = {
+    image: {
+      title: 'Image converter',
+      description: 'Convert PNG, JPG, WEBP, GIF, BMP, or SVG files directly in the browser.',
+      acceptsFile: true,
+      inputLabel: 'Select an image file',
+    },
+    'json-to-csv': {
+      title: 'JSON → CSV',
+      description: 'Turn arrays of objects into spreadsheet-ready CSV without using the terminal.',
+      acceptsFile: true,
+      inputLabel: 'Paste JSON or upload a .json file',
+    },
+    'csv-to-json': {
+      title: 'CSV → JSON',
+      description: 'Convert CSV headers and rows into structured JSON records.',
+      acceptsFile: true,
+      inputLabel: 'Paste CSV or upload a .csv file',
+    },
+    'text-to-base64': {
+      title: 'Text → Base64',
+      description: 'Encode pasted text or text files into Base64.',
+      acceptsFile: true,
+      inputLabel: 'Paste text or upload a text file',
+    },
+    'base64-to-text': {
+      title: 'Base64 → Text',
+      description: 'Decode Base64 back into readable text.',
+      acceptsFile: true,
+      inputLabel: 'Paste Base64 or upload a text file',
+    },
+    'url-encode': {
+      title: 'URL encode',
+      description: 'Encode unsafe characters for query strings and URLs.',
+      acceptsFile: false,
+      inputLabel: 'Paste text to encode',
+    },
+    'url-decode': {
+      title: 'URL decode',
+      description: 'Decode percent-encoded URLs back into plain text.',
+      acceptsFile: false,
+      inputLabel: 'Paste encoded text to decode',
+    },
+  };
+
+  const activeConverterMeta = converterModeMeta[converterMode];
+  const todayHabits = habits.filter((habit) => habit.logs[todayKey()]);
+
   return (
-    <div className="flex flex-col h-full">
-      <div className="h-9 px-3 border-b border-border flex items-center text-xs uppercase tracking-wide text-muted-foreground font-medium">
-        Tools
+    <div className="flex h-full flex-col bg-background">
+      <div className="flex h-11 items-center justify-between border-b border-border px-3 text-xs uppercase tracking-[0.22em] text-muted-foreground font-medium">
+        <span>Tools</span>
+        <span className="rounded-full bg-accent px-2 py-1 text-[10px] text-foreground">Studio utilities</span>
       </div>
 
-      <div className="grid grid-cols-6 border-b border-border">
+      <div className="grid grid-cols-6 border-b border-border bg-muted/20">
         {[
           { id: 'calculator', icon: Calculator, label: 'Calc' },
           { id: 'css', icon: Palette, label: 'CSS' },
@@ -307,60 +754,190 @@ export const ToolsPanel = () => {
           { id: 'shortener', icon: Link2, label: 'URL' },
           { id: 'qr', icon: QrCode, label: 'QR' },
           { id: 'converter', icon: RefreshCw, label: 'Convert' },
-        ].map(tab => (
+        ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveSection(tab.id as typeof activeSection)}
-            className={`py-2 text-[11px] flex flex-col items-center gap-1 border-r border-border last:border-r-0 ${activeSection === tab.id ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent/50'}`}
+            className={`border-r border-border px-2 py-2 text-[11px] last:border-r-0 ${activeSection === tab.id ? 'bg-background text-foreground' : 'text-muted-foreground hover:bg-accent/50'}`}
           >
-            <tab.icon className="w-3.5 h-3.5" />
-            <span>{tab.label}</span>
+            <div className="flex flex-col items-center gap-1">
+              <tab.icon className="h-3.5 w-3.5" />
+              <span>{tab.label}</span>
+            </div>
           </button>
         ))}
       </div>
 
-      <div className="flex-1 overflow-auto p-3 space-y-3 text-xs">
+      <div className="flex-1 overflow-auto p-3 text-xs">
         {activeSection === 'calculator' && (
-          <div className="space-y-2">
-            <p className="text-muted-foreground">Scientific-style expression calculator (supports +, -, *, /, %, parentheses).</p>
-            <input
-              value={calcInput}
-              onChange={(e) => setCalcInput(e.target.value)}
-              placeholder="(12 + 5) * 3 / 2"
-              className="w-full bg-input border border-border rounded px-2 py-1.5"
-            />
-            <button onClick={evaluateExpression} className="w-full py-1.5 rounded bg-primary text-primary-foreground">Calculate</button>
-            <div className="bg-muted rounded p-2">
-              <div className="text-muted-foreground">Result</div>
-              <div className="font-mono text-sm text-foreground break-all">{calcResult}</div>
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-border bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-3 text-slate-50 shadow-lg shadow-slate-950/30">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.28em] text-slate-400">Calculator</div>
+                  <div className="text-sm font-semibold">Scientific + graphing</div>
+                </div>
+                <div className="flex gap-1 rounded-full bg-white/5 p-1">
+                  {([
+                    ['basic', 'Basic'],
+                    ['scientific', 'Scientific'],
+                    ['graph', 'Graph'],
+                  ] as const).map(([mode, label]) => (
+                    <button
+                      key={mode}
+                      onClick={() => setCalculatorMode(mode)}
+                      className={`rounded-full px-2.5 py-1 text-[11px] ${calculatorMode === mode ? 'bg-primary text-primary-foreground' : 'text-slate-300 hover:bg-white/10'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-black/30 p-3">
+                <div className="text-right text-[11px] text-slate-400 break-all">{calcInput || '0'}</div>
+                <div className="mt-2 text-right text-3xl font-semibold tracking-tight break-all">{calcResult}</div>
+                <div className="mt-1 text-right text-[11px] text-emerald-300">{calcHint}</div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {calculatorButtons
+                  .filter((_, rowIndex) => calculatorMode !== 'basic' || rowIndex < 5)
+                  .flat()
+                  .map((button) => (
+                    <button
+                      key={`${button.label}-${button.value ?? button.action}`}
+                      onClick={() => handleCalculatorButton(button)}
+                      className={`rounded-xl px-3 py-3 text-sm font-medium transition ${button.action === 'evaluate' ? 'bg-primary text-primary-foreground hover:opacity-90' : button.action === 'clear' ? 'bg-rose-500/20 text-rose-100 hover:bg-rose-500/30' : 'bg-white/8 text-white hover:bg-white/15'}`}
+                    >
+                      {button.label}
+                    </button>
+                  ))}
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {calculatorExamples.map((example) => (
+                  <button
+                    key={example}
+                    onClick={() => {
+                      setCalcInput(example);
+                      evaluateExpression(example);
+                    }}
+                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-200 hover:bg-white/10"
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              <div className="space-y-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <FunctionSquare className="h-4 w-4 text-primary" /> Expression lab
+                </div>
+                <input
+                  value={calcInput}
+                  onChange={(event) => setCalcInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      evaluateExpression();
+                    }
+                  }}
+                  placeholder="Try abs(-8) + log(100) or x^2 - 4"
+                  className="w-full rounded-xl border border-border bg-input px-3 py-2 font-mono text-sm"
+                />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {[
+                    { label: 'π', value: 'pi' },
+                    { label: 'e', value: 'e' },
+                    { label: 'sqrt(', value: 'sqrt(' },
+                    { label: '^', value: '^' },
+                  ].map((shortcut) => (
+                    <button key={shortcut.label} onClick={() => insertCalcValue(shortcut.value)} className="rounded-xl border border-border bg-accent px-3 py-2 text-foreground hover:bg-accent/80">
+                      {shortcut.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="rounded-xl border border-border bg-muted/40 p-3 text-muted-foreground">
+                  <div className="mb-2 font-medium text-foreground">Supported functions</div>
+                  <div className="flex flex-wrap gap-2 text-[11px]">
+                    {['abs(x)', 'mod(a,b)', 'log(x)', 'log(x, base)', 'ln(x)', 'sqrt(x)', 'sin(x)', 'cos(x)', 'tan(x)'].map((fn) => (
+                      <span key={fn} className="rounded-full bg-background px-2 py-1 font-mono text-foreground">{fn}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Sigma className="h-4 w-4 text-primary" /> Graphing mode
+                </div>
+                <input
+                  value={graphExpression}
+                  onChange={(event) => setGraphExpression(event.target.value)}
+                  placeholder="sin(x), x^2, abs(x), log(x + 11)"
+                  className="w-full rounded-xl border border-border bg-input px-3 py-2 font-mono text-sm"
+                />
+                <label className="block space-y-1">
+                  <div className="flex items-center justify-between text-muted-foreground">
+                    <span>Range</span>
+                    <span className="font-mono text-foreground">±{graphRange}</span>
+                  </div>
+                  <input type="range" min={4} max={30} step={1} value={graphRange} onChange={(event) => setGraphRange(Number(event.target.value))} className="w-full" />
+                </label>
+                <div className="h-56 rounded-xl border border-border bg-muted/30 p-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={graphPoints}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="x" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} width={36} />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="y" stroke="hsl(var(--primary))" dot={false} strokeWidth={2} connectNulls={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className={`rounded-xl px-3 py-2 ${graphStatus === 'Graph ready' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/10 text-amber-700 dark:text-amber-300'}`}>
+                  {graphStatus}
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {activeSection === 'css' && (
-          <div className="space-y-2">
-            <input type="color" value={hex} onChange={(e) => setHex(e.target.value)} className="w-full h-10 rounded border border-border bg-transparent" />
-            <input value={hex} onChange={(e) => setHex(e.target.value)} className="w-full bg-input border border-border rounded px-2 py-1.5 font-mono" />
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => navigator.clipboard.writeText(hex)} className="py-1.5 rounded bg-accent">Copy HEX</button>
-              <button onClick={() => navigator.clipboard.writeText(`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`)} className="py-1.5 rounded bg-accent">Copy RGB</button>
-              <button onClick={() => navigator.clipboard.writeText(`hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)`)} className="py-1.5 rounded bg-accent">Copy HSL</button>
-              <button onClick={() => setSavedColors(prev => [hex, ...prev.filter(c => c !== hex)].slice(0, 8))} className="py-1.5 rounded bg-accent">Save Color</button>
-            </div>
-            <div className="rounded border border-border overflow-hidden">
-              <div className="h-10" style={{ backgroundColor: hex }} />
-              <div className="p-2 space-y-1 font-mono text-[11px]">
-                <div>hex: {hex}</div>
-                <div>rgb: {rgb.r}, {rgb.g}, {rgb.b}</div>
-                <div>hsl: {hsl.h} {hsl.s}% {hsl.l}%</div>
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Sparkles className="h-4 w-4 text-primary" /> Color toolkit
+              </div>
+              <div className="grid gap-3">
+                <input type="color" value={hex} onChange={(event) => setHex(event.target.value)} className="h-36 w-full rounded-2xl border border-border bg-transparent" />
+                <div className="space-y-3">
+                  <input value={hex} onChange={(event) => setHex(event.target.value)} className="w-full rounded-xl border border-border bg-input px-3 py-2 font-mono text-sm" />
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <button onClick={() => navigator.clipboard.writeText(hex)} className="rounded-xl bg-accent px-3 py-2 hover:bg-accent/80">Copy HEX</button>
+                    <button onClick={() => navigator.clipboard.writeText(`rgb(${rgb.r}, ${rgb.g}, ${rgb.b})`)} className="rounded-xl bg-accent px-3 py-2 hover:bg-accent/80">Copy RGB</button>
+                    <button onClick={() => navigator.clipboard.writeText(`hsl(${hsl.h} ${hsl.s}% ${hsl.l}%)`)} className="rounded-xl bg-accent px-3 py-2 hover:bg-accent/80">Copy HSL</button>
+                    <button onClick={() => setSavedColors((previous) => [hex, ...previous.filter((color) => color !== hex)].slice(0, 8))} className="rounded-xl bg-primary px-3 py-2 text-primary-foreground hover:opacity-90">Save</button>
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-border">
+                    <div className="h-16" style={{ backgroundColor: hex }} />
+                    <div className="grid gap-1 bg-muted/30 p-3 font-mono text-[11px] text-foreground">
+                      <div>hex: {hex}</div>
+                      <div>rgb: {rgb.r}, {rgb.g}, {rgb.b}</div>
+                      <div>hsl: {hsl.h} {hsl.s}% {hsl.l}%</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
             {savedColors.length > 0 && (
-              <div className="space-y-1">
-                <div className="text-muted-foreground">Saved palette</div>
-                <div className="grid grid-cols-8 gap-1">
+              <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                <div className="mb-2 text-sm font-semibold text-foreground">Saved palette</div>
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
                   {savedColors.map((color) => (
-                    <button key={color} title={color} onClick={() => setHex(color)} className="h-6 rounded border border-border" style={{ backgroundColor: color }} />
+                    <button key={color} title={color} onClick={() => setHex(color)} className="h-12 rounded-xl border border-border" style={{ backgroundColor: color }} />
                   ))}
                 </div>
               </div>
@@ -370,112 +947,326 @@ export const ToolsPanel = () => {
 
         {activeSection === 'habit' && (
           <div className="space-y-3">
-            <div className="space-y-2 rounded border border-border p-2">
-              <input value={habitName} onChange={(e) => setHabitName(e.target.value)} placeholder="New habit name" className="w-full bg-input border border-border rounded px-2 py-1.5" />
-              <div className="flex gap-2">
-                <input type="color" value={habitColor} onChange={(e) => setHabitColor(e.target.value)} className="w-10 h-8 rounded border border-border" />
-                <input type="number" min={1} max={7} value={habitGoal} onChange={(e) => setHabitGoal(Number(e.target.value))} className="w-20 bg-input border border-border rounded px-2 py-1.5" />
-                <button onClick={addHabit} className="flex-1 rounded bg-primary text-primary-foreground flex items-center justify-center gap-1"><Plus className="w-3 h-3" /> Add</button>
-              </div>
-            </div>
-            {habits.map(habit => {
-              const streak = getStreak(habit.logs);
-              const progress = getLast7DaysProgress(habit.logs);
-              const complete = Boolean(habit.logs[todayKey()]);
-              return (
-                <div key={habit.id} className="rounded border border-border p-2 space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: habit.color }} />
-                    <div className="font-medium text-foreground flex-1 truncate">{habit.name}</div>
-                    <button onClick={() => removeHabit(habit.id)} className="text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
+            <div className="grid gap-3">
+              <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <CalendarDays className="h-4 w-4 text-primary" /> Habit planner
+                </div>
+                <div className="space-y-3">
+                  <input value={habitName} onChange={(event) => setHabitName(event.target.value)} placeholder="Habit name" className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                  <div className="grid grid-cols-[60px,1fr] gap-2">
+                    <input type="color" value={habitColor} onChange={(event) => setHabitColor(event.target.value)} className="h-11 w-full rounded-xl border border-border bg-transparent" />
+                    <select value={habitFrequency} onChange={(event) => setHabitFrequency(event.target.value as HabitFrequency)} className="w-full rounded-xl border border-border bg-input px-3 py-2">
+                      <option value="daily">Daily</option>
+                      <option value="weekdays">Weekdays</option>
+                      <option value="custom">Custom times per week</option>
+                    </select>
                   </div>
-                  <div className="text-muted-foreground">Streak: {streak} day(s) • Last 7d: {progress}/{habit.goalPerWeek}</div>
-                  <button onClick={() => toggleHabitToday(habit.id)} className={`w-full py-1 rounded ${complete ? 'bg-green-600 text-white' : 'bg-accent text-foreground'}`}>
-                    {complete ? 'Completed today' : 'Mark today as done'}
+                  {habitFrequency === 'custom' && (
+                    <label className="block space-y-1">
+                      <span className="text-muted-foreground">Target completions this week</span>
+                      <input type="number" min={1} max={7} value={habitGoal} onChange={(event) => setHabitGoal(Number(event.target.value))} className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                    </label>
+                  )}
+                  <div className="rounded-xl border border-dashed border-border bg-muted/30 p-3 text-muted-foreground">
+                    Goal: <span className="font-semibold text-foreground">{nextHabitTarget} day{nextHabitTarget === 1 ? '' : 's'} / week</span>
+                  </div>
+                  <button onClick={addHabit} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-primary-foreground hover:opacity-90">
+                    <Plus className="h-4 w-4" /> Add habit
                   </button>
                 </div>
-              );
-            })}
-            {habits.length === 0 && <div className="text-muted-foreground text-center py-3">No habits yet. Add your first one above.</div>}
+              </div>
+
+              <div className="grid gap-3">
+                <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Active habits</div>
+                  <div className="mt-2 text-2xl font-semibold text-foreground">{habits.length}</div>
+                  <div className="mt-1 text-muted-foreground">Track routines with flexible weekly frequency.</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Done today</div>
+                  <div className="mt-2 text-2xl font-semibold text-foreground">{todayHabits.length}</div>
+                  <div className="mt-1 text-muted-foreground">Checked off for {fullDateFormatter.format(new Date())}.</div>
+                </div>
+                <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Weekly hits</div>
+                  <div className="mt-2 text-2xl font-semibold text-foreground">{habits.reduce((count, habit) => count + getWeekProgress(habit.logs), 0)}</div>
+                  <div className="mt-1 text-muted-foreground">Recent completions across all habits.</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-foreground">This week</div>
+                  <div className="text-muted-foreground">Click the days you completed. No need to use the terminal for tracking.</div>
+                </div>
+                <div className="flex gap-2 overflow-x-auto">
+                  {weekDates.map((day) => (
+                    <div key={day.key} className="w-12 text-center text-[10px] text-muted-foreground">
+                      <div>{day.label}</div>
+                      <div>{day.shortLabel}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {habits.map((habit) => {
+                  const progress = getWeekProgress(habit.logs);
+                  const streak = getStreak(habit.logs);
+                  const completedToday = Boolean(habit.logs[todayKey()]);
+                  const percent = Math.min(100, Math.round((progress / habit.targetPerWeek) * 100));
+
+                  return (
+                    <div key={habit.id} className="rounded-2xl border border-border bg-background p-3">
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="mt-1 h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: habit.color }} />
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-foreground">{habit.name}</div>
+                            <div className="text-muted-foreground">
+                              {habit.frequency === 'daily' ? 'Daily' : habit.frequency === 'weekdays' ? 'Weekdays' : `${habit.targetPerWeek}x / week`} • {progress}/{habit.targetPerWeek} this week • {streak} day streak
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleHabitDay(habit.id, todayKey())}
+                            className={`rounded-xl px-3 py-2 ${completedToday ? 'bg-emerald-500 text-white' : 'bg-accent text-foreground hover:bg-accent/80'}`}
+                          >
+                            {completedToday ? 'Checked today' : 'Check off today'}
+                          </button>
+                          <button onClick={() => removeHabit(habit.id)} className="rounded-xl bg-accent px-3 py-2 text-foreground hover:bg-accent/80">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                        {weekDates.map((day) => {
+                          const checked = Boolean(habit.logs[day.key]);
+                          return (
+                            <button
+                              key={day.key}
+                              onClick={() => toggleHabitDay(habit.id, day.key)}
+                              className={`min-w-[58px] rounded-xl border px-2 py-3 text-center transition ${checked ? 'border-transparent text-white' : 'border-border bg-muted/30 text-foreground hover:bg-accent/60'}`}
+                              style={checked ? { backgroundColor: habit.color } : undefined}
+                            >
+                              <div className="text-[10px] uppercase tracking-wide">{day.label}</div>
+                              <div className="mt-1 text-xs">{day.shortLabel}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-3">
+                        <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>Weekly goal</span>
+                          <span>{percent}%</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-muted">
+                          <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: habit.color }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {habits.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-8 text-center text-muted-foreground">
+                    No habits yet. Add one with a daily, weekday, or custom weekly frequency.
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
         {activeSection === 'shortener' && (
-          <div className="space-y-2">
-            <input value={longUrl} onChange={(e) => setLongUrl(e.target.value)} placeholder="https://your-long-url.com/path" className="w-full bg-input border border-border rounded px-2 py-1.5" />
-            <input value={customCode} onChange={(e) => setCustomCode(e.target.value)} placeholder="Custom alias (optional)" className="w-full bg-input border border-border rounded px-2 py-1.5" />
-            <button onClick={createShortLink} className="w-full py-1.5 rounded bg-primary text-primary-foreground">Create short URL</button>
-            {links.map((link) => {
-              const shortPath = `${location.origin}/s/${link.code}`;
-              const isExpanded = expandedCode === link.code;
-              return (
-                <div key={link.code} className="rounded border border-border p-2 space-y-1">
-                  <div className="font-mono text-foreground">/s/{link.code}</div>
-                  <div className="text-muted-foreground truncate">{link.url}</div>
-                  <div className="text-muted-foreground">Clicks: {link.clicks}</div>
-                  <div className="flex gap-1">
-                    <button className="flex-1 rounded bg-accent py-1" onClick={() => navigator.clipboard.writeText(shortPath)}><Copy className="w-3 h-3 inline mr-1" />Copy</button>
-                    <button className="flex-1 rounded bg-accent py-1" onClick={() => setExpandedCode(link.code)}>Expand</button>
-                    <button className="flex-1 rounded bg-accent py-1" onClick={() => openShortLink(link.code)}>Open</button>
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="mb-3 text-sm font-semibold text-foreground">URL shortener</div>
+              <div className="space-y-2">
+                <input value={longUrl} onChange={(event) => setLongUrl(event.target.value)} placeholder="https://your-long-url.com/path" className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                <input value={customCode} onChange={(event) => setCustomCode(event.target.value)} placeholder="Custom alias (optional)" className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                <button onClick={createShortLink} className="w-full rounded-xl bg-primary px-3 py-2 text-primary-foreground hover:opacity-90">Create short URL</button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {links.map((link) => {
+                const shortPath = `${location.origin}/s/${link.code}`;
+                const isExpanded = expandedCode === link.code;
+                return (
+                  <div key={link.code} className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                    <div className="font-mono text-sm text-foreground">/s/{link.code}</div>
+                    <div className="mt-1 truncate text-muted-foreground">{link.url}</div>
+                    <div className="mt-1 text-muted-foreground">Clicks: {link.clicks}</div>
+                    <div className="mt-3 flex gap-2">
+                      <button className="flex-1 rounded-xl bg-accent px-3 py-2 hover:bg-accent/80" onClick={() => navigator.clipboard.writeText(shortPath)}><Copy className="mr-1 inline h-3 w-3" />Copy</button>
+                      <button className="flex-1 rounded-xl bg-accent px-3 py-2 hover:bg-accent/80" onClick={() => setExpandedCode(link.code)}>Expand</button>
+                      <button className="flex-1 rounded-xl bg-accent px-3 py-2 hover:bg-accent/80" onClick={() => openShortLink(link.code)}>Open</button>
+                    </div>
+                    {isExpanded && <div className="mt-3 rounded-xl bg-muted p-2 font-mono text-[11px] break-all">{link.url}</div>}
                   </div>
-                  {isExpanded && <div className="text-[11px] font-mono break-all bg-muted rounded p-1.5">{link.url}</div>}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
 
         {activeSection === 'qr' && (
-          <div className="space-y-2">
-            <div className="font-medium text-foreground">QR Generator</div>
-            <input value={qrText} onChange={(e) => setQrText(e.target.value)} placeholder="Enter URL or text" className="w-full bg-input border border-border rounded px-2 py-1.5" />
-            <div className="rounded border border-border p-2 bg-white">
-              <img src={qrImage} alt="Generated QR code" className="w-full max-w-[180px] mx-auto" />
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="text-sm font-semibold text-foreground">QR generator</div>
+              <input value={qrText} onChange={(event) => setQrText(event.target.value)} placeholder="Enter URL or text" className="mt-3 w-full rounded-xl border border-border bg-input px-3 py-2" />
+              <div className="mt-3 rounded-2xl border border-border bg-white p-3">
+                <img src={qrImage} alt="Generated QR code" className="mx-auto w-full max-w-[220px]" />
+              </div>
+              <button onClick={() => navigator.clipboard.writeText(qrText)} className="mt-3 w-full rounded-xl bg-accent px-3 py-2 hover:bg-accent/80">Copy encoded text</button>
             </div>
-            <button onClick={() => navigator.clipboard.writeText(qrText)} className="w-full py-1.5 rounded bg-accent">Copy encoded text</button>
-            <div className="pt-2 border-t border-border" />
-            <div className="font-medium text-foreground flex items-center gap-1"><ScanLine className="w-3.5 h-3.5" /> QR Scanner</div>
-            <input type="file" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) void scanQrFromFile(file); }} className="w-full text-[11px]" />
-            {scanPreview && <img src={scanPreview} alt="Selected for scanning" className="w-full rounded border border-border" />}
-            {scanResult && <div className="bg-muted rounded p-2 break-all">{scanResult}</div>}
-            {scanError && <div className="text-destructive">{scanError}</div>}
+
+            <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><ScanLine className="h-4 w-4 text-primary" /> QR scanner</div>
+              <input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void scanQrFromFile(file); }} className="mt-3 w-full text-[11px]" />
+              {scanPreview && <img src={scanPreview} alt="Selected for scanning" className="mt-3 w-full rounded-2xl border border-border" />}
+              {scanResult && <div className="mt-3 rounded-xl bg-muted p-3 break-all text-foreground">{scanResult}</div>}
+              {scanError && <div className="mt-3 text-destructive">{scanError}</div>}
+            </div>
           </div>
         )}
 
         {activeSection === 'converter' && (
-          <div className="space-y-2">
-            <p className="text-muted-foreground">Convert image files between PNG, JPG, and WEBP (for example: <span className="font-mono">jpeg → png</span>).</p>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
-              onChange={(event) => {
-                const file = event.target.files?.[0] ?? null;
-                setConvertFile(file);
-                setConvertError('');
-                setConvertedUrl('');
-                setConvertedName('');
-              }}
-              className="w-full text-[11px]"
-            />
-            <select value={convertFormat} onChange={(event) => setConvertFormat(event.target.value as typeof convertFormat)} className="w-full bg-input border border-border rounded px-2 py-1.5">
-              <option value="png">PNG</option>
-              <option value="jpeg">JPG</option>
-              <option value="webp">WEBP</option>
-            </select>
-            <label className="block space-y-1">
-              <span className="text-muted-foreground">Quality (for JPG/WEBP): {Math.round(convertQuality * 100)}%</span>
-              <input type="range" min={0.1} max={1} step={0.01} value={convertQuality} onChange={(event) => setConvertQuality(Number(event.target.value))} className="w-full" />
-            </label>
-            <button onClick={() => void runImageConversion()} className="w-full py-1.5 rounded bg-primary text-primary-foreground">Convert file</button>
-            {convertFile && <div className="text-muted-foreground">Source: {convertFile.name}</div>}
-            {convertedUrl && (
-              <a href={convertedUrl} download={convertedName} className="w-full py-1.5 rounded bg-accent text-foreground inline-flex justify-center items-center gap-1">
-                <Download className="w-3.5 h-3.5" /> Download {convertedName}
-              </a>
-            )}
-            {convertError && <div className="text-destructive">{convertError}</div>}
-            <div className="rounded border border-border p-2 text-muted-foreground">
-              Need <span className="font-mono">.m3u8 → .mp3</span>? Use ffmpeg in Terminal: <span className="font-mono">ffmpeg -i input.m3u8 -vn -c:a libmp3lame output.mp3</span>
+          <div className="space-y-3">
+            <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-3 shadow-sm">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <FileCog className="h-4 w-4 text-primary" /> One converter for everyday file + text jobs
+              </div>
+              <p className="mt-2 text-muted-foreground">
+                Pick a conversion recipe, upload a file or paste content, and export it directly from the UI.
+              </p>
+              <div className="mt-3 grid gap-2">
+                {Object.entries(converterModeMeta).map(([mode, meta]) => (
+                  <button
+                    key={mode}
+                    onClick={() => {
+                      setConverterMode(mode as ConverterMode);
+                      setConvertFile(null);
+                      setConverterInput('');
+                      resetConverterOutput();
+                    }}
+                    className={`rounded-2xl border px-3 py-3 text-left ${converterMode === mode ? 'border-primary bg-primary/10 text-foreground' : 'border-border bg-background hover:bg-accent/40'}`}
+                  >
+                    <div className="font-medium">{meta.title}</div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">{meta.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <WandSparkles className="h-4 w-4 text-primary" /> {activeConverterMeta.title}
+                </div>
+                <p className="mt-1 text-muted-foreground">{activeConverterMeta.description}</p>
+
+                {activeConverterMeta.acceptsFile && (
+                  <div className="mt-3 space-y-2">
+                    <div className="text-muted-foreground">{activeConverterMeta.inputLabel}</div>
+                    <input
+                      type="file"
+                      accept={converterMode === 'image' ? 'image/png,image/jpeg,image/webp,image/gif,image/bmp,image/svg+xml' : undefined}
+                      onChange={(event) => {
+                        setConvertFile(event.target.files?.[0] ?? null);
+                        resetConverterOutput();
+                      }}
+                      className="w-full text-[11px]"
+                    />
+                    {convertFile && <div className="rounded-xl bg-muted/40 p-2 text-foreground">Selected: {convertFile.name}</div>}
+                  </div>
+                )}
+
+                {converterMode === 'image' && (
+                  <div className="mt-3 grid gap-2">
+                    <label className="space-y-1">
+                      <span className="text-muted-foreground">Output format</span>
+                      <select value={convertFormat} onChange={(event) => setConvertFormat(event.target.value as typeof convertFormat)} className="w-full rounded-xl border border-border bg-input px-3 py-2">
+                        <option value="png">PNG</option>
+                        <option value="jpeg">JPG</option>
+                        <option value="webp">WEBP</option>
+                      </select>
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-muted-foreground">Quality: {Math.round(convertQuality * 100)}%</span>
+                      <input type="range" min={0.1} max={1} step={0.01} value={convertQuality} onChange={(event) => setConvertQuality(Number(event.target.value))} className="w-full" />
+                    </label>
+                  </div>
+                )}
+
+                {converterMode !== 'image' && (
+                  <label className="mt-3 block space-y-2">
+                    <span className="text-muted-foreground">Or paste content</span>
+                    <textarea
+                      value={converterInput}
+                      onChange={(event) => setConverterInput(event.target.value)}
+                      rows={12}
+                      placeholder={converterMode === 'json-to-csv' ? '[{"name":"Ada","score":10}]' : converterMode === 'csv-to-json' ? 'name,score\nAda,10' : converterMode === 'text-to-base64' ? 'Paste text to encode' : converterMode === 'base64-to-text' ? 'UGFzdGUgQmFzZTY0' : converterMode === 'url-encode' ? 'A string with spaces & symbols' : 'Paste encoded text'}
+                      className="w-full rounded-2xl border border-border bg-input px-3 py-2 font-mono text-xs"
+                    />
+                  </label>
+                )}
+
+                <button onClick={() => void runConverter()} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-primary-foreground hover:opacity-90">
+                  <RefreshCw className="h-4 w-4" /> Convert now
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                <div className="text-sm font-semibold text-foreground">Output</div>
+                <p className="mt-1 text-muted-foreground">Download files or copy text right from here.</p>
+
+                {converterResult?.kind === 'file' && converterResult.fileName && (
+                  <div className="mt-3 space-y-3">
+                    <div className="rounded-2xl border border-border bg-muted/30 p-3 text-foreground">Ready: {converterResult.fileName}</div>
+                    <a href={converterResult.content} download={converterResult.fileName} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-3 py-2 text-foreground hover:bg-accent/80">
+                      <Download className="h-4 w-4" /> Download file
+                    </a>
+                    {converterResult.mimeType?.startsWith('image/') && (
+                      <div className="overflow-hidden rounded-2xl border border-border bg-muted/20 p-2">
+                        <img src={converterResult.content} alt="Converted preview" className="max-h-64 w-full rounded-xl object-contain" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {converterResult?.kind === 'text' && (
+                  <div className="mt-3 space-y-3">
+                    <textarea readOnly value={converterResult.content} rows={16} className="w-full rounded-2xl border border-border bg-input px-3 py-2 font-mono text-xs" />
+                    <div className="grid gap-2">
+                      <button onClick={() => navigator.clipboard.writeText(converterResult.content)} className="rounded-xl bg-accent px-3 py-2 hover:bg-accent/80">
+                        <Copy className="mr-1 inline h-4 w-4" /> Copy output
+                      </button>
+                      <a
+                        href={URL.createObjectURL(new Blob([converterResult.content], { type: converterResult.mimeType ?? 'text/plain' }))}
+                        download={converterResult.fileName ?? 'converted.txt'}
+                        className="inline-flex items-center justify-center rounded-xl bg-accent px-3 py-2 hover:bg-accent/80"
+                      >
+                        <Download className="mr-1 h-4 w-4" /> Download text
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {!converterResult && !converterError && (
+                  <div className="mt-3 rounded-2xl border border-dashed border-border bg-muted/20 p-8 text-center text-muted-foreground">
+                    No terminal required — choose a recipe and convert from here.
+                  </div>
+                )}
+
+                {converterError && <div className="mt-3 rounded-xl bg-destructive/10 px-3 py-2 text-destructive">{converterError}</div>}
+              </div>
             </div>
           </div>
         )}
