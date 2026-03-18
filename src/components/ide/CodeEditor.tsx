@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { MessageSquare, Send, Sparkles } from 'lucide-react';
 import { FileNode } from '@/types/ide';
 import { FindReplace } from './FindReplace';
 import { FilePreview } from './FilePreview';
@@ -7,20 +8,28 @@ import { VideoEditor } from './VideoEditor';
 import { AudioEditor } from './AudioEditor';
 import { RTFEditor } from './RTFEditor';
 import { CADEditor } from './CADEditor';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { RichTextComposer } from './RichTextComposer';
+import { richTextToPlainText, sanitizeRichText } from '@/lib/richText';
+import { useCollaboration } from '@/hooks/useCollaboration';
 
 interface CodeEditorProps {
   file: FileNode | null;
+  currentFilePath?: string | null;
   onContentChange: (fileId: string, content: string) => void;
+  collab?: ReturnType<typeof useCollaboration>;
 }
 
-// Helper to detect file types that should be previewed instead of edited
 const getPreviewType = (fileName: string): 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'office' | 'cad' | 'rtf' | null => {
   const ext = fileName.split('.').pop()?.toLowerCase();
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp'];
   const videoExtensions = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogv', 'ogg'];
   const audioExtensions = ['mp3', 'wav', 'flac', 'aac', 'm4a'];
   const cadExtensions = ['stl', 'obj'];
-  
+
   if (ext === 'rtf') return 'rtf';
   if (ext === 'svg') return 'svg';
   if (ext === 'md' || ext === 'markdown') return 'markdown';
@@ -40,30 +49,21 @@ interface SyntaxToken {
 
 const tokenize = (code: string, language: string): SyntaxToken[][] => {
   const lines = code.split('\n');
-  
   const jsKeywords = ['const', 'let', 'var', 'function', 'return', 'if', 'else', 'for', 'while', 'class', 'import', 'export', 'default', 'from', 'async', 'await', 'try', 'catch', 'throw', 'new', 'this', 'true', 'false', 'null', 'undefined'];
   const cssKeywords = ['@import', '@media', '@keyframes', '@font-face'];
-  
+
   return lines.map((line) => {
     const tokens: SyntaxToken[] = [];
     let remaining = line;
-    
+
     while (remaining.length > 0) {
       let matched = false;
-      
-      // Comments
-      if (remaining.startsWith('//') || remaining.startsWith('/*')) {
+
+      if (remaining.startsWith('//') || remaining.startsWith('/*') || remaining.startsWith('<!--')) {
         tokens.push({ type: 'comment', value: remaining });
         break;
       }
-      
-      // HTML comments
-      if (remaining.startsWith('<!--')) {
-        tokens.push({ type: 'comment', value: remaining });
-        break;
-      }
-      
-      // Strings
+
       const stringMatch = remaining.match(/^(['"`])(?:[^\\]|\\.)*?\1/);
       if (stringMatch) {
         tokens.push({ type: 'string', value: stringMatch[0] });
@@ -71,8 +71,7 @@ const tokenize = (code: string, language: string): SyntaxToken[][] => {
         matched = true;
         continue;
       }
-      
-      // HTML tags
+
       if (language === 'html') {
         const tagMatch = remaining.match(/^<\/?[a-zA-Z][a-zA-Z0-9-]*|^>/);
         if (tagMatch) {
@@ -81,7 +80,7 @@ const tokenize = (code: string, language: string): SyntaxToken[][] => {
           matched = true;
           continue;
         }
-        
+
         const attrMatch = remaining.match(/^[a-zA-Z-]+(?==)/);
         if (attrMatch) {
           tokens.push({ type: 'attribute', value: attrMatch[0] });
@@ -90,8 +89,7 @@ const tokenize = (code: string, language: string): SyntaxToken[][] => {
           continue;
         }
       }
-      
-      // CSS properties and selectors
+
       if (language === 'css') {
         const propMatch = remaining.match(/^[a-zA-Z-]+(?=\s*:)/);
         if (propMatch) {
@@ -100,7 +98,7 @@ const tokenize = (code: string, language: string): SyntaxToken[][] => {
           matched = true;
           continue;
         }
-        
+
         const selectorMatch = remaining.match(/^[.#]?[a-zA-Z_][a-zA-Z0-9_-]*(?=\s*[{,])/);
         if (selectorMatch) {
           tokens.push({ type: 'function', value: selectorMatch[0] });
@@ -109,8 +107,7 @@ const tokenize = (code: string, language: string): SyntaxToken[][] => {
           continue;
         }
       }
-      
-      // Numbers
+
       const numMatch = remaining.match(/^-?\d+\.?\d*(px|em|rem|%|vh|vw|deg|s|ms)?/);
       if (numMatch) {
         tokens.push({ type: 'number', value: numMatch[0] });
@@ -118,13 +115,12 @@ const tokenize = (code: string, language: string): SyntaxToken[][] => {
         matched = true;
         continue;
       }
-      
-      // Keywords
+
       const wordMatch = remaining.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*/);
       if (wordMatch) {
         const word = wordMatch[0];
         const keywords = language === 'css' ? cssKeywords : jsKeywords;
-        
+
         if (keywords.includes(word)) {
           tokens.push({ type: 'keyword', value: word });
         } else if (remaining.slice(word.length).match(/^\s*\(/)) {
@@ -136,8 +132,7 @@ const tokenize = (code: string, language: string): SyntaxToken[][] => {
         matched = true;
         continue;
       }
-      
-      // Operators
+
       const opMatch = remaining.match(/^[=+\-*/<>!&|:;.,{}()\[\]]+/);
       if (opMatch) {
         tokens.push({ type: 'operator', value: opMatch[0] });
@@ -145,14 +140,13 @@ const tokenize = (code: string, language: string): SyntaxToken[][] => {
         matched = true;
         continue;
       }
-      
-      // Whitespace and other
+
       if (!matched) {
         tokens.push({ type: 'text', value: remaining[0] });
         remaining = remaining.slice(1);
       }
     }
-    
+
     return tokens;
   });
 };
@@ -174,71 +168,57 @@ const getTokenClass = (type: SyntaxToken['type']): string => {
   return classMap[type];
 };
 
-// Save and restore cursor position in a contentEditable div
-// Save cursor position by counting characters across code-line divs
 const saveCursorPosition = (el: HTMLElement): number => {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return 0;
   const range = sel.getRangeAt(0);
-  
+
   let offset = 0;
   const lines = el.childNodes;
-  
-  for (let i = 0; i < lines.length; i++) {
+
+  for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i] as HTMLElement;
-    
     if (line.contains(range.startContainer) || line === range.startContainer) {
-      // Cursor is in this line — count chars before cursor within this line
       const lineRange = document.createRange();
       lineRange.selectNodeContents(line);
       lineRange.setEnd(range.startContainer, range.startOffset);
       offset += lineRange.toString().length;
       return offset;
     }
-    
-    // Add this line's length + 1 for the newline separator
     offset += (line.textContent || '').length + 1;
   }
-  
+
   return offset;
 };
 
-// Restore cursor position by walking code-line divs
 const restoreCursorPosition = (el: HTMLElement, offset: number) => {
   const sel = window.getSelection();
   if (!sel) return;
-  
+
   let currentOffset = 0;
   const lines = el.childNodes;
-  
-  for (let i = 0; i < lines.length; i++) {
+
+  for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i] as HTMLElement;
     const lineText = line.textContent || '';
     const lineLen = lineText.length;
-    
+
     if (currentOffset + lineLen >= offset) {
       const targetOffset = offset - currentOffset;
-      
-      // Empty line with <br> — place cursor at start
       if (lineLen === 0) {
         const range = document.createRange();
         const br = line.querySelector('br');
-        if (br) {
-          range.setStartBefore(br);
-        } else {
-          range.selectNodeContents(line);
-        }
+        if (br) range.setStartBefore(br);
+        else range.selectNodeContents(line);
         range.collapse(true);
         sel.removeAllRanges();
         sel.addRange(range);
         return;
       }
-      
-      // Walk text nodes within this line to find exact position
-      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT, null);
+
+      const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
       let node: Text | null;
       let nodeOffset = 0;
-      
       while ((node = walker.nextNode() as Text | null)) {
         const nodeLen = node.textContent?.length || 0;
         if (nodeOffset + nodeLen >= targetOffset) {
@@ -251,8 +231,7 @@ const restoreCursorPosition = (el: HTMLElement, offset: number) => {
         }
         nodeOffset += nodeLen;
       }
-      
-      // Fallback: end of this line
+
       const range = document.createRange();
       range.selectNodeContents(line);
       range.collapse(false);
@@ -260,11 +239,10 @@ const restoreCursorPosition = (el: HTMLElement, offset: number) => {
       sel.addRange(range);
       return;
     }
-    
-    currentOffset += lineLen + 1; // +1 for newline
+
+    currentOffset += lineLen + 1;
   }
-  
-  // Fallback: place at end
+
   const range = document.createRange();
   range.selectNodeContents(el);
   range.collapse(false);
@@ -272,43 +250,72 @@ const restoreCursorPosition = (el: HTMLElement, offset: number) => {
   sel.addRange(range);
 };
 
-// Get line/col from character offset
 const getLineCol = (text: string, offset: number): { line: number; col: number } => {
   const before = text.substring(0, offset);
   const lines = before.split('\n');
   return { line: lines.length, col: lines[lines.length - 1].length + 1 };
 };
 
-export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
+const escapeHtml = (str: string): string => str
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;');
+
+export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: CodeEditorProps) => {
   const [content, setContent] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ line: 0, col: 0 });
   const editorRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [searchMatches, setSearchMatches] = useState<{ start: number; end: number }[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
+  const [markdownPreview, setMarkdownPreview] = useState(true);
+  const [selectedLine, setSelectedLine] = useState<number | null>(null);
+  const [newComment, setNewComment] = useState('');
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [postingComment, setPostingComment] = useState(false);
+  const [postingReplyId, setPostingReplyId] = useState<string | null>(null);
   const isComposingRef = useRef(false);
   const contentRef = useRef(content);
-  const [markdownPreview, setMarkdownPreview] = useState(true); // toggle for previewable text files
+  const cursorOffsetRef = useRef<number | null>(null);
+  const prevContentRef = useRef(content);
 
-  // Sync contentRef
+  const fileComments = useMemo(
+    () => collab?.comments.filter((comment) => comment.file_path === currentFilePath) || [],
+    [collab?.comments, currentFilePath],
+  );
+  const rootComments = useMemo(
+    () => fileComments.filter((comment) => !comment.parent_id),
+    [fileComments],
+  );
+  const commentsByLine = useMemo(() => {
+    const map = new Map<number, typeof rootComments>();
+    rootComments.forEach((comment) => {
+      const comments = map.get(comment.line_number) || [];
+      comments.push(comment);
+      map.set(comment.line_number, comments);
+    });
+    return map;
+  }, [rootComments]);
+  const selectedLineThreads = useMemo(() => commentsByLine.get(selectedLine || -1) || [], [commentsByLine, selectedLine]);
+  const activePresence = useMemo(
+    () => collab?.presence.filter((entry) => entry.currentFile === currentFilePath) || [],
+    [collab?.presence, currentFilePath],
+  );
+
   useEffect(() => {
     contentRef.current = content;
   }, [content]);
 
-  // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      const modifier = isMac ? e.metaKey : e.ctrlKey;
-      
-      if (modifier && e.key === 'f') {
-        e.preventDefault();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().includes('MAC');
+      const modifier = isMac ? event.metaKey : event.ctrlKey;
+
+      if (modifier && (event.key === 'f' || event.key === 'h')) {
+        event.preventDefault();
         setShowFindReplace(true);
-      } else if (modifier && e.key === 'h') {
-        e.preventDefault();
-        setShowFindReplace(true);
-      } else if (e.key === 'Escape' && showFindReplace) {
+      } else if (event.key === 'Escape' && showFindReplace) {
         setShowFindReplace(false);
         setSearchMatches([]);
         setCurrentMatchIndex(-1);
@@ -319,93 +326,88 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showFindReplace]);
 
-  const handleHighlightChange = useCallback((matches: { start: number; end: number }[], currentIndex: number) => {
+  const handleHighlightChange = useCallback((matches: { start: number; end: number }[], index: number) => {
     setSearchMatches(matches);
-    setCurrentMatchIndex(currentIndex);
-    
-    if (currentIndex >= 0 && matches[currentIndex] && editorRef.current) {
-      const match = matches[currentIndex];
-      const textBeforeMatch = content.substring(0, match.start);
-      const lineNumber = textBeforeMatch.split('\n').length;
-      const lineHeight = 24;
-      editorRef.current.scrollTop = (lineNumber - 3) * lineHeight;
+    setCurrentMatchIndex(index);
+
+    if (index >= 0 && matches[index] && editorRef.current) {
+      const lineNumber = content.substring(0, matches[index].start).split('\n').length;
+      editorRef.current.scrollTop = (lineNumber - 3) * 24;
     }
   }, [content]);
 
-  const handleReplace = useCallback((newContent: string) => {
-    setContent(newContent);
-    if (file) {
-      onContentChange(file.id, newContent);
-    }
+  const handleReplace = useCallback((nextContent: string) => {
+    setContent(nextContent);
+    if (file) onContentChange(file.id, nextContent);
   }, [file, onContentChange]);
 
-  // Sync content from file prop
   useEffect(() => {
-    if (file?.content !== undefined) {
-      setContent(file.content);
-    }
+    if (file?.content !== undefined) setContent(file.content);
   }, [file?.id, file?.content]);
 
-  // Handle input from contentEditable
+  useEffect(() => {
+    if (!fileComments.length && selectedLine !== null) return;
+    if (selectedLine !== null) return;
+    const firstLine = fileComments[0]?.line_number ?? null;
+    setSelectedLine(firstLine);
+  }, [fileComments, selectedLine]);
+
   const handleInput = useCallback(() => {
     if (isComposingRef.current) return;
     const el = editorRef.current;
     if (!el) return;
-    
-    // Extract content by iterating child block elements directly
-    // Using innerText is unreliable with <div> children — it can produce extra newlines
+
     const lines: string[] = [];
     el.childNodes.forEach((child) => {
       if (child.nodeType === Node.ELEMENT_NODE) {
         lines.push((child as HTMLElement).textContent || '');
       } else if (child.nodeType === Node.TEXT_NODE) {
         const text = child.textContent || '';
-        if (text.length > 0) {
-          // Split top-level text nodes on newlines (shouldn't happen normally)
-          text.split('\n').forEach(line => lines.push(line));
-        }
+        if (text.length > 0) text.split('\n').forEach((line) => lines.push(line));
       }
     });
-    
-    const newContent = lines.join('\n');
-    
-    setContent(newContent);
-    if (file) {
-      onContentChange(file.id, newContent);
-    }
+
+    const nextContent = lines.join('\n');
+    setContent(nextContent);
+    if (file) onContentChange(file.id, nextContent);
   }, [file, onContentChange]);
 
-  // Handle keydown for Tab, Enter
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
+  const handleEditorKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Tab') {
+      event.preventDefault();
       document.execCommand('insertText', false, '  ');
     }
   }, []);
 
-  // Handle paste - normalize to plain text
-  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    document.execCommand('insertText', false, text);
+  const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    document.execCommand('insertText', false, event.clipboardData.getData('text/plain'));
   }, []);
 
-  // Track cursor position
-  const handleSelectionChange = useCallback(() => {
+  const syncPresenceFromSelection = useCallback(() => {
     const el = editorRef.current;
     if (!el) return;
     const offset = saveCursorPosition(el);
-    const pos = getLineCol(contentRef.current, offset);
-    setCursorPosition(pos);
-  }, []);
+    const position = getLineCol(contentRef.current, offset);
+    setCursorPosition(position);
+    if (currentFilePath) {
+      void collab?.updatePresence({ currentFile: currentFilePath, cursorLine: position.line, cursorCol: position.col });
+    }
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    const anchor = selection.anchorNode;
+    if (!anchor || !el.contains(anchor)) return;
+
+    const lineNode = (anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : anchor as HTMLElement)?.closest('.code-line');
+    const lineAttr = lineNode?.getAttribute('data-line');
+    if (lineAttr) setSelectedLine(Number(lineAttr));
+  }, [collab, currentFilePath]);
 
   useEffect(() => {
-    document.addEventListener('selectionchange', handleSelectionChange);
-    return () => document.removeEventListener('selectionchange', handleSelectionChange);
-  }, [handleSelectionChange]);
-
-  // After React re-renders the syntax-highlighted content, restore cursor
-  const cursorOffsetRef = useRef<number | null>(null);
+    document.addEventListener('selectionchange', syncPresenceFromSelection);
+    return () => document.removeEventListener('selectionchange', syncPresenceFromSelection);
+  }, [syncPresenceFromSelection]);
 
   useEffect(() => {
     const el = editorRef.current;
@@ -416,72 +418,59 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
     }
   });
 
-  // Before re-render, save cursor
-  const saveCursorBeforeRender = () => {
-    const el = editorRef.current;
-    if (el && document.activeElement === el) {
-      cursorOffsetRef.current = saveCursorPosition(el);
-    }
-  };
-
-  // Call save before every render that changes content
-  // We use a ref to track prev content so we know when it actually changed
-  const prevContentRef = useRef(content);
   if (content !== prevContentRef.current) {
-    saveCursorBeforeRender();
+    const el = editorRef.current;
+    if (el && document.activeElement === el) cursorOffsetRef.current = saveCursorPosition(el);
     prevContentRef.current = content;
   }
 
+  const postComment = useCallback(async () => {
+    if (!collab || !currentFilePath || !selectedLine || !sanitizeRichText(newComment)) return;
+    setPostingComment(true);
+    const ok = await collab.addComment(currentFilePath, selectedLine, sanitizeRichText(newComment));
+    setPostingComment(false);
+    if (ok) setNewComment('');
+  }, [collab, currentFilePath, newComment, selectedLine]);
+
+  const postReply = useCallback(async (commentId: string) => {
+    if (!collab || !currentFilePath || !selectedLine) return;
+    const draft = sanitizeRichText(replyDrafts[commentId] || '');
+    if (!draft) return;
+    setPostingReplyId(commentId);
+    const ok = await collab.addComment(currentFilePath, selectedLine, draft, commentId);
+    setPostingReplyId(null);
+    if (ok) {
+      setReplyDrafts((prev) => ({ ...prev, [commentId]: '' }));
+    }
+  }, [collab, currentFilePath, replyDrafts, selectedLine]);
+
   if (!file) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-editor text-muted-foreground">
+      <div className="flex flex-1 items-center justify-center bg-editor text-muted-foreground">
         <div className="text-center">
-          <p className="text-lg mb-2">No file selected</p>
+          <p className="mb-2 text-lg">No file selected</p>
           <p className="text-sm">Select a file from the sidebar to start editing</p>
         </div>
       </div>
     );
   }
 
-  // Check if this file should be previewed instead of edited
   const previewType = getPreviewType(file.name);
-  // Binary types always show preview only (no editable source)
   const binaryPreviewTypes = ['image', 'video', 'audio', 'cad', 'rtf'];
   const isTextPreviewable = previewType && !binaryPreviewTypes.includes(previewType);
-  
-  if (previewType === 'office') {
-    return <OfficeEditor file={file} onContentChange={onContentChange} />;
-  }
 
-  if (previewType === 'video') {
-    return <VideoEditor file={file} onContentChange={onContentChange} />;
-  }
+  if (previewType === 'office') return <OfficeEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === 'video') return <VideoEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === 'audio') return <AudioEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === 'rtf') return <RTFEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === 'cad') return <CADEditor file={file} onContentChange={onContentChange} />;
+  if (previewType && !isTextPreviewable) return <FilePreview file={file} previewType={previewType as 'image' | 'csv' | 'markdown' | 'svg'} />;
 
-  if (previewType === 'audio') {
-    return <AudioEditor file={file} onContentChange={onContentChange} />;
-  }
-
-  if (previewType === 'rtf') {
-    return <RTFEditor file={file} onContentChange={onContentChange} />;
-  }
-
-  if (previewType === 'cad') {
-    return <CADEditor file={file} onContentChange={onContentChange} />;
-  }
-
-  if (previewType && !isTextPreviewable) {
-    return <FilePreview file={file} previewType={previewType as 'image' | 'csv' | 'markdown' | 'svg'} />;
-  }
   if (isTextPreviewable && markdownPreview) {
     return (
-      <div className="flex-1 flex flex-col bg-editor overflow-hidden">
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-background border-b border-border">
-          <button
-            onClick={() => setMarkdownPreview(false)}
-            className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Edit
-          </button>
+      <div className="flex flex-1 flex-col overflow-hidden bg-editor">
+        <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5">
+          <button onClick={() => setMarkdownPreview(false)} className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground">Edit</button>
           <span className="text-xs font-medium text-foreground">Preview</span>
         </div>
         <FilePreview file={{ ...file, content }} previewType={previewType} />
@@ -490,78 +479,51 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
   }
 
   const tokenizedLines = tokenize(content, file.language || 'text');
-
-  // Build match highlighting
   const getMatchHighlight = (charIndex: number): 'current' | 'match' | null => {
-    for (let i = 0; i < searchMatches.length; i++) {
+    for (let i = 0; i < searchMatches.length; i += 1) {
       const match = searchMatches[i];
-      if (charIndex >= match.start && charIndex < match.end) {
-        return i === currentMatchIndex ? 'current' : 'match';
-      }
+      if (charIndex >= match.start && charIndex < match.end) return i === currentMatchIndex ? 'current' : 'match';
     }
     return null;
   };
 
-  const escapeHtml = (str: string): string => {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  };
-
-  const buildHighlightedHtml = (): string => {
+  const buildHighlightedHtml = () => {
     let charIndex = 0;
-    
     return tokenizedLines.map((lineTokens, lineIndex) => {
       const tokensHtml = lineTokens.map((token) => {
         const tokenStart = charIndex;
         const chars = token.value.split('');
-        let hasHighlight = false;
-        
-        // Check if any char in this token has a highlight
-        for (let i = 0; i < chars.length; i++) {
-          if (getMatchHighlight(tokenStart + i)) {
-            hasHighlight = true;
-            break;
-          }
-        }
-        
+        const hasHighlight = chars.some((_, index) => getMatchHighlight(tokenStart + index));
         charIndex += token.value.length;
-        
+
         if (!hasHighlight) {
           return `<span class="${getTokenClass(token.type)}">${escapeHtml(token.value)}</span>`;
         }
-        
-        // Render char by char for highlighted tokens
-        const charHtml = chars.map((char, i) => {
-          const highlight = getMatchHighlight(tokenStart + i);
-          if (highlight) {
-            const cls = highlight === 'current' ? 'bg-yellow-400 text-black' : 'bg-yellow-200/50 text-inherit';
-            return `<span class="${cls}">${escapeHtml(char)}</span>`;
-          }
-          return escapeHtml(char);
+
+        const highlighted = chars.map((char, index) => {
+          const highlight = getMatchHighlight(tokenStart + index);
+          if (!highlight) return escapeHtml(char);
+          const cls = highlight === 'current' ? 'bg-yellow-400 text-black' : 'bg-yellow-200/50 text-inherit';
+          return `<span class="${cls}">${escapeHtml(char)}</span>`;
         }).join('');
-        
-        return `<span class="${getTokenClass(token.type)}">${charHtml}</span>`;
+
+        return `<span class="${getTokenClass(token.type)}">${highlighted}</span>`;
       }).join('');
-      
-      charIndex++; // newline
-      
-      const lineContent = tokensHtml.length === 0 ? '<br>' : tokensHtml;
-      return `<div class="code-line">${lineContent}</div>`;
+
+      charIndex += 1;
+      return `<div class="code-line" data-line="${lineIndex + 1}">${tokensHtml.length === 0 ? '<br>' : tokensHtml}</div>`;
     }).join('');
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-editor overflow-hidden">
+    <div className="flex flex-1 flex-col overflow-hidden bg-editor">
       {isTextPreviewable && (
-        <div className="flex items-center gap-2 px-4 py-1.5 bg-background border-b border-border">
+        <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5">
           <span className="text-xs font-medium text-foreground">Edit</span>
-          <button
-            onClick={() => setMarkdownPreview(true)}
-            className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Preview
-          </button>
+          <button onClick={() => setMarkdownPreview(true)} className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground">Preview</button>
         </div>
       )}
+
       <FindReplace
         content={content}
         isOpen={showFindReplace}
@@ -573,44 +535,175 @@ export const CodeEditor = ({ file, onContentChange }: CodeEditorProps) => {
         onReplace={handleReplace}
         onHighlightChange={handleHighlightChange}
       />
-      
-      <div ref={scrollContainerRef} className="flex-1 overflow-auto ide-scrollbar">
-        <div className="flex min-h-full">
-          {/* Line number gutter */}
-          <div className="font-mono text-sm leading-6 pt-[2px] select-none text-muted-foreground bg-editor sticky left-0 z-10">
-            {content.split('\n').map((_, i) => (
-              <div key={i} className="pl-2 pr-1 text-right min-w-[2rem] text-xs leading-6">
-                {i + 1}
-              </div>
-            ))}
+
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 overflow-auto ide-scrollbar">
+          <div className="flex min-h-full min-w-full">
+            <div className="sticky left-0 z-10 bg-editor pt-[2px] font-mono text-sm leading-6 text-muted-foreground">
+              {content.split('\n').map((_, index) => {
+                const lineNumber = index + 1;
+                const lineComments = commentsByLine.get(lineNumber) || [];
+                const selected = selectedLine === lineNumber;
+                const peers = activePresence.filter((entry) => entry.cursorLine === lineNumber);
+                return (
+                  <button
+                    key={lineNumber}
+                    type="button"
+                    onClick={() => setSelectedLine(lineNumber)}
+                    className={cn(
+                      'flex min-w-[3.5rem] items-center justify-end gap-1 pr-2 text-right text-xs leading-6 transition-colors',
+                      selected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/40',
+                    )}
+                  >
+                    {lineComments.length > 0 && <MessageSquare className="h-3 w-3 text-primary" />}
+                    {peers.length > 0 && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
+                    <span>{lineNumber}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="relative min-w-0 flex-1">
+              {selectedLine !== null && (
+                <div className="pointer-events-none absolute inset-x-0 z-0" style={{ top: `${(selectedLine - 1) * 24 + 2}px` }}>
+                  <div className="h-6 bg-primary/5" />
+                </div>
+              )}
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={handleInput}
+                onKeyDown={handleEditorKeyDown}
+                onPaste={handlePaste}
+                onCompositionStart={() => { isComposingRef.current = true; }}
+                onCompositionEnd={() => { isComposingRef.current = false; handleInput(); }}
+                className="relative z-10 min-w-0 flex-1 pl-[6px] pt-[2px] font-mono text-sm leading-6 caret-foreground outline-none"
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+                dangerouslySetInnerHTML={{ __html: buildHighlightedHtml() }}
+              />
+            </div>
           </div>
-          {/* Editable area */}
-          <div 
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
-            onInput={handleInput}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            onCompositionStart={() => { isComposingRef.current = true; }}
-            onCompositionEnd={() => { 
-              isComposingRef.current = false; 
-              handleInput(); 
-            }}
-            className="flex-1 font-mono text-sm leading-6 outline-none pt-[2px] pl-[6px] caret-foreground min-w-0"
-            spellCheck={false}
-            autoCapitalize="off"
-            autoCorrect="off"
-            dangerouslySetInnerHTML={{ __html: buildHighlightedHtml() }}
-          />
         </div>
+
+        {collab && currentFilePath && selectedLine !== null && (
+          <aside className="flex w-[360px] shrink-0 flex-col border-l border-border bg-background/95">
+            <div className="border-b border-border px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Line {selectedLine}</p>
+                  <p className="text-xs text-muted-foreground">Highlight a line, click comment, and keep the thread where the code lives.</p>
+                </div>
+                <Badge variant="secondary" className="gap-1"><Sparkles className="h-3 w-3" /> Word-style</Badge>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {activePresence.slice(0, 4).map((entry) => (
+                  <Badge key={entry.userId} variant="outline" className="gap-1.5">
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                    {entry.displayName}
+                    {entry.cursorLine ? ` · Ln ${entry.cursorLine}` : ''}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-3 overflow-auto px-4 py-4">
+              {selectedLineThreads.map((comment) => {
+                const replies = fileComments.filter((entry) => entry.parent_id === comment.id);
+                return (
+                  <div key={comment.id} className="rounded-xl border border-border bg-card/70 p-3 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="mt-0.5 h-8 w-8">
+                        <AvatarImage src={comment.profile?.avatar_url || undefined} />
+                        <AvatarFallback>{(comment.profile?.display_name || 'U').slice(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-medium">{comment.profile?.display_name || 'User'}</p>
+                            <p className="text-[11px] text-muted-foreground">{new Date(comment.created_at).toLocaleString()}</p>
+                          </div>
+                          {!comment.resolved ? (
+                            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => collab.resolveComment(comment.id, true)}>
+                              Resolve
+                            </Button>
+                          ) : (
+                            <Badge variant="outline">Resolved</Badge>
+                          )}
+                        </div>
+                        <div className="prose prose-sm mt-2 max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: sanitizeRichText(comment.content) }} />
+                      </div>
+                    </div>
+
+                    {replies.length > 0 && (
+                      <div className="mt-3 space-y-2 border-l border-border pl-4">
+                        {replies.map((reply) => (
+                          <div key={reply.id} className="rounded-lg bg-muted/40 p-2.5">
+                            <div className="mb-1 flex items-center gap-2 text-xs">
+                              <span className="font-semibold">{reply.profile?.display_name || 'User'}</span>
+                              <span className="text-muted-foreground">{new Date(reply.created_at).toLocaleString()}</span>
+                            </div>
+                            <div className="prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: sanitizeRichText(reply.content) }} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-3 space-y-2">
+                      <RichTextComposer
+                        value={replyDrafts[comment.id] || ''}
+                        onChange={(value) => setReplyDrafts((prev) => ({ ...prev, [comment.id]: value }))}
+                        placeholder="Add a follow-up…"
+                        minHeightClassName="min-h-[84px]"
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="gap-1.5"
+                          disabled={!richTextToPlainText(replyDrafts[comment.id] || '') || postingReplyId === comment.id}
+                          onClick={() => postReply(comment.id)}
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          {postingReplyId === comment.id ? 'Posting…' : 'Reply'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {selectedLineThreads.length === 0 && (
+                <div className="rounded-xl border border-dashed border-border bg-muted/30 p-5 text-sm text-muted-foreground">
+                  No comments on this line yet. Add one to start an inline review thread.
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-border px-4 py-4">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-medium">Comment on line {selectedLine}</p>
+                <Badge variant="outline">{currentFilePath}</Badge>
+              </div>
+              <RichTextComposer value={newComment} onChange={setNewComment} placeholder="Mention changes, leave suggestions, or ask for follow-ups…" />
+              <div className="mt-3 flex justify-end">
+                <Button type="button" className="gap-2" onClick={postComment} disabled={!richTextToPlainText(newComment) || postingComment}>
+                  <MessageSquare className="h-4 w-4" />
+                  {postingComment ? 'Posting…' : 'Comment'}
+                </Button>
+              </div>
+            </div>
+          </aside>
+        )}
       </div>
-      
-      {/* Status bar */}
-      <div className="flex items-center justify-between px-4 py-1 bg-background border-t border-border text-xs text-muted-foreground">
+
+      <div className="flex items-center justify-between border-t border-border bg-background px-4 py-1 text-xs text-muted-foreground">
         <div className="flex items-center gap-4">
           <span>{file.language || 'Plain Text'}</span>
           <span>UTF-8</span>
+          {selectedLine !== null && <span>Comment lane: Ln {selectedLine}</span>}
         </div>
         <div className="flex items-center gap-4">
           <span>Ln {cursorPosition.line}, Col {cursorPosition.col}</span>
