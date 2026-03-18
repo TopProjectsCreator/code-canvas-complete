@@ -1758,7 +1758,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         {/* Sidebar - Desktop: slide panel, Mobile: drawer overlay */}
         {isMobile ? (
           <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
-            <SheetContent side="left" className="w-[280px] p-0">
+            <SheetContent side="left" className="w-[min(92vw,440px)] p-0 sm:w-[420px]">
               <Sidebar
                 files={files}
                 fileContents={fileContents}
@@ -1808,7 +1808,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           <div
             className={cn(
               "hidden md:block transition-all duration-200 border-r border-border overflow-hidden",
-              isSidebarOpen ? "w-64" : "w-0",
+              isSidebarOpen ? "w-[28rem]" : "w-0",
             )}
           >
             <Sidebar
