@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Calculator, Palette, Link2, QrCode, ScanLine, CheckSquare2, Copy, Trash2, Plus } from 'lucide-react';
+import { Calculator, Palette, Link2, QrCode, ScanLine, CheckSquare2, Copy, Trash2, Plus, RefreshCw, Download } from 'lucide-react';
 
 type HabitLog = Record<string, boolean>;
 
@@ -62,7 +62,7 @@ const getLast7DaysProgress = (logs: HabitLog) => {
 };
 
 export const ToolsPanel = () => {
-  const [activeSection, setActiveSection] = useState<'calculator' | 'css' | 'habit' | 'shortener' | 'qr'>('calculator');
+  const [activeSection, setActiveSection] = useState<'calculator' | 'css' | 'habit' | 'shortener' | 'qr' | 'converter'>('calculator');
 
   const [calcInput, setCalcInput] = useState('');
   const [calcResult, setCalcResult] = useState<string>('0');
@@ -84,6 +84,13 @@ export const ToolsPanel = () => {
   const [scanResult, setScanResult] = useState('');
   const [scanError, setScanError] = useState('');
   const [scanPreview, setScanPreview] = useState('');
+
+  const [convertFile, setConvertFile] = useState<File | null>(null);
+  const [convertFormat, setConvertFormat] = useState<'png' | 'jpeg' | 'webp'>('png');
+  const [convertQuality, setConvertQuality] = useState(0.92);
+  const [convertError, setConvertError] = useState('');
+  const [convertedUrl, setConvertedUrl] = useState('');
+  const [convertedName, setConvertedName] = useState('');
 
   useEffect(() => {
     try {
@@ -234,19 +241,72 @@ export const ToolsPanel = () => {
 
   const qrImage = `https://quickchart.io/qr?text=${encodeURIComponent(qrText || ' ')}`;
 
+  const runImageConversion = async () => {
+    if (!convertFile) {
+      setConvertError('Choose an image file to convert first.');
+      return;
+    }
+
+    setConvertError('');
+    setConvertedUrl('');
+    setConvertedName('');
+
+    try {
+      const sourceUrl = URL.createObjectURL(convertFile);
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Could not decode this image file.'));
+        img.src = sourceUrl;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        setConvertError('Canvas is not available in this browser.');
+        URL.revokeObjectURL(sourceUrl);
+        return;
+      }
+
+      context.drawImage(image, 0, 0);
+      URL.revokeObjectURL(sourceUrl);
+
+      const mimeType = `image/${convertFormat}`;
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((value) => resolve(value), mimeType, convertQuality);
+      });
+
+      if (!blob) {
+        setConvertError('Conversion failed. Try a different source file or format.');
+        return;
+      }
+
+      const nextUrl = URL.createObjectURL(blob);
+      const baseName = convertFile.name.replace(/\.[^.]+$/, '');
+      setConvertedUrl(nextUrl);
+      setConvertedName(`${baseName}.${convertFormat === 'jpeg' ? 'jpg' : convertFormat}`);
+    } catch {
+      setConvertError('Could not convert this file. Try PNG, JPG, or WEBP images.');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="h-9 px-3 border-b border-border flex items-center text-xs uppercase tracking-wide text-muted-foreground font-medium">
         Tools
       </div>
 
-      <div className="grid grid-cols-5 border-b border-border">
+      <div className="grid grid-cols-6 border-b border-border">
         {[
           { id: 'calculator', icon: Calculator, label: 'Calc' },
           { id: 'css', icon: Palette, label: 'CSS' },
           { id: 'habit', icon: CheckSquare2, label: 'Habits' },
           { id: 'shortener', icon: Link2, label: 'URL' },
           { id: 'qr', icon: QrCode, label: 'QR' },
+          { id: 'converter', icon: RefreshCw, label: 'Convert' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -379,6 +439,44 @@ export const ToolsPanel = () => {
             {scanPreview && <img src={scanPreview} alt="Selected for scanning" className="w-full rounded border border-border" />}
             {scanResult && <div className="bg-muted rounded p-2 break-all">{scanResult}</div>}
             {scanError && <div className="text-destructive">{scanError}</div>}
+          </div>
+        )}
+
+        {activeSection === 'converter' && (
+          <div className="space-y-2">
+            <p className="text-muted-foreground">Convert image files between PNG, JPG, and WEBP (for example: <span className="font-mono">jpeg → png</span>).</p>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                setConvertFile(file);
+                setConvertError('');
+                setConvertedUrl('');
+                setConvertedName('');
+              }}
+              className="w-full text-[11px]"
+            />
+            <select value={convertFormat} onChange={(event) => setConvertFormat(event.target.value as typeof convertFormat)} className="w-full bg-input border border-border rounded px-2 py-1.5">
+              <option value="png">PNG</option>
+              <option value="jpeg">JPG</option>
+              <option value="webp">WEBP</option>
+            </select>
+            <label className="block space-y-1">
+              <span className="text-muted-foreground">Quality (for JPG/WEBP): {Math.round(convertQuality * 100)}%</span>
+              <input type="range" min={0.1} max={1} step={0.01} value={convertQuality} onChange={(event) => setConvertQuality(Number(event.target.value))} className="w-full" />
+            </label>
+            <button onClick={() => void runImageConversion()} className="w-full py-1.5 rounded bg-primary text-primary-foreground">Convert file</button>
+            {convertFile && <div className="text-muted-foreground">Source: {convertFile.name}</div>}
+            {convertedUrl && (
+              <a href={convertedUrl} download={convertedName} className="w-full py-1.5 rounded bg-accent text-foreground inline-flex justify-center items-center gap-1">
+                <Download className="w-3.5 h-3.5" /> Download {convertedName}
+              </a>
+            )}
+            {convertError && <div className="text-destructive">{convertError}</div>}
+            <div className="rounded border border-border p-2 text-muted-foreground">
+              Need <span className="font-mono">.m3u8 → .mp3</span>? Use ffmpeg in Terminal: <span className="font-mono">ffmpeg -i input.m3u8 -vn -c:a libmp3lame output.mp3</span>
+            </div>
           </div>
         )}
       </div>
