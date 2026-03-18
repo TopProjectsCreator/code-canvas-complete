@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef, lazy, Suspense, useMemo } fro
 import { applyDiff } from "@/lib/diffUtils";
 import { useNavigate } from "react-router-dom";
 import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from "@/types/ide";
-import { getTemplateFiles, findFileById, getFileLanguage } from "@/data/defaultFiles";
+import { getTemplateFiles, findFileById, findFilePathById, getFileLanguage } from "@/data/defaultFiles";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { EditorTabs } from "./EditorTabs";
@@ -396,6 +396,34 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const activeFileWithContent = activeFile
     ? { ...activeFile, content: fileContents?.[activeFile.id] ?? activeFile.content }
     : null;
+  const activeFilePath = activeFile ? findFilePathById(files, activeFile.id) || activeFile.name : null;
+
+  useEffect(() => {
+    if (!activeFilePath) return;
+    void collab.updatePresence({ currentFile: activeFilePath });
+  }, [activeFilePath, collab]);
+
+  useEffect(() => {
+    const remoteUpdate = collab.remoteFileUpdate;
+    if (!remoteUpdate) return;
+
+    setFileContents((prev) => {
+      if (prev[remoteUpdate.fileId] === remoteUpdate.content) return prev;
+      return { ...prev, [remoteUpdate.fileId]: remoteUpdate.content };
+    });
+
+    setFiles((prev) => {
+      const applyUpdate = (nodes: FileNode[]): FileNode[] =>
+        nodes.map((node) => {
+          if (node.id === remoteUpdate.fileId && node.type === 'file') {
+            return { ...node, content: remoteUpdate.content };
+          }
+          if (node.children) return { ...node, children: applyUpdate(node.children) };
+          return node;
+        });
+      return applyUpdate(prev);
+    });
+  }, [collab.remoteFileUpdate]);
 
   // Track Git changes when files are modified
   useEffect(() => {
@@ -1012,6 +1040,11 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     (fileId: string, content: string) => {
       setFileContents((prev) => ({ ...prev, [fileId]: content }));
 
+      const filePath = findFilePathById(files, fileId);
+      if (filePath) {
+        void collab.broadcastFileChange({ fileId, filePath, content });
+      }
+
       // Track file edits in history (deduplicate rapid edits)
       if (!editedFilesRef.current.has(fileId)) {
         editedFilesRef.current.add(fileId);
@@ -1024,7 +1057,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       // Mark tab as modified
       setOpenTabs((prev) => prev.map((tab) => (tab.fileId === fileId ? { ...tab, isModified: true } : tab)));
     },
-    [openTabs, addHistoryEntry],
+    [addHistoryEntry, collab, files, openTabs],
   );
 
   // helper that wraps createFile and also sets initial content
@@ -1872,7 +1905,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     onTabClose={handleTabClose}
                   />
                   <div className="flex-1 overflow-hidden">
-                    <CodeEditor file={activeFileWithContent} onContentChange={handleContentChange} />
+                    <CodeEditor file={activeFileWithContent} currentFilePath={activeFilePath} onContentChange={handleContentChange} collab={collab} />
                   </div>
                 </div>
               )}
@@ -1954,7 +1987,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         onTabClose={handleTabClose}
                       />
                       <div className="flex-1 flex flex-col overflow-hidden">
-                        <CodeEditor file={activeFileWithContent} onContentChange={handleContentChange} />
+                        <CodeEditor file={activeFileWithContent} currentFilePath={activeFilePath} onContentChange={handleContentChange} collab={collab} />
                         <Terminal
                           history={terminalHistory}
                           onCommand={handleCommand}
