@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Calculator,
   Palette,
@@ -18,6 +18,11 @@ import {
   FileCog,
   WandSparkles,
 } from 'lucide-react';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import {
   CartesianGrid,
   Line,
@@ -30,15 +35,27 @@ import {
 
 type HabitLog = Record<string, boolean>;
 
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
 type HabitFrequency = 'daily' | 'weekdays' | 'custom';
 type CalculatorMode = 'basic' | 'scientific' | 'graph';
-type ConverterMode = 'image' | 'json-to-csv' | 'csv-to-json' | 'text-to-base64' | 'base64-to-text' | 'url-encode' | 'url-decode';
+type ConverterMode = 'media' | 'image' | 'pdf-to-docx' | 'pdf-to-markdown' | 'json-to-csv' | 'csv-to-json' | 'text-to-base64' | 'base64-to-text' | 'url-encode' | 'url-decode';
+type MediaOutputFormat = 'mp4' | 'webm' | 'mov' | 'mkv' | 'avi' | 'mp3' | 'wav' | 'm4a' | 'aac' | 'ogg' | 'flac' | 'gif';
 
 type ConverterResult = {
   kind: 'file' | 'text';
   content: string;
   fileName?: string;
   mimeType?: string;
+};
+
+type ConverterSource = {
+  kind: 'file' | 'url';
+  label: string;
+  name: string;
+  mimeType: string;
+  url?: string;
+  sizeText?: string;
 };
 
 interface Habit {
@@ -262,6 +279,150 @@ const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) 
   reader.readAsDataURL(file);
 });
 
+const getFileExtension = (fileName: string) => {
+  const match = fileName.toLowerCase().match(/\.([^.]+)$/);
+  return match?.[1] ?? '';
+};
+
+const mediaInputExtensions = new Set(['m3u8', 'mp4', 'mov', 'webm', 'mkv', 'avi', 'mpg', 'mpeg', 'ts', 'm2ts', 'flv', '3gp', 'mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac', 'aiff', 'opus', 'wma']);
+const imageInputExtensions = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg']);
+const pdfInputExtensions = new Set(['pdf']);
+const textInputExtensions = new Set(['txt', 'md', 'json', 'csv', 'xml', 'html', 'css', 'js', 'ts', 'tsx', 'jsx', 'yaml', 'yml']);
+
+const getMimeTypeFromExtension = (extension: string) => {
+  const mimeMap: Record<string, string> = {
+    m3u8: 'application/vnd.apple.mpegurl',
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    mov: 'video/quicktime',
+    mkv: 'video/x-matroska',
+    avi: 'video/x-msvideo',
+    mpg: 'video/mpeg',
+    mpeg: 'video/mpeg',
+    ts: 'video/mp2t',
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
+    m4a: 'audio/mp4',
+    aac: 'audio/aac',
+    ogg: 'audio/ogg',
+    oga: 'audio/ogg',
+    flac: 'audio/flac',
+    aiff: 'audio/aiff',
+    opus: 'audio/ogg',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    webp: 'image/webp',
+    gif: 'image/gif',
+    bmp: 'image/bmp',
+    svg: 'image/svg+xml',
+    pdf: 'application/pdf',
+    json: 'application/json',
+    csv: 'text/csv',
+    txt: 'text/plain',
+    md: 'text/markdown',
+    xml: 'application/xml',
+    html: 'text/html',
+    css: 'text/css',
+  };
+
+  return mimeMap[extension] ?? 'application/octet-stream';
+};
+
+const getSourceFromUrl = (value: string): ConverterSource | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsedUrl = new URL(trimmed);
+    const rawName = decodeURIComponent(parsedUrl.pathname.split('/').filter(Boolean).pop() ?? '');
+    const extension = getFileExtension(rawName);
+
+    return {
+      kind: 'url',
+      label: parsedUrl.toString(),
+      name: rawName || `remote-source.${extension || 'bin'}`,
+      mimeType: getMimeTypeFromExtension(extension),
+      url: parsedUrl.toString(),
+      sizeText: 'Remote link',
+    };
+  } catch {
+    return null;
+  }
+};
+
+const getSourceFromFile = (file: File | null): ConverterSource | null => {
+  if (!file) return null;
+
+  return {
+    kind: 'file',
+    label: file.name,
+    name: file.name,
+    mimeType: file.type || getMimeTypeFromExtension(getFileExtension(file.name)),
+    sizeText: `${Math.max(1, Math.round(file.size / 1024))} KB`,
+  };
+};
+
+const getSuggestedConverterModes = (source: ConverterSource): ConverterMode[] => {
+  const extension = getFileExtension(source.name);
+  const suggestions: ConverterMode[] = [];
+
+  if (source.mimeType.startsWith('image/') || imageInputExtensions.has(extension)) {
+    suggestions.push('image');
+  }
+
+  if (mediaInputExtensions.has(extension) || source.mimeType.startsWith('video/') || source.mimeType.startsWith('audio/')) {
+    suggestions.push('media');
+  }
+
+  if (pdfInputExtensions.has(extension) || source.mimeType === 'application/pdf') {
+    suggestions.push('pdf-to-docx', 'pdf-to-markdown');
+  }
+
+  if (extension === 'json') suggestions.push('json-to-csv');
+  if (extension === 'csv') suggestions.push('csv-to-json');
+
+  if (textInputExtensions.has(extension) || source.mimeType.startsWith('text/')) {
+    suggestions.push('text-to-base64');
+  }
+
+  return Array.from(new Set(suggestions));
+};
+
+const getMediaOutputFormats = (source: ConverterSource | null): MediaOutputFormat[] => {
+  if (!source) return ['mp4', 'webm', 'mov', 'mkv', 'avi', 'mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'];
+
+  const extension = getFileExtension(source.name);
+
+  if (extension === 'm3u8') return ['mp4', 'webm', 'mov', 'mkv', 'avi', 'mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'];
+  if (['mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac', 'aiff', 'opus', 'wma'].includes(extension) || source.mimeType.startsWith('audio/')) {
+    return ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'];
+  }
+
+  return ['mp4', 'webm', 'mov', 'mkv', 'avi', 'mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac', 'gif'];
+};
+
+const getFileAcceptForMode = (mode: ConverterMode) => {
+  switch (mode) {
+    case 'image':
+      return 'image/png,image/jpeg,image/webp,image/gif,image/bmp,image/svg+xml';
+    case 'media':
+      return '.m3u8,video/*,audio/*,.mkv,.avi,.mov,.mp4,.webm,.mp3,.wav,.ogg,.m4a,.aac';
+    case 'json-to-csv':
+      return '.json,application/json,text/json';
+    case 'csv-to-json':
+      return '.csv,text/csv';
+    case 'pdf-to-docx':
+    case 'pdf-to-markdown':
+      return '.pdf,application/pdf';
+    case 'text-to-base64':
+    case 'base64-to-text':
+      return '.txt,.md,.json,.csv,.xml,.html,.css,.js,.ts,.tsx,.jsx,.yaml,.yml,text/*';
+    default:
+      return undefined;
+  }
+};
+
 const calculatorButtons: Array<Array<{ label: string; value?: string; action?: 'clear' | 'backspace' | 'evaluate' | 'wrap-abs' | 'insert-log' | 'insert-ln' | 'insert-mod' | 'insert-x' }>> = [
   [
     { label: 'AC', action: 'clear' },
@@ -331,12 +492,18 @@ export const ToolsPanel = () => {
   const [scanPreview, setScanPreview] = useState('');
 
   const [converterMode, setConverterMode] = useState<ConverterMode>('image');
+  const ffmpegRef = useRef<FFmpeg | null>(null);
   const [convertFile, setConvertFile] = useState<File | null>(null);
+  const [convertSourceUrlInput, setConvertSourceUrlInput] = useState('');
+  const [convertSourceUrl, setConvertSourceUrl] = useState('');
   const [convertFormat, setConvertFormat] = useState<'png' | 'jpeg' | 'webp'>('png');
+  const [mediaOutputFormat, setMediaOutputFormat] = useState<MediaOutputFormat>('mp4');
   const [convertQuality, setConvertQuality] = useState(0.92);
   const [converterInput, setConverterInput] = useState('');
   const [converterError, setConverterError] = useState('');
   const [converterResult, setConverterResult] = useState<ConverterResult | null>(null);
+  const [ffmpegLoading, setFfmpegLoading] = useState(false);
+  const [ffmpegStatus, setFfmpegStatus] = useState('');
 
   useEffect(() => {
     try {
@@ -570,6 +737,122 @@ export const ToolsPanel = () => {
 
   const qrImage = `https://quickchart.io/qr?text=${encodeURIComponent(qrText || ' ')}`;
 
+  const selectedSource = useMemo(
+    () => getSourceFromFile(convertFile) ?? getSourceFromUrl(convertSourceUrl),
+    [convertFile, convertSourceUrl],
+  );
+
+  const applyConverterSource = (source: ConverterSource | null) => {
+    if (!source) return;
+    const nextModes = getSuggestedConverterModes(source);
+    setConverterMode(nextModes[0] ?? 'text-to-base64');
+    setMediaOutputFormat(getMediaOutputFormats(source)[0]);
+    resetConverterOutput();
+  };
+
+  const readTextFromSelectedSource = async () => {
+    if (convertFile) {
+      return readFileAsText(convertFile);
+    }
+
+    if (selectedSource?.kind === 'url' && selectedSource.url) {
+      const response = await fetch(selectedSource.url);
+      if (!response.ok) {
+        throw new Error(`Could not fetch ${selectedSource.url}.`);
+      }
+      return response.text();
+    }
+
+    return converterInput;
+  };
+
+  const loadRemoteBlob = async () => {
+    if (selectedSource?.kind !== 'url' || !selectedSource.url) {
+      throw new Error('Paste a direct file link or upload a file first.');
+    }
+
+    const response = await fetch(selectedSource.url);
+    if (!response.ok) {
+      throw new Error(`Could not fetch ${selectedSource.url}.`);
+    }
+
+    return response.blob();
+  };
+
+  const loadBinaryFromSelectedSource = async () => {
+    if (convertFile) {
+      return new Uint8Array(await convertFile.arrayBuffer());
+    }
+
+    return new Uint8Array(await (await loadRemoteBlob()).arrayBuffer());
+  };
+
+  const extractPdfPages = async () => {
+    if (!selectedSource) {
+      throw new Error('Choose a PDF file or paste a direct PDF link first.');
+    }
+
+    const pdfData = await loadBinaryFromSelectedSource();
+    const pdf = await getDocument({ data: pdfData }).promise;
+    const pages: string[] = [];
+
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item) => ('str' in item ? item.str : ''))
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      pages.push(pageText || `(Page ${pageNumber} contained no extractable text.)`);
+    }
+
+    return pages;
+  };
+
+  const runPdfToMarkdownConversion = async () => {
+    const pages = await extractPdfPages();
+    const markdown = pages
+      .map((pageText, index) => `# Page ${index + 1}\n\n${pageText}`)
+      .join('\n\n');
+    const baseName = (selectedSource?.name ?? 'converted').replace(/\.[^.]+$/, '');
+
+    return {
+      kind: 'text' as const,
+      content: markdown,
+      fileName: `${baseName}.md`,
+      mimeType: 'text/markdown',
+    };
+  };
+
+  const runPdfToDocxConversion = async () => {
+    const pages = await extractPdfPages();
+    const baseName = (selectedSource?.name ?? 'converted').replace(/\.[^.]+$/, '');
+    const document = new Document({
+      sections: [{
+        properties: {},
+        children: pages.flatMap((pageText, index) => ([
+          new Paragraph({
+            heading: 'Heading1',
+            children: [new TextRun(`Page ${index + 1}`)],
+          }),
+          ...pageText.split(/\n{2,}/).filter(Boolean).map((paragraph) => new Paragraph({
+            children: [new TextRun(paragraph.trim())],
+            spacing: { after: 200 },
+          })),
+        ])),
+      }],
+    });
+
+    const blob = await Packer.toBlob(document);
+    return {
+      kind: 'file' as const,
+      content: URL.createObjectURL(blob),
+      fileName: `${baseName}.docx`,
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    };
+  };
+
   const resetConverterOutput = () => {
     setConverterError('');
     setConverterResult((current) => {
@@ -580,15 +863,133 @@ export const ToolsPanel = () => {
     });
   };
 
-  const runImageConversion = async () => {
-    if (!convertFile) {
-      throw new Error('Choose an image file to convert first.');
+  const loadFfmpeg = async () => {
+    if (ffmpegRef.current?.loaded) return ffmpegRef.current;
+
+    setFfmpegLoading(true);
+    setFfmpegStatus('Loading browser media engine...');
+
+    try {
+      const ffmpeg = ffmpegRef.current ?? new FFmpeg();
+      ffmpegRef.current = ffmpeg;
+
+      if (!ffmpeg.loaded) {
+        const coreBase = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm';
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${coreBase}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${coreBase}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+      }
+
+      return ffmpeg;
+    } catch {
+      throw new Error('Could not load the in-browser media converter. Check your connection and try again.');
+    } finally {
+      setFfmpegLoading(false);
+    }
+  };
+
+  const runMediaConversion = async () => {
+    if (!selectedSource) {
+      throw new Error('Choose a media file or paste a direct media link first.');
     }
 
-    const sourceUrl = URL.createObjectURL(convertFile);
+    const ffmpeg = await loadFfmpeg();
+    const safeInputName = selectedSource.name.replace(/[^a-zA-Z0-9._-]/g, '-') || `input.${getFileExtension(selectedSource.name) || 'bin'}`;
+    const inputTarget = selectedSource.kind === 'file' ? safeInputName : selectedSource.url ?? safeInputName;
+    const baseName = safeInputName.replace(/\.[^.]+$/, '') || 'converted';
+    const outputName = `${baseName}.${mediaOutputFormat}`;
+
+    setFfmpegStatus(`Converting ${selectedSource.label} → ${outputName}...`);
+    if (selectedSource.kind === 'file' && convertFile) {
+      await ffmpeg.writeFile(safeInputName, await fetchFile(convertFile));
+    }
+
+    const baseInputArgs = ['-protocol_whitelist', 'file,http,https,tcp,tls,crypto,data', '-i', inputTarget];
+    const args = mediaOutputFormat === 'mp4'
+      ? [...baseInputArgs, '-c:v', 'libx264', '-c:a', 'aac', outputName]
+      : mediaOutputFormat === 'webm'
+        ? [...baseInputArgs, '-c:v', 'libvpx-vp9', '-c:a', 'libopus', outputName]
+        : mediaOutputFormat === 'mov'
+          ? [...baseInputArgs, '-c:v', 'libx264', '-c:a', 'aac', outputName]
+          : mediaOutputFormat === 'mkv'
+            ? [...baseInputArgs, '-c:v', 'libx264', '-c:a', 'aac', outputName]
+            : mediaOutputFormat === 'avi'
+              ? [...baseInputArgs, '-c:v', 'mpeg4', '-c:a', 'mp3', outputName]
+              : mediaOutputFormat === 'mp3'
+                ? [...baseInputArgs, '-vn', '-c:a', 'libmp3lame', outputName]
+                : mediaOutputFormat === 'wav'
+                  ? [...baseInputArgs, '-vn', '-c:a', 'pcm_s16le', outputName]
+                  : mediaOutputFormat === 'm4a'
+                    ? [...baseInputArgs, '-vn', '-c:a', 'aac', outputName]
+                    : mediaOutputFormat === 'aac'
+                      ? [...baseInputArgs, '-vn', '-c:a', 'aac', '-f', 'adts', outputName]
+                      : mediaOutputFormat === 'ogg'
+                        ? [...baseInputArgs, '-vn', '-c:a', 'libvorbis', outputName]
+                        : mediaOutputFormat === 'flac'
+                          ? [...baseInputArgs, '-vn', '-c:a', 'flac', outputName]
+                          : [...baseInputArgs, '-vf', 'fps=10,scale=640:-1:flags=lanczos', outputName];
+
+    const exitCode = await ffmpeg.exec(args, 120_000);
+    if (exitCode !== 0) {
+      throw new Error('Media conversion failed. If this is a remote .m3u8 playlist, make sure the link is public, the segments are reachable, and CORS is allowed.');
+    }
+
+    const data = await ffmpeg.readFile(outputName);
+    const bytes = data instanceof Uint8Array ? data : new TextEncoder().encode(String(data));
+    const mimeType = mediaOutputFormat === 'mp4'
+      ? 'video/mp4'
+      : mediaOutputFormat === 'webm'
+        ? 'video/webm'
+        : mediaOutputFormat === 'mov'
+          ? 'video/quicktime'
+          : mediaOutputFormat === 'mkv'
+            ? 'video/x-matroska'
+            : mediaOutputFormat === 'avi'
+              ? 'video/x-msvideo'
+        : mediaOutputFormat === 'mp3'
+          ? 'audio/mpeg'
+        : mediaOutputFormat === 'wav'
+          ? 'audio/wav'
+          : mediaOutputFormat === 'm4a'
+            ? 'audio/mp4'
+            : mediaOutputFormat === 'aac'
+              ? 'audio/aac'
+              : mediaOutputFormat === 'ogg'
+                ? 'audio/ogg'
+                : mediaOutputFormat === 'flac'
+                  ? 'audio/flac'
+                  : 'image/gif';
+
+    if (selectedSource.kind === 'file') {
+      await ffmpeg.deleteFile(safeInputName).catch(() => undefined);
+    }
+    await ffmpeg.deleteFile(outputName).catch(() => undefined);
+    setFfmpegStatus(`Ready: ${outputName}`);
+
+    return {
+      kind: 'file' as const,
+      content: URL.createObjectURL(new Blob([bytes], { type: mimeType })),
+      fileName: outputName,
+      mimeType,
+    };
+  };
+
+  const runImageConversion = async () => {
+    if (!selectedSource) {
+      throw new Error('Choose an image file or paste a direct image link first.');
+    }
+
+    const sourceFile = convertFile ?? new File(
+      [await loadRemoteBlob()],
+      selectedSource.name,
+      { type: selectedSource.mimeType },
+    );
+
+    const sourceUrl = URL.createObjectURL(sourceFile);
     try {
-      const isSvg = convertFile.type === 'image/svg+xml' || convertFile.name.toLowerCase().endsWith('.svg');
-      const imageSource = isSvg ? await readFileAsDataUrl(convertFile) : sourceUrl;
+      const isSvg = sourceFile.type === 'image/svg+xml' || sourceFile.name.toLowerCase().endsWith('.svg');
+      const imageSource = isSvg ? await readFileAsDataUrl(sourceFile) : sourceUrl;
       const image = await new Promise<HTMLImageElement>((resolve, reject) => {
         const img = new Image();
         img.onload = () => resolve(img);
@@ -617,7 +1018,7 @@ export const ToolsPanel = () => {
       }
 
       const nextUrl = URL.createObjectURL(blob);
-      const baseName = convertFile.name.replace(/\.[^.]+$/, '');
+      const baseName = sourceFile.name.replace(/\.[^.]+$/, '');
       return {
         kind: 'file' as const,
         content: nextUrl,
@@ -635,11 +1036,20 @@ export const ToolsPanel = () => {
     try {
       let result: ConverterResult;
       switch (converterMode) {
+        case 'media':
+          result = await runMediaConversion();
+          break;
         case 'image':
           result = await runImageConversion();
           break;
+        case 'pdf-to-docx':
+          result = await runPdfToDocxConversion();
+          break;
+        case 'pdf-to-markdown':
+          result = await runPdfToMarkdownConversion();
+          break;
         case 'json-to-csv': {
-          const source = convertFile ? await readFileAsText(convertFile) : converterInput;
+          const source = await readTextFromSelectedSource();
           result = {
             kind: 'text',
             content: convertJsonToCsv(source),
@@ -649,7 +1059,7 @@ export const ToolsPanel = () => {
           break;
         }
         case 'csv-to-json': {
-          const source = convertFile ? await readFileAsText(convertFile) : converterInput;
+          const source = await readTextFromSelectedSource();
           result = {
             kind: 'text',
             content: convertCsvToJson(source),
@@ -659,7 +1069,7 @@ export const ToolsPanel = () => {
           break;
         }
         case 'text-to-base64': {
-          const source = convertFile ? await readFileAsText(convertFile) : converterInput;
+          const source = await readTextFromSelectedSource();
           result = {
             kind: 'text',
             content: btoa(unescape(encodeURIComponent(source))),
@@ -667,7 +1077,7 @@ export const ToolsPanel = () => {
           break;
         }
         case 'base64-to-text': {
-          const source = (convertFile ? await readFileAsText(convertFile) : converterInput).trim();
+          const source = (await readTextFromSelectedSource()).trim();
           result = {
             kind: 'text',
             content: decodeURIComponent(escape(atob(source))),
@@ -692,11 +1102,29 @@ export const ToolsPanel = () => {
   const weekDates = useMemo(() => getWeekDates(), []);
 
   const converterModeMeta: Record<ConverterMode, { title: string; description: string; acceptsFile: boolean; inputLabel: string }> = {
+    media: {
+      title: 'Media converter',
+      description: 'Convert video, audio, and HLS playlists in the browser from files or direct links, with many export targets including .m3u8 → .mp4.',
+      acceptsFile: true,
+      inputLabel: 'Upload a video, audio file, or .m3u8 playlist — or paste a direct media link',
+    },
     image: {
       title: 'Image converter',
       description: 'Convert PNG, JPG, WEBP, GIF, BMP, or SVG files directly in the browser.',
       acceptsFile: true,
       inputLabel: 'Select an image file',
+    },
+    'pdf-to-docx': {
+      title: 'PDF → DOCX',
+      description: 'Extract readable PDF text into a .docx document. Best for text-based PDFs rather than scanned pages.',
+      acceptsFile: true,
+      inputLabel: 'Upload a PDF or paste a direct PDF link',
+    },
+    'pdf-to-markdown': {
+      title: 'PDF → Markdown',
+      description: 'Turn PDF text into page-sectioned Markdown that is easy to edit in the IDE.',
+      acceptsFile: true,
+      inputLabel: 'Upload a PDF or paste a direct PDF link',
     },
     'json-to-csv': {
       title: 'JSON → CSV',
@@ -737,6 +1165,8 @@ export const ToolsPanel = () => {
   };
 
   const activeConverterMeta = converterModeMeta[converterMode];
+  const suggestedConverterModes = selectedSource ? getSuggestedConverterModes(selectedSource) : [];
+  const availableMediaOutputFormats = getMediaOutputFormats(selectedSource);
   const todayHabits = habits.filter((habit) => habit.logs[todayKey()]);
 
   return (
@@ -1138,30 +1568,130 @@ export const ToolsPanel = () => {
         )}
 
         {activeSection === 'converter' && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-3 shadow-sm">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <FileCog className="h-4 w-4 text-primary" /> One converter for everyday file + text jobs
+                <FileCog className="h-4 w-4 text-primary" /> Upload-first smart converter
               </div>
               <p className="mt-2 text-muted-foreground">
-                Pick a conversion recipe, upload a file or paste content, and export it directly from the UI.
+                Upload a file or paste a direct link first and the tool will surface the conversions that make sense for it — including remote media jobs like .m3u8 → .mp4.
               </p>
-              <div className="mt-3 grid gap-2">
-                {Object.entries(converterModeMeta).map(([mode, meta]) => (
+
+              <div className="mt-3 rounded-2xl border border-dashed border-primary/30 bg-background/70 p-3">
+                <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Step 1</div>
+                <div className="mt-1 text-sm font-medium text-foreground">Upload your source file or use a direct link</div>
+                <p className="mt-1 text-muted-foreground">No terminal needed — choose a file or paste a URL like a public `.m3u8` playlist and we'll show the likely conversion paths.</p>
+                <input
+                  type="file"
+                  accept={getFileAcceptForMode(converterMode)}
+                  onChange={(event) => {
+                    const nextFile = event.target.files?.[0] ?? null;
+                    setConvertFile(nextFile);
+                    setConvertSourceUrl('');
+                    setConvertSourceUrlInput('');
+                    if (nextFile) {
+                      applyConverterSource(getSourceFromFile(nextFile));
+                    }
+                    resetConverterOutput();
+                  }}
+                  className="mt-3 w-full text-[11px]"
+                />
+                <div className="mt-3 grid gap-2 lg:grid-cols-[1fr_auto]">
+                  <input
+                    value={convertSourceUrlInput}
+                    onChange={(event) => setConvertSourceUrlInput(event.target.value)}
+                    placeholder="https://math-gpt.org/api/streams/.../master.m3u8"
+                    className="w-full rounded-xl border border-border bg-input px-3 py-2 text-xs"
+                  />
                   <button
-                    key={mode}
                     onClick={() => {
-                      setConverterMode(mode as ConverterMode);
+                      const nextSource = getSourceFromUrl(convertSourceUrlInput);
+                      if (!nextSource) {
+                        setConverterError('Paste a valid direct file URL first.');
+                        return;
+                      }
                       setConvertFile(null);
-                      setConverterInput('');
-                      resetConverterOutput();
+                      setConvertSourceUrl(nextSource.url ?? '');
+                      setConvertSourceUrlInput(nextSource.url ?? '');
+                      applyConverterSource(nextSource);
                     }}
-                    className={`rounded-2xl border px-3 py-3 text-left ${converterMode === mode ? 'border-primary bg-primary/10 text-foreground' : 'border-border bg-background hover:bg-accent/40'}`}
+                    className="rounded-xl bg-accent px-3 py-2 text-foreground hover:bg-accent/80"
                   >
-                    <div className="font-medium">{meta.title}</div>
-                    <div className="mt-1 text-[11px] text-muted-foreground">{meta.description}</div>
+                    Use link
                   </button>
-                ))}
+                </div>
+                {selectedSource ? (
+                  <div className="mt-3 rounded-xl bg-muted/40 p-3 text-foreground">
+                    <div className="font-medium">{selectedSource.name}</div>
+                    <div className="mt-1 break-all text-[11px] text-muted-foreground">
+                      {selectedSource.kind === 'url' ? selectedSource.url : selectedSource.mimeType || 'Unknown type'} · {selectedSource.sizeText}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-xl bg-muted/20 p-3 text-muted-foreground">Upload a file or paste a direct link to unlock recommended conversions below.</div>
+                )}
+              </div>
+
+              <div className="mt-3 grid gap-2 xl:grid-cols-[1.45fr,1fr]">
+                <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                  <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Step 2</div>
+                  <div className="mt-1 flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <WandSparkles className="h-4 w-4 text-primary" /> Possible conversions
+                  </div>
+                  <p className="mt-1 text-muted-foreground">
+                    {selectedSource ? `Showing the best matches for ${selectedSource.name}.` : 'Choose a file or direct link to see tailored conversion options.'}
+                  </p>
+
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {selectedSource && suggestedConverterModes.length > 0 ? suggestedConverterModes.map((mode) => {
+                      const meta = converterModeMeta[mode];
+                      return (
+                        <button
+                          key={mode}
+                          onClick={() => {
+                            setConverterMode(mode);
+                            if (mode === 'media') {
+                              setMediaOutputFormat(getMediaOutputFormats(selectedSource)[0]);
+                            }
+                            resetConverterOutput();
+                          }}
+                          className={`rounded-2xl border px-3 py-3 text-left ${converterMode === mode ? 'border-primary bg-primary/10 text-foreground' : 'border-border bg-background hover:bg-accent/40'}`}
+                        >
+                          <div className="font-medium">{meta.title}</div>
+                          <div className="mt-1 text-[11px] text-muted-foreground">{meta.description}</div>
+                        </button>
+                      );
+                    }) : (
+                      <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-3 py-6 text-center text-muted-foreground">
+                        {selectedSource ? 'No tailored conversions detected yet, but you can still pick a manual converter on the right.' : 'Upload a file or paste a link first to reveal recommended conversions.'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                  <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Also available</div>
+                  <div className="mt-1 text-sm font-semibold text-foreground">Manual converters</div>
+                  <p className="mt-1 text-muted-foreground">Switch to any recipe here if you want to override the suggested path.</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {Object.entries(converterModeMeta).map(([mode, meta]) => (
+                      <button
+                        key={mode}
+                        onClick={() => {
+                          setConverterMode(mode as ConverterMode);
+                          if ((mode as ConverterMode) === 'media') {
+                            setMediaOutputFormat(getMediaOutputFormats(selectedSource)[0]);
+                          }
+                          resetConverterOutput();
+                        }}
+                        className={`rounded-2xl border px-3 py-2 text-left ${converterMode === mode ? 'border-primary bg-primary/10 text-foreground' : 'border-border bg-background hover:bg-accent/40'}`}
+                      >
+                        <div className="font-medium">{meta.title}</div>
+                        <div className="mt-1 text-[11px] text-muted-foreground">{meta.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1172,19 +1702,24 @@ export const ToolsPanel = () => {
                 </div>
                 <p className="mt-1 text-muted-foreground">{activeConverterMeta.description}</p>
 
-                {activeConverterMeta.acceptsFile && (
-                  <div className="mt-3 space-y-2">
-                    <div className="text-muted-foreground">{activeConverterMeta.inputLabel}</div>
-                    <input
-                      type="file"
-                      accept={converterMode === 'image' ? 'image/png,image/jpeg,image/webp,image/gif,image/bmp,image/svg+xml' : undefined}
-                      onChange={(event) => {
-                        setConvertFile(event.target.files?.[0] ?? null);
-                        resetConverterOutput();
-                      }}
-                      className="w-full text-[11px]"
-                    />
-                    {convertFile && <div className="rounded-xl bg-muted/40 p-2 text-foreground">Selected: {convertFile.name}</div>}
+                {activeConverterMeta.acceptsFile && !selectedSource && (
+                  <div className="mt-3 rounded-xl bg-muted/20 p-3 text-muted-foreground">Upload a source file or paste a direct link above to use this converter.</div>
+                )}
+
+                {converterMode === 'media' && (
+                  <div className="mt-3 grid gap-2">
+                    <label className="space-y-1">
+                      <span className="text-muted-foreground">Output format</span>
+                      <select value={mediaOutputFormat} onChange={(event) => setMediaOutputFormat(event.target.value as MediaOutputFormat)} className="w-full rounded-xl border border-border bg-input px-3 py-2">
+                        {availableMediaOutputFormats.map((format) => (
+                          <option key={format} value={format}>{format.toUpperCase()}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="rounded-xl bg-muted/20 p-3 text-[11px] text-muted-foreground">
+                      Tip: direct `.m3u8` links such as public HLS playlist URLs can be converted here when the playlist and segments are public and allow browser access. Available exports: {availableMediaOutputFormats.length}.
+                    </div>
+                    {ffmpegStatus && <div className="rounded-xl bg-muted/30 p-2 text-foreground">{ffmpegStatus}</div>}
                   </div>
                 )}
 
@@ -1205,9 +1740,15 @@ export const ToolsPanel = () => {
                   </div>
                 )}
 
-                {converterMode !== 'image' && (
+                {(converterMode === 'pdf-to-docx' || converterMode === 'pdf-to-markdown') && (
+                  <div className="mt-3 rounded-xl bg-muted/20 p-3 text-[11px] text-muted-foreground">
+                    PDF exports here are text-focused: they preserve readable content well for normal PDFs, but scanned/image PDFs will still need OCR for best results.
+                  </div>
+                )}
+
+                {converterMode !== 'image' && converterMode !== 'media' && converterMode !== 'pdf-to-docx' && converterMode !== 'pdf-to-markdown' && (
                   <label className="mt-3 block space-y-2">
-                    <span className="text-muted-foreground">Or paste content</span>
+                    <span className="text-muted-foreground">Paste content</span>
                     <textarea
                       value={converterInput}
                       onChange={(event) => setConverterInput(event.target.value)}
@@ -1218,15 +1759,14 @@ export const ToolsPanel = () => {
                   </label>
                 )}
 
-                <button onClick={() => void runConverter()} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-primary-foreground hover:opacity-90">
-                  <RefreshCw className="h-4 w-4" /> Convert now
+                <button onClick={() => void runConverter()} disabled={ffmpegLoading} className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2 text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+                  <RefreshCw className={`h-4 w-4 ${ffmpegLoading ? 'animate-spin' : ''}`} /> {ffmpegLoading ? 'Loading converter...' : 'Convert now'}
                 </button>
               </div>
 
               <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
                 <div className="text-sm font-semibold text-foreground">Output</div>
                 <p className="mt-1 text-muted-foreground">Download files or copy text right from here.</p>
-
                 {converterResult?.kind === 'file' && converterResult.fileName && (
                   <div className="mt-3 space-y-3">
                     <div className="rounded-2xl border border-border bg-muted/30 p-3 text-foreground">Ready: {converterResult.fileName}</div>
