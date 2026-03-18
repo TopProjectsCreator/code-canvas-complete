@@ -689,6 +689,39 @@ Deno.serve(async (req: Request) => {
           .find((content: string | null): content is string => Boolean(content))
       : null;
 
+    // Handle ELF artifact for ARM boards (e.g. R4 WiFi) — return flat binary
+    if (boardConfig.isArm && artifactBase64) {
+      try {
+        const { segments } = parseElfExecutable(artifactBase64);
+        console.log('compile-arduino arm artifact', JSON.stringify({
+          board,
+          segmentCount: segments.length,
+          segments: segments.map((segment) => ({ paddr: segment.paddr, size: segment.data.length })),
+        }));
+
+        const maxSegmentEnd = segments.reduce((m, s) => Math.max(m, s.paddr + s.data.length), 0);
+        const binaryData = new Uint8Array(maxSegmentEnd);
+        binaryData.fill(0xFF);
+        for (const segment of segments) {
+          binaryData.set(segment.data, segment.paddr);
+        }
+
+        return new Response(
+          JSON.stringify({
+            binary: bytesToBase64(binaryData),
+            format: 'bin',
+            size: maxSegmentEnd,
+            warnings: stderr || null,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (artifactError) {
+        console.log('compile-arduino arm artifact failed', artifactError instanceof Error ? artifactError.message : String(artifactError));
+        // Fall back to asm parsing below.
+      }
+    }
+
+    // Handle ELF artifact for AVR boards
     if (!boardConfig.isArm && artifactBase64) {
       try {
         const { entry, segments } = parseElfExecutable(artifactBase64);
