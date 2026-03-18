@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -58,9 +59,22 @@ export interface PresenceState {
   lastSeen: string;
 }
 
-const PRESENCE_COLORS = [
-  '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#10b981', '#f97316', '#ec4899', '#6366f1'
-];
+export interface UserSuggestion {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
+export interface RemoteFileUpdate {
+  fileId: string;
+  filePath: string;
+  content: string;
+  updatedBy: string;
+  updatedByName: string;
+  updatedAt: string;
+}
+
+const PRESENCE_COLORS = ['#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#10b981', '#f97316', '#ec4899', '#6366f1'];
 
 export function useCollaboration(projectId: string | undefined) {
   const { user, profile } = useAuth();
@@ -71,35 +85,35 @@ export function useCollaboration(projectId: string | undefined) {
   const [presence, setPresence] = useState<PresenceState[]>([]);
   const [loading, setLoading] = useState(false);
   const [myRole, setMyRole] = useState<CollabRole | 'owner' | null>(null);
-  const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const [inviteSuggestions, setInviteSuggestions] = useState<UserSuggestion[]>([]);
+  const [inviteSearchLoading, setInviteSearchLoading] = useState(false);
+  const [remoteFileUpdate, setRemoteFileUpdate] = useState<RemoteFileUpdate | null>(null);
+  const presenceChannelRef = useRef<RealtimeChannel | null>(null);
+  const workspaceChannelRef = useRef<RealtimeChannel | null>(null);
+  const sessionIdRef = useRef(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}`);
 
-  // Fetch collaborators
+  const enrichProfiles = useCallback(async <T extends { user_id: string }>(rows: T[]) => {
+    const userIds = [...new Set(rows.map((row) => row.user_id))];
+    if (userIds.length === 0) return rows as Array<T & { profile?: { display_name: string | null; avatar_url: string | null } }>;
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, avatar_url')
+      .in('user_id', userIds);
+
+    const profileMap = new Map(profiles?.map((entry) => [entry.user_id, entry]) || []);
+    return rows.map((row) => ({ ...row, profile: profileMap.get(row.user_id) || undefined }));
+  }, []);
+
   const fetchCollaborators = useCallback(async () => {
     if (!projectId || !user) return;
-    const { data } = await supabase
-      .from('project_collaborators')
-      .select('*')
-      .eq('project_id', projectId);
-    
-    if (data) {
-      // Fetch profiles for collaborators
-      const userIds = data.map(c => c.user_id);
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, display_name, avatar_url')
-        .in('user_id', userIds);
-      
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-      const enriched = data.map(c => ({
-        ...c,
-        role: c.role as CollabRole,
-        profile: profileMap.get(c.user_id) || undefined,
-      }));
-      setCollaborators(enriched);
-    }
-  }, [projectId, user]);
+    const { data } = await supabase.from('project_collaborators').select('*').eq('project_id', projectId);
+    if (!data) return;
 
-  // Fetch comments
+    const enriched = await enrichProfiles(data);
+    setCollaborators(enriched.map((entry) => ({ ...entry, role: entry.role as CollabRole })));
+  }, [enrichProfiles, projectId, user]);
+
   const fetchComments = useCallback(async () => {
     if (!projectId || !user) return;
     const { data } = await supabase
@@ -108,18 +122,11 @@ export function useCollaboration(projectId: string | undefined) {
       .eq('project_id', projectId)
       .order('created_at', { ascending: true });
 
-    if (data) {
-      const userIds = [...new Set(data.map(c => c.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, display_name, avatar_url')
-        .in('user_id', userIds);
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-      setComments(data.map(c => ({ ...c, profile: profileMap.get(c.user_id) || undefined })));
-    }
-  }, [projectId, user]);
+    if (!data) return;
+    const enriched = await enrichProfiles(data);
+    setComments(enriched);
+  }, [enrichProfiles, projectId, user]);
 
-  // Fetch reviews
   const fetchReviews = useCallback(async () => {
     if (!projectId || !user) return;
     const { data } = await supabase
@@ -128,52 +135,51 @@ export function useCollaboration(projectId: string | undefined) {
       .eq('project_id', projectId)
       .order('created_at', { ascending: false });
 
-    if (data) {
-      const userIds = [...new Set(data.flatMap(r => [r.requester_id, r.reviewer_id]))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('user_id, display_name, avatar_url')
-        .in('user_id', userIds);
-      const profileMap = new Map(profiles?.map(p => [p.user_id, p]) || []);
-      setReviews(data.map(r => ({
-        ...r,
-        status: r.status as CodeReview['status'],
-        file_paths: r.file_paths || [],
-        requester_profile: profileMap.get(r.requester_id) || undefined,
-        reviewer_profile: profileMap.get(r.reviewer_id) || undefined,
-      })));
-    }
+    if (!data) return;
+
+    const userIds = [...new Set(data.flatMap((row) => [row.requester_id, row.reviewer_id]))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, avatar_url')
+      .in('user_id', userIds);
+
+    const profileMap = new Map(profiles?.map((entry) => [entry.user_id, entry]) || []);
+    setReviews(
+      data.map((row) => ({
+        ...row,
+        status: row.status as CodeReview['status'],
+        file_paths: row.file_paths || [],
+        requester_profile: profileMap.get(row.requester_id) || undefined,
+        reviewer_profile: profileMap.get(row.reviewer_id) || undefined,
+      })),
+    );
   }, [projectId, user]);
 
-  // Determine my role
   useEffect(() => {
-    if (!projectId || !user) { setMyRole(null); return; }
-    
-    const checkRole = async () => {
-      const { data: proj } = await supabase
-        .from('projects')
-        .select('user_id')
-        .eq('id', projectId)
-        .single();
-      
-      if (proj?.user_id === user.id) {
-        setMyRole('owner');
-      } else {
-        const collab = collaborators.find(c => c.user_id === user.id && c.accepted);
-        setMyRole(collab?.role || null);
-      }
-    };
-    checkRole();
-  }, [projectId, user, collaborators]);
+    if (!projectId || !user) {
+      setMyRole(null);
+      return;
+    }
 
-  // Initial fetch
+    const checkRole = async () => {
+      const { data: project } = await supabase.from('projects').select('user_id').eq('id', projectId).single();
+      if (project?.user_id === user.id) {
+        setMyRole('owner');
+        return;
+      }
+      const collab = collaborators.find((entry) => entry.user_id === user.id && entry.accepted);
+      setMyRole(collab?.role || null);
+    };
+
+    void checkRole();
+  }, [collaborators, projectId, user]);
+
   useEffect(() => {
     if (!projectId || !user) return;
     setLoading(true);
     Promise.all([fetchCollaborators(), fetchComments(), fetchReviews()]).finally(() => setLoading(false));
   }, [fetchCollaborators, fetchComments, fetchReviews, projectId, user]);
 
-  // Realtime presence
   useEffect(() => {
     if (!projectId || !user || !profile) return;
 
@@ -187,7 +193,7 @@ export function useCollaboration(projectId: string | undefined) {
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<PresenceState>();
         const peers: PresenceState[] = [];
-        for (const [, entries] of Object.entries(state)) {
+        for (const entries of Object.values(state)) {
           for (const entry of entries as PresenceState[]) {
             if (entry.userId !== user.id) peers.push(entry);
           }
@@ -213,46 +219,76 @@ export function useCollaboration(projectId: string | undefined) {
       if (presenceChannelRef.current?.topic === channel.topic) {
         presenceChannelRef.current = null;
       }
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     };
-  }, [projectId, user, profile]);
+  }, [projectId, profile, user]);
 
-  // Realtime comments subscription + desktop notifications
   useEffect(() => {
     if (!projectId) return;
-    const channel = supabase
-      .channel(`comments:${projectId}`)
+
+    const channel = supabase.channel(`comments:${projectId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'code_comments', filter: `project_id=eq.${projectId}` }, (payload) => {
-        // Show desktop notification for new comments by others
-        if (payload.new && (payload.new as any).user_id !== user?.id) {
-          try {
-            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-              const settings = JSON.parse(localStorage.getItem('ide-notification-settings') || '{}');
-              if (settings.desktopEnabled) {
-                new Notification('New code comment', {
-                  body: `Comment on ${(payload.new as any).file_path}:${(payload.new as any).line_number}`,
-                  icon: '/favicon.ico',
-                  tag: `comment-${(payload.new as any).id}`,
-                });
-              }
+        if (payload.new && (payload.new as { user_id?: string }).user_id !== user?.id) {
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            const settings = JSON.parse(localStorage.getItem('ide-notification-settings') || '{}');
+            if (settings.desktopEnabled) {
+              const inserted = payload.new as { id: string; file_path: string; line_number: number };
+              new Notification('New code comment', {
+                body: `Comment on ${inserted.file_path}:${inserted.line_number}`,
+                icon: '/favicon.ico',
+                tag: `comment-${inserted.id}`,
+              });
             }
-          } catch {}
+          }
         }
-        fetchComments();
+        void fetchComments();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'code_comments', filter: `project_id=eq.${projectId}` }, () => {
-        fetchComments();
+        void fetchComments();
       })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [projectId, fetchComments, user]);
 
-  // Update presence
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [fetchComments, projectId, user]);
+
+  useEffect(() => {
+    if (!projectId || !user) return;
+
+    const channel = supabase.channel(`workspace:${projectId}`, {
+      config: { broadcast: { self: false } },
+    });
+    workspaceChannelRef.current = channel;
+
+    channel
+      .on('broadcast', { event: 'file-update' }, ({ payload }) => {
+        const message = payload as RemoteFileUpdate & { sessionId?: string };
+        if (!message || message.updatedBy === user.id || message.sessionId === sessionIdRef.current) return;
+        setRemoteFileUpdate({
+          fileId: message.fileId,
+          filePath: message.filePath,
+          content: message.content,
+          updatedBy: message.updatedBy,
+          updatedByName: message.updatedByName,
+          updatedAt: message.updatedAt,
+        });
+      })
+      .subscribe();
+
+    return () => {
+      if (workspaceChannelRef.current?.topic === channel.topic) {
+        workspaceChannelRef.current = null;
+      }
+      void supabase.removeChannel(channel);
+    };
+  }, [projectId, user]);
+
   const updatePresence = useCallback(async (updates: Partial<PresenceState>) => {
     if (!projectId || !user) return;
     const channel = presenceChannelRef.current;
     if (!channel) return;
-    // Track is idempotent, updates the existing state
+
     const colorIndex = user.id.charCodeAt(0) % PRESENCE_COLORS.length;
     await channel.track({
       userId: user.id,
@@ -265,33 +301,50 @@ export function useCollaboration(projectId: string | undefined) {
       lastSeen: new Date().toISOString(),
       ...updates,
     });
-  }, [projectId, user, profile]);
+  }, [projectId, profile, user]);
 
-  // Invite collaborator
-  const inviteCollaborator = async (email: string, role: CollabRole) => {
+  const searchInviteCandidates = useCallback(async (query: string) => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      setInviteSuggestions([]);
+      return [];
+    }
+
+    setInviteSearchLoading(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, avatar_url')
+      .or(`display_name.ilike.%${trimmed}%,user_id.eq.${trimmed}`)
+      .limit(6);
+    setInviteSearchLoading(false);
+
+    if (error) {
+      toast({ title: 'Could not load suggestions', description: error.message, variant: 'destructive' });
+      return [];
+    }
+
+    const suggestions = (data || [])
+      .filter((entry) => entry.user_id !== user?.id)
+      .map((entry) => ({
+        userId: entry.user_id,
+        displayName: entry.display_name || 'Unnamed user',
+        avatarUrl: entry.avatar_url,
+      }));
+
+    setInviteSuggestions(suggestions);
+    return suggestions;
+  }, [toast, user]);
+
+  const inviteCollaborator = useCallback(async (email: string, role: CollabRole) => {
     if (!projectId) {
       toast({ title: 'Save project first', description: 'You need to save your project before inviting collaborators.', variant: 'destructive' });
       return false;
     }
     if (!user) return false;
 
-    // Look up the invited user by email from profiles + auth
-    // Since profiles don't store email, we search for a user with matching email via a simple approach:
-    // Insert the collaborator row with invited_email set; the invited user accepts when they log in.
-    // We need a valid user_id for the FK — use a placeholder approach:
-    // First try to find an existing user with that email by querying profiles via RPC or edge function.
-    // For now, we'll search if any profile's user has this email.
-    
-    let targetUserId = user.id; // fallback placeholder
-
-    // Try to find user by email using Supabase auth admin (not available client-side)
-    // Instead, we insert with the invited_email and set accepted=false
-    // The user_id is a required FK field, so we use the inviter as placeholder
-    // This is a known limitation - proper implementation needs server-side email lookup
-
     const { error } = await supabase.from('project_collaborators').insert({
       project_id: projectId,
-      user_id: targetUserId,
+      user_id: user.id,
       invited_by: user.id,
       role,
       invited_email: email,
@@ -299,7 +352,6 @@ export function useCollaboration(projectId: string | undefined) {
     });
 
     if (error) {
-      // Handle duplicate invites gracefully
       if (error.code === '23505') {
         toast({ title: 'Already invited', description: `${email} has already been invited to this project.`, variant: 'destructive' });
       } else {
@@ -307,39 +359,61 @@ export function useCollaboration(projectId: string | undefined) {
       }
       return false;
     }
+
     toast({ title: 'Invitation sent', description: `Invited ${email} as ${role}` });
-    // Trigger desktop notification for the inviter's confirmation
-    try {
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        const settings = JSON.parse(localStorage.getItem('ide-notification-settings') || '{}');
-        if (settings.desktopEnabled) {
-          new Notification('Collaboration invite sent', { body: `Invited ${email} as ${role}`, icon: '/favicon.ico' });
-        }
+    void fetchCollaborators();
+    return true;
+  }, [fetchCollaborators, projectId, toast, user]);
+
+  const inviteCollaboratorByUser = useCallback(async (candidate: UserSuggestion, role: CollabRole) => {
+    if (!projectId || !user) return false;
+
+    const { error } = await supabase.from('project_collaborators').insert({
+      project_id: projectId,
+      user_id: candidate.userId,
+      invited_by: user.id,
+      role,
+      invited_email: null,
+      accepted: true,
+    });
+
+    if (error) {
+      if (error.code === '23505') {
+        toast({ title: 'Already added', description: `${candidate.displayName} already has access.`, variant: 'destructive' });
+      } else {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
       }
-    } catch {}
-    fetchCollaborators();
-    return true;
-  };
+      return false;
+    }
 
-  // Remove collaborator
-  const removeCollaborator = async (collabId: string) => {
+    toast({ title: 'Collaborator added', description: `${candidate.displayName} can jump in right away.` });
+    setInviteSuggestions([]);
+    void fetchCollaborators();
+    return true;
+  }, [fetchCollaborators, projectId, toast, user]);
+
+  const removeCollaborator = useCallback(async (collabId: string) => {
     const { error } = await supabase.from('project_collaborators').delete().eq('id', collabId);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return false;
+    }
     toast({ title: 'Collaborator removed' });
-    fetchCollaborators();
+    void fetchCollaborators();
     return true;
-  };
+  }, [fetchCollaborators, toast]);
 
-  // Update collaborator role
-  const updateCollaboratorRole = async (collabId: string, role: CollabRole) => {
+  const updateCollaboratorRole = useCallback(async (collabId: string, role: CollabRole) => {
     const { error } = await supabase.from('project_collaborators').update({ role }).eq('id', collabId);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
-    fetchCollaborators();
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return false;
+    }
+    void fetchCollaborators();
     return true;
-  };
+  }, [fetchCollaborators, toast]);
 
-  // Add comment
-  const addComment = async (filePath: string, lineNumber: number, content: string, parentId?: string) => {
+  const addComment = useCallback(async (filePath: string, lineNumber: number, content: string, parentId?: string) => {
     if (!projectId || !user) return false;
     const { error } = await supabase.from('code_comments').insert({
       project_id: projectId,
@@ -349,27 +423,33 @@ export function useCollaboration(projectId: string | undefined) {
       content,
       parent_id: parentId || null,
     });
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return false;
+    }
     return true;
-  };
+  }, [projectId, toast, user]);
 
-  // Resolve comment
-  const resolveComment = async (commentId: string, resolved: boolean) => {
+  const resolveComment = useCallback(async (commentId: string, resolved: boolean) => {
     const { error } = await supabase.from('code_comments').update({ resolved }).eq('id', commentId);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
-    fetchComments();
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return false;
+    }
+    void fetchComments();
     return true;
-  };
+  }, [fetchComments, toast]);
 
-  // Delete comment
-  const deleteComment = async (commentId: string) => {
+  const deleteComment = useCallback(async (commentId: string) => {
     const { error } = await supabase.from('code_comments').delete().eq('id', commentId);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return false;
+    }
     return true;
-  };
+  }, [toast]);
 
-  // Request review
-  const requestReview = async (reviewerId: string, title: string, description?: string, filePaths?: string[]) => {
+  const requestReview = useCallback(async (reviewerId: string, title: string, description?: string, filePaths?: string[]) => {
     if (!projectId || !user) return false;
     const { error } = await supabase.from('code_reviews').insert({
       project_id: projectId,
@@ -379,25 +459,64 @@ export function useCollaboration(projectId: string | undefined) {
       description: description || null,
       file_paths: filePaths || [],
     });
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return false;
+    }
     toast({ title: 'Review requested' });
-    fetchReviews();
+    void fetchReviews();
     return true;
-  };
+  }, [fetchReviews, projectId, toast, user]);
 
-  // Update review status
-  const updateReviewStatus = async (reviewId: string, status: CodeReview['status']) => {
+  const updateReviewStatus = useCallback(async (reviewId: string, status: CodeReview['status']) => {
     const { error } = await supabase.from('code_reviews').update({ status }).eq('id', reviewId);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
-    fetchReviews();
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return false;
+    }
+    void fetchReviews();
     return true;
-  };
+  }, [fetchReviews, toast]);
+
+  const broadcastFileChange = useCallback(async (update: Omit<RemoteFileUpdate, 'updatedBy' | 'updatedByName' | 'updatedAt'>) => {
+    if (!user || !workspaceChannelRef.current) return;
+    await workspaceChannelRef.current.send({
+      type: 'broadcast',
+      event: 'file-update',
+      payload: {
+        ...update,
+        sessionId: sessionIdRef.current,
+        updatedBy: user.id,
+        updatedByName: profile?.display_name || user.email?.split('@')[0] || 'User',
+        updatedAt: new Date().toISOString(),
+      },
+    });
+  }, [profile, user]);
 
   return {
-    collaborators, comments, reviews, presence, loading, myRole,
-    inviteCollaborator, removeCollaborator, updateCollaboratorRole,
-    addComment, resolveComment, deleteComment,
-    requestReview, updateReviewStatus,
-    updatePresence, fetchCollaborators, fetchComments, fetchReviews,
+    collaborators,
+    comments,
+    reviews,
+    presence,
+    loading,
+    myRole,
+    inviteSuggestions,
+    inviteSearchLoading,
+    remoteFileUpdate,
+    inviteCollaborator,
+    inviteCollaboratorByUser,
+    removeCollaborator,
+    updateCollaboratorRole,
+    addComment,
+    resolveComment,
+    deleteComment,
+    requestReview,
+    updateReviewStatus,
+    updatePresence,
+    fetchCollaborators,
+    fetchComments,
+    fetchReviews,
+    searchInviteCandidates,
+    broadcastFileChange,
   };
 }
