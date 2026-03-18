@@ -4,6 +4,7 @@
  */
 
 import { parseIntelHex, splitIntoPages } from './hexParser';
+import type { SerialPortLike } from './serialUtils';
 
 // STK500v1 constants
 const STK_OK = 0x10;
@@ -19,17 +20,12 @@ const STK_READ_SIGN = 0x75;
 
 const RESPONSE_TIMEOUT = 5000;
 const PAGE_SIZE = 128; // ATmega328P page size in bytes
-const SYNC_ATTEMPT_TIMEOUT = 350;
+const SYNC_ATTEMPT_TIMEOUT = 180;
+const RESET_DISCHARGE_MS = 30;
+const RESET_PULSE_MS = 45;
+const RESET_SETTLE_MS = 260;
 
-interface SerialPortLike {
-  open(options: { baudRate: number }): Promise<void>;
-  close(): Promise<void>;
-  readable: ReadableStream<Uint8Array> | null;
-  writable: WritableStream<Uint8Array> | null;
-  setSignals?(signals: { dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void>;
-}
-
-type ResetStrategy = 'classic' | 'avrdude' | 'inverted';
+type ResetStrategy = 'dtr-pulse' | 'rts-pulse' | 'both-pulse' | 'double-dtr-pulse' | 'double-both-pulse';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -164,41 +160,62 @@ async function sendCommand(
   return response;
 }
 
+async function setResetSignals(
+  port: SerialPortLike,
+  signals: { dataTerminalReady: boolean; requestToSend: boolean }
+): Promise<void> {
+  if (!port.setSignals) {
+    return;
+  }
+
+  await port.setSignals(signals);
+}
+
+async function pulseReset(
+  port: SerialPortLike,
+  signals: { dataTerminalReady: boolean; requestToSend: boolean },
+  settleMs: number = RESET_SETTLE_MS
+): Promise<void> {
+  await setResetSignals(port, { dataTerminalReady: false, requestToSend: false });
+  await sleep(RESET_DISCHARGE_MS);
+  await setResetSignals(port, signals);
+  await sleep(RESET_PULSE_MS);
+  await setResetSignals(port, { dataTerminalReady: false, requestToSend: false });
+  await sleep(settleMs);
+}
+
 /**
  * Reset the board by toggling modem control lines.
- * Different Uno-compatible USB bridges wire DTR/RTS slightly differently,
- * so we support a few reset strategies and try them in order.
+ * Uno-compatible boards vary in whether reset is wired to DTR, RTS, or both,
+ * so we try several pulse patterns that mirror avrdude's open/reset timing.
  */
-async function resetBoard(port: SerialPortLike, strategy: ResetStrategy = 'classic'): Promise<void> {
+async function resetBoard(port: SerialPortLike, strategy: ResetStrategy = 'dtr-pulse'): Promise<void> {
   if (!port.setSignals) {
     return;
   }
 
   try {
     switch (strategy) {
-      case 'classic':
-        await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-        await sleep(50);
-        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-        await sleep(50);
-        await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-        await sleep(220);
+      case 'dtr-pulse':
+        await pulseReset(port, { dataTerminalReady: true, requestToSend: false });
         break;
 
-      case 'avrdude':
-        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-        await sleep(20);
-        await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-        await sleep(250);
+      case 'rts-pulse':
+        await pulseReset(port, { dataTerminalReady: false, requestToSend: true });
         break;
 
-      case 'inverted':
-        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-        await sleep(50);
-        await port.setSignals({ dataTerminalReady: true, requestToSend: true });
-        await sleep(50);
-        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-        await sleep(220);
+      case 'both-pulse':
+        await pulseReset(port, { dataTerminalReady: true, requestToSend: true });
+        break;
+
+      case 'double-dtr-pulse':
+        await pulseReset(port, { dataTerminalReady: true, requestToSend: false }, 140);
+        await pulseReset(port, { dataTerminalReady: true, requestToSend: false });
+        break;
+
+      case 'double-both-pulse':
+        await pulseReset(port, { dataTerminalReady: true, requestToSend: true }, 140);
+        await pulseReset(port, { dataTerminalReady: true, requestToSend: true });
         break;
     }
   } catch {
@@ -222,7 +239,7 @@ async function sync(
       await sendCommand(writer, reader, [STK_GET_SYNC], attemptTimeout);
       return;
     } catch {
-      await sleep(50);
+      await sleep(20);
     }
   }
 
@@ -241,10 +258,12 @@ async function syncWithFallbacks(
     attempts: number;
     strategy?: ResetStrategy;
   }> = [
-    { label: 'Checking bootloader...', percent: 2, attempts: 3 },
-    { label: 'Resetting board...', percent: 4, attempts: 6, strategy: 'avrdude' },
-    { label: 'Retrying reset...', percent: 5, attempts: 8, strategy: 'classic' },
-    { label: 'Trying alternate reset...', percent: 6, attempts: 10, strategy: 'inverted' },
+    { label: 'Checking bootloader...', percent: 2, attempts: 4 },
+    { label: 'Auto-reset via DTR...', percent: 4, attempts: 8, strategy: 'dtr-pulse' },
+    { label: 'Auto-reset via RTS...', percent: 5, attempts: 8, strategy: 'rts-pulse' },
+    { label: 'Auto-reset via DTR + RTS...', percent: 6, attempts: 10, strategy: 'both-pulse' },
+    { label: 'Retrying reset...', percent: 7, attempts: 12, strategy: 'double-dtr-pulse' },
+    { label: 'Trying alternate reset...', percent: 8, attempts: 12, strategy: 'double-both-pulse' },
   ];
 
   for (const plan of plans) {
@@ -252,7 +271,7 @@ async function syncWithFallbacks(
 
     if (plan.strategy) {
       await resetBoard(port, plan.strategy);
-      await reader.drainInput();
+      await reader.drainInput(60);
     } else {
       reader.clear();
     }
