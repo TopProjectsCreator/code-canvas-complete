@@ -4,19 +4,25 @@ import { flashHex } from '@/services/stk500';
 const TEST_HEX = `:1000000041C0FFFFFFFFFFFFFFFFFFFFFFFFFFFFFD
 :00000001FF`;
 
+type ResetUnlockMode = 'any' | 'dtr' | 'rts' | 'both';
+
 class MockBootloaderPort {
   readable: ReadableStream<Uint8Array>;
   writable: WritableStream<Uint8Array>;
   private controller!: ReadableStreamDefaultController<Uint8Array>;
   private programmedPage = new Uint8Array();
+  private bootloaderUnlocked: boolean;
   public readonly signalCalls: Array<{ dataTerminalReady?: boolean; requestToSend?: boolean }> = [];
 
   constructor(
     private readonly options: {
       requireReset?: boolean;
+      resetUnlockMode?: ResetUnlockMode;
       syncDelayMs?: number;
     } = {}
   ) {
+    this.bootloaderUnlocked = !this.options.requireReset;
+
     this.readable = new ReadableStream<Uint8Array>({
       start: (controller) => {
         this.controller = controller;
@@ -35,6 +41,20 @@ class MockBootloaderPort {
 
   async setSignals(signals: { dataTerminalReady?: boolean; requestToSend?: boolean }): Promise<void> {
     this.signalCalls.push(signals);
+
+    if (!this.options.requireReset || this.bootloaderUnlocked) {
+      return;
+    }
+
+    const mode = this.options.resetUnlockMode ?? 'any';
+    if (
+      mode === 'any' ||
+      (mode === 'dtr' && signals.dataTerminalReady === true && signals.requestToSend === false) ||
+      (mode === 'rts' && signals.dataTerminalReady === false && signals.requestToSend === true) ||
+      (mode === 'both' && signals.dataTerminalReady === true && signals.requestToSend === true)
+    ) {
+      this.bootloaderUnlocked = true;
+    }
   }
 
   private enqueue(bytes: number[], delay = 0): void {
@@ -48,7 +68,7 @@ class MockBootloaderPort {
 
     switch (command) {
       case 0x30: {
-        if (this.options.requireReset && this.signalCalls.length === 0) {
+        if (this.options.requireReset && !this.bootloaderUnlocked) {
           return;
         }
         this.enqueue([0x14, 0x10], this.options.syncDelayMs ?? 0);
@@ -84,7 +104,7 @@ class MockBootloaderPort {
 
 describe('flashHex', () => {
   it('uploads successfully when sync arrives late', async () => {
-    const port = new MockBootloaderPort({ syncDelayMs: 150 });
+    const port = new MockBootloaderPort({ syncDelayMs: 80 });
     const onProgress = vi.fn();
 
     await flashHex(port, TEST_HEX, onProgress);
@@ -92,11 +112,19 @@ describe('flashHex', () => {
     expect(onProgress).toHaveBeenCalledWith('Upload complete!', 100);
   });
 
-  it('falls back to reset strategies when sync is only available after reset', async () => {
-    const port = new MockBootloaderPort({ requireReset: true, syncDelayMs: 150 });
+  it('falls back to a DTR reset pulse when sync is only available after reset', async () => {
+    const port = new MockBootloaderPort({ requireReset: true, resetUnlockMode: 'dtr', syncDelayMs: 80 });
 
     await flashHex(port, TEST_HEX);
 
-    expect(port.signalCalls.length).toBeGreaterThan(0);
+    expect(port.signalCalls).toContainEqual({ dataTerminalReady: true, requestToSend: false });
+  });
+
+  it('falls back to an RTS reset pulse when DTR reset is not wired', async () => {
+    const port = new MockBootloaderPort({ requireReset: true, resetUnlockMode: 'rts', syncDelayMs: 80 });
+
+    await flashHex(port, TEST_HEX);
+
+    expect(port.signalCalls).toContainEqual({ dataTerminalReady: false, requestToSend: true });
   });
 });

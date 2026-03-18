@@ -171,7 +171,7 @@ const parseMathExpression = (expression: string, xValue = 0) => {
   };
 
   try {
-    const fn = Function(...Object.keys(scope), `return (${normalized});`) as (...args: number[]) => unknown;
+    const fn = Function(...Object.keys(scope), `return (${normalized});`) as (...args: unknown[]) => unknown;
     const value = fn(...Object.values(scope));
     if (typeof value !== 'number' || Number.isNaN(value)) {
       return { ok: false as const, message: 'Expression returned an invalid number.' };
@@ -967,9 +967,12 @@ export const ToolsPanel = () => {
     await ffmpeg.deleteFile(outputName).catch(() => undefined);
     setFfmpegStatus(`Ready: ${outputName}`);
 
+    const blobBytes = new Uint8Array(bytes.byteLength);
+    blobBytes.set(bytes);
+
     return {
       kind: 'file' as const,
-      content: URL.createObjectURL(new Blob([bytes], { type: mimeType })),
+      content: URL.createObjectURL(new Blob([blobBytes], { type: mimeType })),
       fileName: outputName,
       mimeType,
     };
