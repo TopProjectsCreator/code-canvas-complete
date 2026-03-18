@@ -1030,6 +1030,18 @@ export const findFileById = (files: FileNode[], id: string): FileNode | null => 
   return null;
 };
 
+export const findFilePathById = (files: FileNode[], id: string, parents: string[] = []): string | null => {
+  for (const file of files) {
+    const nextParents = [...parents, file.name];
+    if (file.id === id) return nextParents.join('/');
+    if (file.children) {
+      const found = findFilePathById(file.children, id, nextParents);
+      if (found) return found;
+    }
+  }
+  return null;
+};
+
 export const getFileLanguage = (filename: string): string => {
   const ext = filename.split(".").pop()?.toLowerCase();
   const languageMap: Record<string, string> = {
