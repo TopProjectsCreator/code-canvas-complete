@@ -1174,9 +1174,9 @@ export const ToolsPanel = () => {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <div className="flex h-11 items-center justify-between border-b border-border px-3 text-xs uppercase tracking-[0.22em] text-muted-foreground font-medium">
+      <div className="flex h-9 items-center justify-between border-b border-border px-2.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
         <span>Tools</span>
-        <span className="rounded-full bg-accent px-2 py-1 text-[10px] text-foreground">Studio utilities</span>
+        <span className="rounded-full bg-accent px-2 py-0.5 text-[9px] text-foreground">Studio utilities</span>
       </div>
 
       <div className="grid grid-cols-6 border-b border-border bg-muted/20">
@@ -1191,17 +1191,17 @@ export const ToolsPanel = () => {
           <button
             key={tab.id}
             onClick={() => setActiveSection(tab.id as typeof activeSection)}
-            className={`border-r border-border px-2 py-2 text-[11px] last:border-r-0 ${activeSection === tab.id ? 'bg-background text-foreground' : 'text-muted-foreground hover:bg-accent/50'}`}
+            className={`border-r border-border px-1.5 py-1.5 text-[10px] last:border-r-0 ${activeSection === tab.id ? 'bg-background text-foreground' : 'text-muted-foreground hover:bg-accent/50'}`}
           >
-            <div className="flex flex-col items-center gap-1">
-              <tab.icon className="h-3.5 w-3.5" />
+            <div className="flex flex-col items-center gap-0.5">
+              <tab.icon className="h-3 w-3" />
               <span>{tab.label}</span>
             </div>
           </button>
         ))}
       </div>
 
-      <div className="flex-1 overflow-auto p-3 text-xs">
+      <div className="flex-1 overflow-auto p-2.5 text-[11px]">
         {activeSection === 'calculator' && (
           <div className="space-y-3">
             <div className="rounded-2xl border border-border bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-3 text-slate-50 shadow-lg shadow-slate-950/30">
