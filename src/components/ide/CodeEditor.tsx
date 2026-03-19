@@ -264,6 +264,7 @@ const escapeHtml = (str: string): string => str
   .replace(/"/g, '&quot;');
 
 export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: CodeEditorProps) => {
+  const { toast } = useToast();
   const [content, setContent] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ line: 0, col: 0 });
   const editorRef = useRef<HTMLDivElement>(null);
