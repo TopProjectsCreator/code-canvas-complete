@@ -352,6 +352,12 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
     setNewComment('');
   }, [file?.id]);
 
+  useEffect(() => {
+    if (selectedLine !== null) return;
+    const firstLine = fileComments[0]?.line_number ?? null;
+    setSelectedLine(firstLine);
+  }, [fileComments, selectedLine]);
+
   const handleInput = useCallback(() => {
     if (isComposingRef.current) return;
     const el = editorRef.current;
