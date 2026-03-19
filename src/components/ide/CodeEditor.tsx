@@ -611,24 +611,24 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
           </div>
         </div>
 
-        {collab && currentFilePath && selectedLine !== null && (
-          <aside className="flex w-[360px] shrink-0 flex-col border-l border-border bg-background/95">
+        {collab && currentFilePath && selectedLine !== null && (isCommentPanelOpen || selectedLineThreads.length > 0) && (
+          <aside className="flex w-[300px] shrink-0 flex-col border-l border-border bg-background/95 xl:w-[320px]">
             <div className="border-b border-border px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold">Line {selectedLine}</p>
-                  <p className="text-xs text-muted-foreground">Highlight a line, click comment, and keep the thread where the code lives.</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isCommentPanelOpen ? 'Leave an inline comment for this highlighted line.' : 'Inline thread for the selected line.'}
+                  </p>
                 </div>
-                <Badge variant="secondary" className="gap-1"><Sparkles className="h-3 w-3" /> Word-style</Badge>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {activePresence.slice(0, 4).map((entry) => (
-                  <Badge key={entry.userId} variant="outline" className="gap-1.5">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                    {entry.displayName}
-                    {entry.cursorLine ? ` · Ln ${entry.cursorLine}` : ''}
-                  </Badge>
-                ))}
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="gap-1"><Sparkles className="h-3 w-3" /> Inline</Badge>
+                  {isCommentPanelOpen && (
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setCommentDraftLine(null); setNewComment(''); }}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -698,26 +698,28 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
                 );
               })}
 
-              {selectedLineThreads.length === 0 && (
+              {selectedLineThreads.length === 0 && !isCommentPanelOpen && (
                 <div className="rounded-xl border border-dashed border-border bg-muted/30 p-5 text-sm text-muted-foreground">
-                  No comments on this line yet. Add one to start an inline review thread.
+                  No comments on this line yet.
                 </div>
               )}
             </div>
 
-            <div className="border-t border-border px-4 py-4">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-medium">Comment on line {selectedLine}</p>
-                <Badge variant="outline">{currentFilePath}</Badge>
+            {isCommentPanelOpen && (
+              <div className="border-t border-border px-4 py-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-medium">Comment on line {commentDraftLine}</p>
+                  <Badge variant="outline">{currentFilePath}</Badge>
+                </div>
+                <RichTextComposer value={newComment} onChange={setNewComment} placeholder="Mention changes, leave suggestions, or ask for follow-ups…" />
+                <div className="mt-3 flex justify-end">
+                  <Button type="button" className="gap-2" onClick={postComment} disabled={!richTextToPlainText(newComment) || postingComment}>
+                    <MessageSquare className="h-4 w-4" />
+                    {postingComment ? 'Posting…' : 'Comment'}
+                  </Button>
+                </div>
               </div>
-              <RichTextComposer value={newComment} onChange={setNewComment} placeholder="Mention changes, leave suggestions, or ask for follow-ups…" />
-              <div className="mt-3 flex justify-end">
-                <Button type="button" className="gap-2" onClick={postComment} disabled={!richTextToPlainText(newComment) || postingComment}>
-                  <MessageSquare className="h-4 w-4" />
-                  {postingComment ? 'Posting…' : 'Comment'}
-                </Button>
-              </div>
-            </div>
+            )}
           </aside>
         )}
       </div>
