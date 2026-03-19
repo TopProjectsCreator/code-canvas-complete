@@ -916,6 +916,17 @@ Deno.serve(async (req: Request) => {
     }
 
     if (maxAddr === 0) {
+      if (boardConfig.isArm && asmEntries.length > 0) {
+        return new Response(
+          JSON.stringify({
+            binary: bytesToBase64(new Uint8Array()),
+            format: 'bin',
+            size: 0,
+            warnings: stderr || null,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({
           compiled: true,
