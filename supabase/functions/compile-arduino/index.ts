@@ -552,6 +552,19 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+function parseOpcodeToken(token: string): number[] {
+  const normalized = token.trim().replace(/^0x/i, '').toLowerCase();
+  if (!/^[0-9a-f]+$/.test(normalized) || normalized.length === 0 || normalized.length % 2 !== 0) {
+    return [];
+  }
+
+  const bytes: number[] = [];
+  for (let i = 0; i < normalized.length; i += 2) {
+    bytes.push(parseInt(normalized.slice(i, i + 2), 16));
+  }
+  return bytes;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -794,10 +807,12 @@ Deno.serve(async (req: Request) => {
         if (typeof entry.address === 'number' && entry.opcodes) {
           const opcodes = Array.isArray(entry.opcodes)
             ? entry.opcodes
-                .map((value) => typeof value === 'number' ? value : parseInt(String(value), 16))
+                .flatMap((value) => typeof value === 'number'
+                  ? [value]
+                  : parseOpcodeToken(String(value)))
                 .filter((value) => Number.isFinite(value) && value >= 0 && value <= 0xFF)
             : (typeof entry.opcodes === 'string'
-              ? entry.opcodes.trim().split(/\s+/).map((b: string) => parseInt(b, 16))
+              ? entry.opcodes.trim().split(/\s+/).flatMap((token: string) => parseOpcodeToken(token))
               : []);
           if (opcodes.length > 0) {
             parsed = { addr: entry.address, bytes: opcodes };
@@ -896,10 +911,10 @@ Deno.serve(async (req: Request) => {
         const addr = entry.address;
         const opcodes: number[] = Array.isArray(entry.opcodes)
           ? entry.opcodes
-              .map((value: number | string) => typeof value === 'number' ? value : parseInt(String(value), 16))
+              .flatMap((value: number | string) => typeof value === 'number' ? [value] : parseOpcodeToken(String(value)))
               .filter((value: number) => Number.isFinite(value) && value >= 0 && value <= 0xFF)
           : (typeof entry.opcodes === 'string'
-            ? entry.opcodes.trim().split(/\s+/).map((b: string) => parseInt(b, 16))
+            ? entry.opcodes.trim().split(/\s+/).flatMap((token: string) => parseOpcodeToken(token))
             : []);
 
         if (opcodes.length > 0) {
@@ -916,6 +931,17 @@ Deno.serve(async (req: Request) => {
     }
 
     if (maxAddr === 0) {
+      if (boardConfig.isArm && asmEntries.length > 0) {
+        return new Response(
+          JSON.stringify({
+            binary: bytesToBase64(new Uint8Array()),
+            format: 'bin',
+            size: 0,
+            warnings: stderr || null,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({
           compiled: true,
