@@ -429,21 +429,23 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
   }
 
   const postComment = useCallback(async () => {
-    if (!collab || !currentFilePath || selectedLine === null || !sanitizeRichText(newComment)) {
-      if (!collab || !currentFilePath || selectedLine === null) {
+    if (!collab || !currentFilePath || commentDraftLine === null || !sanitizeRichText(newComment)) {
+      if (!collab || !currentFilePath || commentDraftLine === null) {
         toast({ title: 'Cannot post comment', description: 'Please save the project and sign in first.', variant: 'destructive' });
       }
       return;
     }
     setPostingComment(true);
-    const ok = await collab.addComment(currentFilePath, selectedLine, sanitizeRichText(newComment));
+    const ok = await collab.addComment(currentFilePath, commentDraftLine, sanitizeRichText(newComment));
     setPostingComment(false);
     if (ok) {
       setNewComment('');
+      setSelectedLine(commentDraftLine);
+      setCommentDraftLine(null);
     } else {
       toast({ title: 'Comment failed', description: 'Please save the project and sign in to leave comments.', variant: 'destructive' });
     }
-  }, [collab, currentFilePath, newComment, selectedLine, toast]);
+  }, [collab, commentDraftLine, currentFilePath, newComment, toast]);
 
   const postReply = useCallback(async (commentId: string) => {
     if (!collab || !currentFilePath || selectedLine === null) {
