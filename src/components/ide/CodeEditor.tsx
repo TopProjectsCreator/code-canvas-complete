@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { ChevronRight, MessageSquare, PanelRightOpen, Radar, Send, Sparkles, TestTube2, WandSparkles } from 'lucide-react';
 import { MessageSquare, Send, Sparkles, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/ide';
@@ -14,13 +15,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { RichTextComposer } from './RichTextComposer';
+import { AdvancedWorkbench } from './AdvancedWorkbench';
 import { richTextToPlainText, sanitizeRichText } from '@/lib/richText';
 import { useCollaboration } from '@/hooks/useCollaboration';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { extractScopeHeaders, generateUnitTestFile, getScopeForLine } from '@/lib/advancedWorkbench';
 
 interface CodeEditorProps {
   file: FileNode | null;
+  allFiles: FileNode[];
   currentFilePath?: string | null;
   onContentChange: (fileId: string, content: string) => void;
+  onCreateOrUpdateFile: (name: string, content: string, language?: string) => void;
   collab?: ReturnType<typeof useCollaboration>;
 }
 
@@ -263,7 +269,7 @@ const escapeHtml = (str: string): string => str
   .replace(/>/g, '&gt;')
   .replace(/"/g, '&quot;');
 
-export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: CodeEditorProps) => {
+export const CodeEditor = ({ file, allFiles, currentFilePath, onContentChange, onCreateOrUpdateFile, collab }: CodeEditorProps) => {
   const { toast } = useToast();
   const [content, setContent] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ line: 0, col: 0 });
@@ -278,6 +284,9 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [postingComment, setPostingComment] = useState(false);
   const [postingReplyId, setPostingReplyId] = useState<string | null>(null);
+  const [showWorkbench, setShowWorkbench] = useState(true);
+  const [asideTab, setAsideTab] = useState<'assistant' | 'comments'>('assistant');
+  const [foldedScopes, setFoldedScopes] = useState<string[]>([]);
   const isComposingRef = useRef(false);
   const contentRef = useRef(content);
   const cursorOffsetRef = useRef<number | null>(null);
@@ -306,6 +315,9 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
     () => collab?.presence.filter((entry) => entry.currentFile === currentFilePath) || [],
     [collab?.presence, currentFilePath],
   );
+  const scopes = useMemo(() => extractScopeHeaders(content), [content]);
+  const currentScope = useMemo(() => getScopeForLine(content, selectedLine || cursorPosition.line || 1), [content, selectedLine, cursorPosition.line]);
+  const foldedScopeSet = useMemo(() => new Set(foldedScopes), [foldedScopes]);
 
   useEffect(() => {
     contentRef.current = content;
@@ -557,7 +569,118 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
         onHighlightChange={handleHighlightChange}
       />
 
+      <div className="flex items-center justify-between border-b border-border bg-background/90 px-4 py-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="gap-1.5"><Radar className="h-3.5 w-3.5" />Minimap</Badge>
+          <Badge variant="outline" className="gap-1.5"><ChevronRight className="h-3.5 w-3.5" />{scopes.length} folds</Badge>
+          <Badge variant="secondary" className="gap-1.5"><WandSparkles className="h-3.5 w-3.5" />{currentScope?.name || 'Global scope'}</Badge>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button type="button" size="sm" variant="outline" className="h-7 gap-1.5" onClick={() => { const generated = generateUnitTestFile(file.name, content); onCreateOrUpdateFile(generated.fileName, generated.content, 'typescript'); }}>
+            <TestTube2 className="h-3.5 w-3.5" />Quick test file
+          </Button>
+          <Button type="button" size="sm" variant="ghost" className="h-7 gap-1.5" onClick={() => setShowWorkbench((prev) => !prev)}>
+            <PanelRightOpen className="h-3.5 w-3.5" />{showWorkbench ? 'Hide dock' : 'Show dock'}
+          </Button>
+        </div>
+      </div>
+
       <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-w-0 flex-1 overflow-auto ide-scrollbar">
+            <div className="flex min-h-full min-w-full">
+              <div className="sticky left-0 z-10 bg-editor pt-[2px] font-mono text-sm leading-6 text-muted-foreground">
+                {content.split('\n').map((_, index) => {
+                  const lineNumber = index + 1;
+                  const lineComments = commentsByLine.get(lineNumber) || [];
+                  const selected = selectedLine === lineNumber;
+                  const peers = activePresence.filter((entry) => entry.cursorLine === lineNumber);
+                  return (
+                    <button
+                      key={lineNumber}
+                      type="button"
+                      onClick={() => setSelectedLine(lineNumber)}
+                      className={cn(
+                        'flex min-w-[3.5rem] items-center justify-end gap-1 pr-2 text-right text-xs leading-6 transition-colors',
+                        selected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/40',
+                      )}
+                    >
+                      {lineComments.length > 0 && <MessageSquare className="h-3 w-3 text-primary" />}
+                      {peers.length > 0 && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
+                      <span>{lineNumber}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="sticky left-[3.5rem] z-10 bg-editor/95 px-1 pt-[2px] font-mono text-xs text-muted-foreground">
+                {content.split('\n').map((_, index) => {
+                  const lineNumber = index + 1;
+                  const scope = scopes.find((entry) => entry.line === lineNumber);
+                  if (!scope) return <div key={`fold-${lineNumber}`} className="h-6 w-5" />;
+                  const scopeId = `${scope.name}-${scope.line}`;
+                  const isFolded = foldedScopeSet.has(scopeId);
+                  return (
+                    <button
+                      key={scopeId}
+                      type="button"
+                      className={cn('flex h-6 w-5 items-center justify-center rounded-sm transition-colors hover:bg-muted/50', isFolded && 'bg-primary/10 text-primary')}
+                      onClick={() => setFoldedScopes((prev) => prev.includes(scopeId) ? prev.filter((entry) => entry !== scopeId) : [...prev, scopeId])}
+                      title={`${isFolded ? 'Expand' : 'Fold'} ${scope.name}`}
+                    >
+                      <ChevronRight className={cn('h-3 w-3 transition-transform', !isFolded && 'rotate-90')} />
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="relative min-w-0 flex-1">
+                <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/85 px-4 py-2 backdrop-blur-sm">
+                  <div>
+                    <p className="text-sm font-semibold">{currentScope?.name || file.name}</p>
+                    <p className="text-xs text-muted-foreground">Sticky scope header · {currentScope ? `${currentScope.kind} lines ${currentScope.line}-${currentScope.endLine}` : 'Top-level workspace'}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {activePresence.slice(0, 3).map((entry) => (
+                      <Badge key={entry.userId} variant="outline" className="gap-1.5">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                        {entry.displayName}
+                        {entry.cursorLine ? ` · Ln ${entry.cursorLine}` : ''}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                {selectedLine !== null && (
+                  <div className="pointer-events-none absolute inset-x-0 z-0" style={{ top: `${(selectedLine - 1) * 24 + 42}px` }}>
+                    <div className="h-6 bg-primary/5" />
+                  </div>
+                )}
+                <div className="relative">
+                  <div
+                    ref={editorRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onInput={handleInput}
+                    onKeyDown={handleEditorKeyDown}
+                    onPaste={handlePaste}
+                    onCompositionStart={() => { isComposingRef.current = true; }}
+                    onCompositionEnd={() => { isComposingRef.current = false; handleInput(); }}
+                    className="relative z-10 min-w-0 flex-1 pl-[6px] pt-[2px] font-mono text-sm leading-6 caret-foreground outline-none"
+                    spellCheck={false}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    dangerouslySetInnerHTML={{ __html: buildHighlightedHtml() }}
+                  />
+                  <div className="pointer-events-none absolute inset-x-3 top-2 z-20 space-y-1">
+                    {activePresence.filter((entry) => entry.cursorLine).slice(0, 4).map((entry) => (
+                      <div key={`presence-${entry.userId}`} className="absolute right-4 flex items-center gap-2 rounded-full border border-border bg-background/90 px-2 py-0.5 text-[11px] shadow-sm" style={{ top: `${((entry.cursorLine || 1) - 1) * 24 + 40}px` }}>
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                        {entry.displayName}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
         <div className="flex min-w-0 flex-1 overflow-auto ide-scrollbar">
           <div className="flex min-h-full min-w-full">
             <div className="sticky left-0 z-10 bg-editor pt-[2px] font-mono text-sm leading-6 text-muted-foreground">
@@ -587,11 +710,14 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
               })}
             </div>
 
-            <div className="relative min-w-0 flex-1">
-              {selectedLine !== null && (
-                <div className="pointer-events-none absolute inset-x-0 z-0" style={{ top: `${(selectedLine - 1) * 24 + 2}px` }}>
-                  <div className="h-6 bg-primary/5" />
+              <div className="hidden w-[92px] shrink-0 border-l border-border bg-background/70 px-2 py-3 xl:block">
+                <div className="mb-3 flex items-center gap-2 text-xs font-medium text-muted-foreground"><Radar className="h-3.5 w-3.5" />Minimap</div>
+                <div className="space-y-1">
+                  {content.split('\n').map((line, index) => (
+                    <button key={`mini-${index + 1}`} type="button" onClick={() => setSelectedLine(index + 1)} className={cn('block h-1.5 w-full rounded-full bg-muted/70 text-left transition-colors hover:bg-primary/40', selectedLine === index + 1 && 'bg-primary', line.trim().startsWith('function') && 'bg-violet-400/80', line.includes('class') && 'bg-cyan-400/80')} title={`Line ${index + 1}`} />
+                  ))}
                 </div>
+              </div>
               )}
               {collab && selectedLine !== null && !isCommentPanelOpen && (
                 <div className="pointer-events-none absolute right-3 z-20" style={{ top: `${(selectedLine - 1) * 24 + 2}px` }}>
@@ -631,6 +757,21 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
           </div>
         </div>
 
+        {showWorkbench && (
+          <aside className="flex w-[420px] shrink-0 flex-col border-l border-border bg-background/95">
+            <Tabs value={asideTab} onValueChange={(value) => setAsideTab(value as 'assistant' | 'comments')} className="flex h-full flex-col">
+              <div className="border-b border-border px-3 py-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">Developer dock</p>
+                    <p className="text-xs text-muted-foreground">AI copilot, reviews, collaboration, and tooling in one panel.</p>
+                  </div>
+                  <Badge variant="secondary" className="gap-1"><Sparkles className="h-3 w-3" />Feature-rich</Badge>
+                </div>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="assistant">Workbench</TabsTrigger>
+                  <TabsTrigger value="comments">Threads</TabsTrigger>
+                </TabsList>
         {collab && currentFilePath && selectedLine !== null && (isCommentPanelOpen || selectedLineThreads.length > 0) && (
           <aside className="flex w-[300px] shrink-0 flex-col border-l border-border bg-background/95 xl:w-[320px]">
             <div className="border-b border-border px-4 py-3">
@@ -650,71 +791,135 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
                   )}
                 </div>
               </div>
-            </div>
 
-            <div className="flex-1 space-y-3 overflow-auto px-4 py-4">
-              {selectedLineThreads.map((comment) => {
-                const replies = fileComments.filter((entry) => entry.parent_id === comment.id);
-                return (
-                  <div key={comment.id} className="rounded-xl border border-border bg-card/70 p-3 shadow-sm">
-                    <div className="flex items-start gap-3">
-                      <Avatar className="mt-0.5 h-8 w-8">
-                        <AvatarImage src={comment.profile?.avatar_url || undefined} />
-                        <AvatarFallback>{(comment.profile?.display_name || 'U').slice(0, 2).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <p className="text-sm font-medium">{comment.profile?.display_name || 'User'}</p>
-                            <p className="text-[11px] text-muted-foreground">{new Date(comment.created_at).toLocaleString()}</p>
-                          </div>
-                          {!comment.resolved ? (
-                            <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => collab.resolveComment(comment.id, true)}>
-                              Resolve
-                            </Button>
-                          ) : (
-                            <Badge variant="outline">Resolved</Badge>
-                          )}
+              <TabsContent value="assistant" className="mt-0 min-h-0 flex-1 overflow-hidden">
+                <AdvancedWorkbench
+                  file={{ ...file, content }}
+                  allFiles={allFiles}
+                  currentFilePath={currentFilePath}
+                  selectedLine={selectedLine}
+                  onContentChange={onContentChange}
+                  onCreateOrUpdateFile={onCreateOrUpdateFile}
+                  collab={collab}
+                />
+              </TabsContent>
+
+              <TabsContent value="comments" className="mt-0 min-h-0 flex-1 overflow-hidden">
+                {collab && currentFilePath && selectedLine !== null ? (
+                  <div className="flex h-full flex-col">
+                    <div className="border-b border-border px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">Line {selectedLine}</p>
+                          <p className="text-xs text-muted-foreground">Highlight a line, click comment, and keep the thread where the code lives.</p>
                         </div>
-                        <div className="prose prose-sm mt-2 max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: sanitizeRichText(comment.content) }} />
+                        <Badge variant="secondary" className="gap-1"><Sparkles className="h-3 w-3" />Word-style</Badge>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {activePresence.slice(0, 4).map((entry) => (
+                          <Badge key={entry.userId} variant="outline" className="gap-1.5">
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
+                            {entry.displayName}
+                            {entry.cursorLine ? ` · Ln ${entry.cursorLine}` : ''}
+                          </Badge>
+                        ))}
                       </div>
                     </div>
 
-                    {replies.length > 0 && (
-                      <div className="mt-3 space-y-2 border-l border-border pl-4">
-                        {replies.map((reply) => (
-                          <div key={reply.id} className="rounded-lg bg-muted/40 p-2.5">
-                            <div className="mb-1 flex items-center gap-2 text-xs">
-                              <span className="font-semibold">{reply.profile?.display_name || 'User'}</span>
-                              <span className="text-muted-foreground">{new Date(reply.created_at).toLocaleString()}</span>
+                    <div className="flex-1 space-y-3 overflow-auto px-4 py-4">
+                      {selectedLineThreads.map((comment) => {
+                        const replies = fileComments.filter((entry) => entry.parent_id === comment.id);
+                        return (
+                          <div key={comment.id} className="rounded-xl border border-border bg-card/70 p-3 shadow-sm">
+                            <div className="flex items-start gap-3">
+                              <Avatar className="mt-0.5 h-8 w-8">
+                                <AvatarImage src={comment.profile?.avatar_url || undefined} />
+                                <AvatarFallback>{(comment.profile?.display_name || 'U').slice(0, 2).toUpperCase()}</AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div>
+                                    <p className="text-sm font-medium">{comment.profile?.display_name || 'User'}</p>
+                                    <p className="text-[11px] text-muted-foreground">{new Date(comment.created_at).toLocaleString()}</p>
+                                  </div>
+                                  {!comment.resolved ? (
+                                    <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => collab.resolveComment(comment.id, true)}>
+                                      Resolve
+                                    </Button>
+                                  ) : (
+                                    <Badge variant="outline">Resolved</Badge>
+                                  )}
+                                </div>
+                                <div className="prose prose-sm mt-2 max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: sanitizeRichText(comment.content) }} />
+                              </div>
                             </div>
-                            <div className="prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: sanitizeRichText(reply.content) }} />
-                          </div>
-                        ))}
-                      </div>
-                    )}
 
-                    <div className="mt-3 space-y-2">
-                      <RichTextComposer
-                        value={replyDrafts[comment.id] || ''}
-                        onChange={(value) => setReplyDrafts((prev) => ({ ...prev, [comment.id]: value }))}
-                        placeholder="Add a follow-up…"
-                        minHeightClassName="min-h-[84px]"
-                      />
-                      <div className="flex justify-end">
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="gap-1.5"
-                          disabled={!richTextToPlainText(replyDrafts[comment.id] || '') || postingReplyId === comment.id}
-                          onClick={() => postReply(comment.id)}
-                        >
-                          <Send className="h-3.5 w-3.5" />
-                          {postingReplyId === comment.id ? 'Posting…' : 'Reply'}
+                            {replies.length > 0 && (
+                              <div className="mt-3 space-y-2 border-l border-border pl-4">
+                                {replies.map((reply) => (
+                                  <div key={reply.id} className="rounded-lg bg-muted/40 p-2.5">
+                                    <div className="mb-1 flex items-center gap-2 text-xs">
+                                      <span className="font-semibold">{reply.profile?.display_name || 'User'}</span>
+                                      <span className="text-muted-foreground">{new Date(reply.created_at).toLocaleString()}</span>
+                                    </div>
+                                    <div className="prose prose-sm max-w-none dark:prose-invert" dangerouslySetInnerHTML={{ __html: sanitizeRichText(reply.content) }} />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div className="mt-3 space-y-2">
+                              <RichTextComposer
+                                value={replyDrafts[comment.id] || ''}
+                                onChange={(value) => setReplyDrafts((prev) => ({ ...prev, [comment.id]: value }))}
+                                placeholder="Add a follow-up…"
+                                minHeightClassName="min-h-[84px]"
+                              />
+                              <div className="flex justify-end">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="gap-1.5"
+                                  disabled={!richTextToPlainText(replyDrafts[comment.id] || '') || postingReplyId === comment.id}
+                                  onClick={() => postReply(comment.id)}
+                                >
+                                  <Send className="h-3.5 w-3.5" />
+                                  {postingReplyId === comment.id ? 'Posting…' : 'Reply'}
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {selectedLineThreads.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-border bg-muted/30 p-5 text-sm text-muted-foreground">
+                          No comments on this line yet. Add one to start an inline review thread.
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-border px-4 py-4">
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-sm font-medium">Comment on line {selectedLine}</p>
+                        <Badge variant="outline">{currentFilePath}</Badge>
+                      </div>
+                      <RichTextComposer value={newComment} onChange={setNewComment} placeholder="Mention changes, leave suggestions, or ask for follow-ups…" />
+                      <div className="mt-3 flex justify-end">
+                        <Button type="button" className="gap-2" onClick={postComment} disabled={!richTextToPlainText(newComment) || postingComment}>
+                          <MessageSquare className="h-4 w-4" />
+                          {postingComment ? 'Posting…' : 'Comment'}
                         </Button>
                       </div>
                     </div>
                   </div>
+                ) : (
+                  <div className="flex h-full items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                    Select a line in a collaborative file to open threaded comments.
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
                 );
               })}
 
@@ -743,7 +948,6 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
           </aside>
         )}
       </div>
-
       <div className="flex items-center justify-between border-t border-border bg-background px-4 py-1 text-xs text-muted-foreground">
         <div className="flex items-center gap-4">
           <span>{file.language || 'Plain Text'}</span>
