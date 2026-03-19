@@ -552,6 +552,19 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+function parseOpcodeToken(token: string): number[] {
+  const normalized = token.trim().replace(/^0x/i, '').toLowerCase();
+  if (!/^[0-9a-f]+$/.test(normalized) || normalized.length === 0 || normalized.length % 2 !== 0) {
+    return [];
+  }
+
+  const bytes: number[] = [];
+  for (let i = 0; i < normalized.length; i += 2) {
+    bytes.push(parseInt(normalized.slice(i, i + 2), 16));
+  }
+  return bytes;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
