@@ -278,6 +278,7 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [postingComment, setPostingComment] = useState(false);
   const [postingReplyId, setPostingReplyId] = useState<string | null>(null);
+  const isComposingRef = useRef(false);
   const contentRef = useRef(content);
   const cursorOffsetRef = useRef<number | null>(null);
   const prevContentRef = useRef(content);
