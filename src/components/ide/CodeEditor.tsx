@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronRight, MessageSquare, PanelRightOpen, Radar, Send, Sparkles, TestTube2, WandSparkles } from 'lucide-react';
+import { MessageSquare, Send, Sparkles, X } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/ide';
 import { FindReplace } from './FindReplace';
 import { FilePreview } from './FilePreview';
@@ -268,6 +270,7 @@ const escapeHtml = (str: string): string => str
   .replace(/"/g, '&quot;');
 
 export const CodeEditor = ({ file, allFiles, currentFilePath, onContentChange, onCreateOrUpdateFile, collab }: CodeEditorProps) => {
+  const { toast } = useToast();
   const [content, setContent] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ line: 0, col: 0 });
   const editorRef = useRef<HTMLDivElement>(null);
@@ -276,6 +279,7 @@ export const CodeEditor = ({ file, allFiles, currentFilePath, onContentChange, o
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
   const [markdownPreview, setMarkdownPreview] = useState(true);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
+  const [commentDraftLine, setCommentDraftLine] = useState<number | null>(null);
   const [newComment, setNewComment] = useState('');
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [postingComment, setPostingComment] = useState(false);
@@ -306,6 +310,7 @@ export const CodeEditor = ({ file, allFiles, currentFilePath, onContentChange, o
     return map;
   }, [rootComments]);
   const selectedLineThreads = useMemo(() => commentsByLine.get(selectedLine || -1) || [], [commentsByLine, selectedLine]);
+  const isCommentPanelOpen = commentDraftLine !== null;
   const activePresence = useMemo(
     () => collab?.presence.filter((entry) => entry.currentFile === currentFilePath) || [],
     [collab?.presence, currentFilePath],
@@ -361,6 +366,7 @@ export const CodeEditor = ({ file, allFiles, currentFilePath, onContentChange, o
     if (selectedLine !== null) return;
     const firstLine = fileComments[0]?.line_number ?? null;
     setSelectedLine(firstLine);
+    setCommentDraftLine(null);
   }, [fileComments, selectedLine]);
 
   const handleInput = useCallback(() => {
@@ -436,15 +442,29 @@ export const CodeEditor = ({ file, allFiles, currentFilePath, onContentChange, o
   }
 
   const postComment = useCallback(async () => {
-    if (!collab || !currentFilePath || !selectedLine || !sanitizeRichText(newComment)) return;
+    if (!collab || !currentFilePath || commentDraftLine === null || !sanitizeRichText(newComment)) {
+      if (!collab || !currentFilePath || commentDraftLine === null) {
+        toast({ title: 'Cannot post comment', description: 'Please save the project and sign in first.', variant: 'destructive' });
+      }
+      return;
+    }
     setPostingComment(true);
-    const ok = await collab.addComment(currentFilePath, selectedLine, sanitizeRichText(newComment));
+    const ok = await collab.addComment(currentFilePath, commentDraftLine, sanitizeRichText(newComment));
     setPostingComment(false);
-    if (ok) setNewComment('');
-  }, [collab, currentFilePath, newComment, selectedLine]);
+    if (ok) {
+      setNewComment('');
+      setSelectedLine(commentDraftLine);
+      setCommentDraftLine(null);
+    } else {
+      toast({ title: 'Comment failed', description: 'Please save the project and sign in to leave comments.', variant: 'destructive' });
+    }
+  }, [collab, commentDraftLine, currentFilePath, newComment, toast]);
 
   const postReply = useCallback(async (commentId: string) => {
-    if (!collab || !currentFilePath || !selectedLine) return;
+    if (!collab || !currentFilePath || selectedLine === null) {
+      toast({ title: 'Cannot post reply', description: 'Please save the project and sign in first.', variant: 'destructive' });
+      return;
+    }
     const draft = sanitizeRichText(replyDrafts[commentId] || '');
     if (!draft) return;
     setPostingReplyId(commentId);
@@ -452,8 +472,10 @@ export const CodeEditor = ({ file, allFiles, currentFilePath, onContentChange, o
     setPostingReplyId(null);
     if (ok) {
       setReplyDrafts((prev) => ({ ...prev, [commentId]: '' }));
+    } else {
+      toast({ title: 'Reply failed', description: 'Please save the project and sign in to reply.', variant: 'destructive' });
     }
-  }, [collab, currentFilePath, replyDrafts, selectedLine]);
+  }, [collab, currentFilePath, replyDrafts, selectedLine, toast]);
 
   if (!file) {
     return (
@@ -659,6 +681,34 @@ export const CodeEditor = ({ file, allFiles, currentFilePath, onContentChange, o
                   </div>
                 </div>
               </div>
+        <div className="flex min-w-0 flex-1 overflow-auto ide-scrollbar">
+          <div className="flex min-h-full min-w-full">
+            <div className="sticky left-0 z-10 bg-editor pt-[2px] font-mono text-sm leading-6 text-muted-foreground">
+              {content.split('\n').map((_, index) => {
+                const lineNumber = index + 1;
+                const lineComments = commentsByLine.get(lineNumber) || [];
+                const selected = selectedLine === lineNumber;
+                const peers = activePresence.filter((entry) => entry.cursorLine === lineNumber);
+                return (
+                  <button
+                    key={lineNumber}
+                    type="button"
+                    onClick={() => {
+                      setSelectedLine(lineNumber);
+                      setCommentDraftLine(null);
+                    }}
+                    className={cn(
+                      'flex min-w-[3.25rem] items-center justify-end gap-1 pr-2 text-right text-xs leading-6 transition-colors',
+                      selected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/40',
+                    )}
+                  >
+                    {lineComments.length > 0 && <MessageSquare className="h-3 w-3 text-primary" />}
+                    {peers.length > 0 && <span className="h-2 w-2 rounded-full bg-primary" />}
+                    <span>{lineNumber}</span>
+                  </button>
+                );
+              })}
+            </div>
 
               <div className="hidden w-[92px] shrink-0 border-l border-border bg-background/70 px-2 py-3 xl:block">
                 <div className="mb-3 flex items-center gap-2 text-xs font-medium text-muted-foreground"><Radar className="h-3.5 w-3.5" />Minimap</div>
@@ -668,6 +718,41 @@ export const CodeEditor = ({ file, allFiles, currentFilePath, onContentChange, o
                   ))}
                 </div>
               </div>
+              )}
+              {collab && selectedLine !== null && !isCommentPanelOpen && (
+                <div className="pointer-events-none absolute right-3 z-20" style={{ top: `${(selectedLine - 1) * 24 + 2}px` }}>
+                  <div className="pointer-events-auto flex h-6 items-center">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="h-6 px-2 text-[11px]"
+                      onClick={() => {
+                        setCommentDraftLine(selectedLine);
+                        setNewComment('');
+                      }}
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      Comment
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={handleInput}
+                onKeyDown={handleEditorKeyDown}
+                onPaste={handlePaste}
+                onCompositionStart={() => { isComposingRef.current = true; }}
+                onCompositionEnd={() => { isComposingRef.current = false; handleInput(); }}
+                className="relative z-10 min-w-0 flex-1 pl-[6px] pt-[2px] font-mono text-sm leading-6 caret-foreground outline-none"
+                spellCheck={false}
+                autoCapitalize="off"
+                autoCorrect="off"
+                dangerouslySetInnerHTML={{ __html: buildHighlightedHtml() }}
+              />
             </div>
           </div>
         </div>
@@ -687,6 +772,24 @@ export const CodeEditor = ({ file, allFiles, currentFilePath, onContentChange, o
                   <TabsTrigger value="assistant">Workbench</TabsTrigger>
                   <TabsTrigger value="comments">Threads</TabsTrigger>
                 </TabsList>
+        {collab && currentFilePath && selectedLine !== null && (isCommentPanelOpen || selectedLineThreads.length > 0) && (
+          <aside className="flex w-[300px] shrink-0 flex-col border-l border-border bg-background/95 xl:w-[320px]">
+            <div className="border-b border-border px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold">Line {selectedLine}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isCommentPanelOpen ? 'Leave an inline comment for this highlighted line.' : 'Inline thread for the selected line.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="gap-1"><Sparkles className="h-3 w-3" /> Inline</Badge>
+                  {isCommentPanelOpen && (
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setCommentDraftLine(null); setNewComment(''); }}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <TabsContent value="assistant" className="mt-0 min-h-0 flex-1 overflow-hidden">
@@ -817,6 +920,31 @@ export const CodeEditor = ({ file, allFiles, currentFilePath, onContentChange, o
                 )}
               </TabsContent>
             </Tabs>
+                );
+              })}
+
+              {selectedLineThreads.length === 0 && !isCommentPanelOpen && (
+                <div className="rounded-xl border border-dashed border-border bg-muted/30 p-5 text-sm text-muted-foreground">
+                  No comments on this line yet.
+                </div>
+              )}
+            </div>
+
+            {isCommentPanelOpen && (
+              <div className="border-t border-border px-4 py-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-medium">Comment on line {commentDraftLine}</p>
+                  <Badge variant="outline">{currentFilePath}</Badge>
+                </div>
+                <RichTextComposer value={newComment} onChange={setNewComment} placeholder="Mention changes, leave suggestions, or ask for follow-ups…" />
+                <div className="mt-3 flex justify-end">
+                  <Button type="button" className="gap-2" onClick={postComment} disabled={!richTextToPlainText(newComment) || postingComment}>
+                    <MessageSquare className="h-4 w-4" />
+                    {postingComment ? 'Posting…' : 'Comment'}
+                  </Button>
+                </div>
+              </div>
+            )}
           </aside>
         )}
       </div>

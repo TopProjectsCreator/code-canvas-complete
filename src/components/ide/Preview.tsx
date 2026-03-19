@@ -308,7 +308,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
 
         {/* DevTools Panel */}
         {showDevTools && (
-          <div className="h-[240px] border-t border-border bg-card flex flex-col shrink-0">
+          <div className="h-[180px] border-t border-border bg-card flex flex-col shrink-0 xl:h-[200px]">
             {/* DevTools tabs */}
             <div className="flex items-center border-b border-border px-1 h-8 shrink-0">
               {devToolsTabs.map(tab => (
