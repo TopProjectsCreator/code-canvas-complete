@@ -17,3 +17,5 @@ export { WorkflowsPanel } from './WorkflowsPanel';
 export { FilePreview } from './FilePreview';
 export { GitProviderImportDialog } from './GitProviderImportDialog';
 export { SettingsDialog } from './SettingsDialog';
+
+export { AdvancedWorkbench } from './AdvancedWorkbench';
