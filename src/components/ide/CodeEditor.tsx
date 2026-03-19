@@ -353,6 +353,7 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
     if (selectedLine !== null) return;
     const firstLine = fileComments[0]?.line_number ?? null;
     setSelectedLine(firstLine);
+    setCommentDraftLine(null);
   }, [fileComments, selectedLine]);
 
   const handleInput = useCallback(() => {
