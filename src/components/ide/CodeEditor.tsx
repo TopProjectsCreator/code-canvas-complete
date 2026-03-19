@@ -592,6 +592,25 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
                   <div className="h-6 bg-primary/5" />
                 </div>
               )}
+              {collab && selectedLine !== null && !isCommentPanelOpen && (
+                <div className="pointer-events-none absolute right-3 z-20" style={{ top: `${(selectedLine - 1) * 24 + 2}px` }}>
+                  <div className="pointer-events-auto flex h-6 items-center">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="h-6 px-2 text-[11px]"
+                      onClick={() => {
+                        setCommentDraftLine(selectedLine);
+                        setNewComment('');
+                      }}
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      Comment
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div
                 ref={editorRef}
                 contentEditable
