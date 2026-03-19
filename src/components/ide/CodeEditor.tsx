@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { MessageSquare, Send, Sparkles } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/ide';
 import { FindReplace } from './FindReplace';
 import { FilePreview } from './FilePreview';
