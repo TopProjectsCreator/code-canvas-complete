@@ -300,6 +300,7 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
     return map;
   }, [rootComments]);
   const selectedLineThreads = useMemo(() => commentsByLine.get(selectedLine || -1) || [], [commentsByLine, selectedLine]);
+  const isCommentPanelOpen = commentDraftLine !== null;
   const activePresence = useMemo(
     () => collab?.presence.filter((entry) => entry.currentFile === currentFilePath) || [],
     [collab?.presence, currentFilePath],
