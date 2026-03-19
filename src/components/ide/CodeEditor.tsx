@@ -569,14 +569,17 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
                   <button
                     key={lineNumber}
                     type="button"
-                    onClick={() => setSelectedLine(lineNumber)}
+                    onClick={() => {
+                      setSelectedLine(lineNumber);
+                      setCommentDraftLine(null);
+                    }}
                     className={cn(
-                      'flex min-w-[3.5rem] items-center justify-end gap-1 pr-2 text-right text-xs leading-6 transition-colors',
+                      'flex min-w-[3.25rem] items-center justify-end gap-1 pr-2 text-right text-xs leading-6 transition-colors',
                       selected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/40',
                     )}
                   >
                     {lineComments.length > 0 && <MessageSquare className="h-3 w-3 text-primary" />}
-                    {peers.length > 0 && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
+                    {peers.length > 0 && <span className="h-2 w-2 rounded-full bg-primary" />}
                     <span>{lineNumber}</span>
                   </button>
                 );
