@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { MessageSquare, Send, Sparkles } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/ide';
 import { FindReplace } from './FindReplace';
 import { FilePreview } from './FilePreview';
@@ -263,6 +264,7 @@ const escapeHtml = (str: string): string => str
   .replace(/"/g, '&quot;');
 
 export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: CodeEditorProps) => {
+  const { toast } = useToast();
   const [content, setContent] = useState('');
   const [cursorPosition, setCursorPosition] = useState({ line: 0, col: 0 });
   const editorRef = useRef<HTMLDivElement>(null);
@@ -425,15 +427,27 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
   }
 
   const postComment = useCallback(async () => {
-    if (!collab || !currentFilePath || !selectedLine || !sanitizeRichText(newComment)) return;
+    if (!collab || !currentFilePath || selectedLine === null || !sanitizeRichText(newComment)) {
+      if (!collab || !currentFilePath || selectedLine === null) {
+        toast({ title: 'Cannot post comment', description: 'Please save the project and sign in first.', variant: 'destructive' });
+      }
+      return;
+    }
     setPostingComment(true);
     const ok = await collab.addComment(currentFilePath, selectedLine, sanitizeRichText(newComment));
     setPostingComment(false);
-    if (ok) setNewComment('');
-  }, [collab, currentFilePath, newComment, selectedLine]);
+    if (ok) {
+      setNewComment('');
+    } else {
+      toast({ title: 'Comment failed', description: 'Please save the project and sign in to leave comments.', variant: 'destructive' });
+    }
+  }, [collab, currentFilePath, newComment, selectedLine, toast]);
 
   const postReply = useCallback(async (commentId: string) => {
-    if (!collab || !currentFilePath || !selectedLine) return;
+    if (!collab || !currentFilePath || selectedLine === null) {
+      toast({ title: 'Cannot post reply', description: 'Please save the project and sign in first.', variant: 'destructive' });
+      return;
+    }
     const draft = sanitizeRichText(replyDrafts[commentId] || '');
     if (!draft) return;
     setPostingReplyId(commentId);
@@ -441,8 +455,10 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
     setPostingReplyId(null);
     if (ok) {
       setReplyDrafts((prev) => ({ ...prev, [commentId]: '' }));
+    } else {
+      toast({ title: 'Reply failed', description: 'Please save the project and sign in to reply.', variant: 'destructive' });
     }
-  }, [collab, currentFilePath, replyDrafts, selectedLine]);
+  }, [collab, currentFilePath, replyDrafts, selectedLine, toast]);
 
   if (!file) {
     return (
