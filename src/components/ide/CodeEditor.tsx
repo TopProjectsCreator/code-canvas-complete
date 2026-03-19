@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MessageSquare, Send, Sparkles } from 'lucide-react';
+import { MessageSquare, Send, Sparkles, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/ide';
 import { FindReplace } from './FindReplace';
@@ -273,6 +273,7 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
   const [markdownPreview, setMarkdownPreview] = useState(true);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
+  const [commentDraftLine, setCommentDraftLine] = useState<number | null>(null);
   const [newComment, setNewComment] = useState('');
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [postingComment, setPostingComment] = useState(false);
@@ -300,6 +301,7 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
     return map;
   }, [rootComments]);
   const selectedLineThreads = useMemo(() => commentsByLine.get(selectedLine || -1) || [], [commentsByLine, selectedLine]);
+  const isCommentPanelOpen = commentDraftLine !== null;
   const activePresence = useMemo(
     () => collab?.presence.filter((entry) => entry.currentFile === currentFilePath) || [],
     [collab?.presence, currentFilePath],
@@ -352,6 +354,7 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
     if (selectedLine !== null) return;
     const firstLine = fileComments[0]?.line_number ?? null;
     setSelectedLine(firstLine);
+    setCommentDraftLine(null);
   }, [fileComments, selectedLine]);
 
   const handleInput = useCallback(() => {
@@ -427,21 +430,23 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
   }
 
   const postComment = useCallback(async () => {
-    if (!collab || !currentFilePath || selectedLine === null || !sanitizeRichText(newComment)) {
-      if (!collab || !currentFilePath || selectedLine === null) {
+    if (!collab || !currentFilePath || commentDraftLine === null || !sanitizeRichText(newComment)) {
+      if (!collab || !currentFilePath || commentDraftLine === null) {
         toast({ title: 'Cannot post comment', description: 'Please save the project and sign in first.', variant: 'destructive' });
       }
       return;
     }
     setPostingComment(true);
-    const ok = await collab.addComment(currentFilePath, selectedLine, sanitizeRichText(newComment));
+    const ok = await collab.addComment(currentFilePath, commentDraftLine, sanitizeRichText(newComment));
     setPostingComment(false);
     if (ok) {
       setNewComment('');
+      setSelectedLine(commentDraftLine);
+      setCommentDraftLine(null);
     } else {
       toast({ title: 'Comment failed', description: 'Please save the project and sign in to leave comments.', variant: 'destructive' });
     }
-  }, [collab, currentFilePath, newComment, selectedLine, toast]);
+  }, [collab, commentDraftLine, currentFilePath, newComment, toast]);
 
   const postReply = useCallback(async (commentId: string) => {
     if (!collab || !currentFilePath || selectedLine === null) {
@@ -565,14 +570,17 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
                   <button
                     key={lineNumber}
                     type="button"
-                    onClick={() => setSelectedLine(lineNumber)}
+                    onClick={() => {
+                      setSelectedLine(lineNumber);
+                      setCommentDraftLine(null);
+                    }}
                     className={cn(
-                      'flex min-w-[3.5rem] items-center justify-end gap-1 pr-2 text-right text-xs leading-6 transition-colors',
+                      'flex min-w-[3.25rem] items-center justify-end gap-1 pr-2 text-right text-xs leading-6 transition-colors',
                       selected ? 'bg-primary/10 text-primary' : 'hover:bg-muted/40',
                     )}
                   >
                     {lineComments.length > 0 && <MessageSquare className="h-3 w-3 text-primary" />}
-                    {peers.length > 0 && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
+                    {peers.length > 0 && <span className="h-2 w-2 rounded-full bg-primary" />}
                     <span>{lineNumber}</span>
                   </button>
                 );
@@ -583,6 +591,25 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
               {selectedLine !== null && (
                 <div className="pointer-events-none absolute inset-x-0 z-0" style={{ top: `${(selectedLine - 1) * 24 + 2}px` }}>
                   <div className="h-6 bg-primary/5" />
+                </div>
+              )}
+              {collab && selectedLine !== null && !isCommentPanelOpen && (
+                <div className="pointer-events-none absolute right-3 z-20" style={{ top: `${(selectedLine - 1) * 24 + 2}px` }}>
+                  <div className="pointer-events-auto flex h-6 items-center">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="h-6 px-2 text-[11px]"
+                      onClick={() => {
+                        setCommentDraftLine(selectedLine);
+                        setNewComment('');
+                      }}
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      Comment
+                    </Button>
+                  </div>
                 </div>
               )}
               <div
@@ -604,24 +631,24 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
           </div>
         </div>
 
-        {collab && currentFilePath && selectedLine !== null && (
-          <aside className="flex w-[360px] shrink-0 flex-col border-l border-border bg-background/95">
+        {collab && currentFilePath && selectedLine !== null && (isCommentPanelOpen || selectedLineThreads.length > 0) && (
+          <aside className="flex w-[300px] shrink-0 flex-col border-l border-border bg-background/95 xl:w-[320px]">
             <div className="border-b border-border px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold">Line {selectedLine}</p>
-                  <p className="text-xs text-muted-foreground">Highlight a line, click comment, and keep the thread where the code lives.</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isCommentPanelOpen ? 'Leave an inline comment for this highlighted line.' : 'Inline thread for the selected line.'}
+                  </p>
                 </div>
-                <Badge variant="secondary" className="gap-1"><Sparkles className="h-3 w-3" /> Word-style</Badge>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {activePresence.slice(0, 4).map((entry) => (
-                  <Badge key={entry.userId} variant="outline" className="gap-1.5">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                    {entry.displayName}
-                    {entry.cursorLine ? ` · Ln ${entry.cursorLine}` : ''}
-                  </Badge>
-                ))}
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="gap-1"><Sparkles className="h-3 w-3" /> Inline</Badge>
+                  {isCommentPanelOpen && (
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setCommentDraftLine(null); setNewComment(''); }}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -691,26 +718,28 @@ export const CodeEditor = ({ file, currentFilePath, onContentChange, collab }: C
                 );
               })}
 
-              {selectedLineThreads.length === 0 && (
+              {selectedLineThreads.length === 0 && !isCommentPanelOpen && (
                 <div className="rounded-xl border border-dashed border-border bg-muted/30 p-5 text-sm text-muted-foreground">
-                  No comments on this line yet. Add one to start an inline review thread.
+                  No comments on this line yet.
                 </div>
               )}
             </div>
 
-            <div className="border-t border-border px-4 py-4">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-sm font-medium">Comment on line {selectedLine}</p>
-                <Badge variant="outline">{currentFilePath}</Badge>
+            {isCommentPanelOpen && (
+              <div className="border-t border-border px-4 py-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-sm font-medium">Comment on line {commentDraftLine}</p>
+                  <Badge variant="outline">{currentFilePath}</Badge>
+                </div>
+                <RichTextComposer value={newComment} onChange={setNewComment} placeholder="Mention changes, leave suggestions, or ask for follow-ups…" />
+                <div className="mt-3 flex justify-end">
+                  <Button type="button" className="gap-2" onClick={postComment} disabled={!richTextToPlainText(newComment) || postingComment}>
+                    <MessageSquare className="h-4 w-4" />
+                    {postingComment ? 'Posting…' : 'Comment'}
+                  </Button>
+                </div>
               </div>
-              <RichTextComposer value={newComment} onChange={setNewComment} placeholder="Mention changes, leave suggestions, or ask for follow-ups…" />
-              <div className="mt-3 flex justify-end">
-                <Button type="button" className="gap-2" onClick={postComment} disabled={!richTextToPlainText(newComment) || postingComment}>
-                  <MessageSquare className="h-4 w-4" />
-                  {postingComment ? 'Posting…' : 'Comment'}
-                </Button>
-              </div>
-            </div>
+            )}
           </aside>
         )}
       </div>
