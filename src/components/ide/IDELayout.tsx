@@ -1841,7 +1841,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           <div
             className={cn(
               "hidden md:block transition-all duration-200 border-r border-border overflow-hidden",
-              isSidebarOpen ? "w-[28rem]" : "w-0",
+              isSidebarOpen ? "w-[22rem] xl:w-[24rem]" : "w-0",
             )}
           >
             <Sidebar
@@ -1978,7 +1978,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               {/* Editor panel - hidden for scratch template */}
               {selectedTemplate !== "scratch" && (
                 <>
-                  <ResizablePanel defaultSize={50} minSize={30}>
+                  <ResizablePanel defaultSize={54} minSize={34}>
                     <div className="h-full flex flex-col">
                       <EditorTabs
                         tabs={openTabs}
@@ -2005,7 +2005,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               )}
 
               {/* Preview panel or Arduino/Scratch panel */}
-              <ResizablePanel defaultSize={selectedTemplate === "scratch" ? 100 : 50} minSize={20}>
+              <ResizablePanel defaultSize={selectedTemplate === "scratch" ? 100 : 46} minSize={24}>
                 {selectedTemplate === "arduino" ? (
                   <Suspense fallback={<div className="p-4 text-gray-400">Loading Arduino panel...</div>}>
                     <ArduinoPanel
