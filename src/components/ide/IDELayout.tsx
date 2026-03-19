@@ -1841,7 +1841,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           <div
             className={cn(
               "hidden md:block transition-all duration-200 border-r border-border overflow-hidden",
-              isSidebarOpen ? "w-[28rem]" : "w-0",
+              isSidebarOpen ? "w-[22rem] xl:w-[24rem]" : "w-0",
             )}
           >
             <Sidebar
