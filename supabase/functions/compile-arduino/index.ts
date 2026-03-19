@@ -911,10 +911,10 @@ Deno.serve(async (req: Request) => {
         const addr = entry.address;
         const opcodes: number[] = Array.isArray(entry.opcodes)
           ? entry.opcodes
-              .map((value: number | string) => typeof value === 'number' ? value : parseInt(String(value), 16))
+              .flatMap((value: number | string) => typeof value === 'number' ? [value] : parseOpcodeToken(String(value)))
               .filter((value: number) => Number.isFinite(value) && value >= 0 && value <= 0xFF)
           : (typeof entry.opcodes === 'string'
-            ? entry.opcodes.trim().split(/\s+/).map((b: string) => parseInt(b, 16))
+            ? entry.opcodes.trim().split(/\s+/).flatMap((token: string) => parseOpcodeToken(token))
             : []);
 
         if (opcodes.length > 0) {
