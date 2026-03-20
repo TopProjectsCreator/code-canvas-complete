@@ -73,7 +73,7 @@ export class ArduinoUploadService {
     sketch: string,
     boardId: string,
     onProgress?: (message: string, percent?: number) => void
-  ): Promise<{ hex?: string; binary?: string; warnings?: string }> {
+  ): Promise<{ hex?: string; binary?: string; warnings?: string; baseAddress?: number }> {
     this.assertBoardSupported(boardId);
     onProgress?.('Compiling sketch...', 0);
 
@@ -122,84 +122,22 @@ export class ArduinoUploadService {
 
     return compileResult;
   }
-
-  private static async uploadViaNetworkBridge(
-    payload: Record<string, unknown>,
-    method: 'ota' | 'bluetooth',
-    onProgress?: (message: string, percent?: number) => void
-  ): Promise<void> {
-    onProgress?.(`Connecting to local ${method.toUpperCase()} bridge...`, 20);
-
-    const isLocalHostBridge = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?/i.test(OTA_BRIDGE_URL);
-    if (!isLocalHostBridge && !OTA_BRIDGE_URL.startsWith('https://')) {
-      throw new Error('Remote OTA bridge must use HTTPS.');
-    }
-
-    const bridgeHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (OTA_BRIDGE_TOKEN) {
-      bridgeHeaders.Authorization = `Bearer ${OTA_BRIDGE_TOKEN}`;
-    }
-
-    let response: Response;
-    try {
-      response = await this.withRetry(() => this.fetchWithTimeout(`${OTA_BRIDGE_URL}/upload/${method}`, {
-        method: 'POST',
-        headers: bridgeHeaders,
-        body: JSON.stringify(payload),
-      }, 90000), 3);
-    } catch {
-      throw new Error(
-        `Could not reach local ${method.toUpperCase()} uploader at ${OTA_BRIDGE_URL}.`
-      );
-    }
-
-    if (!response.ok) {
-      const details = await response.text().catch(() => '');
-      throw new Error(`${method.toUpperCase()} upload failed: ${details}`);
-    }
-
-    onProgress?.(`${method.toUpperCase()} upload complete.`, 100);
-  }
-
-  /**
-   * Determine flash protocol for a board
-   */
-  static getFlashProtocol(boardId: string): 'stk500' | 'avr109' | 'samba' | 'esptool' | 'stm32' {
-    if (AVR109_BOARDS.includes(boardId)) return 'avr109';
-    if (isSambaBoard(boardId)) return 'samba';
-    if (ESP_BOARDS.includes(boardId)) return 'esptool';
-    if (STM32_BOARDS.includes(boardId)) return 'stm32';
-    return 'stk500';
-  }
-
-  /**
-   * Compile + flash via serial.
-   * The port MUST be pre-acquired in a user gesture context (click handler).
-   */
-  static async uploadViaSerial(
-    sketch: string,
-    config: UploadConfig,
-    port: SerialPortLike,
-    onProgress?: (message: string, percent?: number) => void
-  ): Promise<void> {
-    const protocol = this.getFlashProtocol(config.boardId);
-    const compileResult = await this.compileSketch(sketch, config.boardId, onProgress);
-
-    switch (protocol) {
-      case 'avr109':
-        await flashViaAVR109(compileResult.hex!, port, onProgress);
-        break;
-
+...
       case 'samba': {
         // Use the pre-acquired port for 1200-baud touch
-        await triggerBootloader(port, (msg, pct) => onProgress?.(msg, pct));
-        // After bootloader trigger, find the re-enumerated port via getPorts()
+        await triggerBootloader(port, (msg, pct) => onProgress?.(msg, pct), config.boardId);
         const serial = getSerial()!;
         const existingPorts = await serial.getPorts();
         const bootPort = existingPorts.length > 0
           ? existingPorts[existingPorts.length - 1]
           : port;
-        await flashViaSamba(compileResult.binary!, bootPort, (msg, pct) => onProgress?.(msg, pct), config.boardId);
+        await flashViaSamba(
+          compileResult.binary!,
+          bootPort,
+          (msg, pct) => onProgress?.(msg, pct),
+          config.boardId,
+          compileResult.baseAddress,
+        );
         break;
       }
 
