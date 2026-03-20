@@ -17,3 +17,15 @@ verify_jwt = false
 
 [functions.compile-arduino]
 verify_jwt = false
+
+[functions.ai-explain-symbol]
+verify_jwt = false
+
+[functions.ai-generate-tests]
+verify_jwt = false
+
+[functions.session-recorder-sync]
+verify_jwt = false
+
+[functions.manage-env-secrets]
+verify_jwt = false

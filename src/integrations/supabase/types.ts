@@ -50,6 +50,56 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_review_suggestions: {
+        Row: {
+          created_at: string
+          file_path: string
+          id: string
+          line_end: number | null
+          line_start: number | null
+          project_id: string
+          severity: string
+          status: string
+          suggestion: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_path: string
+          id?: string
+          line_end?: number | null
+          line_start?: number | null
+          project_id: string
+          severity?: string
+          status?: string
+          suggestion: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_path?: string
+          id?: string
+          line_end?: number | null
+          line_start?: number | null
+          project_id?: string
+          severity?: string
+          status?: string
+          suggestion?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_review_suggestions_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_usage_tracking: {
         Row: {
           created_at: string
@@ -178,6 +228,123 @@ export type Database = {
           },
         ]
       }
+      context_pins: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          label: string
+          pin_type: string
+          project_id: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          label: string
+          pin_type?: string
+          project_id?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          label?: string
+          pin_type?: string
+          project_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "context_pins_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deployment_pipelines: {
+        Row: {
+          created_at: string
+          id: string
+          last_run_at: string | null
+          name: string
+          project_id: string
+          status: string
+          steps: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_run_at?: string | null
+          name: string
+          project_id: string
+          status?: string
+          steps?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_run_at?: string | null
+          name?: string
+          project_id?: string
+          status?: string
+          steps?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deployment_pipelines_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      env_secrets: {
+        Row: {
+          created_at: string
+          encrypted_value: string
+          id: string
+          key: string
+          project_id: string
+          scope: string
+        }
+        Insert: {
+          created_at?: string
+          encrypted_value: string
+          id?: string
+          key: string
+          project_id: string
+          scope?: string
+        }
+        Update: {
+          created_at?: string
+          encrypted_value?: string
+          id?: string
+          key?: string
+          project_id?: string
+          scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "env_secrets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mcp_servers: {
         Row: {
           api_key: string | null
@@ -240,6 +407,35 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      project_bookmarks: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_bookmarks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_collaborators: {
         Row: {
@@ -364,6 +560,79 @@ export type Database = {
           {
             foreignKeyName: "projects_forked_from_fkey"
             columns: ["forked_from"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prompt_history: {
+        Row: {
+          created_at: string
+          id: string
+          model: string | null
+          project_id: string | null
+          prompt: string
+          response: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          model?: string | null
+          project_id?: string | null
+          prompt: string
+          response?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          model?: string | null
+          project_id?: string | null
+          prompt?: string
+          response?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prompt_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_recordings: {
+        Row: {
+          created_at: string
+          duration_ms: number
+          ended_at: string | null
+          id: string
+          project_id: string
+          replay_events: Json
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number
+          ended_at?: string | null
+          id?: string
+          project_id: string
+          replay_events?: Json
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number
+          ended_at?: string | null
+          id?: string
+          project_id?: string
+          replay_events?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_recordings_project_id_fkey"
+            columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
             referencedColumns: ["id"]
