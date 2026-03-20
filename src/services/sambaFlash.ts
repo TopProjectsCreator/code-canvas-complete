@@ -1,5 +1,5 @@
 /**
- * WebSerial SAM-BA flasher for Arduino boards with SAM-BA bootloaders
+ * WebSerial SAM-BA flasher for Arduino boards with SAM-BA bootloaders.
  *
  * Supported chips:
  * - Renesas RA4M1 (Arduino Uno R4 WiFi)
@@ -12,12 +12,8 @@
 
 import {
   SerialPortLike,
-  getSerial,
   perform1200BaudTouch,
-  waitForNewPort,
 } from './serialUtils';
-
-// ── Board-specific configurations ──
 
 export interface SambaBoardConfig {
   name: string;
@@ -81,7 +77,6 @@ function getBoardConfig(boardId: string): SambaBoardConfig {
   return cfg;
 }
 
-// Timeouts
 const RESPONSE_TIMEOUT = 3000;
 const FLASH_PAGE_TIMEOUT = 5000;
 const BOOT_WAIT_MS = 3000;
@@ -91,10 +86,61 @@ type ProgressCallback = (message: string, percent: number) => void;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-// ── Helpers ──
-
 function toHex32(n: number): string {
   return n.toString(16).padStart(8, '0').toUpperCase();
+}
+
+function readUint32LE(bytes: Uint8Array, offset: number): number {
+  return bytes[offset]
+    | (bytes[offset + 1] << 8)
+    | (bytes[offset + 2] << 16)
+    | ((bytes[offset + 3] << 24) >>> 0);
+}
+
+function isFlashAddress(address: number, config: SambaBoardConfig): boolean {
+  return address >= config.flashBase && address < (config.flashBase + config.flashSize);
+}
+
+function resolveFlashStartAddress(
+  config: SambaBoardConfig,
+  boardId: string,
+  firmware: Uint8Array,
+  baseAddress?: number,
+): number {
+  const defaultStartAddress = config.flashBase + config.bootloaderSize;
+  if (typeof baseAddress !== 'number' || !Number.isFinite(baseAddress)) {
+    return defaultStartAddress;
+  }
+
+  if (!isFlashAddress(baseAddress, config)) {
+    throw new Error(`Firmware base address 0x${toHex32(baseAddress)} is outside the board flash range.`);
+  }
+
+  if (boardId === 'uno_r4_wifi' && baseAddress < defaultStartAddress) {
+    throw new Error(`Firmware base address 0x${toHex32(baseAddress)} is below the Uno R4 WiFi sketch region.`);
+  }
+
+  return baseAddress;
+}
+
+function resolveExecuteAddress(
+  config: SambaBoardConfig,
+  boardId: string,
+  firmware: Uint8Array,
+  flashStartAddress: number,
+): number {
+  if (boardId !== 'uno_r4_wifi' || firmware.length < 8) {
+    return flashStartAddress;
+  }
+
+  const resetVector = readUint32LE(firmware, 4);
+  const normalizedResetVector = resetVector & 0xFFFFFFFE;
+
+  if (isFlashAddress(normalizedResetVector, config)) {
+    return normalizedResetVector;
+  }
+
+  return flashStartAddress;
 }
 
 async function readBytes(
@@ -171,8 +217,6 @@ async function drain(reader: ReadableStreamDefaultReader<Uint8Array>, ms = 200):
   }
 }
 
-// ── SAM-BA Protocol Layer ──
-
 class SambaConnection {
   private writer: WritableStreamDefaultWriter<Uint8Array>;
   private reader: ReadableStreamDefaultReader<Uint8Array>;
@@ -189,7 +233,7 @@ class SambaConnection {
 
   async init(): Promise<string> {
     await sendCommand(this.writer, 'T');
-    const response = await readUntilPrompt(this.reader, 2000);
+    await readUntilPrompt(this.reader, 2000);
     this.interactive = true;
 
     await sendCommand(this.writer, 'V');
@@ -204,16 +248,6 @@ class SambaConnection {
     return version || 'SAM-BA';
   }
 
-  async writeWord(address: number, value: number): Promise<void> {
-    const cmd = `W${toHex32(address)},${toHex32(value)}`;
-    await sendCommand(this.writer, cmd);
-    if (this.interactive) {
-      await readUntilPrompt(this.reader, 1000);
-    } else {
-      await new Promise(r => setTimeout(r, 5));
-    }
-  }
-
   async readWord(address: number): Promise<number> {
     const cmd = `w${toHex32(address)},4`;
     await sendCommand(this.writer, cmd);
@@ -223,11 +257,11 @@ class SambaConnection {
       const match = resp.match(/0x([0-9A-Fa-f]+)/);
       if (match) return parseInt(match[1], 16);
       throw new Error(`Failed to parse word response: ${resp}`);
-    } else {
-      const bytes = await readBytes(this.reader, 4, 1000);
-      if (bytes.length < 4) throw new Error('Short read on readWord');
-      return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | ((bytes[3] << 24) >>> 0);
     }
+
+    const bytes = await readBytes(this.reader, 4, 1000);
+    if (bytes.length < 4) throw new Error('Short read on readWord');
+    return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | ((bytes[3] << 24) >>> 0);
   }
 
   async writeBuffer(address: number, data: Uint8Array): Promise<void> {
@@ -248,22 +282,20 @@ class SambaConnection {
   }
 
   release(): void {
-    try { this.reader.releaseLock(); } catch { /* */ }
-    try { this.writer.releaseLock(); } catch { /* */ }
+    try { this.reader.releaseLock(); } catch { /* noop */ }
+    try { this.writer.releaseLock(); } catch { /* noop */ }
   }
 }
-
-// ── Flash Operations ──
 
 async function eraseAndWriteFlash(
   samba: SambaConnection,
   firmware: Uint8Array,
   config: SambaBoardConfig,
+  flashStartAddress: number,
   onProgress?: ProgressCallback
 ): Promise<void> {
-  const userFlashBase = config.flashBase + config.bootloaderSize;
   const totalPages = Math.ceil(firmware.length / config.pageSize);
-  onProgress?.(`Writing ${firmware.length} bytes (${totalPages} pages)...`, 20);
+  onProgress?.(`Writing ${firmware.length} bytes (${totalPages} pages) from 0x${toHex32(flashStartAddress)}...`, 20);
 
   for (let page = 0; page < totalPages; page++) {
     const offset = page * config.pageSize;
@@ -272,7 +304,7 @@ async function eraseAndWriteFlash(
     pageData.fill(0xFF);
     pageData.set(firmware.subarray(offset, end));
 
-    const flashAddr = userFlashBase + offset;
+    const flashAddr = flashStartAddress + offset;
     await samba.writeBuffer(flashAddr, pageData);
 
     const pct = 20 + Math.round(((page + 1) / totalPages) * 70);
@@ -283,19 +315,18 @@ async function eraseAndWriteFlash(
 async function verifyFlash(
   samba: SambaConnection,
   firmware: Uint8Array,
-  config: SambaBoardConfig,
+  flashStartAddress: number,
   onProgress?: ProgressCallback
 ): Promise<boolean> {
-  const userFlashBase = config.flashBase + config.bootloaderSize;
   onProgress?.('Verifying flash...', 92);
 
   const wordsToCheck = Math.min(16, Math.floor(firmware.length / 4));
   for (let i = 0; i < wordsToCheck; i++) {
-    const addr = userFlashBase + i * 4;
-    const expected = firmware[i * 4] |
-      (firmware[i * 4 + 1] << 8) |
-      (firmware[i * 4 + 2] << 16) |
-      ((firmware[i * 4 + 3] << 24) >>> 0);
+    const addr = flashStartAddress + i * 4;
+    const expected = firmware[i * 4]
+      | (firmware[i * 4 + 1] << 8)
+      | (firmware[i * 4 + 2] << 16)
+      | ((firmware[i * 4 + 3] << 24) >>> 0);
 
     try {
       const actual = await samba.readWord(addr);
@@ -313,12 +344,6 @@ async function verifyFlash(
   return true;
 }
 
-// ── Public API ──
-
-/**
- * Trigger bootloader via 1200-baud touch on a pre-acquired port.
- * The port MUST be acquired via requestPort() in a user gesture context.
- */
 export async function triggerBootloader(
   port: SerialPortLike,
   onProgress?: ProgressCallback,
@@ -332,20 +357,16 @@ export async function triggerBootloader(
     throw new Error(`1200-baud touch failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
   }
 
-  onProgress?.('Board resetting into bootloader mode...', 10);
+  onProgress?.(`${boardName} resetting into bootloader mode...`, 10);
   await new Promise(r => setTimeout(r, BOOT_WAIT_MS));
 }
 
-/**
- * Flash firmware via SAM-BA protocol.
- * The bootloaderPort should be acquired after triggering bootloader
- * (use waitForNewPort from serialUtils, or pass the same port).
- */
 export async function flashViaSamba(
   firmwareBase64: string,
   bootloaderPort: SerialPortLike,
   onProgress?: ProgressCallback,
-  boardId = 'uno_r4_wifi'
+  boardId = 'uno_r4_wifi',
+  baseAddress?: number,
 ): Promise<void> {
   const config = getBoardConfig(boardId);
 
@@ -355,13 +376,16 @@ export async function flashViaSamba(
     firmware[i] = binaryStr.charCodeAt(i);
   }
 
-  const maxSize = config.flashSize - config.bootloaderSize;
   if (firmware.length === 0) throw new Error('Empty firmware');
-  if (firmware.length > maxSize) {
-    throw new Error(`Firmware too large: ${firmware.length} bytes (max ${maxSize})`);
+
+  const flashStartAddress = resolveFlashStartAddress(config, boardId, firmware, baseAddress);
+  const flashEndAddress = flashStartAddress + firmware.length;
+  if (flashEndAddress > config.flashBase + config.flashSize) {
+    throw new Error(
+      `Firmware range 0x${toHex32(flashStartAddress)}-0x${toHex32(flashEndAddress)} exceeds board flash size.`
+    );
   }
 
-  // Connect to pre-acquired bootloader port
   let connected = false;
   let lastError: Error | null = null;
 
@@ -383,26 +407,30 @@ export async function flashViaSamba(
   const writer = bootloaderPort.writable?.getWriter();
   const reader = bootloaderPort.readable?.getReader();
   if (!writer || !reader) {
-    try { await bootloaderPort.close(); } catch { /* */ }
+    try { await bootloaderPort.close(); } catch { /* noop */ }
     throw new Error('Could not access serial port streams');
   }
 
   const samba = new SambaConnection(bootloaderPort, writer, reader);
-  const userFlashBase = config.flashBase + config.bootloaderSize;
 
   try {
     onProgress?.('Initializing SAM-BA connection...', 16);
     const version = await samba.init();
     onProgress?.(`Connected to bootloader: ${version}`, 18);
 
-    await eraseAndWriteFlash(samba, firmware, config, onProgress);
-    await verifyFlash(samba, firmware, config, onProgress);
+    await eraseAndWriteFlash(samba, firmware, config, flashStartAddress, onProgress);
 
-    onProgress?.('Resetting board...', 97);
+    const verified = await verifyFlash(samba, firmware, flashStartAddress, onProgress);
+    if (!verified) {
+      throw new Error('Flash verification failed. Firmware was not accepted by the board.');
+    }
+
+    const executeAddress = resolveExecuteAddress(config, boardId, firmware, flashStartAddress);
+    onProgress?.(`Restarting board from 0x${toHex32(executeAddress)}...`, 97);
     try {
-      await samba.execute(userFlashBase);
+      await samba.execute(executeAddress);
     } catch {
-      // Board may disconnect during reset — expected
+      // Board may disconnect during reset — expected.
     }
 
     onProgress?.('Flash complete! Board is running your sketch.', 100);
@@ -413,6 +441,6 @@ export async function flashViaSamba(
     );
   } finally {
     samba.release();
-    try { await bootloaderPort.close(); } catch { /* */ }
+    try { await bootloaderPort.close(); } catch { /* noop */ }
   }
 }
