@@ -3,11 +3,9 @@
 
 
 
-
 # Code Canvas Complete
-<video src="Teaser.mp4" width="100%" autoplay loop muted playsinline>
-</video>
 
+![Teaser Video](Teaser.mp4)
 Code Canvas Complete is a browser-based coding workspace with an integrated AI assistant, multi-file editing, workflow automation, package management helpers, and optional BYOK (bring-your-own-key) model routing.
 
 ## What this project is
