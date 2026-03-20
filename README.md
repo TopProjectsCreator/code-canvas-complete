@@ -1,10 +1,6 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/TopProjectsCreator/code-canvas-complete)
 
 
-
-https://github.com/USER/REPO/releases/download/v1.0.0-assets/Teaser.mp4
-
-
 # Code Canvas Complete
 
 
