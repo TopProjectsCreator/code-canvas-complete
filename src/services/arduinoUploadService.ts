@@ -151,8 +151,9 @@ export class ArduinoUploadService {
     switch (protocol) {
       case 'avr109': {
         await triggerBootloader(port, (msg, pct) => onProgress?.(msg, pct), config.boardId);
-        const serial = getSerial()!;
-        const bootPort = await waitForNewPort(serial, 4000).catch(() => port);
+        const avrSerial = getSerial()!;
+        const avrExistingPorts = await avrSerial.getPorts();
+        const bootPort = await waitForNewPort(avrExistingPorts, 4000).catch(() => port);
         await flashViaAVR109(compileResult.hex!, bootPort, onProgress);
         break;
       }
