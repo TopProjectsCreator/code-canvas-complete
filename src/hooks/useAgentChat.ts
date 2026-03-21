@@ -520,6 +520,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     });
     content = afterShell;
 
+    const { isDone, cleanContent: afterDone } = parseAgentDone(content);
+    content = afterDone;
+
     return {
       content,
       steps: allSteps,
@@ -530,6 +533,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       questions: parsedQuestions,
       widgets: parsedWidgets,
       shellCommands,
+      isDone,
     };
   };
 
