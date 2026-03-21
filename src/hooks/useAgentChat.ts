@@ -371,6 +371,11 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     return { shellCommands, cleanContent: cleanContent.trim() };
   };
 
+  const parseAgentDone = (content: string): { isDone: boolean, cleanContent: string } => {
+    const cleanContent = content.replace(/<agent_done\s*\/>/g, '');
+    return { isDone: content.includes('<agent_done'), cleanContent: cleanContent.trim() };
+  };
+
 
 
   const parseGenerateTestsTags = (content: string): { codeChanges: CodeChange[]; cleanContent: string } => {
