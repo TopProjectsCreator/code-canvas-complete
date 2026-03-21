@@ -159,10 +159,10 @@ export class ArduinoUploadService {
 
       case 'samba': {
         await triggerBootloader(port, (msg, pct) => onProgress?.(msg, pct), config.boardId);
-        const serial = getSerial()!;
-        const existingPorts = await serial.getPorts();
-        const bootPort = existingPorts.length > 0
-          ? existingPorts[existingPorts.length - 1]
+        const sambaSerial = getSerial()!;
+        const sambaExistingPorts = await sambaSerial.getPorts();
+        const bootPort = sambaExistingPorts.length > 0
+          ? sambaExistingPorts[sambaExistingPorts.length - 1]
           : port;
         await flashViaSamba(
           compileResult.binary!,
