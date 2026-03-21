@@ -687,11 +687,25 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         }
       }
 
-      // Handle shell command execution
-      const shellExecutionSummaries: Array<{ command: string; output: string; success: boolean }> = [];
-      if (processed.shellCommands && processed.shellCommands.length > 0 && (autonomyConfig?.shell !== false)) {
-        for (const cmd of processed.shellCommands) {
-          const shellKey = `shell:${cmd}`;
+      // ── Agentic loop: keep executing tools and calling AI until done ──
+      const MAX_AGENT_ITERATIONS = 8;
+      let loopProcessed = processed;
+      let loopContent = fullContent;
+      const conversationSoFar: Array<{ role: string; content: string }> = [
+        ...historyMessages,
+        latestUserMsg,
+      ];
+
+      for (let iteration = 0; iteration < MAX_AGENT_ITERATIONS; iteration++) {
+        // If the AI signaled it's done, or there are no actionable tool calls, stop
+        const hasShell = loopProcessed.shellCommands && loopProcessed.shellCommands.length > 0 && (autonomyConfig?.shell !== false);
+        if (loopProcessed.isDone && !hasShell) break;
+        if (!hasShell) break; // No shell commands to execute = nothing to loop on
+
+        // Execute shell commands
+        const shellExecutionSummaries: Array<{ command: string; output: string; success: boolean }> = [];
+        for (const cmd of loopProcessed.shellCommands) {
+          const shellKey = `shell:${cmd}:${iteration}`;
           if (executedActionsRef.current.has(shellKey)) continue;
           executedActionsRef.current.add(shellKey);
 
@@ -710,7 +724,6 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
             continue;
           }
 
-          // Update step to running
           setMessages(prev => prev.map(m => {
             if (m.id !== assistantId) return m;
             const steps = m.steps?.map(s => 
@@ -732,7 +745,6 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
             const success = !error && !data?.error;
             shellExecutionSummaries.push({ command: cmd, output, success });
 
-            // Update step with result
             setMessages(prev => prev.map(m => {
               if (m.id !== assistantId) return m;
               const steps = m.steps?.map(s => 
@@ -755,25 +767,22 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
             shellExecutionSummaries.push({ command: cmd, output: String(err), success: false });
           }
         }
-      }
 
-      // Continue the conversation agentically with tool results so the model can decide next actions.
-      if (shellExecutionSummaries.length > 0) {
-        setCurrentStep('Reviewing command output...');
+        if (shellExecutionSummaries.length === 0) break;
+
+        // Feed results back to the AI for the next iteration
+        setCurrentStep(`Agent working... (step ${iteration + 2})`);
         const toolFeedback = shellExecutionSummaries
           .map(({ command, output, success }) => `Command: ${command}\nStatus: ${success ? 'success' : 'failed'}\nOutput:\n${output}`)
           .join('\n\n---\n\n');
 
+        conversationSoFar.push(
+          { role: 'assistant', content: loopContent },
+          { role: 'user', content: `Tool results:\n\n${toolFeedback}\n\nContinue working. If done, emit <agent_done />.` },
+        );
+
         const followUpResponse = await aiProvider.chat({
-          messages: [
-            ...historyMessages,
-            latestUserMsg,
-            { role: 'assistant', content: fullContent },
-            {
-              role: 'user',
-              content: `Shell tool results are available below. Continue solving the request using these results. If needed, run additional tools.\n\n${toolFeedback}`,
-            },
-          ],
+          messages: conversationSoFar,
           currentFile: context.currentFile ? { name: context.currentFile.name, language: context.currentFile.language, content: context.currentFile.content?.slice(0, 10000) } : null,
           consoleErrors: context.consoleErrors || null,
           workflows: context.workflows || workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
@@ -786,51 +795,58 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           signal: abortControllerRef.current?.signal,
         });
 
-        if (followUpResponse.ok && followUpResponse.body) {
-          const followReader = followUpResponse.body.getReader();
-          const followDecoder = new TextDecoder();
-          let followBuffer = '';
-          let followContent = '';
+        if (!followUpResponse.ok || !followUpResponse.body) break;
 
-          while (true) {
-            const { done, value } = await followReader.read();
-            if (done) break;
-            followBuffer += followDecoder.decode(value, { stream: true });
+        const followReader = followUpResponse.body.getReader();
+        const followDecoder = new TextDecoder();
+        let followBuffer = '';
+        let followContent = '';
 
-            let newlineIndex: number;
-            while ((newlineIndex = followBuffer.indexOf('\n')) !== -1) {
-              let line = followBuffer.slice(0, newlineIndex);
-              followBuffer = followBuffer.slice(newlineIndex + 1);
-              if (line.endsWith('\r')) line = line.slice(0, -1);
-              if (line.startsWith(':') || line.trim() === '') continue;
-              if (!line.startsWith('data: ')) continue;
-              const jsonStr = line.slice(6).trim();
-              if (jsonStr === '[DONE]') break;
+        while (true) {
+          const { done, value } = await followReader.read();
+          if (done) break;
+          followBuffer += followDecoder.decode(value, { stream: true });
 
-              try {
-                const parsed = JSON.parse(jsonStr);
-                const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-                if (content) followContent += content;
-              } catch {
-                followBuffer = line + '\n' + followBuffer;
-                break;
-              }
+          let newlineIndex: number;
+          while ((newlineIndex = followBuffer.indexOf('\n')) !== -1) {
+            let line = followBuffer.slice(0, newlineIndex);
+            followBuffer = followBuffer.slice(newlineIndex + 1);
+            if (line.endsWith('\r')) line = line.slice(0, -1);
+            if (line.startsWith(':') || line.trim() === '') continue;
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === '[DONE]') break;
+
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+              if (content) followContent += content;
+            } catch {
+              followBuffer = line + '\n' + followBuffer;
+              break;
             }
           }
-
-          const followProcessed = processAgentResponse(followContent);
-          if (followProcessed.content || followProcessed.steps.length > 0) {
-            setMessages(prev => [...prev, {
-              id: generateId(),
-              role: 'assistant',
-              content: followProcessed.content,
-              steps: followProcessed.steps,
-              hasCodeChanges: followProcessed.hasCodeChanges,
-              questions: followProcessed.questions,
-              widgets: followProcessed.widgets,
-            }]);
-          }
         }
+
+        loopContent = followContent;
+        loopProcessed = processAgentResponse(followContent);
+
+        if (loopProcessed.content || loopProcessed.steps.length > 0) {
+          const followUpId = generateId();
+          assistantId = followUpId;
+          setMessages(prev => [...prev, {
+            id: followUpId,
+            role: 'assistant',
+            content: loopProcessed.content,
+            steps: loopProcessed.steps,
+            hasCodeChanges: loopProcessed.hasCodeChanges,
+            questions: loopProcessed.questions,
+            widgets: loopProcessed.widgets,
+          }]);
+        }
+
+        // If the AI says it's done, stop looping
+        if (loopProcessed.isDone) break;
       }
 
     } catch (error) {
