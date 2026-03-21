@@ -691,9 +691,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       const MAX_AGENT_ITERATIONS = 8;
       let loopProcessed = processed;
       let loopContent = fullContent;
-      const conversationSoFar: Array<{ role: string; content: string }> = [
+      const conversationSoFar: Array<{ role: 'user' | 'assistant'; content: string }> = [
         ...historyMessages,
-        latestUserMsg,
+        latestUserMsg as { role: 'user' | 'assistant'; content: string },
       ];
 
       for (let iteration = 0; iteration < MAX_AGENT_ITERATIONS; iteration++) {
