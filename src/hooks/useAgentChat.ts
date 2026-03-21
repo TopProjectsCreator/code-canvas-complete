@@ -563,7 +563,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     setIsLoading(true);
     setCurrentStep('Thinking...');
 
-    const assistantId = generateId();
+    let assistantId = generateId();
     let fullContent = '';
 
     try {
