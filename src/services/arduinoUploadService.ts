@@ -122,14 +122,48 @@ export class ArduinoUploadService {
 
     return compileResult;
   }
-...
-      case 'samba': {
-        // Use the pre-acquired port for 1200-baud touch
+
+  /**
+   * Determine the flash protocol for a board
+   */
+  private static getFlashProtocol(boardId: string): 'avr109' | 'samba' | 'esptool' | 'stm32' | 'stk500' {
+    if (AVR109_BOARDS.includes(boardId)) return 'avr109';
+    if (isSambaBoard(boardId)) return 'samba';
+    if (ESP_BOARDS.includes(boardId)) return 'esptool';
+    if (STM32_BOARDS.includes(boardId)) return 'stm32';
+    return 'stk500';
+  }
+
+  /**
+   * Upload sketch via USB serial (Web Serial API)
+   */
+  static async uploadViaSerial(
+    sketch: string,
+    config: UploadConfig,
+    port: SerialPortLike,
+    onProgress?: (message: string, percent?: number) => void
+  ): Promise<void> {
+    const compileResult = await this.compileSketch(sketch, config.boardId, onProgress);
+    const protocol = this.getFlashProtocol(config.boardId);
+
+    onProgress?.(`Flashing via ${protocol}...`, 20);
+
+    switch (protocol) {
+      case 'avr109': {
         await triggerBootloader(port, (msg, pct) => onProgress?.(msg, pct), config.boardId);
-        const serial = getSerial()!;
-        const existingPorts = await serial.getPorts();
-        const bootPort = existingPorts.length > 0
-          ? existingPorts[existingPorts.length - 1]
+        const avrSerial = getSerial()!;
+        const avrExistingPorts = await avrSerial.getPorts();
+        const bootPort = await waitForNewPort(avrExistingPorts, 4000).catch(() => port);
+        await flashViaAVR109(compileResult.hex!, bootPort, onProgress);
+        break;
+      }
+
+      case 'samba': {
+        await triggerBootloader(port, (msg, pct) => onProgress?.(msg, pct), config.boardId);
+        const sambaSerial = getSerial()!;
+        const sambaExistingPorts = await sambaSerial.getPorts();
+        const bootPort = sambaExistingPorts.length > 0
+          ? sambaExistingPorts[sambaExistingPorts.length - 1]
           : port;
         await flashViaSamba(
           compileResult.binary!,
@@ -204,6 +238,35 @@ export class ArduinoUploadService {
     throw new Error(
       `Flash failed after trying ${baudRatesToTry.join(', ')} baud: ${lastError instanceof Error ? lastError.message : 'Unknown error'}`
     );
+  }
+
+  /**
+   * Upload via network bridge (WiFi OTA or Bluetooth)
+   */
+  private static async uploadViaNetworkBridge(
+    payload: Record<string, unknown>,
+    mode: 'ota' | 'bluetooth',
+    onProgress?: (message: string, percent?: number) => void
+  ): Promise<void> {
+    onProgress?.(`Uploading via ${mode === 'ota' ? 'WiFi OTA' : 'Bluetooth'}...`, 30);
+
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (OTA_BRIDGE_TOKEN) {
+      headers['Authorization'] = `Bearer ${OTA_BRIDGE_TOKEN}`;
+    }
+
+    const response = await this.fetchWithTimeout(`${OTA_BRIDGE_URL}/${mode}`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`${mode} upload failed: ${errorData.error || response.statusText}`);
+    }
+
+    onProgress?.('Upload complete!', 100);
   }
 
   static async uploadViaWiFi(
