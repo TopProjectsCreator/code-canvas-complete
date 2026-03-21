@@ -419,6 +419,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     questions: InteractiveQuestion[];
     widgets: ChatWidget[];
     shellCommands: string[];
+    isDone: boolean;
   } => {
     let content = rawContent;
     const allSteps: AgentStep[] = [];
