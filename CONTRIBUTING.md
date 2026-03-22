@@ -30,6 +30,7 @@ Thanks for your interest in contributing!
    * Lovable AI - All around, especially supabase and lovable support
    * Github Copilot - Alot of the ardurino section
    * Replit Agent - Replit support
+   * Cline - README rebuild
 
 ## Submitting Changes
 
