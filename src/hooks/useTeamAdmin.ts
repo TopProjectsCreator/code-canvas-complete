@@ -180,7 +180,7 @@ export function useTeamAdmin() {
   };
 
   const addPolicy = async (teamId: string, policyType: string, policyValue: Record<string, unknown>) => {
-    const { error } = await supabase.from('team_policies').insert({ team_id: teamId, policy_type: policyType, policy_value: policyValue });
+    const { error } = await supabase.from('team_policies').insert({ team_id: teamId, policy_type: policyType, policy_value: policyValue as unknown as import('@/integrations/supabase/types').Json });
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
     toast({ title: 'Policy added' });
     if (activeTeam) fetchTeamData(activeTeam.id);
@@ -229,7 +229,7 @@ export function useTeamAdmin() {
   };
 
   const updateTeamSettings = async (teamId: string, settings: Record<string, unknown>) => {
-    const { error } = await supabase.from('teams').update({ settings }).eq('id', teamId);
+    const { error } = await supabase.from('teams').update({ settings: settings as unknown as import('@/integrations/supabase/types').Json }).eq('id', teamId);
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
     toast({ title: 'Settings updated' });
     fetchTeams();
