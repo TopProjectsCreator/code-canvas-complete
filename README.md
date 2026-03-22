@@ -203,14 +203,14 @@ Note: To open the preview in a new window, click the pop-out icon <img width="15
 <details>
 <summary><b>Deploy to Lovable</b></summary>
 
-Coming soon! We are finalizing the GitHub Actions and documentation for a seamless remix-and-publish experience.
+Coming soon! We are finalizing the GitHub Actions and documentation for a seamless remix-and-publish experience. Get ready for the easiest deploy yet!
 </details>
 
 ---
 
 ## 💻 Local Development
 1. **Install Dependencies:** `npm install`
-2. **Environment:** Create a `.env` file with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+2. **Environment:** Create a `.env` file with `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. 
 3. **Run Dev:** `npm run dev`
 
 ---
