@@ -639,6 +639,285 @@ export type Database = {
           },
         ]
       }
+      team_custom_templates: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          files: Json
+          id: string
+          is_required: boolean
+          language: string
+          name: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          files?: Json
+          id?: string
+          is_required?: boolean
+          language?: string
+          name: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          files?: Json
+          id?: string
+          is_required?: boolean
+          language?: string
+          name?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_custom_templates_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_form_responses: {
+        Row: {
+          answers: Json
+          form_id: string
+          id: string
+          submitted_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          form_id: string
+          id?: string
+          submitted_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          form_id?: string
+          id?: string
+          submitted_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_form_responses_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "team_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_forms: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          fields: Json
+          id: string
+          is_active: boolean
+          team_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_active?: boolean
+          team_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          fields?: Json
+          id?: string
+          is_active?: boolean
+          team_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_forms_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          accepted: boolean
+          created_at: string
+          display_name: string | null
+          email: string | null
+          id: string
+          invited_at: string
+          role: string
+          spending_limit_cents: number | null
+          team_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accepted?: boolean
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          invited_at?: string
+          role?: string
+          spending_limit_cents?: number | null
+          team_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accepted?: boolean
+          created_at?: string
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          invited_at?: string
+          role?: string
+          spending_limit_cents?: number | null
+          team_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_policies: {
+        Row: {
+          created_at: string
+          id: string
+          is_enforced: boolean
+          policy_type: string
+          policy_value: Json
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enforced?: boolean
+          policy_type: string
+          policy_value?: Json
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enforced?: boolean
+          policy_type?: string
+          policy_value?: Json
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_policies_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_spending: {
+        Row: {
+          amount_cents: number
+          category: string
+          description: string | null
+          id: string
+          recorded_at: string
+          team_id: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents?: number
+          category?: string
+          description?: string | null
+          id?: string
+          recorded_at?: string
+          team_id: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          category?: string
+          description?: string | null
+          id?: string
+          recorded_at?: string
+          team_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_spending_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          owner_id: string
+          settings: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          settings?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          settings?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_api_keys: {
         Row: {
           api_key: string
