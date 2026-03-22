@@ -77,7 +77,7 @@ export const Header = ({
   const { user } = useAuth();
 
   return (
-    <header className="flex items-center justify-between h-12 px-2 sm:px-3 bg-background border-b border-border">
+    <header className="flex items-center justify-between h-12 px-2 sm:px-3 bg-background">
       {/* Left section */}
       <div className="flex items-center gap-1 sm:gap-2">
         <button 
