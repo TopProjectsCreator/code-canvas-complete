@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthDialog } from '@/components/auth/AuthDialog';
 import { SettingsDialog } from './SettingsDialog';
-import { User, LogOut, Settings, FolderOpen, Key } from 'lucide-react';
+import { TeamAdminDialog } from './team/TeamAdminDialog';
+import { User, LogOut, Settings, FolderOpen, Key, Users } from 'lucide-react';
 
 interface UserMenuProps {
   onOpenProjects: () => void;
@@ -22,6 +23,7 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
   const { user, profile, signOut, loading } = useAuth();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTeamAdmin, setShowTeamAdmin] = useState(false);
   const [settingsTab, setSettingsTab] = useState('profile');
 
   if (loading) {
@@ -89,6 +91,10 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
             <Key className="w-4 h-4 mr-2" />
             AI Settings
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowTeamAdmin(true)}>
+            <Users className="w-4 h-4 mr-2" />
+            Team Management
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => signOut()} className="text-destructive">
             <LogOut className="w-4 h-4 mr-2" />
@@ -98,6 +104,7 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
       </DropdownMenu>
 
       <SettingsDialog open={showSettings} onOpenChange={setShowSettings} defaultTab={settingsTab} />
+      <TeamAdminDialog open={showTeamAdmin} onOpenChange={setShowTeamAdmin} />
     </>
   );
 };
