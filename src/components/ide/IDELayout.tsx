@@ -248,7 +248,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [isRunning, setIsRunning] = useState(false);
   const [isTerminalMinimized, setIsTerminalMinimized] = useState(false);
   const [stdinPrompt, setStdinPrompt] = useState<{ prompts: string[]; code: string; language: string } | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
   const [mobileActivePanel, setMobileActivePanel] = useState<"editor" | "preview" | "terminal" | "ai">("editor");

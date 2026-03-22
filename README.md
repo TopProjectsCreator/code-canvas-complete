@@ -43,7 +43,7 @@ Experience the next generation of coding with an AI assistant that doesn't just 
     - **Custom:** Granular control over file changes, shell commands, git actions, and more.
 - **AI Code Review:** Get per-line suggestions with severity ratings and one-click "Accept/Reject" controls.
 - **Explain on Hover:** Hover over any symbol to get an AI-powered explanation of its purpose and implementation.
-- **Interactive Widgets:** The assistant renders specialized tools like color pickers, regex testers, and logic visualizers directly in the chat.
+- **Interactive Widgets:** The assistant renders specialized tools like **Color Picker**, **Coin Flip**, **Dice Roll**, **Calculator**, **Spinner**, **Stock Ticker**, **Template Changer**, **Pair Programming Timer**, **Docs Linker**, **Countdown**, **Password Generator**, **Unit Converter**, **Progress Tracker**, **JSON Viewer**, and **Regex Tester** directly in the chat.
 </details>
 
 ### 🧩 MCP & Agent Skills
@@ -65,7 +65,7 @@ Model Context Protocol (MCP) allows the AI to connect to external tools and data
 
 Agent Skills are custom "personas" or instruction sets that guide the AI's behavior.
 1. Open the **MCP & Skills** panel and select the **Agent Skills** tab.
-2. Click **Add Skill** to create your own, or browse the **Library** for presets.
+2. Click **Add Skill** to create your own, or browse the **Library** for presets. Browse and search over 10,000+ community AI skills from <a href="https://ai-skills.io" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">ai-skills.io</a> powered by Firecrawl.
 3. Define the **Name**, **Icon**, and **Instructions** (e.g., "Always use Tailwind utility classes for styling").
 4. When enabled, the AI will prioritize these instructions in every interaction.
 </details>
