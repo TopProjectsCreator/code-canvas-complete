@@ -148,10 +148,7 @@ npm run preview -- --host 0.0.0.0 --port 3000
 <details>
 <summary><b>Deploy on Lovable</b></summary>
 
-1. Create a project connected to this repository.
-2. Configure required environment variables in project settings.
-3. Use the platform publish/deploy flow to build and host the app.
-4. Deploy Supabase Edge Functions separately via Supabase CLI.
+Comming soon! It will be a simple remix and publish setup, just working on setting up the github actions and documentation.
 </details>
 
 ---
