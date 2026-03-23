@@ -1,6 +1,7 @@
 import { FileNode } from "@/types/ide";
 import { LanguageTemplate } from "@/data/templateRegistry";
 import { getArduinoTemplateFiles } from "./arduinoTemplates";
+import { ftcTemplate } from "./ftcTemplateFiles";
 
 const tutorialTitles: Record<LanguageTemplate, string> = {
   blank: "Blank Canvas",
@@ -39,6 +40,7 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   audio: "Audio Editor",
   rtf: "Rich Text",
   cad: "3D CAD Viewer",
+  ftc: "FTC Robotics",
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
@@ -162,6 +164,9 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case "cad":
       baseTemplate = cadTemplate;
+      break;
+    case "ftc":
+      baseTemplate = ftcTemplate;
       break;
     default:
       baseTemplate = htmlTemplate;
