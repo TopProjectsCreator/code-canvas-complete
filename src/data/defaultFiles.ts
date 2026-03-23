@@ -1,6 +1,7 @@
 import { FileNode } from "@/types/ide";
 import { LanguageTemplate } from "@/data/templateRegistry";
 import { getArduinoTemplateFiles } from "./arduinoTemplates";
+import { ftcTemplate } from "./ftcTemplateFiles";
 
 const tutorialTitles: Record<LanguageTemplate, string> = {
   blank: "Blank Canvas",

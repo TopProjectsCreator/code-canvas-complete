@@ -22,6 +22,8 @@ interface USBDevice {
   releaseInterface(interfaceNumber: number): Promise<void>;
   controlTransferIn(setup: USBControlTransferParameters, length: number): Promise<USBInTransferResult>;
   controlTransferOut(setup: USBControlTransferParameters, data?: ArrayBuffer | ArrayBufferView): Promise<USBOutTransferResult>;
+  transferIn(endpointNumber: number, length: number): Promise<USBInTransferResult>;
+  transferOut(endpointNumber: number, data: BufferSource): Promise<USBOutTransferResult>;
   readonly configuration: USBConfiguration | null;
 }
 
