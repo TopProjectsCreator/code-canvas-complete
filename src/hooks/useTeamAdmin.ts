@@ -210,11 +210,11 @@ export function useTeamAdmin() {
     setFormResponses((data || []) as unknown as TeamFormResponse[]);
   };
 
-  const addCustomTemplate = async (teamId: string, template: { name: string; description?: string; files: unknown[]; language: string; is_required: boolean }) => {
+  const addCustomTemplate = async (teamId: string, template: { name: string; description?: string; files: unknown[]; language: string; is_required: boolean; icon?: string }) => {
     if (!user) return false;
     const { error } = await supabase.from('team_custom_templates').insert({
-      team_id: teamId, ...template, files: JSON.parse(JSON.stringify(template.files)), created_by: user.id,
-    });
+      team_id: teamId, name: template.name, description: template.description, files: JSON.parse(JSON.stringify(template.files)), language: template.language, is_required: template.is_required, icon: template.icon || null, created_by: user.id,
+    } as any);
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
     toast({ title: 'Template added' });
     if (activeTeam) fetchTeamData(activeTeam.id);

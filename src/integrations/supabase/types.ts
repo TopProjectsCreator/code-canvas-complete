@@ -645,6 +645,7 @@ export type Database = {
           created_by: string
           description: string | null
           files: Json
+          icon: string | null
           id: string
           is_required: boolean
           language: string
@@ -657,6 +658,7 @@ export type Database = {
           created_by: string
           description?: string | null
           files?: Json
+          icon?: string | null
           id?: string
           is_required?: boolean
           language?: string
@@ -669,6 +671,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           files?: Json
+          icon?: string | null
           id?: string
           is_required?: boolean
           language?: string
