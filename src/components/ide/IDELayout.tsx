@@ -34,6 +34,7 @@ import { buildProjectShareUrl } from "@/lib/publishing";
 
 const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ default: m.ArduinoPanel })));
 const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then((m) => ({ default: m.ScratchPanel })));
+const FTCPanel = lazy(() => import("@/components/ftc").then((m) => ({ default: m.FTCPanel })));
 
 interface IDELayoutProps {
   projectId?: string;

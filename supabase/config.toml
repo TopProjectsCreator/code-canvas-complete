@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.manage-env-secrets]
 verify_jwt = false
+
+[functions.compile-ftc]
+verify_jwt = false
