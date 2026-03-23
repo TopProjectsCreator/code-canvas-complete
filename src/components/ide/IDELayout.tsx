@@ -34,6 +34,7 @@ import { buildProjectShareUrl } from "@/lib/publishing";
 
 const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ default: m.ArduinoPanel })));
 const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then((m) => ({ default: m.ScratchPanel })));
+const FTCPanel = lazy(() => import("@/components/ftc").then((m) => ({ default: m.FTCPanel })));
 
 interface IDELayoutProps {
   projectId?: string;
@@ -1951,6 +1952,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         currentTemplate={selectedTemplate}
                       />
                     </Suspense>
+                  ) : selectedTemplate === "ftc" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading FTC panel...</div>}>
+                      <FTCPanel
+                        files={filesWithContent}
+                        onFileUpdate={handleContentChange}
+                      />
+                    </Suspense>
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
                       <ScratchPanel
@@ -2036,12 +2044,19 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               {/* Preview panel or Arduino/Scratch panel */}
               <ResizablePanel defaultSize={selectedTemplate === "scratch" ? 100 : 46} minSize={24}>
                 {selectedTemplate === "arduino" ? (
-                  <Suspense fallback={<div className="p-4 text-gray-400">Loading Arduino panel...</div>}>
+                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
                     <ArduinoPanel
                       files={filesWithContent}
                       onFileUpdate={handleContentChange}
                       onAddFile={addFile}
                       currentTemplate={selectedTemplate}
+                    />
+                  </Suspense>
+                ) : selectedTemplate === "ftc" ? (
+                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading FTC panel...</div>}>
+                    <FTCPanel
+                      files={filesWithContent}
+                      onFileUpdate={handleContentChange}
                     />
                   </Suspense>
                 ) : selectedTemplate === "scratch" ? (
