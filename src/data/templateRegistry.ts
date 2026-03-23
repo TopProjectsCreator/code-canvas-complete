@@ -40,7 +40,8 @@ export type LanguageTemplate =
   | "video"
   | "audio"
   | "rtf"
-  | "cad";
+  | "cad"
+  | "ftc";
 
 export interface TemplateMeta {
   id: LanguageTemplate;
@@ -188,6 +189,12 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "3D CAD Viewer",
     description: "View and inspect 3D models (.stl/.obj)",
     aiDescription: "3D CAD model viewing (STL/OBJ)",
+  },
+  {
+    id: "ftc",
+    name: "FTC Robotics",
+    description: "FIRST Tech Challenge robot programming (Java/Kotlin)",
+    aiDescription: "FTC robotics OpMode development with cloud build & ADB upload",
   },
 ];
 
