@@ -733,6 +733,7 @@ export const CodeEditor = ({
               </div>
 
               <div className="relative min-w-0 flex-1">
+                {showStickyScope && (
                 <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/85 px-4 py-2 backdrop-blur-sm">
                   <div>
                     <p className="text-sm font-semibold">{currentScope?.name || file.name}</p>
@@ -753,6 +754,7 @@ export const CodeEditor = ({
                     ))}
                   </div>
                 </div>
+                )}
                 {selectedLine !== null && (
                   <div
                     className="pointer-events-none absolute inset-x-0 z-0"
