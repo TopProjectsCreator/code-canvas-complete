@@ -335,6 +335,10 @@ export const CodeEditor = ({
   const [showWorkbench, setShowWorkbench] = useState(false);
   const [asideTab, setAsideTab] = useState<"assistant" | "comments">("assistant");
   const [foldedScopes, setFoldedScopes] = useState<string[]>([]);
+  const [showStickyScope, setShowStickyScope] = useState(() => {
+    const stored = localStorage.getItem('showStickyScope');
+    return stored === 'true';
+  });
   const isComposingRef = useRef(false);
   const contentRef = useRef(content);
   const cursorOffsetRef = useRef<number | null>(null);
