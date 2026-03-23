@@ -374,6 +374,12 @@ export const CodeEditor = ({
   const foldedScopeSet = useMemo(() => new Set(foldedScopes), [foldedScopes]);
 
   useEffect(() => {
+    const handler = () => setShowStickyScope(localStorage.getItem('showStickyScope') === 'true');
+    window.addEventListener('ide-sticky-scope-changed', handler);
+    return () => window.removeEventListener('ide-sticky-scope-changed', handler);
+  }, []);
+
+  useEffect(() => {
     contentRef.current = content;
   }, [content]);
 
