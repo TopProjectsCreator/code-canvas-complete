@@ -335,6 +335,10 @@ export const CodeEditor = ({
   const [showWorkbench, setShowWorkbench] = useState(false);
   const [asideTab, setAsideTab] = useState<"assistant" | "comments">("assistant");
   const [foldedScopes, setFoldedScopes] = useState<string[]>([]);
+  const [showStickyScope, setShowStickyScope] = useState(() => {
+    const stored = localStorage.getItem('showStickyScope');
+    return stored === 'true';
+  });
   const isComposingRef = useRef(false);
   const contentRef = useRef(content);
   const cursorOffsetRef = useRef<number | null>(null);
@@ -368,6 +372,12 @@ export const CodeEditor = ({
     [content, selectedLine, cursorPosition.line],
   );
   const foldedScopeSet = useMemo(() => new Set(foldedScopes), [foldedScopes]);
+
+  useEffect(() => {
+    const handler = () => setShowStickyScope(localStorage.getItem('showStickyScope') === 'true');
+    window.addEventListener('ide-sticky-scope-changed', handler);
+    return () => window.removeEventListener('ide-sticky-scope-changed', handler);
+  }, []);
 
   useEffect(() => {
     contentRef.current = content;
@@ -729,6 +739,7 @@ export const CodeEditor = ({
               </div>
 
               <div className="relative min-w-0 flex-1">
+                {showStickyScope && (
                 <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/85 px-4 py-2 backdrop-blur-sm">
                   <div>
                     <p className="text-sm font-semibold">{currentScope?.name || file.name}</p>
@@ -749,6 +760,7 @@ export const CodeEditor = ({
                     ))}
                   </div>
                 </div>
+                )}
                 {selectedLine !== null && (
                   <div
                     className="pointer-events-none absolute inset-x-0 z-0"
