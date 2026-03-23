@@ -534,6 +534,18 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                   <span className="text-sm text-muted-foreground">Word wrap</span>
                   <input type="checkbox" defaultChecked className="accent-primary" />
                 </label>
+                <label className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Sticky scope header</span>
+                  <input
+                    type="checkbox"
+                    checked={typeof window !== 'undefined' && localStorage.getItem('showStickyScope') === 'true'}
+                    onChange={(e) => {
+                      localStorage.setItem('showStickyScope', String(e.target.checked));
+                      window.dispatchEvent(new Event('ide-sticky-scope-changed'));
+                    }}
+                    className="accent-primary"
+                  />
+                </label>
                 <div className="space-y-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm text-muted-foreground">Shell executor</span>
