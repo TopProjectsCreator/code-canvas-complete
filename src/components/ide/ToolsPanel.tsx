@@ -17,6 +17,7 @@ import {
   Sparkles,
   FileCog,
   WandSparkles,
+  Package,
 } from 'lucide-react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
@@ -463,7 +464,7 @@ const calculatorButtons: Array<Array<{ label: string; value?: string; action?: '
 ];
 
 export const ToolsPanel = () => {
-  const [activeSection, setActiveSection] = useState<'calculator' | 'css' | 'habit' | 'shortener' | 'qr' | 'converter'>('calculator');
+  const [activeSection, setActiveSection] = useState<'calculator' | 'css' | 'habit' | 'shortener' | 'qr' | 'converter' | 'parts'>('calculator');
 
   const [calculatorMode, setCalculatorMode] = useState<CalculatorMode>('scientific');
   const [calcInput, setCalcInput] = useState('');
@@ -1179,7 +1180,7 @@ export const ToolsPanel = () => {
         <span className="rounded-full bg-accent px-2 py-1 text-[10px] text-foreground">Studio utilities</span>
       </div>
 
-      <div className="grid grid-cols-6 border-b border-border bg-muted/20">
+      <div className="grid grid-cols-7 border-b border-border bg-muted/20">
         {[
           { id: 'calculator', icon: Calculator, label: 'Calc' },
           { id: 'css', icon: Palette, label: 'CSS' },
@@ -1187,6 +1188,7 @@ export const ToolsPanel = () => {
           { id: 'shortener', icon: Link2, label: 'URL' },
           { id: 'qr', icon: QrCode, label: 'QR' },
           { id: 'converter', icon: RefreshCw, label: 'Convert' },
+          { id: 'parts', icon: Package, label: 'Parts' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -1811,6 +1813,24 @@ export const ToolsPanel = () => {
                 {converterError && <div className="mt-3 rounded-xl bg-destructive/10 px-3 py-2 text-destructive">{converterError}</div>}
               </div>
             </div>
+          </div>
+        )}
+
+        {activeSection === 'parts' && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4 py-8 text-center">
+            <Package className="w-10 h-10 text-muted-foreground/50" />
+            <div>
+              <p className="font-medium text-sm">Parts Inventory</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Open the full inventory from the sidebar or header to manage parts with AI identification.
+              </p>
+            </div>
+            <button
+              className="mt-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-parts-inventory'))}
+            >
+              Open Parts Inventory
+            </button>
           </div>
         )}
       </div>

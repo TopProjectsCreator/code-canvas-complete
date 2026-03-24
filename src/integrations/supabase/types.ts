@@ -381,6 +381,80 @@ export type Database = {
         }
         Relationships: []
       }
+      parts_inventory: {
+        Row: {
+          ai_details: Json | null
+          category: string
+          compatible_with: string[] | null
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          location: string | null
+          location_detail: string | null
+          manufacturer: string | null
+          name: string
+          part_number: string | null
+          platform: string
+          quantity: number
+          specifications: Json | null
+          tags: string[] | null
+          team_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_details?: Json | null
+          category?: string
+          compatible_with?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string | null
+          location_detail?: string | null
+          manufacturer?: string | null
+          name: string
+          part_number?: string | null
+          platform?: string
+          quantity?: number
+          specifications?: Json | null
+          tags?: string[] | null
+          team_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_details?: Json | null
+          category?: string
+          compatible_with?: string[] | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          location?: string | null
+          location_detail?: string | null
+          manufacturer?: string | null
+          name?: string
+          part_number?: string | null
+          platform?: string
+          quantity?: number
+          specifications?: Json | null
+          tags?: string[] | null
+          team_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parts_inventory_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
