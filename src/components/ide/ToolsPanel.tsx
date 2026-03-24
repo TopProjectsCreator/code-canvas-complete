@@ -464,7 +464,7 @@ const calculatorButtons: Array<Array<{ label: string; value?: string; action?: '
 ];
 
 export const ToolsPanel = () => {
-  const [activeSection, setActiveSection] = useState<'calculator' | 'css' | 'habit' | 'shortener' | 'qr' | 'converter'>('calculator');
+  const [activeSection, setActiveSection] = useState<'calculator' | 'css' | 'habit' | 'shortener' | 'qr' | 'converter' | 'parts'>('calculator');
 
   const [calculatorMode, setCalculatorMode] = useState<CalculatorMode>('scientific');
   const [calcInput, setCalcInput] = useState('');
