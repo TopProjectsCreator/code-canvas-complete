@@ -204,6 +204,7 @@ Note: To open the preview in a new window, click the pop-out icon <img width="15
 <summary><b>Deploy to Lovable</b></summary>
 
 Coming soon! We are finalizing the GitHub Actions and documentation for a seamless remix-and-publish experience. Get ready for the easiest deploy yet!
+
 </details>
 
 ---
