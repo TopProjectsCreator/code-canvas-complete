@@ -35,6 +35,7 @@ import { buildProjectShareUrl } from "@/lib/publishing";
 const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ default: m.ArduinoPanel })));
 const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then((m) => ({ default: m.ScratchPanel })));
 const FTCPanel = lazy(() => import("@/components/ftc").then((m) => ({ default: m.FTCPanel })));
+const PartsInventoryDialog = lazy(() => import("@/components/ide/PartsInventoryDialog").then((m) => ({ default: m.PartsInventoryDialog })));
 
 interface IDELayoutProps {
   projectId?: string;
@@ -263,6 +264,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [showGitImportDialog, setShowGitImportDialog] = useState(false);
   const [showCollabDialog, setShowCollabDialog] = useState(false);
+  const [showPartsInventory, setShowPartsInventory] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
