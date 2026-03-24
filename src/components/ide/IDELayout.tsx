@@ -1652,7 +1652,15 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+
+    // Listen for parts inventory open event from ToolsPanel
+    const handleOpenParts = () => setShowPartsInventory(true);
+    window.addEventListener("open-parts-inventory", handleOpenParts);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("open-parts-inventory", handleOpenParts);
+    };
   }, [user, handleRun]);
 
   // Handle Git import
