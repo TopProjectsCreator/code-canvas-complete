@@ -1821,6 +1821,14 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       <CollabDialog open={showCollabDialog} onOpenChange={setShowCollabDialog} projectId={currentProject?.id} />
 
+      <Suspense fallback={null}>
+        <PartsInventoryDialog
+          open={showPartsInventory}
+          onOpenChange={setShowPartsInventory}
+          currentTemplate={selectedTemplate || undefined}
+        />
+      </Suspense>
+
       <GitProviderImportDialog
         open={showGitImportDialog}
         onOpenChange={setShowGitImportDialog}
