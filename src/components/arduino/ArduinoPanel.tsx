@@ -97,7 +97,11 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
         </Button>
         <Button
           variant="outline"
-          onClick={() => window.dispatchEvent(new CustomEvent('open-parts-inventory'))}
+          onClick={() =>
+            window.dispatchEvent(
+              new CustomEvent('open-parts-inventory', { detail: { platform: 'arduino' } }),
+            )
+          }
         >
           <Package className="w-4 h-4 mr-2" /> Parts
         </Button>
