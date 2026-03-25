@@ -1,9 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { FileNode } from '@/types/ide';
 import {
-  Video, Save, Play, Pause, SkipBack, SkipForward,
+  Video, Play, Pause, SkipBack, SkipForward,
   Volume2, VolumeX, Maximize, Scissors, RotateCcw,
-  Clock, Gauge, Minus, Plus, Upload, Download, Info
+  Gauge, Upload, Download, Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -41,6 +41,9 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
   const [showInfo, setShowInfo] = useState(false);
   const [thumbnails, setThumbnails] = useState<string[]>([]);
   const [videoSrc, setVideoSrc] = useState('');
+  const [showGuides, setShowGuides] = useState(true);
+  const [theaterMode, setTheaterMode] = useState(false);
+  const [viewportFit, setViewportFit] = useState<'contain' | 'cover'>('contain');
 
   // Build video source URL
   useEffect(() => {
@@ -108,7 +111,7 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
     }
   };
 
-  const togglePlay = () => {
+  const togglePlay = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
     if (playing) {
@@ -120,16 +123,16 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
       v.play();
     }
     setPlaying(!playing);
-  };
+  }, [playing, trimEnd, trimStart]);
 
-  const seek = (time: number) => {
+  const seek = useCallback((time: number) => {
     if (!videoRef.current) return;
     videoRef.current.currentTime = time;
     setCurrentTime(time);
-  };
+  }, []);
 
-  const skipBack = () => seek(Math.max(0, currentTime - 5));
-  const skipForward = () => seek(Math.min(duration, currentTime + 5));
+  const skipBack = useCallback(() => seek(Math.max(0, currentTime - 5)), [currentTime, seek]);
+  const skipForward = useCallback(() => seek(Math.min(duration, currentTime + 5)), [currentTime, duration, seek]);
 
   const toggleMute = () => {
     if (!videoRef.current) return;
@@ -207,6 +210,41 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
     if (f && f.type.startsWith('video/')) loadVideoFile(f);
   };
 
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || target?.isContentEditable) return;
+      if (event.code === 'Space') {
+        event.preventDefault();
+        togglePlay();
+      }
+      if (event.key.toLowerCase() === 'j') {
+        event.preventDefault();
+        skipBack();
+      }
+      if (event.key.toLowerCase() === 'l') {
+        event.preventDefault();
+        skipForward();
+      }
+      if (event.key.toLowerCase() === 'g') {
+        event.preventDefault();
+        setShowGuides((prev) => !prev);
+      }
+      if (event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        setViewportFit((prev) => (prev === 'contain' ? 'cover' : 'contain'));
+      }
+      if (event.key.toLowerCase() === 't') {
+        event.preventDefault();
+        setTheaterMode((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [skipBack, skipForward, togglePlay]);
+
   if (!videoSrc) {
     return (
       <div
@@ -243,6 +281,7 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
           <div className="flex items-center gap-2">
             <Video className="w-4 h-4 text-primary" />
             <span className="text-sm font-medium text-white">{file.name}</span>
+            <span className="hidden md:inline text-[11px] text-white/45">J/L skip · G guides · F fit/fill · T theater</span>
           </div>
           <div className="flex items-center gap-1">
             <Tooltip><TooltipTrigger asChild>
@@ -250,6 +289,9 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
                 <Info className="w-3.5 h-3.5" />
               </Button>
             </TooltipTrigger><TooltipContent>Video Info</TooltipContent></Tooltip>
+            <Button size="sm" variant="ghost" className={cn("h-7 text-[11px] text-white/70 hover:text-white hover:bg-white/10", showGuides && "text-primary")} onClick={() => setShowGuides((prev) => !prev)}>Guides</Button>
+            <Button size="sm" variant="ghost" className={cn("h-7 text-[11px] text-white/70 hover:text-white hover:bg-white/10", viewportFit === 'cover' && "text-primary")} onClick={() => setViewportFit((prev) => (prev === 'contain' ? 'cover' : 'contain'))}>{viewportFit === 'contain' ? 'Fit' : 'Fill'}</Button>
+            <Button size="sm" variant="ghost" className={cn("h-7 text-[11px] text-white/70 hover:text-white hover:bg-white/10", theaterMode && "text-primary")} onClick={() => setTheaterMode((prev) => !prev)}>Theater</Button>
             <Tooltip><TooltipTrigger asChild>
               <Button size="icon" variant="ghost" className="h-7 w-7 text-white/70 hover:text-white hover:bg-white/10" onClick={captureFrame}>
                 <Download className="w-3.5 h-3.5" />
@@ -272,17 +314,27 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
         )}
 
         {/* Video viewport */}
-        <div className="flex-1 flex items-center justify-center bg-black min-h-0 overflow-hidden relative">
+        <div className={cn("flex-1 flex items-center justify-center bg-black min-h-0 overflow-hidden relative", theaterMode ? "px-0 py-0" : "px-4 py-3")}>
           <video
             ref={videoRef}
             src={videoSrc}
-            className="max-w-full max-h-full object-contain"
+            className={cn("max-w-full max-h-full", viewportFit === "contain" ? "object-contain" : "object-cover", theaterMode && "w-full h-full")}
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={handleTimeUpdate}
             onEnded={() => setPlaying(false)}
             onClick={togglePlay}
             style={{ cursor: 'pointer' }}
           />
+          {showGuides && (
+            <div className="pointer-events-none absolute inset-3 rounded border border-dashed border-white/20">
+              <div className="absolute left-[8%] top-[8%] h-[84%] w-[84%] border border-dashed border-white/15" />
+            </div>
+          )}
+          <div className="pointer-events-none absolute left-3 bottom-3 flex items-center gap-2 text-[10px] uppercase tracking-[0.12em]">
+            <span className="rounded-full bg-black/50 border border-white/15 px-2 py-1 text-white/85">{formatTime(currentTime)} / {formatTime(duration)}</span>
+            <span className="rounded-full bg-black/50 border border-white/15 px-2 py-1 text-white/65">{viewportFit === 'contain' ? 'Fit' : 'Fill'}</span>
+            {trimStart > 0 || trimEnd < duration ? <span className="rounded-full bg-black/50 border border-white/15 px-2 py-1 text-white/65">Trim {formatTime(trimStart)}-{formatTime(trimEnd)}</span> : null}
+          </div>
           {!playing && (
             <div
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
