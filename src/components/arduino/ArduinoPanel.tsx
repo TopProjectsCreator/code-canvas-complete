@@ -9,7 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileNode, BreadboardCircuit } from '@/types/ide';
-import { Upload, Zap } from 'lucide-react';
+import { Upload, Zap, Package } from 'lucide-react';
 import { arduinoLibraries, arduinoBoards } from '@/data/arduinoTemplates';
 
 interface ArduinoPanelProps {
@@ -94,6 +94,12 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
         </Button>
         <Button variant="outline" title="Run simulation to view serial output in the built-in monitor">
           <Zap className="w-4 h-4 mr-2" /> Serial Monitor (Sim)
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-parts-inventory'))}
+        >
+          <Package className="w-4 h-4 mr-2" /> Parts
         </Button>
       </div>
 

@@ -17,6 +17,7 @@ import {
   type FTCFile,
 } from '@/services/ftcUploadService';
 import type { AdbDevice } from '@/lib/webusb-adb';
+import { HardwareConfigEditor } from './HardwareConfigEditor';
 import {
   Hammer,
   Upload,
@@ -29,6 +30,8 @@ import {
   Loader2,
   RefreshCw,
   Trash2,
+  Package,
+  Settings2,
 } from 'lucide-react';
 
 interface FTCPanelProps {
@@ -157,6 +160,13 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
     <AlertCircle className="w-4 h-4 text-red-400" />
   ) : null;
 
+  const handleExportConfig = useCallback((xmlContent: string, javaContent: string) => {
+    // Create a hardware_config.xml file via onFileUpdate or just copy to clipboard
+    navigator.clipboard.writeText(javaContent);
+    // Also try to notify user
+    alert('Hardware mapping Java code copied to clipboard!\n\nPaste it into your RobotHardware.init() method.');
+  }, []);
+
   return (
     <div className="space-y-4 p-4 bg-slate-950 h-full overflow-auto">
       {/* Action Buttons */}
@@ -191,6 +201,13 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
             <PlugZap className="w-4 h-4 mr-2 text-green-400" /> Disconnect
           </Button>
         )}
+
+        <Button
+          variant="outline"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-parts-inventory'))}
+        >
+          <Package className="w-4 h-4 mr-2" /> Parts
+        </Button>
       </div>
 
       {/* Status */}
@@ -217,6 +234,7 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
       <Tabs defaultValue="opmodes" className="w-full">
         <TabsList className="bg-slate-900 border-b border-slate-700">
           <TabsTrigger value="opmodes">OpModes</TabsTrigger>
+          <TabsTrigger value="hardware">Hardware</TabsTrigger>
           <TabsTrigger value="build">Build Output</TabsTrigger>
           <TabsTrigger value="logcat">Logcat</TabsTrigger>
         </TabsList>
@@ -247,6 +265,11 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
               </div>
             )}
           </Card>
+        </TabsContent>
+
+        {/* Hardware Config Tab */}
+        <TabsContent value="hardware" className="space-y-2">
+          <HardwareConfigEditor onExportConfig={handleExportConfig} />
         </TabsContent>
 
         {/* Build Output Tab */}
