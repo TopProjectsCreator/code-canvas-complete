@@ -10,15 +10,31 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { partName, platform } = await req.json();
+    const { partName, platform, vendorUrl, imageBase64 } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    let vendorContext = "";
+    if (typeof vendorUrl === "string" && vendorUrl.trim()) {
+      try {
+        const vendorResp = await fetch(vendorUrl.trim());
+        if (vendorResp.ok) {
+          const html = await vendorResp.text();
+          const titleMatch = html.match(/<title>(.*?)<\/title>/i);
+          const ogImageMatch = html.match(/property=["']og:image["']\s+content=["']([^"']+)["']/i);
+          vendorContext = `Vendor URL: ${vendorUrl}\nVendor title: ${titleMatch?.[1] ?? "unknown"}\nVendor image: ${ogImageMatch?.[1] ?? "unknown"}`;
+        }
+      } catch (error) {
+        console.warn("vendor context fetch failed", error);
+      }
+    }
 
     const systemPrompt = `You are an electronics and robotics parts expert. Given a part name, provide detailed identification information. Return a JSON object with these fields:
 - description: A clear 1-2 sentence description of what this part does
 - category: One of: motor, servo, sensor, controller, structural, electrical, connector, wheel, gear, bearing, fastener, battery, cable, other
 - manufacturer: The likely manufacturer (or "Generic" if unknown)
 - partNumber: The common part number if known (or null)
+- material: likely primary material(s) as a short string (e.g. "6061 aluminum", "ABS plastic")
 - specifications: An object with relevant specs (voltage, current, dimensions, weight, etc.)
 - compatibleWith: Array of platforms this part works with (e.g. ["ftc", "arduino", "general"])
 - commonUses: Array of 3-5 common use cases
@@ -26,6 +42,8 @@ serve(async (req) => {
 - alternativeParts: Array of 1-3 alternative/equivalent parts
 
 Platform context: ${platform || "general"}
+${vendorContext ? `\n${vendorContext}` : ""}
+Image provided: ${imageBase64 ? "yes" : "no"} (if yes, infer probable material/part family from visual cues)
 
 IMPORTANT: Return ONLY valid JSON, no markdown fences.`;
 
