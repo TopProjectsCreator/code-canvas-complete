@@ -321,7 +321,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     [files, fileContents],
   );
 
-  const handleSelectTemplate = useCallback((template: LanguageTemplate) => {
+  const handleSelectTemplate = useCallback(async (template: LanguageTemplate) => {
     setSelectedTemplate(template);
     const templateFiles = getTemplateFiles(template);
     setFiles(templateFiles);
@@ -342,7 +342,25 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     // Create default workflows based on template
     const defaultWorkflows = getDefaultWorkflows(template);
     setWorkflows(defaultWorkflows);
-  }, []);
+
+    // For FIRST robotics templates, clone from GitHub
+    const githubRepo = GITHUB_TEMPLATE_REPOS[template];
+    if (githubRepo) {
+      toast({ title: "Cloning template", description: `Importing from GitHub...` });
+      try {
+        const imported = await gitImportRepo(githubRepo);
+        if (imported) {
+          setFiles(imported);
+          const importOriginals: Record<string, string> = {};
+          collectContents(imported);
+          setOriginalFileContents(importOriginals);
+          toast({ title: "Template loaded", description: "Repository cloned successfully!" });
+        }
+      } catch {
+        toast({ title: "Clone failed", description: "Using default template files", variant: "destructive" });
+      }
+    }
+  }, [gitImportRepo, toast]);
 
   // Load shared project from URL
   useEffect(() => {
