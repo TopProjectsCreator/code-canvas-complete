@@ -1,0 +1,31 @@
+name: PR Branch Check
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  check-author:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine Display Name
+        id: info
+        run: |
+          # Get the source branch name
+          BRANCH_NAME="${{ github.head_ref }}"
+          
+          if [[ $BRANCH_NAME == codex/* ]]; then
+            echo "display_name=codex" >> $GITHUB_OUTPUT
+          else
+            echo "display_name=${{ github.actor }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "This contribution was made by: ${{ steps.info.outputs.display_name }}"
+            })
