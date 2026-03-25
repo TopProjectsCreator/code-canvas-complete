@@ -2096,8 +2096,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       currentTemplate={selectedTemplate}
                     />
                   </Suspense>
-                ) : selectedTemplate === "ftc" ? (
-                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading FTC panel...</div>}>
+                ) : selectedTemplate === "ftc" || selectedTemplate === "fll" || selectedTemplate === "frc" ? (
+                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading {selectedTemplate.toUpperCase()} panel...</div>}>
                     <FTCPanel
                       files={filesWithContent}
                       onFileUpdate={handleContentChange}
