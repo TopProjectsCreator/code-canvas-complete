@@ -272,6 +272,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [showGitImportDialog, setShowGitImportDialog] = useState(false);
   const [showCollabDialog, setShowCollabDialog] = useState(false);
   const [showPartsInventory, setShowPartsInventory] = useState(false);
+  const [partsInventoryPlatform, setPartsInventoryPlatform] = useState<"ftc" | "arduino" | "general" | undefined>(undefined);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
@@ -1680,12 +1681,16 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     window.addEventListener("keydown", handleKeyDown);
 
     // Listen for parts inventory open event from ToolsPanel
-    const handleOpenParts = () => setShowPartsInventory(true);
-    window.addEventListener("open-parts-inventory", handleOpenParts);
+    const handleOpenParts = (event: Event) => {
+      const customEvent = event as CustomEvent<{ platform?: "ftc" | "arduino" | "general" }>;
+      setPartsInventoryPlatform(customEvent.detail?.platform);
+      setShowPartsInventory(true);
+    };
+    window.addEventListener("open-parts-inventory", handleOpenParts as EventListener);
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("open-parts-inventory", handleOpenParts);
+      window.removeEventListener("open-parts-inventory", handleOpenParts as EventListener);
     };
   }, [user, handleRun]);
 
@@ -1852,6 +1857,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           open={showPartsInventory}
           onOpenChange={setShowPartsInventory}
           currentTemplate={selectedTemplate || undefined}
+          preferredPlatform={partsInventoryPlatform}
         />
       </Suspense>
 
