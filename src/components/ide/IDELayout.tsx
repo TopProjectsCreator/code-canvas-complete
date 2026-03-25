@@ -295,6 +295,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const editedFilesRef = useRef<Set<string>>(new Set());
   const { executeCode, executeShellCommand, isExecuting } = useCodeExecution();
   const collab = useCollaboration(currentProject?.id);
+  const { importRepository: gitImportRepo } = useGitHubImport();
 
   const addHistoryEntry = useCallback(
     (type: (typeof historyEntries)[0]["type"], label: string, detail?: string) => {
