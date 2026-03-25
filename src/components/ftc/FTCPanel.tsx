@@ -204,7 +204,11 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
 
         <Button
           variant="outline"
-          onClick={() => window.dispatchEvent(new CustomEvent('open-parts-inventory'))}
+          onClick={() =>
+            window.dispatchEvent(
+              new CustomEvent('open-parts-inventory', { detail: { platform: 'ftc' } }),
+            )
+          }
         >
           <Package className="w-4 h-4 mr-2" /> Parts
         </Button>
