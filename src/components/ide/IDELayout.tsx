@@ -31,6 +31,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ScratchArchive, importSb3 } from "@/services/scratchSb3";
 import { createDataProvider } from "@/integrations/data/provider";
 import { buildProjectShareUrl } from "@/lib/publishing";
+import { useGitHubImport } from "@/hooks/useGitHubImport";
+
+const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
+  ftc: "https://github.com/FIRST-Tech-Challenge/FtcRobotController",
+  fll: "https://github.com/ev3dev/ev3dev-lang-python",
+  frc: "https://github.com/wpilibsuite/allwpilib",
+};
 
 const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ default: m.ArduinoPanel })));
 const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then((m) => ({ default: m.ScratchPanel })));
