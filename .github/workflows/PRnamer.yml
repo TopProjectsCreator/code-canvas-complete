@@ -7,21 +7,26 @@ jobs:
   rewrite-history:
     if: startsWith(github.head_ref, 'codex/')
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch all history for rewriting
+          fetch-depth: 0
           ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_REWRITE }}  # <-- MUST be a PAT
 
-      - name: Rewrite Commits
+      - name: Rewrite commit authors
         run: |
           git config user.name "codex"
           git config user.email "codex@users.noreply.github.com"
-          
-          # This command goes back and re-signs all commits in the branch as 'codex'
-          git rebase --root --exec "git commit --amend --author='codex <codex@users.noreply.github.com>' --no-edit"
-          
-          # Force push the rewritten history back to the PR branch
+
+          # Rewrite only commits in this branch
+          git filter-branch --env-filter '
+            export GIT_AUTHOR_NAME="codex"
+            export GIT_AUTHOR_EMAIL="codex@users.noreply.github.com"
+            export GIT_COMMITTER_NAME="codex"
+            export GIT_COMMITTER_EMAIL="codex@users.noreply.github.com"
+          ' -- --all
+
           git push origin ${{ github.head_ref }} --force
