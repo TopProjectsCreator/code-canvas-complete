@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { RichTextComposer } from "./RichTextComposer";
 import { AdvancedWorkbench } from "./AdvancedWorkbench";
+import { EnvFileEditor } from "./EnvFileEditor";
 import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
 import { useCollaboration } from "@/hooks/useCollaboration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -542,10 +543,12 @@ export const CodeEditor = ({
     );
   }
 
+  const isEnvFile = file.name === ".env" || file.name.startsWith(".env.");
   const previewType = getPreviewType(file.name);
   const binaryPreviewTypes = ["image", "video", "audio", "cad", "rtf"];
   const isTextPreviewable = previewType && !binaryPreviewTypes.includes(previewType);
 
+  if (isEnvFile) return <EnvFileEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "office") return <OfficeEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "video") return <VideoEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "audio") return <AudioEditor file={file} onContentChange={onContentChange} />;
