@@ -95,6 +95,12 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
         <Button variant="outline" title="Run simulation to view serial output in the built-in monitor">
           <Zap className="w-4 h-4 mr-2" /> Serial Monitor (Sim)
         </Button>
+        <Button
+          variant="outline"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-parts-inventory'))}
+        >
+          <Package className="w-4 h-4 mr-2" /> Parts
+        </Button>
       </div>
 
       <Tabs defaultValue="breadboard" className="w-full">
