@@ -31,6 +31,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ScratchArchive, importSb3 } from "@/services/scratchSb3";
 import { createDataProvider } from "@/integrations/data/provider";
 import { buildProjectShareUrl } from "@/lib/publishing";
+import { useGitHubImport } from "@/hooks/useGitHubImport";
+
+const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
+  ftc: "https://github.com/FIRST-Tech-Challenge/FtcRobotController",
+  fll: "https://github.com/ev3dev/ev3dev-lang-python",
+  frc: "https://github.com/wpilibsuite/allwpilib",
+};
 
 const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ default: m.ArduinoPanel })));
 const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then((m) => ({ default: m.ScratchPanel })));
@@ -288,6 +295,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const editedFilesRef = useRef<Set<string>>(new Set());
   const { executeCode, executeShellCommand, isExecuting } = useCodeExecution();
   const collab = useCollaboration(currentProject?.id);
+  const { importRepository: gitImportRepo } = useGitHubImport();
 
   const addHistoryEntry = useCallback(
     (type: (typeof historyEntries)[0]["type"], label: string, detail?: string) => {
@@ -313,7 +321,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     [files, fileContents],
   );
 
-  const handleSelectTemplate = useCallback((template: LanguageTemplate) => {
+  const handleSelectTemplate = useCallback(async (template: LanguageTemplate) => {
     setSelectedTemplate(template);
     const templateFiles = getTemplateFiles(template);
     setFiles(templateFiles);
@@ -334,7 +342,25 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     // Create default workflows based on template
     const defaultWorkflows = getDefaultWorkflows(template);
     setWorkflows(defaultWorkflows);
-  }, []);
+
+    // For FIRST robotics templates, clone from GitHub
+    const githubRepo = GITHUB_TEMPLATE_REPOS[template];
+    if (githubRepo) {
+      toast({ title: "Cloning template", description: `Importing from GitHub...` });
+      try {
+        const imported = await gitImportRepo(githubRepo);
+        if (imported) {
+          setFiles(imported);
+          const importOriginals: Record<string, string> = {};
+          collectContents(imported);
+          setOriginalFileContents(importOriginals);
+          toast({ title: "Template loaded", description: "Repository cloned successfully!" });
+        }
+      } catch {
+        toast({ title: "Clone failed", description: "Using default template files", variant: "destructive" });
+      }
+    }
+  }, [gitImportRepo, toast]);
 
   // Load shared project from URL
   useEffect(() => {
@@ -1970,8 +1996,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         currentTemplate={selectedTemplate}
                       />
                     </Suspense>
-                  ) : selectedTemplate === "ftc" ? (
-                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading FTC panel...</div>}>
+                  ) : selectedTemplate === "ftc" || selectedTemplate === "fll" || selectedTemplate === "frc" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading {selectedTemplate.toUpperCase()} panel...</div>}>
                       <FTCPanel
                         files={filesWithContent}
                         onFileUpdate={handleContentChange}
@@ -2070,8 +2096,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       currentTemplate={selectedTemplate}
                     />
                   </Suspense>
-                ) : selectedTemplate === "ftc" ? (
-                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading FTC panel...</div>}>
+                ) : selectedTemplate === "ftc" || selectedTemplate === "fll" || selectedTemplate === "frc" ? (
+                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading {selectedTemplate.toUpperCase()} panel...</div>}>
                     <FTCPanel
                       files={filesWithContent}
                       onFileUpdate={handleContentChange}
