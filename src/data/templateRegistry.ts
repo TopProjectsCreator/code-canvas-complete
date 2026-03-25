@@ -41,7 +41,9 @@ export type LanguageTemplate =
   | "audio"
   | "rtf"
   | "cad"
-  | "ftc";
+  | "ftc"
+  | "fll"
+  | "frc";
 
 export interface TemplateMeta {
   id: LanguageTemplate;
