@@ -17,6 +17,7 @@ import {
   type FTCFile,
 } from '@/services/ftcUploadService';
 import type { AdbDevice } from '@/lib/webusb-adb';
+import { HardwareConfigEditor } from './HardwareConfigEditor';
 import {
   Hammer,
   Upload,
@@ -29,6 +30,8 @@ import {
   Loader2,
   RefreshCw,
   Trash2,
+  Package,
+  Settings2,
 } from 'lucide-react';
 
 interface FTCPanelProps {
