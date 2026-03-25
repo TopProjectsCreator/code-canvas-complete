@@ -234,6 +234,7 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
       <Tabs defaultValue="opmodes" className="w-full">
         <TabsList className="bg-slate-900 border-b border-slate-700">
           <TabsTrigger value="opmodes">OpModes</TabsTrigger>
+          <TabsTrigger value="hardware">Hardware</TabsTrigger>
           <TabsTrigger value="build">Build Output</TabsTrigger>
           <TabsTrigger value="logcat">Logcat</TabsTrigger>
         </TabsList>
