@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,10 @@ import {
   Cog,
   Zap,
   X,
+  Camera,
+  UploadCloud,
+  Link2,
+  DatabaseZap,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,6 +70,7 @@ interface PartsInventoryDialogProps {
   onOpenChange: (open: boolean) => void;
   currentTemplate?: string;
   teamId?: string | null;
+  preferredPlatform?: "ftc" | "arduino" | "general";
 }
 
 const CATEGORIES = [
@@ -85,11 +90,37 @@ const CATEGORIES = [
   { value: "other", label: "Other", icon: Package },
 ];
 
+const VENDOR_HOSTS = [
+  "www.gobilda.com",
+  "www.andymark.com",
+  "www.revrobotics.com",
+  "www.studica.com",
+  "www.vexrobotics.com",
+];
+
+const parseCsvRows = (csvText: string) => {
+  const lines = csvText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  return lines.slice(1).map((line) => {
+    const cols = line.split(",").map((c) => c.trim());
+    const row: Record<string, string> = {};
+    headers.forEach((header, index) => {
+      row[header] = cols[index] || "";
+    });
+    return row;
+  });
+};
+
 export const PartsInventoryDialog = ({
   open,
   onOpenChange,
   currentTemplate,
   teamId,
+  preferredPlatform,
 }: PartsInventoryDialogProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -97,7 +128,10 @@ export const PartsInventoryDialog = ({
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [filterPlatform, setFilterPlatform] = useState<string>("all");
+  const derivedPlatform =
+    preferredPlatform ||
+    (currentTemplate === "ftc" ? "ftc" : currentTemplate === "arduino" ? "arduino" : "general");
+  const [activePlatform, setActivePlatform] = useState<"ftc" | "arduino" | "general">(derivedPlatform);
   const [tab, setTab] = useState<"inventory" | "add">("inventory");
 
   // Add part form
@@ -106,9 +140,7 @@ export const PartsInventoryDialog = ({
   const [newQuantity, setNewQuantity] = useState(1);
   const [newLocation, setNewLocation] = useState("");
   const [newLocationDetail, setNewLocationDetail] = useState("");
-  const [newPlatform, setNewPlatform] = useState(
-    currentTemplate === "ftc" ? "ftc" : currentTemplate === "arduino" ? "arduino" : "general"
-  );
+  const [newPlatform, setNewPlatform] = useState<"ftc" | "arduino" | "general">(derivedPlatform);
   const [newTags, setNewTags] = useState("");
   const [aiIdentifying, setAiIdentifying] = useState(false);
   const [aiDetails, setAiDetails] = useState<Record<string, any> | null>(null);
@@ -118,6 +150,11 @@ export const PartsInventoryDialog = ({
   const [aiSpecs, setAiSpecs] = useState<Record<string, any>>({});
   const [aiCompatible, setAiCompatible] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [vendorUrl, setVendorUrl] = useState("");
+  const [partImageBase64, setPartImageBase64] = useState<string | null>(null);
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkCsvSummary, setBulkCsvSummary] = useState<string>("");
+  const csvFileRef = useRef<HTMLInputElement | null>(null);
 
   // Detail view
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
@@ -151,6 +188,11 @@ export const PartsInventoryDialog = ({
     if (open && user) fetchParts();
   }, [open, user, fetchParts]);
 
+  useEffect(() => {
+    setActivePlatform(derivedPlatform);
+    setNewPlatform(derivedPlatform);
+  }, [derivedPlatform, open]);
+
   // Realtime subscription
   useEffect(() => {
     if (!open || !user) return;
@@ -174,18 +216,58 @@ export const PartsInventoryDialog = ({
         p.manufacturer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.part_number?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = filterCategory === "all" || p.category === filterCategory;
-      const matchesPlatform = filterPlatform === "all" || p.platform === filterPlatform;
+      const matchesPlatform =
+        p.platform === activePlatform || (activePlatform !== "general" && p.platform === "general");
       return matchesSearch && matchesCategory && matchesPlatform;
     });
-  }, [parts, searchQuery, filterCategory, filterPlatform]);
+  }, [parts, searchQuery, filterCategory, activePlatform]);
 
   const identifyWithAI = async () => {
     if (!newName.trim()) return;
     setAiIdentifying(true);
     setAiDetails(null);
     try {
+      const existing = parts.find(
+        (p) =>
+          p.name.trim().toLowerCase() === newName.trim().toLowerCase() &&
+          (p.platform === newPlatform || p.platform === "general"),
+      );
+
+      if (existing) {
+        setAiDetails(existing.ai_details || {});
+        setAiDescription(existing.description || "");
+        setAiManufacturer(existing.manufacturer || "");
+        setAiPartNumber(existing.part_number || "");
+        setAiSpecs(existing.specifications || {});
+        setAiCompatible(existing.compatible_with || []);
+        setNewCategory(existing.category || "other");
+        toast({
+          title: "Loaded from parts library",
+          description: "This part already exists, so AI did not regenerate it.",
+        });
+        return;
+      }
+
+      const aiCacheKey = `parts-ai-library-${newPlatform}`;
+      const cached = localStorage.getItem(aiCacheKey);
+      if (cached) {
+        const cachedParts: Record<string, any> = JSON.parse(cached);
+        const cachedPart = cachedParts[newName.trim().toLowerCase()];
+        if (cachedPart) {
+          setAiDetails(cachedPart);
+          setAiDescription(cachedPart.description || "");
+          setAiManufacturer(cachedPart.manufacturer || "");
+          setAiPartNumber(cachedPart.partNumber || "");
+          setAiSpecs(cachedPart.specifications || {});
+          setAiCompatible(cachedPart.compatibleWith || []);
+          if (cachedPart.category) setNewCategory(cachedPart.category);
+          toast({ title: "Loaded from AI library cache", description: "Reused previous AI identification." });
+          return;
+        }
+      }
+
       const { data, error } = await supabase.functions.invoke("identify-part", {
-        body: { partName: newName, platform: newPlatform },
+        body: { partName: newName, platform: newPlatform, vendorUrl, imageBase64: partImageBase64 },
       });
       if (error) throw error;
       if (data.error) throw new Error(data.error);
@@ -197,6 +279,10 @@ export const PartsInventoryDialog = ({
       setAiSpecs(data.specifications || {});
       setAiCompatible(data.compatibleWith || []);
       if (data.category) setNewCategory(data.category);
+      const cachedAfter = localStorage.getItem(aiCacheKey);
+      const cacheData = cachedAfter ? JSON.parse(cachedAfter) : {};
+      cacheData[newName.trim().toLowerCase()] = data;
+      localStorage.setItem(aiCacheKey, JSON.stringify(cacheData));
       toast({ title: "Part identified!", description: "AI filled in details for you." });
     } catch (e: any) {
       toast({ title: "AI identification failed", description: e.message, variant: "destructive" });
@@ -244,6 +330,82 @@ export const PartsInventoryDialog = ({
     }
   };
 
+  const handleImageUpload = async (file?: File | null) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = typeof reader.result === "string" ? reader.result : "";
+      setPartImageBase64(value);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleBulkImportCsv = async (csvText: string) => {
+    if (!user) return;
+    const rows = parseCsvRows(csvText);
+    if (!rows.length) {
+      toast({ title: "No rows found", description: "CSV needs a header and at least one row." });
+      return;
+    }
+
+    setBulkImporting(true);
+    let imported = 0;
+    let aiEnhanced = 0;
+    try {
+      for (const row of rows) {
+        const name = row.name || row.part_name || row.item || "";
+        if (!name) continue;
+        let description = row.description || null;
+        let category = row.category || "other";
+        let manufacturer = row.manufacturer || null;
+        let partNumber = row.part_number || row.partnumber || null;
+        const quantity = Number(row.quantity || "1") || 1;
+        let specifications: Record<string, any> = {};
+
+        if (!description || !manufacturer || category === "other") {
+          const ai = await supabase.functions.invoke("identify-part", {
+            body: { partName: name, platform: activePlatform },
+          });
+          if (!ai.error && ai.data && !ai.data.error) {
+            description = description || ai.data.description || null;
+            category = category === "other" ? ai.data.category || "other" : category;
+            manufacturer = manufacturer || ai.data.manufacturer || null;
+            partNumber = partNumber || ai.data.partNumber || null;
+            specifications = ai.data.specifications || {};
+            aiEnhanced += 1;
+          }
+        }
+
+        const { error } = await supabase.from("parts_inventory").insert({
+          user_id: user.id,
+          team_id: teamId || null,
+          name,
+          description,
+          category,
+          quantity,
+          location: row.location || null,
+          location_detail: row.location_detail || null,
+          part_number: partNumber,
+          manufacturer,
+          specifications,
+          tags: (row.tags || "")
+            .split("|")
+            .map((t) => t.trim())
+            .filter(Boolean),
+          compatible_with: [activePlatform, "general"],
+          platform: activePlatform,
+          ai_details: {},
+        } as any);
+        if (!error) imported += 1;
+      }
+      setBulkCsvSummary(`Imported ${imported} parts (${aiEnhanced} enhanced with AI).`);
+      toast({ title: "Bulk import complete", description: `Imported ${imported} part(s).` });
+      fetchParts();
+    } finally {
+      setBulkImporting(false);
+    }
+  };
+
   const deletePart = async (id: string) => {
     try {
       const { error } = await supabase.from("parts_inventory").delete().eq("id", id);
@@ -269,6 +431,8 @@ export const PartsInventoryDialog = ({
     setAiPartNumber("");
     setAiSpecs({});
     setAiCompatible([]);
+    setVendorUrl("");
+    setPartImageBase64(null);
   };
 
   const getCategoryIcon = (cat: string) => {
@@ -283,12 +447,29 @@ export const PartsInventoryDialog = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5 text-primary" />
-            Parts Inventory
+            {activePlatform.toUpperCase()} Parts Library
           </DialogTitle>
           <DialogDescription>
-            Manage your robotics &amp; electronics parts. AI identifies details automatically.
+            Dedicated {activePlatform.toUpperCase()} inventory with AI-assisted detection, material hints, and vendor lookups.
           </DialogDescription>
         </DialogHeader>
+
+        <div className="grid grid-cols-3 gap-2">
+          {(["ftc", "arduino", "general"] as const).map((platform) => (
+            <Button
+              key={platform}
+              type="button"
+              size="sm"
+              variant={activePlatform === platform ? "default" : "outline"}
+              onClick={() => {
+                setActivePlatform(platform);
+                setNewPlatform(platform);
+              }}
+            >
+              {platform.toUpperCase()}
+            </Button>
+          ))}
+        </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="flex-1 min-h-0 flex flex-col">
           <TabsList className="w-full">
@@ -321,17 +502,6 @@ export const PartsInventoryDialog = ({
                   {CATEGORIES.map((c) => (
                     <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-              <Select value={filterPlatform} onValueChange={setFilterPlatform}>
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Platform" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="ftc">FTC</SelectItem>
-                  <SelectItem value="arduino">Arduino</SelectItem>
-                  <SelectItem value="general">General</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -570,18 +740,58 @@ export const PartsInventoryDialog = ({
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Platform</Label>
-                    <Select value={newPlatform} onValueChange={setNewPlatform}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ftc">FTC</SelectItem>
-                        <SelectItem value="arduino">Arduino</SelectItem>
-                        <SelectItem value="general">General</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label>Library</Label>
+                    <div className="h-10 px-3 rounded-md border border-input flex items-center">
+                      <Badge variant="secondary" className="uppercase">{newPlatform}</Badge>
+                    </div>
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    <Link2 className="w-3 h-3" /> Vendor product URL
+                  </Label>
+                  <Input
+                    value={vendorUrl}
+                    onChange={(e) => setVendorUrl(e.target.value)}
+                    placeholder={`https://${VENDOR_HOSTS[0]}/...`}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Supports goBILDA, AndyMark, REV, Studica, VEX, and similar vendor product pages.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    <Camera className="w-3 h-3" /> Material / part image
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input type="file" accept="image/*" onChange={(e) => handleImageUpload(e.target.files?.[0])} />
+                    <Button type="button" variant="outline" onClick={() => csvFileRef.current?.click()}>
+                      <UploadCloud className="w-4 h-4 mr-1" /> Upload CSV
+                    </Button>
+                  </div>
+                  <Input
+                    ref={csvFileRef}
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const text = await file.text();
+                      await handleBulkImportCsv(text);
+                    }}
+                  />
+                  <Input type="file" accept="image/*" capture="environment" onChange={(e) => handleImageUpload(e.target.files?.[0])} />
+                  {partImageBase64 && (
+                    <img src={partImageBase64} alt="Part preview" className="h-24 w-24 object-cover rounded-md border border-border" />
+                  )}
+                  {bulkCsvSummary && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <DatabaseZap className="w-3 h-3" /> {bulkCsvSummary}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
