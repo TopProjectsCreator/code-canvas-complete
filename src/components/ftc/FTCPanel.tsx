@@ -160,6 +160,13 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
     <AlertCircle className="w-4 h-4 text-red-400" />
   ) : null;
 
+  const handleExportConfig = useCallback((xmlContent: string, javaContent: string) => {
+    // Create a hardware_config.xml file via onFileUpdate or just copy to clipboard
+    navigator.clipboard.writeText(javaContent);
+    // Also try to notify user
+    alert('Hardware mapping Java code copied to clipboard!\n\nPaste it into your RobotHardware.init() method.');
+  }, []);
+
   return (
     <div className="space-y-4 p-4 bg-slate-950 h-full overflow-auto">
       {/* Action Buttons */}
@@ -194,6 +201,13 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
             <PlugZap className="w-4 h-4 mr-2 text-green-400" /> Disconnect
           </Button>
         )}
+
+        <Button
+          variant="outline"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-parts-inventory'))}
+        >
+          <Package className="w-4 h-4 mr-2" /> Parts
+        </Button>
       </div>
 
       {/* Status */}
