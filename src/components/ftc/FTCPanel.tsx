@@ -267,6 +267,11 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
           </Card>
         </TabsContent>
 
+        {/* Hardware Config Tab */}
+        <TabsContent value="hardware" className="space-y-2">
+          <HardwareConfigEditor onExportConfig={handleExportConfig} />
+        </TabsContent>
+
         {/* Build Output Tab */}
         <TabsContent value="build" className="space-y-2">
           <Card className="p-4 bg-slate-900 border-slate-700">
