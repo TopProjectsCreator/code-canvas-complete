@@ -464,7 +464,7 @@ const calculatorButtons: Array<Array<{ label: string; value?: string; action?: '
 ];
 
 export const ToolsPanel = () => {
-  const [activeSection, setActiveSection] = useState<'calculator' | 'css' | 'habit' | 'shortener' | 'qr' | 'converter' | 'parts'>('calculator');
+  const [activeSection, setActiveSection] = useState<'calculator' | 'css' | 'habit' | 'shortener' | 'qr' | 'converter'>('calculator');
 
   const [calculatorMode, setCalculatorMode] = useState<CalculatorMode>('scientific');
   const [calcInput, setCalcInput] = useState('');
@@ -1180,7 +1180,7 @@ export const ToolsPanel = () => {
         <span className="rounded-full bg-accent px-2 py-1 text-[10px] text-foreground">Studio utilities</span>
       </div>
 
-      <div className="grid grid-cols-7 border-b border-border bg-muted/20">
+      <div className="grid grid-cols-6 border-b border-border bg-muted/20">
         {[
           { id: 'calculator', icon: Calculator, label: 'Calc' },
           { id: 'css', icon: Palette, label: 'CSS' },
@@ -1188,7 +1188,6 @@ export const ToolsPanel = () => {
           { id: 'shortener', icon: Link2, label: 'URL' },
           { id: 'qr', icon: QrCode, label: 'QR' },
           { id: 'converter', icon: RefreshCw, label: 'Convert' },
-          { id: 'parts', icon: Package, label: 'Parts' },
         ].map((tab) => (
           <button
             key={tab.id}
