@@ -1,0 +1,16 @@
+---
+title: "Workflow triggers"
+description: "How file changes, chat commands, and schedules start workflows." 
+---
+
+## File-change triggers
+
+Tell a workflow to run whenever specific paths change. Use glob patterns (`src/**`, `docs/**`, `arduino/**`) so the workflow only fires when the files you care about mutate. The assistant notifies you when the trigger fires and shows the diff that launched the workflow.
+
+## Chat commands
+
+Type natural-language commands inside the AI chat ("Run QA workflow", "Deploy preview") to trigger a saved workflow. The assistant lists available workflows, reveals the steps each runs, and lets you confirm before execution.
+
+## Scheduled runs
+
+Schedule workflows (nightly exports, weekly presentations) and let the workspace run them while you sleep. Each scheduled run records the timestamp, the triggers that fired, and the logs produced.

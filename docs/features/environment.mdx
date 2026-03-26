@@ -1,0 +1,36 @@
+---
+title: "Workspace configuration"
+description: "How to tune panels, environment variables, and package management inside Code Canvas."
+---
+
+## Customize the workspace UI
+
+Use the layout controls to show or hide the file tree, minimap, terminal, and terminal split so the interface matches how you work. Drag tabs to create splits, save your favorite layout, collapse panels between tasks, and pin the editor view you need for a specific workflow.
+
+### Theme and visibility
+
+Toggle between built-in themes or author your own tokens so the editor feels comfortable for long sessions. Activate high-contrast mode when reviewing code in bright environments, or set the workspace to dark mode for late-night products.
+
+### Environment scopes
+
+The environment manager stores secrets and variables for Preview, Shared, or Production contexts. When the AI or a workflow needs a credential, it only sees the scoped value, so keys never leak into chat. Use the manager to:
+
+- Store API keys or tokens for third-party calls the assistant performs.
+- Share encrypted values with collaborators without showing raw text.
+- Attach variables to saved workflows or prompts so the AI automatically selects the right context (e.g., use Preview variables for quick experimentation, Production secrets for releases).
+
+Each environment scope can have its own description and expiration date, which helps teams rotate keys and audit access quickly.
+
+### Package and command panels
+
+The package manager surfaces `package.json`, dependency graphs, and common scripts so you can run installs and builds without memorizing CLI flags. Click a command to run it and watch output stream into the terminal pane; the AI picks up the same context so you can continue issuing prompts without losing focus.
+
+Use the panel to pin favorite scripts (e.g., `npm test`, `npm run lint`, `npm run build`) so collaborators click once and the assistant follows up with the next step.
+
+### Status & notifications
+
+Toast notifications confirm when installs finish, when environment values sync, or if a theme change requires reload. The notifications include action links so you can reopen the relevant panel or revert the change.
+
+<Note>
+  Panel layouts, selection state, and terminal history persist inside your browser session. Reloading keeps your context intact, and the workspace stores preferences so new devices inherit the same view.
+</Note>
