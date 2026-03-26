@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+.agents
+.mintlify
+skills-lock.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
