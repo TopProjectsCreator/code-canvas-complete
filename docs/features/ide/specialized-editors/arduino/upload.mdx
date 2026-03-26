@@ -1,0 +1,16 @@
+---
+title: "Arduino uploads"
+description: "How to push firmware to your boards from Code Canvas." 
+---
+
+## OTA and Bluetooth flashing
+
+From the hardware panel you can choose OTA (ESP32/ESP8266) or Bluetooth (AVR/ESP) uploads. The UI collects the binary or hex payload, streams it to `tools/arduino-bridge`, and reports success or failure right inside the workspace.
+
+## Prompt helpers
+
+Ask the assistant "Flash the latest build" to automatically run the compiler, package the binary, and trigger the uploader. If it detects a missing uploader (avrdude/esptool), it suggests the install steps.
+
+## Feedback and retries
+
+Uploads show progress messages and a final status card. Use the retry button to rerun a failed upload without re-entering settings.
