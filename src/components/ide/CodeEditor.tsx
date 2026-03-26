@@ -643,47 +643,6 @@ export const CodeEditor = ({
         onHighlightChange={handleHighlightChange}
       />
 
-      <div className="flex items-center justify-between border-b border-border bg-background/90 px-4 py-2 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="gap-1.5">
-            <Radar className="h-3.5 w-3.5" />
-            Minimap
-          </Badge>
-          <Badge variant="outline" className="gap-1.5">
-            <ChevronRight className="h-3.5 w-3.5" />
-            {scopes.length} folds
-          </Badge>
-          <Badge variant="secondary" className="gap-1.5">
-            <WandSparkles className="h-3.5 w-3.5" />
-            {currentScope?.name || "Global scope"}
-          </Badge>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-7 gap-1.5"
-            onClick={() => {
-              const generated = generateUnitTestFile(file.name, content);
-              onCreateOrUpdateFile(generated.fileName, generated.content, "typescript");
-            }}
-          >
-            <TestTube2 className="h-3.5 w-3.5" />
-            Quick test file
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-7 gap-1.5"
-            onClick={() => setShowWorkbench((prev) => !prev)}
-          >
-            <PanelRightOpen className="h-3.5 w-3.5" />
-            {showWorkbench ? "Hide dock" : "Show dock"}
-          </Button>
-        </div>
-      </div>
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 overflow-hidden">
@@ -1033,9 +992,29 @@ export const CodeEditor = ({
           <span>{file.language || "Plain Text"}</span>
           <span>UTF-8</span>
           {selectedLine !== null && <span>Comment lane: Ln {selectedLine}</span>}
+          <span className="text-muted-foreground/70">{currentScope?.name || "Global"}</span>
         </div>
-        <div className="flex items-center gap-4">
-          <span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="hover:text-foreground transition-colors"
+            onClick={() => {
+              const generated = generateUnitTestFile(file.name, content);
+              onCreateOrUpdateFile(generated.fileName, generated.content, "typescript");
+            }}
+            title="Generate test file"
+          >
+            <TestTube2 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            className={cn("hover:text-foreground transition-colors", showWorkbench && "text-primary")}
+            onClick={() => setShowWorkbench((prev) => !prev)}
+            title={showWorkbench ? "Hide dock" : "Show dock"}
+          >
+            <PanelRightOpen className="h-3.5 w-3.5" />
+          </button>
+          <span className="ml-2">
             Ln {cursorPosition.line}, Col {cursorPosition.col}
           </span>
           <span>Spaces: 2</span>
