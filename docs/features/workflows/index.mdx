@@ -1,0 +1,22 @@
+---
+title: "Workflows & automation"
+description: "Build repeatable workflows, trigger them from prompts, and inspect their history."
+---
+
+## Workflows keep prompts consistent
+
+Workflows let you string together commands, AI prompts, and media/editor actions so you can repeat anything with a single click. Pick a workflow from the panel, run it manually, or let the AI trigger it via chat.
+
+<Columns cols={3}>
+  <Card title="Triggers" icon="sparkles" href="/features/workflows/triggers">
+    Decide what causes a workflow to run—file changes, chat commands, or schedules.
+  </Card>
+  <Card title="API playground" icon="terminal" href="/features/workflows/api-playground">
+    Send REST/GraphQL calls, save templates, and reuse them inside workflows.
+  </Card>
+  <Card title="History" icon="clock" href="/features/workflows/history">
+    Inspect runs, review logs, and rerun steps that failed.
+  </Card>
+</Columns>
+
+Use the workflow builder to name the steps, link conditions, and record context. Each workflow entry stores the prompts it used, the steps it executed, and the environment scope (Preview, Shared, Production). Teammates can clone the workflow, adjust a step, and run it without rebuilding from scratch.
