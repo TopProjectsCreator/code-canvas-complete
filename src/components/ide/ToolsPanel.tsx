@@ -1815,23 +1815,6 @@ export const ToolsPanel = () => {
           </div>
         )}
 
-        {activeSection === 'parts' && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4 py-8 text-center">
-            <Package className="w-10 h-10 text-muted-foreground/50" />
-            <div>
-              <p className="font-medium text-sm">Parts Inventory</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Open the full inventory from the sidebar or header to manage parts with AI identification.
-              </p>
-            </div>
-            <button
-              className="mt-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-              onClick={() => window.dispatchEvent(new CustomEvent('open-parts-inventory'))}
-            >
-              Open Parts Inventory
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
