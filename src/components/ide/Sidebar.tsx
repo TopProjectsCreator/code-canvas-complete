@@ -27,7 +27,7 @@ import { FileIcon } from './FileIcon';
 import { SettingsDialog } from './SettingsDialog';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
-import { ToolsPanel } from './ToolsPanel';
+import { ExtensionsPanel } from './ExtensionsPanel';
 
 
 interface SearchResult {
@@ -311,7 +311,7 @@ export const Sidebar = ({
     { id: 'git' as const, icon: GitBranch, label: 'Version Control' },
     { id: 'packages' as const, icon: Package, label: 'Packages' },
     { id: 'workflows' as const, icon: Zap, label: 'Workflows' },
-    { id: 'tools' as const, icon: Wrench, label: 'Tools' },
+    { id: 'tools' as const, icon: Wrench, label: 'Extensions' },
   ];
 
   const handleNewFile = (name: string, type: 'file' | 'folder') => {
@@ -561,7 +561,7 @@ export const Sidebar = ({
           />
         )}
 
-        {activeTab === 'tools' && <ToolsPanel />}
+        {activeTab === 'tools' && <ExtensionsPanel />}
 
         
 
