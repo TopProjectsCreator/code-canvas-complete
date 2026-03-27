@@ -32,3 +32,18 @@ verify_jwt = false
 
 [functions.compile-ftc]
 verify_jwt = false
+
+[functions.create-extension]
+verify_jwt = false
+
+[functions.publish-extension]
+verify_jwt = false
+
+[functions.list-store-extensions]
+verify_jwt = false
+
+[functions.install-extension]
+verify_jwt = false
+
+[functions.submit-extension-review]
+verify_jwt = false
