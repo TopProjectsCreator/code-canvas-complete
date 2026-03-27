@@ -345,6 +345,150 @@ export type Database = {
           },
         ]
       }
+      extension_reviews: {
+        Row: {
+          created_at: string
+          extension_id: string
+          id: string
+          reviewer_notes: string | null
+          status: string
+          submitted_by: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          extension_id: string
+          id?: string
+          reviewer_notes?: string | null
+          status?: string
+          submitted_by: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          extension_id?: string
+          id?: string
+          reviewer_notes?: string | null
+          status?: string
+          submitted_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extension_reviews_extension_id_fkey"
+            columns: ["extension_id"]
+            isOneToOne: false
+            referencedRelation: "extensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extension_versions: {
+        Row: {
+          changelog: string | null
+          created_at: string
+          extension_id: string
+          id: string
+          source_bundle_url: string
+          version: string
+        }
+        Insert: {
+          changelog?: string | null
+          created_at?: string
+          extension_id: string
+          id?: string
+          source_bundle_url: string
+          version: string
+        }
+        Update: {
+          changelog?: string | null
+          created_at?: string
+          extension_id?: string
+          id?: string
+          source_bundle_url?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extension_versions_extension_id_fkey"
+            columns: ["extension_id"]
+            isOneToOne: false
+            referencedRelation: "extensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      extensions: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          install_count: number
+          manifest: Json
+          name: string
+          owner_id: string
+          slug: string
+          status: string
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          install_count?: number
+          manifest?: Json
+          name: string
+          owner_id: string
+          slug: string
+          status?: string
+          updated_at?: string
+          version?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          install_count?: number
+          manifest?: Json
+          name?: string
+          owner_id?: string
+          slug?: string
+          status?: string
+          updated_at?: string
+          version?: string
+        }
+        Relationships: []
+      }
+      installed_extensions: {
+        Row: {
+          extension_id: string
+          id: string
+          installed_at: string
+          user_id: string
+        }
+        Insert: {
+          extension_id: string
+          id?: string
+          installed_at?: string
+          user_id: string
+        }
+        Update: {
+          extension_id?: string
+          id?: string
+          installed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "installed_extensions_extension_id_fkey"
+            columns: ["extension_id"]
+            isOneToOne: false
+            referencedRelation: "extensions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mcp_servers: {
         Row: {
           api_key: string | null
