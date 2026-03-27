@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.submit-extension-review]
 verify_jwt = false
+
+[functions.generate-extension]
+verify_jwt = false
