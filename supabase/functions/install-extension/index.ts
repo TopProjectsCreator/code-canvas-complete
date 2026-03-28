@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
       if (error) return new Response(JSON.stringify({ error: error.message }), { status: 400, headers: corsHeaders });
 
       // Decrement install count
-      await supabaseAdmin.rpc("decrement_extension_installs", { ext_id: extension_id }).catch(() => {});
+      try { await supabaseAdmin.rpc("decrement_extension_installs", { ext_id: extension_id }); } catch { /* ignore */ }
 
       return new Response(JSON.stringify({ ok: true, action: "uninstalled" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -53,10 +53,10 @@ Deno.serve(async (req) => {
     }
 
     // Increment install count
-    await supabaseAdmin.rpc("increment_extension_installs", { ext_id: extension_id }).catch(() => {});
+    try { await supabaseAdmin.rpc("increment_extension_installs", { ext_id: extension_id }); } catch { /* ignore */ }
 
     return new Response(JSON.stringify({ ok: true, action: "installed" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+  } catch (e: unknown) {
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), { status: 500, headers: corsHeaders });
   }
 });
