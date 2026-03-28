@@ -1891,6 +1891,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                 onGitCreateBranch={handleGitCreateBranch}
                 onGitSwitchBranch={handleGitSwitchBranch}
                 onGitInitRepo={handleGitInitRepo}
+                onUpdateFileContent={handleContentChange}
                 workflows={workflows}
                 onRunWorkflow={handleRunWorkflow}
                 onCreateWorkflow={handleCreateWorkflow}
@@ -1943,6 +1944,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               onGitCreateBranch={handleGitCreateBranch}
               onGitSwitchBranch={handleGitSwitchBranch}
               onGitInitRepo={handleGitInitRepo}
+              onUpdateFileContent={handleContentChange}
               workflows={workflows}
               onRunWorkflow={handleRunWorkflow}
               onCreateWorkflow={handleCreateWorkflow}
