@@ -201,13 +201,18 @@ export async function executeExtension(
   ctx: ExtensionContext,
 ): Promise<unknown> {
   // Strip common AI-generated patterns that break the runtime
-  let cleaned = code
-    .replace(/^export\s+default\s+function\s*\([^)]*\)\s*\{/, '')  // export default function(ctx) {
-    .replace(/^module\.exports\s*=\s*function\s*\([^)]*\)\s*\{/, '') // module.exports = function(ctx) {
-    .trim();
-  // If we stripped an opening wrapper, remove the trailing }
-  if (cleaned !== code.trim() && cleaned.endsWith('}')) {
-    cleaned = cleaned.slice(0, -1).trim();
+  let cleaned = code.trim();
+  
+  // Match: export default function(ctx) { ... }
+  const exportMatch = cleaned.match(/^export\s+default\s+function\s*\([^)]*\)\s*\{([\s\S]*)\}$/);
+  if (exportMatch) {
+    cleaned = exportMatch[1].trim();
+  } else {
+    // Match: module.exports = function(ctx) { ... }
+    const moduleMatch = cleaned.match(/^module\.exports\s*=\s*function\s*\([^)]*\)\s*\{([\s\S]*)\}$/);
+    if (moduleMatch) {
+      cleaned = moduleMatch[1].trim();
+    }
   }
 
   const wrapped = `
