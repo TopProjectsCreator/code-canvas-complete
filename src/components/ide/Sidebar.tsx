@@ -54,17 +54,15 @@ interface SidebarProps {
   onGitCreateBranch: (name: string) => void;
   onGitSwitchBranch: (name: string) => void;
   onGitInitRepo: () => void;
-  // Workflow props
+  onUpdateFileContent: (fileId: string, content: string) => void;
   workflows: Workflow[];
   onRunWorkflow: (workflow: Workflow) => void;
   onCreateWorkflow: (workflow: Omit<Workflow, 'id'>) => void;
   onUpdateWorkflow: (id: string, workflow: Partial<Workflow>) => void;
   onDeleteWorkflow: (id: string) => void;
   currentlyRunningWorkflow: string | null;
-  // History props
   historyEntries: HistoryEntry[];
   onRestoreEntry?: (entry: HistoryEntry) => void;
-  // Invite/Share
   onInvite: () => void;
 }
 
@@ -89,6 +87,7 @@ export const Sidebar = ({
   onGitCreateBranch,
   onGitSwitchBranch,
   onGitInitRepo,
+  onUpdateFileContent,
   workflows,
   onRunWorkflow,
   onCreateWorkflow,
@@ -110,7 +109,6 @@ export const Sidebar = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
 
-  // Listen for global keyboard shortcut to focus search
   useEffect(() => {
     const handleFocusSearch = () => {
       setActiveTab('search');
@@ -120,7 +118,6 @@ export const Sidebar = ({
     return () => window.removeEventListener('ide-focus-search', handleFocusSearch);
   }, []);
 
-  // Flatten file tree to get all files
   const getAllFiles = (nodes: FileNode[]): FileNode[] => {
     const result: FileNode[] = [];
     const traverse = (items: FileNode[]) => {
@@ -137,7 +134,16 @@ export const Sidebar = ({
     return result;
   };
 
-  // Search results
+  const activeExtensionFile = useMemo(() => {
+    if (!activeFileId) return null;
+    const activeFile = getAllFiles(files).find((file) => file.id === activeFileId);
+    if (!activeFile) return null;
+    return {
+      ...activeFile,
+      content: fileContents[activeFile.id] ?? activeFile.content ?? '',
+    };
+  }, [activeFileId, fileContents, files]);
+
   const searchResults = useMemo((): SearchResult[] => {
     if (!searchQuery.trim()) return [];
     
@@ -148,10 +154,11 @@ export const Sidebar = ({
     for (const file of allFiles) {
       const matches: SearchResult['matches'] = [];
       
-      // Search in filename
-      const fileNameMatch = file.name.toLowerCase().includes(query);
+      if (file.name.toLowerCase().includes(query)) {
+        results.push({ file, matches });
+        continue;
+      }
       
-      // Search in content
       if (file.content) {
         const lines = file.content.split('\n');
         lines.forEach((line, index) => {
@@ -172,7 +179,7 @@ export const Sidebar = ({
         });
       }
 
-      if (fileNameMatch || matches.length > 0) {
+      if (matches.length > 0) {
         results.push({ file, matches });
       }
     }
