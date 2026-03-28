@@ -223,7 +223,19 @@ export async function executeExtension(
   try {
     const factory = new Function(wrapped);
     const fn = factory();
-    return await fn(ctx);
+    const result = await fn(ctx);
+    
+    // If it's a command extension that returned { execute }, auto-run it with selected text
+    if (result && typeof result === 'object' && 'execute' in result && typeof (result as any).execute === 'function') {
+      const selectedText = ctx.getSelectedText();
+      const output = await (result as any).execute(selectedText);
+      if (typeof output === 'string' && output !== selectedText) {
+        ctx.replaceSelectedText(output);
+      }
+      return output;
+    }
+    
+    return result;
   } catch (err) {
     console.error('[extension runtime]', err);
     throw err;
