@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { buildContext, executeExtension, type ExtensionContext } from '@/lib/extensionRuntime';
+import { buildContext, executeExtension } from '@/lib/extensionRuntime';
+import type { FileNode } from '@/types/ide';
 import { toast } from 'sonner';
 
 /* ------------------------------------------------------------------ */
@@ -28,6 +29,11 @@ type ExtensionRecord = {
   updated_at: string;
   owner_id: string;
 };
+
+interface ExtensionsPanelProps {
+  activeFile?: FileNode | null;
+  onUpdateFileContent?: (fileId: string, content: string) => void;
+}
 
 const makeSlug = (v: string) =>
   v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -91,7 +97,7 @@ function ExtensionPreview({ html }: { html: string }) {
 
 type View = 'list' | 'create' | 'store' | 'edit';
 
-export const ExtensionsPanel = () => {
+export const ExtensionsPanel = ({ activeFile = null, onUpdateFileContent }: ExtensionsPanelProps) => {
   const { user, profile } = useAuth();
 
   /* data */
@@ -173,16 +179,27 @@ export const ExtensionsPanel = () => {
 
   const runExtension = async () => {
     if (!code.trim()) return;
+    if (runtimeType === 'command' && (!activeFile || !onUpdateFileContent)) {
+      toast.error('Open the CSV file you want to transform, then run the extension again');
+      return;
+    }
+
     setRunning(true);
     setPreviewHtml('');
     setRunOutput('');
     setPreviewData(null);
     setExtensionActions([]);
 
+    const currentSelection = activeFile?.content ?? '';
+
     const ctx = buildContext(slug || 'test', {
       onUI: (html) => setPreviewHtml(html),
-      getSelection: () => '',
-      replaceSelection: () => {},
+      getSelection: () => currentSelection,
+      replaceSelection: (text) => {
+        if (activeFile?.id && onUpdateFileContent) {
+          onUpdateFileContent(activeFile.id, text);
+        }
+      },
       notify: (msg) => toast.info(msg),
       onRegisterAction: (action) => setExtensionActions((prev) => [...prev, action]),
       onPreview: (payload) => setPreviewData(payload),
@@ -213,6 +230,9 @@ export const ExtensionsPanel = () => {
         setRunOutput(JSON.stringify(result, null, 2));
       } else if (typeof result === 'string') {
         setRunOutput(result);
+      }
+      if (runtimeType === 'command' && activeFile) {
+        toast.success(`Applied to ${activeFile.name}`);
       }
     } catch (err: any) {
       setRunOutput(`Error: ${err.message}`);
