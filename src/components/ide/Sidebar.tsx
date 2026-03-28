@@ -568,7 +568,7 @@ export const Sidebar = ({
           />
         )}
 
-        {activeTab === 'tools' && <ExtensionsPanel />}
+        {activeTab === 'tools' && <ExtensionsPanel activeFile={activeExtensionFile} onUpdateFileContent={onUpdateFileContent} />}
 
         
 
