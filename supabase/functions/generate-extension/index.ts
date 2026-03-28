@@ -26,8 +26,11 @@ Extensions have three runtime modes:
 2. "command" - A function that processes text/code. Return an object with { execute(input: string): string }.
 3. "chat-tool" - A function the AI can call. Return an object with { name, description, parameters: {}, execute(params): string }.
 
-The extension code should be a single JavaScript module that exports a default function.
-The function receives a context object with these helpers:
+The extension code is injected into an async function body that already receives a "ctx" parameter.
+DO NOT use "export default", "module.exports", or any import/require statements.
+The code should directly use ctx and return the appropriate result.
+
+The ctx object has these helpers:
 - ctx.showUI(html: string) - Display HTML in the extension widget panel
 - ctx.getSelectedText() - Get currently selected text in the editor
 - ctx.replaceSelectedText(text: string) - Replace selected text
@@ -39,14 +42,21 @@ The function receives a context object with these helpers:
 - ctx.ai.structured(prompt: string, schema: object) - Get structured AI output
 
 IMPORTANT RULES:
-- Write clean, modern JavaScript (no TypeScript, no imports needed)
-- The code must be a single self-contained function
-- For widgets: return HTML strings with inline styles (no external CSS)
-- For commands: return transformed text
-- For chat-tools: return { name, description, parameters, execute }
+- Write clean, modern JavaScript (no TypeScript, no imports, no exports)
+- The code runs inside: (async function(ctx) { YOUR_CODE_HERE })
+- Do NOT write "export default function", just write the code body directly
+- For widgets: call ctx.showUI(html) with inline styles
+- For commands: return { execute(input) { ... return transformedText; } }
+- For chat-tools: return { name, description, parameters: {}, execute(params) { ... } }
 - Include error handling
 - Make the extension genuinely useful and complete
-- Add inline comments explaining the logic
+
+EXAMPLE for a "widget" extension:
+const html = '<div style="padding:8px"><h3>Hello</h3></div>';
+ctx.showUI(html);
+
+EXAMPLE for a "command" extension:
+return { execute(input) { return input.toUpperCase(); } };
 
 Return ONLY the JavaScript code, no markdown fences, no explanation.`;
 
