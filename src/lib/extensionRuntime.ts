@@ -200,10 +200,19 @@ export async function executeExtension(
   code: string,
   ctx: ExtensionContext,
 ): Promise<unknown> {
-  // Wrap user code in an async IIFE that receives ctx
+  // Strip common AI-generated patterns that break the runtime
+  let cleaned = code
+    .replace(/^export\s+default\s+function\s*\([^)]*\)\s*\{/, '')  // export default function(ctx) {
+    .replace(/^module\.exports\s*=\s*function\s*\([^)]*\)\s*\{/, '') // module.exports = function(ctx) {
+    .trim();
+  // If we stripped an opening wrapper, remove the trailing }
+  if (cleaned !== code.trim() && cleaned.endsWith('}')) {
+    cleaned = cleaned.slice(0, -1).trim();
+  }
+
   const wrapped = `
     return (async function(ctx) {
-      ${code}
+      ${cleaned}
     })
   `;
   try {
