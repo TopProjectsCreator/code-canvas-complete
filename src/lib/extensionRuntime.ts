@@ -108,6 +108,25 @@ export interface ExtensionContext {
   getSelectedText: () => string;
   replaceSelectedText: (text: string) => void;
   showNotification: (msg: string) => void;
+  registerAction: (label: string, handler: () => void | Promise<void>) => string;
+  preview: {
+    show: (payload: { title?: string; content: string; language?: string }) => void;
+  };
+  project: {
+    listFiles: () => string[];
+    readFile: (path: string) => string;
+    writeFile: (path: string, content: string) => void;
+    deleteFile: (path: string) => void;
+  };
+  profile: {
+    id: string | null;
+    email: string | null;
+    displayName: string | null;
+    stats: {
+      extensionCount: number;
+      installedExtensionCount: number;
+    };
+  };
   fetch: typeof fetch;
   storage: ReturnType<typeof getStorage>;
   ai: { complete: typeof aiComplete; structured: typeof aiStructured };
@@ -120,6 +139,23 @@ export function buildContext(
     getSelection?: () => string;
     replaceSelection?: (text: string) => void;
     notify?: (msg: string) => void;
+    onRegisterAction?: (action: { id: string; label: string; handler: () => void | Promise<void> }) => void;
+    onPreview?: (payload: { title?: string; content: string; language?: string }) => void;
+    project?: {
+      listFiles?: () => string[];
+      readFile?: (path: string) => string;
+      writeFile?: (path: string, content: string) => void;
+      deleteFile?: (path: string) => void;
+    };
+    profile?: {
+      id?: string | null;
+      email?: string | null;
+      displayName?: string | null;
+      stats?: {
+        extensionCount?: number;
+        installedExtensionCount?: number;
+      };
+    };
   },
 ): ExtensionContext {
   return {
@@ -127,6 +163,29 @@ export function buildContext(
     getSelectedText: callbacks.getSelection ?? (() => ''),
     replaceSelectedText: callbacks.replaceSelection ?? (() => {}),
     showNotification: callbacks.notify ?? ((msg: string) => console.log('[ext]', msg)),
+    registerAction: (label, handler) => {
+      const id = `${slug}-${Math.random().toString(36).slice(2, 10)}`;
+      callbacks.onRegisterAction?.({ id, label, handler });
+      return id;
+    },
+    preview: {
+      show: (payload) => callbacks.onPreview?.(payload),
+    },
+    project: {
+      listFiles: callbacks.project?.listFiles ?? (() => []),
+      readFile: callbacks.project?.readFile ?? (() => ''),
+      writeFile: callbacks.project?.writeFile ?? (() => {}),
+      deleteFile: callbacks.project?.deleteFile ?? (() => {}),
+    },
+    profile: {
+      id: callbacks.profile?.id ?? null,
+      email: callbacks.profile?.email ?? null,
+      displayName: callbacks.profile?.displayName ?? null,
+      stats: {
+        extensionCount: callbacks.profile?.stats?.extensionCount ?? 0,
+        installedExtensionCount: callbacks.profile?.stats?.installedExtensionCount ?? 0,
+      },
+    },
     fetch: (...args: Parameters<typeof fetch>) => fetch(...args),
     storage: getStorage(slug),
     ai: { complete: aiComplete, structured: aiStructured },

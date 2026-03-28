@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CheckCircle2, ChevronLeft, Code2, Copy, Download, Loader2,
+  CheckCircle2, ChevronLeft, Code2, Copy, Download, FileCode2, Loader2,
   PackagePlus, Play, Rocket, Search, Sparkles, Store, Terminal,
   Trash2, WandSparkles,
 } from 'lucide-react';
@@ -51,7 +51,7 @@ function ExtensionCodeEditor({
       onChange={(e) => onChange(e.target.value)}
       spellCheck={false}
       className="w-full min-h-[200px] max-h-[400px] rounded border border-border bg-muted font-mono text-[11px] p-2 resize-y focus:outline-none focus:ring-1 focus:ring-primary"
-      placeholder={`// Extension code — receives a \`ctx\` object\n// ctx.showUI(html) — render a widget\n// ctx.ai.complete(prompt) — call AI\n// ctx.storage.get/set — persist data\n\nconst result = await ctx.ai.complete("Hello!");\nctx.showUI(\`<div style="padding:8px">\${result}</div>\`);\nreturn { ok: true };`}
+      placeholder={`// Extension code — receives a \`ctx\` object\n// ctx.showUI(html) — render a widget\n// ctx.ai.complete(prompt) — call AI\n// ctx.storage.get/set — persist data\n// ctx.project.readFile/writeFile/listFiles/deleteFile — file editing\n// ctx.preview.show({ title, content, language }) — preview output\n// ctx.registerAction('Label', () => ...) — add extension buttons\n// ctx.profile.stats — profile usage snapshot\n\nconst readme = ctx.project.readFile('README.md');\nctx.project.writeFile('notes/todo.md', '- Added by extension');\nctx.preview.show({ title: 'README Preview', content: readme, language: 'markdown' });\nctx.registerAction('Show file count', () => ctx.showNotification(String(ctx.project.listFiles().length)));\nreturn { ok: true };`}
     />
   );
 }
@@ -92,7 +92,7 @@ function ExtensionPreview({ html }: { html: string }) {
 type View = 'list' | 'create' | 'store' | 'edit';
 
 export const ExtensionsPanel = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   /* data */
   const [myExtensions, setMyExtensions] = useState<ExtensionRecord[]>([]);
@@ -115,6 +115,12 @@ export const ExtensionsPanel = () => {
   const [storeSearch, setStoreSearch] = useState('');
   const [copied, setCopied] = useState<string | null>(null);
   const [runOutput, setRunOutput] = useState('');
+  const [extensionActions, setExtensionActions] = useState<Array<{ id: string; label: string; handler: () => void | Promise<void> }>>([]);
+  const [sandboxFiles, setSandboxFiles] = useState<Record<string, string>>({
+    'README.md': '# Preview Sandbox\n\nExtensions can now read and write files in this sandbox.',
+    'src/app.ts': 'export const hello = () => "hello from extensions";',
+  });
+  const [previewData, setPreviewData] = useState<{ title?: string; content: string; language?: string } | null>(null);
 
   const slug = useMemo(() => makeSlug(name), [name]);
 
@@ -170,12 +176,35 @@ export const ExtensionsPanel = () => {
     setRunning(true);
     setPreviewHtml('');
     setRunOutput('');
+    setPreviewData(null);
+    setExtensionActions([]);
 
     const ctx = buildContext(slug || 'test', {
       onUI: (html) => setPreviewHtml(html),
       getSelection: () => '',
       replaceSelection: () => {},
       notify: (msg) => toast.info(msg),
+      onRegisterAction: (action) => setExtensionActions((prev) => [...prev, action]),
+      onPreview: (payload) => setPreviewData(payload),
+      project: {
+        listFiles: () => Object.keys(sandboxFiles).sort(),
+        readFile: (path) => sandboxFiles[path] ?? '',
+        writeFile: (path, content) => setSandboxFiles((prev) => ({ ...prev, [path]: content })),
+        deleteFile: (path) => setSandboxFiles((prev) => {
+          const next = { ...prev };
+          delete next[path];
+          return next;
+        }),
+      },
+      profile: {
+        id: profile?.id ?? null,
+        email: user?.email ?? null,
+        displayName: profile?.display_name ?? null,
+        stats: {
+          extensionCount: myExtensions.length,
+          installedExtensionCount: installedIds.size,
+        },
+      },
     });
 
     try {
@@ -283,6 +312,7 @@ export const ExtensionsPanel = () => {
   const filteredStore = storeSearch
     ? storeExtensions.filter(e => e.name.toLowerCase().includes(storeSearch.toLowerCase()) || e.slug.includes(storeSearch.toLowerCase()))
     : storeExtensions;
+  const sandboxFileEntries = Object.entries(sandboxFiles).sort(([a], [b]) => a.localeCompare(b));
 
   /* ---- render ---- */
 
@@ -403,6 +433,49 @@ export const ExtensionsPanel = () => {
             <div className="space-y-1">
               <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1"><Terminal className="h-3 w-3" /> Output</p>
               <pre className="text-[11px] max-h-32 overflow-auto bg-muted rounded p-2 whitespace-pre-wrap">{runOutput}</pre>
+            </div>
+          )}
+
+          {extensionActions.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-medium text-muted-foreground">Extension Actions</p>
+              <div className="flex flex-wrap gap-1.5">
+                {extensionActions.map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={async () => {
+                      try {
+                        await action.handler();
+                      } catch (err: any) {
+                        toast.error(`Action failed: ${err?.message || 'unknown error'}`);
+                      }
+                    }}
+                    className="px-2 py-1 rounded border border-border text-[11px] hover:bg-accent"
+                  >
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1"><FileCode2 className="h-3 w-3" /> File Sandbox</p>
+            <div className="max-h-40 overflow-auto rounded border border-border divide-y divide-border">
+              {sandboxFileEntries.map(([path, content]) => (
+                <div key={path} className="px-2 py-1.5 text-[11px]">
+                  <p className="font-medium truncate">{path}</p>
+                  <p className="text-muted-foreground truncate">{content.split('\n')[0] || '(empty file)'}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {previewData && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-medium text-muted-foreground">{previewData.title || 'Preview Payload'}</p>
+              <pre className="text-[11px] max-h-40 overflow-auto bg-muted rounded p-2 whitespace-pre-wrap">{previewData.content}</pre>
+              {previewData.language && <p className="text-[10px] text-muted-foreground">Language: {previewData.language}</p>}
             </div>
           )}
         </div>
