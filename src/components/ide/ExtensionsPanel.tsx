@@ -360,10 +360,28 @@ export const ExtensionsPanel = ({ activeFile = null, onUpdateFileContent }: Exte
             </button>
           </div>
 
+          {/* Built-in Extensions */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Built-in</p>
+            {BUILTIN_EXTENSIONS.map(ext => (
+              <div key={ext.id} className="rounded-md border border-border bg-card p-2.5 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <button onClick={() => runBuiltinExtension(ext)} className="text-left flex-1 min-w-0">
+                    <p className="font-medium truncate">{ext.icon} {ext.name}</p>
+                    <p className="text-muted-foreground truncate">{ext.description}</p>
+                  </button>
+                  <button onClick={() => runBuiltinExtension(ext)} className="px-2 py-1 rounded bg-primary/10 text-primary text-[10px] font-medium shrink-0 hover:bg-primary/20">
+                    <Play className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
           {myExtensions.length === 0 ? (
-            <div className="text-center py-8 text-xs text-muted-foreground space-y-2">
+            <div className="text-center py-6 text-xs text-muted-foreground space-y-2">
               <WandSparkles className="h-8 w-8 mx-auto opacity-40" />
-              <p>No extensions yet</p>
+              <p>No custom extensions yet</p>
               <p>Create a URL shortener, CSS palette, CSV tool, or anything else!</p>
             </div>
           ) : (
