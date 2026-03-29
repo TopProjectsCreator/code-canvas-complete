@@ -41,9 +41,7 @@ export type LanguageTemplate =
   | "audio"
   | "rtf"
   | "cad"
-  | "ftc"
-  | "fll"
-  | "frc";
+  | "ftc";
 
 export interface TemplateMeta {
   id: LanguageTemplate;
@@ -197,18 +195,6 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "FTC Robotics",
     description: "FIRST Tech Challenge robot programming (Java/Kotlin)",
     aiDescription: "FTC robotics OpMode development with cloud build & ADB upload",
-  },
-  {
-    id: "fll",
-    name: "FLL Robotics",
-    description: "FIRST LEGO League robot programming (EV3/Spike)",
-    aiDescription: "FLL robotics programming for LEGO EV3 and Spike Prime",
-  },
-  {
-    id: "frc",
-    name: "FRC Robotics",
-    description: "FIRST Robotics Competition (Java/C++ with WPILib)",
-    aiDescription: "FRC robotics WPILib development with command-based programming",
   },
 ];
 
