@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/ide';
 import {
   compileFTC,
@@ -32,6 +33,9 @@ import {
   Trash2,
   Package,
   Settings2,
+  ClipboardCheck,
+  Bot,
+  Camera,
 } from 'lucide-react';
 
 interface FTCPanelProps {
@@ -72,7 +76,12 @@ function collectOpModes(nodes: FileNode[]): string[] {
   return modes;
 }
 
+function countJavaKotlinFiles(nodes: FileNode[]): number {
+  return collectSourceFiles(nodes).length;
+}
+
 export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
+  const { toast } = useToast();
   const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
   const [buildResult, setBuildResult] = useState<BuildResult | null>(null);
   const [buildProgress, setBuildProgress] = useState('');
@@ -85,6 +94,7 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
   const logRef = useRef<HTMLDivElement>(null);
 
   const opModes = collectOpModes(files);
+  const sourceFileCount = countJavaKotlinFiles(files);
 
   const handleBuild = useCallback(async () => {
     setBuildStatus('compiling');
@@ -161,14 +171,35 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
   ) : null;
 
   const handleExportConfig = useCallback((xmlContent: string, javaContent: string) => {
-    // Create a hardware_config.xml file via onFileUpdate or just copy to clipboard
+    // Keep xmlContent for future hardware-config file export support.
+    void xmlContent;
     navigator.clipboard.writeText(javaContent);
-    // Also try to notify user
-    alert('Hardware mapping Java code copied to clipboard!\n\nPaste it into your RobotHardware.init() method.');
-  }, []);
+    toast({
+      title: 'Hardware mapping copied',
+      description: 'Paste it into your RobotHardware.init() method.',
+    });
+  }, [toast]);
 
   return (
     <div className="space-y-4 p-4 bg-slate-950 h-full overflow-auto">
+      <Card className="p-4 bg-gradient-to-r from-slate-900 to-slate-800 border-slate-700">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2">
+            <h2 className="text-base font-semibold text-foreground">FTC Control Center</h2>
+            <p className="text-xs text-muted-foreground">
+              Build, deploy, and debug your OpModes from one panel.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">{sourceFileCount} source file{sourceFileCount === 1 ? '' : 's'}</Badge>
+            <Badge variant="secondary">{opModes.length} OpMode{opModes.length === 1 ? '' : 's'}</Badge>
+            <Badge variant={device ? 'default' : 'outline'}>
+              {device ? 'Device connected' : 'No device'}
+            </Badge>
+          </div>
+        </div>
+      </Card>
+
       {/* Action Buttons */}
       <div className="flex flex-wrap gap-2">
         <Button
@@ -212,6 +243,19 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
         >
           <Package className="w-4 h-4 mr-2" /> Parts
         </Button>
+
+        <Button
+          variant="outline"
+          onClick={() =>
+            window.dispatchEvent(
+              new CustomEvent('open-parts-inventory', {
+                detail: { platform: 'ftc', initialTab: 'add', identifyWithImage: true },
+              }),
+            )
+          }
+        >
+          <Camera className="w-4 h-4 mr-2" /> Identify Part (Image)
+        </Button>
       </div>
 
       {/* Status */}
@@ -245,6 +289,18 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
 
         {/* OpModes Tab */}
         <TabsContent value="opmodes" className="space-y-2">
+          <Card className="p-4 bg-slate-900 border-slate-700">
+            <h3 className="text-sm font-medium mb-2 text-foreground flex items-center gap-2">
+              <Bot className="w-4 h-4 text-orange-400" />
+              Build checklist
+            </h3>
+            <ul className="space-y-1 text-xs text-muted-foreground">
+              <li>• Confirm each OpMode has <code>@TeleOp</code> or <code>@Autonomous</code>.</li>
+              <li>• Generate hardware mapping from the Hardware tab before upload.</li>
+              <li>• Connect your Control Hub/Driver Hub with WebUSB, then build and upload.</li>
+            </ul>
+          </Card>
+
           <Card className="p-4 bg-slate-900 border-slate-700">
             <h3 className="text-sm font-medium mb-3 text-foreground">Detected OpModes</h3>
             {opModes.length === 0 ? (
@@ -297,22 +353,30 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
                 {buildResult.warnings && buildResult.warnings.length > 0 && (
                   <div className="space-y-1">
                     <span className="text-xs font-medium text-yellow-400">Warnings:</span>
-                    {buildResult.warnings.map((w, i) => (
-                      <p key={i} className="text-xs text-yellow-300 font-mono pl-2">
-                        {w}
-                      </p>
-                    ))}
+                    <ScrollArea className="max-h-32 rounded border border-yellow-500/30 bg-yellow-950/20 p-2">
+                      <div className="space-y-1">
+                        {buildResult.warnings.map((w, i) => (
+                          <p key={i} className="text-xs text-yellow-300 font-mono">
+                            {w}
+                          </p>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </div>
                 )}
 
                 {buildResult.errors && buildResult.errors.length > 0 && (
                   <div className="space-y-1">
                     <span className="text-xs font-medium text-red-400">Errors:</span>
-                    {buildResult.errors.map((e, i) => (
-                      <p key={i} className="text-xs text-red-300 font-mono pl-2">
-                        {e}
-                      </p>
-                    ))}
+                    <ScrollArea className="max-h-40 rounded border border-red-500/30 bg-red-950/20 p-2">
+                      <div className="space-y-1">
+                        {buildResult.errors.map((e, i) => (
+                          <p key={i} className="text-xs text-red-300 font-mono">
+                            {e}
+                          </p>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </div>
                 )}
               </div>
@@ -337,6 +401,14 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
               size="sm"
             >
               <Trash2 className="w-3 h-3 mr-1" /> Clear
+            </Button>
+            <Button
+              onClick={() => navigator.clipboard.writeText(logLines.join('\n'))}
+              variant="ghost"
+              size="sm"
+              disabled={logLines.length === 0}
+            >
+              <ClipboardCheck className="w-3 h-3 mr-1" /> Copy
             </Button>
           </div>
           <Card className="bg-black border-slate-700 p-0">
