@@ -37,6 +37,7 @@ interface ScratchBlockNode {
   topLevel?: boolean;
   x?: number;
   y?: number;
+  mutation?: Record<string, unknown>;
 }
 
 interface ScratchTarget {
@@ -356,6 +357,7 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
   ],
   'My Blocks': [
     { label: 'Make a Block', opcode: 'procedures_definition' },
+    { label: 'call custom block', opcode: 'procedures_call' },
   ],
   Pen: [
     { label: 'erase all', opcode: 'pen_clear' },
@@ -575,6 +577,7 @@ const createVmCompatibleBlockShape = (
   const nextInputs = { ...(blockDef.inputs || {}) };
   const nextFields = { ...(blockDef.fields || {}) };
   const extraBlocks: Record<string, ScratchBlockNode> = {};
+  let mutation: Record<string, unknown> | undefined;
 
   const createShadow = (inputKey: string, opcode: string, fieldKey: string, defaultValue: string) => {
     const menuId = generateId();
@@ -593,6 +596,37 @@ const createVmCompatibleBlockShape = (
   };
 
   const op = blockDef.opcode;
+  const makeProcedureMutation = (proccode: string) => ({
+    tagName: 'mutation',
+    children: [],
+    proccode,
+    argumentids: '[]',
+    argumentnames: '[]',
+    argumentdefaults: '[]',
+    warp: 'false',
+  });
+
+  if (op === 'procedures_definition') {
+    const prototypeId = generateId();
+    const proccode = 'custom block';
+    extraBlocks[prototypeId] = {
+      id: prototypeId,
+      opcode: 'procedures_prototype',
+      parent: blockId,
+      topLevel: false,
+      shadow: true,
+      fields: {},
+      inputs: {},
+      next: null,
+      mutation: makeProcedureMutation(proccode),
+    };
+    nextInputs.custom_block = [1, prototypeId];
+  }
+
+  if (op === 'procedures_call') {
+    const proccode = 'custom block';
+    mutation = makeProcedureMutation(proccode);
+  }
 
   // Motion menus
   if (op === 'motion_goto') createShadow('TO', 'motion_goto_menu', 'TO', getFieldOption(blockDef.fields, 'TO', '_random_'));
@@ -637,6 +671,7 @@ const createVmCompatibleBlockShape = (
     inputs: nextInputs,
     fields: nextFields,
     extraBlocks,
+    mutation,
   };
 };
 
@@ -1011,11 +1046,16 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const archiveRef = useRef<ScratchArchive | null>(archive);
   const storageReadyRef = useRef(false);
   const projectLoadedRef = useRef(false);
+  const isRunningRef = useRef(isRunning);
 
   // Keep archiveRef in sync for the storage adapter closure
   useEffect(() => {
     archiveRef.current = archive;
   }, [archive]);
+
+  useEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
 
   const project = useMemo(() => safeParseProject(archive), [archive]);
   const selectedTarget = project.targets[Math.max(0, Math.min(project.targets.length - 1, selectedTargetIndex))];
@@ -1054,7 +1094,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const x = Number(runtimeTarget.x || 0);
     const y = Number(runtimeTarget.y || 0);
     const direction = Number(runtimeTarget.direction || 90);
-    const visible = Boolean(runtimeTarget.visible);
+    const visible = runtimeTarget.visible !== false;
 
     setStagePreview({
       x,
@@ -1067,7 +1107,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   }, [selectedTarget?.name]);
 
   const loadVmFromArchive = useCallback(async (nextArchive: ScratchArchive) => {
-    if (!vmRef.current || !storageReadyRef.current) return;
+    if (!vmRef.current) return;
     try {
       const normalizedArchive = ensureArchive(nextArchive);
       console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames);
@@ -1144,7 +1184,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               if (b64) {
                 return `data:application/octet-stream;base64,${b64}`;
               }
-              return '';
+              return `https://assets.scratch.mit.edu/internalapi/asset/${key}/get/`;
             }
           );
 
@@ -1195,7 +1235,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         // Handle "ask and wait" blocks — VM emits QUESTION, waits for ANSWER
         const rt = vm.runtime as any;
         rt?.on?.('QUESTION', (question: string) => {
-          const answer = window.prompt(question || 'What is your name?') || '';
+          if (!isRunningRef.current) return;
+          const promptText = typeof question === 'string' ? question.trim() : '';
+          if (!promptText) return;
+          const answer = window.prompt(promptText) || '';
           rt?.emit?.('ANSWER', answer);
         });
 
@@ -1783,11 +1826,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           ...blockDef,
           fields: dataResolved.fields,
         };
+        const vmCompatible = createVmCompatibleBlockShape(blockId, resolvedBlockDef);
         const snapResult = findSnapTarget(blocks, finalX, finalY);
 
         if (snapResult && blocks[snapResult.id]) {
           const parent = blocks[snapResult.id];
-          const vmCompatible = createVmCompatibleBlockShape(blockId, resolvedBlockDef);
 
           if (snapResult.type === 'substack') {
             // Insert inside C-block mouth
@@ -1804,6 +1847,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               y: snapY,
               inputs: vmCompatible.inputs,
               fields: vmCompatible.fields,
+              mutation: vmCompatible.mutation,
             };
           } else {
             // Standard next-block snap
@@ -1819,11 +1863,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               y: snapY,
               inputs: vmCompatible.inputs,
               fields: vmCompatible.fields,
+              mutation: vmCompatible.mutation,
             };
           }
           Object.assign(blocks, vmCompatible.extraBlocks);
         } else {
-          if (isEventBlock(blockDef.opcode)) {
+          if (isEventBlock(blockDef.opcode) || blockDef.opcode === 'procedures_definition') {
             blocks[blockId] = {
               id: blockId,
               opcode: blockDef.opcode,
@@ -1832,11 +1877,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               topLevel: true,
               x: finalX,
               y: finalY,
-              inputs: blockDef.inputs || {},
-              fields: resolvedBlockDef.fields || {},
+              inputs: vmCompatible.inputs,
+              fields: vmCompatible.fields,
+              mutation: vmCompatible.mutation,
             };
+            Object.assign(blocks, vmCompatible.extraBlocks);
           } else {
-            const vmCompatible = createVmCompatibleBlockShape(blockId, resolvedBlockDef);
             const eventId = generateId();
             blocks[eventId] = {
               id: eventId,
@@ -1859,6 +1905,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               y: finalY,
               inputs: vmCompatible.inputs,
               fields: vmCompatible.fields,
+              mutation: vmCompatible.mutation,
             };
             Object.assign(blocks, vmCompatible.extraBlocks);
           }
@@ -2073,14 +2120,19 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   };
 
   const handleImport = async (file: File) => {
-    const data = await file.arrayBuffer();
-    const parsed = await importSb3(data);
-    onArchiveChange(parsed.archive);
-    onProjectJsonUpdate(parsed.archive.projectJson);
-    setProjectJsonDraft(parsed.archive.projectJson);
-    setJsonError(null);
-    setSelectedTargetIndex(1);
-    await loadVmFromArchive(parsed.archive);
+    try {
+      const data = await file.arrayBuffer();
+      const parsed = await importSb3(data);
+      onArchiveChange(parsed.archive);
+      onProjectJsonUpdate(parsed.archive.projectJson);
+      setProjectJsonDraft(parsed.archive.projectJson);
+      setJsonError(null);
+      setVmError(null);
+      setSelectedTargetIndex(1);
+      await loadVmFromArchive(parsed.archive);
+    } catch (error) {
+      setVmError(error instanceof Error ? error.message : 'Failed to import .sb3 file');
+    }
   };
 
   const handleExport = async () => {
