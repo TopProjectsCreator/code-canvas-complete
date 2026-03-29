@@ -273,6 +273,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [showCollabDialog, setShowCollabDialog] = useState(false);
   const [showPartsInventory, setShowPartsInventory] = useState(false);
   const [partsInventoryPlatform, setPartsInventoryPlatform] = useState<"ftc" | "arduino" | "general" | undefined>(undefined);
+  const [partsInventoryInitialTab, setPartsInventoryInitialTab] = useState<"inventory" | "add" | "catalog">("inventory");
+  const [partsInventoryIdentifyWithImage, setPartsInventoryIdentifyWithImage] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
@@ -1682,8 +1684,14 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
     // Listen for parts inventory open event from ToolsPanel
     const handleOpenParts = (event: Event) => {
-      const customEvent = event as CustomEvent<{ platform?: "ftc" | "arduino" | "general" }>;
+      const customEvent = event as CustomEvent<{
+        platform?: "ftc" | "arduino" | "general";
+        initialTab?: "inventory" | "add" | "catalog";
+        identifyWithImage?: boolean;
+      }>;
       setPartsInventoryPlatform(customEvent.detail?.platform);
+      setPartsInventoryInitialTab(customEvent.detail?.initialTab ?? "inventory");
+      setPartsInventoryIdentifyWithImage(Boolean(customEvent.detail?.identifyWithImage));
       setShowPartsInventory(true);
     };
     window.addEventListener("open-parts-inventory", handleOpenParts as EventListener);
@@ -1855,9 +1863,17 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       <Suspense fallback={null}>
         <PartsInventoryDialog
           open={showPartsInventory}
-          onOpenChange={setShowPartsInventory}
+          onOpenChange={(open) => {
+            setShowPartsInventory(open);
+            if (!open) {
+              setPartsInventoryInitialTab("inventory");
+              setPartsInventoryIdentifyWithImage(false);
+            }
+          }}
           currentTemplate={selectedTemplate || undefined}
           preferredPlatform={partsInventoryPlatform}
+          initialTab={partsInventoryInitialTab}
+          identifyWithImage={partsInventoryIdentifyWithImage}
         />
       </Suspense>
 
