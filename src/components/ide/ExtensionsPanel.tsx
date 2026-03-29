@@ -409,7 +409,7 @@ export const ExtensionsPanel = ({ activeFile = null, onUpdateFileContent }: Exte
                 <p className="text-xs font-medium text-muted-foreground">{builtinView.icon} {builtinView.name}</p>
                 <button onClick={() => { setBuiltinView(null); setBuiltinHtml(''); }} className="text-[10px] text-muted-foreground hover:text-foreground">✕ Close</button>
               </div>
-              <ExtensionPreview html={builtinHtml} />
+              <ExtensionPreview html={builtinHtml} tall />
             </div>
           )}
 
