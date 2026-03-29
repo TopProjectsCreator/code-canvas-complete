@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { MediaGenerationPanel } from './MediaGenerationPanel';
 
 interface VideoEditorProps {
   file: FileNode;
@@ -53,12 +54,13 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
       return;
     }
     const isDataUrl = content.startsWith('data:');
+    const isUrl = content.startsWith('http://') || content.startsWith('https://');
     const ext = file.name.split('.').pop()?.toLowerCase();
     const mimeTypes: Record<string, string> = {
       mp4: 'video/mp4', webm: 'video/webm', ogg: 'video/ogg', ogv: 'video/ogg',
       mov: 'video/quicktime', avi: 'video/x-msvideo', mkv: 'video/x-matroska',
     };
-    setVideoSrc(isDataUrl ? content : `data:${mimeTypes[ext || 'mp4'] || 'video/mp4'};base64,${content}`);
+    setVideoSrc((isDataUrl || isUrl) ? content : `data:${mimeTypes[ext || 'mp4'] || 'video/mp4'};base64,${content}`);
   }, [file.content, file.name]);
 
   // Generate timeline thumbnails
@@ -267,6 +269,7 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
         <Button variant="outline" className="gap-2" onClick={handleFileUpload}>
           <Upload className="w-4 h-4" /> Upload Video
         </Button>
+        <MediaGenerationPanel mode="video" onGenerated={(value) => onContentChange(file.id, value)} />
       </div>
     );
   }

@@ -12,7 +12,7 @@ interface ApiKeysDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'meshy', 'sloyd', 'tripo', 'modelslab', 'fal', 'neural4d'];
+const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'stability', 'ideogram', 'replicate', 'runway', 'kling', 'higgsfield', 'luma', 'pika', 'meshy', 'sloyd', 'tripo', 'modelslab', 'fal', 'neural4d'];
 
 // Format validation rules per provider
 const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; label: string }> = {
@@ -31,6 +31,14 @@ const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; lab
   modelslab: { minLength: 20, label: '20+ characters' },
   fal: { minLength: 20, label: '20+ characters' },
   neural4d: { minLength: 20, label: '20+ characters' },
+  stability: { prefix: ['sk-'], minLength: 20, label: 'sk-...' },
+  ideogram: { minLength: 16, label: '16+ characters' },
+  replicate: { minLength: 20, label: '20+ characters' },
+  runway: { minLength: 20, label: '20+ characters' },
+  kling: { minLength: 12, label: '12+ characters' },
+  higgsfield: { minLength: 12, label: '12+ characters' },
+  luma: { minLength: 12, label: '12+ characters' },
+  pika: { minLength: 12, label: '12+ characters' },
 };
 
 function validateKeyFormat(provider: AIProvider, key: string): string | null {
