@@ -413,7 +413,7 @@ export const ExtensionsPanel = ({ activeFile = null, onUpdateFileContent }: Exte
             </div>
           )}
 
-
+          {myExtensions.length === 0 ? (
             <div className="text-center py-6 text-xs text-muted-foreground space-y-2">
               <WandSparkles className="h-8 w-8 mx-auto opacity-40" />
               <p>No custom extensions yet</p>
