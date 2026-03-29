@@ -4,10 +4,12 @@ import { Image, FileText, Code2, AlertCircle, Video, Music, Table } from 'lucide
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMemo } from 'react';
+import { MediaGenerationPanel } from './MediaGenerationPanel';
 
 interface FilePreviewProps {
   file: FileNode;
   previewType: 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv';
+  onContentChange: (fileId: string, content: string) => void;
 }
 
 // Parse CSV content into rows and columns
@@ -35,7 +37,7 @@ const parseCSV = (content: string): string[][] => {
 };
 
 // Separate component to handle image loading state
-const ImagePreview = ({ file, content }: { file: FileNode; content: string }) => {
+const ImagePreview = ({ file, content, onContentChange }: { file: FileNode; content: string; onContentChange: (fileId: string, content: string) => void }) => {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
 
   if (!content.trim()) {
@@ -48,6 +50,7 @@ const ImagePreview = ({ file, content }: { file: FileNode; content: string }) =>
           <p className="text-xs mt-2 text-muted-foreground/70">No image data available</p>
           <p className="text-xs mt-1 text-muted-foreground/50">Use "Upload Files" in the file tree to import images</p>
         </div>
+        <MediaGenerationPanel mode="image" onGenerated={(value) => onContentChange(file.id, value)} />
       </div>
     );
   }
@@ -97,7 +100,7 @@ const ImagePreview = ({ file, content }: { file: FileNode; content: string }) =>
   );
 };
 
-export const FilePreview = ({ file, previewType }: FilePreviewProps) => {
+export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewProps) => {
   const content = file.content || '';
 
   // Parse CSV data
@@ -107,11 +110,12 @@ export const FilePreview = ({ file, previewType }: FilePreviewProps) => {
   }, [content, previewType]);
 
   if (previewType === 'image') {
-    return <ImagePreview file={file} content={content} />;
+    return <ImagePreview file={file} content={content} onContentChange={onContentChange} />;
   }
 
   if (previewType === 'video') {
     const isDataUrl = content.startsWith('data:');
+    const isUrl = content.startsWith('http://') || content.startsWith('https://');
     const ext = file.name.split('.').pop()?.toLowerCase();
     const mimeTypes: Record<string, string> = {
       mp4: 'video/mp4',
@@ -121,7 +125,7 @@ export const FilePreview = ({ file, previewType }: FilePreviewProps) => {
       mkv: 'video/x-matroska',
       ogv: 'video/ogg',
     };
-    const videoSrc = isDataUrl ? content : `data:${mimeTypes[ext || 'mp4'] || 'video/mp4'};base64,${content}`;
+    const videoSrc = (isDataUrl || isUrl) ? content : `data:${mimeTypes[ext || 'mp4'] || 'video/mp4'};base64,${content}`;
 
     if (!content.trim()) {
       return (
@@ -160,6 +164,7 @@ export const FilePreview = ({ file, previewType }: FilePreviewProps) => {
 
   if (previewType === 'audio') {
     const isDataUrl = content.startsWith('data:');
+    const isUrl = content.startsWith('http://') || content.startsWith('https://');
     const ext = file.name.split('.').pop()?.toLowerCase();
     const mimeTypes: Record<string, string> = {
       mp3: 'audio/mpeg',

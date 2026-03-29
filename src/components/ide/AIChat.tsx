@@ -16,6 +16,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAgentChat } from '@/hooks/useAgentChat';
 import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion } from '@/types/agent';
 import { useApiKeys, PROVIDER_MODELS, PROVIDER_INFO } from '@/hooks/useApiKeys';
+const CHAT_BYOK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github']);
+
 import { SettingsDialog } from './SettingsDialog';
 import { getDiffLines } from '@/lib/diffUtils';
 import { useAttachments, ChatAttachment } from '@/hooks/useAttachments';
@@ -742,7 +744,7 @@ export const AIChat = ({
   });
 
   const { apiKeys, fetchApiKeys: refetchApiKeys } = useApiKeys();
-  const connectedProviders = apiKeys.map(k => k.provider);
+  const connectedProviders = apiKeys.map(k => k.provider).filter((provider) => CHAT_BYOK_PROVIDERS.has(provider));
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

@@ -86,6 +86,52 @@ const PROVIDER_TESTS: Record<string, { url: string; method: string; headers: (ke
     headers: (key) => ({ Authorization: `Bearer ${key}`, "Content-Type": "application/json" }),
     body: JSON.stringify({ prompt: "test" }),
   },
+
+  stability: {
+    url: "https://api.stability.ai/v1/user/balance",
+    method: "GET",
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+  },
+  ideogram: {
+    url: "https://api.ideogram.ai/generate",
+    method: "POST",
+    headers: (key) => ({ "Api-Key": key, "Content-Type": "application/json" }),
+    body: JSON.stringify({ image_request: { prompt: "test", model: "ideogram-v3", aspect_ratio: "1:1" } }),
+  },
+  replicate: {
+    url: "https://api.replicate.com/v1/models",
+    method: "GET",
+    headers: (key) => ({ Authorization: `Token ${key}` }),
+  },
+  runway: {
+    url: "https://api.dev.runwayml.com/v1/tasks?limit=1",
+    method: "GET",
+    headers: (key) => ({ Authorization: `Bearer ${key}`, "X-Runway-Version": "2024-11-06" }),
+  },
+  kling: {
+    url: "https://fal.run/fal-ai/kling-video/v2.1/master/text-to-video",
+    method: "POST",
+    headers: (key) => ({ Authorization: `Key ${key}`, "Content-Type": "application/json" }),
+    body: JSON.stringify({ prompt: "test" }),
+  },
+  higgsfield: {
+    url: "https://fal.run/fal-ai/higgsfield/text-to-video",
+    method: "POST",
+    headers: (key) => ({ Authorization: `Key ${key}`, "Content-Type": "application/json" }),
+    body: JSON.stringify({ prompt: "test" }),
+  },
+  luma: {
+    url: "https://fal.run/fal-ai/luma-dream-machine",
+    method: "POST",
+    headers: (key) => ({ Authorization: `Key ${key}`, "Content-Type": "application/json" }),
+    body: JSON.stringify({ prompt: "test" }),
+  },
+  pika: {
+    url: "https://fal.run/fal-ai/pika/v2.2/text-to-video",
+    method: "POST",
+    headers: (key) => ({ Authorization: `Key ${key}`, "Content-Type": "application/json" }),
+    body: JSON.stringify({ prompt: "test" }),
+  },
 };
 
 serve(async (req) => {
@@ -123,8 +169,8 @@ serve(async (req) => {
       });
     }
 
-    // 400 can mean auth succeeded but request was bad — still valid key
-    if (resp.status === 400) {
+    // 400/404 can mean auth succeeded but request shape/route is bad — still valid key
+    if (resp.status === 400 || resp.status === 404) {
       return new Response(JSON.stringify({ valid: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
