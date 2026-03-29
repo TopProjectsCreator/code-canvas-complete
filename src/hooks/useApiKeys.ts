@@ -18,7 +18,15 @@ export type AIProvider =
   | 'tripo'
   | 'modelslab'
   | 'fal'
-  | 'neural4d';
+  | 'neural4d'
+  | 'stability'
+  | 'ideogram'
+  | 'runway'
+  | 'replicate'
+  | 'kling'
+  | 'higgsfield'
+  | 'luma'
+  | 'pika';
 
 export interface UserApiKey {
   id: string;
@@ -49,6 +57,14 @@ export const PROVIDER_INFO: Record<AIProvider, { label: string; placeholder: str
   modelslab: { label: 'ModelsLab (Text-to-3D)', placeholder: '...', docsUrl: 'https://docs.modelslab.com' },
   fal: { label: 'Fal.ai (Text-to-3D)', placeholder: '...', docsUrl: 'https://fal.ai/docs' },
   neural4d: { label: 'Neural4D (Text-to-3D)', placeholder: '...', docsUrl: 'https://neural4d.com/docs' },
+  stability: { label: 'Stability AI (Image)', placeholder: 'sk-...', docsUrl: 'https://platform.stability.ai/account/keys' },
+  ideogram: { label: 'Ideogram (Image)', placeholder: '...', docsUrl: 'https://ideogram.ai' },
+  runway: { label: 'Runway (Video)', placeholder: 'rw_... or sk-...', docsUrl: 'https://docs.dev.runwayml.com' },
+  replicate: { label: 'Replicate (Image/Video)', placeholder: 'r8_... or rpl_...', docsUrl: 'https://replicate.com/account/api-tokens' },
+  kling: { label: 'Kling (Video)', placeholder: 'kling_... or fal key', docsUrl: 'https://docs.klingai.com' },
+  higgsfield: { label: 'Higgsfield (Video)', placeholder: '...', docsUrl: 'https://higgsfield.ai' },
+  luma: { label: 'Luma (Video)', placeholder: '...', docsUrl: 'https://lumalabs.ai/dream-machine/api' },
+  pika: { label: 'Pika (Video)', placeholder: '...', docsUrl: 'https://pika.art' },
 };
 
 export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]> = {
@@ -203,6 +219,34 @@ export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]
   ],
   neural4d: [
     { id: 'text-to-3d', label: 'Text to 3D' },
+  ],
+  stability: [
+    { id: 'stable-image-core', label: 'Stable Image Core' },
+    { id: 'stable-image-ultra', label: 'Stable Image Ultra' },
+  ],
+  ideogram: [
+    { id: 'ideogram-v3', label: 'Ideogram v3' },
+    { id: 'ideogram-v2', label: 'Ideogram v2' },
+  ],
+  runway: [
+    { id: 'gen4_turbo', label: 'Gen-4 Turbo' },
+    { id: 'gen3a_turbo', label: 'Gen-3 Alpha Turbo' },
+  ],
+  replicate: [
+    { id: 'black-forest-labs/flux-1.1-pro', label: 'FLUX 1.1 Pro (Image)' },
+    { id: 'minimax/video-01', label: 'MiniMax Video-01' },
+  ],
+  kling: [
+    { id: 'kling-v2.1', label: 'Kling v2.1' },
+  ],
+  higgsfield: [
+    { id: 'higgsfield-does-cinema', label: 'Higgsfield Cinema' },
+  ],
+  luma: [
+    { id: 'dream-machine', label: 'Dream Machine' },
+  ],
+  pika: [
+    { id: 'pika-v2.2', label: 'Pika v2.2' },
   ],
 };
 
