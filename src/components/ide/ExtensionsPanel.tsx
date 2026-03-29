@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { buildContext, executeExtension } from '@/lib/extensionRuntime';
 import type { FileNode } from '@/types/ide';
 import { toast } from 'sonner';
+import { BUILTIN_EXTENSIONS, type BuiltinExtension } from '@/data/builtinExtensions';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
