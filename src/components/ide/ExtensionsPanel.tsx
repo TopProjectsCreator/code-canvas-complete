@@ -63,7 +63,7 @@ function ExtensionCodeEditor({
   );
 }
 
-function ExtensionPreview({ html }: { html: string }) {
+function ExtensionPreview({ html, tall }: { html: string; tall?: boolean }) {
   const ref = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
@@ -86,7 +86,7 @@ function ExtensionPreview({ html }: { html: string }) {
     <iframe
       ref={ref}
       sandbox="allow-scripts"
-      className="w-full h-40 rounded border border-border bg-muted"
+      className={`w-full rounded border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
       title="Extension preview"
     />
   );
