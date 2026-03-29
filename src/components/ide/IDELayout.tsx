@@ -35,8 +35,6 @@ import { useGitHubImport } from "@/hooks/useGitHubImport";
 
 const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
   ftc: "https://github.com/FIRST-Tech-Challenge/FtcRobotController",
-  fll: "https://github.com/ev3dev/ev3dev-lang-python",
-  frc: "https://github.com/wpilibsuite/allwpilib",
 };
 
 const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ default: m.ArduinoPanel })));
@@ -2020,7 +2018,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         currentTemplate={selectedTemplate}
                       />
                     </Suspense>
-                  ) : selectedTemplate === "ftc" || selectedTemplate === "fll" || selectedTemplate === "frc" ? (
+                  ) : selectedTemplate === "ftc" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading {selectedTemplate.toUpperCase()} panel...</div>}>
                       <FTCPanel
                         files={filesWithContent}
@@ -2120,7 +2118,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       currentTemplate={selectedTemplate}
                     />
                   </Suspense>
-                ) : selectedTemplate === "ftc" || selectedTemplate === "fll" || selectedTemplate === "frc" ? (
+                ) : selectedTemplate === "ftc" ? (
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading {selectedTemplate.toUpperCase()} panel...</div>}>
                     <FTCPanel
                       files={filesWithContent}
