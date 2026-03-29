@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { buildContext, executeExtension } from '@/lib/extensionRuntime';
 import type { FileNode } from '@/types/ide';
 import { toast } from 'sonner';
+import { BUILTIN_EXTENSIONS, type BuiltinExtension } from '@/data/builtinExtensions';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -62,7 +63,7 @@ function ExtensionCodeEditor({
   );
 }
 
-function ExtensionPreview({ html }: { html: string }) {
+function ExtensionPreview({ html, tall }: { html: string; tall?: boolean }) {
   const ref = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
@@ -85,7 +86,7 @@ function ExtensionPreview({ html }: { html: string }) {
     <iframe
       ref={ref}
       sandbox="allow-scripts"
-      className="w-full h-40 rounded border border-border bg-muted"
+      className={`w-full rounded border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
       title="Extension preview"
     />
   );
@@ -242,6 +243,30 @@ export const ExtensionsPanel = ({ activeFile = null, onUpdateFileContent }: Exte
     }
   };
 
+  /* ---- run built-in ---- */
+
+  const [builtinView, setBuiltinView] = useState<BuiltinExtension | null>(null);
+  const [builtinHtml, setBuiltinHtml] = useState('');
+
+  const runBuiltinExtension = async (ext: BuiltinExtension) => {
+    setBuiltinHtml('');
+    setBuiltinView(ext);
+    setView('list'); // stay on list but show inline
+    const ctx = buildContext(ext.slug, {
+      onUI: (html) => setBuiltinHtml(html),
+      getSelection: () => activeFile?.content ?? '',
+      replaceSelection: (text) => {
+        if (activeFile?.id && onUpdateFileContent) onUpdateFileContent(activeFile.id, text);
+      },
+      notify: (msg) => toast.info(msg),
+    });
+    try {
+      await executeExtension(ext.code, ctx);
+    } catch (err: any) {
+      toast.error(`Extension error: ${err.message}`);
+    }
+  };
+
   /* ---- CRUD ---- */
 
   const saveExtension = async () => {
@@ -359,10 +384,39 @@ export const ExtensionsPanel = ({ activeFile = null, onUpdateFileContent }: Exte
             </button>
           </div>
 
+          {/* Built-in Extensions */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Built-in</p>
+            {BUILTIN_EXTENSIONS.map(ext => (
+              <div key={ext.id} className="rounded-md border border-border bg-card p-2.5 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <button onClick={() => runBuiltinExtension(ext)} className="text-left flex-1 min-w-0">
+                    <p className="font-medium truncate">{ext.icon} {ext.name}</p>
+                    <p className="text-muted-foreground truncate">{ext.description}</p>
+                  </button>
+                  <button onClick={() => runBuiltinExtension(ext)} className="px-2 py-1 rounded bg-primary/10 text-primary text-[10px] font-medium shrink-0 hover:bg-primary/20">
+                    <Play className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Built-in widget preview */}
+          {builtinView && builtinHtml && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground">{builtinView.icon} {builtinView.name}</p>
+                <button onClick={() => { setBuiltinView(null); setBuiltinHtml(''); }} className="text-[10px] text-muted-foreground hover:text-foreground">✕ Close</button>
+              </div>
+              <ExtensionPreview html={builtinHtml} tall />
+            </div>
+          )}
+
           {myExtensions.length === 0 ? (
-            <div className="text-center py-8 text-xs text-muted-foreground space-y-2">
+            <div className="text-center py-6 text-xs text-muted-foreground space-y-2">
               <WandSparkles className="h-8 w-8 mx-auto opacity-40" />
-              <p>No extensions yet</p>
+              <p>No custom extensions yet</p>
               <p>Create a URL shortener, CSS palette, CSV tool, or anything else!</p>
             </div>
           ) : (
