@@ -1016,6 +1016,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [spriteVisible, setSpriteVisible] = useState(true);
   const [workspaceZoom, setWorkspaceZoom] = useState(1);
   const [vmReady, setVmReady] = useState(false);
+  const [leftPaneWidth, setLeftPaneWidth] = useState(340);
+  const [rightPaneWidth, setRightPaneWidth] = useState(480);
+  const [activeResize, setActiveResize] = useState<'left' | 'right' | null>(null);
 
   // Pointer-based drag state for smooth block dragging
   const dragRef = useRef<{
@@ -1042,6 +1045,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const rendererRef = useRef<{ draw(): void; destroy(): void } | null>(null);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const stageContainerRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number>(0);
   const archiveRef = useRef<ScratchArchive | null>(archive);
   const storageReadyRef = useRef(false);
@@ -1056,6 +1060,26 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   useEffect(() => {
     isRunningRef.current = isRunning;
   }, [isRunning]);
+
+  useEffect(() => {
+    if (!activeResize) return;
+    const handlePointerMove = (event: PointerEvent) => {
+      const viewportWidth = window.innerWidth;
+      if (activeResize === 'left') {
+        setLeftPaneWidth(Math.max(260, Math.min(520, event.clientX)));
+      } else {
+        const nextWidth = viewportWidth - event.clientX;
+        setRightPaneWidth(Math.max(320, Math.min(700, nextWidth)));
+      }
+    };
+    const stopResize = () => setActiveResize(null);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', stopResize);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', stopResize);
+    };
+  }, [activeResize]);
 
   const project = useMemo(() => safeParseProject(archive), [archive]);
   const selectedTarget = project.targets[Math.max(0, Math.min(project.targets.length - 1, selectedTargetIndex))];
@@ -2119,6 +2143,18 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     onStop(); // Effect will call stopAll()
   };
 
+  const toggleStageFullscreen = async () => {
+    const stageElement = stageContainerRef.current;
+    if (!stageElement) return;
+
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    await stageElement.requestFullscreen();
+  };
+
   const handleImport = async (file: File) => {
     try {
       const data = await file.arrayBuffer();
@@ -2220,7 +2256,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       {/* ===== MAIN CONTENT ===== */}
       <div className="flex-1 min-h-0 flex bg-white">
         {/* --- LEFT: Category rail + Block flyout --- */}
-        <div className="flex min-h-0 shrink-0" style={{ width: 340 }}>
+        <div className="flex min-h-0 shrink-0" style={{ width: leftPaneWidth }}>
           {/* Category rail */}
           <div className="w-[64px] bg-[#f9f9f9] border-r border-[#e0e0e0] py-2 flex flex-col items-center gap-1 overflow-y-auto shrink-0">
             {categoryRail.map((cat) => {
@@ -2357,6 +2393,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
         </div>
 
+        <div
+          className={`w-1.5 shrink-0 cursor-col-resize transition-colors ${activeResize === 'left' ? 'bg-[#855cd6]' : 'bg-transparent hover:bg-[#d7c9f6]'}`}
+          onPointerDown={() => setActiveResize('left')}
+          role="separator"
+          aria-label="Resize categories pane"
+        />
+
         {/* --- CENTER: Workspace --- */}
         <div className="flex-1 min-w-0 relative overflow-hidden scratch-workspace" style={{ background: '#fff' }}
           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
@@ -2414,7 +2457,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         </div>
 
         {/* --- RIGHT: Stage + Sprite info + Sprite list --- */}
-        <div className="shrink-0 flex flex-col min-h-0 border-l border-[#e0e0e0]" style={{ width: 480 }}>
+        <div
+          className={`w-1.5 shrink-0 cursor-col-resize transition-colors ${activeResize === 'right' ? 'bg-[#855cd6]' : 'bg-transparent hover:bg-[#d7c9f6]'}`}
+          onPointerDown={() => setActiveResize('right')}
+          role="separator"
+          aria-label="Resize stage pane"
+        />
+
+        <div ref={stageContainerRef} className="shrink-0 flex flex-col min-h-0 border-l border-[#e0e0e0]" style={{ width: rightPaneWidth }}>
           {/* Stage area with green flag / stop */}
           <div className="bg-[#e8edf1] p-2">
             {/* Green flag & stop controls */}
@@ -2435,7 +2485,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 <StopCircle className="w-5 h-5 text-[#ec5959]" style={{ fill: '#ec5959' }} />
               </button>
               <div className="flex-1" />
-              <button className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/60" title="Fullscreen">
+              <button className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/60" title="Fullscreen" onClick={() => void toggleStageFullscreen()}>
                 <Maximize2 className="w-4 h-4 text-[#575e75]" />
               </button>
             </div>
