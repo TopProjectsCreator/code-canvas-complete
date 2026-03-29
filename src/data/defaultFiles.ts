@@ -41,8 +41,6 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   rtf: "Rich Text",
   cad: "3D CAD Viewer",
   ftc: "FTC Robotics",
-  fll: "FLL Robotics",
-  frc: "FRC Robotics",
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
@@ -169,22 +167,6 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case "ftc":
       baseTemplate = ftcTemplate;
-      break;
-    case "fll":
-    case "frc":
-      // These templates are loaded via GitHub clone, provide a placeholder
-      baseTemplate = [{
-        id: 'root',
-        name: template === 'fll' ? 'FLL-Project' : 'FRC-Project',
-        type: 'folder',
-        children: [{
-          id: 'loading',
-          name: 'README.md',
-          type: 'file',
-          content: `# ${template.toUpperCase()} Project\n\nLoading template from GitHub...`,
-          language: 'markdown',
-        }],
-      }];
       break;
     default:
       baseTemplate = htmlTemplate;
