@@ -243,6 +243,30 @@ export const ExtensionsPanel = ({ activeFile = null, onUpdateFileContent }: Exte
     }
   };
 
+  /* ---- run built-in ---- */
+
+  const [builtinView, setBuiltinView] = useState<BuiltinExtension | null>(null);
+  const [builtinHtml, setBuiltinHtml] = useState('');
+
+  const runBuiltinExtension = async (ext: BuiltinExtension) => {
+    setBuiltinHtml('');
+    setBuiltinView(ext);
+    setView('list'); // stay on list but show inline
+    const ctx = buildContext(ext.slug, {
+      onUI: (html) => setBuiltinHtml(html),
+      getSelection: () => activeFile?.content ?? '',
+      replaceSelection: (text) => {
+        if (activeFile?.id && onUpdateFileContent) onUpdateFileContent(activeFile.id, text);
+      },
+      notify: (msg) => toast.info(msg),
+    });
+    try {
+      await executeExtension(ext.code, ctx);
+    } catch (err: any) {
+      toast.error(`Extension error: ${err.message}`);
+    }
+  };
+
   /* ---- CRUD ---- */
 
   const saveExtension = async () => {
