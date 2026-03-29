@@ -402,7 +402,18 @@ export const ExtensionsPanel = ({ activeFile = null, onUpdateFileContent }: Exte
             ))}
           </div>
 
-          {myExtensions.length === 0 ? (
+          {/* Built-in widget preview */}
+          {builtinView && builtinHtml && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-muted-foreground">{builtinView.icon} {builtinView.name}</p>
+                <button onClick={() => { setBuiltinView(null); setBuiltinHtml(''); }} className="text-[10px] text-muted-foreground hover:text-foreground">✕ Close</button>
+              </div>
+              <ExtensionPreview html={builtinHtml} />
+            </div>
+          )}
+
+
             <div className="text-center py-6 text-xs text-muted-foreground space-y-2">
               <WandSparkles className="h-8 w-8 mx-auto opacity-40" />
               <p>No custom extensions yet</p>
