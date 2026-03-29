@@ -555,7 +555,7 @@ export const CodeEditor = ({
   if (previewType === "rtf") return <RTFEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "cad") return <CADEditor file={file} onContentChange={onContentChange} />;
   if (previewType && !isTextPreviewable)
-    return <FilePreview file={file} previewType={previewType as "image" | "csv" | "markdown" | "svg"} />;
+    return <FilePreview file={file} previewType={previewType as "image" | "csv" | "markdown" | "svg"} onContentChange={onContentChange} />;
 
   if (isTextPreviewable && markdownPreview) {
     return (
@@ -569,7 +569,7 @@ export const CodeEditor = ({
           </button>
           <span className="text-xs font-medium text-foreground">Preview</span>
         </div>
-        <FilePreview file={{ ...file, content }} previewType={previewType} />
+        <FilePreview file={{ ...file, content }} previewType={previewType} onContentChange={onContentChange} />
       </div>
     );
   }
