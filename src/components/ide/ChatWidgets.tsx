@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { 
   Palette, Coins, Dices, Calculator as CalcIcon, Loader2, 
   TrendingUp, TrendingDown, RotateCw, FileCode, ArrowRight,
-  BookOpen, Timer, Key, ArrowLeftRight, ListChecks, Braces, RegexIcon
+  BookOpen, Timer, Key, ArrowLeftRight, ListChecks, Braces, RegexIcon, WandSparkles
 } from 'lucide-react';
 import type { ChatWidget } from '@/types/agent';
 
@@ -502,6 +502,32 @@ const DocsLinkWidget = ({ widget }: { widget: ChatWidget }) => {
   );
 };
 
+const ConvertAnythingWidget = ({ widget }: { widget: ChatWidget }) => {
+  const buttonLabel = (widget.config?.label as string) || 'Open ConvertAnything Pane';
+  const detail = {
+    extensionSlug: 'convert-anything',
+    autoRun: String(widget.config?.autoRun || 'true') !== 'false',
+  };
+
+  return (
+    <SimpleInfoWidget title="ConvertAnything" icon={<WandSparkles className="w-3.5 h-3.5 text-primary" />}>
+      <div className="space-y-2">
+        <p className="text-[11px] text-muted-foreground">
+          Open the Tools panel and launch ConvertAnything to convert media, videos, PDFs, docs, and Markdown files.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('ide-open-tools-tab', { detail }))}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+        >
+          <WandSparkles className="w-3 h-3" />
+          {buttonLabel}
+        </button>
+      </div>
+    </SimpleInfoWidget>
+  );
+};
+
 // ─── Countdown Widget ───
 const CountdownWidget = ({ widget }: { widget: ChatWidget }) => {
   const totalSeconds = Number(widget.config?.seconds) || 60;
@@ -721,6 +747,7 @@ export const ChatWidgetRenderer = ({
     case 'change_template': return <TemplateChangeWidget widget={widget} onChangeTemplate={onChangeTemplate} />;
     case 'pomodoro': return <PomodoroWidget widget={widget} />;
     case 'docs_link': return <DocsLinkWidget widget={widget} />;
+    case 'convert_anything': return <ConvertAnythingWidget widget={widget} />;
     case 'countdown': return <CountdownWidget widget={widget} />;
     case 'password_generator': return <PasswordGeneratorWidget widget={widget} />;
     case 'unit_converter': return <UnitConverterWidget />;
