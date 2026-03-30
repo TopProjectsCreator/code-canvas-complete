@@ -129,7 +129,8 @@ export type ChatWidgetType =
   | 'unit_converter'
   | 'progress_tracker'
   | 'json_viewer'
-  | 'regex_tester';
+  | 'regex_tester'
+  | 'convert_anything';
 
 export interface ChatWidget {
   id: string;

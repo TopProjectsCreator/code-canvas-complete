@@ -34,6 +34,9 @@ type ExtensionRecord = {
 interface ExtensionsPanelProps {
   activeFile?: FileNode | null;
   onUpdateFileContent?: (fileId: string, content: string) => void;
+  requestedBuiltinSlug?: string | null;
+  requestedBuiltinAutoRun?: boolean;
+  onBuiltinRequestHandled?: () => void;
 }
 
 const makeSlug = (v: string) =>
@@ -98,7 +101,13 @@ function ExtensionPreview({ html, tall }: { html: string; tall?: boolean }) {
 
 type View = 'list' | 'create' | 'store' | 'edit';
 
-export const ExtensionsPanel = ({ activeFile = null, onUpdateFileContent }: ExtensionsPanelProps) => {
+export const ExtensionsPanel = ({
+  activeFile = null,
+  onUpdateFileContent,
+  requestedBuiltinSlug = null,
+  requestedBuiltinAutoRun = false,
+  onBuiltinRequestHandled,
+}: ExtensionsPanelProps) => {
   const { user, profile } = useAuth();
 
   /* data */
@@ -266,6 +275,21 @@ export const ExtensionsPanel = ({ activeFile = null, onUpdateFileContent }: Exte
       toast.error(`Extension error: ${err.message}`);
     }
   };
+
+  useEffect(() => {
+    if (!requestedBuiltinSlug) return;
+    const ext = BUILTIN_EXTENSIONS.find((item) => item.slug === requestedBuiltinSlug);
+    if (ext) {
+      void runBuiltinExtension(ext).then(() => {
+        if (requestedBuiltinAutoRun) {
+          setTimeout(() => {
+            void runExtension();
+          }, 0);
+        }
+      });
+    }
+    onBuiltinRequestHandled?.();
+  }, [onBuiltinRequestHandled, requestedBuiltinAutoRun, requestedBuiltinSlug]);
 
   /* ---- CRUD ---- */
 

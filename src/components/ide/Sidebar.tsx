@@ -99,6 +99,8 @@ export const Sidebar = ({
   onInvite,
 }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('files');
+  const [requestedBuiltinExtensionSlug, setRequestedBuiltinExtensionSlug] = useState<string | null>(null);
+  const [requestedBuiltinAutoRun, setRequestedBuiltinAutoRun] = useState(false);
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
   const [newFileType, setNewFileType] = useState<'file' | 'folder'>('file');
   const [showNewMenu, setShowNewMenu] = useState(false);
@@ -116,6 +118,17 @@ export const Sidebar = ({
     };
     window.addEventListener('ide-focus-search', handleFocusSearch);
     return () => window.removeEventListener('ide-focus-search', handleFocusSearch);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenTools = (event: Event) => {
+      const custom = event as CustomEvent<{ extensionSlug?: string; autoRun?: boolean }>;
+      setActiveTab('tools');
+      setRequestedBuiltinExtensionSlug(custom.detail?.extensionSlug || null);
+      setRequestedBuiltinAutoRun(Boolean(custom.detail?.autoRun));
+    };
+    window.addEventListener('ide-open-tools-tab', handleOpenTools as EventListener);
+    return () => window.removeEventListener('ide-open-tools-tab', handleOpenTools as EventListener);
   }, []);
 
   const getAllFiles = (nodes: FileNode[]): FileNode[] => {
@@ -568,7 +581,18 @@ export const Sidebar = ({
           />
         )}
 
-        {activeTab === 'tools' && <ExtensionsPanel activeFile={activeExtensionFile} onUpdateFileContent={onUpdateFileContent} />}
+        {activeTab === 'tools' && (
+          <ExtensionsPanel
+            activeFile={activeExtensionFile}
+            onUpdateFileContent={onUpdateFileContent}
+            requestedBuiltinSlug={requestedBuiltinExtensionSlug}
+            requestedBuiltinAutoRun={requestedBuiltinAutoRun}
+            onBuiltinRequestHandled={() => {
+              setRequestedBuiltinExtensionSlug(null);
+              setRequestedBuiltinAutoRun(false);
+            }}
+          />
+        )}
 
         
 
