@@ -18,6 +18,22 @@ describe('explainShellCommand', () => {
     expect(explainShellCommand('find src -name *.tsx')).toContain('matching *.tsx');
   });
 
+  it('customizes common file and network commands with targets/flags', () => {
+    expect(explainShellCommand('mkdir -p src/utils/helpers')).toContain('creates missing parent folders');
+    expect(explainShellCommand('rm -rf dist')).toContain('recursively');
+    expect(explainShellCommand('cp -r src assets-copy')).toContain('to assets-copy recursively');
+    expect(explainShellCommand('mv old.txt new.txt')).toContain('to new.txt');
+    expect(explainShellCommand('cat README.md')).toContain('contents of README.md');
+    expect(explainShellCommand('head -n 5 package.json')).toContain('first 5 line(s)');
+    expect(explainShellCommand('tail -n 20 app.log')).toContain('last 20 line(s)');
+    expect(explainShellCommand('curl -X POST https://api.example.com/items')).toContain('HTTP POST request');
+    expect(explainShellCommand('ssh user@example.com')).toContain("remote host 'user@example.com'");
+    expect(explainShellCommand('scp app.log server:/tmp/app.log')).toContain('to server:/tmp/app.log over SSH');
+    expect(explainShellCommand('ping -c 4 example.com')).toContain('4 ICMP ping request(s)');
+    expect(explainShellCommand('systemctl restart nginx')).toContain("systemctl restart");
+    expect(explainShellCommand('docker run -it ubuntu bash')).toContain("image 'ubuntu'");
+  });
+
   it('explains install commands with package purpose details', () => {
     expect(explainShellCommand('npm install react zod')).toContain('react: A UI library');
     expect(explainShellCommand('pip install requests numpy')).toContain('requests: A popular Python HTTP client library');
