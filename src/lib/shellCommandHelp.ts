@@ -79,6 +79,192 @@ const COMMAND_HELP: Record<string, string> = {
   java: 'Runs Java programs.',
   javac: 'Compiles Java source files.',
   pytest: 'Runs Python test suites with pytest.',
+  bash: 'Runs Bash shell scripts/commands.',
+  sh: 'Runs POSIX shell scripts/commands.',
+  zsh: 'Runs Z shell scripts/commands.',
+  fish: 'Runs Fish shell scripts/commands.',
+  source: 'Loads shell commands from a file into the current shell.',
+  '.': 'Loads shell commands from a file into the current shell.',
+  echo: 'Prints text or variable values.',
+  printf: 'Prints formatted text.',
+  tee: 'Writes input to both stdout and one or more files.',
+  tr: 'Translates or deletes characters from text streams.',
+  realpath: 'Prints the absolute canonical path.',
+  readlink: 'Prints or resolves symbolic link targets.',
+  stat: 'Shows file or filesystem metadata.',
+  file: 'Detects file type information.',
+  du: 'Estimates file/directory disk usage.',
+  df: 'Shows filesystem disk space usage.',
+  free: 'Shows memory usage.',
+  uname: 'Prints system/kernel information.',
+  hostname: 'Shows or sets the system host name.',
+  ping: 'Sends ICMP echo packets to test connectivity.',
+  traceroute: 'Shows network route hops to a destination.',
+  dig: 'Queries DNS records.',
+  nslookup: 'Queries DNS records.',
+  netstat: 'Shows network sockets/routes (legacy).',
+  ss: 'Shows socket and network connection information.',
+  lsof: 'Lists open files and the processes using them.',
+  crontab: 'Manages scheduled cron jobs.',
+  systemctl: 'Manages systemd services and system state.',
+  service: 'Controls background services (init/systemd wrapper).',
+  journalctl: 'Views logs collected by systemd-journald.',
+  history: 'Shows shell command history.',
+  alias: 'Creates command aliases in the shell.',
+  unalias: 'Removes shell command aliases.',
+  export: 'Sets environment variables for child processes.',
+  which: 'Shows the executable path for a command.',
+  whereis: 'Locates command binaries/source/man pages.',
+  man: 'Opens manual pages for commands.',
+  chgrp: 'Changes file group ownership.',
+  mount: 'Mounts filesystems/devices.',
+  umount: 'Unmounts filesystems/devices.',
+  dd: 'Copies/converts raw data at block level.',
+  screen: 'Runs detachable terminal sessions.',
+  tmux: 'Runs detachable terminal multiplexer sessions.',
+  openssl: 'Runs cryptography/TLS operations.',
+  ffmpeg: 'Converts and processes audio/video media.',
+  sqlite3: 'Opens and queries SQLite databases.',
+  psql: 'Runs PostgreSQL interactive terminal commands.',
+  mysql: 'Runs MySQL/MariaDB interactive terminal commands.',
+  'redis-cli': 'Runs Redis interactive commands.',
+  watch: 'Runs a command repeatedly and shows live-updating output.',
+  time: 'Measures how long a command takes to run.',
+  sleep: 'Pauses execution for a duration.',
+  yes: 'Repeatedly outputs a string until stopped.',
+  seq: 'Prints a numeric sequence.',
+  paste: 'Merges lines from files side-by-side.',
+  join: 'Joins lines from two files using a common field.',
+  split: 'Splits a file into smaller pieces.',
+  fold: 'Wraps long lines to a given width.',
+  nl: 'Prints file lines with line numbers.',
+  expand: 'Converts tabs to spaces.',
+  unexpand: 'Converts spaces to tabs when possible.',
+  rev: 'Reverses characters in each input line.',
+  od: 'Dumps file contents in octal/hex formats.',
+  hexdump: 'Prints file contents in hexadecimal view.',
+  strings: 'Extracts printable strings from binary files.',
+  md5sum: 'Computes/verifies MD5 checksums.',
+  sha1sum: 'Computes/verifies SHA-1 checksums.',
+  sha256sum: 'Computes/verifies SHA-256 checksums.',
+  sha512sum: 'Computes/verifies SHA-512 checksums.',
+  cksum: 'Computes CRC checksum and byte counts.',
+  base64: 'Encodes or decodes Base64 data.',
+  basename: 'Strips directory and suffix from file paths.',
+  dirname: 'Extracts directory part of file paths.',
+  mktemp: 'Creates a unique temporary file or directory.',
+  install: 'Copies files and sets attributes/permissions.',
+  truncate: 'Shrinks or extends files to a specific size.',
+  sync: 'Flushes filesystem buffers to disk.',
+  lsblk: 'Lists block storage devices.',
+  blkid: 'Prints block device UUID/label information.',
+  fdisk: 'Creates and manages disk partitions.',
+  parted: 'Manipulates disk partition tables.',
+  mkfs: 'Creates filesystems on devices/partitions.',
+  fsck: 'Checks and repairs filesystem issues.',
+  tune2fs: 'Adjusts ext filesystem parameters.',
+  useradd: 'Creates a new user account.',
+  usermod: 'Modifies a user account.',
+  userdel: 'Deletes a user account.',
+  groupadd: 'Creates a new user group.',
+  groupmod: 'Modifies a user group.',
+  groupdel: 'Deletes a user group.',
+  passwd: 'Changes a user password.',
+  su: 'Switches to another user account.',
+  id: 'Prints user and group identity info.',
+  groups: 'Lists group memberships for users.',
+  last: 'Shows recent login history.',
+  w: 'Shows who is logged in and system load.',
+  uptime: 'Shows system uptime and load averages.',
+  dmesg: 'Displays kernel ring buffer messages.',
+  'ip': 'Configures/shows network interfaces, routes, addresses.',
+  ifconfig: 'Shows/configures network interfaces (legacy).',
+  route: 'Shows/edits IP routing table (legacy).',
+  iptables: 'Configures IPv4 firewall rules.',
+  nft: 'Configures nftables firewall rules.',
+  ufw: 'Manages uncomplicated firewall rules.',
+  tcpdump: 'Captures and inspects network packets.',
+  nmap: 'Scans network hosts and ports.',
+  nc: 'Reads/writes data across network connections.',
+  telnet: 'Connects to remote services over Telnet.',
+  'ssh-keygen': 'Creates and manages SSH key pairs.',
+  'ssh-copy-id': 'Installs local SSH public key on remote host.',
+  sftp: 'Transfers files over SSH in interactive mode.',
+  aria2c: 'Downloads files via HTTP/FTP/BitTorrent.',
+  lynx: 'Text-based web browser.',
+  jq: 'Filters/transforms JSON from stdin or files.',
+  yq: 'Filters/transforms YAML/JSON data.',
+  xmllint: 'Validates and formats XML documents.',
+  xmlstarlet: 'Queries/transforms XML documents.',
+  csvkit: 'CLI toolkit for working with CSV files.',
+  pandoc: 'Converts documents between markup formats.',
+  iconv: 'Converts text between character encodings.',
+  locale: 'Prints or sets locale information.',
+  localectl: 'Queries/changes system locale settings.',
+  xargs: 'Builds and runs commands from input items.',
+  parallel: 'Runs shell jobs in parallel from input lists.',
+  timeout: 'Runs a command with a time limit.',
+  nohup: 'Runs a command immune to hangups.',
+  disown: 'Removes a job from shell job control.',
+  jobs: 'Lists shell background jobs.',
+  bg: 'Resumes a stopped job in the background.',
+  fg: 'Brings a background/stopped job to the foreground.',
+  'set': 'Sets shell options/variables.',
+  unset: 'Removes shell variables/functions.',
+  envsubst: 'Substitutes environment variables in text.',
+  printenv: 'Prints environment variables.',
+  hostnamectl: 'Shows/sets system hostname metadata.',
+  timedatectl: 'Shows/sets system time and timezone.',
+  loginctl: 'Manages user login sessions via systemd.',
+  nmcli: 'Controls NetworkManager from the command line.',
+  ethtool: 'Displays/modifies NIC settings.',
+  iw: 'Configures wireless interfaces.',
+  crontab: 'Manages scheduled cron jobs.',
+  at: 'Schedules one-time command execution.',
+  'atq': 'Lists pending at jobs.',
+  atrm: 'Removes pending at jobs.',
+  rsnapshot: 'Runs filesystem snapshots via rsync.',
+  borg: 'Deduplicating backup tool commands.',
+  restic: 'Backup program with snapshots and encryption.',
+  ansible: 'Runs Ansible automation commands.',
+  terraform: 'Runs Terraform infrastructure-as-code commands.',
+  pulumi: 'Runs Pulumi infrastructure-as-code commands.',
+  aws: 'Runs AWS CLI cloud management commands.',
+  az: 'Runs Azure CLI cloud management commands.',
+  gcloud: 'Runs Google Cloud CLI commands.',
+  heroku: 'Runs Heroku platform CLI commands.',
+  vercel: 'Runs Vercel deployment CLI commands.',
+  netlify: 'Runs Netlify CLI commands.',
+  kubens: 'Switches current Kubernetes namespace quickly.',
+  kubectx: 'Switches current Kubernetes context quickly.',
+  helm: 'Runs Helm Kubernetes package manager commands.',
+  kustomize: 'Builds Kubernetes manifests from overlays.',
+  minikube: 'Runs local Kubernetes cluster commands.',
+  kind: 'Runs Kubernetes-in-Docker cluster commands.',
+  podman: 'Runs Podman container commands.',
+  buildah: 'Builds OCI container images.',
+  skopeo: 'Copies/inspects container images and registries.',
+  'docker-compose': 'Runs Docker Compose multi-container commands.',
+  php: 'Runs PHP scripts/interpreter.',
+  ruby: 'Runs Ruby scripts/interpreter.',
+  perl: 'Runs Perl scripts/interpreter.',
+  lua: 'Runs Lua scripts/interpreter.',
+  rustc: 'Compiles Rust source files.',
+  clang: 'Compiles C/C++ source with LLVM Clang.',
+  gcc: 'Compiles C/C++ source with GCC.',
+  gdb: 'Runs GNU debugger sessions.',
+  lldb: 'Runs LLDB debugger sessions.',
+  valgrind: 'Analyzes memory/performance issues in binaries.',
+  strace: 'Traces system calls and signals for a process.',
+  ltrace: 'Traces library calls made by a process.',
+  objdump: 'Displays information from object files.',
+  nm: 'Lists symbols from object files.',
+  readelf: 'Displays ELF binary metadata.',
+  makepkg: 'Builds Arch Linux packages from PKGBUILD.',
+  dpkg: 'Installs/manages Debian package files.',
+  rpm: 'Installs/manages RPM package files.',
+  apk: 'Runs Alpine Linux package manager commands.',
+  zypper: 'Runs openSUSE package manager commands.',
 };
 
 const LIBRARY_PURPOSES: Record<string, string> = {
@@ -265,6 +451,31 @@ const DOCKER_SUBCOMMAND_HELP: Record<string, string> = {
   compose: 'Runs Docker Compose subcommands for multi-container apps.',
 };
 
+const YARN_SUBCOMMAND_HELP: Record<string, string> = {
+  install: 'Installs dependencies from package.json/yarn.lock.',
+  add: 'Adds dependencies to package.json.',
+  remove: 'Removes dependencies from package.json.',
+  up: 'Upgrades dependencies.',
+  run: 'Runs a script from package.json.',
+  test: 'Runs the project test script.',
+  dev: 'Runs the project development script.',
+  build: 'Runs the project build script.',
+  dlx: 'Runs a package binary without permanently installing it.',
+};
+
+const KUBECTL_SUBCOMMAND_HELP: Record<string, string> = {
+  get: 'Reads Kubernetes resources (pods, deployments, services, etc.).',
+  describe: 'Shows detailed information for Kubernetes resources.',
+  apply: 'Creates/updates resources from manifest files.',
+  delete: 'Deletes Kubernetes resources.',
+  logs: 'Streams or prints pod/container logs.',
+  exec: 'Executes a command inside a running container.',
+  config: 'Manages kubeconfig contexts and cluster credentials.',
+  rollout: 'Manages deployment rollouts and rollbacks.',
+  scale: 'Scales Kubernetes workloads.',
+  'port-forward': 'Forwards local ports to pods/services.',
+};
+
 const GIT_SUBCOMMAND_HELP: Record<string, string> = {
   status: 'Shows changed files and git working tree state.',
   add: 'Stages files for the next commit.',
@@ -285,6 +496,13 @@ const GIT_SUBCOMMAND_HELP: Record<string, string> = {
   diff: 'Shows code differences between states.',
   tag: 'Lists or creates version tags.',
   remote: 'Manages remote repository aliases.',
+};
+
+const CHAIN_OPERATOR_HELP: Record<string, string> = {
+  '&&': 'Runs the next command only if the previous command succeeds (exit code 0).',
+  '||': 'Runs the next command only if the previous command fails (non-zero exit code).',
+  '|': 'Pipes the previous command output into the next command as input.',
+  ';': 'Runs commands in sequence regardless of success or failure.',
 };
 
 function cleanPackageName(value: string): string {
@@ -339,13 +557,221 @@ function explainPackageManagerCommand(
   return defaultHelp;
 }
 
-export function explainShellCommand(command: string): string {
+function summarizeShellSyntax(command: string): string[] {
+  const notes: string[] = [];
+  if (/\s>>\s?/.test(command)) notes.push("Uses '>>' to append command output to a file.");
+  else if (/\s>\s?/.test(command)) notes.push("Uses '>' to overwrite a file with command output.");
+  if (/\s2>\s?/.test(command)) notes.push("Uses '2>' to redirect stderr (errors) to a file.");
+  if (/\s<\s?/.test(command)) notes.push("Uses '<' to read command input from a file.");
+  if (/\*/.test(command)) notes.push("Uses '*' wildcard expansion to match multiple file names.");
+  if (/\$\{?[A-Za-z_][A-Za-z0-9_]*\}?/.test(command)) notes.push('References one or more shell environment variables.');
+  if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(command)) notes.push('Starts with environment variable assignment(s) for this command context.');
+  return notes;
+}
+
+function splitFlagsAndTargets(args: string[]): { flags: string[]; targets: string[] } {
+  const flags: string[] = [];
+  const targets: string[] = [];
+  for (const arg of args) {
+    if (arg.startsWith('-')) flags.push(arg);
+    else targets.push(arg);
+  }
+  return { flags, targets };
+}
+
+function explainContextualCommand(bin: string, args: string[]): string | null {
+  const { flags, targets } = splitFlagsAndTargets(args);
+
+  if (bin === 'wc') {
+    const targetText = targets.length > 0 ? ` in ${targets.join(', ')}` : '';
+    if (flags.includes('-m') || flags.includes('--chars')) return `Counts the number of characters${targetText}.`;
+    if (flags.includes('-l') || flags.includes('--lines')) return `Counts the number of lines${targetText}.`;
+    if (flags.includes('-w') || flags.includes('--words')) return `Counts the number of words${targetText}.`;
+    if (flags.includes('-c') || flags.includes('--bytes')) return `Counts the number of bytes${targetText}.`;
+    return `Counts lines, words, and bytes${targetText}.`;
+  }
+
+  if (bin === 'ls') {
+    const location = targets.length > 0 ? targets.join(', ') : 'the current directory';
+    const details: string[] = [];
+    if (flags.some(flag => flag.includes('a'))) details.push('including hidden files');
+    if (flags.some(flag => flag.includes('l'))) details.push('in long/detailed format');
+    if (flags.some(flag => flag.includes('h'))) details.push('with human-readable sizes');
+    const detailsText = details.length > 0 ? ` (${details.join(', ')})` : '';
+    return `Lists files and folders in ${location}${detailsText}.`;
+  }
+
+  if (bin === 'grep') {
+    const pattern = targets[0];
+    const scope = targets.slice(1);
+    if (!pattern) return 'Searches text for lines matching a pattern.';
+    if (scope.length === 0) return `Searches incoming text for pattern '${pattern}'.`;
+    return `Searches ${scope.join(', ')} for lines matching pattern '${pattern}'.`;
+  }
+
+  if (bin === 'find') {
+    const root = targets[0] ?? '.';
+    if (args.includes('-name') && args[args.indexOf('-name') + 1]) {
+      return `Searches under ${root} for paths with name matching ${args[args.indexOf('-name') + 1]}.`;
+    }
+    if (args.includes('-type') && args[args.indexOf('-type') + 1]) {
+      const typeArg = args[args.indexOf('-type') + 1];
+      const typeText = typeArg === 'f' ? 'files' : typeArg === 'd' ? 'directories' : `type '${typeArg}' entries`;
+      return `Searches under ${root} for ${typeText}.`;
+    }
+    return `Searches for files/directories under ${root}.`;
+  }
+
+  if (bin === 'mkdir') {
+    if (targets.length === 0) return 'Creates a new directory.';
+    const parents = flags.includes('-p') ? ' and creates missing parent folders as needed' : '';
+    return `Creates director${targets.length === 1 ? 'y' : 'ies'}: ${targets.join(', ')}${parents}.`;
+  }
+
+  if (bin === 'rm') {
+    if (targets.length === 0) return 'Removes files or directories.';
+    const recursive = flags.some(flag => flag.includes('r')) ? ' recursively' : '';
+    const forced = flags.some(flag => flag.includes('f')) ? ' (force mode)' : '';
+    return `Removes ${targets.join(', ')}${recursive}${forced}.`;
+  }
+
+  if (bin === 'cp') {
+    if (targets.length >= 2) {
+      const destination = targets[targets.length - 1];
+      const sources = targets.slice(0, -1);
+      const recursive = flags.some(flag => flag.includes('r')) ? ' recursively' : '';
+      return `Copies ${sources.join(', ')} to ${destination}${recursive}.`;
+    }
+    return 'Copies files or directories.';
+  }
+
+  if (bin === 'mv') {
+    if (targets.length >= 2) {
+      const destination = targets[targets.length - 1];
+      const sources = targets.slice(0, -1);
+      return `Moves/renames ${sources.join(', ')} to ${destination}.`;
+    }
+    return 'Moves or renames files/directories.';
+  }
+
+  if (bin === 'cat') {
+    if (targets.length === 0) return 'Prints file contents to the terminal.';
+    return `Prints the contents of ${targets.join(', ')}.`;
+  }
+
+  if (bin === 'head' || bin === 'tail') {
+    const countFlagIndex = args.findIndex(arg => arg === '-n' || arg.startsWith('-n'));
+    let lineCount = '10';
+    if (countFlagIndex >= 0) {
+      const direct = args[countFlagIndex];
+      lineCount = direct === '-n' ? args[countFlagIndex + 1] ?? lineCount : direct.replace('-n', '') || lineCount;
+    }
+    const files = targets.length > 0 ? ` from ${targets.join(', ')}` : '';
+    return `${bin === 'head' ? 'Shows first' : 'Shows last'} ${lineCount} line(s)${files}.`;
+  }
+
+  if (bin === 'tar') {
+    if (flags.some(flag => flag.includes('x'))) return 'Extracts files from a tar archive.';
+    if (flags.some(flag => flag.includes('c'))) return 'Creates a tar archive from files/directories.';
+    return 'Creates or extracts tar archives.';
+  }
+
+  if (bin === 'curl') {
+    const methodIndex = args.findIndex(arg => arg === '-X' || arg === '--request');
+    const method = methodIndex >= 0 ? args[methodIndex + 1] : 'GET';
+    const url = targets.find(target => /^https?:\/\//.test(target));
+    if (url) return `Makes an HTTP ${method} request to ${url}.`;
+    return `Makes an HTTP ${method} request from the terminal.`;
+  }
+
+  if (bin === 'ssh') {
+    const destination = targets.find(target => !target.startsWith('-'));
+    if (destination) return `Connects to remote host '${destination}' over SSH.`;
+    return 'Connects to a remote machine over SSH.';
+  }
+
+  if (bin === 'scp') {
+    if (targets.length >= 2) {
+      return `Copies ${targets.slice(0, -1).join(', ')} to ${targets[targets.length - 1]} over SSH.`;
+    }
+    return 'Copies files over SSH.';
+  }
+
+  if (bin === 'rsync') {
+    if (targets.length >= 2) {
+      return `Synchronizes ${targets.slice(0, -1).join(', ')} to ${targets[targets.length - 1]}.`;
+    }
+    return 'Syncs files/directories efficiently.';
+  }
+
+  if (bin === 'ping') {
+    const host = targets.find(target => !target.startsWith('-'));
+    const countIndex = args.findIndex(arg => arg === '-c');
+    const count = countIndex >= 0 ? args[countIndex + 1] : null;
+    if (host && count) return `Sends ${count} ICMP ping request(s) to ${host}.`;
+    if (host) return `Sends ICMP ping requests to ${host}.`;
+    return 'Sends ICMP echo packets to test connectivity.';
+  }
+
+  if (bin === 'systemctl') {
+    const action = targets[0];
+    const unit = targets[1];
+    if (action && unit) return `Runs 'systemctl ${action}' on service/unit '${unit}'.`;
+    if (action) return `Runs systemctl action '${action}'.`;
+    return 'Manages systemd services and system state.';
+  }
+
+  if (bin === 'docker') {
+    const sub = args[0];
+    if (sub === 'run') {
+      const image = targets[1];
+      if (image) return `Starts a new container from image '${image}'.`;
+      return 'Starts a new container from an image.';
+    }
+    if (sub === 'exec') {
+      const container = targets[1];
+      if (container) return `Runs a command inside running container '${container}'.`;
+    }
+  }
+
+  if (bin === 'chmod') {
+    if (targets.length >= 2) return `Changes permissions to '${targets[0]}' for ${targets.slice(1).join(', ')}.`;
+    return 'Changes file permissions.';
+  }
+
+  if (bin === 'chown') {
+    if (targets.length >= 2) return `Changes owner/group to '${targets[0]}' for ${targets.slice(1).join(', ')}.`;
+    return 'Changes file owner/group.';
+  }
+
+  if (bin === 'git') {
+    const sub = args[0];
+    if (sub === 'checkout' || sub === 'switch') {
+      const branch = args.find(arg => !arg.startsWith('-') && arg !== sub);
+      if (branch) return `Switches to branch or target '${branch}'.`;
+    }
+    if (sub === 'commit') {
+      const messageIndex = args.findIndex(arg => arg === '-m' || arg === '--message');
+      const message = messageIndex >= 0 ? args[messageIndex + 1] : null;
+      if (message) return `Creates a commit with message ${message}.`;
+      return 'Creates a commit with staged changes.';
+    }
+  }
+
+  return null;
+}
+
+function explainSingleCommand(command: string): string {
   const trimmed = command.trim();
   if (!trimmed) return 'Runs a shell command in the current project environment.';
 
   if (EXACT_COMMAND_HELP[trimmed]) return EXACT_COMMAND_HELP[trimmed];
 
   const [rawBin, ...rest] = trimmed.split(/\s+/);
+  if (rawBin === 'sudo' && rest.length > 0) {
+    const nested = rest.join(' ');
+    return `Runs with elevated privileges (sudo). Underlying command: ${explainSingleCommand(nested)}`;
+  }
   const bin = rawBin === 'docket' ? 'docker' : rawBin;
   const args = rest.join(' ').trim();
 
@@ -360,6 +786,9 @@ export function explainShellCommand(command: string): string {
     if (args === '-') return 'Switches back to the previous folder.';
     return `Switches to folder: ${args}`;
   }
+
+  const contextual = explainContextualCommand(bin, rest);
+  if (contextual) return contextual;
 
   if (bin === 'npm') {
     return explainPackageManagerCommand('npm', rest, NPM_SUBCOMMAND_HELP, COMMAND_HELP.npm, {
@@ -441,6 +870,17 @@ export function explainShellCommand(command: string): string {
     return explainPackageManagerCommand('docker', rest, DOCKER_SUBCOMMAND_HELP, COMMAND_HELP.docker);
   }
 
+  if (bin === 'yarn') {
+    return explainPackageManagerCommand('yarn', rest, YARN_SUBCOMMAND_HELP, COMMAND_HELP.yarn, {
+      runMeansScript: true,
+      installSubcommands: ['add', 'install'],
+    });
+  }
+
+  if (bin === 'kubectl') {
+    return explainPackageManagerCommand('kubectl', rest, KUBECTL_SUBCOMMAND_HELP, COMMAND_HELP.kubectl);
+  }
+
   if (bin === 'git') {
     const sub = rest[0];
     if (sub && GIT_SUBCOMMAND_HELP[sub]) return GIT_SUBCOMMAND_HELP[sub];
@@ -462,5 +902,45 @@ export function explainShellCommand(command: string): string {
 
   if (COMMAND_HELP[bin]) return COMMAND_HELP[bin];
 
+  const syntaxNotes = summarizeShellSyntax(trimmed);
+  if (syntaxNotes.length > 0) {
+    return `Runs the '${bin}' command in the project shell. ${syntaxNotes.join(' ')}`;
+  }
+
+  if (bin.startsWith('./') || bin.startsWith('/')) {
+    return 'Executes a script/binary from a direct filesystem path.';
+  }
+
   return `Runs the '${bin}' command in the project shell.`;
+}
+
+function explainCommandChain(command: string): string | null {
+  const chainOperatorPattern = /\s*(\&\&|\|\||\||;)\s*/;
+  if (!chainOperatorPattern.test(command)) return null;
+  const tokens = command.split(chainOperatorPattern).map(token => token.trim()).filter(Boolean);
+  if (tokens.length === 0) return null;
+
+  const explainedParts: string[] = [];
+  let commandIndex = 1;
+  for (const token of tokens) {
+    if (CHAIN_OPERATOR_HELP[token]) {
+      explainedParts.push(`Operator '${token}': ${CHAIN_OPERATOR_HELP[token]}`);
+      continue;
+    }
+
+    explainedParts.push(`Command ${commandIndex} ('${token}'): ${explainSingleCommand(token)}`);
+    commandIndex += 1;
+  }
+
+  return explainedParts.join(' ');
+}
+
+export function explainShellCommand(command: string): string {
+  const trimmed = command.trim();
+  if (!trimmed) return 'Runs a shell command in the current project environment.';
+
+  const chainExplanation = explainCommandChain(trimmed);
+  if (chainExplanation) return chainExplanation;
+
+  return explainSingleCommand(trimmed);
 }
