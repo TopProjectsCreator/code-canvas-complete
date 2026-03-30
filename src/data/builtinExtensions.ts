@@ -509,4 +509,89 @@ const html = \`
 ctx.showUI(html);
 `,
   },
+  {
+    id: 'builtin-project-snapshot',
+    name: 'ProjectSnapshot',
+    slug: 'project-snapshot',
+    description: 'Generate a quick markdown snapshot of project files and save it to notes/project-snapshot.md.',
+    runtime: 'command',
+    icon: '🗂️',
+    code: `
+const files = ctx.project.listFiles();
+const now = new Date().toISOString();
+const top = files.slice(0, 40);
+
+const lines = [
+  '# Project Snapshot',
+  '',
+  '- Generated: ' + now,
+  '- Total files: ' + files.length,
+  '',
+  '## First files',
+  ...top.map((f, i) => (i + 1) + '. ' + f),
+];
+
+if (files.length > top.length) {
+  lines.push('', '_…and ' + (files.length - top.length) + ' more files._');
+}
+
+const out = lines.join('\\n');
+ctx.project.writeFile('notes/project-snapshot.md', out);
+ctx.preview.show({ title: 'Project Snapshot', content: out, language: 'markdown' });
+ctx.showNotification('Saved notes/project-snapshot.md');
+
+return { savedTo: 'notes/project-snapshot.md', fileCount: files.length };
+`,
+  },
+  {
+    id: 'builtin-release-checklist',
+    name: 'ReleaseChecklist',
+    slug: 'release-checklist',
+    description: 'Create a release checklist widget and save completion progress in extension storage.',
+    runtime: 'widget',
+    icon: '🚀',
+    code: `
+const key = 'release-checklist-v1';
+const saved = Array.isArray(ctx.storage.get(key)) ? ctx.storage.get(key) : [false, false, false, false];
+
+const html = \
+'<div style="font-family:system-ui;padding:10px">' +
+  '<h3 style="font-size:14px;margin-bottom:8px">🚀 Release Checklist</h3>' +
+  '<label style="display:block;margin:6px 0"><input type="checkbox" data-i="0"> Run tests</label>' +
+  '<label style="display:block;margin:6px 0"><input type="checkbox" data-i="1"> Update changelog</label>' +
+  '<label style="display:block;margin:6px 0"><input type="checkbox" data-i="2"> Bump version</label>' +
+  '<label style="display:block;margin:6px 0"><input type="checkbox" data-i="3"> Publish build</label>' +
+  '<button id="save" style="margin-top:8px">Save Progress</button>' +
+  '<div id="msg" style="font-size:12px;color:#94a3b8;margin-top:8px"></div>' +
+'</div>' +
+'<script>(function(){' +
+  'var checks=document.querySelectorAll(\"input[type=checkbox]\");' +
+  'var state=' + JSON.stringify(saved) + ';' +
+  'checks.forEach(function(c,i){c.checked=!!state[i];});' +
+  'document.getElementById(\"save\").onclick=function(){' +
+    'var next=[]; checks.forEach(function(c){next.push(!!c.checked);});' +
+    'window.parent.postMessage({type:\"cc-ext-save\",payload:next},\"*\");' +
+    'document.getElementById(\"msg\").textContent=\"Saved!\";' +
+  '};' +
+'})();<\\/script>';
+
+ctx.showUI(html);
+
+const handler = (event) => {
+  if (event?.data?.type === 'cc-ext-save') {
+    const next = Array.isArray(event.data.payload) ? event.data.payload.slice(0, 4) : [false, false, false, false];
+    ctx.storage.set(key, next);
+    const done = next.filter(Boolean).length;
+    ctx.showNotification('Checklist saved (' + done + '/4 complete)');
+  }
+};
+
+window.addEventListener('message', handler);
+
+return {
+  ok: true,
+  dispose: () => window.removeEventListener('message', handler),
+};
+`,
+  },
 ];
