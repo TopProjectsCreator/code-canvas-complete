@@ -290,7 +290,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const parseChatWidgets = (content: string): { widgets: ChatWidget[], cleanContent: string } => {
     const widgets: ChatWidget[] = [];
     let cleanContent = content;
-    const widgetTypes: ChatWidgetType[] = ['color_picker', 'coin_flip', 'dice_roll', 'calculator', 'spinner', 'stock', 'change_template', 'pomodoro', 'logic_visualizer', 'asset_search', 'viewport_preview', 'a11y_audit', 'todo_tracker', 'dependency_visualizer', 'readme_generator', 'project_stats', 'code_review', 'docs_link', 'countdown', 'password_generator', 'unit_converter', 'progress_tracker', 'json_viewer', 'regex_tester'];
+    const widgetTypes: ChatWidgetType[] = ['color_picker', 'coin_flip', 'dice_roll', 'calculator', 'spinner', 'stock', 'change_template', 'pomodoro', 'logic_visualizer', 'asset_search', 'viewport_preview', 'a11y_audit', 'todo_tracker', 'dependency_visualizer', 'readme_generator', 'project_stats', 'code_review', 'docs_link', 'countdown', 'password_generator', 'unit_converter', 'progress_tracker', 'json_viewer', 'regex_tester', 'convert_anything'];
     for (const wType of widgetTypes) {
       const regex = new RegExp(`<${wType}(\\s+[^>]*)?\\/?>`, 'g');
       let match;
@@ -317,6 +317,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       run_a11y_check: 'a11y_audit',
       add_todo: 'todo_tracker',
       generate_readme: 'readme_generator',
+      open_converter: 'convert_anything',
+      open_convert_anything: 'convert_anything',
     };
 
     for (const [tag, type] of Object.entries(aliases)) {

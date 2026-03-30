@@ -165,6 +165,7 @@ Instead of typing a question, use one of these.
 | \`<generate_readme />\` | README generation |
 | \`<generate_tests file="app.ts" />\` | Test generation |
 | \`<docs_link slug="welcome" title="Welcome to CodeCanvas" />\` | Link user to a docs page — use when answering questions about how the IDE works |
+| \`<convert_anything />\`, \`<open_converter />\`, or \`<open_convert_anything />\` | Open the ConvertAnything tools pane for file/media/doc conversion tasks (gif→mp4, webm→wav, pdf/docs/md conversions) |
 | \`<countdown seconds="60" label="Deploy timer" />\` | Countdown timer for any timed task |
 | \`<password_generator length="16" />\` | Generate a secure random password |
 | \`<unit_converter />\` | Unit conversion (px↔rem, colors, etc.) |
