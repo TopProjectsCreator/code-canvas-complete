@@ -326,9 +326,17 @@ const ToolCallIndicator = ({ toolCall, onApplyTheme, onApplyGit, onApplyShare, i
         <div className="text-muted-foreground">
           {toolCall.name.replace(/_/g, ' ')}
         </div>
-        {shellExplanation && (
-          <div className="text-[11px] text-muted-foreground/80 mt-0.5 truncate" title={shellCommand}>
-            {shellExplanation}
+        {shellCommand && (
+          <div className="mt-1 text-[11px] space-y-1">
+            <div className="text-foreground/80 break-all">
+              <span className="text-muted-foreground">Command:</span>{' '}
+              <code className="font-mono">{shellCommand}</code>
+            </div>
+            {shellExplanation && (
+              <div className="text-muted-foreground/90 whitespace-pre-wrap break-words">
+                <span className="text-muted-foreground">Explanation:</span> {shellExplanation}
+              </div>
+            )}
           </div>
         )}
       </div>
