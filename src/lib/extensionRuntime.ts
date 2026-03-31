@@ -99,6 +99,32 @@ async function aiStructured(prompt: string, schema: Record<string, unknown>): Pr
   }
 }
 
+function unwrapGeneratedExtensionCode(code: string): string {
+  let cleaned = code
+    .trim()
+    .replace(/^```(?:javascript|js|typescript|ts)?\s*/i, '')
+    .replace(/```\s*$/i, '')
+    .trim();
+
+  const wrappers = [
+    /^export\s+default\s+(?:async\s+)?function(?:\s+\w+)?\s*\([^)]*\)\s*\{([\s\S]*)\}\s*;?\s*$/,
+    /^module\.exports\s*=\s*(?:async\s+)?function(?:\s+\w+)?\s*\([^)]*\)\s*\{([\s\S]*)\}\s*;?\s*$/,
+    /^exports\.default\s*=\s*(?:async\s+)?function(?:\s+\w+)?\s*\([^)]*\)\s*\{([\s\S]*)\}\s*;?\s*$/,
+    /^export\s+default\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{([\s\S]*)\}\s*;?\s*$/,
+    /^export\s+default\s*(?:async\s*)?[\w$]+\s*=>\s*\{([\s\S]*)\}\s*;?\s*$/,
+  ];
+
+  for (const pattern of wrappers) {
+    const match = cleaned.match(pattern);
+    if (match) {
+      cleaned = match[1].trim();
+      break;
+    }
+  }
+
+  return cleaned;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Context builder                                                    */
 /* ------------------------------------------------------------------ */
@@ -199,21 +225,9 @@ export function buildContext(
 export async function executeExtension(
   code: string,
   ctx: ExtensionContext,
+  options?: { runtime?: ExtensionRuntimeType },
 ): Promise<unknown> {
-  // Strip common AI-generated patterns that break the runtime
-  let cleaned = code.trim();
-  
-  // Match: export default function(ctx) { ... }
-  const exportMatch = cleaned.match(/^export\s+default\s+function\s*\([^)]*\)\s*\{([\s\S]*)\}$/);
-  if (exportMatch) {
-    cleaned = exportMatch[1].trim();
-  } else {
-    // Match: module.exports = function(ctx) { ... }
-    const moduleMatch = cleaned.match(/^module\.exports\s*=\s*function\s*\([^)]*\)\s*\{([\s\S]*)\}$/);
-    if (moduleMatch) {
-      cleaned = moduleMatch[1].trim();
-    }
-  }
+  const cleaned = unwrapGeneratedExtensionCode(code);
 
   const wrapped = `
     return (async function(ctx) {
@@ -224,17 +238,41 @@ export async function executeExtension(
     const factory = new Function(wrapped);
     const fn = factory();
     const result = await fn(ctx);
-    
-    // If it's a command extension that returned { execute }, auto-run it with selected text
-    if (result && typeof result === 'object' && 'execute' in result && typeof (result as any).execute === 'function') {
-      const selectedText = ctx.getSelectedText();
-      const output = await (result as any).execute(selectedText);
-      if (typeof output === 'string' && output !== selectedText) {
-        ctx.replaceSelectedText(output);
+
+    if (result && typeof result === 'object') {
+      const runtimeResult = result as {
+        execute?: (input: string) => unknown | Promise<unknown>;
+        render?: () => string | Promise<string>;
+        html?: unknown;
+      };
+
+      if (typeof runtimeResult.render === 'function') {
+        const rendered = await runtimeResult.render();
+        if (typeof rendered === 'string' && rendered.trim()) {
+          ctx.showUI(rendered);
+        }
       }
-      return output;
+
+      if (typeof runtimeResult.html === 'string' && runtimeResult.html.trim()) {
+        ctx.showUI(runtimeResult.html);
+      }
+
+      if (typeof runtimeResult.execute === 'function') {
+        const shouldRunCommand = options?.runtime
+          ? options.runtime === 'command'
+          : typeof runtimeResult.render !== 'function';
+
+        if (shouldRunCommand) {
+          const selectedText = ctx.getSelectedText();
+          const output = await runtimeResult.execute(selectedText);
+          if (typeof output === 'string' && output !== selectedText) {
+            ctx.replaceSelectedText(output);
+          }
+          return output;
+        }
+      }
     }
-    
+
     return result;
   } catch (err) {
     console.error('[extension runtime]', err);
