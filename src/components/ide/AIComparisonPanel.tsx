@@ -6,11 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Loader2, ArrowRight, Brain, ChevronDown, Settings2, Wrench, Globe, Code, Server, Thermometer, Hash, Clock } from 'lucide-react';
+import { Loader2, ArrowRight, Brain, ChevronDown, Settings2, Wrench, Globe, Code, Server, Thermometer, Hash, Clock, Paperclip, Image, FileVideo, FileAudio, FileText, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { PROVIDER_MODELS, AIProvider } from '@/hooks/useApiKeys';
 import ReactMarkdown from 'react-markdown';
+import { useAttachments } from '@/hooks/useAttachments';
 
 interface ModelConfig {
   provider: AIProvider;
@@ -202,6 +203,16 @@ function ModelConfigurator({
 export function AIComparisonPanel() {
   const { user } = useAuth();
   const [prompt, setPrompt] = useState('');
+  const {
+    attachments,
+    fileInputRef,
+    addFiles,
+    removeAttachment,
+    openFilePicker,
+    clearAttachments,
+    buildContentParts,
+    acceptString,
+  } = useAttachments();
   const [modelA, setModelA] = useState<ModelConfig>(defaultConfig('gemini', 'gemini-2.5-flash'));
   const [modelB, setModelB] = useState<ModelConfig>(defaultConfig('openai', 'gpt-4o'));
   const [responseA, setResponseA] = useState('');
@@ -212,7 +223,7 @@ export function AIComparisonPanel() {
   const [metaB, setMetaB] = useState<{ time?: number; tokens?: number }>({});
 
   const runComparison = useCallback(async () => {
-    if (!prompt.trim() || !user) return;
+    if ((!prompt.trim() && attachments.length === 0) || !user) return;
 
     setResponseA('');
     setResponseB('');
@@ -243,7 +254,10 @@ export function AIComparisonPanel() {
             body: JSON.stringify({
               messages: [
                 ...(config.systemPrompt ? [{ role: 'system', content: config.systemPrompt }] : []),
-                { role: 'user', content: prompt },
+                {
+                  role: 'user',
+                  content: attachments.length > 0 ? buildContentParts(prompt, attachments) : prompt,
+                },
               ],
               currentFile: null,
               consoleErrors: null,
@@ -304,7 +318,8 @@ export function AIComparisonPanel() {
 
     callModel(modelA, setResponseA, setLoadingA, setMetaA);
     callModel(modelB, setResponseB, setLoadingB, setMetaB);
-  }, [prompt, modelA, modelB, user]);
+    clearAttachments();
+  }, [prompt, modelA, modelB, user, attachments, buildContentParts, clearAttachments]);
 
   if (!user) {
     return (
@@ -322,20 +337,55 @@ export function AIComparisonPanel() {
         <p className="text-xs text-muted-foreground">Send the same prompt to two models side-by-side with custom settings</p>
       </div>
 
-      <Textarea
-        placeholder="Enter a prompt to compare..."
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        rows={3}
-        className="text-xs"
-      />
+      <div className="space-y-2">
+        <Textarea
+          placeholder="Enter a prompt to compare..."
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          rows={3}
+          className="text-xs"
+        />
+
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {attachments.map(att => (
+              <div key={att.id} className="flex items-center gap-1 px-2 py-1 rounded-md bg-accent/50 border border-border text-[11px]">
+                {att.type === 'image' ? <Image className="w-3 h-3 text-primary" /> :
+                  att.type === 'video' ? <FileVideo className="w-3 h-3 text-primary" /> :
+                    att.type === 'audio' ? <FileAudio className="w-3 h-3 text-primary" /> :
+                      <FileText className="w-3 h-3 text-primary" />}
+                <span className="max-w-[160px] truncate text-foreground">{att.name}</span>
+                <button onClick={() => removeAttachment(att.id)} className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={acceptString}
+            className="hidden"
+            onChange={(e) => { if (e.target.files) { addFiles(e.target.files); e.target.value = ''; } }}
+          />
+          <Button size="sm" variant="outline" onClick={openFilePicker} className="h-7 gap-1.5 text-xs">
+            <Paperclip className="w-3.5 h-3.5" />
+            Attach files
+          </Button>
+          <span className="text-[10px] text-muted-foreground">Images, audio, video, and PDFs are supported.</span>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <ModelConfigurator label="Model A" config={modelA} onChange={setModelA} />
         <ModelConfigurator label="Model B" config={modelB} onChange={setModelB} />
       </div>
 
-      <Button size="sm" onClick={runComparison} disabled={!prompt.trim() || loadingA || loadingB} className="w-full gap-1.5">
+      <Button size="sm" onClick={runComparison} disabled={(!prompt.trim() && attachments.length === 0) || loadingA || loadingB} className="w-full gap-1.5">
         {(loadingA || loadingB) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ArrowRight className="w-3.5 h-3.5" />}
         Compare
       </Button>
