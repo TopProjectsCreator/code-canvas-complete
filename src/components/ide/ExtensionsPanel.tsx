@@ -235,7 +235,7 @@ export const ExtensionsPanel = ({
     });
 
     try {
-      const result = await executeExtension(code, ctx);
+      const result = await executeExtension(code, ctx, { runtime: runtimeType });
       if (result && typeof result === 'object') {
         setRunOutput(JSON.stringify(result, null, 2));
       } else if (typeof result === 'string') {
@@ -270,7 +270,7 @@ export const ExtensionsPanel = ({
       notify: (msg) => toast.info(msg),
     });
     try {
-      await executeExtension(ext.code, ctx);
+      await executeExtension(ext.code, ctx, { runtime: ext.runtime });
     } catch (err: any) {
       toast.error(`Extension error: ${err.message}`);
     }
