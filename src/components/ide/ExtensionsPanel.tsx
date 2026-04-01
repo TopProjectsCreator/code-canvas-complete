@@ -88,7 +88,7 @@ function ExtensionPreview({ html, tall }: { html: string; tall?: boolean }) {
   return (
     <iframe
       ref={ref}
-      sandbox="allow-scripts allow-same-origin"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"
       className={`w-full rounded border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
       title="Extension preview"
     />
