@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Zap, Code2, Play, Terminal, GitBranch, Cpu, Sparkles, Globe, Users,
   ArrowRight, ChevronRight, Palette, Box, Music, FileText, Layers,
-  Activity, Eye, FolderKanban,
+  Activity, Eye, FolderKanban, Rocket, ShieldCheck, Workflow, Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicCanvasSearch } from "@/components/landing/PublicCanvasSearch";
@@ -22,6 +22,33 @@ const features = [
   { icon: <Layers className="w-5 h-5" />, title: "Custom Themes", description: "Choose from 7 built-in themes or create and share your own with the theme builder." },
   { icon: <Globe className="w-5 h-5" />, title: "Share & Collaborate", description: "Publish projects, fork others' work, and star your favorites." },
   { icon: <FileText className="w-5 h-5" />, title: "Office Suite", description: "Built-in Word, Excel, and PowerPoint editors for documentation alongside your code." },
+];
+
+const featureTracks = [
+  {
+    title: "Build",
+    label: "Core IDE",
+    icon: <Code2 className="w-4 h-4" />,
+    items: ["20+ languages", "Realtime previews", "Web terminal", "Git-native workflow"],
+  },
+  {
+    title: "Create",
+    label: "Specialized Editors",
+    icon: <Palette className="w-4 h-4" />,
+    items: ["Arduino + simulator", "3D/CAD generation", "Media suite", "Office docs"],
+  },
+  {
+    title: "Scale",
+    label: "Collaboration",
+    icon: <Users className="w-4 h-4" />,
+    items: ["Project publishing", "Team collaboration", "Theme sharing", "Public canvas discovery"],
+  },
+  {
+    title: "Accelerate",
+    label: "AI Layer",
+    icon: <Bot className="w-4 h-4" />,
+    items: ["Code generation", "Debug help", "Refactors", "Context-aware chat"],
+  },
 ];
 
 export default function Landing() {
@@ -79,7 +106,7 @@ export default function Landing() {
           </h1>
 
           <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            A full-featured IDE in your browser — write code, build hardware, create 3D models, and compose music. No downloads, no setup.
+            A futuristic cloud workstation for coding, hardware, AI, media, and docs. One tab, zero setup, fully composable.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -133,6 +160,37 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Orbit tracks */}
+      <section className="relative px-6 py-8 z-10">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {featureTracks.map((track) => (
+              <div
+                key={track.title}
+                className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-b from-card/70 to-card/20 p-5"
+              >
+                <div className="absolute -top-16 -right-16 h-32 w-32 rounded-full bg-primary/10 blur-2xl" />
+                <div className="relative">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-mono text-primary mb-4">
+                    {track.icon}
+                    {track.label}
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">{track.title}</h3>
+                  <ul className="space-y-2 text-sm text-muted-foreground">
+                    {track.items.map((item) => (
+                      <li key={item} className="flex items-start gap-2">
+                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary/80" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Live Stats */}
       <section className="relative py-16 px-6 z-10">
         <div className="max-w-3xl mx-auto">
@@ -168,9 +226,9 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-xs uppercase tracking-[0.25em] text-primary font-mono mb-2">Capabilities</p>
-            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">Everything you need to build</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">All systems, all features, one command center</h2>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-              From writing your first line of code to deploying production hardware.
+              Explore the complete CodeCanvas stack—from first prototype to deployed automation.
             </p>
           </div>
 
@@ -178,7 +236,7 @@ export default function Landing() {
             {features.map((f) => (
               <div
                 key={f.title}
-                className="group relative p-5 rounded-xl border border-border/40 bg-card/30 backdrop-blur-sm hover:bg-card/60 hover:border-primary/20 transition-all duration-500"
+                className="group relative p-5 rounded-xl border border-border/40 bg-card/30 backdrop-blur-sm hover:bg-card/60 hover:border-primary/20 hover:-translate-y-1 transition-all duration-500"
               >
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/[0.02] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                 <div className="relative">
@@ -190,6 +248,21 @@ export default function Landing() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+              <div className="flex items-center gap-2 text-primary mb-2"><Rocket className="w-4 h-4" /> Velocity</div>
+              <p className="text-sm text-muted-foreground">Launch projects instantly with browser-native runtime and live reload loops.</p>
+            </div>
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+              <div className="flex items-center gap-2 text-primary mb-2"><Workflow className="w-4 h-4" /> Continuity</div>
+              <p className="text-sm text-muted-foreground">Keep code, hardware design, docs, and media in a unified creative pipeline.</p>
+            </div>
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+              <div className="flex items-center gap-2 text-primary mb-2"><ShieldCheck className="w-4 h-4" /> Reliability</div>
+              <p className="text-sm text-muted-foreground">Use stable cloud tooling with source control and AI support for every iteration.</p>
+            </div>
           </div>
         </div>
       </section>
