@@ -23,6 +23,7 @@
             "group": "IDEs",
             "pages": [
               "features/ide/index",
+              "features/ide/extensions",
               "features/ide/specialized-editors/index",
               "features/ide/specialized-editors/arduino/upload",
               "features/ide/specialized-editors/arduino/supported-boards",
