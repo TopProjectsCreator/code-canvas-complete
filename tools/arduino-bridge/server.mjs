@@ -154,6 +154,28 @@ async function handleBluetoothUpload(payload) {
   }
 }
 
+
+async function handleUf2Upload(payload) {
+  const { boardId, targetPath, uf2 } = payload;
+  if (!boardId || !targetPath || !uf2) {
+    throw new Error('UF2 upload requires boardId, targetPath, and base64 uf2 payload');
+  }
+
+  const normalizedPath = path.resolve(String(targetPath));
+  const filename = `${boardId}-${Date.now()}.uf2`;
+  const outputPath = path.join(normalizedPath, filename);
+
+  await fs.mkdir(normalizedPath, { recursive: false }).catch(() => {});
+  const stat = await fs.stat(normalizedPath).catch(() => null);
+  if (!stat || !stat.isDirectory()) {
+    throw new Error(`UF2 target path is not a directory: ${normalizedPath}`);
+  }
+
+  await fs.writeFile(outputPath, Buffer.from(uf2, 'base64'));
+
+  return { ok: true, method: 'uf2', boardId, targetPath: normalizedPath, file: outputPath };
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -191,6 +213,12 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/upload/bluetooth' && req.method === 'POST') {
       const payload = await readJson(req);
       const result = await handleBluetoothUpload(payload);
+      return json(res, 200, result);
+    }
+
+    if (req.url === '/upload/uf2' && req.method === 'POST') {
+      const payload = await readJson(req);
+      const result = await handleUf2Upload(payload);
       return json(res, 200, result);
     }
 

@@ -2,16 +2,18 @@ import { UploadConfig } from '@/components/arduino/ArduinoUploadDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { isVerifiedWebFlashBoard } from '@/data/arduinoTemplates';
 import { flashHex } from './stk500';
-import { triggerBootloader, flashViaSamba, isSambaBoard, SAMBA_BOARD_CONFIGS } from './sambaFlash';
+import { triggerBootloader, flashViaSamba, isSambaBoard } from './sambaFlash';
 import { flashViaAVR109 } from './avr109';
 import { flashViaEsptool } from './esptool';
 import { flashViaSTM32 } from './stm32serial';
+import { binaryToUf2 } from './uf2';
 import { SerialPortLike, getSerial, waitForNewPort } from './serialUtils';
 
 // Board → flash protocol mapping
 const AVR109_BOARDS = ['leonardo', 'micro'];
 const ESP_BOARDS = ['esp32', 'esp8266'];
 const STM32_BOARDS = ['portenta_h7', 'giga_r1'];
+const UF2_BOARDS = ['nano_33_ble', 'rp2040_connect'];
 
 const OTA_BRIDGE_URL = import.meta.env.VITE_OTA_BRIDGE_URL || 'http://127.0.0.1:3232';
 const OTA_BRIDGE_TOKEN = import.meta.env.VITE_OTA_BRIDGE_TOKEN;
@@ -99,7 +101,7 @@ export class ArduinoUploadService {
     }
 
     const compileResult = await compileResponse.json();
-    const needsBinary = isSambaBoard(boardId) || ESP_BOARDS.includes(boardId) || STM32_BOARDS.includes(boardId);
+    const needsBinary = isSambaBoard(boardId) || ESP_BOARDS.includes(boardId) || STM32_BOARDS.includes(boardId) || UF2_BOARDS.includes(boardId);
 
     if (needsBinary) {
       if (!compileResult.binary) {
@@ -126,12 +128,37 @@ export class ArduinoUploadService {
   /**
    * Determine the flash protocol for a board
    */
-  private static getFlashProtocol(boardId: string): 'avr109' | 'samba' | 'esptool' | 'stm32' | 'stk500' {
+  private static getFlashProtocol(boardId: string): 'avr109' | 'samba' | 'esptool' | 'stm32' | 'uf2bridge' | 'stk500' {
     if (AVR109_BOARDS.includes(boardId)) return 'avr109';
     if (isSambaBoard(boardId)) return 'samba';
     if (ESP_BOARDS.includes(boardId)) return 'esptool';
     if (STM32_BOARDS.includes(boardId)) return 'stm32';
+    if (UF2_BOARDS.includes(boardId)) return 'uf2bridge';
     return 'stk500';
+  }
+
+
+  private static buildUf2Binary(boardId: string, binaryBase64: string, baseAddress?: number): string {
+    const firmware = Uint8Array.from(atob(binaryBase64), (c) => c.charCodeAt(0));
+
+    const defaults: Record<string, { startAddress: number; familyId: number }> = {
+      nano_33_ble: { startAddress: 0x00026000, familyId: 0xADA52840 },
+      rp2040_connect: { startAddress: 0x10000000, familyId: 0xE48BFF56 },
+    };
+
+    const boardDefaults = defaults[boardId];
+    if (!boardDefaults) {
+      throw new Error(`UF2 defaults are not defined for board: ${boardId}`);
+    }
+
+    const uf2 = binaryToUf2(firmware, {
+      startAddress: typeof baseAddress === 'number' ? baseAddress : boardDefaults.startAddress,
+      familyId: boardDefaults.familyId,
+    });
+
+    let out = '';
+    for (const byte of uf2) out += String.fromCharCode(byte);
+    return btoa(out);
   }
 
   /**
@@ -184,6 +211,20 @@ export class ArduinoUploadService {
       case 'stm32':
         await flashViaSTM32(compileResult.binary!, port, onProgress);
         break;
+
+      case 'uf2bridge': {
+        const uf2Binary = this.buildUf2Binary(config.boardId, compileResult.binary!, compileResult.baseAddress);
+        await this.uploadViaNetworkBridge(
+          {
+            boardId: config.boardId,
+            targetPath: config.portName,
+            uf2: uf2Binary,
+          },
+          'uf2',
+          onProgress,
+        );
+        break;
+      }
 
       case 'stk500':
       default:
@@ -245,17 +286,18 @@ export class ArduinoUploadService {
    */
   private static async uploadViaNetworkBridge(
     payload: Record<string, unknown>,
-    mode: 'ota' | 'bluetooth',
+    mode: 'ota' | 'bluetooth' | 'uf2',
     onProgress?: (message: string, percent?: number) => void
   ): Promise<void> {
-    onProgress?.(`Uploading via ${mode === 'ota' ? 'WiFi OTA' : 'Bluetooth'}...`, 30);
+    const modeLabel = mode === 'ota' ? 'WiFi OTA' : mode === 'bluetooth' ? 'Bluetooth' : 'UF2 bridge';
+    onProgress?.(`Uploading via ${modeLabel}...`, 30);
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (OTA_BRIDGE_TOKEN) {
       headers['Authorization'] = `Bearer ${OTA_BRIDGE_TOKEN}`;
     }
 
-    const response = await this.fetchWithTimeout(`${OTA_BRIDGE_URL}/${mode}`, {
+    const response = await this.fetchWithTimeout(`${OTA_BRIDGE_URL}/upload/${mode}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
