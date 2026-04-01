@@ -1,0 +1,52 @@
+---
+title: "Extensions"
+description: "Build, test, publish, and run IDE extensions using widget, command, and chat-tool runtimes."
+---
+
+Extensions let you add custom tools to the IDE without leaving your workspace. You can create private helpers for your team, publish shareable tools, and run them in a controlled runtime.
+
+![Code Canvas extension lifecycle](/assets/extensions-lifecycle.svg)
+
+## What extensions can do
+
+- **Read and write project files** through scoped project APIs.
+- **Render mini-app UIs** (widget runtime) directly in the extension panel.
+- **Transform active editor content** (command runtime) for tasks like reformatting or conversion.
+- **Act as chat helpers** (chat-tool runtime) to return targeted AI-assisted output.
+- **Persist extension data** using built-in storage methods.
+
+## How extension development works
+
+1. Open the **Extensions** panel and choose **Create**.
+2. Define a name, description, and runtime (`widget`, `command`, or `chat-tool`).
+3. Generate a starter implementation with AI or write the code manually.
+4. Run it in the built-in sandbox to preview behavior and output.
+5. Save as draft or publish to the store for installation.
+6. Install it and run it from the IDE whenever needed.
+
+<Note>
+  The extension runtime is intentionally scoped: extensions only receive the context and APIs exposed by the IDE runtime.
+</Note>
+
+## Runtime types explained
+
+![Extension runtime comparison](/assets/extensions-runtimes.svg)
+
+### Widget runtime
+
+Use for interactive tools that need UI (forms, previews, converters, inspectors).
+
+### Command runtime
+
+Use for content transformations on the active file or selected text.
+
+### Chat-tool runtime
+
+Use for focused helper actions that pair well with chat-driven workflows.
+
+## Practical examples
+
+- A **CSV cleanup command** that normalizes delimiters and header casing.
+- A **Release notes widget** that pulls commit summaries and drafts markdown.
+- A **Schema explainer chat tool** that converts SQL tables into plain-language docs.
+
