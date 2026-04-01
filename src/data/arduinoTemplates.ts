@@ -204,7 +204,7 @@ export const arduinoBoards: Record<string, ArduinoBoard> = {
  * - SAM-BA: uno_r4_wifi, due, zero, mkr_wifi_1010, nano_33_iot
  * - esptool SLIP: esp32, esp8266
  * - STM32 UART: portenta_h7, giga_r1
- * - NOT supported (UF2 mass storage): nano_33_ble, rp2040_connect
+ * - UF2 bridge upload: nano_33_ble, rp2040_connect
  */
 export const VERIFIED_WEB_FLASH_BOARDS = [
   'uno', 'nano', 'mega',
@@ -212,6 +212,7 @@ export const VERIFIED_WEB_FLASH_BOARDS = [
   'uno_r4_wifi', 'due', 'zero', 'mkr_wifi_1010', 'nano_33_iot',
   'esp32', 'esp8266',
   'portenta_h7', 'giga_r1',
+  'nano_33_ble', 'rp2040_connect',
 ] as const;
 
 export const isVerifiedWebFlashBoard = (boardId: string): boolean =>

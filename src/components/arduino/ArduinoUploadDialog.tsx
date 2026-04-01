@@ -42,7 +42,7 @@ const SAMBA_BOARDS = ['uno_r4_wifi', 'due', 'zero', 'mkr_wifi_1010', 'nano_33_io
 const AVR109_BOARDS = ['leonardo', 'micro'];
 const ESP_BOARDS = ['esp32', 'esp8266'];
 const STM32_BOARDS = ['portenta_h7', 'giga_r1'];
-const UF2_ONLY_BOARDS = ['nano_33_ble', 'rp2040_connect'];
+const UF2_BRIDGE_BOARDS = ['nano_33_ble', 'rp2040_connect'];
 
 const getPortLabel = (
   port: { getInfo?: () => { usbProductId?: number; usbVendorId?: number } },
@@ -72,6 +72,7 @@ export function ArduinoUploadDialog({
     uploadMethod: 'serial',
   });
   const isSambaBoard = SAMBA_BOARDS.includes(config.boardId);
+  const isUf2Board = UF2_BRIDGE_BOARDS.includes(config.boardId);
   const isVerifiedBoard = isVerifiedWebFlashBoard(config.boardId);
 
   const [ports, setPorts] = useState<string[]>([]);
@@ -95,7 +96,10 @@ export function ArduinoUploadDialog({
     if (config.uploadMethod === 'bluetooth' && !board?.bluetooth) {
       setConfig(prev => ({ ...prev, uploadMethod: 'serial' }));
     }
-  }, [config.boardId]);
+    if (isUf2Board && config.uploadMethod !== 'serial') {
+      setConfig(prev => ({ ...prev, uploadMethod: 'serial' }));
+    }
+  }, [config.boardId, isUf2Board, config.uploadMethod]);
 
   const detectSerialPorts = async () => {
     try {
@@ -159,6 +163,15 @@ export function ArduinoUploadDialog({
     try {
       let port: SerialPortLike;
       if (config.uploadMethod === 'serial') {
+        if (isUf2Board) {
+          port = null as unknown as SerialPortLike;
+          await onUpload(config, port, (message, percent) => {
+            setProgressLog(prev => [...prev, message]);
+            if (percent !== undefined) setProgressPercent(percent);
+          });
+          onOpenChange(false);
+          return;
+        }
         const serial = getSerial();
         const authorizedPortEntries = serial
           ? (await serial.getPorts()).map((authorizedPort, index) => ({
@@ -246,17 +259,17 @@ export function ArduinoUploadDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="serial">{isSambaBoard ? 'USB Serial (SAM-BA)' : 'USB Serial'}</SelectItem>
-                <SelectItem value="wifi" disabled={!arduinoBoards[config.boardId]?.wifi}>
-                  WiFi (OTA){!arduinoBoards[config.boardId]?.wifi ? ' — unsupported' : ''}
+                <SelectItem value="wifi" disabled={!arduinoBoards[config.boardId]?.wifi || isUf2Board}>
+                  WiFi (OTA){(!arduinoBoards[config.boardId]?.wifi || isUf2Board) ? ' — unsupported' : ''}
                 </SelectItem>
-                <SelectItem value="bluetooth" disabled={!arduinoBoards[config.boardId]?.bluetooth}>
-                  Bluetooth{!arduinoBoards[config.boardId]?.bluetooth ? ' — unsupported' : ''}
+                <SelectItem value="bluetooth" disabled={!arduinoBoards[config.boardId]?.bluetooth || isUf2Board}>
+                  Bluetooth{(!arduinoBoards[config.boardId]?.bluetooth || isUf2Board) ? ' — unsupported' : ''}
                 </SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {config.uploadMethod === 'serial' && !isSambaBoard && (
+          {config.uploadMethod === 'serial' && !isSambaBoard && !isUf2Board && (
             <>
               <div>
                 <Label htmlFor="port">Serial Port</Label>
@@ -343,9 +356,20 @@ export function ArduinoUploadDialog({
             </div>
           )}
 
-          {UF2_ONLY_BOARDS.includes(config.boardId) && (
-            <div className="text-sm text-amber-500 bg-amber-500/10 p-2 rounded">
-              This board uses UF2 mass storage for flashing, which browsers cannot access. Use Arduino IDE or drag-and-drop the .uf2 file to the board's drive.
+          {config.uploadMethod === 'serial' && isUf2Board && (
+            <div className="space-y-2">
+              <div className="text-sm text-amber-500 bg-amber-500/10 p-2 rounded">
+                This board uploads via the local uploader bridge. Enter the mounted UF2 drive path (for example <code>/Volumes/NANO33BOOT</code> or <code>E:\\</code>), then click upload.
+              </div>
+              <div>
+                <Label htmlFor="uf2path">UF2 Drive Path</Label>
+                <Input
+                  id="uf2path"
+                  placeholder="/Volumes/NANO33BOOT or E:\\\"
+                  value={config.portName}
+                  onChange={(e) => setConfig({ ...config, portName: e.target.value })}
+                />
+              </div>
             </div>
           )}
 
@@ -380,7 +404,7 @@ export function ArduinoUploadDialog({
           )}
 
 
-          {!isVerifiedBoard && !UF2_ONLY_BOARDS.includes(config.boardId) && (
+          {!isVerifiedBoard && !isUf2Board && (
             <div className="text-sm text-amber-500 whitespace-pre-wrap bg-amber-500/10 p-2 rounded">
               This board is currently available for planning/simulation only.
             </div>
@@ -413,7 +437,7 @@ export function ArduinoUploadDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleUpload} disabled={loading || !isVerifiedBoard}>
+          <Button onClick={handleUpload} disabled={loading || !isVerifiedBoard || (isUf2Board && !config.portName.trim())}>
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...
