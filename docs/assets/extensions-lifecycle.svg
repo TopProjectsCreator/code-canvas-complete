@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760">
+  <defs>
+    <style>
+      .title{font:700 34px Arial;fill:#9be7ff}.label{font:600 20px Arial;fill:#ecf8ff}.small{font:16px Arial;fill:#c8d6e5}
+      .box{rx:16;ry:16;stroke:#87a0b6;stroke-width:2}
+      .arrow{stroke:#9fb3c8;stroke-width:3;marker-end:url(#m)}
+    </style>
+    <marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 10 3, 0 6" fill="#9fb3c8"/>
+    </marker>
+  </defs>
+  <rect width="1400" height="760" fill="#101826"/>
+  <text x="40" y="58" class="title">Code Canvas Extensions Lifecycle</text>
+
+  <rect x="60" y="120" width="280" height="130" class="box" fill="#243853"/>
+  <text x="82" y="162" class="label">1. Create extension</text>
+  <text x="82" y="192" class="small">Name, runtime, description</text>
+
+  <rect x="390" y="120" width="280" height="130" class="box" fill="#2a4a5b"/>
+  <text x="412" y="162" class="label">2. Generate code</text>
+  <text x="412" y="192" class="small">AI scaffold or manual edits</text>
+
+  <rect x="720" y="120" width="280" height="130" class="box" fill="#375458"/>
+  <text x="742" y="162" class="label">3. Run in sandbox</text>
+  <text x="742" y="192" class="small">Preview UI + output logs</text>
+
+  <rect x="1050" y="120" width="280" height="130" class="box" fill="#4f5943"/>
+  <text x="1072" y="162" class="label">4. Publish</text>
+  <text x="1072" y="192" class="small">Version + metadata</text>
+
+  <rect x="240" y="370" width="320" height="150" class="box" fill="#5e5336"/>
+  <text x="262" y="412" class="label">5. Install from store</text>
+  <text x="262" y="442" class="small">User/team installs extension</text>
+  <text x="262" y="466" class="small">for their workspace</text>
+
+  <rect x="760" y="370" width="360" height="150" class="box" fill="#5b3b52"/>
+  <text x="782" y="412" class="label">6. Execute inside IDE</text>
+  <text x="782" y="442" class="small">Widget / Command / Chat-tool</text>
+  <text x="782" y="466" class="small">can read/write project context</text>
+
+  <line x1="340" y1="185" x2="390" y2="185" class="arrow"/>
+  <line x1="670" y1="185" x2="720" y2="185" class="arrow"/>
+  <line x1="1000" y1="185" x2="1050" y2="185" class="arrow"/>
+  <line x1="1120" y1="250" x2="420" y2="370" class="arrow"/>
+  <line x1="560" y1="445" x2="760" y2="445" class="arrow"/>
+  <line x1="940" y1="520" x2="940" y2="620" class="arrow"/>
+  <line x1="940" y1="620" x2="200" y2="620" class="arrow"/>
+  <line x1="200" y1="620" x2="200" y2="250" class="arrow"/>
+  <text x="960" y="618" class="small">Feedback loop from usage → next version</text>
+</svg>
