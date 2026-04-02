@@ -2302,10 +2302,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   };
 
   const handleImport = async (file: File) => {
-    if (file.name.toLowerCase().endsWith('.sb')) {
-      setVmError('Scratch 1.x .sb binary import is not supported yet. Please convert to .sb2 or .sb3 first.');
-      return;
-    }
     try {
       const data = await file.arrayBuffer();
       const parsed = await importScratchArchive(data);
@@ -2337,7 +2333,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       setSelectedTargetIndex(1);
       await loadVmFromArchive(normalizedArchive);
     } catch (error) {
-      setVmError(error instanceof Error ? error.message : 'Failed to import Scratch archive (.sb3/.sb2).');
+      setVmError(error instanceof Error ? error.message : 'Failed to import Scratch archive (.sb/.sb2/.sb3).');
     }
   };
 
@@ -2481,7 +2477,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             {vmReady ? '● Ready' : '○ Starting'}
           </span>
           <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/90">
-            VM: scratch-vm ({scratchVersion === 'scratch3' ? 'native' : 'compat mode'})
+            VM: scratch-vm ({scratchVersion === 'scratch3' ? 'native sb3' : 'compat + legacy import'})
           </span>
         </div>
       </div>

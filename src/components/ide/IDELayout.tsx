@@ -28,7 +28,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ScratchArchive, importSb3 } from "@/services/scratchSb3";
+import { ScratchArchive, importScratchArchive } from "@/services/scratchSb3";
 import { createDataProvider } from "@/integrations/data/provider";
 import { buildProjectShareUrl } from "@/lib/publishing";
 import { useGitHubImport } from "@/hooks/useGitHubImport";
@@ -1019,20 +1019,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   );
 
   const handleImportScratchProject = useCallback(async (file: File) => {
-    if (file.name.toLowerCase().endsWith('.sb')) {
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
-          id: generateId(),
-          type: "error",
-          content: "❌ Scratch .sb (1.x binary) import is not supported yet. Convert to .sb2 or .sb3 first.",
-          timestamp: new Date(),
-        },
-      ]);
-      return;
-    }
     try {
-      const parsed = await importSb3(await file.arrayBuffer());
+      const parsed = await importScratchArchive(await file.arrayBuffer());
       setScratchArchive(parsed.archive);
       setSelectedTemplate("scratch");
       const templateFiles = getTemplateFiles("scratch");
@@ -1059,7 +1047,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         {
           id: generateId(),
           type: "error",
-          content: `❌ Failed to import Scratch archive: ${error instanceof Error ? error.message : 'unknown error'}`,
+          content: `❌ Failed to import Scratch project (.sb/.sb2/.sb3): ${error instanceof Error ? error.message : 'unknown error'}`,
           timestamp: new Date(),
         },
       ]);
