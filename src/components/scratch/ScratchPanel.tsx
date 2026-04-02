@@ -19,7 +19,7 @@ import {
   Play,
 } from 'lucide-react';
 import VirtualMachine from 'scratch-vm';
-import { ScratchArchive, exportSb3, importSb3 } from '@/services/scratchSb3';
+import { ScratchArchive, exportScratchArchive, importScratchArchive } from '@/services/scratchSb3';
 import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
 import { ScratchLibraryDialog, type LibraryMode } from './ScratchLibraryDialog';
 import { type ScratchLibraryAsset, assetUrl } from '@/data/scratchLibrary';
@@ -1277,7 +1277,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     try {
       const normalizedArchive = ensureArchive(nextArchive);
       console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames);
-      const data = await exportSb3(normalizedArchive);
+      const data = await exportScratchArchive(normalizedArchive);
       const ab = data.buffer instanceof ArrayBuffer
         ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
         : data.slice().buffer;
@@ -2304,26 +2304,66 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const handleImport = async (file: File) => {
     try {
       const data = await file.arrayBuffer();
-      const parsed = await importSb3(data);
-      onArchiveChange(parsed.archive);
-      onProjectJsonUpdate(parsed.archive.projectJson);
-      setProjectJsonDraft(parsed.archive.projectJson);
+      const parsed = await importScratchArchive(data);
+      const importedProject = safeParseProject(parsed.archive);
+      const bySemver = semverToScratchVersion(importedProject.meta?.semver);
+      const name = file.name.toLowerCase();
+      const inferredVersion = name.endsWith('.sb2') ? 'scratch2' : bySemver;
+      const normalizedProject: ScratchProject = {
+        ...importedProject,
+        targets: (importedProject.targets || []).map((target) => ({
+          ...target,
+          blocks: normalizeBlocksForVersion(target.blocks, inferredVersion),
+        })),
+        meta: {
+          ...(importedProject.meta || {}),
+          semver: SCRATCH_VERSION_OPTIONS.find((option) => option.value === inferredVersion)?.semver || '3.0.0',
+        },
+      };
+      const normalizedArchive = ensureArchive({
+        ...parsed.archive,
+        projectJson: formatJson(normalizedProject),
+      });
+      onArchiveChange(normalizedArchive);
+      onProjectJsonUpdate(normalizedArchive.projectJson);
+      setProjectJsonDraft(normalizedArchive.projectJson);
+      setScratchVersion(inferredVersion);
       setJsonError(null);
       setVmError(null);
       setSelectedTargetIndex(1);
-      await loadVmFromArchive(parsed.archive);
+      await loadVmFromArchive(normalizedArchive);
     } catch (error) {
-      setVmError(error instanceof Error ? error.message : 'Failed to import .sb3 file');
+      setVmError(error instanceof Error ? error.message : 'Failed to import Scratch archive (.sb3/.sb2).');
     }
   };
 
   const handleExport = async () => {
-    const data = await exportSb3(ensureArchive(archive));
-    const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer], { type: 'application/x.scratch.sb3' });
+    const exportFormat = scratchVersion === 'scratch3' ? 'sb3' : 'sb2';
+    const semver = exportFormat === 'sb3' ? '3.0.0' : '2.0.0';
+    const currentProject = safeParseProject(archive);
+    const normalizedProject: ScratchProject = {
+      ...currentProject,
+      targets: (currentProject.targets || []).map((target) => ({
+        ...target,
+        blocks: normalizeBlocksForVersion(target.blocks, exportFormat === 'sb3' ? 'scratch3' : 'scratch2'),
+      })),
+      extensions: (currentProject.extensions || []).filter((ext) => exportFormat === 'sb3' || (ext !== 'pen' && ext !== 'music')),
+      meta: {
+        ...(currentProject.meta || {}),
+        semver,
+      },
+    };
+    const exportArchive = ensureArchive({
+      ...ensureArchive(archive),
+      projectJson: formatJson(normalizedProject),
+    });
+    const data = await exportScratchArchive(exportArchive, exportFormat);
+    const mime = exportFormat === 'sb3' ? 'application/x.scratch.sb3' : 'application/x.scratch.sb2';
+    const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'project.sb3';
+    a.download = `project.${exportFormat}`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -2407,7 +2447,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10 flex items-center gap-1.5">
             <Upload className="w-3.5 h-3.5" /> File
           </button>
-          <input ref={importInputRef} className="hidden" type="file" accept=".sb3" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
+          <input ref={importInputRef} className="hidden" type="file" accept=".sb3,.sb2" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
           <button onClick={handleExport} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Save</button>
           <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Debug</button>
         </div>
