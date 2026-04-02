@@ -51,6 +51,8 @@ const featureTracks = [
   },
 ];
 
+const orbitBadges = ["Neural IDE", "WebContainers", "Realtime AI", "Hardware Labs", "Design System", "Cloud Runtime"];
+
 export default function Landing() {
   const navigate = useNavigate();
   const { stats } = useLandingStats();
@@ -60,14 +62,15 @@ export default function Landing() {
       {/* Cyber grid background */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div
-          className="absolute inset-0 opacity-[0.03]"
+          className="absolute inset-0 opacity-[0.03] motion-safe:animate-grid-drift"
           style={{
             backgroundImage: `linear-gradient(hsl(var(--primary) / 0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary) / 0.3) 1px, transparent 1px)`,
             backgroundSize: '60px 60px',
           }}
         />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/5 rounded-full blur-[200px]" />
-        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-primary/3 rounded-full blur-[150px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/5 rounded-full blur-[200px] motion-safe:animate-float-slow" />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-primary/3 rounded-full blur-[150px] motion-safe:animate-float-delayed" />
+        <div className="absolute top-1/3 left-8 w-56 h-56 bg-info/10 rounded-full blur-[120px] motion-safe:animate-float-slow" />
       </div>
 
       {/* Nav */}
@@ -93,6 +96,8 @@ export default function Landing() {
       {/* Hero */}
       <section className="relative pt-28 pb-16 px-6 z-10">
         <div className="max-w-4xl mx-auto text-center relative">
+          <div className="hidden md:block absolute -left-20 top-24 w-40 h-40 rounded-full border border-primary/20 bg-primary/5 backdrop-blur-md motion-safe:animate-float-slow" />
+          <div className="hidden md:block absolute -right-20 top-16 w-44 h-44 rounded-full border border-info/20 bg-info/10 backdrop-blur-md motion-safe:animate-float-delayed" />
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-sm text-primary mb-6 font-mono">
             <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
             AI-powered development environment
@@ -129,6 +134,17 @@ export default function Landing() {
 
           <div className="mt-8">
             <PublicCanvasSearch />
+          </div>
+
+          <div className="mt-10 overflow-hidden rounded-full border border-border/40 bg-card/30 backdrop-blur-sm">
+            <div className="flex whitespace-nowrap py-2 motion-safe:animate-marquee">
+              {[...orbitBadges, ...orbitBadges].map((badge, index) => (
+                <span key={`${badge}-${index}`} className="mx-2 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-mono text-primary/90">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                  {badge}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -167,9 +183,9 @@ export default function Landing() {
             {featureTracks.map((track) => (
               <div
                 key={track.title}
-                className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-b from-card/70 to-card/20 p-5"
+                className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-b from-card/70 to-card/20 p-5 transition-transform duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10"
               >
-                <div className="absolute -top-16 -right-16 h-32 w-32 rounded-full bg-primary/10 blur-2xl" />
+                <div className="absolute -top-16 -right-16 h-32 w-32 rounded-full bg-primary/10 blur-2xl motion-safe:animate-pulse-soft" />
                 <div className="relative">
                   <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-mono text-primary mb-4">
                     {track.icon}
