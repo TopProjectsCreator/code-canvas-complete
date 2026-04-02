@@ -626,6 +626,11 @@ function explainContextualCommand(bin: string, args: string[]): string | null {
     return `Creates director${targets.length === 1 ? 'y' : 'ies'}: ${targets.join(', ')}${parents}.`;
   }
 
+  if (bin === 'touch') {
+    if (targets.length === 0) return 'Creates an empty file or updates file timestamps.';
+    return `Creates file${targets.length === 1 ? '' : 's'} or updates timestamps: ${targets.join(', ')}.`;
+  }
+
   if (bin === 'rm') {
     if (targets.length === 0) return 'Removes files or directories.';
     const recursive = flags.some(flag => flag.includes('r')) ? ' recursively' : '';
@@ -652,6 +657,16 @@ function explainContextualCommand(bin: string, args: string[]): string | null {
     return 'Moves or renames files/directories.';
   }
 
+  if (bin === 'ln') {
+    if (targets.length >= 2) {
+      const source = targets[0];
+      const destination = targets[1];
+      if (flags.some(flag => flag.includes('s'))) return `Creates a symbolic link from ${destination} to ${source}.`;
+      return `Creates a hard link from ${destination} to ${source}.`;
+    }
+    return 'Creates links between files.';
+  }
+
   if (bin === 'cat') {
     if (targets.length === 0) return 'Prints file contents to the terminal.';
     return `Prints the contents of ${targets.join(', ')}.`;
@@ -672,6 +687,33 @@ function explainContextualCommand(bin: string, args: string[]): string | null {
     if (flags.some(flag => flag.includes('x'))) return 'Extracts files from a tar archive.';
     if (flags.some(flag => flag.includes('c'))) return 'Creates a tar archive from files/directories.';
     return 'Creates or extracts tar archives.';
+  }
+
+  if (bin === 'sed') {
+    const expression = targets[0];
+    const files = targets.slice(1);
+    const scope = files.length > 0 ? ` on ${files.join(', ')}` : '';
+    if (!expression) return 'Applies text transformations to input.';
+    if (flags.includes('-i') || flags.includes('--in-place')) {
+      return `Applies sed expression '${expression}' in-place${scope}.`;
+    }
+    return `Applies sed expression '${expression}'${scope}.`;
+  }
+
+  if (bin === 'awk') {
+    const program = targets[0];
+    const files = targets.slice(1);
+    const fileText = files.length > 0 ? ` over ${files.join(', ')}` : '';
+    if (!program) return 'Processes and extracts structured text data.';
+    return `Runs awk program '${program}'${fileText}.`;
+  }
+
+  if (bin === 'jq') {
+    const filter = targets[0];
+    const files = targets.slice(1);
+    if (!filter) return 'Filters/transforms JSON from stdin or files.';
+    const fileText = files.length > 0 ? ` on ${files.join(', ')}` : ' on JSON input';
+    return `Applies jq filter '${filter}'${fileText}.`;
   }
 
   if (bin === 'curl') {
@@ -709,6 +751,33 @@ function explainContextualCommand(bin: string, args: string[]): string | null {
     if (host && count) return `Sends ${count} ICMP ping request(s) to ${host}.`;
     if (host) return `Sends ICMP ping requests to ${host}.`;
     return 'Sends ICMP echo packets to test connectivity.';
+  }
+
+  if (bin === 'ps') {
+    if (flags.includes('-ef')) return 'Lists all running processes in full-format view.';
+    if (flags.some(flag => flag.includes('a')) || flags.some(flag => flag.includes('x'))) {
+      return 'Lists running processes, including processes not attached to your terminal.';
+    }
+    return 'Lists running processes.';
+  }
+
+  if (bin === 'kill') {
+    const signalFlag = flags.find(flag => /^-\d+$/.test(flag) || /^-SIG/.test(flag));
+    if (targets.length === 0) return 'Stops a process by PID.';
+    const signalText = signalFlag ? ` using signal ${signalFlag}` : '';
+    return `Sends a termination signal${signalText} to PID(s): ${targets.join(', ')}.`;
+  }
+
+  if (bin === 'du') {
+    const scope = targets.length > 0 ? targets.join(', ') : 'the current directory';
+    const human = flags.some(flag => flag.includes('h')) ? ' with human-readable sizes' : '';
+    const summarize = flags.some(flag => flag.includes('s')) ? ' (summary only)' : '';
+    return `Estimates disk usage for ${scope}${human}${summarize}.`;
+  }
+
+  if (bin === 'df') {
+    const human = flags.some(flag => flag.includes('h')) ? ' with human-readable units' : '';
+    return `Shows filesystem disk space usage${human}.`;
   }
 
   if (bin === 'systemctl') {
@@ -753,6 +822,10 @@ function explainContextualCommand(bin: string, args: string[]): string | null {
       const message = messageIndex >= 0 ? args[messageIndex + 1] : null;
       if (message) return `Creates a commit with message ${message}.`;
       return 'Creates a commit with staged changes.';
+    }
+    if (sub === 'log') {
+      if (flags.includes('--oneline')) return 'Shows compact one-line commit history.';
+      return 'Shows commit history.';
     }
   }
 
