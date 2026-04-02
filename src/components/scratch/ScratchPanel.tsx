@@ -108,12 +108,35 @@ const semverToScratchVersion = (semver: unknown): ScratchCompatibilityVersion =>
   return 'scratch3';
 };
 
+const versionRank: Record<ScratchCompatibilityVersion, number> = {
+  scratch14: 0,
+  scratch2: 1,
+  scratch3: 2,
+};
+
+const isOpcodeSupportedInVersion = (opcode: string, version: ScratchCompatibilityVersion) => {
+  if (!opcode || opcode === 'compat_foreverif') return false;
+  if (version === 'scratch3') return true;
+
+  if (opcode.startsWith('pen_') || opcode.startsWith('music_')) return false;
+  if (['control_start_as_clone', 'control_create_clone_of', 'control_delete_this_clone'].includes(opcode)) return false;
+
+  if (version === 'scratch14') {
+    if (opcode.startsWith('procedures_')) return false;
+    if (opcode === 'event_whengreaterthan') return false;
+  }
+
+  return true;
+};
+
 type ScratchBlockDef = {
   label: string;
   opcode: string;
   inputs?: Record<string, unknown>;
   fields?: Record<string, unknown>;
   action?: 'create_variable' | 'create_list';
+  minVersion?: ScratchCompatibilityVersion;
+  maxVersion?: ScratchCompatibilityVersion;
 };
 // Fallback 2D canvas renderer when scratch-render (WebGL) doesn't produce output
 const fallbackImageCache = new Map<string, HTMLImageElement>();
@@ -309,10 +332,11 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'if <> then else', opcode: 'control_if_else' },
     { label: 'wait until <>', opcode: 'control_wait_until' },
     { label: 'repeat until <>', opcode: 'control_repeat_until' },
+    { label: 'forever if <>', opcode: 'compat_foreverif', maxVersion: 'scratch14' },
     { label: 'stop {all}', opcode: 'control_stop', fields: { STOP_OPTION: ['all', null] } },
-    { label: 'when I start as a clone', opcode: 'control_start_as_clone' },
-    { label: 'create clone of {myself}', opcode: 'control_create_clone_of', fields: { CLONE_OPTION: ['_myself_', null] } },
-    { label: 'delete this clone', opcode: 'control_delete_this_clone' },
+    { label: 'when I start as a clone', opcode: 'control_start_as_clone', minVersion: 'scratch3' },
+    { label: 'create clone of {myself}', opcode: 'control_create_clone_of', fields: { CLONE_OPTION: ['_myself_', null] }, minVersion: 'scratch3' },
+    { label: 'delete this clone', opcode: 'control_delete_this_clone', minVersion: 'scratch3' },
   ],
   Sensing: [
     { label: 'touching {mouse-pointer} ?', opcode: 'sensing_touchingobject', fields: { TOUCHINGOBJECTMENU: ['_mouse_', null] } },
@@ -371,8 +395,8 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'hide my list', opcode: 'data_hidelist' },
   ],
   'My Blocks': [
-    { label: 'Make a Block', opcode: 'procedures_definition' },
-    { label: 'call custom block', opcode: 'procedures_call' },
+    { label: 'Make a Block', opcode: 'procedures_definition', minVersion: 'scratch2' },
+    { label: 'call custom block', opcode: 'procedures_call', minVersion: 'scratch2' },
   ],
   Pen: [
     { label: 'erase all', opcode: 'pen_clear' },
@@ -564,6 +588,14 @@ const getExtensionId = (opcode: string): string | null => {
   return null;
 };
 
+const isBlockDefAvailable = (blockDef: ScratchBlockDef, version: ScratchCompatibilityVersion) => {
+  const minVersion = blockDef.minVersion || 'scratch14';
+  const maxVersion = blockDef.maxVersion || 'scratch3';
+  if (versionRank[version] < versionRank[minVersion]) return false;
+  if (versionRank[version] > versionRank[maxVersion]) return false;
+  return isOpcodeSupportedInVersion(blockDef.opcode, version) || blockDef.opcode === 'compat_foreverif';
+};
+
 const extensionOf = (name: string) => {
   const idx = name.lastIndexOf('.');
   return idx >= 0 ? name.slice(idx + 1).toLowerCase() : '';
@@ -620,6 +652,30 @@ const createVmCompatibleBlockShape = (
     argumentdefaults: '[]',
     warp: 'false',
   });
+
+  if (op === 'compat_foreverif') {
+    const ifId = generateId();
+    nextInputs.SUBSTACK = [2, ifId];
+    extraBlocks[ifId] = {
+      id: ifId,
+      opcode: 'control_if',
+      parent: blockId,
+      topLevel: false,
+      shadow: false,
+      fields: {},
+      inputs: {
+        CONDITION: [1, [10, 'true']],
+      },
+      next: null,
+    };
+    return {
+      inputs: nextInputs,
+      fields: nextFields,
+      extraBlocks,
+      mutation,
+      opcodeOverride: 'control_forever',
+    };
+  }
 
   if (op === 'procedures_definition') {
     const prototypeId = generateId();
@@ -687,6 +743,7 @@ const createVmCompatibleBlockShape = (
     fields: nextFields,
     extraBlocks,
     mutation,
+    opcodeOverride: op,
   };
 };
 
@@ -750,6 +807,64 @@ const ensureDataRefForTarget = (target: ScratchTarget, blockDef: ScratchBlockDef
   }
 
   return { target: nextTarget, fields: nextFields };
+};
+
+const normalizeBlocksForVersion = (
+  blocks: Record<string, ScratchBlockNode> | undefined,
+  version: ScratchCompatibilityVersion,
+): Record<string, ScratchBlockNode> => {
+  if (!blocks) return {};
+  const nextBlocks: Record<string, ScratchBlockNode> = { ...blocks };
+  const unsupportedIds = new Set(
+    Object.entries(nextBlocks)
+      .filter(([, block]) => !isOpcodeSupportedInVersion(block.opcode, version))
+      .map(([id]) => id),
+  );
+  if (!unsupportedIds.size) return nextBlocks;
+
+  for (const removeId of unsupportedIds) {
+    const removed = nextBlocks[removeId];
+    if (!removed) continue;
+    const parentId = removed.parent || null;
+    const nextId = removed.next || null;
+    if (parentId && nextBlocks[parentId]) {
+      const parent = { ...nextBlocks[parentId] };
+      if (parent.next === removeId) parent.next = nextId && !unsupportedIds.has(nextId) ? nextId : null;
+      if (parent.inputs) {
+        const patchedInputs = { ...parent.inputs };
+        Object.entries(patchedInputs).forEach(([key, value]) => {
+          if (Array.isArray(value) && value[1] === removeId) patchedInputs[key] = [2, null];
+        });
+        parent.inputs = patchedInputs;
+      }
+      nextBlocks[parentId] = parent;
+    }
+    if (nextId && nextBlocks[nextId] && !unsupportedIds.has(nextId)) {
+      nextBlocks[nextId] = { ...nextBlocks[nextId], parent: parentId, topLevel: parentId ? false : true };
+    }
+    delete nextBlocks[removeId];
+  }
+
+  for (const [id, block] of Object.entries(nextBlocks)) {
+    const patched: ScratchBlockNode = { ...block };
+    if (patched.parent && !nextBlocks[patched.parent]) {
+      patched.parent = null;
+      patched.topLevel = true;
+    }
+    if (patched.next && !nextBlocks[patched.next]) patched.next = null;
+    if (patched.inputs) {
+      const cleanedInputs = { ...patched.inputs };
+      Object.entries(cleanedInputs).forEach(([key, value]) => {
+        if (Array.isArray(value) && typeof value[1] === 'string' && !nextBlocks[value[1]]) {
+          delete cleanedInputs[key];
+        }
+      });
+      patched.inputs = cleanedInputs;
+    }
+    nextBlocks[id] = patched;
+  }
+
+  return nextBlocks;
 };
 
 /** Variables category flyout — matches real Scratch editor layout */
@@ -1109,6 +1224,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
     return map;
   }, []);
+  const visibleCategoryBlocks = useMemo(() => {
+    const entries = Object.entries(categoryBlocks).map(([name, defs]) => [
+      name,
+      defs.filter((def) => isBlockDefAvailable(def, scratchVersion)),
+    ]);
+    return Object.fromEntries(entries) as Record<string, ScratchBlockDef[]>;
+  }, [scratchVersion]);
 
   useEffect(() => {
     setScratchVersion(semverToScratchVersion(project.meta?.semver));
@@ -1848,6 +1970,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
   const addBlock = (blockDef: ScratchBlockDef, dropX?: number, dropY?: number) => {
     if (!selectedTarget || selectedTarget.isStage || activeEditorTab !== 'code') return;
+    if (!isBlockDefAvailable(blockDef, scratchVersion)) {
+      setVmError(`"${blockDef.label}" is not available in ${SCRATCH_VERSION_OPTIONS.find((v) => v.value === scratchVersion)?.label || 'this version'}.`);
+      return;
+    }
     const blockId = generateId();
     const blockCount = Object.keys(selectedTarget.blocks || {}).length;
     const finalX = dropX ?? 40;
@@ -1883,7 +2009,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             blocks[snapResult.id] = { ...parent, inputs: parentInputs };
             blocks[blockId] = {
               id: blockId,
-              opcode: blockDef.opcode,
+              opcode: vmCompatible.opcodeOverride,
               next: null,
               parent: snapResult.id,
               topLevel: false,
@@ -1899,7 +2025,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             blocks[snapResult.id] = { ...parent, next: blockId };
             blocks[blockId] = {
               id: blockId,
-              opcode: blockDef.opcode,
+              opcode: vmCompatible.opcodeOverride,
               next: null,
               parent: snapResult.id,
               topLevel: false,
@@ -1941,7 +2067,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             };
             blocks[blockId] = {
               id: blockId,
-              opcode: blockDef.opcode,
+              opcode: vmCompatible.opcodeOverride,
               next: null,
               parent: eventId,
               topLevel: false,
@@ -2231,6 +2357,15 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
     const nextProject: ScratchProject = {
       ...current,
+      extensions: (current.extensions || []).filter((ext) => {
+        if (nextVersion === 'scratch3') return true;
+        if (ext === 'pen' || ext === 'music') return false;
+        return true;
+      }),
+      targets: (current.targets || []).map((target) => ({
+        ...target,
+        blocks: normalizeBlocksForVersion(target.blocks, nextVersion),
+      })),
       meta: {
         ...(current.meta || {}),
         semver,
@@ -2363,7 +2498,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 <VariablesFlyout
                   variables={Object.entries(selectedTarget?.variables || {})}
                   lists={Object.entries(selectedTarget?.lists || {})}
-                  blocks={categoryBlocks['Variables'] || []}
+                  blocks={visibleCategoryBlocks.Variables || []}
                   color={categoryColors['Variables'] || '#ff8c1a'}
                   onMakeVariable={() => { setRenameTarget(null); setDataPrompt({ type: 'variable', name: '' }); }}
                   onMakeList={() => { setRenameTarget(null); setDataPrompt({ type: 'list', name: '' }); }}
@@ -2375,7 +2510,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 />
               ) : (
               <div className="space-y-1.5">
-                {(categoryBlocks[activeCategory] || []).map((blockDef) => {
+                {(visibleCategoryBlocks[activeCategory] || []).map((blockDef) => {
                   const color = categoryColors[activeCategory] || '#4c97ff';
                   const shape = getBlockShape(blockDef.opcode);
                   return (
