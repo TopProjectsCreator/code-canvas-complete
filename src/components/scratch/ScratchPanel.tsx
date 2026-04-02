@@ -2221,25 +2221,37 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }
   };
 
-  const handleVersionToggle = (nextVersion: ScratchCompatibilityVersion) => {
-    setScratchVersion(nextVersion);
-    const parsed = safeParseProject(archive);
+  const handleVersionToggle = async (nextVersion: ScratchCompatibilityVersion) => {
     const semver = SCRATCH_VERSION_OPTIONS.find((option) => option.value === nextVersion)?.semver || '3.0.0';
-    const updatedProject: ScratchProject = {
-      ...parsed,
+    const current = safeParseProject(archive);
+    const currentSemver = typeof current.meta?.semver === 'string' ? current.meta.semver : '';
+    if (currentSemver === semver) return;
+
+    setScratchVersion(nextVersion);
+
+    const nextProject: ScratchProject = {
+      ...current,
       meta: {
-        ...(parsed.meta || {}),
+        ...(current.meta || {}),
         semver,
       },
     };
-    const nextJson = formatJson(updatedProject);
-    const nextArchive = ensureArchive({
-      ...ensureArchive(archive),
+
+    const nextJson = formatJson(nextProject);
+    const currentArchive = ensureArchive(archive);
+    const nextArchive: ScratchArchive = {
+      ...currentArchive,
+      fileNames: currentArchive.fileNames.includes('project.json')
+        ? currentArchive.fileNames
+        : [...currentArchive.fileNames, 'project.json'],
       projectJson: nextJson,
-    });
+    };
+
     onArchiveChange(nextArchive);
     onProjectJsonUpdate(nextJson);
     setProjectJsonDraft(nextJson);
+    setJsonError(null);
+    await loadVmFromArchive(nextArchive);
   };
 
   const [showJson, setShowJson] = useState(false);
@@ -2269,7 +2281,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           {SCRATCH_VERSION_OPTIONS.map((option) => (
             <button
               key={option.value}
-              onClick={() => handleVersionToggle(option.value)}
+              onClick={() => void handleVersionToggle(option.value)}
               type="button"
               className={`px-2 py-1 text-[12px] rounded transition-colors ${
                 scratchVersion === option.value
