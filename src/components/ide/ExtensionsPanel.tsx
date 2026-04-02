@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2, ChevronLeft, Code2, Copy, Download, FileCode2, Loader2,
   PackagePlus, Play, Rocket, Search, Sparkles, Store, Terminal,
@@ -67,27 +67,27 @@ function ExtensionCodeEditor({
 }
 
 function ExtensionPreview({ html, tall }: { html: string; tall?: boolean }) {
-  const ref = useRef<HTMLIFrameElement>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-    const doc = ref.current.contentDocument;
-    if (!doc) return;
-    doc.open();
-    doc.write(`<!DOCTYPE html><html><head><style>
+  const previewDocument = useMemo(() => `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
       * { margin:0; padding:0; box-sizing:border-box; }
       body { font-family: system-ui, sans-serif; font-size: 13px; padding: 8px; color: #e0e0e0; background: #1a1a2e; }
       input, select, textarea { font-size: 12px; padding: 4px 8px; border-radius: 4px; border: 1px solid #333; background: #252540; color: #e0e0e0; }
       button { font-size: 12px; padding: 4px 12px; border-radius: 4px; border: none; background: #6366f1; color: white; cursor: pointer; }
       button:hover { background: #4f46e5; }
       a { color: #818cf8; }
-    </style></head><body>${html}</body></html>`);
-    doc.close();
-  }, [html]);
+    </style>
+  </head>
+  <body>${html}</body>
+</html>`, [html]);
 
   return (
     <iframe
-      ref={ref}
+      key={previewDocument}
+      srcDoc={previewDocument}
       sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"
       className={`w-full rounded border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
       title="Extension preview"
