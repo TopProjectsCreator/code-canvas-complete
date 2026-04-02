@@ -415,6 +415,37 @@
 }
 
 @layer utilities {
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0px) translateX(0px); }
+    50% { transform: translateY(-14px) translateX(8px); }
+  }
+
+  @keyframes float-delayed {
+    0%, 100% { transform: translateY(0px) translateX(0px); }
+    50% { transform: translateY(16px) translateX(-8px); }
+  }
+
+  @keyframes grid-drift {
+    0% { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(60px, 60px, 0); }
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-50%); }
+  }
+
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 0.35; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.08); }
+  }
+
+  .animate-float-slow { animation: float-slow 9s ease-in-out infinite; }
+  .animate-float-delayed { animation: float-delayed 11s ease-in-out infinite; }
+  .animate-grid-drift { animation: grid-drift 28s linear infinite; }
+  .animate-marquee { animation: marquee 26s linear infinite; width: max-content; }
+  .animate-pulse-soft { animation: pulse-soft 4.5s ease-in-out infinite; }
+
   .text-syntax-keyword { color: hsl(var(--syntax-keyword)); }
   .text-syntax-string { color: hsl(var(--syntax-string)); }
   .text-syntax-number { color: hsl(var(--syntax-number)); }
