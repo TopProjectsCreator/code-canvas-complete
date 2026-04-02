@@ -213,6 +213,7 @@ const html = \`
   }
 
   const input = $('#fileInput');
+  const dz = $('#dropZone');
   const openPicker = () => input && input.click();
 
   input.addEventListener('change', e => { if (e.target.files && e.target.files[0]) setFile(e.target.files[0]); });
@@ -229,7 +230,6 @@ const html = \`
     $('#qualityRow').style.display = showQ ? '' : 'none';
   });
 
-  const dz = $('#dropZone');
   dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
   dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
