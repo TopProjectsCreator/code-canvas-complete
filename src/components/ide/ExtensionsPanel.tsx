@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2, ChevronLeft, Code2, Copy, Download, FileCode2, Loader2,
   PackagePlus, Play, Rocket, Search, Sparkles, Store, Terminal,
@@ -66,7 +66,14 @@ function ExtensionCodeEditor({
   );
 }
 
-function ExtensionPreview({ html, tall }: { html: string; tall?: boolean }) {
+function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: string; tall?: boolean; enableFileBridge?: boolean }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewReady, setPreviewReady] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+
   const previewDocument = useMemo(() => `<!DOCTYPE html>
 <html>
   <head>
@@ -84,14 +91,103 @@ function ExtensionPreview({ html, tall }: { html: string; tall?: boolean }) {
   <body>${html}</body>
 </html>`, [html]);
 
+  useEffect(() => {
+    setPreviewReady(false);
+  }, [previewDocument]);
+
+  const postFileToPreview = useCallback(async (file: File) => {
+    const target = ref.current?.contentWindow;
+    if (!target) return;
+
+    const buffer = await file.arrayBuffer();
+    target.postMessage({
+      type: 'cc-ext-file',
+      payload: {
+        name: file.name,
+        type: file.type,
+        lastModified: file.lastModified,
+        buffer,
+      },
+    }, '*');
+  }, []);
+
+  useEffect(() => {
+    if (!previewReady || !pendingFile) return;
+    void postFileToPreview(pendingFile).then(() => setPendingFile(null));
+  }, [pendingFile, postFileToPreview, previewReady]);
+
+  const handleBridgeFile = useCallback((file: File | null | undefined) => {
+    if (!file) return;
+    setSelectedFileName(file.name);
+
+    if (!previewReady) {
+      setPendingFile(file);
+      return;
+    }
+
+    void postFileToPreview(file);
+  }, [postFileToPreview, previewReady]);
+
   return (
-    <iframe
-      key={previewDocument}
-      srcDoc={previewDocument}
-      sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"
-      className={`w-full rounded border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
-      title="Extension preview"
-    />
+    <div className="space-y-2">
+      {enableFileBridge && (
+        <div
+          className={`rounded border border-dashed p-2 ${isDraggingFile ? 'border-primary bg-accent/50' : 'border-border bg-card'}`}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setIsDraggingFile(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            setIsDraggingFile(true);
+          }}
+          onDragLeave={(event) => {
+            event.preventDefault();
+            setIsDraggingFile(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setIsDraggingFile(false);
+            handleBridgeFile(event.dataTransfer.files?.[0]);
+          }}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            onChange={(event) => {
+              handleBridgeFile(event.target.files?.[0]);
+              event.target.value = '';
+            }}
+          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-foreground">Upload for ConvertAnything</p>
+              <p className="truncate text-[10px] text-muted-foreground">
+                {selectedFileName ? `Selected: ${selectedFileName}` : 'Drop a file here or use Browse file.'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="shrink-0 rounded border border-border bg-background px-2 py-1 text-[11px] font-medium hover:bg-accent"
+            >
+              Browse file
+            </button>
+          </div>
+        </div>
+      )}
+
+      <iframe
+        key={previewDocument}
+        ref={ref}
+        srcDoc={previewDocument}
+        onLoad={() => setPreviewReady(true)}
+        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"
+        className={`w-full rounded border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
+        title="Extension preview"
+      />
+    </div>
   );
 }
 
@@ -433,7 +529,7 @@ export const ExtensionsPanel = ({
                 <p className="text-xs font-medium text-muted-foreground">{builtinView.icon} {builtinView.name}</p>
                 <button onClick={() => { setBuiltinView(null); setBuiltinHtml(''); }} className="text-[10px] text-muted-foreground hover:text-foreground">✕ Close</button>
               </div>
-              <ExtensionPreview html={builtinHtml} tall />
+              <ExtensionPreview html={builtinHtml} tall enableFileBridge={builtinView.slug === 'convert-anything'} />
             </div>
           )}
 
