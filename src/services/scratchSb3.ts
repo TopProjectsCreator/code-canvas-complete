@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import VirtualMachine from 'scratch-vm';
 
 export interface ScratchArchive {
   projectJson: string;
@@ -65,7 +66,13 @@ export const importSb3 = async (arrayBuffer: ArrayBuffer): Promise<ScratchImport
   };
 };
 
-export const importScratchArchive = importSb3;
+const convertLegacyProjectToSb3 = async (arrayBuffer: ArrayBuffer): Promise<ArrayBuffer> => {
+  const VmCtor = VirtualMachine as unknown as { new (): { loadProject(input: ArrayBuffer): Promise<void>; saveProjectSb3(): Promise<Blob> } };
+  const vm = new VmCtor();
+  await vm.loadProject(arrayBuffer);
+  const sb3Blob = await vm.saveProjectSb3();
+  return sb3Blob.arrayBuffer();
+};
 
 export const exportSb3 = async (archive: ScratchArchive): Promise<Uint8Array> => {
   const zip = new JSZip();
@@ -87,4 +94,13 @@ export const exportScratchArchive = async (archive: ScratchArchive, _format: Scr
   // sb2/sb3 are both zip-based Scratch archives; we currently emit a zip archive with
   // project.json + assets and let callers pick the download extension.
   return exportSb3(archive);
+};
+
+export const importScratchArchive = async (arrayBuffer: ArrayBuffer): Promise<ScratchImportResult> => {
+  try {
+    return await importSb3(arrayBuffer);
+  } catch {
+    const converted = await convertLegacyProjectToSb3(arrayBuffer);
+    return importSb3(converted);
+  }
 };
