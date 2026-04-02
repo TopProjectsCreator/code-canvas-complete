@@ -34,6 +34,19 @@ describe('explainShellCommand', () => {
     expect(explainShellCommand('docker run -it ubuntu bash')).toContain("image 'ubuntu'");
   });
 
+  it('adds richer explanations for text, process, and disk usage commands', () => {
+    expect(explainShellCommand('touch notes.txt')).toContain('updates timestamps');
+    expect(explainShellCommand('ln -s ./target ./shortcut')).toContain('symbolic link');
+    expect(explainShellCommand("sed -i 's/foo/bar/g' app.txt")).toContain('in-place');
+    expect(explainShellCommand("awk '{print $1}' access.log")).toContain('awk program');
+    expect(explainShellCommand("jq '.name' package.json")).toContain('jq filter');
+    expect(explainShellCommand('ps -ef')).toContain('full-format');
+    expect(explainShellCommand('kill -9 1234')).toContain('signal -9');
+    expect(explainShellCommand('du -sh node_modules')).toContain('human-readable sizes');
+    expect(explainShellCommand('df -h')).toContain('human-readable units');
+    expect(explainShellCommand('git log --oneline')).toContain('one-line commit history');
+  });
+
   it('explains install commands with package purpose details', () => {
     expect(explainShellCommand('npm install react zod')).toContain('react: A UI library');
     expect(explainShellCommand('pip install requests numpy')).toContain('requests: A popular Python HTTP client library');
