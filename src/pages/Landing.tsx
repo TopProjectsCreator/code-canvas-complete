@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Zap, Code2, Play, Terminal, GitBranch, Cpu, Sparkles, Globe, Users,
   ArrowRight, ChevronRight, Palette, Box, Music, FileText, Layers,
-  Activity, Eye, FolderKanban, Rocket, ShieldCheck, Workflow, Bot,
+  Activity, Eye, FolderKanban, Rocket, ShieldCheck, Workflow, Bot, Orbit, Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublicCanvasSearch } from "@/components/landing/PublicCanvasSearch";
@@ -52,6 +52,11 @@ const featureTracks = [
 ];
 
 const orbitBadges = ["Neural IDE", "WebContainers", "Realtime AI", "Hardware Labs", "Design System", "Cloud Runtime"];
+const telemetry = [
+  { label: "Latency", value: "12ms", icon: <Gauge className="w-3.5 h-3.5" /> },
+  { label: "Agents Online", value: "128", icon: <Bot className="w-3.5 h-3.5" /> },
+  { label: "Build Queue", value: "Realtime", icon: <Orbit className="w-3.5 h-3.5" /> },
+];
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -68,6 +73,7 @@ export default function Landing() {
             backgroundSize: '60px 60px',
           }}
         />
+        <div className="absolute inset-0 opacity-[0.07] motion-safe:animate-scanline" />
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/5 rounded-full blur-[200px] motion-safe:animate-float-slow" />
         <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-primary/3 rounded-full blur-[150px] motion-safe:animate-float-delayed" />
         <div className="absolute top-1/3 left-8 w-56 h-56 bg-info/10 rounded-full blur-[120px] motion-safe:animate-float-slow" />
@@ -144,6 +150,25 @@ export default function Landing() {
                   {badge}
                 </span>
               ))}
+            </div>
+          </div>
+
+          <div className="mt-8 rounded-2xl border border-primary/20 bg-gradient-to-b from-card/80 to-card/30 p-4 sm:p-5 backdrop-blur-sm relative overflow-hidden">
+            <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full border border-primary/30 motion-safe:animate-orbit-ring" />
+            <div className="absolute -left-12 -bottom-12 h-28 w-28 rounded-full border border-info/30 motion-safe:animate-orbit-ring [animation-delay:1.5s]" />
+            <div className="relative">
+              <p className="text-xs font-mono uppercase tracking-[0.2em] text-primary mb-3">Neural Control Deck</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {telemetry.map((item) => (
+                  <div key={item.label} className="rounded-xl border border-border/40 bg-background/40 px-3 py-3 text-left">
+                    <div className="inline-flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                      {item.icon}
+                      {item.label}
+                    </div>
+                    <p className="text-lg font-semibold">{item.value}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
