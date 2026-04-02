@@ -1019,27 +1019,51 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   );
 
   const handleImportScratchProject = useCallback(async (file: File) => {
-    const parsed = await importSb3(await file.arrayBuffer());
-    setScratchArchive(parsed.archive);
-    setSelectedTemplate("scratch");
-    const templateFiles = getTemplateFiles("scratch");
-    setFiles(
-      templateFiles.map((node) => {
-        if (node.type === "folder") {
-          return {
-            ...node,
-            children: (node.children || []).map((child) =>
-              child.name === "project.json" ? { ...child, content: parsed.archive.projectJson } : child,
-            ),
-          };
-        }
-        return node;
-      }),
-    );
-    setTerminalHistory((prev) => [
-      ...prev,
-      { id: generateId(), type: "info", content: `📦 Imported Scratch project: ${file.name}`, timestamp: new Date() },
-    ]);
+    if (file.name.toLowerCase().endsWith('.sb')) {
+      setTerminalHistory((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          type: "error",
+          content: "❌ Scratch .sb (1.x binary) import is not supported yet. Convert to .sb2 or .sb3 first.",
+          timestamp: new Date(),
+        },
+      ]);
+      return;
+    }
+    try {
+      const parsed = await importSb3(await file.arrayBuffer());
+      setScratchArchive(parsed.archive);
+      setSelectedTemplate("scratch");
+      const templateFiles = getTemplateFiles("scratch");
+      setFiles(
+        templateFiles.map((node) => {
+          if (node.type === "folder") {
+            return {
+              ...node,
+              children: (node.children || []).map((child) =>
+                child.name === "project.json" ? { ...child, content: parsed.archive.projectJson } : child,
+              ),
+            };
+          }
+          return node;
+        }),
+      );
+      setTerminalHistory((prev) => [
+        ...prev,
+        { id: generateId(), type: "info", content: `📦 Imported Scratch project: ${file.name}`, timestamp: new Date() },
+      ]);
+    } catch (error) {
+      setTerminalHistory((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          type: "error",
+          content: `❌ Failed to import Scratch archive: ${error instanceof Error ? error.message : 'unknown error'}`,
+          timestamp: new Date(),
+        },
+      ]);
+    }
   }, []);
 
   const handleTabClick = useCallback((tabId: string) => {

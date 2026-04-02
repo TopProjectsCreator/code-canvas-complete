@@ -215,7 +215,7 @@ export const Sidebar = ({
 
   const isScratchArchiveFile = (filename: string) => {
     const lower = filename.toLowerCase();
-    return lower.endsWith('.sb3') || lower.endsWith('.sb2');
+    return lower.endsWith('.sb3') || lower.endsWith('.sb2') || lower.endsWith('.sb');
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -470,7 +470,7 @@ export const Sidebar = ({
                   multiple
                   className="hidden"
                   onChange={handleFileUpload}
-                  accept=".js,.ts,.jsx,.tsx,.html,.css,.json,.md,.txt,.py,.go,.rs,.java,.cpp,.c,.h,.xml,.yaml,.yml,.toml,.env,.gitignore,.png,.jpg,.jpeg,.gif,.webp,.ico,.bmp,.svg,.sb3,.sb2"
+                  accept=".js,.ts,.jsx,.tsx,.html,.css,.json,.md,.txt,.py,.go,.rs,.java,.cpp,.c,.h,.xml,.yaml,.yml,.toml,.env,.gitignore,.png,.jpg,.jpeg,.gif,.webp,.ico,.bmp,.svg,.sb3,.sb2,.sb"
                 />
               </div>
             </div>

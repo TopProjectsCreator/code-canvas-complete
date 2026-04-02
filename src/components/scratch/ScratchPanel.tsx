@@ -2302,6 +2302,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   };
 
   const handleImport = async (file: File) => {
+    if (file.name.toLowerCase().endsWith('.sb')) {
+      setVmError('Scratch 1.x .sb binary import is not supported yet. Please convert to .sb2 or .sb3 first.');
+      return;
+    }
     try {
       const data = await file.arrayBuffer();
       const parsed = await importScratchArchive(data);
@@ -2447,7 +2451,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10 flex items-center gap-1.5">
             <Upload className="w-3.5 h-3.5" /> File
           </button>
-          <input ref={importInputRef} className="hidden" type="file" accept=".sb3,.sb2" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
+          <input ref={importInputRef} className="hidden" type="file" accept=".sb3,.sb2,.sb" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
           <button onClick={handleExport} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Save</button>
           <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Debug</button>
         </div>
@@ -2472,9 +2476,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         <div className="flex-1" />
 
         {/* VM status */}
-        <span className={`text-[11px] px-2 py-0.5 rounded-full ${vmReady ? 'bg-white/20 text-white' : 'bg-yellow-400/30 text-yellow-100'}`}>
-          {vmReady ? '● Ready' : '○ Starting'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-[11px] px-2 py-0.5 rounded-full ${vmReady ? 'bg-white/20 text-white' : 'bg-yellow-400/30 text-yellow-100'}`}>
+            {vmReady ? '● Ready' : '○ Starting'}
+          </span>
+          <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/90">
+            VM: scratch-vm ({scratchVersion === 'scratch3' ? 'native' : 'compat mode'})
+          </span>
+        </div>
       </div>
 
       {/* ===== TABS BAR (Code / Costumes / Sounds) ===== */}
