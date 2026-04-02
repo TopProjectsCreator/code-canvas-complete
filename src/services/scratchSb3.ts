@@ -11,6 +11,8 @@ export interface ScratchImportResult {
   project: Record<string, unknown> | null;
 }
 
+export type ScratchArchiveFormat = 'sb3' | 'sb2';
+
 const uint8ToBase64 = (bytes: Uint8Array): string => {
   const nodeBuffer = (globalThis as { Buffer?: { from: (input: Uint8Array | string, encoding?: string) => { toString: (encoding: string) => string } } }).Buffer;
   if (nodeBuffer) {
@@ -63,6 +65,8 @@ export const importSb3 = async (arrayBuffer: ArrayBuffer): Promise<ScratchImport
   };
 };
 
+export const importScratchArchive = importSb3;
+
 export const exportSb3 = async (archive: ScratchArchive): Promise<Uint8Array> => {
   const zip = new JSZip();
   const fileNames = archive.fileNames.length > 0 ? archive.fileNames : Object.keys(archive.files);
@@ -77,4 +81,10 @@ export const exportSb3 = async (archive: ScratchArchive): Promise<Uint8Array> =>
   zip.file('project.json', archive.projectJson);
 
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+};
+
+export const exportScratchArchive = async (archive: ScratchArchive, _format: ScratchArchiveFormat = 'sb3'): Promise<Uint8Array> => {
+  // sb2/sb3 are both zip-based Scratch archives; we currently emit a zip archive with
+  // project.json + assets and let callers pick the download extension.
+  return exportSb3(archive);
 };
