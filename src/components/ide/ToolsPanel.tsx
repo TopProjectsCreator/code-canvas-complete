@@ -40,7 +40,7 @@ GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 type HabitFrequency = 'daily' | 'weekdays' | 'custom';
 type CalculatorMode = 'basic' | 'scientific' | 'graph';
-type ConverterMode = 'media' | 'image' | 'pdf-to-docx' | 'pdf-to-markdown' | 'json-to-csv' | 'csv-to-json' | 'text-to-base64' | 'base64-to-text' | 'url-encode' | 'url-decode';
+type ConverterMode = 'media' | 'media-from-scratch' | 'image' | 'pdf-to-docx' | 'pdf-to-markdown' | 'json-to-csv' | 'csv-to-json' | 'text-to-base64' | 'base64-to-text' | 'url-encode' | 'url-decode';
 type MediaOutputFormat = 'mp4' | 'webm' | 'mov' | 'mkv' | 'avi' | 'mp3' | 'wav' | 'm4a' | 'aac' | 'ogg' | 'flac' | 'gif';
 
 type ConverterResult = {
@@ -57,6 +57,20 @@ type ConverterSource = {
   mimeType: string;
   url?: string;
   sizeText?: string;
+};
+
+type ScratchSceneLayer = {
+  id: string;
+  kind: 'image' | 'element';
+  sourceUrl?: string;
+  elementShape?: 'rectangle' | 'circle';
+  xPercent: number;
+  yPercent: number;
+  widthPercent: number;
+  heightPercent: number;
+  startSeconds: number;
+  endSeconds: number;
+  color?: string;
 };
 
 interface Habit {
@@ -499,6 +513,22 @@ export const ToolsPanel = () => {
   const [convertSourceUrl, setConvertSourceUrl] = useState('');
   const [convertFormat, setConvertFormat] = useState<'png' | 'jpeg' | 'webp'>('png');
   const [mediaOutputFormat, setMediaOutputFormat] = useState<MediaOutputFormat>('mp4');
+  const [scratchOutputFormat, setScratchOutputFormat] = useState<'mp4' | 'mp3'>('mp4');
+  const [scratchDuration, setScratchDuration] = useState(12);
+  const [scratchWidth, setScratchWidth] = useState(1280);
+  const [scratchHeight, setScratchHeight] = useState(720);
+  const [scratchFps, setScratchFps] = useState(30);
+  const [scratchBackground, setScratchBackground] = useState('#111827');
+  const [scratchToneFrequency, setScratchToneFrequency] = useState(440);
+  const [scratchToneVolume, setScratchToneVolume] = useState(0.6);
+  const [imageSearchQuery, setImageSearchQuery] = useState('');
+  const [imageSearchResults, setImageSearchResults] = useState<string[]>([]);
+  const [imageSearchLoading, setImageSearchLoading] = useState(false);
+  const [imageSearchError, setImageSearchError] = useState('');
+  const [sceneLayers, setSceneLayers] = useState<ScratchSceneLayer[]>([]);
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [dragState, setDragState] = useState<{ layerId: string; offsetX: number; offsetY: number } | null>(null);
+  const scenePreviewRef = useRef<HTMLDivElement | null>(null);
   const [convertQuality, setConvertQuality] = useState(0.92);
   const [converterInput, setConverterInput] = useState('');
   const [converterError, setConverterError] = useState('');
@@ -890,6 +920,101 @@ export const ToolsPanel = () => {
     }
   };
 
+  const searchImageReferences = async () => {
+    if (!imageSearchQuery.trim()) return;
+    setImageSearchLoading(true);
+    setImageSearchError('');
+    try {
+      const endpoint = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(imageSearchQuery)}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url&format=json&origin=*`;
+      const response = await fetch(endpoint);
+      if (!response.ok) {
+        throw new Error('Image search failed. Try another query.');
+      }
+      const payload = await response.json() as {
+        query?: { pages?: Record<string, { imageinfo?: Array<{ url?: string }> }> };
+      };
+      const urls = Object.values(payload.query?.pages ?? {})
+        .map((page) => page.imageinfo?.[0]?.url)
+        .filter((url): url is string => Boolean(url))
+        .slice(0, 8);
+      if (urls.length === 0) {
+        throw new Error('No images found for this query yet. Try another phrase.');
+      }
+      setImageSearchResults(urls);
+    } catch (error) {
+      setImageSearchError(error instanceof Error ? error.message : 'Could not search images right now.');
+      setImageSearchResults([]);
+    } finally {
+      setImageSearchLoading(false);
+    }
+  };
+
+  const addImageLayer = (sourceUrl: string) => {
+    const duration = Math.max(1, scratchDuration);
+    const layer: ScratchSceneLayer = {
+      id: crypto.randomUUID(),
+      kind: 'image',
+      sourceUrl,
+      xPercent: 10,
+      yPercent: 10,
+      widthPercent: 30,
+      heightPercent: 30,
+      startSeconds: 0,
+      endSeconds: duration,
+    };
+    setSceneLayers((previous) => [...previous, layer]);
+    setSelectedLayerId(layer.id);
+  };
+
+  const addElementLayer = (shape: 'rectangle' | 'circle') => {
+    const duration = Math.max(1, scratchDuration);
+    const layer: ScratchSceneLayer = {
+      id: crypto.randomUUID(),
+      kind: 'element',
+      elementShape: shape,
+      xPercent: 12,
+      yPercent: 12,
+      widthPercent: 24,
+      heightPercent: 24,
+      startSeconds: 0,
+      endSeconds: duration,
+      color: shape === 'rectangle' ? '#22d3ee' : '#f472b6',
+    };
+    setSceneLayers((previous) => [...previous, layer]);
+    setSelectedLayerId(layer.id);
+  };
+
+  const selectedLayer = sceneLayers.find((layer) => layer.id === selectedLayerId) ?? null;
+
+  const updateLayer = (layerId: string, patch: Partial<ScratchSceneLayer>) => {
+    setSceneLayers((previous) => previous.map((layer) => (
+      layer.id === layerId ? { ...layer, ...patch } : layer
+    )));
+  };
+
+  useEffect(() => {
+    if (!dragState) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!scenePreviewRef.current) return;
+      const rect = scenePreviewRef.current.getBoundingClientRect();
+      const xPercent = ((event.clientX - rect.left - dragState.offsetX) / rect.width) * 100;
+      const yPercent = ((event.clientY - rect.top - dragState.offsetY) / rect.height) * 100;
+      updateLayer(dragState.layerId, {
+        xPercent: Math.max(0, Math.min(95, xPercent)),
+        yPercent: Math.max(0, Math.min(95, yPercent)),
+      });
+    };
+
+    const handleMouseUp = () => setDragState(null);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [dragState]);
+
   const runMediaConversion = async () => {
     if (!selectedSource) {
       throw new Error('Choose a media file or paste a direct media link first.');
@@ -979,6 +1104,122 @@ export const ToolsPanel = () => {
     };
   };
 
+  const runMediaFromScratch = async () => {
+    const ffmpeg = await loadFfmpeg();
+    const safeDuration = Math.min(300, Math.max(1, Number.isFinite(scratchDuration) ? scratchDuration : 12));
+    const safeFrequency = Math.min(4000, Math.max(20, Number.isFinite(scratchToneFrequency) ? scratchToneFrequency : 440));
+    const safeVolume = Math.min(1, Math.max(0, Number.isFinite(scratchToneVolume) ? scratchToneVolume : 0.6));
+    const safeWidth = Math.min(3840, Math.max(160, Math.floor(Number.isFinite(scratchWidth) ? scratchWidth : 1280)));
+    const safeHeight = Math.min(2160, Math.max(90, Math.floor(Number.isFinite(scratchHeight) ? scratchHeight : 720)));
+    const safeFps = Math.min(60, Math.max(12, Math.floor(Number.isFinite(scratchFps) ? scratchFps : 30)));
+    const safeBackgroundColor = `0x${scratchBackground.replace('#', '')}`;
+    const outputName = `scratch-${Date.now()}.${scratchOutputFormat}`;
+
+    setFfmpegStatus(`Synthesizing ${outputName}...`);
+
+    const args = scratchOutputFormat === 'mp3'
+      ? [
+        '-f', 'lavfi',
+        '-i', `sine=frequency=${safeFrequency}:duration=${safeDuration}`,
+        '-af', `volume=${safeVolume}`,
+        '-c:a', 'libmp3lame',
+        outputName,
+      ]
+      : await (async () => {
+        const inputArgs: string[] = [
+          '-f', 'lavfi',
+          '-i', `color=c=${safeBackgroundColor}:s=${safeWidth}x${safeHeight}:r=${safeFps}:d=${safeDuration}`,
+          '-f', 'lavfi',
+          '-i', `sine=frequency=${safeFrequency}:duration=${safeDuration}`,
+        ];
+
+        const imageLayers = sceneLayers.filter((layer) => layer.kind === 'image' && layer.sourceUrl);
+        for (let index = 0; index < imageLayers.length; index += 1) {
+          const layer = imageLayers[index];
+          const response = await fetch(layer.sourceUrl as string);
+          if (!response.ok) continue;
+          const blob = await response.blob();
+          const extension = blob.type.includes('png') ? 'png' : 'jpg';
+          const fileName = `scene-img-${index}.${extension}`;
+          await ffmpeg.writeFile(fileName, await fetchFile(blob));
+          inputArgs.push('-loop', '1', '-i', fileName);
+        }
+
+        const imageLayerExpressions: string[] = [];
+        let currentVideoLabel = '[0:v]';
+        for (let index = 0; index < imageLayers.length; index += 1) {
+          const layer = imageLayers[index];
+          const inputIndex = index + 2;
+          const widthPx = Math.max(8, Math.floor((layer.widthPercent / 100) * safeWidth));
+          const heightPx = Math.max(8, Math.floor((layer.heightPercent / 100) * safeHeight));
+          const xPx = Math.floor((layer.xPercent / 100) * safeWidth);
+          const yPx = Math.floor((layer.yPercent / 100) * safeHeight);
+          const nextVideoLabel = index === imageLayers.length - 1 && sceneLayers.filter((nextLayer) => nextLayer.kind === 'element').length === 0
+            ? '[vout]'
+            : `[vimg${index}]`;
+          imageLayerExpressions.push(`${currentVideoLabel}[${inputIndex}:v]overlay=${xPx}:${yPx}:enable='between(t,${Math.max(0, layer.startSeconds)},${Math.max(layer.startSeconds, layer.endSeconds)})'${nextVideoLabel}`);
+          currentVideoLabel = nextVideoLabel;
+        }
+
+        const elementLayers = sceneLayers.filter((layer) => layer.kind === 'element');
+        const elementExpressions: string[] = [];
+        for (let index = 0; index < elementLayers.length; index += 1) {
+          const layer = elementLayers[index];
+          const widthPx = Math.max(8, Math.floor((layer.widthPercent / 100) * safeWidth));
+          const heightPx = Math.max(8, Math.floor((layer.heightPercent / 100) * safeHeight));
+          const xPx = Math.floor((layer.xPercent / 100) * safeWidth);
+          const yPx = Math.floor((layer.yPercent / 100) * safeHeight);
+          const nextVideoLabel = index === elementLayers.length - 1 ? '[vout]' : `[vel${index}]`;
+          const color = `0x${(layer.color || '#22d3ee').replace('#', '')}`;
+          const boxArgs = layer.elementShape === 'circle'
+            ? `drawbox=x=${xPx}:y=${yPx}:w=${widthPx}:h=${heightPx}:color=${color}@0.95:t=fill,drawbox=x=${xPx + Math.floor(widthPx * 0.15)}:y=${yPx + Math.floor(heightPx * 0.15)}:w=${Math.floor(widthPx * 0.7)}:h=${Math.floor(heightPx * 0.7)}:color=${safeBackgroundColor}@1:t=fill`
+            : `drawbox=x=${xPx}:y=${yPx}:w=${widthPx}:h=${heightPx}:color=${color}@0.95:t=fill`;
+          elementExpressions.push(`${currentVideoLabel}${boxArgs}:enable='between(t,${Math.max(0, layer.startSeconds)},${Math.max(layer.startSeconds, layer.endSeconds)})'${nextVideoLabel}`);
+          currentVideoLabel = nextVideoLabel;
+        }
+
+        const filterChain = [...imageLayerExpressions, ...elementExpressions];
+        const videoArgs = filterChain.length > 0
+          ? ['-filter_complex', filterChain.join(';'), '-map', '[vout]', '-map', '1:a']
+          : ['-map', '0:v', '-map', '1:a'];
+
+        return [
+          ...inputArgs,
+          '-filter:a', `volume=${safeVolume}`,
+          ...videoArgs,
+          '-shortest',
+          '-c:v', 'libx264',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'aac',
+          outputName,
+        ];
+      })();
+
+    const exitCode = await ffmpeg.exec(args, 120_000);
+    if (exitCode !== 0) {
+      throw new Error('Could not synthesize media from scratch. Try shorter duration or lower resolution.');
+    }
+
+    const data = await ffmpeg.readFile(outputName);
+    const bytes = data instanceof Uint8Array ? data : new TextEncoder().encode(String(data));
+    await ffmpeg.deleteFile(outputName).catch(() => undefined);
+    if (scratchOutputFormat === 'mp4') {
+      const imageLayerCount = sceneLayers.filter((layer) => layer.kind === 'image').length;
+      for (let index = 0; index < imageLayerCount; index += 1) {
+        await ffmpeg.deleteFile(`scene-img-${index}.png`).catch(() => undefined);
+        await ffmpeg.deleteFile(`scene-img-${index}.jpg`).catch(() => undefined);
+      }
+    }
+    setFfmpegStatus(`Ready: ${outputName}`);
+
+    return {
+      kind: 'file' as const,
+      content: URL.createObjectURL(new Blob([bytes], { type: scratchOutputFormat === 'mp4' ? 'video/mp4' : 'audio/mpeg' })),
+      fileName: outputName,
+      mimeType: scratchOutputFormat === 'mp4' ? 'video/mp4' : 'audio/mpeg',
+    };
+  };
+
   const runImageConversion = async () => {
     if (!selectedSource) {
       throw new Error('Choose an image file or paste a direct image link first.');
@@ -1046,6 +1287,9 @@ export const ToolsPanel = () => {
         case 'image':
           result = await runImageConversion();
           break;
+        case 'media-from-scratch':
+          result = await runMediaFromScratch();
+          break;
         case 'pdf-to-docx':
           result = await runPdfToDocxConversion();
           break;
@@ -1111,6 +1355,12 @@ export const ToolsPanel = () => {
       description: 'Convert video, audio, and HLS playlists in the browser from files or direct links, with many export targets including .m3u8 → .mp4.',
       acceptsFile: true,
       inputLabel: 'Upload a video, audio file, or .m3u8 playlist — or paste a direct media link',
+    },
+    'media-from-scratch': {
+      title: 'MP4/MP3 creator',
+      description: 'Build media from scratch: generate an MP4 (color video + tone) or MP3 tone directly in-browser.',
+      acceptsFile: false,
+      inputLabel: 'No file needed',
     },
     image: {
       title: 'Image converter',
@@ -1727,6 +1977,145 @@ export const ToolsPanel = () => {
                   </div>
                 )}
 
+                {converterMode === 'media-from-scratch' && (
+                  <div className="mt-3 grid gap-2">
+                    <label className="space-y-1">
+                      <span className="text-muted-foreground">Output</span>
+                      <select value={scratchOutputFormat} onChange={(event) => setScratchOutputFormat(event.target.value as 'mp4' | 'mp3')} className="w-full rounded-xl border border-border bg-input px-3 py-2">
+                        <option value="mp4">MP4 video + audio</option>
+                        <option value="mp3">MP3 audio only</option>
+                      </select>
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-muted-foreground">Duration (seconds)</span>
+                      <input type="number" min={1} max={300} value={scratchDuration} onChange={(event) => setScratchDuration(Number(event.target.value))} className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                    </label>
+                    {scratchOutputFormat === 'mp4' && (
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          <label className="space-y-1">
+                            <span className="text-muted-foreground">Width</span>
+                            <input type="number" min={160} max={3840} step={2} value={scratchWidth} onChange={(event) => setScratchWidth(Number(event.target.value))} className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-muted-foreground">Height</span>
+                            <input type="number" min={90} max={2160} step={2} value={scratchHeight} onChange={(event) => setScratchHeight(Number(event.target.value))} className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                          </label>
+                          <label className="space-y-1">
+                            <span className="text-muted-foreground">FPS</span>
+                            <input type="number" min={12} max={60} value={scratchFps} onChange={(event) => setScratchFps(Number(event.target.value))} className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                          </label>
+                        </div>
+                        <label className="space-y-1">
+                          <span className="text-muted-foreground">Background color</span>
+                          <input type="color" value={scratchBackground} onChange={(event) => setScratchBackground(event.target.value)} className="h-10 w-full rounded-xl border border-border bg-transparent" />
+                        </label>
+                      </>
+                    )}
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="space-y-1">
+                        <span className="text-muted-foreground">Tone frequency (Hz)</span>
+                        <input type="number" min={20} max={4000} value={scratchToneFrequency} onChange={(event) => setScratchToneFrequency(Number(event.target.value))} className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="text-muted-foreground">Tone volume (0-1)</span>
+                        <input type="number" min={0} max={1} step={0.05} value={scratchToneVolume} onChange={(event) => setScratchToneVolume(Number(event.target.value))} className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                      </label>
+                    </div>
+                    {scratchOutputFormat === 'mp4' && (
+                      <>
+                        <div className="rounded-xl border border-border bg-muted/20 p-3">
+                          <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Scene assets</div>
+                          <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+                            <input
+                              value={imageSearchQuery}
+                              onChange={(event) => setImageSearchQuery(event.target.value)}
+                              placeholder="Search images (Google-like via web index)"
+                              className="w-full rounded-xl border border-border bg-input px-3 py-2"
+                            />
+                            <button onClick={() => void searchImageReferences()} className="rounded-xl bg-accent px-3 py-2 hover:bg-accent/80">
+                              {imageSearchLoading ? 'Searching...' : 'Search images'}
+                            </button>
+                          </div>
+                          {imageSearchError && <div className="mt-2 text-destructive">{imageSearchError}</div>}
+                          {imageSearchResults.length > 0 && (
+                            <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
+                              {imageSearchResults.map((url) => (
+                                <button key={url} onClick={() => addImageLayer(url)} className="group overflow-hidden rounded-xl border border-border bg-background">
+                                  <img src={url} alt="Search result" className="h-20 w-full object-cover transition group-hover:scale-105" />
+                                  <div className="px-2 py-1 text-[10px] text-muted-foreground">Add to scene</div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          <div className="mt-2 flex gap-2">
+                            <button onClick={() => addElementLayer('rectangle')} className="rounded-xl bg-accent px-3 py-1.5 hover:bg-accent/80">Add rectangle</button>
+                            <button onClick={() => addElementLayer('circle')} className="rounded-xl bg-accent px-3 py-1.5 hover:bg-accent/80">Add circle</button>
+                          </div>
+                        </div>
+
+                        <div className="rounded-xl border border-border bg-muted/20 p-3">
+                          <div className="mb-2 text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Scene preview (drag layers)</div>
+                          <div ref={scenePreviewRef} className="relative aspect-video w-full overflow-hidden rounded-xl border border-border" style={{ backgroundColor: scratchBackground }}>
+                            {sceneLayers.map((layer) => (
+                              <div
+                                key={layer.id}
+                                onMouseDown={(event) => {
+                                  if (!scenePreviewRef.current) return;
+                                  const rect = scenePreviewRef.current.getBoundingClientRect();
+                                  const layerX = (layer.xPercent / 100) * rect.width;
+                                  const layerY = (layer.yPercent / 100) * rect.height;
+                                  setSelectedLayerId(layer.id);
+                                  setDragState({
+                                    layerId: layer.id,
+                                    offsetX: event.clientX - rect.left - layerX,
+                                    offsetY: event.clientY - rect.top - layerY,
+                                  });
+                                }}
+                                className={`absolute cursor-move overflow-hidden rounded-md border ${selectedLayerId === layer.id ? 'border-primary' : 'border-white/40'}`}
+                                style={{
+                                  left: `${layer.xPercent}%`,
+                                  top: `${layer.yPercent}%`,
+                                  width: `${layer.widthPercent}%`,
+                                  height: `${layer.heightPercent}%`,
+                                }}
+                              >
+                                {layer.kind === 'image' && layer.sourceUrl ? (
+                                  <img src={layer.sourceUrl} alt="Scene layer" className="h-full w-full object-cover" draggable={false} />
+                                ) : (
+                                  <div className="h-full w-full" style={{ backgroundColor: layer.color || '#22d3ee', borderRadius: layer.elementShape === 'circle' ? '999px' : '0.375rem' }} />
+                                )}
+                              </div>
+                            ))}
+                            {sceneLayers.length === 0 && (
+                              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Search/add images or elements, then drag them into place.</div>
+                            )}
+                          </div>
+                          {selectedLayer && (
+                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                              <label className="space-y-1">
+                                <span className="text-muted-foreground">Start time (s)</span>
+                                <input type="number" min={0} max={scratchDuration} step={0.1} value={selectedLayer.startSeconds} onChange={(event) => updateLayer(selectedLayer.id, { startSeconds: Number(event.target.value) })} className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-muted-foreground">End time (s)</span>
+                                <input type="number" min={0} max={scratchDuration} step={0.1} value={selectedLayer.endSeconds} onChange={(event) => updateLayer(selectedLayer.id, { endSeconds: Number(event.target.value) })} className="w-full rounded-xl border border-border bg-input px-3 py-2" />
+                              </label>
+                              <button onClick={() => { setSceneLayers((previous) => previous.filter((layer) => layer.id !== selectedLayer.id)); setSelectedLayerId(null); }} className="rounded-xl bg-destructive/10 px-3 py-2 text-destructive hover:bg-destructive/20">
+                                Remove selected layer
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    <div className="rounded-xl bg-muted/20 p-3 text-[11px] text-muted-foreground">
+                      This generator creates valid starter media from nothing, so you can quickly produce a clean MP4 or MP3 and continue editing/exporting.
+                    </div>
+                    {ffmpegStatus && <div className="rounded-xl bg-muted/30 p-2 text-foreground">{ffmpegStatus}</div>}
+                  </div>
+                )}
+
                 {converterMode === 'image' && (
                   <div className="mt-3 grid gap-2">
                     <label className="space-y-1">
@@ -1750,7 +2139,7 @@ export const ToolsPanel = () => {
                   </div>
                 )}
 
-                {converterMode !== 'image' && converterMode !== 'media' && converterMode !== 'pdf-to-docx' && converterMode !== 'pdf-to-markdown' && (
+                {converterMode !== 'image' && converterMode !== 'media' && converterMode !== 'media-from-scratch' && converterMode !== 'pdf-to-docx' && converterMode !== 'pdf-to-markdown' && (
                   <label className="mt-3 block space-y-2">
                     <span className="text-muted-foreground">Paste content</span>
                     <textarea
