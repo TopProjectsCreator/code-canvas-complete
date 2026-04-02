@@ -93,6 +93,21 @@ interface ScratchPanelProps {
   onStop: () => void;
 }
 
+type ScratchCompatibilityVersion = 'scratch3' | 'scratch2' | 'scratch14';
+
+const SCRATCH_VERSION_OPTIONS: Array<{ value: ScratchCompatibilityVersion; label: string; semver: string }> = [
+  { value: 'scratch3', label: 'Scratch 3', semver: '3.0.0' },
+  { value: 'scratch2', label: 'Scratch 2', semver: '2.0.0' },
+  { value: 'scratch14', label: 'Scratch 1.4', semver: '1.4.0' },
+];
+
+const semverToScratchVersion = (semver: unknown): ScratchCompatibilityVersion => {
+  const semverString = typeof semver === 'string' ? semver : '';
+  if (semverString.startsWith('1.4')) return 'scratch14';
+  if (semverString.startsWith('2')) return 'scratch2';
+  return 'scratch3';
+};
+
 type ScratchBlockDef = {
   label: string;
   opcode: string;
@@ -1034,6 +1049,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [vmError, setVmError] = useState<string | null>(null);
+  const [scratchVersion, setScratchVersion] = useState<ScratchCompatibilityVersion>('scratch3');
   const [dataPrompt, setDataPrompt] = useState<{ type: 'variable' | 'list'; name: string } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState<LibraryMode | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ type: 'variable' | 'list'; id: string; oldName: string } | null>(null);
@@ -1093,6 +1109,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
     return map;
   }, []);
+
+  useEffect(() => {
+    setScratchVersion(semverToScratchVersion(project.meta?.semver));
+  }, [project.meta?.semver]);
 
   const imgMime = (fmt: string | undefined) => {
     const f = fmt || 'png';
@@ -2201,6 +2221,27 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }
   };
 
+  const handleVersionToggle = (nextVersion: ScratchCompatibilityVersion) => {
+    setScratchVersion(nextVersion);
+    const parsed = safeParseProject(archive);
+    const semver = SCRATCH_VERSION_OPTIONS.find((option) => option.value === nextVersion)?.semver || '3.0.0';
+    const updatedProject: ScratchProject = {
+      ...parsed,
+      meta: {
+        ...(parsed.meta || {}),
+        semver,
+      },
+    };
+    const nextJson = formatJson(updatedProject);
+    const nextArchive = ensureArchive({
+      ...ensureArchive(archive),
+      projectJson: nextJson,
+    });
+    onArchiveChange(nextArchive);
+    onProjectJsonUpdate(nextJson);
+    setProjectJsonDraft(nextJson);
+  };
+
   const [showJson, setShowJson] = useState(false);
 
   return (
@@ -2222,6 +2263,23 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           <input ref={importInputRef} className="hidden" type="file" accept=".sb3" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
           <button onClick={handleExport} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Save</button>
           <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Debug</button>
+        </div>
+
+        <div className="flex items-center gap-1 rounded-lg bg-white/10 p-1">
+          {SCRATCH_VERSION_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => handleVersionToggle(option.value)}
+              type="button"
+              className={`px-2 py-1 text-[12px] rounded transition-colors ${
+                scratchVersion === option.value
+                  ? 'bg-white text-[#855cd6] font-semibold'
+                  : 'text-white/85 hover:bg-white/10'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
 
         <div className="flex-1" />
