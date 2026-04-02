@@ -81,8 +81,8 @@ const html = \`
     <button class="cat-btn" data-cat="data">Data</button>
   </div>
 
-  <div class="drop-zone" id="dropZone">
-    <input type="file" id="fileInput" />
+  <div class="drop-zone" id="dropZone" role="button" tabindex="0">
+    <input type="file" id="fileInput" style="display:none" />
     <div class="icon">📂</div>
     <p>Drop a file here or click to browse</p>
   </div>
@@ -212,7 +212,17 @@ const html = \`
     $('#errorMsg').textContent = '';
   }
 
-  $('#fileInput').addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+  const input = $('#fileInput');
+  const openPicker = () => input && input.click();
+
+  input.addEventListener('change', e => { if (e.target.files && e.target.files[0]) setFile(e.target.files[0]); });
+  dz.addEventListener('click', openPicker);
+  dz.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openPicker();
+    }
+  });
   $('#removeFile').addEventListener('click', () => setFile(null));
   $('#outputFormat').addEventListener('change', () => {
     const showQ = ['jpeg','webp','png'].includes($('#outputFormat').value);
