@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { FileNode } from '@/types/ide';
 import {
@@ -60,17 +61,28 @@ function collectSourceFiles(nodes: FileNode[], prefix = ''): FTCFile[] {
   return result;
 }
 
-/** Collect just OpMode file names */
-function collectOpModes(nodes: FileNode[]): string[] {
+/** Collect OpModes with path-aware filtering for TeamCode and optional samples. */
+function collectOpModes(nodes: FileNode[], includeSamples: boolean, prefix = ''): string[] {
   const modes: string[] = [];
   for (const node of nodes) {
+    const path = prefix ? `${prefix}/${node.name}` : node.name;
     if (node.type === 'folder' && node.children) {
-      modes.push(...collectOpModes(node.children));
-    } else if (node.type === 'file' && node.name.endsWith('.java')) {
-      const content = node.content || '';
-      if (content.includes('@TeleOp') || content.includes('@Autonomous')) {
-        modes.push(node.name.replace('.java', ''));
-      }
+      modes.push(...collectOpModes(node.children, includeSamples, path));
+      continue;
+    }
+
+    if (node.type !== 'file' || !node.name.endsWith('.java')) continue;
+
+    const normalizedPath = path.toLowerCase();
+    const isTeamCodeJava = normalizedPath.includes('/teamcode/src/main/java/');
+    if (!isTeamCodeJava) continue;
+
+    const isSampleFile = normalizedPath.includes('/samples/');
+    if (!includeSamples && isSampleFile) continue;
+
+    const content = node.content || '';
+    if (content.includes('@TeleOp') || content.includes('@Autonomous')) {
+      modes.push(node.name.replace('.java', ''));
     }
   }
   return modes;
@@ -92,8 +104,9 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
 
   const [logLines, setLogLines] = useState<string[]>([]);
   const logRef = useRef<HTMLDivElement>(null);
+  const [includeSamples, setIncludeSamples] = useState(false);
 
-  const opModes = collectOpModes(files);
+  const opModes = collectOpModes(files, includeSamples);
   const sourceFileCount = countJavaKotlinFiles(files);
 
   const handleBuild = useCallback(async () => {
@@ -302,11 +315,20 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
           </Card>
 
           <Card className="p-4 bg-slate-900 border-slate-700">
-            <h3 className="text-sm font-medium mb-3 text-foreground">Detected OpModes</h3>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-medium text-foreground">Detected OpModes</h3>
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Checkbox
+                  checked={includeSamples}
+                  onCheckedChange={(checked) => setIncludeSamples(checked === true)}
+                />
+                Include samples
+              </label>
+            </div>
             {opModes.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No OpModes detected. Add <code>@TeleOp</code> or <code>@Autonomous</code>{' '}
-                annotations to your Java files.
+                annotations to Java files in <code>TeamCode/src/main/java</code>.
               </p>
             ) : (
               <div className="space-y-1">
