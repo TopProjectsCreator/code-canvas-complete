@@ -30,6 +30,7 @@ const PROVIDERS: { id: GitProvider; label: string; icon: string; placeholder: st
   { id: 'github', label: 'GitHub', icon: '⬛', placeholder: 'github.com/owner/repo or owner/repo' },
   { id: 'gitlab', label: 'GitLab', icon: '🦊', placeholder: 'gitlab.com/owner/repo' },
   { id: 'bitbucket', label: 'Bitbucket', icon: '🪣', placeholder: 'bitbucket.org/owner/repo' },
+  { id: 'replit', label: 'Replit', icon: '🟧', placeholder: 'replit.com/github/owner/repo or replit.com/@owner/repo' },
 ];
 
 export const GitProviderImportDialog = ({ open, onOpenChange, onImport }: GitProviderImportDialogProps) => {
