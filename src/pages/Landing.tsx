@@ -26,45 +26,45 @@ import { useLandingStats } from "@/hooks/useLandingStats";
 
 const missionBlocks = [
   {
-    title: "Neural Coding Core",
-    description: "Generate, refactor, and debug with a context-aware AI copilot that sees your full workspace.",
+    title: "Canvas-First Coding",
+    description: "Design projects on visual canvases, then jump directly into the files, terminal, and live preview.",
     icon: <Bot className="h-4 w-4" />,
   },
   {
-    title: "Planet-Scale Runtime",
-    description: "Run containers, terminals, and previews instantly in the browser with zero local setup.",
+    title: "Browser IDE + Runtime",
+    description: "Run code, packages, and previews in your browser with no local setup and no context switching.",
     icon: <Cpu className="h-4 w-4" />,
   },
   {
-    title: "Creative Fusion Stack",
-    description: "Code, electronics, 3D, docs, and media in one command center built for modern makers.",
+    title: "Real Collaboration",
+    description: "Share canvases, fork projects, and build together with publish-ready links and remix workflows.",
     icon: <Layers className="h-4 w-4" />,
   },
 ];
 
 const matrixCards = [
   {
-    title: "IDE GRID",
-    subtitle: "Multi-language engineering",
-    points: ["20+ language support", "Live syntax intelligence", "Project-level code search"],
+    title: "EDITOR CORE",
+    subtitle: "Code faster in context",
+    points: ["Multi-file editing", "Syntax-aware workflows", "Project-wide search"],
     icon: <Code2 className="h-5 w-5" />,
   },
   {
-    title: "AGENT HUB",
-    subtitle: "AI-native workflow",
-    points: ["Context-aware assistants", "Refactor pipelines", "Debug session traces"],
+    title: "AI ASSIST",
+    subtitle: "Copilot for every canvas",
+    points: ["Generate + refactor code", "Explain symbols", "Guide debugging steps"],
     icon: <Sparkles className="h-5 w-5" />,
   },
   {
-    title: "RUNTIME OPS",
-    subtitle: "Execution in milliseconds",
-    points: ["Web terminal", "Instant preview", "Edge-ready exports"],
+    title: "BUILD + RUN",
+    subtitle: "Ship from one workspace",
+    points: ["Web terminal", "Instant app preview", "Git-friendly workflow"],
     icon: <Terminal className="h-5 w-5" />,
   },
   {
-    title: "COLLAB NET",
-    subtitle: "Realtime teamwork",
-    points: ["Publishable canvases", "Fork + remix loops", "Shared creative pipelines"],
+    title: "COMMUNITY",
+    subtitle: "Discover and remix",
+    points: ["Public canvas search", "Fork + remix loops", "Share projects in one click"],
     icon: <Globe className="h-5 w-5" />,
   },
 ];
@@ -79,18 +79,18 @@ const signalReadout = [
 const timeline = [
   {
     tag: "01",
-    title: "Initialize workspace",
-    text: "Boot a futuristic workspace with templates for apps, hardware, and content in seconds.",
+    title: "Start from a canvas",
+    text: "Create or open a canvas and map ideas into runnable code, files, and connected tools.",
   },
   {
     tag: "02",
-    title: "Augment with AI",
-    text: "Use autonomous coding flows for generation, review, and optimization inside the editor.",
+    title: "Build with AI",
+    text: "Generate, refactor, and explain code directly in your workspace without losing project context.",
   },
   {
     tag: "03",
-    title: "Ship at velocity",
-    text: "Publish, share, and iterate with cloud-native infrastructure and built-in collaboration.",
+    title: "Publish and collaborate",
+    text: "Share your canvas, gather feedback, and iterate quickly with remix-friendly project links.",
   },
 ];
 
@@ -121,7 +121,7 @@ export default function Landing() {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary shadow-lg shadow-primary/25">
               <CircuitBoard className="h-4.5 w-4.5 text-primary-foreground" />
             </div>
-            <span className="font-mono text-lg font-semibold tracking-tight">CodeCanvas OS</span>
+            <span className="font-mono text-lg font-semibold tracking-tight">CodeCanvas</span>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate("/editor")}>Sign In</Button>
@@ -138,22 +138,22 @@ export default function Landing() {
             <div className="rounded-3xl border border-primary/20 bg-card/40 p-6 shadow-2xl shadow-primary/10 backdrop-blur-xl sm:p-10">
               <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 font-mono text-xs uppercase tracking-[0.2em] text-primary">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-                Future-Ready Development Stack
+                Built for Real Code Canvases
               </div>
 
               <h1 className="max-w-4xl text-4xl font-bold leading-tight tracking-tight sm:text-6xl lg:text-7xl">
-                Rebuilt for the next decade of
-                <span className="bg-gradient-to-r from-primary via-primary/80 to-info bg-clip-text text-transparent"> digital creation</span>
+                The collaborative
+                <span className="bg-gradient-to-r from-primary via-primary/80 to-info bg-clip-text text-transparent"> coding canvas for modern teams</span>
               </h1>
 
               <p className="mt-6 max-w-2xl text-base text-muted-foreground sm:text-lg">
-                CodeCanvas is now a fully futuristic homepage experience—AI-native, cloud-native, and collaboration-first.
-                Build apps, hardware, and media from one immersive interface.
+                CodeCanvas brings visual project canvases, a full in-browser IDE, and AI coding tools together so you can plan,
+                build, run, and share software from one place.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button size="lg" onClick={() => navigate("/editor")} className="h-12 gap-2 px-8 text-base">
-                  Launch Command Center <ChevronRight className="h-4 w-4" />
+                  Open CodeCanvas <ChevronRight className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="outline"
@@ -187,8 +187,8 @@ export default function Landing() {
         <section className="px-6 py-6" id="systems">
           <div className="mx-auto max-w-6xl">
             <div className="mb-8 text-center">
-              <p className="mb-2 font-mono text-xs uppercase tracking-[0.25em] text-primary">System Architecture</p>
-              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">A modular platform built for speed and scale</h2>
+              <p className="mb-2 font-mono text-xs uppercase tracking-[0.25em] text-primary">Platform Features</p>
+              <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">Everything you need to go from idea to shipped code</h2>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -219,8 +219,8 @@ export default function Landing() {
         <section className="px-6 py-14">
           <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1.2fr_1fr]">
             <div className="rounded-2xl border border-primary/20 bg-card/35 p-6 backdrop-blur-sm sm:p-8">
-              <p className="mb-3 font-mono text-xs uppercase tracking-[0.24em] text-primary">Signal Telemetry</p>
-              <h3 className="text-2xl font-semibold tracking-tight">Realtime platform status</h3>
+              <p className="mb-3 font-mono text-xs uppercase tracking-[0.24em] text-primary">Why teams choose CodeCanvas</p>
+              <h3 className="text-2xl font-semibold tracking-tight">Built for everyday development workflows</h3>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {signalReadout.map((item) => (
                   <div key={item.label} className="rounded-xl border border-border/50 bg-background/40 p-4">
@@ -235,7 +235,7 @@ export default function Landing() {
             </div>
 
             <div className="rounded-2xl border border-primary/20 bg-primary/5 p-6 sm:p-8">
-              <p className="mb-3 font-mono text-xs uppercase tracking-[0.24em] text-primary">Mission Sequence</p>
+              <p className="mb-3 font-mono text-xs uppercase tracking-[0.24em] text-primary">How it works</p>
               <div className="space-y-4">
                 {timeline.map((item) => (
                   <div key={item.tag} className="rounded-xl border border-primary/20 bg-background/35 p-4">
@@ -256,9 +256,9 @@ export default function Landing() {
             <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
               <Zap className="h-7 w-7 text-primary" />
             </div>
-            <h2 className="text-3xl font-bold tracking-tight">Step into the futuristic workspace</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Start building on your code canvas</h2>
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              From solo prototyping to collaborative shipping, CodeCanvas gives you one intelligent environment for every stage.
+              From solo prototyping to team shipping, CodeCanvas keeps planning, coding, and collaboration in one connected space.
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               <AnimatedCounter value={stats.totalUsers} label="Total Users" icon={<Users className="h-6 w-6" />} glowColor="hsl(var(--primary))" />
