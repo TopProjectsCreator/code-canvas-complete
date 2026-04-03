@@ -19,7 +19,7 @@ import {
   Play,
 } from 'lucide-react';
 import VirtualMachine from 'scratch-vm';
-import { ScratchArchive, exportSb3, importSb3 } from '@/services/scratchSb3';
+import { ScratchArchive, exportScratchArchive, importScratchArchive } from '@/services/scratchSb3';
 import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
 import { ScratchLibraryDialog, type LibraryMode } from './ScratchLibraryDialog';
 import { type ScratchLibraryAsset, assetUrl } from '@/data/scratchLibrary';
@@ -108,12 +108,35 @@ const semverToScratchVersion = (semver: unknown): ScratchCompatibilityVersion =>
   return 'scratch3';
 };
 
+const versionRank: Record<ScratchCompatibilityVersion, number> = {
+  scratch14: 0,
+  scratch2: 1,
+  scratch3: 2,
+};
+
+const isOpcodeSupportedInVersion = (opcode: string, version: ScratchCompatibilityVersion) => {
+  if (!opcode || opcode === 'compat_foreverif') return false;
+  if (version === 'scratch3') return true;
+
+  if (opcode.startsWith('pen_') || opcode.startsWith('music_')) return false;
+  if (['control_start_as_clone', 'control_create_clone_of', 'control_delete_this_clone'].includes(opcode)) return false;
+
+  if (version === 'scratch14') {
+    if (opcode.startsWith('procedures_')) return false;
+    if (opcode === 'event_whengreaterthan') return false;
+  }
+
+  return true;
+};
+
 type ScratchBlockDef = {
   label: string;
   opcode: string;
   inputs?: Record<string, unknown>;
   fields?: Record<string, unknown>;
   action?: 'create_variable' | 'create_list';
+  minVersion?: ScratchCompatibilityVersion;
+  maxVersion?: ScratchCompatibilityVersion;
 };
 // Fallback 2D canvas renderer when scratch-render (WebGL) doesn't produce output
 const fallbackImageCache = new Map<string, HTMLImageElement>();
@@ -309,10 +332,11 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'if <> then else', opcode: 'control_if_else' },
     { label: 'wait until <>', opcode: 'control_wait_until' },
     { label: 'repeat until <>', opcode: 'control_repeat_until' },
+    { label: 'forever if <>', opcode: 'compat_foreverif', maxVersion: 'scratch14' },
     { label: 'stop {all}', opcode: 'control_stop', fields: { STOP_OPTION: ['all', null] } },
-    { label: 'when I start as a clone', opcode: 'control_start_as_clone' },
-    { label: 'create clone of {myself}', opcode: 'control_create_clone_of', fields: { CLONE_OPTION: ['_myself_', null] } },
-    { label: 'delete this clone', opcode: 'control_delete_this_clone' },
+    { label: 'when I start as a clone', opcode: 'control_start_as_clone', minVersion: 'scratch3' },
+    { label: 'create clone of {myself}', opcode: 'control_create_clone_of', fields: { CLONE_OPTION: ['_myself_', null] }, minVersion: 'scratch3' },
+    { label: 'delete this clone', opcode: 'control_delete_this_clone', minVersion: 'scratch3' },
   ],
   Sensing: [
     { label: 'touching {mouse-pointer} ?', opcode: 'sensing_touchingobject', fields: { TOUCHINGOBJECTMENU: ['_mouse_', null] } },
@@ -371,8 +395,8 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'hide my list', opcode: 'data_hidelist' },
   ],
   'My Blocks': [
-    { label: 'Make a Block', opcode: 'procedures_definition' },
-    { label: 'call custom block', opcode: 'procedures_call' },
+    { label: 'Make a Block', opcode: 'procedures_definition', minVersion: 'scratch2' },
+    { label: 'call custom block', opcode: 'procedures_call', minVersion: 'scratch2' },
   ],
   Pen: [
     { label: 'erase all', opcode: 'pen_clear' },
@@ -564,6 +588,14 @@ const getExtensionId = (opcode: string): string | null => {
   return null;
 };
 
+const isBlockDefAvailable = (blockDef: ScratchBlockDef, version: ScratchCompatibilityVersion) => {
+  const minVersion = blockDef.minVersion || 'scratch14';
+  const maxVersion = blockDef.maxVersion || 'scratch3';
+  if (versionRank[version] < versionRank[minVersion]) return false;
+  if (versionRank[version] > versionRank[maxVersion]) return false;
+  return isOpcodeSupportedInVersion(blockDef.opcode, version) || blockDef.opcode === 'compat_foreverif';
+};
+
 const extensionOf = (name: string) => {
   const idx = name.lastIndexOf('.');
   return idx >= 0 ? name.slice(idx + 1).toLowerCase() : '';
@@ -620,6 +652,30 @@ const createVmCompatibleBlockShape = (
     argumentdefaults: '[]',
     warp: 'false',
   });
+
+  if (op === 'compat_foreverif') {
+    const ifId = generateId();
+    nextInputs.SUBSTACK = [2, ifId];
+    extraBlocks[ifId] = {
+      id: ifId,
+      opcode: 'control_if',
+      parent: blockId,
+      topLevel: false,
+      shadow: false,
+      fields: {},
+      inputs: {
+        CONDITION: [1, [10, 'true']],
+      },
+      next: null,
+    };
+    return {
+      inputs: nextInputs,
+      fields: nextFields,
+      extraBlocks,
+      mutation,
+      opcodeOverride: 'control_forever',
+    };
+  }
 
   if (op === 'procedures_definition') {
     const prototypeId = generateId();
@@ -687,6 +743,7 @@ const createVmCompatibleBlockShape = (
     fields: nextFields,
     extraBlocks,
     mutation,
+    opcodeOverride: op,
   };
 };
 
@@ -750,6 +807,64 @@ const ensureDataRefForTarget = (target: ScratchTarget, blockDef: ScratchBlockDef
   }
 
   return { target: nextTarget, fields: nextFields };
+};
+
+const normalizeBlocksForVersion = (
+  blocks: Record<string, ScratchBlockNode> | undefined,
+  version: ScratchCompatibilityVersion,
+): Record<string, ScratchBlockNode> => {
+  if (!blocks) return {};
+  const nextBlocks: Record<string, ScratchBlockNode> = { ...blocks };
+  const unsupportedIds = new Set(
+    Object.entries(nextBlocks)
+      .filter(([, block]) => !isOpcodeSupportedInVersion(block.opcode, version))
+      .map(([id]) => id),
+  );
+  if (!unsupportedIds.size) return nextBlocks;
+
+  for (const removeId of unsupportedIds) {
+    const removed = nextBlocks[removeId];
+    if (!removed) continue;
+    const parentId = removed.parent || null;
+    const nextId = removed.next || null;
+    if (parentId && nextBlocks[parentId]) {
+      const parent = { ...nextBlocks[parentId] };
+      if (parent.next === removeId) parent.next = nextId && !unsupportedIds.has(nextId) ? nextId : null;
+      if (parent.inputs) {
+        const patchedInputs = { ...parent.inputs };
+        Object.entries(patchedInputs).forEach(([key, value]) => {
+          if (Array.isArray(value) && value[1] === removeId) patchedInputs[key] = [2, null];
+        });
+        parent.inputs = patchedInputs;
+      }
+      nextBlocks[parentId] = parent;
+    }
+    if (nextId && nextBlocks[nextId] && !unsupportedIds.has(nextId)) {
+      nextBlocks[nextId] = { ...nextBlocks[nextId], parent: parentId, topLevel: parentId ? false : true };
+    }
+    delete nextBlocks[removeId];
+  }
+
+  for (const [id, block] of Object.entries(nextBlocks)) {
+    const patched: ScratchBlockNode = { ...block };
+    if (patched.parent && !nextBlocks[patched.parent]) {
+      patched.parent = null;
+      patched.topLevel = true;
+    }
+    if (patched.next && !nextBlocks[patched.next]) patched.next = null;
+    if (patched.inputs) {
+      const cleanedInputs = { ...patched.inputs };
+      Object.entries(cleanedInputs).forEach(([key, value]) => {
+        if (Array.isArray(value) && typeof value[1] === 'string' && !nextBlocks[value[1]]) {
+          delete cleanedInputs[key];
+        }
+      });
+      patched.inputs = cleanedInputs;
+    }
+    nextBlocks[id] = patched;
+  }
+
+  return nextBlocks;
 };
 
 /** Variables category flyout — matches real Scratch editor layout */
@@ -1109,6 +1224,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
     return map;
   }, []);
+  const visibleCategoryBlocks = useMemo(() => {
+    const entries = Object.entries(categoryBlocks).map(([name, defs]) => [
+      name,
+      defs.filter((def) => isBlockDefAvailable(def, scratchVersion)),
+    ]);
+    return Object.fromEntries(entries) as Record<string, ScratchBlockDef[]>;
+  }, [scratchVersion]);
 
   useEffect(() => {
     setScratchVersion(semverToScratchVersion(project.meta?.semver));
@@ -1155,7 +1277,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     try {
       const normalizedArchive = ensureArchive(nextArchive);
       console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames);
-      const data = await exportSb3(normalizedArchive);
+      const data = await exportScratchArchive(normalizedArchive);
       const ab = data.buffer instanceof ArrayBuffer
         ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
         : data.slice().buffer;
@@ -1848,6 +1970,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
   const addBlock = (blockDef: ScratchBlockDef, dropX?: number, dropY?: number) => {
     if (!selectedTarget || selectedTarget.isStage || activeEditorTab !== 'code') return;
+    if (!isBlockDefAvailable(blockDef, scratchVersion)) {
+      setVmError(`"${blockDef.label}" is not available in ${SCRATCH_VERSION_OPTIONS.find((v) => v.value === scratchVersion)?.label || 'this version'}.`);
+      return;
+    }
     const blockId = generateId();
     const blockCount = Object.keys(selectedTarget.blocks || {}).length;
     const finalX = dropX ?? 40;
@@ -1883,7 +2009,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             blocks[snapResult.id] = { ...parent, inputs: parentInputs };
             blocks[blockId] = {
               id: blockId,
-              opcode: blockDef.opcode,
+              opcode: vmCompatible.opcodeOverride,
               next: null,
               parent: snapResult.id,
               topLevel: false,
@@ -1899,7 +2025,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             blocks[snapResult.id] = { ...parent, next: blockId };
             blocks[blockId] = {
               id: blockId,
-              opcode: blockDef.opcode,
+              opcode: vmCompatible.opcodeOverride,
               next: null,
               parent: snapResult.id,
               topLevel: false,
@@ -1941,7 +2067,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             };
             blocks[blockId] = {
               id: blockId,
-              opcode: blockDef.opcode,
+              opcode: vmCompatible.opcodeOverride,
               next: null,
               parent: eventId,
               topLevel: false,
@@ -2178,26 +2304,66 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const handleImport = async (file: File) => {
     try {
       const data = await file.arrayBuffer();
-      const parsed = await importSb3(data);
-      onArchiveChange(parsed.archive);
-      onProjectJsonUpdate(parsed.archive.projectJson);
-      setProjectJsonDraft(parsed.archive.projectJson);
+      const parsed = await importScratchArchive(data);
+      const importedProject = safeParseProject(parsed.archive);
+      const bySemver = semverToScratchVersion(importedProject.meta?.semver);
+      const name = file.name.toLowerCase();
+      const inferredVersion = name.endsWith('.sb2') ? 'scratch2' : bySemver;
+      const normalizedProject: ScratchProject = {
+        ...importedProject,
+        targets: (importedProject.targets || []).map((target) => ({
+          ...target,
+          blocks: normalizeBlocksForVersion(target.blocks, inferredVersion),
+        })),
+        meta: {
+          ...(importedProject.meta || {}),
+          semver: SCRATCH_VERSION_OPTIONS.find((option) => option.value === inferredVersion)?.semver || '3.0.0',
+        },
+      };
+      const normalizedArchive = ensureArchive({
+        ...parsed.archive,
+        projectJson: formatJson(normalizedProject),
+      });
+      onArchiveChange(normalizedArchive);
+      onProjectJsonUpdate(normalizedArchive.projectJson);
+      setProjectJsonDraft(normalizedArchive.projectJson);
+      setScratchVersion(inferredVersion);
       setJsonError(null);
       setVmError(null);
       setSelectedTargetIndex(1);
-      await loadVmFromArchive(parsed.archive);
+      await loadVmFromArchive(normalizedArchive);
     } catch (error) {
-      setVmError(error instanceof Error ? error.message : 'Failed to import .sb3 file');
+      setVmError(error instanceof Error ? error.message : 'Failed to import Scratch archive (.sb/.sb2/.sb3).');
     }
   };
 
   const handleExport = async () => {
-    const data = await exportSb3(ensureArchive(archive));
-    const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer], { type: 'application/x.scratch.sb3' });
+    const exportFormat = scratchVersion === 'scratch3' ? 'sb3' : 'sb2';
+    const semver = exportFormat === 'sb3' ? '3.0.0' : '2.0.0';
+    const currentProject = safeParseProject(archive);
+    const normalizedProject: ScratchProject = {
+      ...currentProject,
+      targets: (currentProject.targets || []).map((target) => ({
+        ...target,
+        blocks: normalizeBlocksForVersion(target.blocks, exportFormat === 'sb3' ? 'scratch3' : 'scratch2'),
+      })),
+      extensions: (currentProject.extensions || []).filter((ext) => exportFormat === 'sb3' || (ext !== 'pen' && ext !== 'music')),
+      meta: {
+        ...(currentProject.meta || {}),
+        semver,
+      },
+    };
+    const exportArchive = ensureArchive({
+      ...ensureArchive(archive),
+      projectJson: formatJson(normalizedProject),
+    });
+    const data = await exportScratchArchive(exportArchive, exportFormat);
+    const mime = exportFormat === 'sb3' ? 'application/x.scratch.sb3' : 'application/x.scratch.sb2';
+    const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'project.sb3';
+    a.download = `project.${exportFormat}`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -2221,25 +2387,46 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }
   };
 
-  const handleVersionToggle = (nextVersion: ScratchCompatibilityVersion) => {
-    setScratchVersion(nextVersion);
-    const parsed = safeParseProject(archive);
+  const handleVersionToggle = async (nextVersion: ScratchCompatibilityVersion) => {
     const semver = SCRATCH_VERSION_OPTIONS.find((option) => option.value === nextVersion)?.semver || '3.0.0';
-    const updatedProject: ScratchProject = {
-      ...parsed,
+    const current = safeParseProject(archive);
+    const currentSemver = typeof current.meta?.semver === 'string' ? current.meta.semver : '';
+    if (currentSemver === semver) return;
+
+    setScratchVersion(nextVersion);
+
+    const nextProject: ScratchProject = {
+      ...current,
+      extensions: (current.extensions || []).filter((ext) => {
+        if (nextVersion === 'scratch3') return true;
+        if (ext === 'pen' || ext === 'music') return false;
+        return true;
+      }),
+      targets: (current.targets || []).map((target) => ({
+        ...target,
+        blocks: normalizeBlocksForVersion(target.blocks, nextVersion),
+      })),
       meta: {
-        ...(parsed.meta || {}),
+        ...(current.meta || {}),
         semver,
       },
     };
-    const nextJson = formatJson(updatedProject);
-    const nextArchive = ensureArchive({
-      ...ensureArchive(archive),
+
+    const nextJson = formatJson(nextProject);
+    const currentArchive = ensureArchive(archive);
+    const nextArchive: ScratchArchive = {
+      ...currentArchive,
+      fileNames: currentArchive.fileNames.includes('project.json')
+        ? currentArchive.fileNames
+        : [...currentArchive.fileNames, 'project.json'],
       projectJson: nextJson,
-    });
+    };
+
     onArchiveChange(nextArchive);
     onProjectJsonUpdate(nextJson);
     setProjectJsonDraft(nextJson);
+    setJsonError(null);
+    await loadVmFromArchive(nextArchive);
   };
 
   const [showJson, setShowJson] = useState(false);
@@ -2260,7 +2447,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10 flex items-center gap-1.5">
             <Upload className="w-3.5 h-3.5" /> File
           </button>
-          <input ref={importInputRef} className="hidden" type="file" accept=".sb3" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
+          <input ref={importInputRef} className="hidden" type="file" accept=".sb3,.sb2,.sb" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
           <button onClick={handleExport} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Save</button>
           <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Debug</button>
         </div>
@@ -2269,7 +2456,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           {SCRATCH_VERSION_OPTIONS.map((option) => (
             <button
               key={option.value}
-              onClick={() => handleVersionToggle(option.value)}
+              onClick={() => void handleVersionToggle(option.value)}
               type="button"
               className={`px-2 py-1 text-[12px] rounded transition-colors ${
                 scratchVersion === option.value
@@ -2285,9 +2472,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         <div className="flex-1" />
 
         {/* VM status */}
-        <span className={`text-[11px] px-2 py-0.5 rounded-full ${vmReady ? 'bg-white/20 text-white' : 'bg-yellow-400/30 text-yellow-100'}`}>
-          {vmReady ? '● Ready' : '○ Starting'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`text-[11px] px-2 py-0.5 rounded-full ${vmReady ? 'bg-white/20 text-white' : 'bg-yellow-400/30 text-yellow-100'}`}>
+            {vmReady ? '● Ready' : '○ Starting'}
+          </span>
+          <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/90">
+            VM: scratch-vm ({scratchVersion === 'scratch3' ? 'native sb3' : 'compat + legacy import'})
+          </span>
+        </div>
       </div>
 
       {/* ===== TABS BAR (Code / Costumes / Sounds) ===== */}
@@ -2351,7 +2543,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 <VariablesFlyout
                   variables={Object.entries(selectedTarget?.variables || {})}
                   lists={Object.entries(selectedTarget?.lists || {})}
-                  blocks={categoryBlocks['Variables'] || []}
+                  blocks={visibleCategoryBlocks.Variables || []}
                   color={categoryColors['Variables'] || '#ff8c1a'}
                   onMakeVariable={() => { setRenameTarget(null); setDataPrompt({ type: 'variable', name: '' }); }}
                   onMakeList={() => { setRenameTarget(null); setDataPrompt({ type: 'list', name: '' }); }}
@@ -2363,7 +2555,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 />
               ) : (
               <div className="space-y-1.5">
-                {(categoryBlocks[activeCategory] || []).map((blockDef) => {
+                {(visibleCategoryBlocks[activeCategory] || []).map((blockDef) => {
                   const color = categoryColors[activeCategory] || '#4c97ff';
                   const shape = getBlockShape(blockDef.opcode);
                   return (

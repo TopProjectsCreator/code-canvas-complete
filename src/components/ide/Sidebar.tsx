@@ -213,15 +213,20 @@ export const Sidebar = ({
     return officeExtensions.includes(ext);
   };
 
+  const isScratchArchiveFile = (filename: string) => {
+    const lower = filename.toLowerCase();
+    return lower.endsWith('.sb3') || lower.endsWith('.sb2') || lower.endsWith('.sb');
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFiles = event.target.files;
     if (!uploadedFiles || uploadedFiles.length === 0) return;
 
-    const scratchFiles = Array.from(uploadedFiles).filter((file) => file.name.toLowerCase().endsWith('.sb3'));
+    const scratchFiles = Array.from(uploadedFiles).filter((file) => isScratchArchiveFile(file.name));
     scratchFiles.forEach((file) => onImportScratchProject?.(file));
 
     const readFiles = Array.from(uploadedFiles)
-      .filter((file) => !file.name.toLowerCase().endsWith('.sb3'))
+      .filter((file) => !isScratchArchiveFile(file.name))
       .map((file) => {
       return new Promise<{ name: string; content: string; language: string }>((resolve) => {
         const reader = new FileReader();
@@ -293,11 +298,11 @@ export const Sidebar = ({
     if (!droppedFiles || droppedFiles.length === 0) return;
 
     Array.from(droppedFiles)
-      .filter((file) => file.name.toLowerCase().endsWith('.sb3'))
+      .filter((file) => isScratchArchiveFile(file.name))
       .forEach((file) => onImportScratchProject?.(file));
 
     const readFiles = Array.from(droppedFiles)
-      .filter((file) => !file.name.toLowerCase().endsWith('.sb3'))
+      .filter((file) => !isScratchArchiveFile(file.name))
       .map((file) => {
       return new Promise<{ name: string; content: string; language: string }>((resolve) => {
         const reader = new FileReader();
@@ -465,7 +470,7 @@ export const Sidebar = ({
                   multiple
                   className="hidden"
                   onChange={handleFileUpload}
-                  accept=".js,.ts,.jsx,.tsx,.html,.css,.json,.md,.txt,.py,.go,.rs,.java,.cpp,.c,.h,.xml,.yaml,.yml,.toml,.env,.gitignore,.png,.jpg,.jpeg,.gif,.webp,.ico,.bmp,.svg"
+                  accept=".js,.ts,.jsx,.tsx,.html,.css,.json,.md,.txt,.py,.go,.rs,.java,.cpp,.c,.h,.xml,.yaml,.yml,.toml,.env,.gitignore,.png,.jpg,.jpeg,.gif,.webp,.ico,.bmp,.svg,.sb3,.sb2,.sb"
                 />
               </div>
             </div>
