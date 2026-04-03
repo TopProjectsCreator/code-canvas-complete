@@ -1218,9 +1218,12 @@ export const ToolsPanel = () => {
     }
     setFfmpegStatus(`Ready: ${outputName}`);
 
+    const blobBuffer = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(blobBuffer).set(bytes);
+
     return {
       kind: 'file' as const,
-      content: URL.createObjectURL(new Blob([bytes.buffer], { type: scratchOutputFormat === 'mp4' ? 'video/mp4' : 'audio/mpeg' })),
+      content: URL.createObjectURL(new Blob([blobBuffer], { type: scratchOutputFormat === 'mp4' ? 'video/mp4' : 'audio/mpeg' })),
       fileName: outputName,
       mimeType: scratchOutputFormat === 'mp4' ? 'video/mp4' : 'audio/mpeg',
     };
