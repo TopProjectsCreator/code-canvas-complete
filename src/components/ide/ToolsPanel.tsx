@@ -1062,7 +1062,7 @@ export const ToolsPanel = () => {
     }
 
     const data = await ffmpeg.readFile(outputName);
-    const bytes = data instanceof Uint8Array ? data : new TextEncoder().encode(String(data));
+    const bytes = data instanceof Uint8Array ? Uint8Array.from(data) : new TextEncoder().encode(String(data));
     const mimeType = mediaOutputFormat === 'mp4'
       ? 'video/mp4'
       : mediaOutputFormat === 'webm'

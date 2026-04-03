@@ -49,18 +49,21 @@ const normalizeFolderName = (path: string) => {
 const collectProjectFolders = (project: Project) => {
   const folderNames = new Set<string>();
 
-  const walk = (nodes: Project['files']) => {
+  const walk = (nodes: Project['files'], currentTopLevelFolder: string | null = null) => {
     nodes.forEach((node) => {
       if (node.type === 'folder') {
-        folderNames.add(node.name);
+        const topLevelFolder = currentTopLevelFolder ?? node.name;
+        folderNames.add(topLevelFolder);
         if (node.children) {
-          walk(node.children);
+          walk(node.children, topLevelFolder);
         }
         return;
       }
 
-      if (node.path) {
-        folderNames.add(normalizeFolderName(node.path));
+      if (currentTopLevelFolder) {
+        folderNames.add(currentTopLevelFolder);
+      } else {
+        folderNames.add(normalizeFolderName(node.name));
       }
     });
   };
