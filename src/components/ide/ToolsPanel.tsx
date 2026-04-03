@@ -1062,7 +1062,13 @@ export const ToolsPanel = () => {
     }
 
     const data = await ffmpeg.readFile(outputName);
-    const bytes = data instanceof Uint8Array ? Uint8Array.from(data) : new TextEncoder().encode(String(data));
+    const bytes = data instanceof Uint8Array
+      ? (() => {
+          const copy = new Uint8Array(data.byteLength);
+          copy.set(data);
+          return copy;
+        })()
+      : new TextEncoder().encode(String(data));
     const mimeType = mediaOutputFormat === 'mp4'
       ? 'video/mp4'
       : mediaOutputFormat === 'webm'
@@ -1214,7 +1220,7 @@ export const ToolsPanel = () => {
 
     return {
       kind: 'file' as const,
-      content: URL.createObjectURL(new Blob([bytes], { type: scratchOutputFormat === 'mp4' ? 'video/mp4' : 'audio/mpeg' })),
+      content: URL.createObjectURL(new Blob([bytes.buffer], { type: scratchOutputFormat === 'mp4' ? 'video/mp4' : 'audio/mpeg' })),
       fileName: outputName,
       mimeType: scratchOutputFormat === 'mp4' ? 'video/mp4' : 'audio/mpeg',
     };
