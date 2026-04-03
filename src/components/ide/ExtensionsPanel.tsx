@@ -69,10 +69,12 @@ function ExtensionCodeEditor({
 function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: string; tall?: boolean; enableFileBridge?: boolean }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const objectUrlsRef = useRef<string[]>([]);
   const [previewReady, setPreviewReady] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [bridgeHasFile, setBridgeHasFile] = useState(false);
 
   const previewDocument = useMemo(() => `<!DOCTYPE html>
 <html>
@@ -93,6 +95,11 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
 
   useEffect(() => {
     setPreviewReady(false);
+    setPendingFile(null);
+    setSelectedFileName(null);
+    setBridgeHasFile(false);
+    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    objectUrlsRef.current = [];
   }, [previewDocument]);
 
   const postFileToPreview = useCallback(async (file: File) => {
@@ -100,6 +107,9 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
     if (!target) return;
 
     const buffer = await file.arrayBuffer();
+    const objectUrl = URL.createObjectURL(file);
+    objectUrlsRef.current.push(objectUrl);
+
     target.postMessage({
       type: 'cc-ext-file',
       payload: {
@@ -107,8 +117,30 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
         type: file.type,
         lastModified: file.lastModified,
         buffer,
+        objectUrl,
       },
     }, '*');
+  }, []);
+
+  useEffect(() => () => {
+    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    objectUrlsRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.source !== ref.current?.contentWindow) return;
+      if (event.data?.type !== 'cc-ext-file-state') return;
+
+      const hasFile = Boolean(event.data?.payload?.hasFile);
+      const name = typeof event.data?.payload?.name === 'string' ? event.data.payload.name : null;
+
+      setBridgeHasFile(hasFile);
+      setSelectedFileName(name);
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   useEffect(() => {
@@ -119,6 +151,7 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
   const handleBridgeFile = useCallback((file: File | null | undefined) => {
     if (!file) return;
     setSelectedFileName(file.name);
+    setBridgeHasFile(true);
 
     if (!previewReady) {
       setPendingFile(file);
@@ -131,26 +164,7 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
   return (
     <div className="space-y-2">
       {enableFileBridge && (
-        <div
-          className={`rounded border border-dashed p-2 ${isDraggingFile ? 'border-primary bg-accent/50' : 'border-border bg-card'}`}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setIsDraggingFile(true);
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setIsDraggingFile(true);
-          }}
-          onDragLeave={(event) => {
-            event.preventDefault();
-            setIsDraggingFile(false);
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            setIsDraggingFile(false);
-            handleBridgeFile(event.dataTransfer.files?.[0]);
-          }}
-        >
+        <div className={`rounded border p-2 ${isDraggingFile ? 'border-primary bg-accent/50' : 'border-border bg-card'}`}>
           <input
             ref={fileInputRef}
             type="file"
@@ -164,7 +178,7 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
             <div className="min-w-0">
               <p className="text-[11px] font-medium text-foreground">Upload for ConvertAnything</p>
               <p className="truncate text-[10px] text-muted-foreground">
-                {selectedFileName ? `Selected: ${selectedFileName}` : 'Drop a file here or use Browse file.'}
+                {selectedFileName ? `Selected: ${selectedFileName}` : 'Use the drop zone below or Browse file.'}
               </p>
             </div>
             <button
@@ -178,15 +192,50 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
         </div>
       )}
 
-      <iframe
-        key={previewDocument}
-        ref={ref}
-        srcDoc={previewDocument}
-        onLoad={() => setPreviewReady(true)}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"
-        className={`w-full rounded border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
-        title="Extension preview"
-      />
+      <div className="relative">
+        <iframe
+          key={previewDocument}
+          ref={ref}
+          srcDoc={previewDocument}
+          onLoad={() => setPreviewReady(true)}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"
+          className={`w-full rounded border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
+          title="Extension preview"
+        />
+
+        {enableFileBridge && !bridgeHasFile && (
+          <div
+            className={`absolute inset-x-3 top-[78px] z-10 h-[112px] rounded-[10px] border-2 border-dashed transition-colors ${isDraggingFile ? 'border-primary bg-accent/40' : 'border-transparent bg-transparent'}`}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setIsDraggingFile(true);
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDraggingFile(true);
+            }}
+            onDragLeave={(event) => {
+              event.preventDefault();
+              setIsDraggingFile(false);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setIsDraggingFile(false);
+              handleBridgeFile(event.dataTransfer.files?.[0]);
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Upload a file for ConvertAnything"
+          />
+        )}
+      </div>
     </div>
   );
 }
