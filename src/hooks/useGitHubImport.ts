@@ -10,6 +10,12 @@ interface GitHubFile {
   sha: string;
 }
 
+interface GitHubFileContentResponse {
+  content?: string;
+  encoding?: string;
+  size?: number;
+}
+
 interface GitHubRepo {
   name: string;
   full_name: string;
@@ -20,6 +26,7 @@ interface GitHubRepo {
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
+const MAX_IMPORT_DEPTH = 12;
 
 const ALLOWED_HIDDEN_NAMES = new Set(['.gitignore', '.tutorial']);
 
@@ -106,12 +113,30 @@ export const useGitHubImport = () => {
     return await response.json();
   };
 
-  const fetchFileContent = async (downloadUrl: string): Promise<string> => {
-    const response = await fetch(downloadUrl);
+  const fetchFileContent = async (
+    owner: string,
+    repo: string,
+    path: string,
+    branch: string
+  ): Promise<string> => {
+    const response = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`
+    );
     if (!response.ok) {
       throw new Error(`Failed to fetch file: ${response.statusText}`);
     }
-    return await response.text();
+
+    const data: GitHubFileContentResponse = await response.json();
+
+    if (data.encoding === 'base64' && typeof data.content === 'string') {
+      return atob(data.content.replace(/\n/g, ''));
+    }
+
+    if (typeof data.content === 'string') {
+      return data.content;
+    }
+
+    throw new Error('Unsupported file content format');
   };
 
   const buildFileTree = async (
@@ -121,8 +146,9 @@ export const useGitHubImport = () => {
     branch: string,
     depth: number = 0
   ): Promise<FileNode[]> => {
-    // Limit depth to prevent infinite recursion and rate limiting
-    if (depth > 5) {
+    // Limit depth to prevent runaway recursion while still supporting deeply nested SDKs
+    // like FTC repositories (e.g. TeamCode/src/main/java/org/firstinspires/ftc/teamcode).
+    if (depth > MAX_IMPORT_DEPTH) {
       return [];
     }
 
@@ -149,11 +175,11 @@ export const useGitHubImport = () => {
           type: 'folder',
           children,
         });
-      } else if (item.type === 'file' && item.download_url) {
+      } else if (item.type === 'file') {
         if (isLikelyTextFile(item.name)) {
           setImportProgress(`Fetching ${item.name}...`);
           try {
-            const content = await fetchFileContent(item.download_url);
+            const content = await fetchFileContent(owner, repo, item.path, branch);
             nodes.push({
               id: generateId(),
               name: item.name,
