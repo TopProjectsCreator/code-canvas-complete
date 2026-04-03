@@ -3,7 +3,7 @@ import { FileNode } from '@/types/ide';
 import { getFileLanguage } from '@/data/defaultFiles';
 import { supabase } from '@/integrations/supabase/client';
 
-export type GitProvider = 'github' | 'gitlab' | 'bitbucket';
+export type GitProvider = 'github' | 'gitlab' | 'bitbucket' | 'replit';
 
 interface RepoInfo {
   name: string;
@@ -205,12 +205,33 @@ const bitbucket = {
   },
 };
 
-const adapters = { github, gitlab, bitbucket };
+const replit = {
+  parseUrl(url: string) {
+    const trimmed = url.trim();
+    const patterns = [
+      /replit\.com\/github\/([^\/\s#?]+)\/([^\/\s#?]+)/i,
+      /replit\.com\/@([^\/\s#?]+)\/([^\/\s#?]+)/i,
+    ];
+
+    for (const p of patterns) {
+      const m = trimmed.match(p);
+      if (m) return { owner: m[1], repo: m[2].replace(/\.git$/, '') };
+    }
+    return null;
+  },
+  fetchRepoInfo: github.fetchRepoInfo,
+  fetchFullTree: github.fetchFullTree,
+  fetchFileContent: github.fetchFileContent,
+  searchRepos: github.searchRepos,
+};
+
+const adapters = { github, gitlab, bitbucket, replit };
 
 export const detectProvider = (url: string): GitProvider | null => {
   if (/github\.com/i.test(url)) return 'github';
   if (/gitlab\.com/i.test(url)) return 'gitlab';
   if (/bitbucket\.org/i.test(url)) return 'bitbucket';
+  if (/replit\.com/i.test(url)) return 'replit';
   return null;
 };
 
@@ -290,9 +311,13 @@ export const useGitProviderImport = () => {
       const adapter = adapters[provider];
       const parsed = adapter.parseUrl(urlOrPath);
       if (!parsed) {
-        throw new Error(provider === 'github'
-          ? 'Invalid URL. Use format: github.com/owner/repo or owner/repo'
-          : `Invalid ${provider} URL.`);
+        throw new Error(
+          provider === 'github'
+            ? 'Invalid URL. Use format: github.com/owner/repo or owner/repo'
+            : provider === 'replit'
+              ? 'Invalid Replit URL. Use format: replit.com/github/owner/repo or replit.com/@owner/repo'
+              : `Invalid ${provider} URL.`,
+        );
       }
 
       const { owner, repo } = parsed;
