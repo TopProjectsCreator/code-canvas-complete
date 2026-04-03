@@ -353,7 +353,15 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         if (imported) {
           setFiles(imported);
           const importOriginals: Record<string, string> = {};
-          collectContents(imported);
+          const collectImportedContents = (nodes: FileNode[]) => {
+            nodes.forEach((node) => {
+              if (node.type === "file" && node.content) {
+                importOriginals[node.id] = node.content;
+              }
+              if (node.children) collectImportedContents(node.children);
+            });
+          };
+          collectImportedContents(imported);
           setOriginalFileContents(importOriginals);
           toast({ title: "Template loaded", description: "Repository cloned successfully!" });
         }
