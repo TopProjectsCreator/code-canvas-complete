@@ -42,7 +42,7 @@ const RAW_GROUPS: { group: string; pages: string[] }[] = [
   { group: "Execution", pages: ["features/persistent-shell", "features/execute-code"] },
   { group: "Collaboration", pages: ["features/collaboration"] },
   { group: "Deployment", pages: ["features/deployment"] },
-  { group: "Developer reference", pages: ["features/dev-reference"] },
+  { group: "Developer reference", pages: ["features/dev-reference", "features/shell-safety-runbook"] },
 ];
 
 function slugify(path: string) {
