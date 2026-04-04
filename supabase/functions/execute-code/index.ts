@@ -58,6 +58,15 @@ const languageToWandbox: Record<string, string> = {
   'sql': 'SQL',
   'sqlite': 'SQL',
   'zig': 'Zig',
+  'crystal': 'Crystal',
+  'elixir': 'Elixir',
+  'erlang': 'Erlang',
+  'julia': 'Julia',
+  'ocaml': 'OCaml',
+  'pony': 'Pony',
+  'scala': 'Scala',
+  'vim': 'Vim script',
+  'lazyk': 'Lazy K',
 };
 
 const preferredCompilers: Record<string, string[]> = {
@@ -70,15 +79,22 @@ const preferredCompilers: Record<string, string[]> = {
   'Rust': ['rust-1.75.0', 'rust-head'],
   'Ruby': ['ruby-3.3.0', 'ruby-3.2.0', 'ruby-head'],
   'Java': ['openjdk-jdk-21+35', 'openjdk-head'],
-  'Swift': ['swift-5.8.1', 'swift-head'],
   'C#': ['mono-6.12.0.200', 'mono-head'],
   'PHP': ['php-8.3.0', 'php-head'],
   'Haskell': ['ghc-9.4.4', 'ghc-head'],
-  'Scala': ['scala-3.2.2', 'scala-head'],
   'Lua': ['lua-5.4.4', 'lua-head'],
   'Perl': ['perl-5.38.0', 'perl-head'],
   'R': ['r-4.3.2', 'r-head'],
   'Zig': ['zig-0.11.0', 'zig-head'],
+  'Crystal': ['crystal-1.11.2', 'crystal-head'],
+  'Elixir': ['elixir-1.18.3', 'elixir-1.17.3'],
+  'Erlang': ['erlang-27.2.4'],
+  'Julia': ['julia-1.11.4', 'julia-1.10.9'],
+  'OCaml': ['ocaml-5.3.0', 'ocaml-head'],
+  'Pony': ['pony-0.59.0'],
+  'Scala': ['scala-3.7.1', 'scala-3.2.2', 'scala-head'],
+  'Vim script': ['vim-9.1.1332'],
+  'Lazy K': ['lazyk-2016.08.21'],
 };
 
 async function getCompilerForLanguage(language: string): Promise<string | null> {
