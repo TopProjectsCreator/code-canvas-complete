@@ -2445,6 +2445,134 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               const target = findFileByName(files, name);
               if (target) handleDeleteFile(target.id);
             }}
+            onCreateFile={(name, type, content) => {
+              const normalizedName = name.trim();
+              if (!normalizedName) return;
+
+              const pathParts = normalizedName.split("/").filter(Boolean);
+              const finalName = pathParts[pathParts.length - 1];
+              if (!finalName) return;
+
+              const ensureFolderByPath = (nodes: FileNode[], segments: string[]): string | null => {
+                if (segments.length === 0) return null;
+                const root = nodes[0];
+                if (!root || root.type !== "folder") return null;
+
+                let currentFolder = root;
+                for (const segment of segments) {
+                  const children = currentFolder.children || [];
+                  let nextFolder = children.find(
+                    (child) => child.type === "folder" && child.name === segment,
+                  );
+                  if (!nextFolder) {
+                    const folderNode: FileNode = {
+                      id: generateId(),
+                      name: segment,
+                      type: "folder",
+                      children: [],
+                    };
+                    setFiles((prev) => {
+                      const clone = structuredClone(prev) as FileNode[];
+                      const rootClone = clone[0];
+                      if (!rootClone || rootClone.type !== "folder") return prev;
+                      const walk = (folder: FileNode): FileNode => {
+                        if (folder.id === currentFolder.id) {
+                          return { ...folder, children: [...(folder.children || []), folderNode] };
+                        }
+                        return {
+                          ...folder,
+                          children: (folder.children || []).map((child) =>
+                            child.type === "folder" ? walk(child) : child,
+                          ),
+                        };
+                      };
+                      return [walk(rootClone)];
+                    });
+                    nextFolder = folderNode;
+                  }
+                  currentFolder = nextFolder;
+                }
+                return currentFolder.id;
+              };
+
+              const parentPath = pathParts.slice(0, -1);
+              const parentId = ensureFolderByPath(files, parentPath);
+              handleCreateFile(parentId, finalName, type);
+
+              if (type === "file" && typeof content === "string" && content.trim()) {
+                const updateFileContentByName = (nodes: FileNode[]): FileNode[] =>
+                  nodes.map((node) => {
+                    if (node.type === "file" && node.name === finalName) {
+                      return { ...node, content };
+                    }
+                    if (node.children) {
+                      return { ...node, children: updateFileContentByName(node.children) };
+                    }
+                    return node;
+                  });
+                setFiles((prev) => updateFileContentByName(prev));
+              }
+            }}
+            onDuplicateFile={(sourceName, targetName) => {
+              const findFileByName = (nodes: FileNode[], target: string): FileNode | null => {
+                for (const node of nodes) {
+                  if (node.type === "file" && node.name === target) return node;
+                  if (node.children) {
+                    const found = findFileByName(node.children, target);
+                    if (found) return found;
+                  }
+                }
+                return null;
+              };
+              const source = findFileByName(files, sourceName);
+              if (!source || source.type !== "file") return;
+              handleCreateFile(null, targetName, "file");
+              setFiles((prev) =>
+                prev.map((node) =>
+                  node.type === "folder"
+                    ? {
+                        ...node,
+                        children: (node.children || []).map((child) =>
+                          child.type === "file" && child.name === targetName
+                            ? { ...child, content: source.content, language: source.language }
+                            : child,
+                        ),
+                      }
+                    : node,
+                ),
+              );
+            }}
+            onOpenFile={(name) => {
+              const findFileByName = (nodes: FileNode[], targetName: string): FileNode | null => {
+                for (const node of nodes) {
+                  if (node.type === "file" && node.name === targetName) return node;
+                  if (node.children) {
+                    const found = findFileByName(node.children, targetName);
+                    if (found) return found;
+                  }
+                }
+                return null;
+              };
+              const target = findFileByName(files, name);
+              if (target) handleFileSelect(target);
+            }}
+            onAppendToFile={(name, appendedContent) => {
+              setFiles((prev) => {
+                const appendToTarget = (nodes: FileNode[]): FileNode[] =>
+                  nodes.map((node) => {
+                    if (node.type === "file" && node.name === name) {
+                      const existing = node.content || "";
+                      const next = existing.endsWith("\n") || existing.length === 0
+                        ? `${existing}${appendedContent}`
+                        : `${existing}\n${appendedContent}`;
+                      return { ...node, content: next };
+                    }
+                    if (node.children) return { ...node, children: appendToTarget(node.children) };
+                    return node;
+                  });
+                return appendToTarget(prev);
+              });
+            }}
             currentTemplate={selectedTemplate || undefined}
           />
         </div>

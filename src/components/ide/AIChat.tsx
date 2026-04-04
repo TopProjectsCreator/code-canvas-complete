@@ -69,6 +69,10 @@ interface AIChatProps {
   onChangeTemplate?: (template: string) => void;
   onRenameFile?: (oldName: string, newName: string) => void;
   onDeleteFile?: (name: string) => void;
+  onCreateFile?: (name: string, type: 'file' | 'folder', content?: string) => void;
+  onDuplicateFile?: (sourceName: string, targetName: string) => void;
+  onOpenFile?: (name: string) => void;
+  onAppendToFile?: (name: string, content: string) => void;
   currentTemplate?: string;
 }
 
@@ -686,6 +690,10 @@ export const AIChat = ({
   onChangeTemplate,
   onRenameFile,
   onDeleteFile,
+  onCreateFile,
+  onDuplicateFile,
+  onOpenFile,
+  onAppendToFile,
   currentTemplate
 }: AIChatProps) => {
   const { user } = useAuth();
@@ -747,6 +755,10 @@ export const AIChat = ({
     onRunProject,
     onRenameFile,
     onDeleteFile,
+    onCreateFile,
+    onDuplicateFile,
+    onOpenFile,
+    onAppendToFile,
     workflows,
     autonomyConfig,
   });
