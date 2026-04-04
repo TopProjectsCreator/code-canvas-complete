@@ -95,6 +95,11 @@ const timeline = [
 ];
 
 const floatingBadges = ["Realtime AI Pairing", "Neon Command Center", "Live Team Presence", "Edge-Speed Builds"];
+const pulseNodes = [
+  { id: "NX-01", status: "Synced" },
+  { id: "NX-08", status: "Rendering" },
+  { id: "NX-15", status: "Deploying" },
+];
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -113,10 +118,22 @@ export default function Landing() {
         />
         <div className="absolute inset-0 opacity-[0.08] motion-safe:animate-scanline" />
         <div className="absolute left-1/2 top-0 h-[580px] w-[900px] -translate-x-1/2 rounded-full bg-primary/10 blur-[170px]" />
+        <div className="absolute left-1/2 top-[12%] h-[420px] w-[760px] -translate-x-1/2 rounded-full bg-info/20 blur-[150px] motion-safe:animate-aurora-shift" />
         <div className="absolute -left-20 top-[30%] h-72 w-72 rounded-full bg-info/20 blur-[130px]" />
         <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-primary/10 blur-[150px]" />
         <div className="absolute right-[8%] top-[22%] h-28 w-28 rounded-full border border-primary/35 motion-safe:animate-orbit-ring" />
         <div className="absolute left-[10%] top-[48%] h-16 w-16 rounded-full border border-info/40 motion-safe:animate-orbit-ring [animation-delay:1.6s]" />
+        {[...Array(16)].map((_, idx) => (
+          <span
+            key={`star-${idx}`}
+            className="absolute h-1 w-1 rounded-full bg-primary/60 motion-safe:animate-pulse"
+            style={{
+              left: `${6 + ((idx * 11) % 88)}%`,
+              top: `${8 + ((idx * 17) % 78)}%`,
+              animationDelay: `${(idx % 8) * 0.35}s`,
+            }}
+          />
+        ))}
       </div>
 
       <nav className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/70 backdrop-blur-xl">
@@ -184,16 +201,55 @@ export default function Landing() {
                 </div>
               </div>
 
-              <div className="mt-10 grid gap-4 md:grid-cols-3">
-                {missionBlocks.map((block) => (
-                  <div key={block.title} className="rounded-2xl border border-border/50 bg-background/40 p-4 transition duration-500 hover:-translate-y-1 hover:border-primary/45 hover:shadow-lg hover:shadow-primary/15">
-                    <div className="mb-2 inline-flex items-center gap-2 text-sm text-primary">
-                      {block.icon}
-                      {block.title}
+              <div className="mt-10 grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+                <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-1">
+                  {missionBlocks.map((block) => (
+                    <div key={block.title} className="rounded-2xl border border-border/50 bg-background/40 p-4 transition duration-500 hover:-translate-y-1 hover:border-primary/45 hover:shadow-lg hover:shadow-primary/15">
+                      <div className="mb-2 inline-flex items-center gap-2 text-sm text-primary">
+                        {block.icon}
+                        {block.title}
+                      </div>
+                      <p className="text-sm leading-relaxed text-muted-foreground">{block.description}</p>
                     </div>
-                    <p className="text-sm leading-relaxed text-muted-foreground">{block.description}</p>
+                  ))}
+                </div>
+
+                <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-background/45 p-4 sm:p-5 motion-safe:animate-tilt-wave">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="font-mono text-xs uppercase tracking-[0.18em] text-primary">Neural Grid</p>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-primary">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary motion-safe:animate-pulse" />
+                      Live
+                    </span>
                   </div>
-                ))}
+
+                  <div className="space-y-2">
+                    {pulseNodes.map((node, idx) => (
+                      <div key={node.id} className="relative overflow-hidden rounded-xl border border-primary/20 bg-card/45 px-3 py-2">
+                        <div className="absolute inset-y-0 left-0 w-14 bg-gradient-to-r from-primary/20 to-transparent motion-safe:animate-shimmer-line" style={{ animationDelay: `${idx * 0.4}s` }} />
+                        <div className="relative flex items-center justify-between text-xs">
+                          <span className="font-mono text-primary/90">{node.id}</span>
+                          <span className="text-muted-foreground">{node.status}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-lg border border-primary/20 bg-primary/10 px-2 py-2">
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Threads</p>
+                      <p className="text-sm font-semibold">64</p>
+                    </div>
+                    <div className="rounded-lg border border-primary/20 bg-primary/10 px-2 py-2">
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Agents</p>
+                      <p className="text-sm font-semibold">12</p>
+                    </div>
+                    <div className="rounded-lg border border-primary/20 bg-primary/10 px-2 py-2">
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Cycles</p>
+                      <p className="text-sm font-semibold">∞</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
