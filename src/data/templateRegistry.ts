@@ -29,6 +29,15 @@ export type LanguageTemplate =
   | "d"
   | "groovy"
   | "pascal"
+  | "crystal"
+  | "elixir"
+  | "erlang"
+  | "julia"
+  | "ocaml"
+  | "pony"
+  | "scala"
+  | "vim"
+  | "lazyk"
   | "react"
   | "nodejs"
   | "sqlite"
@@ -122,6 +131,60 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "Pascal",
     description: "Structured programming with Pascal",
     aiDescription: "Pascal structured programming",
+  },
+  {
+    id: "crystal",
+    name: "Crystal",
+    description: "Fast Ruby-like language with static typing",
+    aiDescription: "Crystal compiled programming",
+  },
+  {
+    id: "elixir",
+    name: "Elixir",
+    description: "Functional programming on the Erlang VM",
+    aiDescription: "Elixir concurrent functional programming",
+  },
+  {
+    id: "erlang",
+    name: "Erlang",
+    description: "Fault-tolerant distributed systems",
+    aiDescription: "Erlang OTP style development",
+  },
+  {
+    id: "julia",
+    name: "Julia",
+    description: "High-performance numerical computing",
+    aiDescription: "Julia scientific computing",
+  },
+  {
+    id: "ocaml",
+    name: "OCaml",
+    description: "Functional and imperative programming",
+    aiDescription: "OCaml functional programming",
+  },
+  {
+    id: "pony",
+    name: "Pony",
+    description: "Actor-model language for safe concurrency",
+    aiDescription: "Pony actor concurrency",
+  },
+  {
+    id: "scala",
+    name: "Scala",
+    description: "JVM functional/object-oriented development",
+    aiDescription: "Scala JVM development",
+  },
+  {
+    id: "vim",
+    name: "Vim Script",
+    description: "Editor automation with Vim script",
+    aiDescription: "Vim script automation",
+  },
+  {
+    id: "lazyk",
+    name: "Lazy K",
+    description: "Esoteric combinator calculus language",
+    aiDescription: "Lazy K esoteric language",
   },
   {
     id: "react",

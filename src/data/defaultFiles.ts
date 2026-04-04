@@ -28,6 +28,15 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   d: "D",
   groovy: "Groovy",
   pascal: "Pascal",
+  crystal: "Crystal",
+  elixir: "Elixir",
+  erlang: "Erlang",
+  julia: "Julia",
+  ocaml: "OCaml",
+  pony: "Pony",
+  scala: "Scala",
+  vim: "Vim Script",
+  lazyk: "Lazy K",
   react: "React",
   nodejs: "Node.js",
   sqlite: "SQLite",
@@ -138,6 +147,33 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case "pascal":
       baseTemplate = pascalTemplate;
+      break;
+    case "crystal":
+      baseTemplate = crystalTemplate;
+      break;
+    case "elixir":
+      baseTemplate = elixirTemplate;
+      break;
+    case "erlang":
+      baseTemplate = erlangTemplate;
+      break;
+    case "julia":
+      baseTemplate = juliaTemplate;
+      break;
+    case "ocaml":
+      baseTemplate = ocamlTemplate;
+      break;
+    case "pony":
+      baseTemplate = ponyTemplate;
+      break;
+    case "scala":
+      baseTemplate = scalaTemplate;
+      break;
+    case "vim":
+      baseTemplate = vimTemplate;
+      break;
+    case "lazyk":
+      baseTemplate = lazyKTemplate;
       break;
     case "arduino":
       return withTutorialFolder(template, getArduinoTemplateFiles("uno"));
@@ -1076,6 +1112,17 @@ export const getFileLanguage = (filename: string): string => {
     pl: "perl",
     r: "r",
     hs: "haskell",
+    cr: "crystal",
+    ex: "elixir",
+    exs: "elixir",
+    erl: "erlang",
+    jl: "julia",
+    ml: "ocaml",
+    mli: "ocaml",
+    pony: "pony",
+    scala: "scala",
+    sc: "scala",
+    vim: "vim",
   };
   return languageMap[ext || ""] || "text";
 };
@@ -1764,6 +1811,125 @@ begin
   WriteLn('Factorial of 5: ', Factorial(5));
 end.`,
       },
+    ],
+  },
+];
+
+const crystalTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
+    children: [
+      { id: "main-cr", name: "main.cr", type: "file", language: "crystal", content: `numbers = [1, 2, 3, 4, 5]
+puts "Crystal total: #{numbers.sum}"` },
+    ],
+  },
+];
+
+const elixirTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
+    children: [
+      { id: "main-exs", name: "main.exs", type: "file", language: "elixir", content: `tasks = ["Review", "Ship", "Celebrate"]
+Enum.with_index(tasks, 1)
+|> Enum.each(fn {task, i} -> IO.puts("#{i}. #{task}") end)` },
+    ],
+  },
+];
+
+const erlangTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
+    children: [
+      { id: "main-erl", name: "main.erl", type: "file", language: "erlang", content: `-module(main).
+-export([main/0]).
+
+main() ->
+    io:format("Hello from Erlang!~n").` },
+    ],
+  },
+];
+
+const juliaTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
+    children: [
+      { id: "main-jl", name: "main.jl", type: "file", language: "julia", content: `nums = [1, 2, 3, 4, 5]
+println("Julia mean: ", sum(nums) / length(nums))` },
+    ],
+  },
+];
+
+const ocamlTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
+    children: [
+      { id: "main-ml", name: "main.ml", type: "file", language: "ocaml", content: `let tasks = ["review"; "ship"; "celebrate"]
+let () = List.iter print_endline tasks` },
+    ],
+  },
+];
+
+const ponyTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
+    children: [
+      { id: "main-pony", name: "main.pony", type: "file", language: "pony", content: `actor Main
+  new create(env: Env) =>
+    env.out.print("Hello from Pony")` },
+    ],
+  },
+];
+
+const scalaTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
+    children: [
+      { id: "main-scala", name: "main.scala", type: "file", language: "scala", content: `object Main extends App {
+  val tasks = List("Review", "Ship", "Celebrate")
+  println(tasks.mkString(", "))
+}` },
+    ],
+  },
+];
+
+const vimTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
+    children: [
+      { id: "main-vim", name: "main.vim", type: "file", language: "vim", content: `let g:tasks = ['Review', 'Ship', 'Celebrate']
+for task in g:tasks
+  echom task
+endfor` },
+    ],
+  },
+];
+
+const lazyKTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-canvas",
+    type: "folder",
+    children: [
+      { id: "main-lazyk", name: "main.lazy", type: "file", language: "lazyk", content: "``skk" },
+      { id: "readme-lazyk", name: "README.md", type: "file", language: "markdown", content: `# Lazy K
+
+This minimal sample is intended for Wandbox experiments.` },
     ],
   },
 ];
