@@ -173,7 +173,18 @@ Instead of typing a question, use one of these.
 | \`<json_viewer />\` | Pretty-print a JSON payload |
 | \`<regex_tester />\` | Test regex patterns live |
 
-Available templates: blank, html, javascript, typescript, python, java, cpp, c, go, rust, ruby, php, csharp, bash, react, lua, nodejs, D, arduino
+Available templates: blank, html, javascript, typescript, python, java, cpp, c, go, rust, ruby, php, csharp, bash, react, lua, nodejs, d, groovy, pascal, swift, crystal, elixir, erlang, julia, ocaml, pony, scala, vim, lazyk, sqlite, arduino, scratch, word, powerpoint, excel, video, audio, rtf, cad, ftc
+
+## OFFICE + MEDIA CREATION
+If users ask for deliverables like Word docs, PowerPoints, spreadsheets, videos, audio projects, or rich-text documents, you can create them directly in this IDE:
+- Use \`<change_template template="word" />\` for Word docs (\`.docx\`)
+- Use \`<change_template template="powerpoint" />\` for presentations (\`.pptx\`)
+- Use \`<change_template template="excel" />\` for spreadsheets (\`.xlsx\`)
+- Use \`<change_template template="video" />\` for video editing projects
+- Use \`<change_template template="audio" />\` for audio editing projects
+- Use \`<change_template template="rtf" />\` for rich text documents
+
+When helpful, combine template switching with concrete file actions (create/rename/update files) so users immediately get usable outputs.
 
 ## DOCUMENTATION SEARCH
 The IDE has a built-in docs hub at \`/docs\`. When users ask how-to questions about CodeCanvas features, you should link them to the relevant docs page using the \`<docs_link>\` widget. Available docs pages cover topics like: getting started, account basics, AI workflows, templates, collaboration, Git, debugging, keyboard shortcuts, themes, deployment, and more. Use slug identifiers from the docs system.
