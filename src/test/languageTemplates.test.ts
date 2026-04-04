@@ -9,7 +9,7 @@ const getRootChildren = (templateId: Parameters<typeof getTemplateFiles>[0]) => 
 
 describe('wandbox language templates', () => {
   it('keeps swift and removes cobol from template metadata', () => {
-    const ids = new Set(TEMPLATES.map((t) => t.id));
+    const ids = new Set<string>(TEMPLATES.map((t) => t.id));
     expect(ids.has('swift')).toBe(true);
     expect(ids.has('cobol')).toBe(false);
   });
