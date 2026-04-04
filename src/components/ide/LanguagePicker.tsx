@@ -19,6 +19,7 @@ import {
   FileVideo,
   FileAudio,
   FileText,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -85,6 +86,7 @@ const templateVisuals: Record<LanguageTemplate, { icon: React.ReactNode; color: 
   lazyk: { icon: <Braces className="w-8 h-8" />, color: "from-pink-500 to-purple-700" },
   react: { icon: <Globe className="w-8 h-8" />, color: "from-cyan-400 to-blue-500" },
   nodejs: { icon: <TerminalIcon className="w-8 h-8" />, color: "from-green-500 to-green-700" },
+  secureops: { icon: <ShieldAlert className="w-8 h-8" />, color: "from-rose-500 to-orange-600" },
   sqlite: { icon: <Braces className="w-8 h-8" />, color: "from-blue-400 to-cyan-500" },
   arduino: { icon: <Cpu className="w-8 h-8" />, color: "from-cyan-500 to-blue-600" },
   scratch: { icon: <Bot className="w-8 h-8" />, color: "from-orange-400 to-blue-500" },
