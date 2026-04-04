@@ -1,0 +1,1944 @@
+---
+title: "Terminal safety runbook"
+description: "A high-signal, command-by-command operating playbook for safe terminal work in production and development environments."
+---
+
+# Terminal Safety Runbook
+
+Use this runbook to reduce avoidable outages, data loss, and expensive mistakes when working in a shell.
+It is intentionally procedural: each command profile has a purpose, common failure modes, preflight checks, and rollback ideas.
+
+## Universal preflight checklist
+- Confirm your host and account first (`hostname`, `whoami`, and active cloud profile).
+- Print current path and list nearby files before destructive commands (`pwd`, `ls -la`).
+- Prefer dry-run or read-only modes before write modes.
+- Capture a timestamped command log during maintenance windows.
+- Create restorable backups before changing stateful systems.
+- Use explicit paths and avoid broad wildcards for mutation commands.
+- Add command timeouts for network calls and long-running jobs.
+- Verify exit codes and run post-change validation checks.
+
+## Command profiles
+Each profile is intentionally short so operators can scan quickly during incidents.
+
+### 001. `cd`
+- **Risk level:** Moderate.
+- **Why it matters:** `cd` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `cd --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `cd`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `cd` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `cd` can be reversed quickly without improvisation.
+
+### 002. `ls`
+- **Risk level:** High.
+- **Why it matters:** `ls` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ls --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ls`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ls` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ls` can be reversed quickly without improvisation.
+
+### 003. `pwd`
+- **Risk level:** Critical.
+- **Why it matters:** `pwd` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `pwd --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `pwd`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `pwd` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `pwd` can be reversed quickly without improvisation.
+
+### 004. `mkdir`
+- **Risk level:** Low.
+- **Why it matters:** `mkdir` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `mkdir --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `mkdir`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `mkdir` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `mkdir` can be reversed quickly without improvisation.
+
+### 005. `touch`
+- **Risk level:** Moderate.
+- **Why it matters:** `touch` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `touch --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `touch`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `touch` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `touch` can be reversed quickly without improvisation.
+
+### 006. `cp`
+- **Risk level:** High.
+- **Why it matters:** `cp` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `cp --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `cp`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `cp` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `cp` can be reversed quickly without improvisation.
+
+### 007. `mv`
+- **Risk level:** Critical.
+- **Why it matters:** `mv` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `mv --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `mv`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `mv` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `mv` can be reversed quickly without improvisation.
+
+### 008. `rm`
+- **Risk level:** Low.
+- **Why it matters:** `rm` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `rm --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `rm`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `rm` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `rm` can be reversed quickly without improvisation.
+
+### 009. `rmdir`
+- **Risk level:** Moderate.
+- **Why it matters:** `rmdir` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `rmdir --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `rmdir`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `rmdir` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `rmdir` can be reversed quickly without improvisation.
+
+### 010. `find`
+- **Risk level:** High.
+- **Why it matters:** `find` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `find --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `find`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `find` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `find` can be reversed quickly without improvisation.
+
+### 011. `grep`
+- **Risk level:** Critical.
+- **Why it matters:** `grep` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `grep --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `grep`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `grep` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `grep` can be reversed quickly without improvisation.
+
+### 012. `sed`
+- **Risk level:** Low.
+- **Why it matters:** `sed` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `sed --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `sed`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `sed` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `sed` can be reversed quickly without improvisation.
+
+### 013. `awk`
+- **Risk level:** Moderate.
+- **Why it matters:** `awk` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `awk --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `awk`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `awk` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `awk` can be reversed quickly without improvisation.
+
+### 014. `sort`
+- **Risk level:** High.
+- **Why it matters:** `sort` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `sort --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `sort`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `sort` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `sort` can be reversed quickly without improvisation.
+
+### 015. `uniq`
+- **Risk level:** Critical.
+- **Why it matters:** `uniq` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `uniq --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `uniq`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `uniq` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `uniq` can be reversed quickly without improvisation.
+
+### 016. `wc`
+- **Risk level:** Low.
+- **Why it matters:** `wc` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `wc --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `wc`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `wc` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `wc` can be reversed quickly without improvisation.
+
+### 017. `cut`
+- **Risk level:** Moderate.
+- **Why it matters:** `cut` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `cut --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `cut`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `cut` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `cut` can be reversed quickly without improvisation.
+
+### 018. `xargs`
+- **Risk level:** High.
+- **Why it matters:** `xargs` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `xargs --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `xargs`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `xargs` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `xargs` can be reversed quickly without improvisation.
+
+### 019. `cat`
+- **Risk level:** Critical.
+- **Why it matters:** `cat` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `cat --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `cat`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `cat` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `cat` can be reversed quickly without improvisation.
+
+### 020. `head`
+- **Risk level:** Low.
+- **Why it matters:** `head` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `head --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `head`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `head` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `head` can be reversed quickly without improvisation.
+
+### 021. `tail`
+- **Risk level:** Moderate.
+- **Why it matters:** `tail` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `tail --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `tail`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `tail` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `tail` can be reversed quickly without improvisation.
+
+### 022. `less`
+- **Risk level:** High.
+- **Why it matters:** `less` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `less --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `less`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `less` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `less` can be reversed quickly without improvisation.
+
+### 023. `chmod`
+- **Risk level:** Critical.
+- **Why it matters:** `chmod` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `chmod --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `chmod`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `chmod` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `chmod` can be reversed quickly without improvisation.
+
+### 024. `chown`
+- **Risk level:** Low.
+- **Why it matters:** `chown` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `chown --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `chown`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `chown` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `chown` can be reversed quickly without improvisation.
+
+### 025. `ln`
+- **Risk level:** Moderate.
+- **Why it matters:** `ln` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ln --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ln`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ln` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ln` can be reversed quickly without improvisation.
+
+### 026. `realpath`
+- **Risk level:** High.
+- **Why it matters:** `realpath` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `realpath --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `realpath`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `realpath` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `realpath` can be reversed quickly without improvisation.
+
+### 027. `readlink`
+- **Risk level:** Critical.
+- **Why it matters:** `readlink` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `readlink --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `readlink`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `readlink` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `readlink` can be reversed quickly without improvisation.
+
+### 028. `stat`
+- **Risk level:** Low.
+- **Why it matters:** `stat` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `stat --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `stat`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `stat` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `stat` can be reversed quickly without improvisation.
+
+### 029. `file`
+- **Risk level:** Moderate.
+- **Why it matters:** `file` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `file --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `file`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `file` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `file` can be reversed quickly without improvisation.
+
+### 030. `du`
+- **Risk level:** High.
+- **Why it matters:** `du` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `du --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `du`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `du` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `du` can be reversed quickly without improvisation.
+
+### 031. `df`
+- **Risk level:** Critical.
+- **Why it matters:** `df` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `df --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `df`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `df` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `df` can be reversed quickly without improvisation.
+
+### 032. `free`
+- **Risk level:** Low.
+- **Why it matters:** `free` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `free --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `free`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `free` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `free` can be reversed quickly without improvisation.
+
+### 033. `uname`
+- **Risk level:** Moderate.
+- **Why it matters:** `uname` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `uname --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `uname`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `uname` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `uname` can be reversed quickly without improvisation.
+
+### 034. `hostname`
+- **Risk level:** High.
+- **Why it matters:** `hostname` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `hostname --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `hostname`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `hostname` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `hostname` can be reversed quickly without improvisation.
+
+### 035. `ps`
+- **Risk level:** Critical.
+- **Why it matters:** `ps` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ps --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ps`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ps` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ps` can be reversed quickly without improvisation.
+
+### 036. `top`
+- **Risk level:** Low.
+- **Why it matters:** `top` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `top --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `top`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `top` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `top` can be reversed quickly without improvisation.
+
+### 037. `kill`
+- **Risk level:** Moderate.
+- **Why it matters:** `kill` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `kill --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `kill`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `kill` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `kill` can be reversed quickly without improvisation.
+
+### 038. `pkill`
+- **Risk level:** High.
+- **Why it matters:** `pkill` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `pkill --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `pkill`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `pkill` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `pkill` can be reversed quickly without improvisation.
+
+### 039. `pgrep`
+- **Risk level:** Critical.
+- **Why it matters:** `pgrep` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `pgrep --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `pgrep`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `pgrep` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `pgrep` can be reversed quickly without improvisation.
+
+### 040. `nohup`
+- **Risk level:** Low.
+- **Why it matters:** `nohup` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `nohup --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `nohup`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `nohup` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `nohup` can be reversed quickly without improvisation.
+
+### 041. `watch`
+- **Risk level:** Moderate.
+- **Why it matters:** `watch` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `watch --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `watch`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `watch` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `watch` can be reversed quickly without improvisation.
+
+### 042. `time`
+- **Risk level:** High.
+- **Why it matters:** `time` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `time --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `time`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `time` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `time` can be reversed quickly without improvisation.
+
+### 043. `sleep`
+- **Risk level:** Critical.
+- **Why it matters:** `sleep` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `sleep --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `sleep`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `sleep` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `sleep` can be reversed quickly without improvisation.
+
+### 044. `history`
+- **Risk level:** Low.
+- **Why it matters:** `history` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `history --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `history`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `history` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `history` can be reversed quickly without improvisation.
+
+### 045. `alias`
+- **Risk level:** Moderate.
+- **Why it matters:** `alias` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `alias --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `alias`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `alias` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `alias` can be reversed quickly without improvisation.
+
+### 046. `export`
+- **Risk level:** High.
+- **Why it matters:** `export` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `export --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `export`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `export` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `export` can be reversed quickly without improvisation.
+
+### 047. `printenv`
+- **Risk level:** Critical.
+- **Why it matters:** `printenv` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `printenv --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `printenv`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `printenv` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `printenv` can be reversed quickly without improvisation.
+
+### 048. `env`
+- **Risk level:** Low.
+- **Why it matters:** `env` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `env --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `env`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `env` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `env` can be reversed quickly without improvisation.
+
+### 049. `which`
+- **Risk level:** Moderate.
+- **Why it matters:** `which` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `which --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `which`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `which` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `which` can be reversed quickly without improvisation.
+
+### 050. `whereis`
+- **Risk level:** High.
+- **Why it matters:** `whereis` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `whereis --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `whereis`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `whereis` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `whereis` can be reversed quickly without improvisation.
+
+### 051. `man`
+- **Risk level:** Critical.
+- **Why it matters:** `man` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `man --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `man`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `man` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `man` can be reversed quickly without improvisation.
+
+### 052. `tar`
+- **Risk level:** Low.
+- **Why it matters:** `tar` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `tar --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `tar`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `tar` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `tar` can be reversed quickly without improvisation.
+
+### 053. `zip`
+- **Risk level:** Moderate.
+- **Why it matters:** `zip` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `zip --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `zip`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `zip` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `zip` can be reversed quickly without improvisation.
+
+### 054. `unzip`
+- **Risk level:** High.
+- **Why it matters:** `unzip` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `unzip --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `unzip`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `unzip` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `unzip` can be reversed quickly without improvisation.
+
+### 055. `gzip`
+- **Risk level:** Critical.
+- **Why it matters:** `gzip` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `gzip --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `gzip`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `gzip` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `gzip` can be reversed quickly without improvisation.
+
+### 056. `gunzip`
+- **Risk level:** Low.
+- **Why it matters:** `gunzip` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `gunzip --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `gunzip`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `gunzip` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `gunzip` can be reversed quickly without improvisation.
+
+### 057. `bzip2`
+- **Risk level:** Moderate.
+- **Why it matters:** `bzip2` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `bzip2 --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `bzip2`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `bzip2` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `bzip2` can be reversed quickly without improvisation.
+
+### 058. `xz`
+- **Risk level:** High.
+- **Why it matters:** `xz` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `xz --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `xz`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `xz` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `xz` can be reversed quickly without improvisation.
+
+### 059. `curl`
+- **Risk level:** Critical.
+- **Why it matters:** `curl` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `curl --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `curl`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `curl` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `curl` can be reversed quickly without improvisation.
+
+### 060. `wget`
+- **Risk level:** Low.
+- **Why it matters:** `wget` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `wget --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `wget`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `wget` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `wget` can be reversed quickly without improvisation.
+
+### 061. `ssh`
+- **Risk level:** Moderate.
+- **Why it matters:** `ssh` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ssh --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ssh`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ssh` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ssh` can be reversed quickly without improvisation.
+
+### 062. `scp`
+- **Risk level:** High.
+- **Why it matters:** `scp` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `scp --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `scp`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `scp` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `scp` can be reversed quickly without improvisation.
+
+### 063. `rsync`
+- **Risk level:** Critical.
+- **Why it matters:** `rsync` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `rsync --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `rsync`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `rsync` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `rsync` can be reversed quickly without improvisation.
+
+### 064. `sftp`
+- **Risk level:** Low.
+- **Why it matters:** `sftp` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `sftp --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `sftp`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `sftp` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `sftp` can be reversed quickly without improvisation.
+
+### 065. `ping`
+- **Risk level:** Moderate.
+- **Why it matters:** `ping` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ping --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ping`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ping` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ping` can be reversed quickly without improvisation.
+
+### 066. `traceroute`
+- **Risk level:** High.
+- **Why it matters:** `traceroute` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `traceroute --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `traceroute`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `traceroute` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `traceroute` can be reversed quickly without improvisation.
+
+### 067. `dig`
+- **Risk level:** Critical.
+- **Why it matters:** `dig` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `dig --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `dig`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `dig` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `dig` can be reversed quickly without improvisation.
+
+### 068. `nslookup`
+- **Risk level:** Low.
+- **Why it matters:** `nslookup` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `nslookup --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `nslookup`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `nslookup` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `nslookup` can be reversed quickly without improvisation.
+
+### 069. `ss`
+- **Risk level:** Moderate.
+- **Why it matters:** `ss` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ss --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ss`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ss` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ss` can be reversed quickly without improvisation.
+
+### 070. `netstat`
+- **Risk level:** High.
+- **Why it matters:** `netstat` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `netstat --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `netstat`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `netstat` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `netstat` can be reversed quickly without improvisation.
+
+### 071. `lsof`
+- **Risk level:** Critical.
+- **Why it matters:** `lsof` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `lsof --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `lsof`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `lsof` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `lsof` can be reversed quickly without improvisation.
+
+### 072. `nc`
+- **Risk level:** Low.
+- **Why it matters:** `nc` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `nc --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `nc`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `nc` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `nc` can be reversed quickly without improvisation.
+
+### 073. `telnet`
+- **Risk level:** Moderate.
+- **Why it matters:** `telnet` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `telnet --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `telnet`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `telnet` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `telnet` can be reversed quickly without improvisation.
+
+### 074. `openssl`
+- **Risk level:** High.
+- **Why it matters:** `openssl` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `openssl --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `openssl`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `openssl` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `openssl` can be reversed quickly without improvisation.
+
+### 075. `base64`
+- **Risk level:** Critical.
+- **Why it matters:** `base64` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `base64 --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `base64`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `base64` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `base64` can be reversed quickly without improvisation.
+
+### 076. `md5sum`
+- **Risk level:** Low.
+- **Why it matters:** `md5sum` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `md5sum --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `md5sum`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `md5sum` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `md5sum` can be reversed quickly without improvisation.
+
+### 077. `sha256sum`
+- **Risk level:** Moderate.
+- **Why it matters:** `sha256sum` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `sha256sum --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `sha256sum`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `sha256sum` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `sha256sum` can be reversed quickly without improvisation.
+
+### 078. `sha512sum`
+- **Risk level:** High.
+- **Why it matters:** `sha512sum` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `sha512sum --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `sha512sum`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `sha512sum` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `sha512sum` can be reversed quickly without improvisation.
+
+### 079. `cksum`
+- **Risk level:** Critical.
+- **Why it matters:** `cksum` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `cksum --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `cksum`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `cksum` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `cksum` can be reversed quickly without improvisation.
+
+### 080. `jq`
+- **Risk level:** Low.
+- **Why it matters:** `jq` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `jq --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `jq`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `jq` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `jq` can be reversed quickly without improvisation.
+
+### 081. `yq`
+- **Risk level:** Moderate.
+- **Why it matters:** `yq` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `yq --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `yq`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `yq` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `yq` can be reversed quickly without improvisation.
+
+### 082. `xmllint`
+- **Risk level:** High.
+- **Why it matters:** `xmllint` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `xmllint --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `xmllint`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `xmllint` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `xmllint` can be reversed quickly without improvisation.
+
+### 083. `csvkit`
+- **Risk level:** Critical.
+- **Why it matters:** `csvkit` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `csvkit --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `csvkit`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `csvkit` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `csvkit` can be reversed quickly without improvisation.
+
+### 084. `pandoc`
+- **Risk level:** Low.
+- **Why it matters:** `pandoc` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `pandoc --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `pandoc`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `pandoc` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `pandoc` can be reversed quickly without improvisation.
+
+### 085. `iconv`
+- **Risk level:** Moderate.
+- **Why it matters:** `iconv` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `iconv --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `iconv`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `iconv` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `iconv` can be reversed quickly without improvisation.
+
+### 086. `locale`
+- **Risk level:** High.
+- **Why it matters:** `locale` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `locale --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `locale`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `locale` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `locale` can be reversed quickly without improvisation.
+
+### 087. `printf`
+- **Risk level:** Critical.
+- **Why it matters:** `printf` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `printf --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `printf`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `printf` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `printf` can be reversed quickly without improvisation.
+
+### 088. `echo`
+- **Risk level:** Low.
+- **Why it matters:** `echo` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `echo --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `echo`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `echo` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `echo` can be reversed quickly without improvisation.
+
+### 089. `tee`
+- **Risk level:** Moderate.
+- **Why it matters:** `tee` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `tee --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `tee`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `tee` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `tee` can be reversed quickly without improvisation.
+
+### 090. `tr`
+- **Risk level:** High.
+- **Why it matters:** `tr` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `tr --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `tr`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `tr` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `tr` can be reversed quickly without improvisation.
+
+### 091. `paste`
+- **Risk level:** Critical.
+- **Why it matters:** `paste` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `paste --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `paste`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `paste` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `paste` can be reversed quickly without improvisation.
+
+### 092. `join`
+- **Risk level:** Low.
+- **Why it matters:** `join` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `join --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `join`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `join` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `join` can be reversed quickly without improvisation.
+
+### 093. `split`
+- **Risk level:** Moderate.
+- **Why it matters:** `split` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `split --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `split`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `split` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `split` can be reversed quickly without improvisation.
+
+### 094. `fold`
+- **Risk level:** High.
+- **Why it matters:** `fold` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `fold --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `fold`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `fold` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `fold` can be reversed quickly without improvisation.
+
+### 095. `nl`
+- **Risk level:** Critical.
+- **Why it matters:** `nl` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `nl --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `nl`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `nl` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `nl` can be reversed quickly without improvisation.
+
+### 096. `expand`
+- **Risk level:** Low.
+- **Why it matters:** `expand` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `expand --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `expand`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `expand` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `expand` can be reversed quickly without improvisation.
+
+### 097. `unexpand`
+- **Risk level:** Moderate.
+- **Why it matters:** `unexpand` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `unexpand --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `unexpand`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `unexpand` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `unexpand` can be reversed quickly without improvisation.
+
+### 098. `rev`
+- **Risk level:** High.
+- **Why it matters:** `rev` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `rev --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `rev`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `rev` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `rev` can be reversed quickly without improvisation.
+
+### 099. `od`
+- **Risk level:** Critical.
+- **Why it matters:** `od` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `od --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `od`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `od` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `od` can be reversed quickly without improvisation.
+
+### 100. `hexdump`
+- **Risk level:** Low.
+- **Why it matters:** `hexdump` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `hexdump --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `hexdump`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `hexdump` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `hexdump` can be reversed quickly without improvisation.
+
+### 101. `strings`
+- **Risk level:** Moderate.
+- **Why it matters:** `strings` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `strings --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `strings`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `strings` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `strings` can be reversed quickly without improvisation.
+
+### 102. `basename`
+- **Risk level:** High.
+- **Why it matters:** `basename` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `basename --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `basename`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `basename` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `basename` can be reversed quickly without improvisation.
+
+### 103. `dirname`
+- **Risk level:** Critical.
+- **Why it matters:** `dirname` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `dirname --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `dirname`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `dirname` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `dirname` can be reversed quickly without improvisation.
+
+### 104. `mktemp`
+- **Risk level:** Low.
+- **Why it matters:** `mktemp` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `mktemp --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `mktemp`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `mktemp` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `mktemp` can be reversed quickly without improvisation.
+
+### 105. `install`
+- **Risk level:** Moderate.
+- **Why it matters:** `install` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `install --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `install`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `install` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `install` can be reversed quickly without improvisation.
+
+### 106. `truncate`
+- **Risk level:** High.
+- **Why it matters:** `truncate` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `truncate --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `truncate`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `truncate` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `truncate` can be reversed quickly without improvisation.
+
+### 107. `sync`
+- **Risk level:** Critical.
+- **Why it matters:** `sync` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `sync --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `sync`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `sync` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `sync` can be reversed quickly without improvisation.
+
+### 108. `mount`
+- **Risk level:** Low.
+- **Why it matters:** `mount` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `mount --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `mount`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `mount` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `mount` can be reversed quickly without improvisation.
+
+### 109. `umount`
+- **Risk level:** Moderate.
+- **Why it matters:** `umount` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `umount --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `umount`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `umount` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `umount` can be reversed quickly without improvisation.
+
+### 110. `dd`
+- **Risk level:** High.
+- **Why it matters:** `dd` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `dd --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `dd`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `dd` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `dd` can be reversed quickly without improvisation.
+
+### 111. `lsblk`
+- **Risk level:** Critical.
+- **Why it matters:** `lsblk` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `lsblk --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `lsblk`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `lsblk` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `lsblk` can be reversed quickly without improvisation.
+
+### 112. `blkid`
+- **Risk level:** Low.
+- **Why it matters:** `blkid` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `blkid --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `blkid`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `blkid` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `blkid` can be reversed quickly without improvisation.
+
+### 113. `fdisk`
+- **Risk level:** Moderate.
+- **Why it matters:** `fdisk` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `fdisk --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `fdisk`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `fdisk` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `fdisk` can be reversed quickly without improvisation.
+
+### 114. `parted`
+- **Risk level:** High.
+- **Why it matters:** `parted` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `parted --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `parted`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `parted` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `parted` can be reversed quickly without improvisation.
+
+### 115. `mkfs`
+- **Risk level:** Critical.
+- **Why it matters:** `mkfs` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `mkfs --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `mkfs`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `mkfs` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `mkfs` can be reversed quickly without improvisation.
+
+### 116. `fsck`
+- **Risk level:** Low.
+- **Why it matters:** `fsck` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `fsck --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `fsck`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `fsck` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `fsck` can be reversed quickly without improvisation.
+
+### 117. `tune2fs`
+- **Risk level:** Moderate.
+- **Why it matters:** `tune2fs` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `tune2fs --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `tune2fs`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `tune2fs` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `tune2fs` can be reversed quickly without improvisation.
+
+### 118. `useradd`
+- **Risk level:** High.
+- **Why it matters:** `useradd` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `useradd --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `useradd`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `useradd` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `useradd` can be reversed quickly without improvisation.
+
+### 119. `usermod`
+- **Risk level:** Critical.
+- **Why it matters:** `usermod` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `usermod --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `usermod`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `usermod` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `usermod` can be reversed quickly without improvisation.
+
+### 120. `userdel`
+- **Risk level:** Low.
+- **Why it matters:** `userdel` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `userdel --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `userdel`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `userdel` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `userdel` can be reversed quickly without improvisation.
+
+### 121. `groupadd`
+- **Risk level:** Moderate.
+- **Why it matters:** `groupadd` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `groupadd --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `groupadd`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `groupadd` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `groupadd` can be reversed quickly without improvisation.
+
+### 122. `groupmod`
+- **Risk level:** High.
+- **Why it matters:** `groupmod` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `groupmod --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `groupmod`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `groupmod` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `groupmod` can be reversed quickly without improvisation.
+
+### 123. `groupdel`
+- **Risk level:** Critical.
+- **Why it matters:** `groupdel` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `groupdel --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `groupdel`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `groupdel` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `groupdel` can be reversed quickly without improvisation.
+
+### 124. `passwd`
+- **Risk level:** Low.
+- **Why it matters:** `passwd` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `passwd --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `passwd`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `passwd` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `passwd` can be reversed quickly without improvisation.
+
+### 125. `su`
+- **Risk level:** Moderate.
+- **Why it matters:** `su` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `su --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `su`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `su` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `su` can be reversed quickly without improvisation.
+
+### 126. `id`
+- **Risk level:** High.
+- **Why it matters:** `id` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `id --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `id`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `id` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `id` can be reversed quickly without improvisation.
+
+### 127. `groups`
+- **Risk level:** Critical.
+- **Why it matters:** `groups` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `groups --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `groups`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `groups` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `groups` can be reversed quickly without improvisation.
+
+### 128. `last`
+- **Risk level:** Low.
+- **Why it matters:** `last` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `last --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `last`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `last` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `last` can be reversed quickly without improvisation.
+
+### 129. `w`
+- **Risk level:** Moderate.
+- **Why it matters:** `w` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `w --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `w`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `w` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `w` can be reversed quickly without improvisation.
+
+### 130. `uptime`
+- **Risk level:** High.
+- **Why it matters:** `uptime` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `uptime --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `uptime`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `uptime` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `uptime` can be reversed quickly without improvisation.
+
+### 131. `dmesg`
+- **Risk level:** Critical.
+- **Why it matters:** `dmesg` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `dmesg --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `dmesg`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `dmesg` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `dmesg` can be reversed quickly without improvisation.
+
+### 132. `ip`
+- **Risk level:** Low.
+- **Why it matters:** `ip` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ip --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ip`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ip` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ip` can be reversed quickly without improvisation.
+
+### 133. `ifconfig`
+- **Risk level:** Moderate.
+- **Why it matters:** `ifconfig` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ifconfig --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ifconfig`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ifconfig` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ifconfig` can be reversed quickly without improvisation.
+
+### 134. `route`
+- **Risk level:** High.
+- **Why it matters:** `route` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `route --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `route`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `route` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `route` can be reversed quickly without improvisation.
+
+### 135. `iptables`
+- **Risk level:** Critical.
+- **Why it matters:** `iptables` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `iptables --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `iptables`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `iptables` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `iptables` can be reversed quickly without improvisation.
+
+### 136. `nft`
+- **Risk level:** Low.
+- **Why it matters:** `nft` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `nft --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `nft`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `nft` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `nft` can be reversed quickly without improvisation.
+
+### 137. `ufw`
+- **Risk level:** Moderate.
+- **Why it matters:** `ufw` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ufw --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ufw`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ufw` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ufw` can be reversed quickly without improvisation.
+
+### 138. `tcpdump`
+- **Risk level:** High.
+- **Why it matters:** `tcpdump` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `tcpdump --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `tcpdump`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `tcpdump` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `tcpdump` can be reversed quickly without improvisation.
+
+### 139. `nmap`
+- **Risk level:** Critical.
+- **Why it matters:** `nmap` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `nmap --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `nmap`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `nmap` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `nmap` can be reversed quickly without improvisation.
+
+### 140. `systemctl`
+- **Risk level:** Low.
+- **Why it matters:** `systemctl` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `systemctl --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `systemctl`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `systemctl` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `systemctl` can be reversed quickly without improvisation.
+
+### 141. `service`
+- **Risk level:** Moderate.
+- **Why it matters:** `service` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `service --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `service`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `service` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `service` can be reversed quickly without improvisation.
+
+### 142. `journalctl`
+- **Risk level:** High.
+- **Why it matters:** `journalctl` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `journalctl --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `journalctl`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `journalctl` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `journalctl` can be reversed quickly without improvisation.
+
+### 143. `crontab`
+- **Risk level:** Critical.
+- **Why it matters:** `crontab` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `crontab --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `crontab`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `crontab` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `crontab` can be reversed quickly without improvisation.
+
+### 144. `at`
+- **Risk level:** Low.
+- **Why it matters:** `at` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `at --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `at`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `at` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `at` can be reversed quickly without improvisation.
+
+### 145. `atq`
+- **Risk level:** Moderate.
+- **Why it matters:** `atq` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `atq --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `atq`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `atq` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `atq` can be reversed quickly without improvisation.
+
+### 146. `atrm`
+- **Risk level:** High.
+- **Why it matters:** `atrm` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `atrm --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `atrm`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `atrm` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `atrm` can be reversed quickly without improvisation.
+
+### 147. `tmux`
+- **Risk level:** Critical.
+- **Why it matters:** `tmux` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `tmux --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `tmux`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `tmux` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `tmux` can be reversed quickly without improvisation.
+
+### 148. `screen`
+- **Risk level:** Low.
+- **Why it matters:** `screen` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `screen --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `screen`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `screen` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `screen` can be reversed quickly without improvisation.
+
+### 149. `docker`
+- **Risk level:** Moderate.
+- **Why it matters:** `docker` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `docker --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `docker`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `docker` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `docker` can be reversed quickly without improvisation.
+
+### 150. `docker compose`
+- **Risk level:** High.
+- **Why it matters:** `docker compose` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `docker compose --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `docker compose`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `docker compose` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `docker compose` can be reversed quickly without improvisation.
+
+### 151. `podman`
+- **Risk level:** Critical.
+- **Why it matters:** `podman` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `podman --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `podman`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `podman` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `podman` can be reversed quickly without improvisation.
+
+### 152. `buildah`
+- **Risk level:** Low.
+- **Why it matters:** `buildah` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `buildah --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `buildah`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `buildah` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `buildah` can be reversed quickly without improvisation.
+
+### 153. `skopeo`
+- **Risk level:** Moderate.
+- **Why it matters:** `skopeo` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `skopeo --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `skopeo`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `skopeo` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `skopeo` can be reversed quickly without improvisation.
+
+### 154. `kubectl`
+- **Risk level:** High.
+- **Why it matters:** `kubectl` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `kubectl --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `kubectl`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `kubectl` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `kubectl` can be reversed quickly without improvisation.
+
+### 155. `helm`
+- **Risk level:** Critical.
+- **Why it matters:** `helm` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `helm --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `helm`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `helm` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `helm` can be reversed quickly without improvisation.
+
+### 156. `kustomize`
+- **Risk level:** Low.
+- **Why it matters:** `kustomize` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `kustomize --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `kustomize`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `kustomize` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `kustomize` can be reversed quickly without improvisation.
+
+### 157. `minikube`
+- **Risk level:** Moderate.
+- **Why it matters:** `minikube` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `minikube --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `minikube`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `minikube` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `minikube` can be reversed quickly without improvisation.
+
+### 158. `kind`
+- **Risk level:** High.
+- **Why it matters:** `kind` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `kind --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `kind`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `kind` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `kind` can be reversed quickly without improvisation.
+
+### 159. `git`
+- **Risk level:** Critical.
+- **Why it matters:** `git` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `git --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `git`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `git` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `git` can be reversed quickly without improvisation.
+
+### 160. `make`
+- **Risk level:** Low.
+- **Why it matters:** `make` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `make --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `make`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `make` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `make` can be reversed quickly without improvisation.
+
+### 161. `cmake`
+- **Risk level:** Moderate.
+- **Why it matters:** `cmake` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `cmake --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `cmake`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `cmake` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `cmake` can be reversed quickly without improvisation.
+
+### 162. `gcc`
+- **Risk level:** High.
+- **Why it matters:** `gcc` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `gcc --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `gcc`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `gcc` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `gcc` can be reversed quickly without improvisation.
+
+### 163. `clang`
+- **Risk level:** Critical.
+- **Why it matters:** `clang` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `clang --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `clang`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `clang` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `clang` can be reversed quickly without improvisation.
+
+### 164. `gdb`
+- **Risk level:** Low.
+- **Why it matters:** `gdb` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `gdb --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `gdb`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `gdb` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `gdb` can be reversed quickly without improvisation.
+
+### 165. `lldb`
+- **Risk level:** Moderate.
+- **Why it matters:** `lldb` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `lldb --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `lldb`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `lldb` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `lldb` can be reversed quickly without improvisation.
+
+### 166. `valgrind`
+- **Risk level:** High.
+- **Why it matters:** `valgrind` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `valgrind --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `valgrind`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `valgrind` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `valgrind` can be reversed quickly without improvisation.
+
+### 167. `strace`
+- **Risk level:** Critical.
+- **Why it matters:** `strace` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `strace --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `strace`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `strace` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `strace` can be reversed quickly without improvisation.
+
+### 168. `ltrace`
+- **Risk level:** Low.
+- **Why it matters:** `ltrace` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ltrace --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ltrace`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ltrace` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ltrace` can be reversed quickly without improvisation.
+
+### 169. `objdump`
+- **Risk level:** Moderate.
+- **Why it matters:** `objdump` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `objdump --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `objdump`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `objdump` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `objdump` can be reversed quickly without improvisation.
+
+### 170. `nm`
+- **Risk level:** High.
+- **Why it matters:** `nm` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `nm --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `nm`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `nm` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `nm` can be reversed quickly without improvisation.
+
+### 171. `readelf`
+- **Risk level:** Critical.
+- **Why it matters:** `readelf` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `readelf --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `readelf`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `readelf` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `readelf` can be reversed quickly without improvisation.
+
+### 172. `node`
+- **Risk level:** Low.
+- **Why it matters:** `node` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `node --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `node`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `node` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `node` can be reversed quickly without improvisation.
+
+### 173. `npm`
+- **Risk level:** Moderate.
+- **Why it matters:** `npm` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `npm --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `npm`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `npm` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `npm` can be reversed quickly without improvisation.
+
+### 174. `npx`
+- **Risk level:** High.
+- **Why it matters:** `npx` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `npx --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `npx`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `npx` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `npx` can be reversed quickly without improvisation.
+
+### 175. `pnpm`
+- **Risk level:** Critical.
+- **Why it matters:** `pnpm` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `pnpm --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `pnpm`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `pnpm` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `pnpm` can be reversed quickly without improvisation.
+
+### 176. `yarn`
+- **Risk level:** Low.
+- **Why it matters:** `yarn` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `yarn --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `yarn`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `yarn` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `yarn` can be reversed quickly without improvisation.
+
+### 177. `bun`
+- **Risk level:** Moderate.
+- **Why it matters:** `bun` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `bun --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `bun`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `bun` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `bun` can be reversed quickly without improvisation.
+
+### 178. `deno`
+- **Risk level:** High.
+- **Why it matters:** `deno` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `deno --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `deno`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `deno` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `deno` can be reversed quickly without improvisation.
+
+### 179. `python`
+- **Risk level:** Critical.
+- **Why it matters:** `python` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `python --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `python`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `python` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `python` can be reversed quickly without improvisation.
+
+### 180. `pip`
+- **Risk level:** Low.
+- **Why it matters:** `pip` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `pip --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `pip`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `pip` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `pip` can be reversed quickly without improvisation.
+
+### 181. `uv`
+- **Risk level:** Moderate.
+- **Why it matters:** `uv` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `uv --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `uv`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `uv` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `uv` can be reversed quickly without improvisation.
+
+### 182. `poetry`
+- **Risk level:** High.
+- **Why it matters:** `poetry` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `poetry --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `poetry`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `poetry` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `poetry` can be reversed quickly without improvisation.
+
+### 183. `go`
+- **Risk level:** Critical.
+- **Why it matters:** `go` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `go --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `go`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `go` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `go` can be reversed quickly without improvisation.
+
+### 184. `cargo`
+- **Risk level:** Low.
+- **Why it matters:** `cargo` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `cargo --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `cargo`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `cargo` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `cargo` can be reversed quickly without improvisation.
+
+### 185. `rustc`
+- **Risk level:** Moderate.
+- **Why it matters:** `rustc` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `rustc --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `rustc`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `rustc` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `rustc` can be reversed quickly without improvisation.
+
+### 186. `java`
+- **Risk level:** High.
+- **Why it matters:** `java` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `java --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `java`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `java` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `java` can be reversed quickly without improvisation.
+
+### 187. `javac`
+- **Risk level:** Critical.
+- **Why it matters:** `javac` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `javac --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `javac`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `javac` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `javac` can be reversed quickly without improvisation.
+
+### 188. `mvn`
+- **Risk level:** Low.
+- **Why it matters:** `mvn` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `mvn --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `mvn`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `mvn` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `mvn` can be reversed quickly without improvisation.
+
+### 189. `gradle`
+- **Risk level:** Moderate.
+- **Why it matters:** `gradle` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `gradle --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `gradle`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `gradle` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `gradle` can be reversed quickly without improvisation.
+
+### 190. `php`
+- **Risk level:** High.
+- **Why it matters:** `php` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `php --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `php`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `php` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `php` can be reversed quickly without improvisation.
+
+### 191. `composer`
+- **Risk level:** Critical.
+- **Why it matters:** `composer` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `composer --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `composer`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `composer` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `composer` can be reversed quickly without improvisation.
+
+### 192. `ruby`
+- **Risk level:** Low.
+- **Why it matters:** `ruby` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ruby --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ruby`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ruby` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ruby` can be reversed quickly without improvisation.
+
+### 193. `gem`
+- **Risk level:** Moderate.
+- **Why it matters:** `gem` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `gem --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `gem`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `gem` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `gem` can be reversed quickly without improvisation.
+
+### 194. `perl`
+- **Risk level:** High.
+- **Why it matters:** `perl` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `perl --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `perl`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `perl` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `perl` can be reversed quickly without improvisation.
+
+### 195. `lua`
+- **Risk level:** Critical.
+- **Why it matters:** `lua` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `lua --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `lua`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `lua` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `lua` can be reversed quickly without improvisation.
+
+### 196. `sqlite3`
+- **Risk level:** Low.
+- **Why it matters:** `sqlite3` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `sqlite3 --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `sqlite3`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `sqlite3` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `sqlite3` can be reversed quickly without improvisation.
+
+### 197. `psql`
+- **Risk level:** Moderate.
+- **Why it matters:** `psql` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `psql --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `psql`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `psql` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `psql` can be reversed quickly without improvisation.
+
+### 198. `mysql`
+- **Risk level:** High.
+- **Why it matters:** `mysql` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `mysql --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `mysql`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `mysql` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `mysql` can be reversed quickly without improvisation.
+
+### 199. `redis-cli`
+- **Risk level:** Critical.
+- **Why it matters:** `redis-cli` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `redis-cli --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `redis-cli`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `redis-cli` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `redis-cli` can be reversed quickly without improvisation.
+
+### 200. `terraform`
+- **Risk level:** Low.
+- **Why it matters:** `terraform` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `terraform --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `terraform`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `terraform` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `terraform` can be reversed quickly without improvisation.
+
+### 201. `pulumi`
+- **Risk level:** Moderate.
+- **Why it matters:** `pulumi` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `pulumi --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `pulumi`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `pulumi` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `pulumi` can be reversed quickly without improvisation.
+
+### 202. `ansible`
+- **Risk level:** High.
+- **Why it matters:** `ansible` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ansible --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ansible`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ansible` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ansible` can be reversed quickly without improvisation.
+
+### 203. `aws`
+- **Risk level:** Critical.
+- **Why it matters:** `aws` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `aws --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `aws`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `aws` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `aws` can be reversed quickly without improvisation.
+
+### 204. `az`
+- **Risk level:** Low.
+- **Why it matters:** `az` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `az --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `az`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `az` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `az` can be reversed quickly without improvisation.
+
+### 205. `gcloud`
+- **Risk level:** Moderate.
+- **Why it matters:** `gcloud` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `gcloud --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `gcloud`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `gcloud` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `gcloud` can be reversed quickly without improvisation.
+
+### 206. `vercel`
+- **Risk level:** High.
+- **Why it matters:** `vercel` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `vercel --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `vercel`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `vercel` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `vercel` can be reversed quickly without improvisation.
+
+### 207. `netlify`
+- **Risk level:** Critical.
+- **Why it matters:** `netlify` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `netlify --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `netlify`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `netlify` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `netlify` can be reversed quickly without improvisation.
+
+### 208. `heroku`
+- **Risk level:** Low.
+- **Why it matters:** `heroku` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `heroku --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `heroku`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `heroku` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `heroku` can be reversed quickly without improvisation.
+
+### 209. `choco`
+- **Risk level:** Moderate.
+- **Why it matters:** `choco` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `choco --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `choco`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `choco` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `choco` can be reversed quickly without improvisation.
+
+### 210. `winget`
+- **Risk level:** High.
+- **Why it matters:** `winget` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `winget --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `winget`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `winget` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `winget` can be reversed quickly without improvisation.
+
+### 211. `apt`
+- **Risk level:** Critical.
+- **Why it matters:** `apt` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `apt --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `apt`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `apt` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `apt` can be reversed quickly without improvisation.
+
+### 212. `apt-get`
+- **Risk level:** Low.
+- **Why it matters:** `apt-get` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `apt-get --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `apt-get`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `apt-get` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `apt-get` can be reversed quickly without improvisation.
+
+### 213. `dnf`
+- **Risk level:** Moderate.
+- **Why it matters:** `dnf` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `dnf --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `dnf`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `dnf` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `dnf` can be reversed quickly without improvisation.
+
+### 214. `yum`
+- **Risk level:** High.
+- **Why it matters:** `yum` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `yum --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `yum`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `yum` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `yum` can be reversed quickly without improvisation.
+
+### 215. `pacman`
+- **Risk level:** Critical.
+- **Why it matters:** `pacman` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `pacman --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `pacman`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `pacman` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `pacman` can be reversed quickly without improvisation.
+
+### 216. `brew`
+- **Risk level:** Low.
+- **Why it matters:** `brew` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `brew --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `brew`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `brew` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `brew` can be reversed quickly without improvisation.
+
+### 217. `zypper`
+- **Risk level:** Moderate.
+- **Why it matters:** `zypper` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `zypper --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `zypper`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `zypper` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `zypper` can be reversed quickly without improvisation.
+
+### 218. `apk`
+- **Risk level:** High.
+- **Why it matters:** `apk` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `apk --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `apk`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `apk` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `apk` can be reversed quickly without improvisation.
+
+### 219. `dpkg`
+- **Risk level:** Critical.
+- **Why it matters:** `dpkg` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `dpkg --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `dpkg`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `dpkg` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `dpkg` can be reversed quickly without improvisation.
+
+### 220. `rpm`
+- **Risk level:** Low.
+- **Why it matters:** `rpm` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `rpm --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `rpm`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `rpm` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `rpm` can be reversed quickly without improvisation.
+
+### 221. `makepkg`
+- **Risk level:** Moderate.
+- **Why it matters:** `makepkg` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `makepkg --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `makepkg`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `makepkg` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `makepkg` can be reversed quickly without improvisation.
+
+### 222. `timeout`
+- **Risk level:** High.
+- **Why it matters:** `timeout` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `timeout --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `timeout`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `timeout` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `timeout` can be reversed quickly without improvisation.
+
+### 223. `parallel`
+- **Risk level:** Critical.
+- **Why it matters:** `parallel` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `parallel --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `parallel`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `parallel` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `parallel` can be reversed quickly without improvisation.
+
+### 224. `jobs`
+- **Risk level:** Low.
+- **Why it matters:** `jobs` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `jobs --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `jobs`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `jobs` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `jobs` can be reversed quickly without improvisation.
+
+### 225. `bg`
+- **Risk level:** Moderate.
+- **Why it matters:** `bg` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `bg --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `bg`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `bg` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `bg` can be reversed quickly without improvisation.
+
+### 226. `fg`
+- **Risk level:** High.
+- **Why it matters:** `fg` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `fg --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `fg`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `fg` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `fg` can be reversed quickly without improvisation.
+
+### 227. `disown`
+- **Risk level:** Critical.
+- **Why it matters:** `disown` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `disown --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `disown`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `disown` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `disown` can be reversed quickly without improvisation.
+
+### 228. `set`
+- **Risk level:** Low.
+- **Why it matters:** `set` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `set --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `set`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `set` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `set` can be reversed quickly without improvisation.
+
+### 229. `unset`
+- **Risk level:** Moderate.
+- **Why it matters:** `unset` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `unset --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `unset`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `unset` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `unset` can be reversed quickly without improvisation.
+
+### 230. `envsubst`
+- **Risk level:** High.
+- **Why it matters:** `envsubst` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `envsubst --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `envsubst`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `envsubst` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `envsubst` can be reversed quickly without improvisation.
+
+### 231. `hostnamectl`
+- **Risk level:** Critical.
+- **Why it matters:** `hostnamectl` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `hostnamectl --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `hostnamectl`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `hostnamectl` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `hostnamectl` can be reversed quickly without improvisation.
+
+### 232. `timedatectl`
+- **Risk level:** Low.
+- **Why it matters:** `timedatectl` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `timedatectl --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `timedatectl`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `timedatectl` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `timedatectl` can be reversed quickly without improvisation.
+
+### 233. `loginctl`
+- **Risk level:** Moderate.
+- **Why it matters:** `loginctl` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `loginctl --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `loginctl`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `loginctl` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `loginctl` can be reversed quickly without improvisation.
+
+### 234. `nmcli`
+- **Risk level:** High.
+- **Why it matters:** `nmcli` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `nmcli --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `nmcli`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `nmcli` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `nmcli` can be reversed quickly without improvisation.
+
+### 235. `ethtool`
+- **Risk level:** Critical.
+- **Why it matters:** `ethtool` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `ethtool --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `ethtool`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `ethtool` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `ethtool` can be reversed quickly without improvisation.
+
+### 236. `iw`
+- **Risk level:** Low.
+- **Why it matters:** `iw` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `iw --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `iw`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `iw` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `iw` can be reversed quickly without improvisation.
+
+### 237. `rsnapshot`
+- **Risk level:** Moderate.
+- **Why it matters:** `rsnapshot` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `rsnapshot --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `rsnapshot`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `rsnapshot` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `rsnapshot` can be reversed quickly without improvisation.
+
+### 238. `borg`
+- **Risk level:** High.
+- **Why it matters:** `borg` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `borg --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `borg`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `borg` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `borg` can be reversed quickly without improvisation.
+
+### 239. `restic`
+- **Risk level:** Critical.
+- **Why it matters:** `restic` is frequently used in automation and manual operations; misuse can cause cascading operational impact.
+- **Safe usage pattern:** Run `restic --help` (or manual page) first in unfamiliar environments, then execute with explicit targets and logged output.
+- **Preflight checks:** verify working directory, permissions, target scope, and expected side effects before running `restic`.
+- **Post-change validation:** inspect command exit status, review changed resources, and run a service-level check relevant to `restic` outcomes.
+- **Rollback hint:** maintain snapshots/backups so actions involving `restic` can be reversed quickly without improvisation.
+
+## Incident notes template
+- **Command executed:**
+- **Reason:**
+- **Host / environment:**
+- **Observed output:**
+- **Impact radius:**
+- **Validation performed:**
+- **Rollback steps used:**
+- **Follow-up action items:**
