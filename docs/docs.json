@@ -71,7 +71,8 @@
           {
             "group": "Developer reference",
             "pages": [
-              "features/dev-reference"
+              "features/dev-reference",
+              "features/shell-safety-runbook"
             ]
           }
         ]
