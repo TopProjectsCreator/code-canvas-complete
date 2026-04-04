@@ -33,7 +33,12 @@ export type ToolName =
   | 'ask_user'
   | 'save_project'
   | 'run_project'
-  | 'run_shell';
+  | 'run_shell'
+  | 'create_file'
+  | 'duplicate_file'
+  | 'move_file'
+  | 'open_file'
+  | 'append_file';
 
 export type AIModel = 'flash' | 'pro' | 'lite';
 
