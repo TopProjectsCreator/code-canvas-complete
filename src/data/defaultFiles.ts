@@ -2,6 +2,7 @@ import { FileNode } from "@/types/ide";
 import { LanguageTemplate } from "@/data/templateRegistry";
 import { getArduinoTemplateFiles } from "./arduinoTemplates";
 import { ftcTemplate } from "./ftcTemplateFiles";
+import { secureOpsTemplate } from "./secureOpsTemplate";
 
 const tutorialTitles: Record<LanguageTemplate, string> = {
   blank: "Blank Canvas",
@@ -40,6 +41,7 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   lazyk: "Lazy K",
   react: "React",
   nodejs: "Node.js",
+  secureops: "SecureOps Platform",
   sqlite: "SQLite",
   arduino: "Arduino",
   scratch: "Scratch Blocks",
@@ -127,6 +129,9 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case "nodejs":
       baseTemplate = nodejsTemplate;
+      break;
+    case "secureops":
+      baseTemplate = secureOpsTemplate;
       break;
     case "sqlite":
       baseTemplate = sqliteTemplate;
