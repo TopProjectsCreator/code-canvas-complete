@@ -94,6 +94,8 @@ const timeline = [
   },
 ];
 
+const floatingBadges = ["Realtime AI Pairing", "Neon Command Center", "Live Team Presence", "Edge-Speed Builds"];
+
 export default function Landing() {
   const navigate = useNavigate();
   const { stats } = useLandingStats();
@@ -113,6 +115,8 @@ export default function Landing() {
         <div className="absolute left-1/2 top-0 h-[580px] w-[900px] -translate-x-1/2 rounded-full bg-primary/10 blur-[170px]" />
         <div className="absolute -left-20 top-[30%] h-72 w-72 rounded-full bg-info/20 blur-[130px]" />
         <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-primary/10 blur-[150px]" />
+        <div className="absolute right-[8%] top-[22%] h-28 w-28 rounded-full border border-primary/35 motion-safe:animate-orbit-ring" />
+        <div className="absolute left-[10%] top-[48%] h-16 w-16 rounded-full border border-info/40 motion-safe:animate-orbit-ring [animation-delay:1.6s]" />
       </div>
 
       <nav className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/70 backdrop-blur-xl">
@@ -169,9 +173,20 @@ export default function Landing() {
                 <PublicCanvasSearch />
               </div>
 
+              <div className="mt-6 overflow-hidden rounded-xl border border-primary/20 bg-background/45 px-3 py-2">
+                <div className="flex animate-marquee gap-3 text-xs uppercase tracking-[0.18em] text-primary/90">
+                  {[...floatingBadges, ...floatingBadges].map((badge, idx) => (
+                    <span key={`${badge}-${idx}`} className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 whitespace-nowrap">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary motion-safe:animate-pulse" />
+                      {badge}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
               <div className="mt-10 grid gap-4 md:grid-cols-3">
                 {missionBlocks.map((block) => (
-                  <div key={block.title} className="rounded-2xl border border-border/50 bg-background/40 p-4">
+                  <div key={block.title} className="rounded-2xl border border-border/50 bg-background/40 p-4 transition duration-500 hover:-translate-y-1 hover:border-primary/45 hover:shadow-lg hover:shadow-primary/15">
                     <div className="mb-2 inline-flex items-center gap-2 text-sm text-primary">
                       {block.icon}
                       {block.title}
@@ -195,8 +210,9 @@ export default function Landing() {
               {matrixCards.map((card) => (
                 <div
                   key={card.title}
-                  className="group rounded-2xl border border-primary/20 bg-gradient-to-b from-card/60 to-card/20 p-5 transition duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/15"
+                  className="group relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-b from-card/60 to-card/20 p-5 transition duration-500 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/15"
                 >
+                  <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-primary/80 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                   <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     {card.icon}
                   </div>
@@ -223,7 +239,7 @@ export default function Landing() {
               <h3 className="text-2xl font-semibold tracking-tight">Built for everyday development workflows</h3>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 {signalReadout.map((item) => (
-                  <div key={item.label} className="rounded-xl border border-border/50 bg-background/40 p-4">
+                  <div key={item.label} className="rounded-xl border border-border/50 bg-background/40 p-4 transition duration-500 hover:border-primary/45 hover:shadow-md hover:shadow-primary/15">
                     <div className="mb-1 inline-flex items-center gap-2 text-xs text-muted-foreground">
                       {item.icon}
                       {item.label}
