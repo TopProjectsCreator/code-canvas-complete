@@ -227,6 +227,8 @@ const html = \`
   const input = $('#fileInput');
   const dz = $('#dropZone');
 
+  window.parent.postMessage({ type: 'cc-ext-ready' }, '*');
+
   input.addEventListener('change', e => { if (e.target.files && e.target.files[0]) setFile(e.target.files[0]); });
   $('#removeFile').addEventListener('click', () => setFile(null));
   $('#outputFormat').addEventListener('change', () => {
@@ -242,18 +244,11 @@ const html = \`
     if (event.data?.type !== 'cc-ext-file') return;
     try {
       const payload = event.data.payload || {};
-      let filePart = null;
-
-      if (payload.objectUrl) {
-        try {
-          const response = await fetch(payload.objectUrl);
-          filePart = await response.blob();
-        } catch {}
-      }
-
-      if (!filePart && payload.buffer) {
-        filePart = payload.buffer;
-      }
+      const filePart = payload.buffer instanceof ArrayBuffer
+        ? payload.buffer
+        : payload.buffer?.buffer instanceof ArrayBuffer
+          ? payload.buffer.buffer
+          : null;
 
       if (!filePart) throw new Error('No file payload received');
 
