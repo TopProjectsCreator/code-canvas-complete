@@ -1,0 +1,46 @@
+import { describe, expect, it } from 'vitest';
+import { TEMPLATES } from '@/data/templateRegistry';
+import { getFileLanguage, getTemplateFiles } from '@/data/defaultFiles';
+
+const getRootChildren = (templateId: Parameters<typeof getTemplateFiles>[0]) => {
+  const root = getTemplateFiles(templateId)[0];
+  return root.children ?? [];
+};
+
+describe('wandbox language templates', () => {
+  it('removes unsupported templates from metadata', () => {
+    const ids = new Set(TEMPLATES.map((t) => t.id));
+    expect(ids.has('swift')).toBe(false);
+    expect(ids.has('cobol')).toBe(false);
+  });
+
+  it('adds starter templates for additional wandbox languages', () => {
+    const expectedMainFiles: Array<[Parameters<typeof getTemplateFiles>[0], string]> = [
+      ['crystal', 'main.cr'],
+      ['elixir', 'main.exs'],
+      ['erlang', 'main.erl'],
+      ['julia', 'main.jl'],
+      ['ocaml', 'main.ml'],
+      ['pony', 'main.pony'],
+      ['scala', 'main.scala'],
+      ['vim', 'main.vim'],
+      ['lazyk', 'main.lazy'],
+    ];
+
+    for (const [template, fileName] of expectedMainFiles) {
+      const files = getRootChildren(template);
+      expect(files.some((f) => f.name === fileName)).toBe(true);
+    }
+  });
+
+  it('detects extensions for newly added wandbox languages', () => {
+    expect(getFileLanguage('main.cr')).toBe('crystal');
+    expect(getFileLanguage('script.exs')).toBe('elixir');
+    expect(getFileLanguage('main.erl')).toBe('erlang');
+    expect(getFileLanguage('analysis.jl')).toBe('julia');
+    expect(getFileLanguage('main.ml')).toBe('ocaml');
+    expect(getFileLanguage('app.pony')).toBe('pony');
+    expect(getFileLanguage('Main.scala')).toBe('scala');
+    expect(getFileLanguage('plugin.vim')).toBe('vim');
+  });
+});
