@@ -41,6 +41,7 @@ export type LanguageTemplate =
   | "lazyk"
   | "react"
   | "nodejs"
+  | "secureops"
   | "sqlite"
   | "arduino"
   | "scratch"
@@ -204,6 +205,12 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "Node.js",
     description: "Server-side JavaScript with Node.js",
     aiDescription: "Node.js server with Express",
+  },
+  {
+    id: "secureops",
+    name: "SecureOps Platform",
+    description: "Security operations starter with event pipelines and risk scoring modules",
+    aiDescription: "Security operations platform with typed modules and incident workflows",
   },
   { id: "sqlite", name: "SQLite", description: "Embedded database with SQLite", aiDescription: "SQL database queries" },
   {
