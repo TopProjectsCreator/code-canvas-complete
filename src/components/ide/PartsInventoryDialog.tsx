@@ -40,6 +40,7 @@ import {
   UploadCloud,
   Link2,
   DatabaseZap,
+  ExternalLink,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,7 +69,7 @@ interface Part {
 interface VendorCatalogPart {
   id: string;
   name: string;
-  vendor: "REV Robotics" | "goBILDA" | "AndyMark" | "Studica" | "VEX";
+  vendor: string;
   category: string;
   price: string;
   partNumber: string;
@@ -225,6 +226,9 @@ const VENDOR_CATALOG_PARTS: VendorCatalogPart[] = [
   },
 ];
 
+const FRA_FIMS_SUPABASE_URL = "https://jqvsscyydmclxafjznhn.supabase.co";
+const FRA_FIMS_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxdnNzY3l5ZG1jbHhhZmp6bmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzMTM2NTgsImV4cCI6MjA4NDg4OTY1OH0.n57L79kwj3iW2-rGW19p1WD5WblHNSkxuD5zDR6Z00k";
+
 const parseCsvRows = (csvText: string) => {
   const lines = csvText
     .split(/\r?\n/)
@@ -287,6 +291,10 @@ export const PartsInventoryDialog = ({
   const [catalogVendor, setCatalogVendor] = useState<string>("all");
   const [catalogCategory, setCatalogCategory] = useState<string>("all");
   const csvFileRef = useRef<HTMLInputElement | null>(null);
+  const imageUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
+  const [fraSyncing, setFraSyncing] = useState(false);
+  const [fraCatalogParts, setFraCatalogParts] = useState<VendorCatalogPart[]>([]);
 
   // Detail view
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
@@ -580,7 +588,8 @@ export const PartsInventoryDialog = ({
   };
 
   const catalogParts = useMemo(() => {
-    return VENDOR_CATALOG_PARTS.filter((part) => {
+    const mergedCatalog = [...VENDOR_CATALOG_PARTS, ...fraCatalogParts];
+    return mergedCatalog.filter((part) => {
       const matchesVendor = catalogVendor === "all" || part.vendor === catalogVendor;
       const matchesCategory = catalogCategory === "all" || part.category === catalogCategory;
       const matchesPlatform = activePlatform === "general" ? true : (part.platform === activePlatform || part.platform === "general");
@@ -593,7 +602,7 @@ export const PartsInventoryDialog = ({
         part.tags.some((tag) => tag.toLowerCase().includes(search));
       return matchesVendor && matchesCategory && matchesPlatform && matchesSearch;
     });
-  }, [catalogSearch, catalogVendor, catalogCategory, activePlatform]);
+  }, [catalogSearch, catalogVendor, catalogCategory, activePlatform, fraCatalogParts]);
 
   const applyCatalogPartToForm = (part: VendorCatalogPart) => {
     setNewName(part.name);
@@ -611,6 +620,53 @@ export const PartsInventoryDialog = ({
     setTab("add");
     toast({ title: "Catalog part loaded", description: "Review fields and click Add Part to save." });
   };
+
+  const syncFraFimsCatalog = async () => {
+    setFraSyncing(true);
+    try {
+      const response = await fetch(
+        `${FRA_FIMS_SUPABASE_URL}/rest/v1/Products?select=vendor,name,sku,category,price,product_url,tags&order=name.asc&limit=1000`,
+        {
+          headers: {
+            apikey: FRA_FIMS_ANON_KEY,
+            Authorization: `Bearer ${FRA_FIMS_ANON_KEY}`,
+          },
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`FRA FIMS catalog request failed (${response.status})`);
+      }
+
+      const rows = await response.json();
+      const mapped: VendorCatalogPart[] = (rows || []).map((row: any) => ({
+        id: `fra-${row.sku || row.name}`,
+        name: row.name || "Unnamed part",
+        vendor: row.vendor || "FRA FIMS",
+        category: (row.category || "other").toLowerCase(),
+        price: typeof row.price === "number" ? `$${row.price.toFixed(2)}` : "$0.00",
+        partNumber: row.sku || "N/A",
+        description: row.product_url || "Synced from FRA FIMS catalog.",
+        platform: "ftc",
+        tags: String(row.tags || "")
+          .split("|")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      }));
+      setFraCatalogParts(mapped);
+      toast({ title: "FRA FIMS synced", description: `Loaded ${mapped.length} catalog parts.` });
+    } catch (e: any) {
+      toast({ title: "FRA FIMS sync failed", description: e.message, variant: "destructive" });
+    } finally {
+      setFraSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!open || activePlatform !== "ftc") return;
+    syncFraFimsCatalog();
+    // intentionally run when dialog opens or platform switches
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, activePlatform]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -656,6 +712,22 @@ export const PartsInventoryDialog = ({
           </TabsList>
 
           <TabsContent value="catalog" className="flex-1 min-h-0 flex flex-col gap-3 mt-3">
+            {activePlatform === "ftc" && (
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <div className="flex flex-col md:flex-row gap-2">
+                  <Button type="button" variant="outline" onClick={() => window.open("https://fra-fims.vercel.app/", "_blank", "noopener,noreferrer")}>
+                    <ExternalLink className="w-4 h-4 mr-1" /> Open FRA FIMS
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={syncFraFimsCatalog} disabled={fraSyncing || bulkImporting}>
+                    {fraSyncing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <DatabaseZap className="w-4 h-4 mr-1" />}
+                    Refresh FRA FIMS Catalog
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Live catalog data is pulled from FRA FIMS product inventory.
+                </p>
+              </div>
+            )}
             <div className="flex flex-col md:flex-row gap-2">
               <Input
                 value={catalogSearch}
@@ -1013,12 +1085,32 @@ export const PartsInventoryDialog = ({
                   <Label className="flex items-center gap-1">
                     <Camera className="w-3 h-3" /> Material / part image
                   </Label>
-                  <div className="flex gap-2">
-                    <Input type="file" accept="image/*" onChange={(e) => handleImageUpload(e.target.files?.[0])} />
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" onClick={() => cameraCaptureInputRef.current?.click()}>
+                      <Camera className="w-4 h-4 mr-1" /> Open Camera
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => imageUploadInputRef.current?.click()}>
+                      <UploadCloud className="w-4 h-4 mr-1" /> Upload Image
+                    </Button>
                     <Button type="button" variant="outline" onClick={() => csvFileRef.current?.click()}>
                       <UploadCloud className="w-4 h-4 mr-1" /> Upload CSV
                     </Button>
                   </div>
+                  <Input
+                    ref={imageUploadInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleImageUpload(e.target.files?.[0])}
+                  />
+                  <Input
+                    ref={cameraCaptureInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => handleImageUpload(e.target.files?.[0])}
+                  />
                   <Input
                     ref={csvFileRef}
                     type="file"
@@ -1031,7 +1123,6 @@ export const PartsInventoryDialog = ({
                       await handleBulkImportCsv(text);
                     }}
                   />
-                  <Input type="file" accept="image/*" capture="environment" onChange={(e) => handleImageUpload(e.target.files?.[0])} />
                   {partImageBase64 && (
                     <img src={partImageBase64} alt="Part preview" className="h-24 w-24 object-cover rounded-md border border-border" />
                   )}
