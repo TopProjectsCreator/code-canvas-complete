@@ -69,8 +69,8 @@ function ExtensionCodeEditor({
 function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: string; tall?: boolean; enableFileBridge?: boolean }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const objectUrlsRef = useRef<string[]>([]);
   const [previewReady, setPreviewReady] = useState(false);
+  const [bridgeReady, setBridgeReady] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
@@ -95,11 +95,10 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
 
   useEffect(() => {
     setPreviewReady(false);
+    setBridgeReady(false);
     setPendingFile(null);
     setSelectedFileName(null);
     setBridgeHasFile(false);
-    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    objectUrlsRef.current = [];
   }, [previewDocument]);
 
   const postFileToPreview = useCallback(async (file: File) => {
@@ -107,29 +106,27 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
     if (!target) return;
 
     const buffer = await file.arrayBuffer();
-    const objectUrl = URL.createObjectURL(file);
-    objectUrlsRef.current.push(objectUrl);
-
     target.postMessage({
       type: 'cc-ext-file',
       payload: {
         name: file.name,
         type: file.type,
         lastModified: file.lastModified,
+        size: file.size,
         buffer,
-        objectUrl,
       },
-    }, '*');
-  }, []);
-
-  useEffect(() => () => {
-    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    objectUrlsRef.current = [];
+    }, '*', [buffer]);
   }, []);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.source !== ref.current?.contentWindow) return;
+
+      if (event.data?.type === 'cc-ext-ready') {
+        setBridgeReady(true);
+        return;
+      }
+
       if (event.data?.type !== 'cc-ext-file-state') return;
 
       const hasFile = Boolean(event.data?.payload?.hasFile);
@@ -144,22 +141,22 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
   }, []);
 
   useEffect(() => {
-    if (!previewReady || !pendingFile) return;
+    if (!previewReady || !bridgeReady || !pendingFile) return;
     void postFileToPreview(pendingFile).then(() => setPendingFile(null));
-  }, [pendingFile, postFileToPreview, previewReady]);
+  }, [bridgeReady, pendingFile, postFileToPreview, previewReady]);
 
   const handleBridgeFile = useCallback((file: File | null | undefined) => {
     if (!file) return;
     setSelectedFileName(file.name);
-    setBridgeHasFile(true);
+    setBridgeHasFile(false);
 
-    if (!previewReady) {
+    if (!previewReady || !bridgeReady) {
       setPendingFile(file);
       return;
     }
 
     void postFileToPreview(file);
-  }, [postFileToPreview, previewReady]);
+  }, [bridgeReady, postFileToPreview, previewReady]);
 
   return (
     <div className="space-y-2">
@@ -178,7 +175,11 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
             <div className="min-w-0">
               <p className="text-[11px] font-medium text-foreground">Upload for ConvertAnything</p>
               <p className="truncate text-[10px] text-muted-foreground">
-                {selectedFileName ? `Selected: ${selectedFileName}` : 'Use the drop zone below or Browse file.'}
+                {bridgeHasFile && selectedFileName
+                  ? `Selected: ${selectedFileName}`
+                  : selectedFileName
+                    ? `Sending: ${selectedFileName}`
+                    : 'Use the drop zone below or Browse file.'}
               </p>
             </div>
             <button
