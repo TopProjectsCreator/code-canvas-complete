@@ -30,12 +30,10 @@ import {
   Tag,
   Info,
   Trash2,
-  Edit2,
   Box,
   Cpu,
   Cog,
   Zap,
-  X,
   Camera,
   UploadCloud,
   Link2,
@@ -114,134 +112,32 @@ const VENDOR_HOSTS = [
 ];
 
 const VENDOR_CATALOG_PARTS: VendorCatalogPart[] = [
-  {
-    id: "rev-control-hub",
-    name: "REV Control Hub",
-    vendor: "REV Robotics",
-    category: "controller",
-    price: "$299.99",
-    partNumber: "REV-31-1595",
-    description: "Android-based robot controller for FTC with integrated Wi-Fi AP.",
-    platform: "ftc",
-    tags: ["control", "hub", "brain"],
-  },
-  {
-    id: "rev-expansion-hub",
-    name: "REV Expansion Hub",
-    vendor: "REV Robotics",
-    category: "controller",
-    price: "$239.00",
-    partNumber: "REV-31-1153",
-    description: "Additional motor/servo/sensor hub used with legacy FTC architectures.",
-    platform: "ftc",
-    tags: ["legacy", "expansion"],
-  },
-  {
-    id: "gobilda-5203-435rpm",
-    name: "goBILDA 5203 Yellow Jacket Motor (435 RPM)",
-    vendor: "goBILDA",
-    category: "motor",
-    price: "$37.99",
-    partNumber: "5203-2402-0019",
-    description: "Popular drivetrain/utility gearmotor with encoder and robust gearbox.",
-    platform: "ftc",
-    tags: ["drivetrain", "yellow jacket", "encoder"],
-  },
-  {
-    id: "gobilda-96mm-wheel",
-    name: "goBILDA Mecanum Wheel Set (96mm)",
-    vendor: "goBILDA",
-    category: "wheel",
-    price: "$89.99",
-    partNumber: "3613-0001-0096",
-    description: "Set of four mecanum wheels for holonomic FTC drivetrains.",
-    platform: "ftc",
-    tags: ["mecanum", "drive"],
-  },
-  {
-    id: "andymark-neverest-orbital",
-    name: "AndyMark NeveRest Orbital 20",
-    vendor: "AndyMark",
-    category: "motor",
-    price: "$43.00",
-    partNumber: "am-4198",
-    description: "Planetary gearmotor commonly used in older FTC robots.",
-    platform: "ftc",
-    tags: ["planetary", "legacy"],
-  },
-  {
-    id: "andymark-compliant-wheel",
-    name: "AndyMark 3in Compliant Wheel",
-    vendor: "AndyMark",
-    category: "wheel",
-    price: "$9.50",
-    partNumber: "am-4970",
-    description: "Compliant wheel frequently used for intake systems.",
-    platform: "ftc",
-    tags: ["intake", "compliant"],
-  },
-  {
-    id: "rev-2m-distance",
-    name: "REV 2m Distance Sensor",
-    vendor: "REV Robotics",
-    category: "sensor",
-    price: "$49.00",
-    partNumber: "REV-31-1505",
-    description: "I2C time-of-flight distance sensor with mm-level output.",
-    platform: "ftc",
-    tags: ["distance", "tof", "i2c"],
-  },
-  {
-    id: "rev-servo-power-module",
-    name: "REV Servo Power Module",
-    vendor: "REV Robotics",
-    category: "electrical",
-    price: "$17.50",
-    partNumber: "REV-11-1144",
-    description: "Dedicated servo rail power support for high-load mechanisms.",
-    platform: "ftc",
-    tags: ["servo", "power"],
-  },
-  {
-    id: "studica-navx2",
-    name: "Studica navX2-Micro",
-    vendor: "Studica",
-    category: "sensor",
-    price: "$99.00",
-    partNumber: "NAVX2-MXP",
-    description: "Inertial/nav sensor used for heading and motion feedback.",
-    platform: "general",
-    tags: ["imu", "heading"],
-  },
-  {
-    id: "vex-versa-planetary",
-    name: "VEX VersaPlanetary Gearbox",
-    vendor: "VEX",
-    category: "gear",
-    price: "$54.99",
-    partNumber: "217-3720",
-    description: "Configurable gearbox for mechanism power transmission.",
-    platform: "general",
-    tags: ["gearbox", "mechanism"],
-  },
+  { id: "rev-control-hub", name: "REV Control Hub", vendor: "REV Robotics", category: "controller", price: "$299.99", partNumber: "REV-31-1595", description: "Android-based robot controller for FTC with integrated Wi-Fi AP.", platform: "ftc", tags: ["control", "hub", "brain"] },
+  { id: "rev-expansion-hub", name: "REV Expansion Hub", vendor: "REV Robotics", category: "controller", price: "$239.00", partNumber: "REV-31-1153", description: "Additional motor/servo/sensor hub used with legacy FTC architectures.", platform: "ftc", tags: ["legacy", "expansion"] },
+  { id: "gobilda-5203-435rpm", name: "goBILDA 5203 Yellow Jacket Motor (435 RPM)", vendor: "goBILDA", category: "motor", price: "$37.99", partNumber: "5203-2402-0019", description: "Popular drivetrain/utility gearmotor with encoder and robust gearbox.", platform: "ftc", tags: ["drivetrain", "yellow jacket", "encoder"] },
+  { id: "gobilda-96mm-wheel", name: "goBILDA Mecanum Wheel Set (96mm)", vendor: "goBILDA", category: "wheel", price: "$89.99", partNumber: "3613-0001-0096", description: "Set of four mecanum wheels for holonomic FTC drivetrains.", platform: "ftc", tags: ["mecanum", "drive"] },
+  { id: "andymark-neverest-orbital", name: "AndyMark NeveRest Orbital 20", vendor: "AndyMark", category: "motor", price: "$43.00", partNumber: "am-4198", description: "Planetary gearmotor commonly used in older FTC robots.", platform: "ftc", tags: ["planetary", "legacy"] },
+  { id: "andymark-compliant-wheel", name: "AndyMark 3in Compliant Wheel", vendor: "AndyMark", category: "wheel", price: "$9.50", partNumber: "am-4970", description: "Compliant wheel frequently used for intake systems.", platform: "ftc", tags: ["intake", "compliant"] },
+  { id: "rev-2m-distance", name: "REV 2m Distance Sensor", vendor: "REV Robotics", category: "sensor", price: "$49.00", partNumber: "REV-31-1505", description: "I2C time-of-flight distance sensor with mm-level output.", platform: "ftc", tags: ["distance", "tof", "i2c"] },
+  { id: "rev-servo-power-module", name: "REV Servo Power Module", vendor: "REV Robotics", category: "electrical", price: "$17.50", partNumber: "REV-11-1144", description: "Dedicated servo rail power support for high-load mechanisms.", platform: "ftc", tags: ["servo", "power"] },
+  { id: "studica-navx2", name: "Studica navX2-Micro", vendor: "Studica", category: "sensor", price: "$99.00", partNumber: "NAVX2-MXP", description: "Inertial/nav sensor used for heading and motion feedback.", platform: "general", tags: ["imu", "heading"] },
+  { id: "vex-versa-planetary", name: "VEX VersaPlanetary Gearbox", vendor: "VEX", category: "gear", price: "$54.99", partNumber: "217-3720", description: "Configurable gearbox for mechanism power transmission.", platform: "general", tags: ["gearbox", "mechanism"] },
 ];
 
 const FRA_FIMS_SUPABASE_URL = "https://jqvsscyydmclxafjznhn.supabase.co";
 const FRA_FIMS_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxdnNzY3l5ZG1jbHhhZmp6bmhuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzMTM2NTgsImV4cCI6MjA4NDg4OTY1OH0.n57L79kwj3iW2-rGW19p1WD5WblHNSkxuD5zDR6Z00k";
 
+/** Lazy-load page size for catalog */
+const CATALOG_PAGE_SIZE = 20;
+
 const parseCsvRows = (csvText: string) => {
-  const lines = csvText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+  const lines = csvText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (lines.length < 2) return [];
   const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
   return lines.slice(1).map((line) => {
     const cols = line.split(",").map((c) => c.trim());
     const row: Record<string, string> = {};
-    headers.forEach((header, index) => {
-      row[header] = cols[index] || "";
-    });
+    headers.forEach((header, index) => { row[header] = cols[index] || ""; });
     return row;
   });
 };
@@ -296,6 +192,10 @@ export const PartsInventoryDialog = ({
   const [fraSyncing, setFraSyncing] = useState(false);
   const [fraCatalogParts, setFraCatalogParts] = useState<VendorCatalogPart[]>([]);
 
+  // Lazy-load state for catalog
+  const [catalogDisplayCount, setCatalogDisplayCount] = useState(CATALOG_PAGE_SIZE);
+  const catalogScrollRef = useRef<HTMLDivElement | null>(null);
+
   // Detail view
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
 
@@ -336,8 +236,12 @@ export const PartsInventoryDialog = ({
   useEffect(() => {
     if (open) {
       setTab(initialTab);
+      // Reset image mode: auto-switch to add tab with image hint
+      if (identifyWithImage) {
+        setTab("add");
+      }
     }
-  }, [open, initialTab]);
+  }, [open, initialTab, identifyWithImage]);
 
   // Realtime subscription
   useEffect(() => {
@@ -387,10 +291,7 @@ export const PartsInventoryDialog = ({
         setAiSpecs(existing.specifications || {});
         setAiCompatible(existing.compatible_with || []);
         setNewCategory(existing.category || "other");
-        toast({
-          title: "Loaded from parts library",
-          description: "This part already exists, so AI did not regenerate it.",
-        });
+        toast({ title: "Loaded from parts library", description: "This part already exists, so AI did not regenerate it." });
         return;
       }
 
@@ -441,10 +342,7 @@ export const PartsInventoryDialog = ({
     if (!user || !newName.trim()) return;
     setSaving(true);
     try {
-      const tags = newTags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
+      const tags = newTags.split(",").map((t) => t.trim()).filter(Boolean);
 
       const { error } = await supabase.from("parts_inventory").insert({
         user_id: user.id,
@@ -493,7 +391,6 @@ export const PartsInventoryDialog = ({
       toast({ title: "No rows found", description: "CSV needs a header and at least one row." });
       return;
     }
-
     setBulkImporting(true);
     let imported = 0;
     let aiEnhanced = 0;
@@ -534,10 +431,7 @@ export const PartsInventoryDialog = ({
           part_number: partNumber,
           manufacturer,
           specifications,
-          tags: (row.tags || "")
-            .split("|")
-            .map((t) => t.trim())
-            .filter(Boolean),
+          tags: (row.tags || "").split("|").map((t) => t.trim()).filter(Boolean),
           compatible_with: [activePlatform, "general"],
           platform: activePlatform,
           ai_details: {},
@@ -604,6 +498,17 @@ export const PartsInventoryDialog = ({
     });
   }, [catalogSearch, catalogVendor, catalogCategory, activePlatform, fraCatalogParts]);
 
+  // Reset display count when filters change
+  useEffect(() => {
+    setCatalogDisplayCount(CATALOG_PAGE_SIZE);
+  }, [catalogSearch, catalogVendor, catalogCategory, activePlatform]);
+
+  const visibleCatalogParts = useMemo(() => {
+    return catalogParts.slice(0, catalogDisplayCount);
+  }, [catalogParts, catalogDisplayCount]);
+
+  const hasMoreCatalog = catalogDisplayCount < catalogParts.length;
+
   const applyCatalogPartToForm = (part: VendorCatalogPart) => {
     setNewName(part.name);
     setAiDescription(part.description);
@@ -618,7 +523,11 @@ export const PartsInventoryDialog = ({
       tags: part.tags,
     });
     setTab("add");
-    toast({ title: "Catalog part loaded", description: "Review fields and click Add Part to save." });
+    // Auto-trigger AI identify for richer specs on vendor part
+    toast({ title: "Catalog part loaded", description: "Running AI for detailed specs..." });
+    setTimeout(() => {
+      identifyWithAI();
+    }, 100);
   };
 
   const syncFraFimsCatalog = async () => {
@@ -636,7 +545,6 @@ export const PartsInventoryDialog = ({
       if (!response.ok) {
         throw new Error(`FRA FIMS catalog request failed (${response.status})`);
       }
-
       const rows = await response.json();
       const mapped: VendorCatalogPart[] = (rows || []).map((row: any) => ({
         id: `fra-${row.sku || row.name}`,
@@ -646,11 +554,8 @@ export const PartsInventoryDialog = ({
         price: typeof row.price === "number" ? `$${row.price.toFixed(2)}` : "$0.00",
         partNumber: row.sku || "N/A",
         description: row.product_url || "Synced from FRA FIMS catalog.",
-        platform: "ftc",
-        tags: String(row.tags || "")
-          .split("|")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
+        platform: "ftc" as const,
+        tags: String(row.tags || "").split("|").map((tag) => tag.trim()).filter(Boolean),
       }));
       setFraCatalogParts(mapped);
       toast({ title: "FRA FIMS synced", description: `Loaded ${mapped.length} catalog parts.` });
@@ -664,7 +569,6 @@ export const PartsInventoryDialog = ({
   useEffect(() => {
     if (!open || activePlatform !== "ftc") return;
     syncFraFimsCatalog();
-    // intentionally run when dialog opens or platform switches
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activePlatform]);
 
@@ -711,6 +615,7 @@ export const PartsInventoryDialog = ({
             </TabsTrigger>
           </TabsList>
 
+          {/* ---- CATALOG TAB ---- */}
           <TabsContent value="catalog" className="flex-1 min-h-0 flex flex-col gap-3 mt-3">
             {activePlatform === "ftc" && (
               <div className="rounded-lg border border-border p-3 space-y-2">
@@ -758,36 +663,50 @@ export const PartsInventoryDialog = ({
               </Select>
             </div>
 
-            <ScrollArea className="flex-1 min-h-0">
-              {catalogParts.length === 0 ? (
+            <ScrollArea className="flex-1 min-h-0" ref={catalogScrollRef}>
+              {visibleCatalogParts.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <DatabaseZap className="w-10 h-10 mx-auto mb-2 opacity-40" />
                   <p className="font-medium">No catalog matches</p>
                   <p className="text-sm">Try another vendor or search term.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pr-4">
-                  {catalogParts.map((part) => (
-                    <div key={part.id} className="rounded-lg border border-border p-3 bg-card space-y-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold">{part.name}</p>
-                          <p className="text-xs text-muted-foreground">{part.vendor} • {part.partNumber}</p>
+                <div className="space-y-3 pr-4">
+                  <p className="text-xs text-muted-foreground">
+                    Showing {visibleCatalogParts.length} of {catalogParts.length} parts
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {visibleCatalogParts.map((part) => (
+                      <div key={part.id} className="rounded-lg border border-border p-3 bg-card space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold">{part.name}</p>
+                            <p className="text-xs text-muted-foreground">{part.vendor} • {part.partNumber}</p>
+                          </div>
+                          <Badge variant="outline">{part.price}</Badge>
                         </div>
-                        <Badge variant="outline">{part.price}</Badge>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{part.description}</p>
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="secondary" className="capitalize">{part.category}</Badge>
+                          {part.tags.slice(0, 2).map((tag) => (
+                            <Badge key={tag} variant="outline" className="text-[10px]">{tag}</Badge>
+                          ))}
+                        </div>
+                        <Button type="button" size="sm" className="w-full" onClick={() => applyCatalogPartToForm(part)}>
+                          <Plus className="w-3 h-3 mr-1" /> Use + AI Identify
+                        </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground">{part.description}</p>
-                      <div className="flex flex-wrap gap-1">
-                        <Badge variant="secondary" className="capitalize">{part.category}</Badge>
-                        {part.tags.slice(0, 2).map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-[10px]">{tag}</Badge>
-                        ))}
-                      </div>
-                      <Button type="button" size="sm" className="w-full" onClick={() => applyCatalogPartToForm(part)}>
-                        <Plus className="w-3 h-3 mr-1" /> Use in Add Form
-                      </Button>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                  {hasMoreCatalog && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setCatalogDisplayCount((c) => c + CATALOG_PAGE_SIZE)}
+                    >
+                      Load more ({catalogParts.length - catalogDisplayCount} remaining)
+                    </Button>
+                  )}
                 </div>
               )}
             </ScrollArea>
@@ -999,17 +918,35 @@ export const PartsInventoryDialog = ({
           <TabsContent value="add" className="flex-1 min-h-0 mt-3">
             <ScrollArea className="h-[450px]">
               <div className="space-y-4 pr-4">
+                {/* Image identifier section — always visible in Add tab */}
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                  <p className="text-sm font-medium text-primary flex items-center gap-1">
+                    <Camera className="w-4 h-4" /> Image Part Identifier
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Upload a photo or use your camera to identify a part. Then enter a name and click AI Identify.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => cameraCaptureInputRef.current?.click()}>
+                      <Camera className="w-4 h-4 mr-1" /> Camera
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => imageUploadInputRef.current?.click()}>
+                      <UploadCloud className="w-4 h-4 mr-1" /> Upload Image
+                    </Button>
+                    {partImageBase64 && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setPartImageBase64(null)}>
+                        Remove image
+                      </Button>
+                    )}
+                  </div>
+                  {partImageBase64 && (
+                    <img src={partImageBase64} alt="Part preview" className="h-24 w-24 object-cover rounded-md border border-border" />
+                  )}
+                </div>
+
                 {/* Part name + AI identify */}
                 <div className="space-y-2">
                   <Label>Part Name *</Label>
-                  {identifyWithImage && (
-                    <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-xs text-muted-foreground">
-                      <span className="inline-flex items-center gap-1 font-medium text-primary">
-                        <Camera className="w-3 h-3" /> Image identification mode
-                      </span>
-                      <p className="mt-1">Upload a part photo below, then click <strong>AI Identify</strong>.</p>
-                    </div>
-                  )}
                   <div className="flex gap-2">
                     <Input
                       placeholder="e.g. REV HD Hex Motor, Arduino Uno, 220Ω Resistor..."
@@ -1083,19 +1020,11 @@ export const PartsInventoryDialog = ({
 
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    <Camera className="w-3 h-3" /> Material / part image
+                    <UploadCloud className="w-3 h-3" /> Bulk CSV Import
                   </Label>
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" onClick={() => cameraCaptureInputRef.current?.click()}>
-                      <Camera className="w-4 h-4 mr-1" /> Open Camera
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => imageUploadInputRef.current?.click()}>
-                      <UploadCloud className="w-4 h-4 mr-1" /> Upload Image
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => csvFileRef.current?.click()}>
-                      <UploadCloud className="w-4 h-4 mr-1" /> Upload CSV
-                    </Button>
-                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => csvFileRef.current?.click()}>
+                    <UploadCloud className="w-4 h-4 mr-1" /> Upload CSV
+                  </Button>
                   <Input
                     ref={imageUploadInputRef}
                     type="file"
@@ -1123,9 +1052,6 @@ export const PartsInventoryDialog = ({
                       await handleBulkImportCsv(text);
                     }}
                   />
-                  {partImageBase64 && (
-                    <img src={partImageBase64} alt="Part preview" className="h-24 w-24 object-cover rounded-md border border-border" />
-                  )}
                   {bulkCsvSummary && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <DatabaseZap className="w-3 h-3" /> {bulkCsvSummary}
