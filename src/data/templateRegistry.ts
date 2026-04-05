@@ -42,6 +42,7 @@ export type LanguageTemplate =
   | "react"
   | "nodejs"
   | "secureops"
+  | "automation"
   | "sqlite"
   | "arduino"
   | "scratch"
@@ -211,6 +212,12 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "SecureOps Platform",
     description: "Security operations starter with event pipelines and risk scoring modules",
     aiDescription: "Security operations platform with typed modules and incident workflows",
+  },
+  {
+    id: "automation",
+    name: "Automation Canvas",
+    description: "Design trigger/action automations with drag-and-drop workflow blocks",
+    aiDescription: "Zapier-style visual automation builder with triggers, AI, and delivery actions",
   },
   { id: "sqlite", name: "SQLite", description: "Embedded database with SQLite", aiDescription: "SQL database queries" },
   {
