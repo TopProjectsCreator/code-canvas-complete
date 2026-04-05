@@ -32,6 +32,7 @@ import { ScratchArchive, importScratchArchive } from "@/services/scratchSb3";
 import { createDataProvider } from "@/integrations/data/provider";
 import { buildProjectShareUrl } from "@/lib/publishing";
 import { useGitHubImport } from "@/hooks/useGitHubImport";
+import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
 
 const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
   ftc: "https://github.com/FIRST-Tech-Challenge/FtcRobotController",
@@ -690,8 +691,21 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       ]);
 
       try {
-        const result = await executeShellCommand(workflow.command);
-        const success = !result.error;
+        const runResult = await runWorkflow(
+          workflow.command,
+          createShellWorkflowAdapter(async (command) => executeShellCommand(command)),
+          {
+            workflowId: workflow.id,
+            workflowName: workflow.name,
+            vars: {
+              branch: gitState.currentBranch,
+            },
+          },
+          {
+            maxParallel: 2,
+          },
+        );
+        const success = runResult.status === "success";
 
         setWorkflows((prev) =>
           prev.map((w) =>
@@ -700,7 +714,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         );
 
         setTerminalHistory((prev) => {
-          const outputLines = result.output.map((line) => ({
+          const outputLines = runResult.output.map((line) => ({
             id: generateId(),
             type: success ? ("output" as const) : ("error" as const),
             content: line,
@@ -712,7 +726,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             type: success ? "output" : "error",
             content: success
               ? `✅ Workflow "${workflow.name}" completed successfully`
-              : `❌ Workflow "${workflow.name}" failed: ${result.error}`,
+              : `❌ Workflow "${workflow.name}" failed`,
             timestamp: new Date(),
           };
 
@@ -722,7 +736,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         setCurrentlyRunningWorkflow(null);
       }
     },
-    [executeShellCommand],
+    [executeShellCommand, gitState.currentBranch],
   );
 
   const handleCreateWorkflow = useCallback((workflow: Omit<Workflow, "id">) => {
