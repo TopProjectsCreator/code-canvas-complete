@@ -282,7 +282,7 @@ export const PLAYBOOKS_BY_RULE_ID: Record<string, string[]> = {
   'git-reset-hard': ['git-history-rewrite'],
   'git-clean-force': ['git-history-rewrite'],
   'git-push-force': ['git-history-rewrite'],
-  'git-filter-repo': ['git-history-rewrite', 'incident-forensics'],
+  'git-filter-repo': ['git-history-rewrite', 'incident-forensics', 'change-management-production'],
   'crypto-ransom-note-pattern': ['remote-script-execution', 'incident-forensics'],
   'proc-killall': ['service-restart-management'],
   'proc-pkill': ['service-restart-management'],
