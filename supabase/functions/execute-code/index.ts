@@ -70,6 +70,30 @@ const languageToWandbox: Record<string, string> = {
   'lazyk': 'Lazy K',
 };
 
+const languageAliases: Record<string, string> = {
+  sh: 'bash',
+  js: 'javascript',
+  ts: 'typescript',
+  py: 'python',
+  rb: 'ruby',
+  cs: 'csharp',
+  cc: 'cpp',
+  cxx: 'cpp',
+  cr: 'crystal',
+  exs: 'elixir',
+  erl: 'erlang',
+  jl: 'julia',
+  ml: 'ocaml',
+  mli: 'ocaml',
+  sc: 'scala',
+  lazy: 'lazyk',
+};
+
+function normalizeLanguage(language: string): string {
+  const normalized = language.trim().toLowerCase();
+  return languageAliases[normalized] || normalized;
+}
+
 const preferredCompilers: Record<string, string[]> = {
   'Python': ['cpython-3.12.0', 'cpython-3.11.0', 'cpython-3.10.0'],
   'JavaScript': ['nodejs-20.11.0', 'nodejs-18.15.0', 'nodejs-head'],
@@ -100,7 +124,8 @@ const preferredCompilers: Record<string, string[]> = {
 };
 
 async function getCompilerForLanguage(language: string): Promise<string | null> {
-  const wandboxLang = languageToWandbox[language];
+  const normalizedLanguage = normalizeLanguage(language);
+  const wandboxLang = languageToWandbox[normalizedLanguage];
   if (!wandboxLang) return null;
 
   const now = Date.now();
@@ -159,7 +184,8 @@ function friendlyError(error: string): string | null {
 }
 
 async function executeWithWandbox(code: string, language: string, stdin?: string): Promise<ExecuteResult> {
-  const compiler = await getCompilerForLanguage(language);
+  const normalizedLanguage = normalizeLanguage(language);
+  const compiler = await getCompilerForLanguage(normalizedLanguage);
   if (!compiler) {
     return { output: [], error: `Unsupported language: ${language}. Supported: ${Object.keys(languageToWandbox).join(', ')}`, executor: 'wandbox' };
   }
@@ -345,7 +371,14 @@ serve(async (req) => {
       );
     }
 
-    const normalizedLanguage = language.toLowerCase();
+    if (!language || !language.trim()) {
+      return new Response(
+        JSON.stringify({ error: 'No language provided', output: [] }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const normalizedLanguage = normalizeLanguage(language);
     const useContainer = shouldUseContainer(normalizedLanguage);
     const executorName = useContainer ? 'Container (session-capable)' : 'Wandbox';
 
