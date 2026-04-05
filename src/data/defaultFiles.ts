@@ -42,6 +42,7 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   react: "React",
   nodejs: "Node.js",
   secureops: "SecureOps Platform",
+  automation: "Automation Canvas",
   sqlite: "SQLite",
   arduino: "Arduino",
   scratch: "Scratch Blocks",
@@ -132,6 +133,9 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case "secureops":
       baseTemplate = secureOpsTemplate;
+      break;
+    case "automation":
+      baseTemplate = automationTemplate;
       break;
     case "sqlite":
       baseTemplate = sqliteTemplate;
@@ -2012,6 +2016,63 @@ const blankTemplate: FileNode[] = [
 # the sidebar or drag and drop files here.
 #
 # Happy coding! 🚀`,
+      },
+    ],
+  },
+];
+
+const automationTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "automation-canvas",
+    type: "folder",
+    children: [
+      {
+        id: "automation-readme",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
+        content: `# Automation Canvas Template
+
+This template is meant for visual workflow automation (Zapier-style).
+
+## Where to build
+- Open the **Workflows** tab in the left sidebar.
+- You'll see the new **Automation Canvas** pane with drag-and-drop blocks.
+
+## Starter ideas
+1. Daily news summary
+   - Trigger: schedule (9:00 AM)
+   - Action: News API request
+   - AI: summarize
+   - Delivery: email via Resend
+
+2. Slack /check_github_stars
+   - Trigger: slash command
+   - Action: GitHub repo info
+   - Storage: Supabase insert
+   - Delivery: Slack reply
+`,
+      },
+      {
+        id: "automation-config",
+        name: "automation.config.json",
+        type: "file",
+        language: "json",
+        content: `{
+  "name": "Daily News Summary",
+  "enabled": false,
+  "trigger": {
+    "type": "schedule",
+    "cron": "0 9 * * *",
+    "timezone": "America/New_York"
+  },
+  "steps": [
+    { "type": "http_request", "provider": "newsapi", "source": "espn" },
+    { "type": "ai_summarize", "provider": "openai", "model": "gpt-4.1-mini" },
+    { "type": "send_email", "provider": "resend", "to": "myemail@gmail.com" }
+  ]
+}`,
       },
     ],
   },
