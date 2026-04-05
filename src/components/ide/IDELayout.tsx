@@ -354,7 +354,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     if (githubRepo) {
       toast({ title: "Cloning template", description: `Importing from GitHub...` });
       try {
-        const imported = await gitImportRepo(githubRepo);
+        // Use the provider import (tree API) which is much faster and avoids rate limits
+        const imported = await gitProviderImport(githubRepo, 'github');
         if (imported) {
           setFiles(imported);
           const importOriginals: Record<string, string> = {};
@@ -374,7 +375,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         toast({ title: "Clone failed", description: "Using default template files", variant: "destructive" });
       }
     }
-  }, [gitImportRepo, toast]);
+  }, [gitProviderImport, toast]);
 
   // Load shared project from URL
   useEffect(() => {
