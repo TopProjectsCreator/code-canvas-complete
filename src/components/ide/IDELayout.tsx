@@ -32,6 +32,7 @@ import { ScratchArchive, importScratchArchive } from "@/services/scratchSb3";
 import { createDataProvider } from "@/integrations/data/provider";
 import { buildProjectShareUrl } from "@/lib/publishing";
 import { useGitHubImport } from "@/hooks/useGitHubImport";
+import { useGitProviderImport } from "@/hooks/useGitProviderImport";
 import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
 import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/collabSyncEngine";
 
@@ -300,6 +301,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const { executeCode, executeShellCommand, isExecuting } = useCodeExecution();
   const collab = useCollaboration(currentProject?.id);
   const { importRepository: gitImportRepo } = useGitHubImport();
+  const { importRepository: gitProviderImport } = useGitProviderImport();
 
   const addHistoryEntry = useCallback(
     (type: (typeof historyEntries)[0]["type"], label: string, detail?: string) => {
@@ -352,7 +354,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     if (githubRepo) {
       toast({ title: "Cloning template", description: `Importing from GitHub...` });
       try {
-        const imported = await gitImportRepo(githubRepo);
+        // Use the provider import (tree API) which is much faster and avoids rate limits
+        const imported = await gitProviderImport(githubRepo, 'github');
         if (imported) {
           setFiles(imported);
           const importOriginals: Record<string, string> = {};
@@ -372,7 +375,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         toast({ title: "Clone failed", description: "Using default template files", variant: "destructive" });
       }
     }
-  }, [gitImportRepo, toast]);
+  }, [gitProviderImport, toast]);
 
   // Load shared project from URL
   useEffect(() => {
