@@ -33,6 +33,7 @@ import { createDataProvider } from "@/integrations/data/provider";
 import { buildProjectShareUrl } from "@/lib/publishing";
 import { useGitHubImport } from "@/hooks/useGitHubImport";
 import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
+import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/collabSyncEngine";
 
 const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
   ftc: "https://github.com/FIRST-Tech-Challenge/FtcRobotController",
@@ -295,6 +296,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     }>
   >([]);
   const editedFilesRef = useRef<Set<string>>(new Set());
+  const collabEngineRef = useRef<CollaborationSyncEngine>(new CollaborationSyncEngine());
   const { executeCode, executeShellCommand, isExecuting } = useCodeExecution();
   const collab = useCollaboration(currentProject?.id);
   const { importRepository: gitImportRepo } = useGitHubImport();
@@ -443,6 +445,25 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   }, [activeFilePath, collab]);
 
   useEffect(() => {
+    const engine = collabEngineRef.current;
+    engine.reset();
+
+    const registerNodes = (nodes: FileNode[], parentPath = "") => {
+      nodes.forEach((node) => {
+        const nextPath = parentPath ? `${parentPath}/${node.name}` : node.name;
+        if (node.type === "file") {
+          const content = fileContents[node.id] ?? node.content ?? "";
+          engine.initializeFile(node.id, nextPath, content);
+          return;
+        }
+        if (node.children) registerNodes(node.children, nextPath);
+      });
+    };
+
+    registerNodes(files);
+  }, [files, fileContents]);
+
+  useEffect(() => {
     const remoteUpdate = collab.remoteFileUpdate;
     if (!remoteUpdate) return;
 
@@ -463,6 +484,31 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       return applyUpdate(prev);
     });
   }, [collab.remoteFileUpdate]);
+
+  useEffect(() => {
+    const patch = collab.remoteFilePatch;
+    if (!patch || !isRemotePatchEnvelope(patch)) return;
+
+    const update = collabEngineRef.current.materializeUpdate(patch);
+    if (!update) return;
+
+    setFileContents((prev) => {
+      if (prev[update.fileId] === update.content) return prev;
+      return { ...prev, [update.fileId]: update.content };
+    });
+
+    setFiles((prev) => {
+      const applyUpdate = (nodes: FileNode[]): FileNode[] =>
+        nodes.map((node) => {
+          if (node.id === update.fileId && node.type === "file") {
+            return { ...node, content: update.content };
+          }
+          if (node.children) return { ...node, children: applyUpdate(node.children) };
+          return node;
+        });
+      return applyUpdate(prev);
+    });
+  }, [collab.remoteFilePatch]);
 
   // Track Git changes when files are modified
   useEffect(() => {
@@ -1106,6 +1152,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       const filePath = findFilePathById(files, fileId);
       if (filePath) {
+        void collab.broadcastFilePatch(collabEngineRef.current, fileId, filePath, content);
         void collab.broadcastFileChange({ fileId, filePath, content });
       }
 
