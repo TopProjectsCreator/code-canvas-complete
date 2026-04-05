@@ -3,6 +3,12 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import {
+  isRemotePatchEnvelope,
+  patchEnvelopeFromLocal,
+  type CollaborationSyncEngine,
+  type RemotePatchEnvelope,
+} from '@/services/collabSyncEngine';
 
 export type CollabRole = 'viewer' | 'editor' | 'admin';
 
@@ -74,6 +80,8 @@ export interface RemoteFileUpdate {
   updatedAt: string;
 }
 
+export interface RemoteFilePatch extends RemotePatchEnvelope {}
+
 const PRESENCE_COLORS = ['#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#10b981', '#f97316', '#ec4899', '#6366f1'];
 
 export function useCollaboration(projectId: string | undefined) {
@@ -88,6 +96,7 @@ export function useCollaboration(projectId: string | undefined) {
   const [inviteSuggestions, setInviteSuggestions] = useState<UserSuggestion[]>([]);
   const [inviteSearchLoading, setInviteSearchLoading] = useState(false);
   const [remoteFileUpdate, setRemoteFileUpdate] = useState<RemoteFileUpdate | null>(null);
+  const [remoteFilePatch, setRemoteFilePatch] = useState<RemoteFilePatch | null>(null);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const workspaceChannelRef = useRef<RealtimeChannel | null>(null);
   const sessionIdRef = useRef(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}`);
@@ -273,6 +282,12 @@ export function useCollaboration(projectId: string | undefined) {
           updatedByName: message.updatedByName,
           updatedAt: message.updatedAt,
         });
+      })
+      .on('broadcast', { event: 'file-patch' }, ({ payload }) => {
+        const envelope = payload as RemoteFilePatch & { sessionId?: string };
+        if (!envelope || envelope.updatedBy === user.id || envelope.sessionId === sessionIdRef.current) return;
+        if (!isRemotePatchEnvelope(envelope)) return;
+        setRemoteFilePatch(envelope);
       })
       .subscribe();
 
@@ -493,6 +508,32 @@ export function useCollaboration(projectId: string | undefined) {
     });
   }, [profile, user]);
 
+  const broadcastFilePatch = useCallback(async (
+    engine: CollaborationSyncEngine,
+    fileId: string,
+    filePath: string,
+    nextContent: string,
+  ) => {
+    if (!user || !workspaceChannelRef.current) return;
+    const localPatch = engine.createOutgoingPatch(fileId, nextContent);
+    if (!localPatch) return;
+
+    const payload = patchEnvelopeFromLocal(
+      localPatch,
+      user.id,
+      profile?.display_name || user.email?.split('@')[0] || 'User',
+    );
+
+    await workspaceChannelRef.current.send({
+      type: 'broadcast',
+      event: 'file-patch',
+      payload: {
+        ...payload,
+        sessionId: sessionIdRef.current,
+      },
+    });
+  }, [profile, user]);
+
   return {
     collaborators,
     comments,
@@ -503,6 +544,7 @@ export function useCollaboration(projectId: string | undefined) {
     inviteSuggestions,
     inviteSearchLoading,
     remoteFileUpdate,
+    remoteFilePatch,
     inviteCollaborator,
     inviteCollaboratorByUser,
     removeCollaborator,
@@ -518,5 +560,6 @@ export function useCollaboration(projectId: string | undefined) {
     fetchReviews,
     searchInviteCandidates,
     broadcastFileChange,
+    broadcastFilePatch,
   };
 }
