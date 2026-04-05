@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { TEMPLATES } from '@/data/templateRegistry';
 import { getFileLanguage, getTemplateFiles } from '@/data/defaultFiles';
 
@@ -30,6 +32,18 @@ describe('wandbox language templates', () => {
     for (const [template, fileName] of expectedMainFiles) {
       const files = getRootChildren(template);
       expect(files.some((f) => f.name === fileName)).toBe(true);
+    }
+  });
+
+
+  it('keeps execute-code language map in sync with new wandbox templates', () => {
+    const executeCodeSource = readFileSync(
+      resolve(process.cwd(), 'supabase/functions/execute-code/index.ts'),
+      'utf-8',
+    );
+
+    for (const language of ['swift', 'crystal', 'elixir', 'erlang', 'julia', 'ocaml', 'pony', 'scala', 'vim', 'lazyk']) {
+      expect(executeCodeSource).toContain(`'${language}':`);
     }
   });
 
