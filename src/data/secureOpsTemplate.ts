@@ -47,7 +47,7 @@ export const buildAuthTimeline = (events: AuthEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupAuthBySeverity = (events: AuthEvent[]) => {
@@ -98,7 +98,7 @@ export const buildSessionsTimeline = (events: SessionsEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupSessionsBySeverity = (events: SessionsEvent[]) => {
@@ -149,7 +149,7 @@ export const buildUsersTimeline = (events: UsersEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupUsersBySeverity = (events: UsersEvent[]) => {
@@ -200,7 +200,7 @@ export const buildRolesTimeline = (events: RolesEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupRolesBySeverity = (events: RolesEvent[]) => {
@@ -251,7 +251,7 @@ export const buildPermissionsTimeline = (events: PermissionsEvent[]): string[] =
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupPermissionsBySeverity = (events: PermissionsEvent[]) => {
@@ -302,7 +302,7 @@ export const buildAuditTimeline = (events: AuditEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupAuditBySeverity = (events: AuditEvent[]) => {
@@ -353,7 +353,7 @@ export const buildAlertsTimeline = (events: AlertsEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupAlertsBySeverity = (events: AlertsEvent[]) => {
@@ -404,7 +404,7 @@ export const buildIncidentsTimeline = (events: IncidentsEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupIncidentsBySeverity = (events: IncidentsEvent[]) => {
@@ -455,7 +455,7 @@ export const buildForensicsTimeline = (events: ForensicsEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupForensicsBySeverity = (events: ForensicsEvent[]) => {
@@ -506,7 +506,7 @@ export const buildNetworkTimeline = (events: NetworkEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupNetworkBySeverity = (events: NetworkEvent[]) => {
@@ -557,7 +557,7 @@ export const buildEndpointTimeline = (events: EndpointEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupEndpointBySeverity = (events: EndpointEvent[]) => {
@@ -608,7 +608,7 @@ export const buildEmailTimeline = (events: EmailEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupEmailBySeverity = (events: EmailEvent[]) => {
@@ -659,7 +659,7 @@ export const buildQueueTimeline = (events: QueueEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupQueueBySeverity = (events: QueueEvent[]) => {
@@ -710,7 +710,7 @@ export const buildSchedulerTimeline = (events: SchedulerEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupSchedulerBySeverity = (events: SchedulerEvent[]) => {
@@ -761,7 +761,7 @@ export const buildRatelimitTimeline = (events: RatelimitEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupRatelimitBySeverity = (events: RatelimitEvent[]) => {
@@ -812,7 +812,7 @@ export const buildSecretsTimeline = (events: SecretsEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupSecretsBySeverity = (events: SecretsEvent[]) => {
@@ -863,7 +863,7 @@ export const buildIntegrationsTimeline = (events: IntegrationsEvent[]): string[]
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupIntegrationsBySeverity = (events: IntegrationsEvent[]) => {
@@ -914,7 +914,7 @@ export const buildBillingTimeline = (events: BillingEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupBillingBySeverity = (events: BillingEvent[]) => {
@@ -965,7 +965,7 @@ export const buildNotificationsTimeline = (events: NotificationsEvent[]): string
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupNotificationsBySeverity = (events: NotificationsEvent[]) => {
@@ -1016,7 +1016,7 @@ export const buildComplianceTimeline = (events: ComplianceEvent[]): string[] => 
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupComplianceBySeverity = (events: ComplianceEvent[]) => {
@@ -1067,7 +1067,7 @@ export const buildReportsTimeline = (events: ReportsEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupReportsBySeverity = (events: ReportsEvent[]) => {
@@ -1118,7 +1118,7 @@ export const buildSearchTimeline = (events: SearchEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupSearchBySeverity = (events: SearchEvent[]) => {
@@ -1169,7 +1169,7 @@ export const buildStorageTimeline = (events: StorageEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupStorageBySeverity = (events: StorageEvent[]) => {
@@ -1220,7 +1220,7 @@ export const buildRetentionTimeline = (events: RetentionEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupRetentionBySeverity = (events: RetentionEvent[]) => {
@@ -1271,7 +1271,7 @@ export const buildEtlTimeline = (events: EtlEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupEtlBySeverity = (events: EtlEvent[]) => {
@@ -1322,7 +1322,7 @@ export const buildRiskTimeline = (events: RiskEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupRiskBySeverity = (events: RiskEvent[]) => {
@@ -1373,7 +1373,7 @@ export const buildAnomaliesTimeline = (events: AnomaliesEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupAnomaliesBySeverity = (events: AnomaliesEvent[]) => {
@@ -1424,7 +1424,7 @@ export const buildPoliciesTimeline = (events: PoliciesEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupPoliciesBySeverity = (events: PoliciesEvent[]) => {
@@ -1475,7 +1475,7 @@ export const buildPlaybooksTimeline = (events: PlaybooksEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupPlaybooksBySeverity = (events: PlaybooksEvent[]) => {
@@ -1526,7 +1526,7 @@ export const buildHealthTimeline = (events: HealthEvent[]): string[] => {
   return events
     .slice()
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    .map((event) => `\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}`);
+    .map((event) => \`\${event.createdAt} | \${event.severity.toUpperCase()} | \${event.summary}\`);
 };
 
 export const groupHealthBySeverity = (events: HealthEvent[]) => {
