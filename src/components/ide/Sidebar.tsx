@@ -583,6 +583,7 @@ export const Sidebar = ({
             onUpdateWorkflow={onUpdateWorkflow}
             onDeleteWorkflow={onDeleteWorkflow}
             currentlyRunning={currentlyRunningWorkflow}
+            showAutomationTemplatePane={currentLanguage === 'automation'}
           />
         )}
 
