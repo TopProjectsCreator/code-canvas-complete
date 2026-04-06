@@ -39,7 +39,7 @@ export const OfflineIndicator = () => {
             </>
           ) : (
             <>
-              <WifiOff className="w-3.5 h-3.5 text-yellow-500" />
+              <WifiOff className="w-3.5 h-3.5 text-warning" />
               <span className="text-muted-foreground">Offline</span>
               {dirtyCount > 0 && (
                 <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
