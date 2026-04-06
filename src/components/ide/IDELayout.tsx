@@ -303,6 +303,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const collab = useCollaboration(currentProject?.id);
   const { importRepository: gitImportRepo } = useGitHubImport();
   const { importRepository: gitProviderImport } = useGitProviderImport();
+  const { saveLocally, isOfflineCapable: checkOffline } = useOfflineProject();
+  const offlineSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const addHistoryEntry = useCallback(
     (type: (typeof historyEntries)[0]["type"], label: string, detail?: string) => {
@@ -1710,6 +1712,40 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       setHasUnsavedChanges(true);
     }
   }, [fileContents]);
+
+  // Auto-save to IndexedDB for offline-capable templates (debounced 3s)
+  useEffect(() => {
+    if (!selectedTemplate || !checkOffline(selectedTemplate)) return;
+    if (files.length === 0) return;
+
+    if (offlineSaveTimerRef.current) clearTimeout(offlineSaveTimerRef.current);
+    offlineSaveTimerRef.current = setTimeout(() => {
+      // Apply in-memory edits to file tree before saving
+      const mergedFiles = JSON.parse(JSON.stringify(files)) as FileNode[];
+      const applyEdits = (nodes: FileNode[]) => {
+        for (const node of nodes) {
+          if (node.type === 'file' && fileContents[node.id]) {
+            node.content = fileContents[node.id];
+          }
+          if (node.children) applyEdits(node.children);
+        }
+      };
+      applyEdits(mergedFiles);
+
+      saveLocally(
+        mergedFiles,
+        selectedTemplate,
+        localProjectName,
+        currentProject?.id ? `remote-${currentProject.id}` : undefined,
+        currentProject?.id,
+      );
+    }, 3000);
+
+    return () => {
+      if (offlineSaveTimerRef.current) clearTimeout(offlineSaveTimerRef.current);
+    };
+  }, [files, fileContents, selectedTemplate, localProjectName, currentProject, saveLocally, checkOffline]);
+
 
   // Global keyboard shortcuts
   useEffect(() => {
