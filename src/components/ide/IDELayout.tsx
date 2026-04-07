@@ -44,6 +44,7 @@ const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
 const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ default: m.ArduinoPanel })));
 const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then((m) => ({ default: m.ScratchPanel })));
 const FTCPanel = lazy(() => import("@/components/ftc").then((m) => ({ default: m.FTCPanel })));
+const MinecraftEditor = lazy(() => import("@/components/minecraft").then((m) => ({ default: m.MinecraftEditor })));
 const AutomationTemplatePane = lazy(() => import("@/components/ide/AutomationTemplatePane").then((m) => ({ default: m.AutomationTemplatePane })));
 const PartsInventoryDialog = lazy(() => import("@/components/ide/PartsInventoryDialog").then((m) => ({ default: m.PartsInventoryDialog })));
 
@@ -2174,6 +2175,14 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         onStop={handleStop}
                       />
                     </Suspense>
+                  ) : selectedTemplate === "minecraft" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Minecraft panel...</div>}>
+                      <MinecraftEditor
+                        files={filesWithContent}
+                        currentFile={activeFileWithContent}
+                        onFileChange={handleTabClick}
+                      />
+                    </Suspense>
                   ) : (
                     <Preview
                       htmlContent={htmlContent}
@@ -2204,8 +2213,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           ) : (
             // Desktop: Resizable panels
             <ResizablePanelGroup direction="horizontal" className="flex-1">
-              {/* Editor panel - hidden for scratch and automation templates */}
-              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && (
+              {/* Editor panel - hidden for scratch, automation, and minecraft templates */}
+              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "minecraft" && (
                 <>
                   <ResizablePanel defaultSize={54} minSize={34}>
                     <div className="h-full flex flex-col">
@@ -2276,6 +2285,14 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       isRunning={isRunning}
                       onRun={() => setIsRunning(true)}
                       onStop={handleStop}
+                    />
+                  </Suspense>
+                ) : selectedTemplate === "minecraft" ? (
+                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Minecraft panel...</div>}>
+                    <MinecraftEditor
+                      files={filesWithContent}
+                      currentFile={activeFileWithContent}
+                      onFileChange={handleTabClick}
                     />
                   </Suspense>
                 ) : (

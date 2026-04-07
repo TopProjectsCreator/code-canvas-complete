@@ -53,7 +53,8 @@ export type LanguageTemplate =
   | "audio"
   | "rtf"
   | "cad"
-  | "ftc";
+  | "ftc"
+  | "minecraft";
 
 export interface TemplateMeta {
   id: LanguageTemplate;
@@ -279,6 +280,12 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "FTC Robotics",
     description: "FIRST Tech Challenge robot programming (Java/Kotlin)",
     aiDescription: "FTC robotics OpMode development with cloud build & ADB upload",
+  },
+  {
+    id: "minecraft",
+    name: "Minecraft Scripting",
+    description: "Control Minecraft worlds with JavaScript & modded Eaglercraft",
+    aiDescription: "Minecraft scripting with JavaScript and browser-based Eaglercraft",
   },
 ];
 
