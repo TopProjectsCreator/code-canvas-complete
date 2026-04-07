@@ -1456,13 +1456,47 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['RSS Monitor', 'internal'],
         ['New Email', 'internal'],
         ['FTP Monitor', 'internal'],
+        ['File Watcher', 'internal'],
+        ['Database Change', 'internal'],
+        ['Queue Consumer', 'internal'],
+        ['Manual Trigger', 'internal'],
+        ['Event Bus Listener', 'internal'],
       ]),
       withBlocks('logic', 'Logic', [
         ['Filter', 'internal'], ['Router', 'internal'], ['Loop', 'internal'], ['Delay', 'internal'], ['Wait for Approval', 'internal'], ['Error Handler', 'internal'],
+        ['Switch/Case', 'internal'], ['Merge', 'internal'], ['Parallel Split', 'internal'], ['Debounce', 'internal'], ['Rate Limiter', 'internal'],
+        ['Retry', 'internal'], ['Circuit Breaker', 'internal'], ['Sub-Workflow', 'internal'],
       ]),
       withBlocks('data', 'Data', [
         ['Text Formatter', 'internal'], ['Date Formatter', 'internal'], ['Math', 'internal'], ['JSON Parser', 'internal'],
         ['JS/Python Code', 'internal'], ['CSV Generator', 'internal'], ['PDF Creator', 'internal'],
+        ['XML Parser', 'internal'], ['YAML Parser', 'internal'], ['Base64 Encode/Decode', 'internal'],
+        ['Hash Generator', 'internal'], ['UUID Generator', 'internal'], ['Regex Extractor', 'internal'],
+        ['HTML Parser', 'internal'], ['Markdown to HTML', 'internal'], ['Image Resizer', 'internal'],
+        ['QR Code Generator', 'internal'], ['Barcode Generator', 'internal'],
+      ]),
+    ],
+  },
+  {
+    id: 'social',
+    title: 'Social Media & Content',
+    subcategories: [
+      withBlocks('social-platforms', 'Social Platforms', [
+        ['Twitter/X', 'api_key', undefined, twitterParams, twitterCredentials],
+        ['Instagram', 'api_key'], ['Facebook Pages', 'api_key'], ['LinkedIn', 'api_key'],
+        ['TikTok', 'api_key'], ['Pinterest', 'api_key'], ['Reddit', 'api_key'],
+        ['YouTube', 'api_key'], ['Mastodon', 'free'], ['Bluesky', 'free'],
+        ['Threads', 'api_key'], ['Tumblr', 'api_key'],
+      ]),
+      withBlocks('social-management', 'Social Management & Scheduling', [
+        ['Buffer', 'api_key'], ['Hootsuite', 'api_key'], ['Later', 'api_key'],
+        ['Sprout Social', 'api_key'], ['SocialBee', 'api_key'], ['Publer', 'api_key'],
+      ]),
+      withBlocks('content-cms', 'Content & CMS', [
+        ['WordPress', 'api_key'], ['Ghost', 'api_key'], ['Strapi', 'free'],
+        ['Contentful', 'api_key'], ['Sanity', 'free'], ['Prismic', 'api_key'],
+        ['Webflow', 'api_key'], ['Medium', 'free'], ['Hashnode', 'free'],
+        ['Dev.to', 'free'], ['Substack', 'api_key'],
       ]),
     ],
   },
@@ -1472,19 +1506,62 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     subcategories: [
       withBlocks('hr', 'HR & Recruiting', [
         ['Workday', 'api_key'], ['BambooHR', 'api_key'], ['Greenhouse', 'api_key'], ['Lever', 'api_key'], ['Ashby', 'api_key'],
-        ['HiBob', 'api_key'], ['Gusto', 'api_key'],
+        ['HiBob', 'api_key'], ['Gusto', 'api_key'], ['Rippling', 'api_key'], ['Deel', 'api_key'], ['Remote.com', 'api_key'],
       ]),
       withBlocks('edtech', 'Education (EdTech)', [
         ['Canvas', 'free'], ['Moodle', 'free'], ['Teachable', 'api_key'], ['Kajabi', 'api_key'], ['Coursera', 'api_key'], ['Duolingo', 'api_key'],
+        ['Udemy', 'api_key'], ['Thinkific', 'api_key'], ['Podia', 'api_key'],
       ]),
       withBlocks('legal', 'Legal & E-Signature', [
         ['DocuSign', 'api_key'], ['Dropbox Sign', 'api_key'], ['Ironclad', 'api_key'], ['Clio', 'api_key'], ['PandaDoc', 'api_key'],
+        ['SignNow', 'api_key'], ['Juro', 'api_key'],
       ]),
       withBlocks('healthcare', 'Healthcare', [
         ['Epic', 'api_key'], ['Cerner', 'api_key'], ['Healthie', 'api_key'], ['Redox', 'api_key'], ['Fitbit', 'free'], ['Strava', 'free'],
+        ['Withings', 'api_key'], ['Apple Health', 'free'], ['Google Fit', 'free'],
       ]),
       withBlocks('logistics-real-estate', 'Logistics & Real Estate', [
         ['AfterShip', 'api_key'], ['Shippo', 'api_key'], ['EasyPost', 'api_key'], ['Zillow', 'api_key'], ['Airbnb', 'api_key'], ['Uber', 'api_key'],
+        ['DoorDash', 'api_key'], ['FedEx', 'api_key'], ['UPS', 'api_key'], ['USPS', 'free'],
+      ]),
+      withBlocks('accounting', 'Accounting & Finance', [
+        ['QuickBooks', 'api_key'], ['Xero', 'api_key'], ['FreshBooks', 'api_key'], ['Wave', 'free'],
+        ['Plaid', 'api_key'], ['Wise', 'api_key'], ['Mercury', 'api_key'],
+      ]),
+      withBlocks('design', 'Design & Creative', [
+        ['Figma', 'api_key'], ['Canva', 'api_key'], ['Adobe Creative Cloud', 'api_key'],
+        ['InVision', 'api_key'], ['Sketch', 'api_key'], ['Framer', 'free'],
+      ]),
+    ],
+  },
+  {
+    id: 'notification',
+    title: 'Notifications & Alerts',
+    subcategories: [
+      withBlocks('push-notify', 'Push Notifications', [
+        ['Firebase Cloud Messaging', 'free'], ['OneSignal', 'free'], ['Pusher Beams', 'api_key'],
+        ['Novu', 'free'], ['Knock', 'api_key'], ['MagicBell', 'api_key'],
+        ['Courier', 'api_key'], ['Engagespot', 'free'],
+      ]),
+      withBlocks('alerts', 'Alerting & Incident', [
+        ['PagerDuty', 'api_key'], ['OpsGenie', 'api_key'], ['VictorOps', 'api_key'],
+        ['StatusPage', 'api_key'], ['Instatus', 'free'], ['Cachet', 'free'],
+      ]),
+    ],
+  },
+  {
+    id: 'search-analytics',
+    title: 'Search & Analytics',
+    subcategories: [
+      withBlocks('search-engines', 'Search Engines', [
+        ['Algolia', 'api_key'], ['Elasticsearch', 'free'], ['Meilisearch', 'free'],
+        ['Typesense', 'free'], ['Pinecone', 'api_key'], ['Weaviate', 'free'],
+        ['Qdrant', 'free'], ['ChromaDB', 'free'],
+      ]),
+      withBlocks('analytics-bi', 'Analytics & BI', [
+        ['Google Analytics', 'api_key'], ['Plausible', 'free'], ['PostHog', 'free'],
+        ['Metabase', 'free'], ['Looker', 'api_key'], ['Tableau', 'api_key'],
+        ['Apache Superset', 'free'], ['Grafana', 'free'],
       ]),
     ],
   },
