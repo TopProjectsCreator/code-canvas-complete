@@ -11,7 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowLeft, WifiOff } from 'lucide-react';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface AuthDialogProps {
   open: boolean;
@@ -19,6 +20,7 @@ interface AuthDialogProps {
 }
 
 export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
+  const isOnline = useOnlineStatus();
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -119,7 +121,14 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
           </DialogDescription>
         </DialogHeader>
 
-                {/* OAuth Sign-In */}
+        {!isOnline && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+            <WifiOff className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>You're offline. Sign in requires an internet connection.</span>
+          </div>
+        )}
+
+        {/* OAuth Sign-In */}
         {mode !== 'forgot' && availableOAuthProviders.length > 0 && (
           <>
             {availableOAuthProviders.includes('replit') && (
@@ -127,7 +136,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
                 variant="outline"
                 className="w-full gap-2"
                 onClick={() => handleOAuthSignIn('replit')}
-                disabled={oauthLoading !== null}
+                disabled={oauthLoading !== null || !isOnline}
               >
                 {oauthLoading === 'replit' ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -141,7 +150,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
                 variant="outline"
                 className="w-full gap-2"
                 onClick={() => handleOAuthSignIn('google')}
-                disabled={oauthLoading !== null}
+                disabled={oauthLoading !== null || !isOnline}
               >
                 {oauthLoading === 'google' ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

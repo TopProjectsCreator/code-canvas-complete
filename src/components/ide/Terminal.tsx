@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2, Sparkles } from 'lucide-react';
+import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2, Sparkles, WifiOff } from 'lucide-react';
 import { TerminalLine } from '@/types/ide';
 import { cn } from '@/lib/utils';
 import { useCodeExecution } from '@/hooks/useCodeExecution';
 import { useWebContainer } from '@/hooks/useWebContainer';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +35,7 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
   const scrollRef = useRef<HTMLDivElement>(null);
   const { executeShellCommand, executeCode, isExecuting } = useCodeExecution();
   const { status: webContainerStatus } = useWebContainer();
+  const isOnline = useOnlineStatus();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -204,6 +206,12 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
           </button>
         </div>
         <div className="flex items-center gap-0.5">
+          {!isOnline && (
+            <div className="flex items-center gap-1.5 px-2 text-xs text-destructive">
+              <WifiOff className="w-3 h-3" />
+              <span>Offline</span>
+            </div>
+          )}
           {isExecuting && (
             <div className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
               <Loader2 className="w-3 h-3 animate-spin text-primary" />
