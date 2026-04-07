@@ -423,6 +423,7 @@ export const AutomationTemplatePane = () => {
                   <AutomationBlockParameterForm
                     parameters={blockDef?.parameters}
                     credentialFields={blockDef?.credentialFields}
+                    operations={blockDef?.operations}
                     config={selectedBlock.config}
                     onConfigChange={replaceSelectedConfig}
                     blockLabel={selectedBlock.label}

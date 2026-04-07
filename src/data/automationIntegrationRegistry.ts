@@ -15,6 +15,18 @@ export interface APIParameter {
   validation?: (value: any) => boolean | string; // error message if invalid
 }
 
+export interface Operation {
+  id: string;
+  name: string;
+  description?: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  endpoint?: string;
+  inputFields: APIParameter[];
+  outputFields?: APIParameter[];
+  documentation?: string;
+  example?: Record<string, any>;
+}
+
 export interface AutomationRegistryBlock {
   id: string;
   label: string;
@@ -22,6 +34,7 @@ export interface AutomationRegistryBlock {
   description?: string;
   parameters?: APIParameter[];
   credentialFields?: APIParameter[];
+  operations?: Operation[];
 }
 
 export interface AutomationRegistrySubcategory {
@@ -48,7 +61,8 @@ const block = (
   auth: AutomationAuthType,
   description?: string,
   parameters?: APIParameter[],
-  credentialFields?: APIParameter[]
+  credentialFields?: APIParameter[],
+  operations?: Operation[]
 ): AutomationRegistryBlock => ({
   id: slugify(label),
   label,
@@ -56,6 +70,7 @@ const block = (
   description,
   parameters,
   credentialFields,
+  operations,
 });
 
 const withBlocks = (
@@ -66,12 +81,13 @@ const withBlocks = (
     | [string, AutomationAuthType, string | undefined]
     | [string, AutomationAuthType, string | undefined, APIParameter[]]
     | [string, AutomationAuthType, string | undefined, APIParameter[], APIParameter[]]
+    | [string, AutomationAuthType, string | undefined, APIParameter[], APIParameter[], Operation[]]
   >
 ): AutomationRegistrySubcategory => ({
   id,
   title,
-  blocks: blocks.map(([label, auth, description, parameters, credentialFields]) =>
-    block(label, auth, description as string | undefined, parameters as APIParameter[] | undefined, credentialFields as APIParameter[] | undefined)
+  blocks: blocks.map(([label, auth, description, parameters, credentialFields, operations]) =>
+    block(label, auth, description as string | undefined, parameters as APIParameter[] | undefined, credentialFields as APIParameter[] | undefined, operations as Operation[] | undefined)
   ),
 });
 
@@ -586,7 +602,7 @@ const redisCredentials: APIParameter[] = [
 ];
 
 // ============ CLOUD STORAGE ============
-const googledrive params: APIParameter[] = [
+const googledriveParams: APIParameter[] = [
   { name: 'folder_id', displayName: 'Folder ID', type: 'string', placeholder: 'Parent folder ID (optional)' },
   { name: 'file_name', displayName: 'File Name', type: 'string', required: true },
   { name: 'file_content', displayName: 'File Content', type: 'textarea' },
@@ -1242,7 +1258,7 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Turso', 'free'],
       ]),
       withBlocks('cloud-storage-cdn', 'Cloud File Storage & CDN', [
-        ['Google Drive', 'free', undefined, googledrive params],
+        ['Google Drive', 'free', undefined, googledriveParams],
         ['Dropbox', 'free'],
         ['Box', 'free'],
         ['OneDrive', 'free'],
