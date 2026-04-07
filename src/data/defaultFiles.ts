@@ -2,6 +2,7 @@ import { FileNode } from "@/types/ide";
 import { LanguageTemplate } from "@/data/templateRegistry";
 import { getArduinoTemplateFiles } from "./arduinoTemplates";
 import { ftcTemplate } from "./ftcTemplateFiles";
+import { minecraftTemplate } from "./minecraftTemplateFiles";
 import { secureOpsTemplate } from "./secureOpsTemplate";
 
 const tutorialTitles: Record<LanguageTemplate, string> = {
@@ -54,6 +55,7 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   rtf: "Rich Text",
   cad: "3D CAD Viewer",
   ftc: "FTC Robotics",
+  minecraft: "Minecraft Scripting",
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
@@ -216,6 +218,9 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case "ftc":
       baseTemplate = ftcTemplate;
+      break;
+    case "minecraft":
+      baseTemplate = minecraftTemplate;
       break;
     default:
       baseTemplate = htmlTemplate;
