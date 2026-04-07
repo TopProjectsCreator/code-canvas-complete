@@ -26,6 +26,9 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
 import { useAttachments } from "@/hooks/useAttachments";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { isOfflineCapable } from "@/services/offlineStorage";
+import { WifiOff } from "lucide-react";
 
 // Re-export the type so existing imports from this file still work
 export type { LanguageTemplate } from "@/data/templateRegistry";
@@ -435,6 +438,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
 export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const isOnline = useOnlineStatus();
 
   const filteredLanguages = useMemo(() => {
     if (!searchQuery.trim()) return languages;
@@ -481,30 +485,45 @@ export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {filteredLanguages.map((lang) => (
-              <button
-                key={lang.id}
-                onClick={() => onSelect(lang.id)}
-                onMouseEnter={() => setHoveredId(lang.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                className={cn(
-                  "relative p-4 rounded-lg border border-border bg-card transition-all duration-150 text-left group",
-                  "hover:border-primary/50 hover:bg-accent/30",
-                  hoveredId === lang.id && "border-primary/50 bg-accent/30",
-                )}
-              >
-                <div
+            {filteredLanguages.map((lang) => {
+              const offlineOk = isOfflineCapable(lang.id);
+              const disabled = !isOnline && !offlineOk;
+              return (
+                <button
+                  key={lang.id}
+                  onClick={() => !disabled && onSelect(lang.id)}
+                  onMouseEnter={() => setHoveredId(lang.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  disabled={disabled}
                   className={cn(
-                    "w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center text-white mb-3",
-                    lang.color,
+                    "relative p-4 rounded-lg border border-border bg-card transition-all duration-150 text-left group",
+                    disabled
+                      ? "opacity-40 cursor-not-allowed"
+                      : "hover:border-primary/50 hover:bg-accent/30",
+                    !disabled && hoveredId === lang.id && "border-primary/50 bg-accent/30",
                   )}
                 >
-                  <div className="scale-75">{lang.icon}</div>
-                </div>
-                <h3 className="text-sm font-medium text-foreground mb-0.5">{lang.name}</h3>
-                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{lang.description}</p>
-              </button>
-            ))}
+                  {disabled && (
+                    <div className="absolute top-2 right-2">
+                      <WifiOff className="w-3.5 h-3.5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center text-white mb-3",
+                      disabled ? "grayscale" : "",
+                      lang.color,
+                    )}
+                  >
+                    <div className="scale-75">{lang.icon}</div>
+                  </div>
+                  <h3 className="text-sm font-medium text-foreground mb-0.5">{lang.name}</h3>
+                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                    {disabled ? "Requires internet" : lang.description}
+                  </p>
+                </button>
+              );
+            })}
           </div>
         )}
 
