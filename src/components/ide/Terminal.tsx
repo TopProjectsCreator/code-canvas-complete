@@ -206,6 +206,12 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
           </button>
         </div>
         <div className="flex items-center gap-0.5">
+          {!isOnline && (
+            <div className="flex items-center gap-1.5 px-2 text-xs text-destructive">
+              <WifiOff className="w-3 h-3" />
+              <span>Offline</span>
+            </div>
+          )}
           {isExecuting && (
             <div className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
               <Loader2 className="w-3 h-3 animate-spin text-primary" />
