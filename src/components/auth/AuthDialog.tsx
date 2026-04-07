@@ -136,7 +136,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
                 variant="outline"
                 className="w-full gap-2"
                 onClick={() => handleOAuthSignIn('replit')}
-                disabled={oauthLoading !== null}
+                disabled={oauthLoading !== null || !isOnline}
               >
                 {oauthLoading === 'replit' ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
