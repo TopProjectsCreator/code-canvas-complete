@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
 import { HelpCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { APIParameter } from '@/data/automationIntegrationRegistry';
+import type { APIParameter, Operation } from '@/data/automationIntegrationRegistry';
 
 interface AutomationBlockParameterFormProps {
   parameters?: APIParameter[];
   credentialFields?: APIParameter[];
+  operations?: Operation[];
   config: Record<string, string>;
   onConfigChange: (config: Record<string, string>) => void;
   blockLabel: string;
@@ -14,11 +15,17 @@ interface AutomationBlockParameterFormProps {
 export const AutomationBlockParameterForm = ({
   parameters = [],
   credentialFields = [],
+  operations = [],
   config,
   onConfigChange,
   blockLabel,
 }: AutomationBlockParameterFormProps) => {
   const [expandedHelp, setExpandedHelp] = useState<string | null>(null);
+  const selectedOperation = useMemo(
+    () => operations.find((op) => op.id === config.__operation),
+    [operations, config.__operation]
+  );
+
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Validate a single field
@@ -165,7 +172,7 @@ export const AutomationBlockParameterForm = ({
     );
   };
 
-  const hasDefined = parameters.length > 0 || credentialFields.length > 0;
+  const hasDefined = parameters.length > 0 || credentialFields.length > 0 || operations.length > 0;
 
   if (!hasDefined) {
     return null;
@@ -179,6 +186,45 @@ export const AutomationBlockParameterForm = ({
           <div className="space-y-3">
             {credentialFields.map(renderParameterField)}
           </div>
+        </div>
+      )}
+
+      {operations.length > 0 && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3">
+          <p className="text-xs font-semibold text-blue-100 mb-2.5">Operation</p>
+          <select
+            value={config.__operation ?? ''}
+            onChange={(e) => onConfigChange({ ...config, __operation: e.target.value })}
+            className="w-full rounded border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary border-border"
+          >
+            <option value="">Select an operation...</option>
+            {operations.map((op) => (
+              <option key={op.id} value={op.id}>
+                {op.name}
+              </option>
+            ))}
+          </select>
+          
+          {selectedOperation && (
+            <div className="mt-3 pt-3 border-t border-blue-500/20 space-y-3">
+              {selectedOperation.description && (
+                <p className="text-[11px] text-blue-100/80">{selectedOperation.description}</p>
+              )}
+              {selectedOperation.method && (
+                <div className="flex items-center gap-2">
+                  <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-600/30 text-blue-200">
+                    {selectedOperation.method}
+                  </span>
+                  {selectedOperation.endpoint && (
+                    <span className="text-[11px] font-mono text-blue-100/70">{selectedOperation.endpoint}</span>
+                  )}
+                </div>
+              )}
+              <div className="space-y-3">
+                {selectedOperation.inputFields.map(renderParameterField)}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
