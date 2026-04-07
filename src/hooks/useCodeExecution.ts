@@ -61,6 +61,19 @@ export const useCodeExecution = () => {
     setIsExecuting(true);
 
     try {
+      // Offline guard: server-side execution requires internet
+      if (!navigator.onLine) {
+        const normalizedLang = language.toLowerCase();
+        const clientSideLanguages = new Set(['javascript', 'shell', 'bash']);
+        if (!clientSideLanguages.has(normalizedLang)) {
+          return {
+            output: [],
+            error: '📡 You are offline. This language requires a server to execute. Please reconnect to the internet and try again.',
+            executedAt: new Date().toISOString(),
+          };
+        }
+      }
+
       const normalizedLanguage = language.toLowerCase();
       const shellExecutorMode = typeof window !== 'undefined'
         ? window.localStorage.getItem('ide.shellExecutorMode') || 'webcontainer'

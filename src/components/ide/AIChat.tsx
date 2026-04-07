@@ -6,9 +6,10 @@ import {
   GitBranch, GitCommit as GitCommitIcon, Download, Globe, Lock, Link2, Twitter,
   Linkedin, Mail, Share2, GitFork, Star, History, MessageCircleQuestion, Save,
   PlayCircle, Music, Key, Settings, Diff, Paperclip, Image, FileVideo, FileAudio, FileText,
-  GripVertical, ArrowUp, ArrowDown, Shield, ShieldCheck, ShieldAlert, SlidersHorizontal
+  GripVertical, ArrowUp, ArrowDown, Shield, ShieldCheck, ShieldAlert, SlidersHorizontal, WifiOff
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { explainShellCommand } from '@/lib/shellCommandHelp';
 import ReactMarkdown from 'react-markdown';
 import { FileNode, TerminalLine, Workflow } from '@/types/ide';
@@ -804,9 +805,15 @@ export const AIChat = ({
     });
   };
 
+  const isOnline = useOnlineStatus();
+
   const handleSend = () => {
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
     
+    if (!isOnline) {
+      return;
+    }
+
     if (!user) {
       return;
     }
@@ -1531,6 +1538,13 @@ export const AIChat = ({
               onChange={(e) => { if (e.target.files) { addFiles(e.target.files); e.target.value = ''; } }}
             />
 
+            {/* Offline banner */}
+            {!isOnline && (
+              <div className="mb-2 flex items-center gap-2 px-3 py-2 rounded-md bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+                <WifiOff className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>You're offline. AI assistant requires an internet connection.</span>
+              </div>
+            )}
             {/* Text input + attach + send */}
             {recentErrors && (
               <button
