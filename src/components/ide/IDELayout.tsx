@@ -44,6 +44,7 @@ const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
 const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ default: m.ArduinoPanel })));
 const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then((m) => ({ default: m.ScratchPanel })));
 const FTCPanel = lazy(() => import("@/components/ftc").then((m) => ({ default: m.FTCPanel })));
+const AutomationTemplatePane = lazy(() => import("@/components/ide/AutomationTemplatePane").then((m) => ({ default: m.AutomationTemplatePane })));
 const PartsInventoryDialog = lazy(() => import("@/components/ide/PartsInventoryDialog").then((m) => ({ default: m.PartsInventoryDialog })));
 
 interface IDELayoutProps {
@@ -2113,7 +2114,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             // Mobile: Single panel view with bottom nav switcher
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Editor Panel */}
-              {mobileActivePanel === "editor" && selectedTemplate !== "scratch" && (
+              {mobileActivePanel === "editor" && selectedTemplate !== "scratch" && selectedTemplate !== "automation" && (
                 <div className="h-full flex flex-col">
                   <EditorTabs
                     tabs={openTabs}
@@ -2145,6 +2146,10 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         files={filesWithContent}
                         onFileUpdate={handleContentChange}
                       />
+                    </Suspense>
+                  ) : selectedTemplate === "automation" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
+                      <AutomationTemplatePane />
                     </Suspense>
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
@@ -2199,8 +2204,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           ) : (
             // Desktop: Resizable panels
             <ResizablePanelGroup direction="horizontal" className="flex-1">
-              {/* Editor panel - hidden for scratch template */}
-              {selectedTemplate !== "scratch" && (
+              {/* Editor panel - hidden for scratch and automation templates */}
+              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && (
                 <>
                   <ResizablePanel defaultSize={54} minSize={34}>
                     <div className="h-full flex flex-col">
@@ -2228,8 +2233,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                 </>
               )}
 
-              {/* Preview panel or Arduino/Scratch panel */}
-              <ResizablePanel defaultSize={selectedTemplate === "scratch" ? 100 : 46} minSize={24}>
+              {/* Preview panel or Arduino/Scratch/Automation panel */}
+              <ResizablePanel defaultSize={selectedTemplate === "scratch" || selectedTemplate === "automation" ? 100 : 46} minSize={24}>
                 {selectedTemplate === "arduino" ? (
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
                     <ArduinoPanel
@@ -2245,6 +2250,10 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       files={filesWithContent}
                       onFileUpdate={handleContentChange}
                     />
+                  </Suspense>
+                ) : selectedTemplate === "automation" ? (
+                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
+                    <AutomationTemplatePane />
                   </Suspense>
                 ) : selectedTemplate === "scratch" ? (
                   <Suspense fallback={<div className="p-4 text-gray-400">Loading Scratch panel...</div>}>
@@ -2684,7 +2693,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             activePanel={mobileActivePanel}
             onPanelChange={setMobileActivePanel}
             showPreview={selectedTemplate !== "typescript" && selectedTemplate !== "python"}
-            showTerminal={selectedTemplate !== "scratch"}
+            showTerminal={selectedTemplate !== "scratch" && selectedTemplate !== "automation"}
           />
         )}
       </div>

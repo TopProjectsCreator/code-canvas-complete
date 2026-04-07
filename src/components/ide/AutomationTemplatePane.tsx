@@ -18,6 +18,7 @@ import {
   AUTOMATION_INTEGRATION_REGISTRY,
   type AutomationAuthType,
 } from '@/data/automationIntegrationRegistry';
+import { AutomationBlockParameterForm } from './AutomationBlockParameterForm';
 
 interface AutomationBlockInstance {
   id: string;
@@ -30,6 +31,10 @@ interface AutomationBlockInstance {
 }
 
 const createId = () => Math.random().toString(36).slice(2, 9);
+
+const getBlockDefinition = (type: string) => {
+  return ALL_AUTOMATION_BLOCKS.find((block) => block.type === type);
+};
 
 const authLabel: Record<AutomationAuthType, string> = {
   api_key: 'API key needed',
@@ -412,42 +417,31 @@ export const AutomationTemplatePane = () => {
                 <p className="mt-1">{selectedBlock.auth === 'api_key' ? 'Requires API key' : authLabel[selectedBlock.auth]}</p>
               </div>
 
-              <div className="space-y-2">
-                {Object.entries(selectedBlock.config).map(([key, value]) => (
-                  <div key={key} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                    <input
-                      value={key}
-                      onChange={(event) => updateConfigEntry(key, event.target.value, value)}
-                      className="rounded border border-border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <input
-                      value={value}
-                      onChange={(event) => updateSelectedConfig(key, event.target.value)}
-                      className="rounded border border-border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <button
-                      onClick={() => removeConfigKey(key)}
-                      className="rounded border border-border px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-destructive"
-                      title="Remove parameter"
-                    >
-                      <MinusCircle className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              {(() => {
+                const blockDef = getBlockDefinition(selectedBlock.type);
+                return (
+                  <AutomationBlockParameterForm
+                    parameters={blockDef?.parameters}
+                    credentialFields={blockDef?.credentialFields}
+                    config={selectedBlock.config}
+                    onConfigChange={replaceSelectedConfig}
+                    blockLabel={selectedBlock.label}
+                  />
+                );
+              })()}
 
               <div className="rounded border border-dashed border-border p-2">
-                <p className="text-[11px] font-medium text-muted-foreground">Add / remove parameters for this API block</p>
+                <p className="text-[11px] font-medium text-muted-foreground">Add custom parameter (for advanced use)</p>
                 <button
                   onClick={addCustomParam}
                   className="mt-2 w-full rounded border border-border px-2 py-1.5 text-xs hover:bg-accent transition-colors"
                 >
-                  Add Parameter
+                  Add Custom Parameter
                 </button>
               </div>
 
               <div className="rounded border border-border p-2">
-                <p className="text-[11px] font-medium text-muted-foreground">Advanced JSON parameter editor</p>
+                <p className="text-[11px] font-medium text-muted-foreground">Advanced JSON editor</p>
                 <textarea
                   rows={8}
                   value={jsonEditorValue}
