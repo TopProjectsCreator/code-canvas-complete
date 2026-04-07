@@ -150,7 +150,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
                 variant="outline"
                 className="w-full gap-2"
                 onClick={() => handleOAuthSignIn('google')}
-                disabled={oauthLoading !== null}
+                disabled={oauthLoading !== null || !isOnline}
               >
                 {oauthLoading === 'google' ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
