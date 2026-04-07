@@ -22,7 +22,6 @@ import {
   Rocket
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { AutomationTemplatePane } from './AutomationTemplatePane';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,7 +49,6 @@ interface WorkflowsPanelProps {
   onUpdateWorkflow: (id: string, workflow: Partial<Workflow>) => void;
   onDeleteWorkflow: (id: string) => void;
   currentlyRunning: string | null;
-  showAutomationTemplatePane?: boolean;
 }
 
 const workflowTypeIcons = {
@@ -82,11 +80,7 @@ export const WorkflowsPanel = ({
   onUpdateWorkflow,
   onDeleteWorkflow,
   currentlyRunning,
-  showAutomationTemplatePane = false,
 }: WorkflowsPanelProps) => {
-  if (showAutomationTemplatePane) {
-    return <AutomationTemplatePane />;
-  }
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
