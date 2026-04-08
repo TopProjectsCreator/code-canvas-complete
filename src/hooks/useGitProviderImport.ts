@@ -208,20 +208,53 @@ const bitbucket = {
 const replit = {
   parseUrl(url: string) {
     const trimmed = url.trim();
-    const patterns = [
-      /replit\.com\/github\/([^\/\s#?]+)\/([^\/\s#?]+)/i,
-      /replit\.com\/@([^\/\s#?]+)\/([^\/\s#?]+)/i,
-    ];
-
-    for (const p of patterns) {
-      const m = trimmed.match(p);
-      if (m) return { owner: m[1], repo: m[2].replace(/\.git$/, '') };
-    }
+    // replit.com/github/owner/repo → delegate to github
+    const ghMatch = trimmed.match(/replit\.com\/github\/([^\/\s#?]+)\/([^\/\s#?]+)/i);
+    if (ghMatch) return { owner: ghMatch[1], repo: ghMatch[2].replace(/\.git$/, ''), isGithub: true };
+    // replit.com/@user/repl
+    const replMatch = trimmed.match(/replit\.com\/@([^\/\s#?]+)\/([^\/\s#?]+)/i);
+    if (replMatch) return { owner: replMatch[1], repo: replMatch[2].replace(/[#?].*$/, ''), isGithub: false };
     return null;
   },
-  fetchRepoInfo: github.fetchRepoInfo,
-  fetchFullTree: github.fetchFullTree,
-  fetchFileContent: github.fetchFileContent,
+  async fetchRepoInfo(owner: string, repo: string): Promise<RepoInfo> {
+    // Try OT download API to verify the repl exists
+    const testUrl = `https://replit.com/@${owner}/${repo}`;
+    try {
+      const r = await fetch(testUrl, { method: 'HEAD', redirect: 'follow' });
+      if (!r.ok && r.status === 404) throw new Error('Repl not found. Make sure it exists and is public.');
+    } catch (e: any) {
+      if (e?.message?.includes('not found')) throw e;
+      // CORS may block HEAD, continue anyway
+    }
+    return { name: repo, full_name: `@${owner}/${repo}`, description: null, stargazers_count: 0, language: null, default_branch: 'main' };
+  },
+  async fetchFullTree(owner: string, repo: string, _branch: string): Promise<{ path: string; type: 'blob' | 'tree' }[]> {
+    // Replit provides a zip download at /@user/repl.zip
+    const zipUrl = `https://replit.com/@${owner}/${repo}.zip`;
+    const r = await fetch(zipUrl);
+    if (!r.ok) throw new Error(`Failed to download repl: ${r.status}. Make sure the repl is public.`);
+    const { default: JSZip } = await import('jszip');
+    const buf = await r.arrayBuffer();
+    const zip = await JSZip.loadAsync(buf);
+    const items: { path: string; type: 'blob' | 'tree' }[] = [];
+    zip.forEach((relativePath, entry) => {
+      if (entry.dir) {
+        items.push({ path: relativePath.replace(/\/$/, ''), type: 'tree' });
+      } else {
+        items.push({ path: relativePath, type: 'blob' });
+      }
+    });
+    // Also store zip ref for fetchFileContent
+    (replit as any)._lastZip = zip;
+    return items;
+  },
+  async fetchFileContent(_owner: string, _repo: string, path: string, _branch: string): Promise<string> {
+    const zip = (replit as any)._lastZip;
+    if (!zip) throw new Error('Zip not loaded');
+    const file = zip.file(path);
+    if (!file) throw new Error(`File not found in zip: ${path}`);
+    return file.async('string');
+  },
   searchRepos: github.searchRepos,
 };
 
@@ -308,16 +341,21 @@ export const useGitProviderImport = () => {
     setImportProgress('Parsing URL...');
 
     try {
-      const adapter = adapters[provider];
+      let adapter = adapters[provider];
       const parsed = adapter.parseUrl(urlOrPath);
       if (!parsed) {
         throw new Error(
           provider === 'github'
             ? 'Invalid URL. Use format: github.com/owner/repo or owner/repo'
             : provider === 'replit'
-              ? 'Invalid Replit URL. Use format: replit.com/github/owner/repo or replit.com/@owner/repo'
+              ? 'Invalid Replit URL. Use format: replit.com/@owner/repo or replit.com/github/owner/repo'
               : `Invalid ${provider} URL.`,
         );
+      }
+
+      // If Replit URL is GitHub-backed, use GitHub adapter
+      if (provider === 'replit' && (parsed as any).isGithub) {
+        adapter = adapters.github;
       }
 
       const { owner, repo } = parsed;
