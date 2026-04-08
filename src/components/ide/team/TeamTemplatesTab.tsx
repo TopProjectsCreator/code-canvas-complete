@@ -5,8 +5,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Lock, FileCode, X, icons, LucideIcon } from 'lucide-react';
+import { Plus, Trash2, FileCode, X, icons, LucideIcon, GitBranch, Loader2 } from 'lucide-react';
 import { LucideIconPicker } from './LucideIconPicker';
+import { useGitProviderImport, detectProvider } from '@/hooks/useGitProviderImport';
 import type { useTeamAdmin } from '@/hooks/useTeamAdmin';
 
 interface TemplateFile {
@@ -25,17 +26,26 @@ export const TeamTemplatesTab = ({ teamAdmin }: Props) => {
   const [language, setLanguage] = useState('typescript');
   const [isRequired, setIsRequired] = useState(false);
   const [icon, setIcon] = useState('');
+  const [iconColor, setIconColor] = useState('');
   const [files, setFiles] = useState<TemplateFile[]>([{ name: 'index.ts', content: '' }]);
   const [activeFileIdx, setActiveFileIdx] = useState(0);
+  const [repoUrl, setRepoUrl] = useState('');
+  const [importingRepo, setImportingRepo] = useState(false);
+  const [importError, setImportError] = useState('');
+
+  const gitImport = useGitProviderImport();
 
   const resetForm = () => {
     setCreating(false);
     setName('');
     setDescription('');
     setIcon('');
+    setIconColor('');
     setFiles([{ name: 'index.ts', content: '' }]);
     setActiveFileIdx(0);
     setIsRequired(false);
+    setRepoUrl('');
+    setImportError('');
   };
 
   const handleCreate = async () => {
@@ -46,7 +56,7 @@ export const TeamTemplatesTab = ({ teamAdmin }: Props) => {
       files: files.filter(f => f.name.trim()),
       language,
       is_required: isRequired,
-      icon: icon || undefined,
+      icon: iconColor && icon ? `${icon}::${iconColor}` : icon || undefined,
     });
     resetForm();
   };
@@ -72,12 +82,63 @@ export const TeamTemplatesTab = ({ teamAdmin }: Props) => {
     reader.readAsDataURL(file);
   };
 
+  // Flatten FileNode[] into TemplateFile[]
+  const flattenNodes = (nodes: any[], prefix = ''): TemplateFile[] => {
+    const result: TemplateFile[] = [];
+    for (const node of nodes) {
+      const path = prefix ? `${prefix}/${node.name}` : node.name;
+      if (node.type === 'file' && node.content) {
+        result.push({ name: path, content: node.content });
+      } else if (node.children) {
+        result.push(...flattenNodes(node.children, path));
+      }
+    }
+    return result;
+  };
+
+  const handleImportFromUrl = async () => {
+    if (!repoUrl.trim()) return;
+    setImportError('');
+    setImportingRepo(true);
+    try {
+      const provider = detectProvider(repoUrl) || 'github';
+      const result = await gitImport.importRepository(repoUrl, provider);
+      if (result && result.length > 0) {
+        const flatFiles = flattenNodes(result);
+        if (flatFiles.length === 0) {
+          setImportError('No text files found in the repository.');
+        } else {
+          setFiles(flatFiles.slice(0, 200)); // cap at 200 files
+          setActiveFileIdx(0);
+          if (!name.trim() && result[0]?.name) setName(result[0].name);
+          setRepoUrl('');
+        }
+      } else {
+        setImportError(gitImport.error || 'Failed to import repository.');
+      }
+    } catch (err: any) {
+      setImportError(err?.message || 'Import failed');
+    } finally {
+      setImportingRepo(false);
+    }
+  };
+
+  const parseIconValue = (val: string | null | undefined): { name: string; color: string } => {
+    if (!val) return { name: '', color: '' };
+    if (val.includes('::')) {
+      const [n, c] = val.split('::');
+      return { name: n, color: c };
+    }
+    return { name: val, color: '' };
+  };
+
   const getTemplateIcon = (t: { icon?: string | null }) => {
-    if (!t.icon) return <FileCode className="w-5 h-5 text-muted-foreground" />;
-    const isUrl = t.icon.startsWith('http') || t.icon.startsWith('data:');
-    if (isUrl) return <img src={t.icon} alt="" className="w-5 h-5 object-contain" />;
-    const Icon = (icons as Record<string, LucideIcon>)[t.icon];
-    return Icon ? <Icon className="w-5 h-5 text-foreground" /> : <FileCode className="w-5 h-5 text-muted-foreground" />;
+    const { name: iconName, color } = parseIconValue(t.icon);
+    if (!iconName) return <FileCode className="w-5 h-5 text-muted-foreground" />;
+    const isUrl = iconName.startsWith('http') || iconName.startsWith('data:');
+    if (isUrl) return <img src={iconName} alt="" className="w-5 h-5 object-contain" />;
+    const Icon = (icons as Record<string, LucideIcon>)[iconName];
+    return Icon ? <Icon className="w-5 h-5" style={color ? { color } : { color: 'hsl(var(--foreground))' }} /> : <FileCode className="w-5 h-5 text-muted-foreground" />;
   };
 
   return (
@@ -88,7 +149,13 @@ export const TeamTemplatesTab = ({ teamAdmin }: Props) => {
         <div className="border rounded-md p-4 space-y-4">
           <div className="flex items-start gap-3">
             <div className="pt-1">
-              <LucideIconPicker value={icon} onChange={setIcon} onUploadIcon={handleIconUpload} />
+              <LucideIconPicker
+                value={icon}
+                onChange={setIcon}
+                onUploadIcon={handleIconUpload}
+                color={iconColor}
+                onColorChange={setIconColor}
+              />
               <p className="text-[10px] text-muted-foreground mt-1 text-center">Icon</p>
             </div>
             <div className="flex-1 space-y-2">
@@ -115,6 +182,34 @@ export const TeamTemplatesTab = ({ teamAdmin }: Props) => {
             </div>
           </div>
 
+          {/* Import from Git URL */}
+          <div className="border rounded-md p-3 space-y-2 bg-muted/20">
+            <p className="text-xs font-medium flex items-center gap-1.5"><GitBranch className="w-3 h-3" /> Import from repository</p>
+            <div className="flex gap-2">
+              <Input
+                placeholder="GitHub, GitLab, Bitbucket, or Replit URL..."
+                value={repoUrl}
+                onChange={e => setRepoUrl(e.target.value)}
+                className="flex-1 text-xs h-8"
+                onKeyDown={e => e.key === 'Enter' && handleImportFromUrl()}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleImportFromUrl}
+                disabled={!repoUrl.trim() || importingRepo}
+                className="h-8 text-xs gap-1"
+              >
+                {importingRepo ? <Loader2 className="w-3 h-3 animate-spin" /> : <GitBranch className="w-3 h-3" />}
+                Import
+              </Button>
+            </div>
+            {importingRepo && gitImport.importProgress && (
+              <p className="text-xs text-muted-foreground">{gitImport.importProgress}</p>
+            )}
+            {importError && <p className="text-xs text-destructive">{importError}</p>}
+          </div>
+
           {/* Template files editor */}
           <div className="border rounded-md overflow-hidden">
             <div className="flex items-center gap-1 bg-muted/30 px-2 py-1 border-b overflow-x-auto">
@@ -136,6 +231,9 @@ export const TeamTemplatesTab = ({ teamAdmin }: Props) => {
               <button onClick={addFile} className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground">
                 <Plus className="w-3 h-3" />
               </button>
+              {files.length > 1 && (
+                <span className="ml-auto text-[10px] text-muted-foreground pr-1">{files.length} files</span>
+              )}
             </div>
             <div className="p-2 space-y-2">
               <Input
