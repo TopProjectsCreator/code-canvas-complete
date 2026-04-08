@@ -341,16 +341,21 @@ export const useGitProviderImport = () => {
     setImportProgress('Parsing URL...');
 
     try {
-      const adapter = adapters[provider];
+      let adapter = adapters[provider];
       const parsed = adapter.parseUrl(urlOrPath);
       if (!parsed) {
         throw new Error(
           provider === 'github'
             ? 'Invalid URL. Use format: github.com/owner/repo or owner/repo'
             : provider === 'replit'
-              ? 'Invalid Replit URL. Use format: replit.com/github/owner/repo or replit.com/@owner/repo'
+              ? 'Invalid Replit URL. Use format: replit.com/@owner/repo or replit.com/github/owner/repo'
               : `Invalid ${provider} URL.`,
         );
+      }
+
+      // If Replit URL is GitHub-backed, use GitHub adapter
+      if (provider === 'replit' && (parsed as any).isGithub) {
+        adapter = adapters.github;
       }
 
       const { owner, repo } = parsed;
