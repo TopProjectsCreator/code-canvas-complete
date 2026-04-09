@@ -26,7 +26,8 @@ export interface OfflineProject {
 
 // Templates that fully work offline (no server-side execution needed)
 export const OFFLINE_CAPABLE_TEMPLATES = [
-  'blank', 'html', 'react', 'automation', 'secureops',
+  'blank', 'html', 'javascript', 'typescript', 'react',
+  'automation', 'secureops',
   'arduino', 'ftc', 'rtf', 'word', 'powerpoint', 'excel',
   'video', 'audio', 'cad', 'scratch',
 ] as const;
