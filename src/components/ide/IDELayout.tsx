@@ -1320,8 +1320,9 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       // PHP
       "index.php",
       "main.php",
-      // Swift
+      // Swift / Crystal
       "main.swift",
+      "main.cr",
       // Kotlin
       "Main.kt",
       "App.kt",
@@ -1345,10 +1346,14 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       "script.R",
       // Haskell
       "Main.hs",
-      // Elixir
+      // Elixir / Erlang / OCaml / Pony / Julia / Vim Script / Lazy K
       "main.exs",
-      // Julia
+      "main.erl",
+      "main.ml",
+      "main.pony",
       "main.jl",
+      "main.vim",
+      "main.lazy",
       // Dart
       "main.dart",
       // Web
