@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { parseReplitMetadata } from "./replitMetadata.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,6 +63,27 @@ serve(async (req) => {
       case "search":
         url = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&per_page=10&sort=stars`;
         break;
+      case "replit-metadata": {
+        const replUrl = `https://replit.com/@${owner}/${repo}`;
+        const pageResp = await fetch(replUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; CodeCanvas/1.0)",
+            "Accept": "text/html,application/xhtml+xml",
+          },
+          redirect: "follow",
+        });
+        if (!pageResp.ok) {
+          return new Response(JSON.stringify({ exists: false }), {
+            status: pageResp.status,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const html = await pageResp.text();
+        const metadata = parseReplitMetadata(html);
+        return new Response(JSON.stringify(metadata), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       default:
         return new Response(JSON.stringify({ error: "Unknown action" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
