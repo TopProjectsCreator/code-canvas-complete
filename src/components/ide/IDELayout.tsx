@@ -46,7 +46,7 @@ const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then
 const FTCPanel = lazy(() => import("@/components/ftc").then((m) => ({ default: m.FTCPanel })));
 const MinecraftEditor = lazy(() => import("@/components/minecraft").then((m) => ({ default: m.MinecraftEditor })));
 const AutomationTemplatePane = lazy(() => import("@/components/ide/AutomationTemplatePane").then((m) => ({ default: m.AutomationTemplatePane })));
-const PartsInventoryDialog = lazy(() => import("@/components/ide/PartsInventoryDialog").then((m) => ({ default: m.PartsInventoryDialog })));
+import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
 
 interface IDELayoutProps {
   projectId?: string;
@@ -1981,8 +1981,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       <CollabDialog open={showCollabDialog} onOpenChange={setShowCollabDialog} projectId={currentProject?.id} />
 
-      <Suspense fallback={null}>
-        <PartsInventoryDialog
+      <PartsInventoryDialog
           open={showPartsInventory}
           onOpenChange={(open) => {
             setShowPartsInventory(open);
@@ -1996,7 +1995,6 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           initialTab={partsInventoryInitialTab}
           identifyWithImage={partsInventoryIdentifyWithImage}
         />
-      </Suspense>
 
       <GitProviderImportDialog
         open={showGitImportDialog}
