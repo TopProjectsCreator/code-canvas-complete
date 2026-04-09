@@ -1981,8 +1981,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       <CollabDialog open={showCollabDialog} onOpenChange={setShowCollabDialog} projectId={currentProject?.id} />
 
-      <Suspense fallback={null}>
-        <PartsInventoryDialog
+      <PartsInventoryDialog
           open={showPartsInventory}
           onOpenChange={(open) => {
             setShowPartsInventory(open);
@@ -1996,7 +1995,6 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           initialTab={partsInventoryInitialTab}
           identifyWithImage={partsInventoryIdentifyWithImage}
         />
-      </Suspense>
 
       <GitProviderImportDialog
         open={showGitImportDialog}
