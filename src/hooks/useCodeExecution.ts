@@ -64,7 +64,7 @@ export const useCodeExecution = () => {
       // Offline guard: server-side execution requires internet
       if (!navigator.onLine) {
         const normalizedLang = language.toLowerCase();
-        const clientSideLanguages = new Set(['javascript', 'shell', 'bash']);
+        const clientSideLanguages = new Set(['javascript', 'typescript', 'shell', 'bash', 'html', 'css', 'json']);
         if (!clientSideLanguages.has(normalizedLang)) {
           return {
             output: [],
