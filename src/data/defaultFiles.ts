@@ -1142,6 +1142,7 @@ export const getFileLanguage = (filename: string): string => {
     scala: "scala",
     sc: "scala",
     vim: "vim",
+    lazy: "lazyk",
   };
   return languageMap[ext || ""] || "text";
 };
