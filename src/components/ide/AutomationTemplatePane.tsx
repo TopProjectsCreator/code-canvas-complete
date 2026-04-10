@@ -415,49 +415,383 @@ export const AutomationTemplatePane = () => {
 
   const generatePythonCode = useCallback(() => {
     if (blocks.length === 0) { toast.error('Add blocks first.'); return; }
-    const imps = ['import requests', 'import json', 'import time'];
-    const apiKeyBlocks = blocks.filter((b) => b.auth === 'api_key');
-    if (apiKeyBlocks.length > 0) imps.push('import os');
-    const L: string[] = ['#!/usr/bin/env python3', `"""Auto-generated automation pipeline — ${blocks.length} blocks."""`, ''];
-    if (apiKeyBlocks.length > 0) {
-      L.push('# --- Credentials ---');
-      const seen = new Set<string>();
-      for (const b of apiKeyBlocks) {
+
+    // Map block labels to real Python SDK/API snippets
+    const blockSnippets: Record<string, { pip: string; imports: string[]; code: (cfg: Record<string,string>, envVar: string) => string[] }> = {
+      'OpenAI': {
+        pip: 'openai',
+        imports: ['from openai import OpenAI'],
+        code: (cfg, ev) => [
+          `    client = OpenAI(api_key=${ev})`,
+          `    response = client.chat.completions.create(`,
+          `        model="${cfg.model || 'gpt-4o-mini'}",`,
+          `        messages=[{"role": "user", "content": ${JSON.stringify(cfg.task || 'Hello')}}],`,
+          `    )`,
+          `    return {"result": response.choices[0].message.content}`,
+        ],
+      },
+      'Anthropic': {
+        pip: 'anthropic',
+        imports: ['import anthropic'],
+        code: (cfg, ev) => [
+          `    client = anthropic.Anthropic(api_key=${ev})`,
+          `    message = client.messages.create(`,
+          `        model="${cfg.model || 'claude-sonnet-4-20250514'}",`,
+          `        max_tokens=1024,`,
+          `        messages=[{"role": "user", "content": ${JSON.stringify(cfg.task || 'Hello')}}],`,
+          `    )`,
+          `    return {"result": message.content[0].text}`,
+        ],
+      },
+      'Google Gemini': {
+        pip: 'google-genai',
+        imports: ['from google import genai'],
+        code: (cfg, ev) => [
+          `    client = genai.Client(api_key=${ev})`,
+          `    response = client.models.generate_content(`,
+          `        model="${cfg.model || 'gemini-2.5-flash'}",`,
+          `        contents=${JSON.stringify(cfg.task || 'Hello')},`,
+          `    )`,
+          `    return {"result": response.text}`,
+        ],
+      },
+      'Mistral AI': {
+        pip: 'mistralai',
+        imports: ['from mistralai import Mistral'],
+        code: (cfg, ev) => [
+          `    client = Mistral(api_key=${ev})`,
+          `    response = client.chat.complete(`,
+          `        model="${cfg.model || 'mistral-large-latest'}",`,
+          `        messages=[{"role": "user", "content": ${JSON.stringify(cfg.task || 'Hello')}}],`,
+          `    )`,
+          `    return {"result": response.choices[0].message.content}`,
+        ],
+      },
+      'Groq': {
+        pip: 'groq',
+        imports: ['from groq import Groq'],
+        code: (cfg, ev) => [
+          `    client = Groq(api_key=${ev})`,
+          `    response = client.chat.completions.create(`,
+          `        model="${cfg.model || 'llama-3.3-70b-versatile'}",`,
+          `        messages=[{"role": "user", "content": ${JSON.stringify(cfg.task || 'Hello')}}],`,
+          `    )`,
+          `    return {"result": response.choices[0].message.content}`,
+        ],
+      },
+      'Cohere': {
+        pip: 'cohere',
+        imports: ['import cohere'],
+        code: (cfg, ev) => [
+          `    co = cohere.ClientV2(api_key=${ev})`,
+          `    response = co.chat(`,
+          `        model="${cfg.model || 'command-a-03-2025'}",`,
+          `        messages=[{"role": "user", "content": ${JSON.stringify(cfg.task || 'Hello')}}],`,
+          `    )`,
+          `    return {"result": response.message.content[0].text}`,
+        ],
+      },
+      'Resend': {
+        pip: 'resend',
+        imports: ['import resend'],
+        code: (cfg, ev) => [
+          `    resend.api_key = ${ev}`,
+          `    r = resend.Emails.send({`,
+          `        "from": "${cfg.from_email || 'you@yourdomain.com'}",`,
+          `        "to": ["${cfg.to_email || 'recipient@example.com'}"],`,
+          `        "subject": ${JSON.stringify(cfg.subject || 'Hello from automation')},`,
+          `        "html": ${JSON.stringify(cfg.body || '<p>Hello!</p>')},`,
+          `    })`,
+          `    return {"email_id": r["id"]}`,
+        ],
+      },
+      'SendGrid': {
+        pip: 'sendgrid',
+        imports: ['from sendgrid import SendGridAPIClient', 'from sendgrid.helpers.mail import Mail'],
+        code: (cfg, ev) => [
+          `    message = Mail(`,
+          `        from_email="${cfg.from_email || 'you@yourdomain.com'}",`,
+          `        to_emails="${cfg.to_email || 'recipient@example.com'}",`,
+          `        subject=${JSON.stringify(cfg.subject || 'Hello')},`,
+          `        html_content=${JSON.stringify(cfg.body || '<p>Hello!</p>')},`,
+          `    )`,
+          `    sg = SendGridAPIClient(${ev})`,
+          `    response = sg.send(message)`,
+          `    return {"status_code": response.status_code}`,
+        ],
+      },
+      'Twilio': {
+        pip: 'twilio',
+        imports: ['from twilio.rest import Client as TwilioClient'],
+        code: (cfg, ev) => [
+          `    # Twilio needs Account SID + Auth Token`,
+          `    client = TwilioClient(${ev}, TWILIO_AUTH_TOKEN)`,
+          `    message = client.messages.create(`,
+          `        body=${JSON.stringify(cfg.body || 'Hello from automation')},`,
+          `        from_="${cfg.from_number || '+1234567890'}",`,
+          `        to="${cfg.to_number || '+0987654321'}",`,
+          `    )`,
+          `    return {"sid": message.sid}`,
+        ],
+      },
+      'Slack': {
+        pip: 'slack-sdk',
+        imports: ['from slack_sdk import WebClient'],
+        code: (cfg, ev) => [
+          `    client = WebClient(token=${ev})`,
+          `    response = client.chat_postMessage(`,
+          `        channel="${cfg.channel || '#general'}",`,
+          `        text=${JSON.stringify(cfg.message || 'Hello from automation!')},`,
+          `    )`,
+          `    return {"ts": response["ts"]}`,
+        ],
+      },
+      'Discord': {
+        pip: 'requests',
+        imports: [],
+        code: (cfg, ev) => [
+          `    webhook_url = config.get("webhook_url", "")`,
+          `    response = requests.post(webhook_url, json={`,
+          `        "content": ${JSON.stringify(cfg.message || 'Hello from automation!')},`,
+          `    })`,
+          `    return {"status": response.status_code}`,
+        ],
+      },
+      'Telegram': {
+        pip: 'requests',
+        imports: [],
+        code: (cfg, ev) => [
+          `    bot_token = ${ev}`,
+          `    chat_id = "${cfg.chat_id || ''}"`,
+          `    response = requests.post(`,
+          `        f"https://api.telegram.org/bot{bot_token}/sendMessage",`,
+          `        json={"chat_id": chat_id, "text": ${JSON.stringify(cfg.message || 'Hello!')}},`,
+          `    )`,
+          `    return response.json()`,
+        ],
+      },
+      'Stripe': {
+        pip: 'stripe',
+        imports: ['import stripe'],
+        code: (cfg, ev) => [
+          `    stripe.api_key = ${ev}`,
+          `    # Example: create a payment intent`,
+          `    intent = stripe.PaymentIntent.create(`,
+          `        amount=${cfg.amount || '1000'},`,
+          `        currency="${cfg.currency || 'usd'}",`,
+          `    )`,
+          `    return {"client_secret": intent.client_secret}`,
+        ],
+      },
+      'Supabase': {
+        pip: 'supabase',
+        imports: ['from supabase import create_client'],
+        code: (cfg, ev) => [
+          `    url = os.getenv("SUPABASE_URL", "${cfg.url || ''}")`,
+          `    client = create_client(url, ${ev})`,
+          `    response = client.table("${cfg.table || 'items'}").select("*").execute()`,
+          `    return {"data": response.data}`,
+        ],
+      },
+      'GitHub': {
+        pip: 'requests',
+        imports: [],
+        code: (cfg, ev) => [
+          `    headers = {"Authorization": f"Bearer {${ev}}", "Accept": "application/vnd.github+json"}`,
+          `    owner = "${cfg.owner || 'owner'}"`,
+          `    repo = "${cfg.repo || 'repo'}"`,
+          `    response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)`,
+          `    return response.json()`,
+        ],
+      },
+      'ElevenLabs': {
+        pip: 'elevenlabs',
+        imports: ['from elevenlabs.client import ElevenLabs as ElevenLabsClient'],
+        code: (cfg, ev) => [
+          `    client = ElevenLabsClient(api_key=${ev})`,
+          `    audio = client.text_to_speech.convert(`,
+          `        voice_id="${cfg.voice_id || '21m00Tcm4TlvDq8ikWAM'}",`,
+          `        text=${JSON.stringify(cfg.text || 'Hello world')},`,
+          `        model_id="eleven_multilingual_v2",`,
+          `    )`,
+          `    # audio is a generator of bytes`,
+          `    return {"status": "audio_generated"}`,
+        ],
+      },
+      'Sentry': {
+        pip: 'sentry-sdk',
+        imports: ['import sentry_sdk'],
+        code: (cfg, ev) => [
+          `    sentry_sdk.init(dsn=${ev})`,
+          `    sentry_sdk.capture_message("Automation checkpoint reached")`,
+          `    return {"status": "event_sent"}`,
+        ],
+      },
+      'DALL-E': {
+        pip: 'openai',
+        imports: ['from openai import OpenAI'],
+        code: (cfg, ev) => [
+          `    client = OpenAI(api_key=${ev})`,
+          `    response = client.images.generate(`,
+          `        model="dall-e-3",`,
+          `        prompt=${JSON.stringify(cfg.prompt || 'A cute robot')},`,
+          `        n=1, size="1024x1024",`,
+          `    )`,
+          `    return {"image_url": response.data[0].url}`,
+        ],
+      },
+      'Stable Diffusion': {
+        pip: 'stability-sdk',
+        imports: [],
+        code: (cfg, ev) => [
+          `    response = requests.post(`,
+          `        "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",`,
+          `        headers={"Authorization": f"Bearer {${ev}}", "Content-Type": "application/json"},`,
+          `        json={"text_prompts": [{"text": ${JSON.stringify(cfg.prompt || 'A landscape')}}]},`,
+          `    )`,
+          `    return {"status": response.status_code}`,
+        ],
+      },
+    };
+
+    // Internal / logic block snippets (no pip needed)
+    const internalSnippets: Record<string, (cfg: Record<string,string>) => string[]> = {
+      'Schedule (Cron)': (cfg) => [
+        `    # pip install schedule`,
+        `    # For production, use APScheduler or cron jobs`,
+        `    print(f"Trigger: cron={cfg.get('cron', '* * * * *')}, tz={cfg.get('timezone', 'UTC')}")`,
+        `    return {"triggered": True}`,
+      ],
+      'Webhook (Catch)': (cfg) => [
+        `    # pip install flask`,
+        `    # In production: use Flask/FastAPI to expose a webhook endpoint`,
+        `    print(f"Webhook listening on {config.get('url', '/webhook')}")`,
+        `    return {"triggered": True}`,
+      ],
+      'Filter': () => [
+        `    # Filter: pass data through only if condition is met`,
+        `    if prev and prev.get("status") == "ok":`,
+        `        return prev`,
+        `    return None`,
+      ],
+      'Delay': (cfg) => [
+        `    delay_seconds = int(config.get("seconds", "5"))`,
+        `    time.sleep(delay_seconds)`,
+        `    return prev`,
+      ],
+      'JSON Parser': () => [
+        `    data = json.loads(prev.get("raw", "{}")) if prev else {}`,
+        `    return {"parsed": data}`,
+      ],
+      'Text Formatter': () => [
+        `    text = prev.get("text", "") if prev else ""`,
+        `    return {"formatted": text.strip().title()}`,
+      ],
+      'Loop': () => [
+        `    items = prev.get("items", []) if prev else []`,
+        `    results = []`,
+        `    for item in items:`,
+        `        results.append({"processed": item})`,
+        `    return {"results": results}`,
+      ],
+    };
+
+    // Collect pip packages and imports
+    const pipPackages = new Set<string>();
+    const allImports = new Set<string>(['import requests', 'import json', 'import time', 'import os']);
+    const needsAuth: { label: string; envVar: string; extraEnvVars?: string[] }[] = [];
+
+    for (const b of blocks) {
+      const snippet = blockSnippets[b.label];
+      if (snippet) {
+        if (snippet.pip !== 'requests') pipPackages.add(snippet.pip);
+        snippet.imports.forEach((i) => allImports.add(i));
+      }
+      if (b.auth === 'api_key') {
         const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
-        if (!seen.has(ev)) { seen.add(ev); L.push(`${ev} = os.getenv("${ev}", "")`); }
+        if (!needsAuth.find((a) => a.envVar === ev)) {
+          const extras: string[] = [];
+          if (b.label === 'Twilio') extras.push('TWILIO_AUTH_TOKEN');
+          needsAuth.push({ label: b.label, envVar: ev, extraEnvVars: extras });
+        }
+      }
+    }
+
+    const L: string[] = [];
+    L.push('#!/usr/bin/env python3');
+    L.push(`"""Auto-generated automation pipeline — ${blocks.length} blocks."""`);
+    L.push('');
+
+    // pip install instructions
+    const pipList = Array.from(pipPackages);
+    if (pipList.length > 0) {
+      L.push(`# Requirements: pip install ${pipList.join(' ')}`);
+      L.push('');
+    }
+
+    // Credentials
+    if (needsAuth.length > 0) {
+      L.push('# --- Credentials (set as environment variables) ---');
+      for (const a of needsAuth) {
+        L.push(`${a.envVar} = os.getenv("${a.envVar}", "")  # Get from ${a.label} dashboard`);
+        if (a.extraEnvVars) {
+          for (const extra of a.extraEnvVars) {
+            L.push(`${extra} = os.getenv("${extra}", "")`);
+          }
+        }
       }
       L.push('');
     }
+
+    // Step functions with real API code
     for (let i = 0; i < blocks.length; i++) {
       const b = blocks[i];
       const fn = `step_${i}_${b.label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-      const cfg = JSON.stringify(b.config, null, 4).replace(/^/gm, '    ').trimStart();
+      const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+      const snippet = blockSnippets[b.label];
+      const internal = internalSnippets[b.label];
+
       L.push(i === 0 ? `def ${fn}():` : `def ${fn}(prev=None):`);
       L.push(`    """${i === 0 ? 'Trigger' : 'Step ' + i}: ${b.label} (${b.subcategory})"""`);
-      L.push(`    config = ${cfg}`);
-      if (b.auth === 'api_key') {
-        const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+      L.push(`    config = ${JSON.stringify(b.config, null, 4).replace(/^/gm, '    ').trimStart()}`);
+
+      if (snippet) {
+        L.push(...snippet.code(b.config, ev));
+      } else if (internal) {
+        L.push(...internal(b.config));
+      } else if (b.auth === 'api_key') {
+        // Generic API call for blocks without specific snippets
         L.push(`    headers = {"Authorization": f"Bearer {${ev}}"}`);
-        L.push('    # TODO: call actual API');
+        L.push(`    # Refer to ${b.label} API docs for the correct endpoint`);
+        L.push(`    # response = requests.post("https://api.${b.label.toLowerCase().replace(/[^a-z]/g, '')}.com/v1/...", headers=headers, json=config)`);
+        L.push(`    print(f"[STEP ${i}] ${b.label} called")`);
+        L.push(`    return {"status": "ok"}`);
+      } else {
+        L.push(`    print(f"[STEP ${i}] ${b.label} executed")`);
+        L.push(`    return {"status": "ok"}`);
       }
-      L.push(`    print(f"[${'TRIGGER' }] ${b.label}" if ${i} == 0 else f"[STEP ${i}] ${b.label}")`);
-      L.push(`    return {"status": "ok", "block": "${b.label}"}`);
       L.push('');
     }
+
+    // Pipeline runner
+    L.push('');
     L.push('def run_pipeline():');
+    L.push('    """Execute the full automation pipeline."""');
     L.push('    print("🚀 Starting pipeline...")');
     L.push('    result = None');
     for (let i = 0; i < blocks.length; i++) {
       const fn = `step_${i}_${blocks[i].label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
       L.push(i === 0 ? `    result = ${fn}()` : `    result = ${fn}(prev=result)`);
     }
-    L.push('    print("✅ Done!")');
+    L.push('    print("✅ Pipeline complete!")');
     L.push('    return result');
+    L.push('');
     L.push('');
     L.push('if __name__ == "__main__":');
     L.push('    run_pipeline()');
-    setPythonCode(imps.join('\n') + '\n\n\n' + L.join('\n') + '\n');
-    toast.success('Python code generated!');
+
+    setPythonCode([...allImports].join('\n') + '\n\n\n' + L.join('\n') + '\n');
+    toast.success('Python code generated with real API calls!');
   }, [blocks]);
 
   const copyPythonCode = useCallback(() => {
