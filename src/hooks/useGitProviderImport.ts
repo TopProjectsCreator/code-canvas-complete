@@ -303,7 +303,7 @@ const replit = {
     }
     const bytes = await r.arrayBuffer();
     const { default: JSZip } = await import('jszip');
-    const zip = await JSZip.loadAsync(bytes.buffer);
+    const zip = await JSZip.loadAsync(bytes);
     const items: { path: string; type: 'blob' | 'tree' }[] = [];
     zip.forEach((relativePath, entry) => {
       if (entry.dir) {

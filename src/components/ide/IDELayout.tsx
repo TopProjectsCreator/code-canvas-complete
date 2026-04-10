@@ -2267,8 +2267,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
                     <AutomationTemplatePane />
                   </Suspense>
-                ) : selectedTemplate === "scratch" ? (
-                  <Suspense fallback={<div className="p-4 text-gray-400">Loading Scratch panel...</div>}>
+                  ) : selectedTemplate === "scratch" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
                     <ScratchPanel
                       archive={scratchArchive}
                       onArchiveChange={setScratchArchive}
