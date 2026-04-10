@@ -899,7 +899,7 @@ export const AutomationTemplatePane = () => {
                 return (
                   <div key={block.id}>
                     <button
-                      onClick={() => setSelectedBlockId(block.id)}
+                      onClick={() => setSelectedBlockId(prev => prev === block.id ? null : block.id)}
                       className={cn(
                         'w-full rounded-lg border px-3 py-2 text-left transition-colors',
                         isSelected ? 'border-primary/70 bg-primary/10' : 'border-border bg-card/70 hover:bg-accent/60',
@@ -948,6 +948,21 @@ export const AutomationTemplatePane = () => {
         </div>
 
         <div className="h-[calc(100%-41px)] overflow-y-auto p-3 ide-scrollbar">
+          {pythonCode && (
+            <div className="mb-4 rounded-md border border-border bg-card/60 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-xs font-medium">Generated Python</p>
+                </div>
+                <button onClick={copyPythonCode} className="rounded p-1 hover:bg-accent" title="Copy">
+                  <ClipboardCopy className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              </div>
+              <pre className="max-h-[300px] overflow-auto rounded border border-border bg-background p-2 text-[11px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{pythonCode}</pre>
+            </div>
+          )}
+
           {selectedBlock ? (
             <div className="space-y-3">
               <div>
@@ -1017,20 +1032,6 @@ export const AutomationTemplatePane = () => {
             </div>
           )}
 
-          {pythonCode && (
-            <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  <p className="text-xs font-medium">Generated Python</p>
-                </div>
-                <button onClick={copyPythonCode} className="rounded p-1 hover:bg-accent" title="Copy">
-                  <ClipboardCopy className="h-3.5 w-3.5 text-muted-foreground" />
-                </button>
-              </div>
-              <pre className="max-h-[300px] overflow-auto rounded border border-border bg-background p-2 text-[11px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{pythonCode}</pre>
-            </div>
-          )}
 
           <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
             <div className="mb-2 flex items-center gap-2">
