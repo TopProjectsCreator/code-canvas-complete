@@ -683,16 +683,41 @@ export const AutomationTemplatePane = () => {
             </div>
           )}
 
+          {pythonCode && (
+            <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-xs font-medium">Generated Python</p>
+                </div>
+                <button onClick={copyPythonCode} className="rounded p-1 hover:bg-accent" title="Copy">
+                  <ClipboardCopy className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              </div>
+              <pre className="max-h-[300px] overflow-auto rounded border border-border bg-background p-2 text-[11px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{pythonCode}</pre>
+            </div>
+          )}
+
           <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
             <div className="mb-2 flex items-center gap-2">
               <Logs className="h-3.5 w-3.5 text-muted-foreground" />
-              <p className="text-xs font-medium">Recent run logs</p>
+              <p className="text-xs font-medium">Run logs</p>
+              {isTestRunning && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
             </div>
             <div className="space-y-1 text-[11px] text-muted-foreground">
-              <p className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-400" /> 09:00:02 Trigger fired</p>
-              <p className="flex items-center gap-1"><CircleDot className="h-3 w-3 text-blue-400" /> 09:00:03 Provider block executed</p>
-              <p className="flex items-center gap-1"><KeyRound className="h-3 w-3 text-amber-400" /> 09:00:03 Credentials resolved</p>
-              <p className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-400" /> 09:00:06 Flow completed</p>
+              {testRunLogs.length === 0 ? (
+                <p className="italic">No test runs yet. Click "Test Run" to simulate.</p>
+              ) : (
+                testRunLogs.map((log, i) => {
+                  const Icon = log.icon === 'check' ? Check : log.icon === 'dot' ? CircleDot : log.icon === 'key' ? KeyRound : MinusCircle;
+                  const color = log.icon === 'check' ? 'text-emerald-400' : log.icon === 'dot' ? 'text-blue-400' : log.icon === 'key' ? 'text-amber-400' : 'text-destructive';
+                  return (
+                    <p key={i} className="flex items-center gap-1">
+                      <Icon className={cn('h-3 w-3', color)} /> {log.time} {log.text}
+                    </p>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
