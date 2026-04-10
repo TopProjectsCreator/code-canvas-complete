@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { parseReplitMetadata } from "./replitMetadata.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,6 +63,62 @@ serve(async (req) => {
       case "search":
         url = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&per_page=10&sort=stars`;
         break;
+      case "replit-metadata": {
+        const replUrl = `https://replit.com/@${owner}/${repo}`;
+        const pageResp = await fetch(replUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; CodeCanvas/1.0)",
+            "Accept": "text/html,application/xhtml+xml",
+          },
+          redirect: "follow",
+        });
+        if (!pageResp.ok) {
+          return new Response(JSON.stringify({ exists: false }), {
+            status: pageResp.status,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const html = await pageResp.text();
+        const metadata = parseReplitMetadata(html);
+        return new Response(JSON.stringify(metadata), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      case "replit-download-zip": {
+        const replZipUrl = `https://replit.com/@${owner}/${repo}.zip`;
+        const zipResp = await fetch(replZipUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; CodeCanvas/1.0)",
+            "Accept": "application/zip,application/octet-stream,*/*",
+          },
+          redirect: "follow",
+        });
+        if (!zipResp.ok) {
+          let details = "";
+          try {
+            details = await zipResp.text();
+          } catch {
+            details = "";
+          }
+          return new Response(JSON.stringify({
+            error: `Replit zip download failed (${zipResp.status}). ${details || "This repl may not allow direct downloads."}`,
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const bytes = new Uint8Array(await zipResp.arrayBuffer());
+        let binary = "";
+        const CHUNK_SIZE = 0x8000;
+        for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK_SIZE));
+        }
+        const base64Zip = btoa(binary);
+        return new Response(JSON.stringify({ base64Zip }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       default:
         return new Response(JSON.stringify({ error: "Unknown action" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
