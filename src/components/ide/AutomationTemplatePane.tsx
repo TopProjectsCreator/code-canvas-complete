@@ -530,10 +530,23 @@ export const AutomationTemplatePane = () => {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Automation Canvas</p>
             <p className="text-[11px] text-muted-foreground">Drag blocks from the registry, then wire trigger → actions in sequence.</p>
           </div>
-          <button className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent transition-colors">
-            <Play className="h-3.5 w-3.5 text-emerald-500" />
-            Test Run
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={generatePythonCode}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent transition-colors"
+            >
+              <Code2 className="h-3.5 w-3.5 text-blue-400" />
+              To Python
+            </button>
+            <button
+              onClick={handleTestRun}
+              disabled={isTestRunning || blocks.length === 0}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent transition-colors disabled:opacity-50"
+            >
+              {isTestRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : <Play className="h-3.5 w-3.5 text-emerald-500" />}
+              {isTestRunning ? 'Running…' : 'Test Run'}
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto bg-muted/20 p-3 ide-scrollbar" onDragOver={(event) => event.preventDefault()} onDrop={onCanvasDrop}>
