@@ -57,5 +57,6 @@ describe('wandbox language templates', () => {
     expect(getFileLanguage('app.pony')).toBe('pony');
     expect(getFileLanguage('Main.scala')).toBe('scala');
     expect(getFileLanguage('plugin.vim')).toBe('vim');
+    expect(getFileLanguage('main.lazy')).toBe('lazyk');
   });
 });

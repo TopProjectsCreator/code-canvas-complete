@@ -295,15 +295,12 @@ const replit = {
     };
   },
   async fetchFullTree(owner: string, repo: string, _branch: string): Promise<{ path: string; type: 'blob' | 'tree' }[]> {
-    // Use server-side proxy to avoid browser CORS failures on .zip downloads.
-    const d = await ghProxy({ action: 'replit-download-zip', owner, repo });
-    if (!d?.base64Zip) {
+    // Replit provides a zip download at /@user/repl.zip
+    const zipUrl = `https://replit.com/@${owner}/${repo}.zip`;
+    const r = await fetch(zipUrl);
+    if (!r.ok) {
       throw new Error('This Replit project cannot be downloaded directly. If this repl is GitHub-backed, import the GitHub repository URL instead.');
     }
-    const binary = atob(d.base64Zip);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-
     const { default: JSZip } = await import('jszip');
     const zip = await JSZip.loadAsync(bytes.buffer);
     const items: { path: string; type: 'blob' | 'tree' }[] = [];
