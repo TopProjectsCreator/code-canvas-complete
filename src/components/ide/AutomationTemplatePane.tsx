@@ -384,6 +384,86 @@ export const AutomationTemplatePane = () => {
     }
   };
 
+  const handleTestRun = useCallback(async () => {
+    if (blocks.length === 0) { toast.error('Add at least one block to test.'); return; }
+    setIsTestRunning(true);
+    setTestRunLogs([]);
+    setPythonCode(null);
+    const now = () => new Date().toLocaleTimeString('en-US', { hour12: false });
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i];
+      await new Promise((r) => setTimeout(r, 400 + Math.random() * 600));
+      if (i === 0) {
+        setTestRunLogs((p) => [...p, { icon: 'check' as const, time: now(), text: `Trigger fired: ${block.label}` }]);
+      } else {
+        if (block.auth === 'api_key') {
+          setTestRunLogs((p) => [...p, { icon: 'key' as const, time: now(), text: `Credentials resolved for ${block.label}` }]);
+          await new Promise((r) => setTimeout(r, 300));
+        }
+        const hasEmpty = Object.values(block.config).some((v) => v === '' || v === 'configure-action');
+        if (hasEmpty) {
+          setTestRunLogs((p) => [...p, { icon: 'error' as const, time: now(), text: `⚠ ${block.label}: missing config — skipped` }]);
+        } else {
+          setTestRunLogs((p) => [...p, { icon: 'dot' as const, time: now(), text: `Step ${i}: ${block.label} executed` }]);
+        }
+      }
+    }
+    await new Promise((r) => setTimeout(r, 300));
+    setTestRunLogs((p) => [...p, { icon: 'check' as const, time: now(), text: 'Flow completed' }]);
+    setIsTestRunning(false);
+  }, [blocks]);
+
+  const generatePythonCode = useCallback(() => {
+    if (blocks.length === 0) { toast.error('Add blocks first.'); return; }
+    const imps = ['import requests', 'import json', 'import time'];
+    const apiKeyBlocks = blocks.filter((b) => b.auth === 'api_key');
+    if (apiKeyBlocks.length > 0) imps.push('import os');
+    const L: string[] = ['#!/usr/bin/env python3', `"""Auto-generated automation pipeline — ${blocks.length} blocks."""`, ''];
+    if (apiKeyBlocks.length > 0) {
+      L.push('# --- Credentials ---');
+      const seen = new Set<string>();
+      for (const b of apiKeyBlocks) {
+        const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+        if (!seen.has(ev)) { seen.add(ev); L.push(`${ev} = os.getenv("${ev}", "")`); }
+      }
+      L.push('');
+    }
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      const fn = `step_${i}_${b.label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      const cfg = JSON.stringify(b.config, null, 4).replace(/^/gm, '    ').trimStart();
+      L.push(i === 0 ? `def ${fn}():` : `def ${fn}(prev=None):`);
+      L.push(`    """${i === 0 ? 'Trigger' : 'Step ' + i}: ${b.label} (${b.subcategory})"""`);
+      L.push(`    config = ${cfg}`);
+      if (b.auth === 'api_key') {
+        const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+        L.push(`    headers = {"Authorization": f"Bearer {${ev}}"}`);
+        L.push('    # TODO: call actual API');
+      }
+      L.push(`    print(f"[${'TRIGGER' }] ${b.label}" if ${i} == 0 else f"[STEP ${i}] ${b.label}")`);
+      L.push(`    return {"status": "ok", "block": "${b.label}"}`);
+      L.push('');
+    }
+    L.push('def run_pipeline():');
+    L.push('    print("🚀 Starting pipeline...")');
+    L.push('    result = None');
+    for (let i = 0; i < blocks.length; i++) {
+      const fn = `step_${i}_${blocks[i].label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      L.push(i === 0 ? `    result = ${fn}()` : `    result = ${fn}(prev=result)`);
+    }
+    L.push('    print("✅ Done!")');
+    L.push('    return result');
+    L.push('');
+    L.push('if __name__ == "__main__":');
+    L.push('    run_pipeline()');
+    setPythonCode(imps.join('\n') + '\n\n\n' + L.join('\n') + '\n');
+    toast.success('Python code generated!');
+  }, [blocks]);
+
+  const copyPythonCode = useCallback(() => {
+    if (pythonCode) { navigator.clipboard.writeText(pythonCode); toast.success('Copied to clipboard!'); }
+  }, [pythonCode]);
+
   return (
     <div className="grid h-full grid-cols-[290px_1fr_300px] overflow-hidden">
       <aside className="border-r border-border bg-background/70">
