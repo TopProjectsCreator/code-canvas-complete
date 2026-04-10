@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
+      injectRegister: null,
       registerType: "autoUpdate",
       devOptions: { enabled: false },
       workbox: {
