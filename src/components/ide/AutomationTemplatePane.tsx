@@ -1031,11 +1031,18 @@ export const AutomationTemplatePane = () => {
           </div>
           <div className="flex items-center gap-1.5">
             <button
-              onClick={generatePythonCode}
+              onClick={() => generateCode('python')}
               className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent transition-colors"
             >
-              <Code2 className="h-3.5 w-3.5 text-blue-400" />
-              To Python
+              <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+              Python
+            </button>
+            <button
+              onClick={() => generateCode('nodejs')}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent transition-colors"
+            >
+              <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+              Node.js
             </button>
             <button
               onClick={handleTestRun}
