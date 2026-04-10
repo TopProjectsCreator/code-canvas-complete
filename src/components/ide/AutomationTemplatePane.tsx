@@ -237,6 +237,7 @@ export const AutomationTemplatePane = () => {
   const [isTestRunning, setIsTestRunning] = useState(false);
   const [testRunLogs, setTestRunLogs] = useState<{ icon: 'check' | 'dot' | 'key' | 'error'; time: string; text: string }[]>([]);
   const [pythonCode, setPythonCode] = useState<string | null>(null);
+  const [codeLanguage, setCodeLanguage] = useState<'python' | 'nodejs'>('python');
 
   const selectedBlock = useMemo(
     () => blocks.find((item) => item.id === selectedBlockId) ?? null,
