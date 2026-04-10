@@ -1,16 +1,20 @@
-import { type DragEvent, useEffect, useMemo, useState } from 'react';
+import { type DragEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Check,
   CircleDot,
-  MinusCircle,
+  ClipboardCopy,
+  Code2,
   KeyRound,
+  Loader2,
   Logs,
+  MinusCircle,
   Play,
   Plus,
   Search,
   Trash2,
   Workflow,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
   ALL_AUTOMATION_BLOCKS,
@@ -230,6 +234,9 @@ export const AutomationTemplatePane = () => {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [jsonEditorValue, setJsonEditorValue] = useState('{}');
   const [jsonEditorError, setJsonEditorError] = useState<string | null>(null);
+  const [isTestRunning, setIsTestRunning] = useState(false);
+  const [testRunLogs, setTestRunLogs] = useState<{ icon: 'check' | 'dot' | 'key' | 'error'; time: string; text: string }[]>([]);
+  const [pythonCode, setPythonCode] = useState<string | null>(null);
 
   const selectedBlock = useMemo(
     () => blocks.find((item) => item.id === selectedBlockId) ?? null,
@@ -377,6 +384,86 @@ export const AutomationTemplatePane = () => {
     }
   };
 
+  const handleTestRun = useCallback(async () => {
+    if (blocks.length === 0) { toast.error('Add at least one block to test.'); return; }
+    setIsTestRunning(true);
+    setTestRunLogs([]);
+    setPythonCode(null);
+    const now = () => new Date().toLocaleTimeString('en-US', { hour12: false });
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i];
+      await new Promise((r) => setTimeout(r, 400 + Math.random() * 600));
+      if (i === 0) {
+        setTestRunLogs((p) => [...p, { icon: 'check' as const, time: now(), text: `Trigger fired: ${block.label}` }]);
+      } else {
+        if (block.auth === 'api_key') {
+          setTestRunLogs((p) => [...p, { icon: 'key' as const, time: now(), text: `Credentials resolved for ${block.label}` }]);
+          await new Promise((r) => setTimeout(r, 300));
+        }
+        const hasEmpty = Object.values(block.config).some((v) => v === '' || v === 'configure-action');
+        if (hasEmpty) {
+          setTestRunLogs((p) => [...p, { icon: 'error' as const, time: now(), text: `⚠ ${block.label}: missing config — skipped` }]);
+        } else {
+          setTestRunLogs((p) => [...p, { icon: 'dot' as const, time: now(), text: `Step ${i}: ${block.label} executed` }]);
+        }
+      }
+    }
+    await new Promise((r) => setTimeout(r, 300));
+    setTestRunLogs((p) => [...p, { icon: 'check' as const, time: now(), text: 'Flow completed' }]);
+    setIsTestRunning(false);
+  }, [blocks]);
+
+  const generatePythonCode = useCallback(() => {
+    if (blocks.length === 0) { toast.error('Add blocks first.'); return; }
+    const imps = ['import requests', 'import json', 'import time'];
+    const apiKeyBlocks = blocks.filter((b) => b.auth === 'api_key');
+    if (apiKeyBlocks.length > 0) imps.push('import os');
+    const L: string[] = ['#!/usr/bin/env python3', `"""Auto-generated automation pipeline — ${blocks.length} blocks."""`, ''];
+    if (apiKeyBlocks.length > 0) {
+      L.push('# --- Credentials ---');
+      const seen = new Set<string>();
+      for (const b of apiKeyBlocks) {
+        const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+        if (!seen.has(ev)) { seen.add(ev); L.push(`${ev} = os.getenv("${ev}", "")`); }
+      }
+      L.push('');
+    }
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      const fn = `step_${i}_${b.label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      const cfg = JSON.stringify(b.config, null, 4).replace(/^/gm, '    ').trimStart();
+      L.push(i === 0 ? `def ${fn}():` : `def ${fn}(prev=None):`);
+      L.push(`    """${i === 0 ? 'Trigger' : 'Step ' + i}: ${b.label} (${b.subcategory})"""`);
+      L.push(`    config = ${cfg}`);
+      if (b.auth === 'api_key') {
+        const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+        L.push(`    headers = {"Authorization": f"Bearer {${ev}}"}`);
+        L.push('    # TODO: call actual API');
+      }
+      L.push(`    print(f"[${'TRIGGER' }] ${b.label}" if ${i} == 0 else f"[STEP ${i}] ${b.label}")`);
+      L.push(`    return {"status": "ok", "block": "${b.label}"}`);
+      L.push('');
+    }
+    L.push('def run_pipeline():');
+    L.push('    print("🚀 Starting pipeline...")');
+    L.push('    result = None');
+    for (let i = 0; i < blocks.length; i++) {
+      const fn = `step_${i}_${blocks[i].label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      L.push(i === 0 ? `    result = ${fn}()` : `    result = ${fn}(prev=result)`);
+    }
+    L.push('    print("✅ Done!")');
+    L.push('    return result');
+    L.push('');
+    L.push('if __name__ == "__main__":');
+    L.push('    run_pipeline()');
+    setPythonCode(imps.join('\n') + '\n\n\n' + L.join('\n') + '\n');
+    toast.success('Python code generated!');
+  }, [blocks]);
+
+  const copyPythonCode = useCallback(() => {
+    if (pythonCode) { navigator.clipboard.writeText(pythonCode); toast.success('Copied to clipboard!'); }
+  }, [pythonCode]);
+
   return (
     <div className="grid h-full grid-cols-[290px_1fr_300px] overflow-hidden">
       <aside className="border-r border-border bg-background/70">
@@ -443,10 +530,23 @@ export const AutomationTemplatePane = () => {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Automation Canvas</p>
             <p className="text-[11px] text-muted-foreground">Drag blocks from the registry, then wire trigger → actions in sequence.</p>
           </div>
-          <button className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent transition-colors">
-            <Play className="h-3.5 w-3.5 text-emerald-500" />
-            Test Run
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={generatePythonCode}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent transition-colors"
+            >
+              <Code2 className="h-3.5 w-3.5 text-blue-400" />
+              To Python
+            </button>
+            <button
+              onClick={handleTestRun}
+              disabled={isTestRunning || blocks.length === 0}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent transition-colors disabled:opacity-50"
+            >
+              {isTestRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" /> : <Play className="h-3.5 w-3.5 text-emerald-500" />}
+              {isTestRunning ? 'Running…' : 'Test Run'}
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto bg-muted/20 p-3 ide-scrollbar" onDragOver={(event) => event.preventDefault()} onDrop={onCanvasDrop}>
@@ -583,16 +683,41 @@ export const AutomationTemplatePane = () => {
             </div>
           )}
 
+          {pythonCode && (
+            <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <p className="text-xs font-medium">Generated Python</p>
+                </div>
+                <button onClick={copyPythonCode} className="rounded p-1 hover:bg-accent" title="Copy">
+                  <ClipboardCopy className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              </div>
+              <pre className="max-h-[300px] overflow-auto rounded border border-border bg-background p-2 text-[11px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{pythonCode}</pre>
+            </div>
+          )}
+
           <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
             <div className="mb-2 flex items-center gap-2">
               <Logs className="h-3.5 w-3.5 text-muted-foreground" />
-              <p className="text-xs font-medium">Recent run logs</p>
+              <p className="text-xs font-medium">Run logs</p>
+              {isTestRunning && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
             </div>
             <div className="space-y-1 text-[11px] text-muted-foreground">
-              <p className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-400" /> 09:00:02 Trigger fired</p>
-              <p className="flex items-center gap-1"><CircleDot className="h-3 w-3 text-blue-400" /> 09:00:03 Provider block executed</p>
-              <p className="flex items-center gap-1"><KeyRound className="h-3 w-3 text-amber-400" /> 09:00:03 Credentials resolved</p>
-              <p className="flex items-center gap-1"><Check className="h-3 w-3 text-emerald-400" /> 09:00:06 Flow completed</p>
+              {testRunLogs.length === 0 ? (
+                <p className="italic">No test runs yet. Click "Test Run" to simulate.</p>
+              ) : (
+                testRunLogs.map((log, i) => {
+                  const Icon = log.icon === 'check' ? Check : log.icon === 'dot' ? CircleDot : log.icon === 'key' ? KeyRound : MinusCircle;
+                  const color = log.icon === 'check' ? 'text-emerald-400' : log.icon === 'dot' ? 'text-blue-400' : log.icon === 'key' ? 'text-amber-400' : 'text-destructive';
+                  return (
+                    <p key={i} className="flex items-center gap-1">
+                      <Icon className={cn('h-3 w-3', color)} /> {log.time} {log.text}
+                    </p>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
