@@ -36,6 +36,8 @@ import { useGitProviderImport } from "@/hooks/useGitProviderImport";
 import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
 import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/collabSyncEngine";
 import { useOfflineProject } from "@/hooks/useOfflineProject";
+import { AutomationTemplatePane } from "@/components/ide/AutomationTemplatePane";
+import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
 
 const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
   ftc: "https://github.com/FIRST-Tech-Challenge/FtcRobotController",
@@ -45,8 +47,6 @@ const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ de
 const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then((m) => ({ default: m.ScratchPanel })));
 const FTCPanel = lazy(() => import("@/components/ftc").then((m) => ({ default: m.FTCPanel })));
 const MinecraftEditor = lazy(() => import("@/components/minecraft").then((m) => ({ default: m.MinecraftEditor })));
-const AutomationTemplatePane = lazy(() => import("@/components/ide/AutomationTemplatePane").then((m) => ({ default: m.AutomationTemplatePane })));
-import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
 
 interface IDELayoutProps {
   projectId?: string;
@@ -2267,8 +2267,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
                     <AutomationTemplatePane />
                   </Suspense>
-                ) : selectedTemplate === "scratch" ? (
-                  <Suspense fallback={<div className="p-4 text-gray-400">Loading Scratch panel...</div>}>
+                  ) : selectedTemplate === "scratch" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
                     <ScratchPanel
                       archive={scratchArchive}
                       onArchiveChange={setScratchArchive}
