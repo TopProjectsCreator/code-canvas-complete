@@ -237,6 +237,7 @@ export const AutomationTemplatePane = () => {
   const [isTestRunning, setIsTestRunning] = useState(false);
   const [testRunLogs, setTestRunLogs] = useState<{ icon: 'check' | 'dot' | 'key' | 'error'; time: string; text: string }[]>([]);
   const [pythonCode, setPythonCode] = useState<string | null>(null);
+  const [codeLanguage, setCodeLanguage] = useState<'python' | 'nodejs'>('python');
 
   const selectedBlock = useMemo(
     () => blocks.find((item) => item.id === selectedBlockId) ?? null,
@@ -413,290 +414,192 @@ export const AutomationTemplatePane = () => {
     setIsTestRunning(false);
   }, [blocks]);
 
-  const generatePythonCode = useCallback(() => {
+  const generateCode = useCallback((lang: 'python' | 'nodejs') => {
     if (blocks.length === 0) { toast.error('Add blocks first.'); return; }
+    setCodeLanguage(lang);
 
-    // Map block labels to real Python SDK/API snippets
-    const blockSnippets: Record<string, { pip: string; imports: string[]; code: (cfg: Record<string,string>, envVar: string) => string[] }> = {
-      'OpenAI': {
-        pip: 'openai',
-        imports: ['from openai import OpenAI'],
-        code: (cfg, ev) => [
-          `    client = OpenAI(api_key=${ev})`,
-          `    response = client.chat.completions.create(`,
-          `        model="${cfg.model || 'gpt-4o-mini'}",`,
-          `        messages=[{"role": "user", "content": ${JSON.stringify(cfg.task || 'Hello')}}],`,
-          `    )`,
-          `    return {"result": response.choices[0].message.content}`,
-        ],
-      },
-      'Anthropic': {
-        pip: 'anthropic',
-        imports: ['import anthropic'],
-        code: (cfg, ev) => [
-          `    client = anthropic.Anthropic(api_key=${ev})`,
-          `    message = client.messages.create(`,
-          `        model="${cfg.model || 'claude-sonnet-4-20250514'}",`,
-          `        max_tokens=1024,`,
-          `        messages=[{"role": "user", "content": ${JSON.stringify(cfg.task || 'Hello')}}],`,
-          `    )`,
-          `    return {"result": message.content[0].text}`,
-        ],
-      },
-      'Google Gemini': {
-        pip: 'google-genai',
-        imports: ['from google import genai'],
-        code: (cfg, ev) => [
-          `    client = genai.Client(api_key=${ev})`,
-          `    response = client.models.generate_content(`,
-          `        model="${cfg.model || 'gemini-2.5-flash'}",`,
-          `        contents=${JSON.stringify(cfg.task || 'Hello')},`,
-          `    )`,
-          `    return {"result": response.text}`,
-        ],
-      },
-      'Mistral AI': {
-        pip: 'mistralai',
-        imports: ['from mistralai import Mistral'],
-        code: (cfg, ev) => [
-          `    client = Mistral(api_key=${ev})`,
-          `    response = client.chat.complete(`,
-          `        model="${cfg.model || 'mistral-large-latest'}",`,
-          `        messages=[{"role": "user", "content": ${JSON.stringify(cfg.task || 'Hello')}}],`,
-          `    )`,
-          `    return {"result": response.choices[0].message.content}`,
-        ],
-      },
-      'Groq': {
-        pip: 'groq',
-        imports: ['from groq import Groq'],
-        code: (cfg, ev) => [
-          `    client = Groq(api_key=${ev})`,
-          `    response = client.chat.completions.create(`,
-          `        model="${cfg.model || 'llama-3.3-70b-versatile'}",`,
-          `        messages=[{"role": "user", "content": ${JSON.stringify(cfg.task || 'Hello')}}],`,
-          `    )`,
-          `    return {"result": response.choices[0].message.content}`,
-        ],
-      },
-      'Cohere': {
-        pip: 'cohere',
-        imports: ['import cohere'],
-        code: (cfg, ev) => [
-          `    co = cohere.ClientV2(api_key=${ev})`,
-          `    response = co.chat(`,
-          `        model="${cfg.model || 'command-a-03-2025'}",`,
-          `        messages=[{"role": "user", "content": ${JSON.stringify(cfg.task || 'Hello')}}],`,
-          `    )`,
-          `    return {"result": response.message.content[0].text}`,
-        ],
-      },
-      'Resend': {
-        pip: 'resend',
-        imports: ['import resend'],
-        code: (cfg, ev) => [
-          `    resend.api_key = ${ev}`,
-          `    r = resend.Emails.send({`,
-          `        "from": "${cfg.from_email || 'you@yourdomain.com'}",`,
-          `        "to": ["${cfg.to_email || 'recipient@example.com'}"],`,
-          `        "subject": ${JSON.stringify(cfg.subject || 'Hello from automation')},`,
-          `        "html": ${JSON.stringify(cfg.body || '<p>Hello!</p>')},`,
-          `    })`,
-          `    return {"email_id": r["id"]}`,
-        ],
-      },
-      'SendGrid': {
-        pip: 'sendgrid',
-        imports: ['from sendgrid import SendGridAPIClient', 'from sendgrid.helpers.mail import Mail'],
-        code: (cfg, ev) => [
-          `    message = Mail(`,
-          `        from_email="${cfg.from_email || 'you@yourdomain.com'}",`,
-          `        to_emails="${cfg.to_email || 'recipient@example.com'}",`,
-          `        subject=${JSON.stringify(cfg.subject || 'Hello')},`,
-          `        html_content=${JSON.stringify(cfg.body || '<p>Hello!</p>')},`,
-          `    )`,
-          `    sg = SendGridAPIClient(${ev})`,
-          `    response = sg.send(message)`,
-          `    return {"status_code": response.status_code}`,
-        ],
-      },
-      'Twilio': {
-        pip: 'twilio',
-        imports: ['from twilio.rest import Client as TwilioClient'],
-        code: (cfg, ev) => [
-          `    # Twilio needs Account SID + Auth Token`,
-          `    client = TwilioClient(${ev}, TWILIO_AUTH_TOKEN)`,
-          `    message = client.messages.create(`,
-          `        body=${JSON.stringify(cfg.body || 'Hello from automation')},`,
-          `        from_="${cfg.from_number || '+1234567890'}",`,
-          `        to="${cfg.to_number || '+0987654321'}",`,
-          `    )`,
-          `    return {"sid": message.sid}`,
-        ],
-      },
-      'Slack': {
-        pip: 'slack-sdk',
-        imports: ['from slack_sdk import WebClient'],
-        code: (cfg, ev) => [
-          `    client = WebClient(token=${ev})`,
-          `    response = client.chat_postMessage(`,
-          `        channel="${cfg.channel || '#general'}",`,
-          `        text=${JSON.stringify(cfg.message || 'Hello from automation!')},`,
-          `    )`,
-          `    return {"ts": response["ts"]}`,
-        ],
-      },
-      'Discord': {
-        pip: 'requests',
-        imports: [],
-        code: (cfg, ev) => [
-          `    webhook_url = config.get("webhook_url", "")`,
-          `    response = requests.post(webhook_url, json={`,
-          `        "content": ${JSON.stringify(cfg.message || 'Hello from automation!')},`,
-          `    })`,
-          `    return {"status": response.status_code}`,
-        ],
-      },
-      'Telegram': {
-        pip: 'requests',
-        imports: [],
-        code: (cfg, ev) => [
-          `    bot_token = ${ev}`,
-          `    chat_id = "${cfg.chat_id || ''}"`,
-          `    response = requests.post(`,
-          `        f"https://api.telegram.org/bot{bot_token}/sendMessage",`,
-          `        json={"chat_id": chat_id, "text": ${JSON.stringify(cfg.message || 'Hello!')}},`,
-          `    )`,
-          `    return response.json()`,
-        ],
-      },
-      'Stripe': {
-        pip: 'stripe',
-        imports: ['import stripe'],
-        code: (cfg, ev) => [
-          `    stripe.api_key = ${ev}`,
-          `    # Example: create a payment intent`,
-          `    intent = stripe.PaymentIntent.create(`,
-          `        amount=${cfg.amount || '1000'},`,
-          `        currency="${cfg.currency || 'usd'}",`,
-          `    )`,
-          `    return {"client_secret": intent.client_secret}`,
-        ],
-      },
-      'Supabase': {
-        pip: 'supabase',
-        imports: ['from supabase import create_client'],
-        code: (cfg, ev) => [
-          `    url = os.getenv("SUPABASE_URL", "${cfg.url || ''}")`,
-          `    client = create_client(url, ${ev})`,
-          `    response = client.table("${cfg.table || 'items'}").select("*").execute()`,
-          `    return {"data": response.data}`,
-        ],
-      },
-      'GitHub': {
-        pip: 'requests',
-        imports: [],
-        code: (cfg, ev) => [
-          `    headers = {"Authorization": f"Bearer {${ev}}", "Accept": "application/vnd.github+json"}`,
-          `    owner = "${cfg.owner || 'owner'}"`,
-          `    repo = "${cfg.repo || 'repo'}"`,
-          `    response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)`,
-          `    return response.json()`,
-        ],
-      },
-      'ElevenLabs': {
-        pip: 'elevenlabs',
-        imports: ['from elevenlabs.client import ElevenLabs as ElevenLabsClient'],
-        code: (cfg, ev) => [
-          `    client = ElevenLabsClient(api_key=${ev})`,
-          `    audio = client.text_to_speech.convert(`,
-          `        voice_id="${cfg.voice_id || '21m00Tcm4TlvDq8ikWAM'}",`,
-          `        text=${JSON.stringify(cfg.text || 'Hello world')},`,
-          `        model_id="eleven_multilingual_v2",`,
-          `    )`,
-          `    # audio is a generator of bytes`,
-          `    return {"status": "audio_generated"}`,
-        ],
-      },
-      'Sentry': {
-        pip: 'sentry-sdk',
-        imports: ['import sentry_sdk'],
-        code: (cfg, ev) => [
-          `    sentry_sdk.init(dsn=${ev})`,
-          `    sentry_sdk.capture_message("Automation checkpoint reached")`,
-          `    return {"status": "event_sent"}`,
-        ],
-      },
-      'DALL-E': {
-        pip: 'openai',
-        imports: ['from openai import OpenAI'],
-        code: (cfg, ev) => [
-          `    client = OpenAI(api_key=${ev})`,
-          `    response = client.images.generate(`,
-          `        model="dall-e-3",`,
-          `        prompt=${JSON.stringify(cfg.prompt || 'A cute robot')},`,
-          `        n=1, size="1024x1024",`,
-          `    )`,
-          `    return {"image_url": response.data[0].url}`,
-        ],
-      },
-      'Stable Diffusion': {
-        pip: 'stability-sdk',
-        imports: [],
-        code: (cfg, ev) => [
-          `    response = requests.post(`,
-          `        "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",`,
-          `        headers={"Authorization": f"Bearer {${ev}}", "Content-Type": "application/json"},`,
-          `        json={"text_prompts": [{"text": ${JSON.stringify(cfg.prompt || 'A landscape')}}]},`,
-          `    )`,
-          `    return {"status": response.status_code}`,
-        ],
-      },
+    if (lang === 'python') {
+      generatePythonCodeImpl();
+    } else {
+      generateNodeCodeImpl();
+    }
+  }, [blocks]);
+
+  const generatePythonCodeImpl = useCallback(() => {
+    // ---- Python snippet registry ----
+    type PySig = { pip: string; imports: string[]; code: (cfg: Record<string,string>, envVar: string) => string[] };
+    const blockSnippets: Record<string, PySig> = {
+      'OpenAI': { pip: 'openai', imports: ['from openai import OpenAI'], code: (cfg, ev) => [
+        `    client = OpenAI(api_key=${ev})`,
+        `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
+        `    response = client.chat.completions.create(model="${cfg.model || 'gpt-4o-mini'}", messages=[{"role": "user", "content": prompt}])`,
+        `    return {"result": response.choices[0].message.content}`,
+      ]},
+      'Anthropic': { pip: 'anthropic', imports: ['import anthropic'], code: (cfg, ev) => [
+        `    client = anthropic.Anthropic(api_key=${ev})`,
+        `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
+        `    message = client.messages.create(model="${cfg.model || 'claude-sonnet-4-20250514'}", max_tokens=1024, messages=[{"role": "user", "content": prompt}])`,
+        `    return {"result": message.content[0].text}`,
+      ]},
+      'Google Gemini': { pip: 'google-genai', imports: ['from google import genai'], code: (cfg, ev) => [
+        `    client = genai.Client(api_key=${ev})`,
+        `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
+        `    response = client.models.generate_content(model="${cfg.model || 'gemini-2.5-flash'}", contents=prompt)`,
+        `    return {"result": response.text}`,
+      ]},
+      'Mistral AI': { pip: 'mistralai', imports: ['from mistralai import Mistral'], code: (cfg, ev) => [
+        `    client = Mistral(api_key=${ev})`,
+        `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
+        `    response = client.chat.complete(model="${cfg.model || 'mistral-large-latest'}", messages=[{"role": "user", "content": prompt}])`,
+        `    return {"result": response.choices[0].message.content}`,
+      ]},
+      'Groq': { pip: 'groq', imports: ['from groq import Groq'], code: (cfg, ev) => [
+        `    client = Groq(api_key=${ev})`,
+        `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
+        `    response = client.chat.completions.create(model="${cfg.model || 'llama-3.3-70b-versatile'}", messages=[{"role": "user", "content": prompt}])`,
+        `    return {"result": response.choices[0].message.content}`,
+      ]},
+      'Cohere': { pip: 'cohere', imports: ['import cohere'], code: (cfg, ev) => [
+        `    co = cohere.ClientV2(api_key=${ev})`,
+        `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
+        `    response = co.chat(model="${cfg.model || 'command-a-03-2025'}", messages=[{"role": "user", "content": prompt}])`,
+        `    return {"result": response.message.content[0].text}`,
+      ]},
+      'Resend': { pip: 'resend', imports: ['import resend'], code: (cfg, ev) => [
+        `    resend.api_key = ${ev}`,
+        `    body_html = prev.get("result", ${JSON.stringify(cfg.body || '<p>Hello!</p>')}) if prev else ${JSON.stringify(cfg.body || '<p>Hello!</p>')}`,
+        `    r = resend.Emails.send({"from": "${cfg.from_email || 'you@yourdomain.com'}", "to": ["${cfg.to_email || 'recipient@example.com'}"], "subject": ${JSON.stringify(cfg.subject || 'Hello from automation')}, "html": body_html})`,
+        `    return {"email_id": r["id"]}`,
+      ]},
+      'SendGrid': { pip: 'sendgrid', imports: ['from sendgrid import SendGridAPIClient', 'from sendgrid.helpers.mail import Mail'], code: (cfg, ev) => [
+        `    body_html = prev.get("result", ${JSON.stringify(cfg.body || '<p>Hello!</p>')}) if prev else ${JSON.stringify(cfg.body || '<p>Hello!</p>')}`,
+        `    message = Mail(from_email="${cfg.from_email || 'you@yourdomain.com'}", to_emails="${cfg.to_email || 'recipient@example.com'}", subject=${JSON.stringify(cfg.subject || 'Hello')}, html_content=body_html)`,
+        `    sg = SendGridAPIClient(${ev})`,
+        `    response = sg.send(message)`,
+        `    return {"status_code": response.status_code}`,
+      ]},
+      'Twilio': { pip: 'twilio', imports: ['from twilio.rest import Client as TwilioClient'], code: (cfg, ev) => [
+        `    client = TwilioClient(${ev}, TWILIO_AUTH_TOKEN)`,
+        `    body_text = prev.get("result", ${JSON.stringify(cfg.body || 'Hello from automation')}) if prev else ${JSON.stringify(cfg.body || 'Hello from automation')}`,
+        `    message = client.messages.create(body=body_text, from_="${cfg.from_number || '+1234567890'}", to="${cfg.to_number || '+0987654321'}")`,
+        `    return {"sid": message.sid}`,
+      ]},
+      'Slack': { pip: 'slack-sdk', imports: ['from slack_sdk import WebClient'], code: (cfg, ev) => [
+        `    client = WebClient(token=${ev})`,
+        `    msg_text = prev.get("result", ${JSON.stringify(cfg.message || 'Hello from automation!')}) if prev else ${JSON.stringify(cfg.message || 'Hello from automation!')}`,
+        `    response = client.chat_postMessage(channel="${cfg.channel || '#general'}", text=msg_text)`,
+        `    return {"ts": response["ts"]}`,
+      ]},
+      'Discord': { pip: 'requests', imports: [], code: (cfg) => [
+        `    webhook_url = config.get("webhook_url", "")`,
+        `    msg_text = prev.get("result", ${JSON.stringify(cfg.message || 'Hello!')}) if prev else ${JSON.stringify(cfg.message || 'Hello!')}`,
+        `    response = requests.post(webhook_url, json={"content": msg_text})`,
+        `    return {"status": response.status_code}`,
+      ]},
+      'Telegram': { pip: 'requests', imports: [], code: (cfg, ev) => [
+        `    bot_token = ${ev}`,
+        `    chat_id = "${cfg.chat_id || ''}"`,
+        `    msg_text = prev.get("result", ${JSON.stringify(cfg.message || 'Hello!')}) if prev else ${JSON.stringify(cfg.message || 'Hello!')}`,
+        `    response = requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg_text})`,
+        `    return response.json()`,
+      ]},
+      'Stripe': { pip: 'stripe', imports: ['import stripe'], code: (cfg, ev) => [
+        `    stripe.api_key = ${ev}`,
+        `    intent = stripe.PaymentIntent.create(amount=${cfg.amount || '1000'}, currency="${cfg.currency || 'usd'}")`,
+        `    return {"client_secret": intent.client_secret}`,
+      ]},
+      'Supabase': { pip: 'supabase', imports: ['from supabase import create_client'], code: (cfg, ev) => [
+        `    url = os.getenv("SUPABASE_URL", "${cfg.url || ''}")`,
+        `    client = create_client(url, ${ev})`,
+        `    response = client.table("${cfg.table || 'items'}").select("*").execute()`,
+        `    return {"data": response.data}`,
+      ]},
+      'GitHub': { pip: 'requests', imports: [], code: (cfg, ev) => [
+        `    headers = {"Authorization": f"Bearer {${ev}}", "Accept": "application/vnd.github+json"}`,
+        `    owner, repo = "${cfg.owner || 'owner'}", "${cfg.repo || 'repo'}"`,
+        `    response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)`,
+        `    return response.json()`,
+      ]},
+      'ElevenLabs': { pip: 'elevenlabs', imports: ['from elevenlabs.client import ElevenLabs as ElevenLabsClient'], code: (cfg, ev) => [
+        `    client = ElevenLabsClient(api_key=${ev})`,
+        `    text_input = prev.get("result", ${JSON.stringify(cfg.text || 'Hello world')}) if prev else ${JSON.stringify(cfg.text || 'Hello world')}`,
+        `    audio = client.text_to_speech.convert(voice_id="${cfg.voice_id || '21m00Tcm4TlvDq8ikWAM'}", text=text_input, model_id="eleven_multilingual_v2")`,
+        `    return {"status": "audio_generated"}`,
+      ]},
+      'Sentry': { pip: 'sentry-sdk', imports: ['import sentry_sdk'], code: (_cfg, ev) => [
+        `    sentry_sdk.init(dsn=${ev})`,
+        `    sentry_sdk.capture_message("Automation checkpoint reached")`,
+        `    return {"status": "event_sent"}`,
+      ]},
+      'DALL-E': { pip: 'openai', imports: ['from openai import OpenAI'], code: (cfg, ev) => [
+        `    client = OpenAI(api_key=${ev})`,
+        `    prompt_text = prev.get("result", ${JSON.stringify(cfg.prompt || 'A cute robot')}) if prev else ${JSON.stringify(cfg.prompt || 'A cute robot')}`,
+        `    response = client.images.generate(model="dall-e-3", prompt=prompt_text, n=1, size="1024x1024")`,
+        `    return {"image_url": response.data[0].url}`,
+      ]},
+      'Stable Diffusion': { pip: 'stability-sdk', imports: [], code: (cfg, ev) => [
+        `    prompt_text = prev.get("result", ${JSON.stringify(cfg.prompt || 'A landscape')}) if prev else ${JSON.stringify(cfg.prompt || 'A landscape')}`,
+        `    response = requests.post("https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image",`,
+        `        headers={"Authorization": f"Bearer {${ev}}", "Content-Type": "application/json"},`,
+        `        json={"text_prompts": [{"text": prompt_text}]})`,
+        `    return {"status": response.status_code}`,
+      ]},
     };
 
-    // Internal / logic block snippets (no pip needed)
     const internalSnippets: Record<string, (cfg: Record<string,string>) => string[]> = {
       'Schedule (Cron)': (cfg) => [
-        `    # pip install schedule`,
-        `    # For production, use APScheduler or cron jobs`,
-        `    print(f"Trigger: cron={cfg.get('cron', '* * * * *')}, tz={cfg.get('timezone', 'UTC')}")`,
-        `    return {"triggered": True}`,
+        `    # For production: use APScheduler, celery beat, or system crontab`,
+        `    # pip install apscheduler`,
+        `    # Example: scheduler.add_job(run_pipeline, CronTrigger.from_crontab("${cfg.cron || '0 9 * * *'}"))`,
+        `    import sched, datetime`,
+        `    print(f"⏰ Scheduled: cron={config.get('cron', '0 9 * * *')}, tz={config.get('timezone', 'UTC')}")`,
+        `    print(f"   Next run: configure via crontab -e or APScheduler")`,
+        `    return {"triggered": True, "schedule": config.get("cron", "0 9 * * *")}`,
       ],
-      'Webhook (Catch)': (cfg) => [
+      'Webhook (Catch)': () => [
+        `    # For production: use Flask or FastAPI`,
         `    # pip install flask`,
-        `    # In production: use Flask/FastAPI to expose a webhook endpoint`,
-        `    print(f"Webhook listening on {config.get('url', '/webhook')}")`,
+        `    # @app.route("/webhook", methods=["POST"])`,
+        `    # def webhook(): return run_pipeline()`,
+        `    print(f"🪝 Webhook endpoint ready at {config.get('url', '/webhook')}")`,
         `    return {"triggered": True}`,
       ],
       'Filter': () => [
-        `    # Filter: pass data through only if condition is met`,
-        `    if prev and prev.get("status") == "ok":`,
+        `    if not prev:`,
+        `        print("⚠️  Filter: no input data, skipping")`,
+        `        return None`,
+        `    condition_key = config.get("field", "status")`,
+        `    condition_val = config.get("equals", "ok")`,
+        `    if str(prev.get(condition_key)) == condition_val:`,
+        `        print(f"✅ Filter passed: {condition_key}={condition_val}")`,
         `        return prev`,
+        `    print(f"🚫 Filter blocked: {condition_key}!={condition_val}")`,
         `    return None`,
       ],
       'Delay': (cfg) => [
-        `    delay_seconds = int(config.get("seconds", "5"))`,
+        `    delay_seconds = int(config.get("seconds", "${cfg.seconds || '5'}"))`,
+        `    print(f"⏳ Waiting {delay_seconds}s...")`,
         `    time.sleep(delay_seconds)`,
-        `    return prev`,
+        `    return prev or {"status": "delayed"}`,
       ],
       'JSON Parser': () => [
-        `    data = json.loads(prev.get("raw", "{}")) if prev else {}`,
+        `    raw = prev.get("raw", prev.get("result", "{}")) if prev else "{}"`,
+        `    data = json.loads(raw) if isinstance(raw, str) else raw`,
         `    return {"parsed": data}`,
       ],
       'Text Formatter': () => [
-        `    text = prev.get("text", "") if prev else ""`,
-        `    return {"formatted": text.strip().title()}`,
+        `    text = prev.get("result", prev.get("text", "")) if prev else ""`,
+        `    return {"result": text.strip().title()}`,
       ],
       'Loop': () => [
-        `    items = prev.get("items", []) if prev else []`,
+        `    items = prev.get("items", prev.get("data", [])) if prev else []`,
         `    results = []`,
         `    for item in items:`,
         `        results.append({"processed": item})`,
-        `    return {"results": results}`,
+        `    return {"results": results, "count": len(results)}`,
       ],
     };
 
-    // Collect pip packages and imports
     const pipPackages = new Set<string>();
     const allImports = new Set<string>(['import requests', 'import json', 'import time', 'import os']);
     const needsAuth: { label: string; envVar: string; extraEnvVars?: string[] }[] = [];
@@ -719,31 +622,54 @@ export const AutomationTemplatePane = () => {
 
     const L: string[] = [];
     L.push('#!/usr/bin/env python3');
-    L.push(`"""Auto-generated automation pipeline — ${blocks.length} blocks."""`);
+    L.push(`"""Auto-generated automation pipeline — ${blocks.length} block${blocks.length > 1 ? 's' : ''}.`);
     L.push('');
-
-    // pip install instructions
+    L.push('Usage:');
     const pipList = Array.from(pipPackages);
     if (pipList.length > 0) {
-      L.push(`# Requirements: pip install ${pipList.join(' ')}`);
-      L.push('');
+      L.push(`  pip install requests ${pipList.join(' ')}`);
+    } else {
+      L.push('  pip install requests');
     }
-
-    // Credentials
     if (needsAuth.length > 0) {
-      L.push('# --- Credentials (set as environment variables) ---');
+      L.push('');
+      L.push('Environment variables needed:');
       for (const a of needsAuth) {
-        L.push(`${a.envVar} = os.getenv("${a.envVar}", "")  # Get from ${a.label} dashboard`);
+        L.push(`  export ${a.envVar}="your-key"   # from ${a.label} dashboard`);
         if (a.extraEnvVars) {
-          for (const extra of a.extraEnvVars) {
-            L.push(`${extra} = os.getenv("${extra}", "")`);
-          }
+          for (const extra of a.extraEnvVars) L.push(`  export ${extra}="your-token"`);
+        }
+      }
+    }
+    L.push('"""');
+    L.push('');
+
+    // Imports
+    L.push([...allImports].join('\n'));
+    L.push('');
+    L.push('');
+
+    // Credential variables (defined BEFORE step functions)
+    if (needsAuth.length > 0) {
+      L.push('# --- Credentials (loaded from environment) ---');
+      for (const a of needsAuth) {
+        L.push(`${a.envVar} = os.getenv("${a.envVar}")`);
+        if (a.extraEnvVars) {
+          for (const extra of a.extraEnvVars) L.push(`${extra} = os.getenv("${extra}")`);
         }
       }
       L.push('');
+      // Validation
+      const allEnvVars = needsAuth.flatMap(a => [a.envVar, ...(a.extraEnvVars || [])]);
+      L.push('# Validate required credentials');
+      L.push(`_missing = [k for k in [${allEnvVars.map(v => `"${v}"`).join(', ')}] if not os.getenv(k)]`);
+      L.push('if _missing:');
+      L.push('    raise EnvironmentError(f"Missing required env vars: {\\", \\".join(_missing)}")');
+      L.push('');
+      L.push('');
     }
 
-    // Step functions with real API code
+    // Step functions
     for (let i = 0; i < blocks.length; i++) {
       const b = blocks[i];
       const fn = `step_${i}_${b.label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -751,38 +677,45 @@ export const AutomationTemplatePane = () => {
       const snippet = blockSnippets[b.label];
       const internal = internalSnippets[b.label];
 
-      L.push(i === 0 ? `def ${fn}():` : `def ${fn}(prev=None):`);
+      L.push(`def ${fn}(prev=None):`);
       L.push(`    """${i === 0 ? 'Trigger' : 'Step ' + i}: ${b.label} (${b.subcategory})"""`);
       L.push(`    config = ${JSON.stringify(b.config, null, 4).replace(/^/gm, '    ').trimStart()}`);
+      L.push(`    print(f"▶ [${i === 0 ? 'TRIGGER' : 'STEP ' + i}] ${b.label}...")`);
 
       if (snippet) {
         L.push(...snippet.code(b.config, ev));
       } else if (internal) {
         L.push(...internal(b.config));
       } else if (b.auth === 'api_key') {
-        // Generic API call for blocks without specific snippets
         L.push(`    headers = {"Authorization": f"Bearer {${ev}}"}`);
-        L.push(`    # Refer to ${b.label} API docs for the correct endpoint`);
-        L.push(`    # response = requests.post("https://api.${b.label.toLowerCase().replace(/[^a-z]/g, '')}.com/v1/...", headers=headers, json=config)`);
-        L.push(`    print(f"[STEP ${i}] ${b.label} called")`);
-        L.push(`    return {"status": "ok"}`);
+        L.push(`    # TODO: Replace with actual ${b.label} API endpoint`);
+        L.push(`    # response = requests.post("https://api.example.com/v1/...", headers=headers, json=config)`);
+        L.push(`    print(f"  ↳ ${b.label} called (configure endpoint in code)")`);
+        L.push(`    return {"status": "ok", **(prev or {})}`);
       } else {
-        L.push(`    print(f"[STEP ${i}] ${b.label} executed")`);
-        L.push(`    return {"status": "ok"}`);
+        L.push(`    print(f"  ↳ ${b.label} executed")`);
+        L.push(`    return {"status": "ok", **(prev or {})}`);
       }
+      L.push('');
       L.push('');
     }
 
     // Pipeline runner
-    L.push('');
     L.push('def run_pipeline():');
-    L.push('    """Execute the full automation pipeline."""');
+    L.push('    """Execute the full automation pipeline, passing data between steps."""');
     L.push('    print("🚀 Starting pipeline...")');
     L.push('    result = None');
+    L.push('    try:');
     for (let i = 0; i < blocks.length; i++) {
       const fn = `step_${i}_${blocks[i].label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-      L.push(i === 0 ? `    result = ${fn}()` : `    result = ${fn}(prev=result)`);
+      L.push(`        result = ${fn}(prev=result)`);
+      L.push(`        if result is None:`);
+      L.push(`            print("⚠️  Pipeline halted at step ${i} (returned None)")`);
+      L.push(`            return None`);
     }
+    L.push('    except Exception as e:');
+    L.push('        print(f"❌ Pipeline failed: {e}")');
+    L.push('        raise');
     L.push('    print("✅ Pipeline complete!")');
     L.push('    return result');
     L.push('');
@@ -790,8 +723,240 @@ export const AutomationTemplatePane = () => {
     L.push('if __name__ == "__main__":');
     L.push('    run_pipeline()');
 
-    setPythonCode([...allImports].join('\n') + '\n\n\n' + L.join('\n') + '\n');
-    toast.success('Python code generated with real API calls!');
+    setPythonCode(L.join('\n') + '\n');
+    toast.success('Python code generated!');
+  }, [blocks]);
+
+  // ---- Node.js code generation ----
+  const generateNodeCodeImpl = useCallback(() => {
+    type NodeSig = { npm: string; imports: string[]; code: (cfg: Record<string,string>, envVar: string) => string[] };
+    const blockSnippets: Record<string, NodeSig> = {
+      'OpenAI': { npm: 'openai', imports: ['const OpenAI = require("openai");'], code: (cfg, ev) => [
+        `  const client = new OpenAI({ apiKey: ${ev} });`,
+        `  const prompt = prev?.result ?? ${JSON.stringify(cfg.task || 'Hello')};`,
+        `  const response = await client.chat.completions.create({ model: "${cfg.model || 'gpt-4o-mini'}", messages: [{ role: "user", content: prompt }] });`,
+        `  return { result: response.choices[0].message.content };`,
+      ]},
+      'Anthropic': { npm: '@anthropic-ai/sdk', imports: ['const Anthropic = require("@anthropic-ai/sdk");'], code: (cfg, ev) => [
+        `  const client = new Anthropic({ apiKey: ${ev} });`,
+        `  const prompt = prev?.result ?? ${JSON.stringify(cfg.task || 'Hello')};`,
+        `  const message = await client.messages.create({ model: "${cfg.model || 'claude-sonnet-4-20250514'}", max_tokens: 1024, messages: [{ role: "user", content: prompt }] });`,
+        `  return { result: message.content[0].text };`,
+      ]},
+      'Google Gemini': { npm: '@google/genai', imports: ['const { GoogleGenAI } = require("@google/genai");'], code: (cfg, ev) => [
+        `  const ai = new GoogleGenAI({ apiKey: ${ev} });`,
+        `  const prompt = prev?.result ?? ${JSON.stringify(cfg.task || 'Hello')};`,
+        `  const response = await ai.models.generateContent({ model: "${cfg.model || 'gemini-2.5-flash'}", contents: prompt });`,
+        `  return { result: response.text };`,
+      ]},
+      'Resend': { npm: 'resend', imports: ['const { Resend } = require("resend");'], code: (cfg, ev) => [
+        `  const resend = new Resend(${ev});`,
+        `  const bodyHtml = prev?.result ?? ${JSON.stringify(cfg.body || '<p>Hello!</p>')};`,
+        `  const { data } = await resend.emails.send({ from: "${cfg.from_email || 'you@yourdomain.com'}", to: ["${cfg.to_email || 'recipient@example.com'}"], subject: ${JSON.stringify(cfg.subject || 'Hello from automation')}, html: bodyHtml });`,
+        `  return { email_id: data?.id };`,
+      ]},
+      'Slack': { npm: '@slack/web-api', imports: ['const { WebClient } = require("@slack/web-api");'], code: (cfg, ev) => [
+        `  const client = new WebClient(${ev});`,
+        `  const msgText = prev?.result ?? ${JSON.stringify(cfg.message || 'Hello from automation!')};`,
+        `  const response = await client.chat.postMessage({ channel: "${cfg.channel || '#general'}", text: msgText });`,
+        `  return { ts: response.ts };`,
+      ]},
+      'Stripe': { npm: 'stripe', imports: ['const Stripe = require("stripe");'], code: (cfg, ev) => [
+        `  const stripe = new Stripe(${ev});`,
+        `  const intent = await stripe.paymentIntents.create({ amount: ${cfg.amount || '1000'}, currency: "${cfg.currency || 'usd'}" });`,
+        `  return { client_secret: intent.client_secret };`,
+      ]},
+      'Twilio': { npm: 'twilio', imports: ['const twilio = require("twilio");'], code: (cfg, ev) => [
+        `  const client = twilio(${ev}, process.env.TWILIO_AUTH_TOKEN);`,
+        `  const bodyText = prev?.result ?? ${JSON.stringify(cfg.body || 'Hello from automation')};`,
+        `  const message = await client.messages.create({ body: bodyText, from: "${cfg.from_number || '+1234567890'}", to: "${cfg.to_number || '+0987654321'}" });`,
+        `  return { sid: message.sid };`,
+      ]},
+      'GitHub': { npm: 'node-fetch', imports: ['const fetch = require("node-fetch");'], code: (cfg, ev) => [
+        `  const res = await fetch(\`https://api.github.com/repos/${cfg.owner || 'owner'}/${cfg.repo || 'repo'}\`, { headers: { Authorization: \`Bearer \${${ev}}\`, Accept: "application/vnd.github+json" } });`,
+        `  return await res.json();`,
+      ]},
+      'Supabase': { npm: '@supabase/supabase-js', imports: ['const { createClient } = require("@supabase/supabase-js");'], code: (cfg, ev) => [
+        `  const supabase = createClient(process.env.SUPABASE_URL || "${cfg.url || ''}", ${ev});`,
+        `  const { data } = await supabase.from("${cfg.table || 'items'}").select("*");`,
+        `  return { data };`,
+      ]},
+      'Discord': { npm: 'node-fetch', imports: ['const fetch = require("node-fetch");'], code: (cfg) => [
+        `  const msgText = prev?.result ?? ${JSON.stringify(cfg.message || 'Hello!')};`,
+        `  const res = await fetch(config.webhook_url || "", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: msgText }) });`,
+        `  return { status: res.status };`,
+      ]},
+      'Telegram': { npm: 'node-fetch', imports: ['const fetch = require("node-fetch");'], code: (cfg, ev) => [
+        `  const msgText = prev?.result ?? ${JSON.stringify(cfg.message || 'Hello!')};`,
+        `  const res = await fetch(\`https://api.telegram.org/bot\${${ev}}/sendMessage\`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: "${cfg.chat_id || ''}", text: msgText }) });`,
+        `  return await res.json();`,
+      ]},
+      'ElevenLabs': { npm: 'elevenlabs', imports: ['const { ElevenLabsClient } = require("elevenlabs");'], code: (cfg, ev) => [
+        `  const client = new ElevenLabsClient({ apiKey: ${ev} });`,
+        `  const textInput = prev?.result ?? ${JSON.stringify(cfg.text || 'Hello world')};`,
+        `  const audio = await client.textToSpeech.convert("${cfg.voice_id || '21m00Tcm4TlvDq8ikWAM'}", { text: textInput, model_id: "eleven_multilingual_v2" });`,
+        `  return { status: "audio_generated" };`,
+      ]},
+      'DALL-E': { npm: 'openai', imports: ['const OpenAI = require("openai");'], code: (cfg, ev) => [
+        `  const client = new OpenAI({ apiKey: ${ev} });`,
+        `  const promptText = prev?.result ?? ${JSON.stringify(cfg.prompt || 'A cute robot')};`,
+        `  const response = await client.images.generate({ model: "dall-e-3", prompt: promptText, n: 1, size: "1024x1024" });`,
+        `  return { image_url: response.data[0].url };`,
+      ]},
+    };
+
+    const internalSnippets: Record<string, (cfg: Record<string,string>) => string[]> = {
+      'Schedule (Cron)': (cfg) => [
+        `  // For production: use node-cron or deploy as a scheduled function`,
+        `  // npm install node-cron`,
+        `  // const cron = require("node-cron");`,
+        `  // cron.schedule("${cfg.cron || '0 9 * * *'}", () => runPipeline());`,
+        `  console.log(\`⏰ Scheduled: cron=\${config.cron || "0 9 * * *"}\`);`,
+        `  return { triggered: true, schedule: config.cron || "0 9 * * *" };`,
+      ],
+      'Webhook (Catch)': () => [
+        `  // For production: use Express or Fastify`,
+        `  // npm install express`,
+        `  // app.post("/webhook", (req, res) => { runPipeline(); res.json({ ok: true }); });`,
+        `  console.log(\`🪝 Webhook endpoint ready at \${config.url || "/webhook"}\`);`,
+        `  return { triggered: true };`,
+      ],
+      'Filter': () => [
+        `  if (!prev) { console.log("⚠️ Filter: no input data"); return null; }`,
+        `  const field = config.field || "status";`,
+        `  const expected = config.equals || "ok";`,
+        `  if (String(prev[field]) === expected) { console.log(\`✅ Filter passed: \${field}=\${expected}\`); return prev; }`,
+        `  console.log(\`🚫 Filter blocked: \${field}!=\${expected}\`); return null;`,
+      ],
+      'Delay': (cfg) => [
+        `  const ms = parseInt(config.seconds || "${cfg.seconds || '5'}", 10) * 1000;`,
+        `  console.log(\`⏳ Waiting \${ms / 1000}s...\`);`,
+        `  await new Promise(r => setTimeout(r, ms));`,
+        `  return prev || { status: "delayed" };`,
+      ],
+      'JSON Parser': () => [
+        `  const raw = prev?.raw ?? prev?.result ?? "{}";`,
+        `  return { parsed: typeof raw === "string" ? JSON.parse(raw) : raw };`,
+      ],
+      'Text Formatter': () => [
+        `  const text = (prev?.result ?? prev?.text ?? "").trim();`,
+        `  return { result: text.charAt(0).toUpperCase() + text.slice(1) };`,
+      ],
+      'Loop': () => [
+        `  const items = prev?.items ?? prev?.data ?? [];`,
+        `  const results = items.map(item => ({ processed: item }));`,
+        `  return { results, count: results.length };`,
+      ],
+    };
+
+    const npmPackages = new Set<string>();
+    const allImports = new Set<string>();
+    const needsAuth: { label: string; envVar: string; extraEnvVars?: string[] }[] = [];
+
+    for (const b of blocks) {
+      const snippet = blockSnippets[b.label];
+      if (snippet) {
+        if (!['node-fetch'].includes(snippet.npm)) npmPackages.add(snippet.npm);
+        snippet.imports.forEach((i) => allImports.add(i));
+      }
+      if (b.auth === 'api_key') {
+        const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+        if (!needsAuth.find((a) => a.envVar === ev)) {
+          const extras: string[] = [];
+          if (b.label === 'Twilio') extras.push('TWILIO_AUTH_TOKEN');
+          needsAuth.push({ label: b.label, envVar: ev, extraEnvVars: extras });
+        }
+      }
+    }
+
+    const L: string[] = [];
+    L.push('#!/usr/bin/env node');
+    L.push(`/**`);
+    L.push(` * Auto-generated automation pipeline — ${blocks.length} block${blocks.length > 1 ? 's' : ''}.`);
+    L.push(` *`);
+    L.push(` * Setup:`);
+    const npmList = Array.from(npmPackages);
+    L.push(` *   npm install ${['dotenv', ...npmList].join(' ')}`);
+    if (needsAuth.length > 0) {
+      L.push(` *`);
+      L.push(` * Create a .env file with:`);
+      for (const a of needsAuth) {
+        L.push(` *   ${a.envVar}=your-key-here`);
+        if (a.extraEnvVars) for (const extra of a.extraEnvVars) L.push(` *   ${extra}=your-token-here`);
+      }
+    }
+    L.push(` */`);
+    L.push('');
+    L.push('require("dotenv").config();');
+    [...allImports].forEach(i => L.push(i));
+    L.push('');
+
+    // Credentials
+    if (needsAuth.length > 0) {
+      L.push('// --- Credentials (loaded from environment) ---');
+      for (const a of needsAuth) {
+        L.push(`const ${a.envVar} = process.env.${a.envVar};`);
+        if (a.extraEnvVars) for (const extra of a.extraEnvVars) L.push(`const ${extra} = process.env.${extra};`);
+      }
+      const allEnvVars = needsAuth.flatMap(a => [a.envVar, ...(a.extraEnvVars || [])]);
+      L.push('');
+      L.push('// Validate required credentials');
+      L.push(`const _missing = [${allEnvVars.map(v => `"${v}"`).join(', ')}].filter(k => !process.env[k]);`);
+      L.push('if (_missing.length) throw new Error(`Missing required env vars: ${_missing.join(", ")}`);');
+      L.push('');
+    }
+
+    // Step functions
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      const fn = `step${i}_${b.label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+      const snippet = blockSnippets[b.label];
+      const internal = internalSnippets[b.label];
+
+      L.push(`async function ${fn}(prev = null) {`);
+      L.push(`  /** ${i === 0 ? 'Trigger' : 'Step ' + i}: ${b.label} (${b.subcategory}) */`);
+      L.push(`  const config = ${JSON.stringify(b.config, null, 2).replace(/^/gm, '  ').trimStart()};`);
+      L.push(`  console.log("▶ [${i === 0 ? 'TRIGGER' : 'STEP ' + i}] ${b.label}...");`);
+
+      if (snippet) {
+        L.push(...snippet.code(b.config, ev));
+      } else if (internal) {
+        L.push(...internal(b.config));
+      } else if (b.auth === 'api_key') {
+        L.push(`  // TODO: Replace with actual ${b.label} API endpoint`);
+        L.push(`  console.log("  ↳ ${b.label} called (configure endpoint in code)");`);
+        L.push(`  return { status: "ok", ...prev };`);
+      } else {
+        L.push(`  console.log("  ↳ ${b.label} executed");`);
+        L.push(`  return { status: "ok", ...prev };`);
+      }
+      L.push('}');
+      L.push('');
+    }
+
+    // Pipeline runner
+    L.push('async function runPipeline() {');
+    L.push('  console.log("🚀 Starting pipeline...");');
+    L.push('  let result = null;');
+    L.push('  try {');
+    for (let i = 0; i < blocks.length; i++) {
+      const fn = `step${i}_${blocks[i].label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      L.push(`    result = await ${fn}(result);`);
+      L.push(`    if (result === null) { console.log("⚠️ Pipeline halted at step ${i}"); return null; }`);
+    }
+    L.push('  } catch (err) {');
+    L.push('    console.error("❌ Pipeline failed:", err.message);');
+    L.push('    throw err;');
+    L.push('  }');
+    L.push('  console.log("✅ Pipeline complete!");');
+    L.push('  return result;');
+    L.push('}');
+    L.push('');
+    L.push('runPipeline().catch(console.error);');
+
+    setPythonCode(L.join('\n') + '\n');
+    toast.success('Node.js code generated!');
   }, [blocks]);
 
   const copyPythonCode = useCallback(() => {
@@ -866,11 +1031,18 @@ export const AutomationTemplatePane = () => {
           </div>
           <div className="flex items-center gap-1.5">
             <button
-              onClick={generatePythonCode}
+              onClick={() => generateCode('python')}
               className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent transition-colors"
             >
-              <Code2 className="h-3.5 w-3.5 text-blue-400" />
-              To Python
+              <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+              Python
+            </button>
+            <button
+              onClick={() => generateCode('nodejs')}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-accent transition-colors"
+            >
+              <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
+              Node.js
             </button>
             <button
               onClick={handleTestRun}
@@ -953,7 +1125,7 @@ export const AutomationTemplatePane = () => {
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  <p className="text-xs font-medium">Generated Python</p>
+                  <p className="text-xs font-medium">Generated {codeLanguage === 'nodejs' ? 'Node.js' : 'Python'}</p>
                 </div>
                 <button onClick={copyPythonCode} className="rounded p-1 hover:bg-accent" title="Copy">
                   <ClipboardCopy className="h-3.5 w-3.5 text-muted-foreground" />
