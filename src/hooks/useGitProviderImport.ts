@@ -68,12 +68,34 @@ const getUserGithubToken = async (): Promise<string | null> => {
   }
 };
 
+const fetchReplitOEmbedMetadata = async (owner: string, repo: string) => {
+  const url = `https://replit.com/data/oembed?url=${encodeURIComponent(`https://replit.com/@${owner}/${repo}`)}`;
+  const r = await fetch(url);
+  if (!r.ok) return { exists: false };
+  const d = await r.json();
+  return {
+    exists: true,
+    title: typeof d?.title === 'string' ? d.title : repo,
+    description: typeof d?.author_name === 'string' ? `By ${d.author_name}` : null,
+    githubOwner: null,
+    githubRepo: null,
+  };
+};
+
 // Helper to call the github-proxy edge function
 const ghProxy = async (body: Record<string, unknown>) => {
   const userToken = await getUserGithubToken();
   const payload = userToken ? { ...body, userToken } : body;
   const { data, error } = await supabase.functions.invoke('github-proxy', { body: payload });
   if (error) throw new Error(error.message || 'Proxy request failed');
+  if (data?.error === 'Unknown action') {
+    if (body.action === 'replit-metadata' && typeof body.owner === 'string' && typeof body.repo === 'string') {
+      return fetchReplitOEmbedMetadata(body.owner, body.repo);
+    }
+    if (body.action === 'replit-download-zip') {
+      throw new Error('Replit download proxy is not deployed yet. Please deploy supabase/functions/github-proxy before importing Replit zips.');
+    }
+  }
   if (data?.error) throw new Error(data.error);
   return data;
 };
@@ -280,8 +302,7 @@ const replit = {
       throw new Error('This Replit project cannot be downloaded directly. If this repl is GitHub-backed, import the GitHub repository URL instead.');
     }
     const { default: JSZip } = await import('jszip');
-    const buf = await r.arrayBuffer();
-    const zip = await JSZip.loadAsync(buf);
+    const zip = await JSZip.loadAsync(bytes.buffer);
     const items: { path: string; type: 'blob' | 'tree' }[] = [];
     zip.forEach((relativePath, entry) => {
       if (entry.dir) {
