@@ -32,9 +32,9 @@ if (isPreviewHost || isInIframe) {
     window.sessionStorage.removeItem(previewCacheResetKey);
   });
 } else {
-  void import("virtual:pwa-register").then(({ registerSW }) => {
-    registerSW({ immediate: true });
-  });
+  if ("serviceWorker" in navigator) {
+    void navigator.serviceWorker.register("/sw.js");
+  }
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
