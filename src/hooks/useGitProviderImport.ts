@@ -301,6 +301,7 @@ const replit = {
     if (!r.ok) {
       throw new Error('This Replit project cannot be downloaded directly. If this repl is GitHub-backed, import the GitHub repository URL instead.');
     }
+    const bytes = await r.arrayBuffer();
     const { default: JSZip } = await import('jszip');
     const zip = await JSZip.loadAsync(bytes.buffer);
     const items: { path: string; type: 'blob' | 'tree' }[] = [];
