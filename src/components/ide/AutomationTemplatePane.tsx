@@ -1125,7 +1125,7 @@ export const AutomationTemplatePane = () => {
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  <p className="text-xs font-medium">Generated Python</p>
+                  <p className="text-xs font-medium">Generated {codeLanguage === 'nodejs' ? 'Node.js' : 'Python'}</p>
                 </div>
                 <button onClick={copyPythonCode} className="rounded p-1 hover:bg-accent" title="Copy">
                   <ClipboardCopy className="h-3.5 w-3.5 text-muted-foreground" />
