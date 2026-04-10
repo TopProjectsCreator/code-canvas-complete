@@ -16,7 +16,9 @@ import {
   ALL_AUTOMATION_BLOCKS,
   AUTOMATION_BLOCK_COUNT,
   AUTOMATION_INTEGRATION_REGISTRY,
+  type APIParameter,
   type AutomationAuthType,
+  type Operation,
 } from '@/data/automationIntegrationRegistry';
 import { AutomationBlockParameterForm } from './AutomationBlockParameterForm';
 
@@ -75,6 +77,113 @@ const defaultConfigForAuth = (auth: AutomationAuthType) => {
       };
   }
 };
+
+const genericApiCredentialFields: APIParameter[] = [
+  {
+    name: 'api_key',
+    displayName: 'API Key',
+    type: 'password',
+    description: 'Secret key/token for this provider.',
+    required: true,
+    placeholder: 'Paste your API key…',
+  },
+];
+
+const genericOAuthCredentialFields: APIParameter[] = [
+  {
+    name: 'connection_ref',
+    displayName: 'Connected Account',
+    type: 'string',
+    description: 'Reference to your connected OAuth account profile.',
+    required: true,
+    placeholder: 'default-oauth-connection',
+  },
+];
+
+const genericOperations: Operation[] = [
+  {
+    id: 'list',
+    name: 'List Resources',
+    method: 'GET',
+    endpoint: '/v1/{resource}',
+    description: 'Fetch a collection of resources.',
+    inputFields: [
+      { name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'items' },
+      { name: 'limit', displayName: 'Limit', type: 'number', default: 25, placeholder: '25' },
+      { name: 'cursor', displayName: 'Cursor', type: 'string', placeholder: 'next_page_token' },
+    ],
+  },
+  {
+    id: 'retrieve',
+    name: 'Get by ID',
+    method: 'GET',
+    endpoint: '/v1/{resource}/{id}',
+    description: 'Fetch a single resource by identifier.',
+    inputFields: [
+      { name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'items' },
+      { name: 'resource_id', displayName: 'Resource ID', type: 'string', required: true, placeholder: 'abc123' },
+    ],
+  },
+  {
+    id: 'create',
+    name: 'Create Resource',
+    method: 'POST',
+    endpoint: '/v1/{resource}',
+    description: 'Create a new resource without raw JSON editing.',
+    inputFields: [
+      { name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'items' },
+      { name: 'title', displayName: 'Title/Name', type: 'string', required: true, placeholder: 'My new record' },
+      { name: 'description', displayName: 'Description', type: 'textarea', placeholder: 'Optional details...' },
+      { name: 'tags', displayName: 'Tags', type: 'string', placeholder: 'tag1,tag2' },
+    ],
+  },
+  {
+    id: 'update',
+    name: 'Update Resource',
+    method: 'PATCH',
+    endpoint: '/v1/{resource}/{id}',
+    description: 'Update fields on an existing resource.',
+    inputFields: [
+      { name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'items' },
+      { name: 'resource_id', displayName: 'Resource ID', type: 'string', required: true, placeholder: 'abc123' },
+      { name: 'field_name', displayName: 'Field to Update', type: 'string', required: true, placeholder: 'status' },
+      { name: 'field_value', displayName: 'New Value', type: 'string', required: true, placeholder: 'active' },
+    ],
+  },
+  {
+    id: 'delete',
+    name: 'Delete Resource',
+    method: 'DELETE',
+    endpoint: '/v1/{resource}/{id}',
+    description: 'Remove a resource by identifier.',
+    inputFields: [
+      { name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'items' },
+      { name: 'resource_id', displayName: 'Resource ID', type: 'string', required: true, placeholder: 'abc123' },
+      { name: 'confirm_delete', displayName: 'Confirm Delete', type: 'boolean', default: false, placeholder: 'I understand this is destructive' },
+    ],
+  },
+];
+
+const genericParameters: APIParameter[] = [
+  {
+    name: 'provider_notes',
+    displayName: 'Provider Notes',
+    type: 'textarea',
+    description: 'Describe the provider-specific action in plain language.',
+    placeholder: 'Example: Create a photo album, then upload all images from previous step.',
+  },
+  {
+    name: 'retry_policy',
+    displayName: 'Retry Policy',
+    type: 'select',
+    default: 'standard',
+    options: [
+      { label: 'No retries', value: 'none' },
+      { label: 'Standard (3 retries)', value: 'standard' },
+      { label: 'Aggressive (5 retries)', value: 'aggressive' },
+    ],
+  },
+];
 
 const starterFlow = (): AutomationBlockInstance[] => [
   {
@@ -419,11 +528,21 @@ export const AutomationTemplatePane = () => {
 
               {(() => {
                 const blockDef = getBlockDefinition(selectedBlock.type);
+                const hasProviderSchema = Boolean(
+                  blockDef?.parameters?.length || blockDef?.credentialFields?.length || blockDef?.operations?.length,
+                );
+                const fallbackCredentialFields =
+                  selectedBlock.auth === 'api_key'
+                    ? genericApiCredentialFields
+                    : selectedBlock.auth === 'free'
+                      ? genericOAuthCredentialFields
+                      : [];
+
                 return (
                   <AutomationBlockParameterForm
-                    parameters={blockDef?.parameters}
-                    credentialFields={blockDef?.credentialFields}
-                    operations={blockDef?.operations}
+                    parameters={hasProviderSchema ? blockDef?.parameters : genericParameters}
+                    credentialFields={hasProviderSchema ? blockDef?.credentialFields : fallbackCredentialFields}
+                    operations={hasProviderSchema ? blockDef?.operations : genericOperations}
                     config={selectedBlock.config}
                     onConfigChange={replaceSelectedConfig}
                     blockLabel={selectedBlock.label}
