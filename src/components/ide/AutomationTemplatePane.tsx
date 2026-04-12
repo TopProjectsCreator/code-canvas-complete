@@ -789,14 +789,20 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
       } else if (internal) {
         L.push(...internal(b.config));
       } else if (b.auth === 'api_key') {
-        L.push(`    headers = {"Authorization": f"Bearer {${ev}}"}`);
-        L.push(`    # TODO: Replace with actual ${b.label} API endpoint`);
-        L.push(`    # response = requests.post("https://api.example.com/v1/...", headers=headers, json=config)`);
-        L.push(`    print(f"  ↳ ${b.label} called (configure endpoint in code)")`);
-        L.push(`    return {"status": "ok", **(prev or {})}`);
+        L.push(`    headers = {"Authorization": f"Bearer {${ev}}", "Content-Type": "application/json"}`);
+        L.push(`    url = config.get("url")`);
+        L.push(`    if not url:`);
+        L.push(`        raise ValueError("Missing required url for ${b.label} step")`);
+        L.push(`    response = requests.request(config.get("method", "POST"), url, headers=headers, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
+        L.push(`    print(f"  ↳ ${b.label} called: {url}")`);
+        L.push(`    return {"status": "ok", "response": response.json(), **(prev or {})}`);
       } else {
-        L.push(`    print(f"  ↳ ${b.label} executed")`);
-        L.push(`    return {"status": "ok", **(prev or {})}`);
+        L.push(`    url = config.get("url")`);
+        L.push(`    if not url:`);
+        L.push(`        raise ValueError("Missing required url for ${b.label} step")`);
+        L.push(`    response = requests.request(config.get("method", "POST"), url, headers={"Content-Type": "application/json"}, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
+        L.push(`    print(f"  ↳ ${b.label} executed against {url}")`);
+        L.push(`    return {"status": "ok", "response": response.json(), **(prev or {})}`);
       }
       L.push('');
       L.push('');
@@ -971,6 +977,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
       }
     }
 
+    const needsFetchFallback = blocks.some((b) => !blockSnippets[b.label] && !internalSnippets[b.label] && (b.auth === 'api_key' || b.auth === 'free'));
+    if (needsFetchFallback) {
+      npmPackages.add('node-fetch');
+      allImports.add('const fetch = require("node-fetch");');
+    }
+
     const L: string[] = [];
     L.push('#!/usr/bin/env node');
     L.push(`/**`);
@@ -1041,10 +1053,18 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
         L.push(...snippet.code(b.config, ev));
       } else if (internal) {
         L.push(...internal(b.config));
-      } else if (b.auth === 'api_key') {
-        L.push(`  // TODO: Replace with actual ${b.label} API endpoint`);
-        L.push(`  console.log("  ↳ ${b.label} called (configure endpoint in code)");`);
-        L.push(`  return { status: "ok", ...prev };`);
+      } else if (b.auth === 'api_key' || b.auth === 'free') {
+        L.push(`  const url = config.url || ""`);
+        L.push(`  if (!url) throw new Error("Missing required url for ${b.label} step");`);
+        L.push(`  const query = config.query ? JSON.parse(config.query) : undefined;`);
+        L.push(`  const queryString = query ? new URLSearchParams(query).toString() : "";`);
+        L.push(`  const requestUrl = queryString ? url + "?" + queryString : url;`);
+        L.push(`  const body = config.body ? JSON.parse(config.body) : undefined;`);
+        L.push(`  const headers = { "Content-Type": "application/json", ...(b.auth === 'api_key' ? { Authorization: 'Bearer ' + ${ev} } : {}) };`);
+        L.push(`  const response = await fetch(requestUrl, { method: config.method || "POST", headers, body: body ? JSON.stringify(body) : undefined });`);
+        L.push(`  const data = await response.json();`);
+        L.push(`  console.log("  ↳ ${b.label} executed against", requestUrl);`);
+        L.push(`  return { status: response.status, data, ...prev };`);
       } else {
         L.push(`  console.log("  ↳ ${b.label} executed");`);
         L.push(`  return { status: "ok", ...prev };`);

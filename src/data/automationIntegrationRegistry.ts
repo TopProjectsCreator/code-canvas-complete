@@ -57,6 +57,210 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
 
+const genericHttpParams: APIParameter[] = [
+  { name: 'url', displayName: 'Request URL', type: 'url', required: true, description: 'Full API endpoint URL', placeholder: 'https://api.example.com/v1/resource' },
+  { name: 'method', displayName: 'HTTP Method', type: 'select', default: 'POST', options: [
+    { label: 'GET', value: 'GET' },
+    { label: 'POST', value: 'POST' },
+    { label: 'PUT', value: 'PUT' },
+    { label: 'PATCH', value: 'PATCH' },
+    { label: 'DELETE', value: 'DELETE' },
+  ], description: 'HTTP method to use for the request' },
+  { name: 'headers', displayName: 'Headers (JSON)', type: 'textarea', description: 'Optional request headers in JSON format', placeholder: '{"Content-Type": "application/json"}' },
+  { name: 'query', displayName: 'Query Parameters (JSON)', type: 'textarea', description: 'Optional query parameters in JSON format', placeholder: '{"limit": 10}' },
+  { name: 'body', displayName: 'Body (JSON)', type: 'textarea', description: 'Optional JSON body payload', placeholder: '{"key":"value"}' },
+];
+
+const genericApiKeyCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const genericLocalParams: APIParameter[] = [
+  { name: 'model', displayName: 'Model', type: 'string', required: true, placeholder: 'llama2' },
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true, placeholder: 'Hello from automation' },
+  { name: 'temperature', displayName: 'Temperature', type: 'number', default: 0.7 },
+  { name: 'max_tokens', displayName: 'Max Tokens', type: 'number', default: 512 },
+  { name: 'system_prompt', displayName: 'System Prompt', type: 'textarea', placeholder: 'You are a helpful assistant.' },
+];
+
+const genericInternalParamsByLabel: Record<string, APIParameter[]> = {
+  'Filter': [
+    { name: 'field', displayName: 'Field', type: 'string', required: true, placeholder: 'status' },
+    { name: 'equals', displayName: 'Equals', type: 'string', placeholder: 'ok' },
+  ],
+  'Router': [
+    { name: 'routes', displayName: 'Routes (JSON)', type: 'textarea', required: true, placeholder: '[{"name":"success","condition":"status == \'ok\'"}]' },
+  ],
+  'Loop': [
+    { name: 'items', displayName: 'Items (JSON)', type: 'textarea', required: true, placeholder: '[1, 2, 3]' },
+  ],
+  'Delay': [
+    { name: 'seconds', displayName: 'Seconds', type: 'number', required: true, default: 5 },
+  ],
+  'Wait for Approval': [
+    { name: 'approver', displayName: 'Approver', type: 'string', placeholder: 'user@example.com' },
+    { name: 'timeout_seconds', displayName: 'Timeout (seconds)', type: 'number', default: 3600 },
+  ],
+  'Error Handler': [
+    { name: 'retry_count', displayName: 'Retry Count', type: 'number', default: 1 },
+    { name: 'fallback_message', displayName: 'Fallback Message', type: 'textarea' },
+  ],
+  'Switch/Case': [
+    { name: 'field', displayName: 'Field', type: 'string', required: true, placeholder: 'status' },
+    { name: 'cases', displayName: 'Cases (JSON)', type: 'textarea', required: true, placeholder: '[{"value":"ok","next":"success"}]' },
+  ],
+  'Merge': [
+    { name: 'merge_strategy', displayName: 'Merge Strategy', type: 'select', default: 'append', options: [
+      { label: 'Append', value: 'append' },
+      { label: 'Overwrite', value: 'overwrite' },
+    ]},
+  ],
+  'Parallel Split': [
+    { name: 'branches', displayName: 'Branches (JSON)', type: 'textarea', required: true, placeholder: '[{"name":"A"},{"name":"B"}]' },
+  ],
+  'Debounce': [
+    { name: 'interval_ms', displayName: 'Interval (ms)', type: 'number', default: 500 },
+  ],
+  'Rate Limiter': [
+    { name: 'limit_per_minute', displayName: 'Limit / min', type: 'number', default: 60 },
+  ],
+  'Retry': [
+    { name: 'attempts', displayName: 'Attempts', type: 'number', default: 3 },
+    { name: 'backoff_seconds', displayName: 'Backoff Seconds', type: 'number', default: 5 },
+  ],
+  'Circuit Breaker': [
+    { name: 'failure_threshold', displayName: 'Failure Threshold', type: 'number', default: 5 },
+    { name: 'reset_timeout', displayName: 'Reset Timeout (seconds)', type: 'number', default: 60 },
+  ],
+  'Sub-Workflow': [
+    { name: 'workflow_id', displayName: 'Workflow ID', type: 'string', placeholder: 'child-workflow-id' },
+  ],
+  'Text Formatter': [
+    { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'capitalize', options: [
+      { label: 'Uppercase', value: 'uppercase' },
+      { label: 'Lowercase', value: 'lowercase' },
+      { label: 'Title Case', value: 'titlecase' },
+      { label: 'Capitalize', value: 'capitalize' },
+      { label: 'Replace', value: 'replace' },
+    ]},
+    { name: 'text', displayName: 'Text', type: 'textarea', required: true },
+    { name: 'search', displayName: 'Search', type: 'string' },
+    { name: 'replace_with', displayName: 'Replace With', type: 'string' },
+  ],
+  'Date Formatter': [
+    { name: 'date_input', displayName: 'Date Input', type: 'string', required: true, placeholder: '2024-01-15' },
+    { name: 'input_format', displayName: 'Input Format', type: 'string', default: 'YYYY-MM-DD' },
+    { name: 'output_format', displayName: 'Output Format', type: 'string', default: 'MMMM D, YYYY' },
+    { name: 'timezone', displayName: 'Timezone', type: 'string', default: 'UTC' },
+  ],
+  'Math': [
+    { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'add', options: [
+      { label: 'Add', value: 'add' },
+      { label: 'Subtract', value: 'subtract' },
+      { label: 'Multiply', value: 'multiply' },
+      { label: 'Divide', value: 'divide' },
+      { label: 'Power', value: 'power' },
+    ]},
+    { name: 'value_a', displayName: 'Value A', type: 'number', required: true },
+    { name: 'value_b', displayName: 'Value B', type: 'number' },
+  ],
+  'JSON Parser': [
+    { name: 'json_string', displayName: 'JSON String', type: 'textarea', required: true },
+    { name: 'path', displayName: 'Path', type: 'string', placeholder: 'user.email' },
+    { name: 'action', displayName: 'Action', type: 'select', default: 'parse', options: [
+      { label: 'Parse', value: 'parse' },
+      { label: 'Stringify', value: 'stringify' },
+      { label: 'Extract Value', value: 'extract' },
+      { label: 'Validate', value: 'validate' },
+    ]},
+  ],
+  'JS/Python Code': [
+    { name: 'language', displayName: 'Language', type: 'select', required: true, default: 'python', options: [
+      { label: 'Python', value: 'python' },
+      { label: 'JavaScript', value: 'javascript' },
+    ]},
+    { name: 'code', displayName: 'Code', type: 'textarea', required: true, placeholder: 'print("Hello")' },
+    { name: 'input_data', displayName: 'Input Data (JSON)', type: 'textarea', placeholder: '{"key":"value"}' },
+  ],
+  'CSV Generator': [
+    { name: 'data', displayName: 'Data (JSON array)', type: 'textarea', required: true, placeholder: '[{"name":"Alice"}]' },
+    { name: 'headers', displayName: 'Column Headers', type: 'string', placeholder: 'name,email' },
+  ],
+  'PDF Creator': [
+    { name: 'title', displayName: 'Document Title', type: 'string', required: true },
+    { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+    { name: 'orientation', displayName: 'Orientation', type: 'select', default: 'portrait', options: [
+      { label: 'Portrait', value: 'portrait' },
+      { label: 'Landscape', value: 'landscape' },
+    ]},
+  ],
+  'XML Parser': [
+    { name: 'xml_string', displayName: 'XML String', type: 'textarea', required: true },
+    { name: 'path', displayName: 'Path', type: 'string', placeholder: 'root.item' },
+  ],
+  'YAML Parser': [
+    { name: 'yaml_string', displayName: 'YAML String', type: 'textarea', required: true },
+  ],
+  'Base64 Encode/Decode': [
+    { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'encode', options: [
+      { label: 'Encode', value: 'encode' },
+      { label: 'Decode', value: 'decode' },
+    ]},
+    { name: 'input', displayName: 'Input', type: 'textarea', required: true },
+  ],
+  'Hash Generator': [
+    { name: 'algorithm', displayName: 'Algorithm', type: 'select', default: 'sha256', options: [
+      { label: 'SHA-256', value: 'sha256' },
+      { label: 'MD5', value: 'md5' },
+    ]},
+    { name: 'input', displayName: 'Input', type: 'textarea', required: true },
+  ],
+  'UUID Generator': [
+    { name: 'version', displayName: 'Version', type: 'select', default: '4', options: [
+      { label: 'UUID v4', value: '4' },
+      { label: 'UUID v1', value: '1' },
+    ]},
+  ],
+  'Regex Extractor': [
+    { name: 'pattern', displayName: 'Pattern', type: 'string', required: true, placeholder: '\\w+' },
+    { name: 'input', displayName: 'Input Text', type: 'textarea', required: true },
+  ],
+  'HTML Parser': [
+    { name: 'html', displayName: 'HTML', type: 'textarea', required: true },
+    { name: 'selector', displayName: 'CSS Selector', type: 'string', placeholder: 'div.content' },
+  ],
+  'Markdown to HTML': [
+    { name: 'markdown', displayName: 'Markdown', type: 'textarea', required: true },
+  ],
+  'Image Resizer': [
+    { name: 'image_url', displayName: 'Image URL', type: 'url', required: true },
+    { name: 'width', displayName: 'Width', type: 'number', required: true },
+    { name: 'height', displayName: 'Height', type: 'number', required: true },
+  ],
+  'QR Code Generator': [
+    { name: 'text', displayName: 'Text', type: 'textarea', required: true },
+    { name: 'size', displayName: 'Size', type: 'number', default: 300 },
+  ],
+  'Barcode Generator': [
+    { name: 'text', displayName: 'Text', type: 'textarea', required: true },
+    { name: 'format', displayName: 'Format', type: 'string', default: 'code128' },
+  ],
+};
+
+const getDefaultParameters = (label: string, auth: AutomationAuthType): APIParameter[] | undefined => {
+  if (auth === 'internal') return genericInternalParamsByLabel[label] ?? [
+    { name: 'notes', displayName: 'Notes', type: 'textarea', placeholder: 'Internal block settings' },
+  ];
+
+  if (auth === 'local') return genericLocalParams;
+  return genericHttpParams;
+};
+
+const getDefaultCredentialFields = (auth: AutomationAuthType): APIParameter[] | undefined => {
+  if (auth === 'api_key') return genericApiKeyCredentials;
+  return undefined;
+};
+
 const block = (
   label: string,
   auth: AutomationAuthType,
@@ -70,8 +274,8 @@ const block = (
   label,
   auth,
   description,
-  parameters,
-  credentialFields,
+  parameters: parameters ?? getDefaultParameters(label, auth),
+  credentialFields: credentialFields ?? getDefaultCredentialFields(auth),
   operations,
   isTrigger,
 });
@@ -2074,6 +2278,254 @@ const googlemapsCredentials: APIParameter[] = [
 ];
 
 // ============ DATA TRANSFORMATION (INTERNAL) ============
+const sqlDatabaseParams: APIParameter[] = [
+  { name: 'connection_string', displayName: 'Connection String', type: 'string', required: true, description: 'Database connection string or endpoint', placeholder: 'postgres://user:pass@host:5432/db' },
+  { name: 'query', displayName: 'Query / SQL', type: 'textarea', required: true, placeholder: 'SELECT * FROM users WHERE active = true' },
+  { name: 'parameters', displayName: 'Parameters (JSON)', type: 'textarea', placeholder: '{"limit": 10}' },
+];
+
+const graphDatabaseParams: APIParameter[] = [
+  { name: 'database', displayName: 'Database', type: 'string', required: true, placeholder: 'neo4j' },
+  { name: 'cypher', displayName: 'Cypher Query', type: 'textarea', required: true, placeholder: 'MATCH (n) RETURN n LIMIT 25' },
+  { name: 'parameters', displayName: 'Parameters (JSON)', type: 'textarea', placeholder: '{"limit": 25}' },
+];
+
+const faunaDBParams: APIParameter[] = [
+  { name: 'secret', displayName: 'Secret Key', type: 'password', required: true },
+  { name: 'query', displayName: 'FQL Query', type: 'textarea', required: true, placeholder: 'q.Get(q.Ref(q.Collection("users"), "123456"))' },
+];
+
+const surrealDBParams: APIParameter[] = [
+  { name: 'namespace', displayName: 'Namespace', type: 'string', required: true, placeholder: 'test' },
+  { name: 'database', displayName: 'Database', type: 'string', required: true, placeholder: 'test' },
+  { name: 'query', displayName: 'SurrealQL Query', type: 'textarea', required: true, placeholder: 'SELECT * FROM users' },
+];
+
+const tursoParams: APIParameter[] = [
+  { name: 'database', displayName: 'Database Name', type: 'string', required: true, placeholder: 'example' },
+  { name: 'query', displayName: 'SQL Query', type: 'textarea', required: true, placeholder: 'SELECT * FROM users' },
+  { name: 'parameters', displayName: 'Parameters (JSON)', type: 'textarea', placeholder: '{"limit":10}' },
+];
+
+const cdnControlParams: APIParameter[] = [
+  { name: 'service_id', displayName: 'Service ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, default: 'purge', options: [
+    { label: 'Purge Cache', value: 'purge' },
+    { label: 'Get Status', value: 'status' },
+  ]},
+  { name: 'resource', displayName: 'Resource', type: 'string', placeholder: 'URL, tag, or key' },
+];
+
+const spreadsheetParams: APIParameter[] = [
+  { name: 'document_id', displayName: 'Document / Workbook ID', type: 'string', required: true },
+  { name: 'sheet_name', displayName: 'Sheet / Table Name', type: 'string', required: true },
+  { name: 'range', displayName: 'Range', type: 'string', placeholder: 'A1:B10' },
+  { name: 'values', displayName: 'Values (JSON)', type: 'textarea', placeholder: '[["Name","Email"],["Alice","alice@example.com"]]' },
+];
+
+const devOpsParams: APIParameter[] = [
+  { name: 'organization', displayName: 'Organization', type: 'string', placeholder: 'my-org' },
+  { name: 'project', displayName: 'Project', type: 'string', placeholder: 'my-project' },
+  { name: 'repository', displayName: 'Repository', type: 'string', placeholder: 'my-repo' },
+  { name: 'action', displayName: 'Action', type: 'string', placeholder: 'create_work_item' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"title":"Fix bug"}' },
+];
+
+const monitoringParams: APIParameter[] = [
+  { name: 'account_id', displayName: 'Account ID', type: 'string' },
+  { name: 'query', displayName: 'Query', type: 'textarea', placeholder: 'SELECT count(*) FROM errors WHERE status = "failure"' },
+  { name: 'event', displayName: 'Event Data', type: 'textarea', placeholder: '{"message":"Deployment completed"}' },
+];
+
+const paymentGatewayParams: APIParameter[] = [
+  { name: 'amount', displayName: 'Amount (cents)', type: 'number', required: true, placeholder: '1000' },
+  { name: 'currency', displayName: 'Currency', type: 'select', required: true, default: 'usd', options: [
+    { label: 'USD', value: 'usd' },
+    { label: 'EUR', value: 'eur' },
+    { label: 'GBP', value: 'gbp' },
+  ]},
+  { name: 'customer_id', displayName: 'Customer ID', type: 'string' },
+  { name: 'payment_method', displayName: 'Payment Method ID', type: 'string' },
+  { name: 'description', displayName: 'Description', type: 'string' },
+];
+
+const storefrontParams: APIParameter[] = [
+  { name: 'store_id', displayName: 'Store ID', type: 'string', required: true },
+  { name: 'resource', displayName: 'Resource', type: 'select', required: true, default: 'order', options: [
+    { label: 'Order', value: 'order' },
+    { label: 'Product', value: 'product' },
+    { label: 'Customer', value: 'customer' },
+  ]},
+  { name: 'resource_id', displayName: 'Resource ID', type: 'string' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"quantity":1}' },
+];
+
+const supportParams: APIParameter[] = [
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true },
+  { name: 'description', displayName: 'Description', type: 'textarea', required: true },
+  { name: 'customer_email', displayName: 'Customer Email', type: 'email' },
+  { name: 'priority', displayName: 'Priority', type: 'select', default: 'normal', options: [
+    { label: 'Low', value: 'low' },
+    { label: 'Normal', value: 'normal' },
+    { label: 'High', value: 'high' },
+  ]},
+];
+
+const web3Params: APIParameter[] = [
+  { name: 'network', displayName: 'Network', type: 'select', default: 'ethereum', options: [
+    { label: 'Ethereum', value: 'ethereum' },
+    { label: 'Solana', value: 'solana' },
+    { label: 'Polygon', value: 'polygon' },
+  ]},
+  { name: 'endpoint', displayName: 'RPC Endpoint', type: 'url', placeholder: 'https://eth-mainnet.alchemyapi.io/v2/...' },
+  { name: 'method', displayName: 'RPC Method', type: 'string', placeholder: 'eth_blockNumber' },
+  { name: 'params', displayName: 'Parameters (JSON)', type: 'textarea', placeholder: '[]' },
+];
+
+const marketDataParams: APIParameter[] = [
+  { name: 'symbol', displayName: 'Symbol', type: 'string', placeholder: 'ETH' },
+  { name: 'collection', displayName: 'Collection', type: 'string', placeholder: 'cool-cats' },
+  { name: 'token_id', displayName: 'Token ID', type: 'string' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'fetch', options: [
+    { label: 'Fetch Prices', value: 'fetch' },
+    { label: 'Fetch Asset', value: 'asset' },
+  ]},
+];
+
+const identityParams: APIParameter[] = [
+  { name: 'user_id', displayName: 'User ID', type: 'string' },
+  { name: 'email', displayName: 'Email', type: 'email' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'authenticate', options: [
+    { label: 'Authenticate', value: 'authenticate' },
+    { label: 'Create User', value: 'create_user' },
+    { label: 'Update User', value: 'update_user' },
+  ]},
+];
+
+const securityParams: APIParameter[] = [
+  { name: 'query', displayName: 'Query', type: 'textarea', required: true, placeholder: 'example.com' },
+  { name: 'scan_type', displayName: 'Scan Type', type: 'select', default: 'url', options: [
+    { label: 'URL', value: 'url' },
+    { label: 'IP', value: 'ip' },
+    { label: 'Hash', value: 'hash' },
+  ]},
+];
+
+const weatherParams: APIParameter[] = [
+  { name: 'location', displayName: 'Location', type: 'string', required: true, placeholder: 'New York, NY' },
+  { name: 'units', displayName: 'Units', type: 'select', default: 'metric', options: [
+    { label: 'Metric', value: 'metric' },
+    { label: 'Imperial', value: 'imperial' },
+  ]},
+];
+
+const iotParams: APIParameter[] = [
+  { name: 'device_id', displayName: 'Device ID', type: 'string', required: true },
+  { name: 'command', displayName: 'Command', type: 'string', required: true, placeholder: 'turn_on' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"brightness":80}' },
+];
+
+const socialPostParams: APIParameter[] = [
+  { name: 'account_id', displayName: 'Account ID', type: 'string' },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+  { name: 'media_urls', displayName: 'Media URLs', type: 'string', placeholder: 'https://...' },
+  { name: 'scheduled_time', displayName: 'Scheduled Time', type: 'string', placeholder: '2025-01-01T12:00:00Z' },
+];
+
+const socialManagementParams: APIParameter[] = [
+  { name: 'account_ids', displayName: 'Account IDs', type: 'textarea', placeholder: '["acct1","acct2"]' },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'publish_time', displayName: 'Publish Time', type: 'string', placeholder: '2025-01-01T12:00:00Z' },
+];
+
+const cmsParams: APIParameter[] = [
+  { name: 'site_id', displayName: 'Site ID', type: 'string' },
+  { name: 'content_type', displayName: 'Content Type', type: 'string', placeholder: 'post' },
+  { name: 'title', displayName: 'Title', type: 'string' },
+  { name: 'body', displayName: 'Body', type: 'textarea', required: true },
+];
+
+const hrParams: APIParameter[] = [
+  { name: 'employee_id', displayName: 'Employee ID', type: 'string' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'create', options: [
+    { label: 'Create', value: 'create' },
+    { label: 'Update', value: 'update' },
+  ]},
+  { name: 'fields', displayName: 'Fields (JSON)', type: 'textarea', placeholder: '{"title":"Engineer"}' },
+];
+
+const trainingParams: APIParameter[] = [
+  { name: 'course_id', displayName: 'Course ID', type: 'string' },
+  { name: 'user_id', displayName: 'User ID', type: 'string' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'enroll', options: [
+    { label: 'Enroll', value: 'enroll' },
+    { label: 'Complete', value: 'complete' },
+  ]},
+];
+
+const eSignParams: APIParameter[] = [
+  { name: 'document_id', displayName: 'Document ID', type: 'string' },
+  { name: 'signer_email', displayName: 'Signer Email', type: 'email', required: true },
+  { name: 'subject', displayName: 'Subject', type: 'string' },
+];
+
+const healthParams: APIParameter[] = [
+  { name: 'patient_id', displayName: 'Patient ID', type: 'string' },
+  { name: 'resource', displayName: 'Resource', type: 'string', placeholder: 'vital-signs' },
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"heart_rate":72}' },
+];
+
+const logisticsParams: APIParameter[] = [
+  { name: 'tracking_number', displayName: 'Tracking Number', type: 'string' },
+  { name: 'carrier', displayName: 'Carrier', type: 'string' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'track', options: [
+    { label: 'Track', value: 'track' },
+    { label: 'Create Shipment', value: 'create_shipment' },
+  ]},
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"address":"..."}' },
+];
+
+const financeParams: APIParameter[] = [
+  { name: 'account_id', displayName: 'Account ID', type: 'string' },
+  { name: 'amount', displayName: 'Amount', type: 'number' },
+  { name: 'currency', displayName: 'Currency', type: 'string', default: 'usd' },
+  { name: 'description', displayName: 'Description', type: 'string' },
+];
+
+const designParams: APIParameter[] = [
+  { name: 'project_id', displayName: 'Project ID', type: 'string' },
+  { name: 'asset_url', displayName: 'Asset URL', type: 'url' },
+  { name: 'command', displayName: 'Command', type: 'string', placeholder: 'export_frame' },
+];
+
+const notificationParams: APIParameter[] = [
+  { name: 'title', displayName: 'Title', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'recipients', displayName: 'Recipients', type: 'textarea', placeholder: '["user1","user2"]' },
+];
+
+const alertParams: APIParameter[] = [
+  { name: 'incident_key', displayName: 'Incident Key', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'severity', displayName: 'Severity', type: 'select', default: 'critical', options: [
+    { label: 'Critical', value: 'critical' },
+    { label: 'High', value: 'high' },
+    { label: 'Normal', value: 'normal' },
+  ]},
+];
+
+const searchParams: APIParameter[] = [
+  { name: 'index_name', displayName: 'Index Name', type: 'string' },
+  { name: 'query', displayName: 'Query', type: 'textarea', required: true },
+  { name: 'document', displayName: 'Document (JSON)', type: 'textarea' },
+];
+
+const analyticsParams: APIParameter[] = [
+  { name: 'property_id', displayName: 'Property ID', type: 'string' },
+  { name: 'query', displayName: 'Query', type: 'textarea' },
+  { name: 'time_range', displayName: 'Time Range', type: 'string', placeholder: 'last_30_days' },
+];
+
 const textFormatterParams: APIParameter[] = [
   { name: 'operation', displayName: 'Operation', type: 'select', required: true, options: [
     { label: 'Uppercase', value: 'uppercase' },
@@ -2269,16 +2721,16 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
       withBlocks('databases', 'Relational & NoSQL Databases', [
         ['Supabase', 'free', undefined, supabaseParams, supabaseCredentials],
         ['MongoDB Atlas', 'free', undefined, mongoParams, mongoCredentials],
-        ['PlanetScale', 'api_key'],
+        ['PlanetScale', 'api_key', undefined, sqlDatabaseParams],
         ['Redis', 'free', undefined, redisParams, redisCredentials],
         ['Firebase', 'free', undefined, firebaseParams, firebaseCredentials],
-        ['CockroachDB', 'free'],
-        ['FaunaDB', 'free'],
-        ['MariaDB', 'free'],
-        ['MySQL', 'free'],
-        ['Neo4j', 'api_key'],
-        ['SurrealDB', 'free'],
-        ['Turso', 'free'],
+        ['CockroachDB', 'free', undefined, sqlDatabaseParams],
+        ['FaunaDB', 'free', undefined, faunaDBParams],
+        ['MariaDB', 'free', undefined, sqlDatabaseParams],
+        ['MySQL', 'free', undefined, sqlDatabaseParams],
+        ['Neo4j', 'api_key', undefined, graphDatabaseParams],
+        ['SurrealDB', 'free', undefined, surrealDBParams],
+        ['Turso', 'free', undefined, tursoParams],
       ]),
       withBlocks('cloud-storage-cdn', 'Cloud File Storage & CDN', [
         ['Google Drive', 'free', undefined, googledriveParams],
@@ -2292,19 +2744,19 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['pCloud', 'api_key', undefined, pCloudParams],
         ['Cloudinary', 'free', undefined, cloudinaryParams, cloudinaryCredentials],
         ['ImageKit', 'free', undefined, imageKitParams],
-        ['Fastly', 'api_key'],
-        ['Akamai', 'api_key'],
+        ['Fastly', 'api_key', undefined, cdnControlParams],
+        ['Akamai', 'api_key', undefined, cdnControlParams],
       ]),
       withBlocks('spreadsheets', 'Spreadsheets & Productive Databases', [
         ['Airtable', 'free', undefined, airtableParams, airtableCredentials],
         ['Google Sheets', 'free', undefined, googlesheetParams],
-        ['Excel Online', 'free'],
-        ['Smartsheet', 'api_key'],
-        ['Coda', 'free'],
+        ['Excel Online', 'free', undefined, spreadsheetParams],
+        ['Smartsheet', 'api_key', undefined, spreadsheetParams],
+        ['Coda', 'free', undefined, spreadsheetParams],
         ['Notion', 'free', undefined, notionParams, notionCredentials],
-        ['Baserow', 'free'],
-        ['SeaTable', 'free'],
-        ['Grist', 'free'],
+        ['Baserow', 'free', undefined, spreadsheetParams],
+        ['SeaTable', 'free', undefined, spreadsheetParams],
+        ['Grist', 'free', undefined, spreadsheetParams],
       ]),
     ],
   },
@@ -2316,21 +2768,21 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['GitHub', 'free', undefined, githubParams],
         ['GitLab', 'free', undefined, gitlabParams, gitlabCredentials],
         ['Bitbucket', 'free', undefined, bitbucketParams, bitbucketCredentials],
-        ['Azure DevOps', 'api_key'],
-        ['Gitea', 'free'],
+        ['Azure DevOps', 'api_key', undefined, devOpsParams],
+        ['Gitea', 'free', undefined, devOpsParams],
         ['CircleCI', 'api_key', undefined, circleciParams, circleciCredentials],
-        ['Travis CI', 'api_key'],
+        ['Travis CI', 'api_key', undefined, devOpsParams],
         ['Jenkins', 'free', undefined, jenkinsParams, jenkinsCredentials],
-        ['SonarQube', 'free'],
+        ['SonarQube', 'free', undefined, devOpsParams],
       ]),
       withBlocks('monitoring', 'Monitoring & Infrastructure', [
         ['Sentry', 'free', undefined, sentryParams, sentryCredentials],
         ['Datadog', 'api_key', undefined, datadogParams, datadogCredentials],
-        ['New Relic', 'api_key'],
-        ['LogRocket', 'api_key'],
+        ['New Relic', 'api_key', undefined, monitoringParams],
+        ['LogRocket', 'api_key', undefined, monitoringParams],
         ['Honeycomb', 'free'],
         ['BetterStack', 'free'],
-        ['Pingdom', 'api_key'],
+        ['Pingdom', 'api_key', undefined, monitoringParams],
         ['UptimeRobot', 'free'],
         ['Vercel', 'free'],
         ['Netlify', 'free'],
@@ -2346,25 +2798,25 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Stripe', 'api_key', undefined, stripeParams, stripeCredentials],
         ['PayPal', 'free', undefined, paypalParams, paypalCredentials],
         ['Square', 'api_key', undefined, squareParams, squareCredentials],
-        ['Adyen', 'api_key'],
-        ['Braintree', 'api_key'],
-        ['Lemon Squeezy', 'api_key'],
-        ['Paddle', 'api_key'],
-        ['Mollie', 'api_key'],
-        ['Razorpay', 'api_key'],
-        ['Authorize.net', 'api_key'],
+        ['Adyen', 'api_key', undefined, paymentGatewayParams],
+        ['Braintree', 'api_key', undefined, paymentGatewayParams],
+        ['Lemon Squeezy', 'api_key', undefined, paymentGatewayParams],
+        ['Paddle', 'api_key', undefined, paymentGatewayParams],
+        ['Mollie', 'api_key', undefined, paymentGatewayParams],
+        ['Razorpay', 'api_key', undefined, paymentGatewayParams],
+        ['Authorize.net', 'api_key', undefined, paymentGatewayParams],
       ]),
       withBlocks('storefronts', 'E-commerce & Storefronts', [
         ['Shopify', 'api_key', undefined, shopifyParams, shopifyCredentials],
         ['WooCommerce', 'free', undefined, woocommerceParams, woocommerceCredentials],
-        ['Magento', 'free'],
-        ['BigCommerce', 'api_key'],
-        ['Gumroad', 'free'],
-        ['Etsy', 'api_key'],
-        ['Amazon Seller', 'api_key'],
-        ['Wix Stores', 'api_key'],
-        ['Squarespace', 'api_key'],
-        ['Printful', 'api_key'],
+        ['Magento', 'free', undefined, storefrontParams],
+        ['BigCommerce', 'api_key', undefined, storefrontParams],
+        ['Gumroad', 'free', undefined, storefrontParams],
+        ['Etsy', 'api_key', undefined, storefrontParams],
+        ['Amazon Seller', 'api_key', undefined, storefrontParams],
+        ['Wix Stores', 'api_key', undefined, storefrontParams],
+        ['Squarespace', 'api_key', undefined, storefrontParams],
+        ['Printful', 'api_key', undefined, storefrontParams],
       ]),
     ],
   },
@@ -2374,8 +2826,8 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     subcategories: [
       withBlocks('help-desk', 'Help Desk & Ticketing', [
         ['Zendesk', 'api_key', undefined, zendeskParams, zendeskCredentials],
-        ['Freshdesk', 'free'],
-        ['Gorgias', 'api_key'],
+        ['Freshdesk', 'free', undefined, supportParams],
+        ['Gorgias', 'api_key', undefined, supportParams],
         ['Help Scout', 'api_key', undefined, helpScoutParams, helpScoutCredentials],
         ['Front', 'api_key', undefined, frontParams, frontCredentials],
         ['Intercom', 'api_key', undefined, intercomParams, intercomCredentials],
@@ -2433,12 +2885,12 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Web3 & Blockchain',
     subcategories: [
       withBlocks('chains-wallets', 'Chains & Wallets', [
-        ['Ethereum/Alchemy', 'free'], ['Solana/Helius', 'free'], ['Polygon', 'free'], ['WalletConnect', 'free'],
-        ['Coinbase Cloud', 'api_key'], ['Infura', 'free'], ['Moralis', 'free'],
+        ['Ethereum/Alchemy', 'free', undefined, web3Params], ['Solana/Helius', 'free', undefined, web3Params], ['Polygon', 'free', undefined, web3Params], ['WalletConnect', 'free', undefined, web3Params],
+        ['Coinbase Cloud', 'api_key', undefined, web3Params], ['Infura', 'free', undefined, web3Params], ['Moralis', 'free', undefined, web3Params],
       ]),
       withBlocks('markets-nft', 'Market Data & NFTs', [
-        ['CoinGecko', 'free'], ['CoinMarketCap', 'api_key'], ['OpenSea', 'api_key'], ['Magic Eden', 'api_key'],
-        ['Etherscan', 'free'], ['Rarible', 'api_key'],
+        ['CoinGecko', 'free', undefined, marketDataParams], ['CoinMarketCap', 'api_key', undefined, marketDataParams], ['OpenSea', 'api_key', undefined, marketDataParams], ['Magic Eden', 'api_key', undefined, marketDataParams],
+        ['Etherscan', 'free', undefined, marketDataParams], ['Rarible', 'api_key', undefined, marketDataParams],
       ]),
     ],
   },
@@ -2447,12 +2899,12 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Cybersecurity & IT',
     subcategories: [
       withBlocks('identity', 'Identity & Access', [
-        ['Okta', 'api_key'], ['Auth0', 'free'], ['Clerk', 'free'], ['Stytch', 'api_key'], ['Kinde', 'free'],
-        ['1Password', 'api_key'], ['Dashlane', 'api_key'],
+        ['Okta', 'api_key'], ['Auth0', 'free', undefined, identityParams], ['Clerk', 'free', undefined, identityParams], ['Stytch', 'api_key', undefined, identityParams], ['Kinde', 'free', undefined, identityParams],
+        ['1Password', 'api_key', undefined, identityParams], ['Dashlane', 'api_key', undefined, identityParams],
       ]),
       withBlocks('threat-intel', 'Threat Intel & Security', [
-        ['VirusTotal', 'free'], ['HaveIBeenPwned', 'api_key'], ['Shodan', 'api_key'], ['Cloudflare Security', 'free'],
-        ['CrowdStrike', 'api_key'], ['Splunk', 'api_key'],
+        ['VirusTotal', 'free', undefined, securityParams], ['HaveIBeenPwned', 'api_key', undefined, securityParams], ['Shodan', 'api_key', undefined, securityParams], ['Cloudflare Security', 'free', undefined, securityParams],
+        ['CrowdStrike', 'api_key', undefined, securityParams], ['Splunk', 'api_key', undefined, securityParams],
       ]),
     ],
   },
@@ -2461,11 +2913,11 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Utilities & IoT',
     subcategories: [
       withBlocks('environment', 'Environment', [
-        ['OpenWeatherMap', 'free'], ['Tomorrow.io', 'free'], ['AccuWeather', 'api_key'], ['Google Maps', 'api_key'],
-        ['Mapbox', 'free'], ['AirVisual', 'api_key'],
+        ['OpenWeatherMap', 'free', undefined, weatherParams], ['Tomorrow.io', 'free', undefined, weatherParams], ['AccuWeather', 'api_key', undefined, weatherParams], ['Google Maps', 'api_key'],
+        ['Mapbox', 'free', undefined, weatherParams], ['AirVisual', 'api_key', undefined, weatherParams],
       ]),
       withBlocks('smart-home', 'Smart Home', [
-        ['Philips Hue', 'api_key'], ['Nest', 'api_key'], ['IFTTT', 'free'], ['Home Assistant', 'free'], ['Shelly', 'free'], ['Tuya', 'api_key'],
+        ['Philips Hue', 'api_key', undefined, iotParams], ['Nest', 'api_key', undefined, iotParams], ['IFTTT', 'free', undefined, iotParams], ['Home Assistant', 'free', undefined, iotParams], ['Shelly', 'free', undefined, iotParams], ['Tuya', 'api_key', undefined, iotParams],
       ]),
     ],
   },
@@ -2506,20 +2958,20 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     subcategories: [
       withBlocks('social-platforms', 'Social Platforms', [
         ['Twitter/X', 'api_key', undefined, twitterParams, twitterCredentials],
-        ['Instagram', 'api_key'], ['Facebook Pages', 'api_key'], ['LinkedIn', 'api_key'],
-        ['TikTok', 'api_key'], ['Pinterest', 'api_key'], ['Reddit', 'api_key'],
-        ['YouTube', 'api_key'], ['Mastodon', 'free'], ['Bluesky', 'free'],
-        ['Threads', 'api_key'], ['Tumblr', 'api_key'],
+        ['Instagram', 'api_key', undefined, socialPostParams], ['Facebook Pages', 'api_key', undefined, socialPostParams], ['LinkedIn', 'api_key', undefined, socialPostParams],
+        ['TikTok', 'api_key', undefined, socialPostParams], ['Pinterest', 'api_key', undefined, socialPostParams], ['Reddit', 'api_key', undefined, socialPostParams],
+        ['YouTube', 'api_key', undefined, socialPostParams], ['Mastodon', 'free', undefined, socialPostParams], ['Bluesky', 'free', undefined, socialPostParams],
+        ['Threads', 'api_key', undefined, socialPostParams], ['Tumblr', 'api_key', undefined, socialPostParams],
       ]),
       withBlocks('social-management', 'Social Management & Scheduling', [
-        ['Buffer', 'api_key'], ['Hootsuite', 'api_key'], ['Later', 'api_key'],
-        ['Sprout Social', 'api_key'], ['SocialBee', 'api_key'], ['Publer', 'api_key'],
+        ['Buffer', 'api_key', undefined, socialManagementParams], ['Hootsuite', 'api_key', undefined, socialManagementParams], ['Later', 'api_key', undefined, socialManagementParams],
+        ['Sprout Social', 'api_key', undefined, socialManagementParams], ['SocialBee', 'api_key', undefined, socialManagementParams], ['Publer', 'api_key', undefined, socialManagementParams],
       ]),
       withBlocks('content-cms', 'Content & CMS', [
-        ['WordPress', 'api_key'], ['Ghost', 'api_key'], ['Strapi', 'free'],
-        ['Contentful', 'api_key'], ['Sanity', 'free'], ['Prismic', 'api_key'],
-        ['Webflow', 'api_key'], ['Medium', 'free'], ['Hashnode', 'free'],
-        ['Dev.to', 'free'], ['Substack', 'api_key'],
+        ['WordPress', 'api_key', undefined, cmsParams], ['Ghost', 'api_key', undefined, cmsParams], ['Strapi', 'free', undefined, cmsParams],
+        ['Contentful', 'api_key', undefined, cmsParams], ['Sanity', 'free', undefined, cmsParams], ['Prismic', 'api_key', undefined, cmsParams],
+        ['Webflow', 'api_key', undefined, cmsParams], ['Medium', 'free', undefined, cmsParams], ['Hashnode', 'free', undefined, cmsParams],
+        ['Dev.to', 'free', undefined, cmsParams], ['Substack', 'api_key', undefined, cmsParams],
       ]),
     ],
   },
@@ -2528,32 +2980,32 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Specialized Verticals',
     subcategories: [
       withBlocks('hr', 'HR & Recruiting', [
-        ['Workday', 'api_key'], ['BambooHR', 'api_key'], ['Greenhouse', 'api_key'], ['Lever', 'api_key'], ['Ashby', 'api_key'],
-        ['HiBob', 'api_key'], ['Gusto', 'api_key'], ['Rippling', 'api_key'], ['Deel', 'api_key'], ['Remote.com', 'api_key'],
+        ['Workday', 'api_key', undefined, hrParams], ['BambooHR', 'api_key', undefined, hrParams], ['Greenhouse', 'api_key', undefined, hrParams], ['Lever', 'api_key', undefined, hrParams], ['Ashby', 'api_key', undefined, hrParams],
+        ['HiBob', 'api_key', undefined, hrParams], ['Gusto', 'api_key', undefined, hrParams], ['Rippling', 'api_key', undefined, hrParams], ['Deel', 'api_key', undefined, hrParams], ['Remote.com', 'api_key', undefined, hrParams],
       ]),
       withBlocks('edtech', 'Education (EdTech)', [
-        ['Canvas', 'free'], ['Moodle', 'free'], ['Teachable', 'api_key'], ['Kajabi', 'api_key'], ['Coursera', 'api_key'], ['Duolingo', 'api_key'],
-        ['Udemy', 'api_key'], ['Thinkific', 'api_key'], ['Podia', 'api_key'],
+        ['Canvas', 'free', undefined, trainingParams], ['Moodle', 'free', undefined, trainingParams], ['Teachable', 'api_key', undefined, trainingParams], ['Kajabi', 'api_key', undefined, trainingParams], ['Coursera', 'api_key', undefined, trainingParams], ['Duolingo', 'api_key', undefined, trainingParams],
+        ['Udemy', 'api_key', undefined, trainingParams], ['Thinkific', 'api_key', undefined, trainingParams], ['Podia', 'api_key', undefined, trainingParams],
       ]),
       withBlocks('legal', 'Legal & E-Signature', [
-        ['DocuSign', 'api_key'], ['Dropbox Sign', 'api_key'], ['Ironclad', 'api_key'], ['Clio', 'api_key'], ['PandaDoc', 'api_key'],
-        ['SignNow', 'api_key'], ['Juro', 'api_key'],
+        ['DocuSign', 'api_key', undefined, eSignParams], ['Dropbox Sign', 'api_key', undefined, eSignParams], ['Ironclad', 'api_key', undefined, eSignParams], ['Clio', 'api_key', undefined, eSignParams], ['PandaDoc', 'api_key', undefined, eSignParams],
+        ['SignNow', 'api_key', undefined, eSignParams], ['Juro', 'api_key', undefined, eSignParams],
       ]),
       withBlocks('healthcare', 'Healthcare', [
-        ['Epic', 'api_key'], ['Cerner', 'api_key'], ['Healthie', 'api_key'], ['Redox', 'api_key'], ['Fitbit', 'free'], ['Strava', 'free'],
-        ['Withings', 'api_key'], ['Apple Health', 'free'], ['Google Fit', 'free'],
+        ['Epic', 'api_key', undefined, healthParams], ['Cerner', 'api_key', undefined, healthParams], ['Healthie', 'api_key', undefined, healthParams], ['Redox', 'api_key', undefined, healthParams], ['Fitbit', 'free', undefined, healthParams], ['Strava', 'free', undefined, healthParams],
+        ['Withings', 'api_key', undefined, healthParams], ['Apple Health', 'free', undefined, healthParams], ['Google Fit', 'free', undefined, healthParams],
       ]),
       withBlocks('logistics-real-estate', 'Logistics & Real Estate', [
-        ['AfterShip', 'api_key'], ['Shippo', 'api_key'], ['EasyPost', 'api_key'], ['Zillow', 'api_key'], ['Airbnb', 'api_key'], ['Uber', 'api_key'],
-        ['DoorDash', 'api_key'], ['FedEx', 'api_key'], ['UPS', 'api_key'], ['USPS', 'free'],
+        ['AfterShip', 'api_key', undefined, logisticsParams], ['Shippo', 'api_key', undefined, logisticsParams], ['EasyPost', 'api_key', undefined, logisticsParams], ['Zillow', 'api_key', undefined, logisticsParams], ['Airbnb', 'api_key', undefined, logisticsParams], ['Uber', 'api_key', undefined, logisticsParams],
+        ['DoorDash', 'api_key', undefined, logisticsParams], ['FedEx', 'api_key', undefined, logisticsParams], ['UPS', 'api_key', undefined, logisticsParams], ['USPS', 'free', undefined, logisticsParams],
       ]),
       withBlocks('accounting', 'Accounting & Finance', [
-        ['QuickBooks', 'api_key'], ['Xero', 'api_key'], ['FreshBooks', 'api_key'], ['Wave', 'free'],
-        ['Plaid', 'api_key'], ['Wise', 'api_key'], ['Mercury', 'api_key'],
+        ['QuickBooks', 'api_key', undefined, financeParams], ['Xero', 'api_key', undefined, financeParams], ['FreshBooks', 'api_key', undefined, financeParams], ['Wave', 'free', undefined, financeParams],
+        ['Plaid', 'api_key', undefined, financeParams], ['Wise', 'api_key', undefined, financeParams], ['Mercury', 'api_key', undefined, financeParams],
       ]),
       withBlocks('design', 'Design & Creative', [
-        ['Figma', 'api_key'], ['Canva', 'api_key'], ['Adobe Creative Cloud', 'api_key'],
-        ['InVision', 'api_key'], ['Sketch', 'api_key'], ['Framer', 'free'],
+        ['Figma', 'api_key', undefined, designParams], ['Canva', 'api_key', undefined, designParams], ['Adobe Creative Cloud', 'api_key', undefined, designParams],
+        ['InVision', 'api_key', undefined, designParams], ['Sketch', 'api_key', undefined, designParams], ['Framer', 'free', undefined, designParams],
       ]),
     ],
   },
@@ -2562,13 +3014,13 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Notifications & Alerts',
     subcategories: [
       withBlocks('push-notify', 'Push Notifications', [
-        ['Firebase Cloud Messaging', 'free'], ['OneSignal', 'free'], ['Pusher Beams', 'api_key'],
-        ['Novu', 'free'], ['Knock', 'api_key'], ['MagicBell', 'api_key'],
-        ['Courier', 'api_key'], ['Engagespot', 'free'],
+        ['Firebase Cloud Messaging', 'free', undefined, notificationParams], ['OneSignal', 'free', undefined, notificationParams], ['Pusher Beams', 'api_key', undefined, notificationParams],
+        ['Novu', 'free', undefined, notificationParams], ['Knock', 'api_key', undefined, notificationParams], ['MagicBell', 'api_key', undefined, notificationParams],
+        ['Courier', 'api_key', undefined, notificationParams], ['Engagespot', 'free', undefined, notificationParams],
       ]),
       withBlocks('alerts', 'Alerting & Incident', [
-        ['PagerDuty', 'api_key'], ['OpsGenie', 'api_key'], ['VictorOps', 'api_key'],
-        ['StatusPage', 'api_key'], ['Instatus', 'free'], ['Cachet', 'free'],
+        ['PagerDuty', 'api_key', undefined, alertParams], ['OpsGenie', 'api_key', undefined, alertParams], ['VictorOps', 'api_key', undefined, alertParams],
+        ['StatusPage', 'api_key', undefined, alertParams], ['Instatus', 'free', undefined, alertParams], ['Cachet', 'free', undefined, alertParams],
       ]),
     ],
   },
@@ -2577,14 +3029,14 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Search & Analytics',
     subcategories: [
       withBlocks('search-engines', 'Search Engines', [
-        ['Algolia', 'api_key'], ['Elasticsearch', 'free'], ['Meilisearch', 'free'],
-        ['Typesense', 'free'], ['Pinecone', 'api_key'], ['Weaviate', 'free'],
-        ['Qdrant', 'free'], ['ChromaDB', 'free'],
+        ['Algolia', 'api_key', undefined, searchParams], ['Elasticsearch', 'free', undefined, searchParams], ['Meilisearch', 'free', undefined, searchParams],
+        ['Typesense', 'free', undefined, searchParams], ['Pinecone', 'api_key', undefined, searchParams], ['Weaviate', 'free', undefined, searchParams],
+        ['Qdrant', 'free', undefined, searchParams], ['ChromaDB', 'free', undefined, searchParams],
       ]),
       withBlocks('analytics-bi', 'Analytics & BI', [
-        ['Google Analytics', 'api_key'], ['Plausible', 'free'], ['PostHog', 'free'],
-        ['Metabase', 'free'], ['Looker', 'api_key'], ['Tableau', 'api_key'],
-        ['Apache Superset', 'free'], ['Grafana', 'free'],
+        ['Google Analytics', 'api_key', undefined, analyticsParams], ['Plausible', 'free', undefined, analyticsParams], ['PostHog', 'free', undefined, analyticsParams],
+        ['Metabase', 'free', undefined, analyticsParams], ['Looker', 'api_key', undefined, analyticsParams], ['Tableau', 'api_key', undefined, analyticsParams],
+        ['Apache Superset', 'free', undefined, analyticsParams], ['Grafana', 'free', undefined, analyticsParams],
       ]),
     ],
   },
