@@ -697,7 +697,26 @@ export const AutomationTemplatePane = () => {
 
       L.push(`def ${fn}(prev=None):`);
       L.push(`    """${i === 0 ? 'Trigger' : 'Step ' + i}: ${b.label} (${b.subcategory})"""`);
-      L.push(`    config = ${JSON.stringify(b.config, null, 4).replace(/^/gm, '    ').trimStart()}`);
+      // Resolve {{prev.*}} tokens in config values
+      const resolvedCfg: Record<string,string> = {};
+      const prevResolutions: string[] = [];
+      for (const [k, v] of Object.entries(b.config)) {
+        if (/\{\{prev\.[^}]+\}\}/.test(v)) {
+          const pyExpr = resolvePyVar(v);
+          resolvedCfg[k] = `__PREV__${k}`;
+          prevResolutions.push(`    ${k} = ${pyExpr}`);
+        } else {
+          resolvedCfg[k] = v;
+        }
+      }
+      L.push(`    config = ${JSON.stringify(resolvedCfg, null, 4).replace(/^/gm, '    ').trimStart()}`);
+      if (prevResolutions.length > 0) {
+        L.push(`    # Resolve variables from previous step output`);
+        for (const line of prevResolutions) L.push(line);
+        for (const [k] of Object.entries(resolvedCfg).filter(([,v]) => v.startsWith('__PREV__'))) {
+          L.push(`    config["${k}"] = ${k}`);
+        }
+      }
       L.push(`    print(f"▶ [${i === 0 ? 'TRIGGER' : 'STEP ' + i}] ${b.label}...")`);
 
       if (snippet) {
@@ -934,7 +953,23 @@ export const AutomationTemplatePane = () => {
 
       L.push(`async function ${fn}(prev = null) {`);
       L.push(`  /** ${i === 0 ? 'Trigger' : 'Step ' + i}: ${b.label} (${b.subcategory}) */`);
-      L.push(`  const config = ${JSON.stringify(b.config, null, 2).replace(/^/gm, '  ').trimStart()};`);
+      // Resolve {{prev.*}} tokens in config values
+      const resolvedCfgJs: Record<string,string> = {};
+      const jsResolutions: string[] = [];
+      for (const [k, v] of Object.entries(b.config)) {
+        if (/\{\{prev\.[^}]+\}\}/.test(v)) {
+          const jsExpr = resolveJsVar(v);
+          resolvedCfgJs[k] = `__PREV__`;
+          jsResolutions.push(`  config["${k}"] = ${jsExpr};`);
+        } else {
+          resolvedCfgJs[k] = v;
+        }
+      }
+      L.push(`  const config = ${JSON.stringify(resolvedCfgJs, null, 2).replace(/^/gm, '  ').trimStart()};`);
+      if (jsResolutions.length > 0) {
+        L.push(`  // Resolve variables from previous step output`);
+        for (const line of jsResolutions) L.push(line);
+      }
       L.push(`  console.log("▶ [${i === 0 ? 'TRIGGER' : 'STEP ' + i}] ${b.label}...");`);
 
       if (snippet) {
