@@ -267,9 +267,9 @@ const starterFlow = (): AutomationBlockInstance[] => [
   },
 ];
 
-export const AutomationTemplatePane = () => {
+export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: AutomationTemplatePaneProps = {}) => {
   const [query, setQuery] = useState('');
-  const [blocks, setBlocks] = useState<AutomationBlockInstance[]>(starterFlow());
+  const [blocks, setBlocks] = useState<AutomationBlockInstance[]>(initialBlocks ?? starterFlow());
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [jsonEditorValue, setJsonEditorValue] = useState('{}');
   const [jsonEditorError, setJsonEditorError] = useState<string | null>(null);
@@ -277,7 +277,22 @@ export const AutomationTemplatePane = () => {
   const [testRunLogs, setTestRunLogs] = useState<{ icon: 'check' | 'dot' | 'key' | 'error'; time: string; text: string }[]>([]);
   const [pythonCode, setPythonCode] = useState<string | null>(null);
   const [codeLanguage, setCodeLanguage] = useState<'python' | 'nodejs'>('python');
+  const blocksChangeRef = useRef(onBlocksChange);
+  blocksChangeRef.current = onBlocksChange;
 
+  // Sync with initialBlocks from external changes (file edits)
+  const prevInitialRef = useRef(initialBlocks);
+  useEffect(() => {
+    if (initialBlocks && initialBlocks !== prevInitialRef.current) {
+      prevInitialRef.current = initialBlocks;
+      setBlocks(initialBlocks);
+    }
+  }, [initialBlocks]);
+
+  // Emit block changes to parent for file sync
+  useEffect(() => {
+    blocksChangeRef.current?.(blocks);
+  }, [blocks]);
   const selectedBlock = useMemo(
     () => blocks.find((item) => item.id === selectedBlockId) ?? null,
     [blocks, selectedBlockId],
