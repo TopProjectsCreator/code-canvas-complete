@@ -721,8 +721,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       consoleErrors?: string;
       agentMode?: boolean;
       workflows?: Array<{ name: string; type: string; command: string }>;
-      multimodalContent?: any; // OpenAI-compatible content parts (array) or string
+      multimodalContent?: any;
       template?: string;
+      automationConfig?: string | null;
     } = {}
   ) => {
     if (!messageContent.trim() || isLoading) return;
@@ -763,6 +764,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         byokProvider: aiProvider.allowsBYOK ? (byokProvider || undefined) : undefined,
         byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
         template: context.template,
+        automationConfig: context.automationConfig || null,
       }, {
         accessToken: session.access_token,
         signal: abortControllerRef.current.signal,

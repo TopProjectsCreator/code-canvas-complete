@@ -36,7 +36,7 @@ import { useGitProviderImport } from "@/hooks/useGitProviderImport";
 import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
 import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/collabSyncEngine";
 import { useOfflineProject } from "@/hooks/useOfflineProject";
-import { AutomationTemplatePane } from "@/components/ide/AutomationTemplatePane";
+import { AutomationTemplatePane, type AutomationBlockInstance, serializeAutomationConfig, parseAutomationConfig } from "@/components/ide/AutomationTemplatePane";
 import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
 
 const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
@@ -283,6 +283,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
   const [scratchArchive, setScratchArchive] = useState<ScratchArchive | null>(null);
+  const [automationBlocks, setAutomationBlocks] = useState<AutomationBlockInstance[] | undefined>(undefined);
+  const automationSyncRef = useRef<'pane' | 'file' | null>(null);
   const [historyEntries, setHistoryEntries] = useState<
     Array<{
       id: string;
@@ -446,6 +448,72 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     ? { ...activeFile, content: fileContents?.[activeFile.id] ?? activeFile.content }
     : null;
   const activeFilePath = activeFile ? findFilePathById(files, activeFile.id) || activeFile.name : null;
+
+  // Automation 2-way sync: file → pane
+  const getAutomationConfigContent = useCallback((): string | null => {
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "automation.config.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (!file) return null;
+    return fileContents[file.id] ?? file.content ?? null;
+  }, [files, fileContents]);
+
+  // When automation.config.json file content changes externally, update pane
+  useEffect(() => {
+    if (selectedTemplate !== "automation") return;
+    if (automationSyncRef.current === 'pane') {
+      automationSyncRef.current = null;
+      return;
+    }
+    const content = getAutomationConfigContent();
+    if (content) {
+      const parsed = parseAutomationConfig(content);
+      if (parsed) {
+        automationSyncRef.current = 'file';
+        setAutomationBlocks(parsed);
+      }
+    }
+  }, [getAutomationConfigContent, selectedTemplate]);
+
+  // When blocks change in pane, update the file
+  const handleAutomationBlocksChange = useCallback((newBlocks: AutomationBlockInstance[]) => {
+    if (automationSyncRef.current === 'file') {
+      automationSyncRef.current = null;
+      return;
+    }
+    automationSyncRef.current = 'pane';
+    const json = serializeAutomationConfig(newBlocks);
+    // Find and update the automation.config.json file
+    const findAndUpdate = (nodes: FileNode[]): FileNode[] => {
+      return nodes.map(node => {
+        if (node.type === "file" && node.name === "automation.config.json") {
+          return { ...node, content: json };
+        }
+        if (node.children) {
+          return { ...node, children: findAndUpdate(node.children) };
+        }
+        return node;
+      });
+    };
+    setFiles(prev => findAndUpdate(prev));
+    // Also update fileContents
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "automation.config.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (file) {
+      setFileContents(prev => ({ ...prev, [file.id]: json }));
+    }
+  }, [files]);
 
   useEffect(() => {
     if (!activeFilePath) return;
@@ -2153,7 +2221,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     </Suspense>
                   ) : selectedTemplate === "automation" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
-                      <AutomationTemplatePane />
+                      <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} />
                     </Suspense>
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
@@ -2265,7 +2333,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                   </Suspense>
                 ) : selectedTemplate === "automation" ? (
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
-                    <AutomationTemplatePane />
+                    <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} />
                   </Suspense>
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
@@ -2704,6 +2772,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               });
             }}
             currentTemplate={selectedTemplate || undefined}
+            automationConfig={selectedTemplate === "automation" ? getAutomationConfigContent() : null}
           />
         </div>
 

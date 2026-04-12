@@ -1,4 +1,4 @@
-import { type DragEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   CircleDot,
@@ -26,7 +26,7 @@ import {
 } from '@/data/automationIntegrationRegistry';
 import { AutomationBlockParameterForm } from './AutomationBlockParameterForm';
 
-interface AutomationBlockInstance {
+export interface AutomationBlockInstance {
   id: string;
   type: string;
   label: string;
@@ -34,6 +34,45 @@ interface AutomationBlockInstance {
   subcategory: string;
   auth: AutomationAuthType;
   config: Record<string, string>;
+}
+
+/** Serialize blocks to a JSON string for automation.config.json */
+export const serializeAutomationConfig = (blocks: AutomationBlockInstance[]): string => {
+  return JSON.stringify({
+    version: 1,
+    blocks: blocks.map(b => ({
+      type: b.type,
+      label: b.label,
+      category: b.category,
+      subcategory: b.subcategory,
+      auth: b.auth,
+      config: b.config,
+    })),
+  }, null, 2);
+};
+
+/** Parse automation.config.json content into blocks */
+export const parseAutomationConfig = (json: string): AutomationBlockInstance[] | null => {
+  try {
+    const parsed = JSON.parse(json);
+    if (!parsed?.blocks || !Array.isArray(parsed.blocks)) return null;
+    return parsed.blocks.map((b: any) => ({
+      id: createId(),
+      type: b.type || '',
+      label: b.label || '',
+      category: b.category || '',
+      subcategory: b.subcategory || '',
+      auth: b.auth || 'internal',
+      config: b.config || {},
+    }));
+  } catch {
+    return null;
+  }
+};
+
+interface AutomationTemplatePaneProps {
+  initialBlocks?: AutomationBlockInstance[];
+  onBlocksChange?: (blocks: AutomationBlockInstance[]) => void;
 }
 
 const createId = () => Math.random().toString(36).slice(2, 9);
@@ -228,9 +267,9 @@ const starterFlow = (): AutomationBlockInstance[] => [
   },
 ];
 
-export const AutomationTemplatePane = () => {
+export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: AutomationTemplatePaneProps = {}) => {
   const [query, setQuery] = useState('');
-  const [blocks, setBlocks] = useState<AutomationBlockInstance[]>(starterFlow());
+  const [blocks, setBlocks] = useState<AutomationBlockInstance[]>(initialBlocks ?? starterFlow());
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [jsonEditorValue, setJsonEditorValue] = useState('{}');
   const [jsonEditorError, setJsonEditorError] = useState<string | null>(null);
@@ -238,7 +277,22 @@ export const AutomationTemplatePane = () => {
   const [testRunLogs, setTestRunLogs] = useState<{ icon: 'check' | 'dot' | 'key' | 'error'; time: string; text: string }[]>([]);
   const [pythonCode, setPythonCode] = useState<string | null>(null);
   const [codeLanguage, setCodeLanguage] = useState<'python' | 'nodejs'>('python');
+  const blocksChangeRef = useRef(onBlocksChange);
+  blocksChangeRef.current = onBlocksChange;
 
+  // Sync with initialBlocks from external changes (file edits)
+  const prevInitialRef = useRef(initialBlocks);
+  useEffect(() => {
+    if (initialBlocks && initialBlocks !== prevInitialRef.current) {
+      prevInitialRef.current = initialBlocks;
+      setBlocks(initialBlocks);
+    }
+  }, [initialBlocks]);
+
+  // Emit block changes to parent for file sync
+  useEffect(() => {
+    blocksChangeRef.current?.(blocks);
+  }, [blocks]);
   const selectedBlock = useMemo(
     () => blocks.find((item) => item.id === selectedBlockId) ?? null,
     [blocks, selectedBlockId],
