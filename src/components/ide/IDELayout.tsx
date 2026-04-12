@@ -285,6 +285,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [scratchArchive, setScratchArchive] = useState<ScratchArchive | null>(null);
   const [automationBlocks, setAutomationBlocks] = useState<AutomationBlockInstance[] | undefined>(undefined);
   const automationSyncRef = useRef<'pane' | 'file' | null>(null);
+  const lastAutomationJsonRef = useRef<string | null>(null);
   const [historyEntries, setHistoryEntries] = useState<
     Array<{
       id: string;
