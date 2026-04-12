@@ -1,7 +1,16 @@
 import { useState, useMemo } from 'react';
-import { HelpCircle, AlertCircle } from 'lucide-react';
+import { HelpCircle, AlertCircle, ChevronDown, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { APIParameter, Operation } from '@/data/automationIntegrationRegistry';
+
+const VARIABLE_TEMPLATES = [
+  { label: 'Previous result', value: '{{prev.result}}', description: 'Main output from previous step' },
+  { label: 'Previous data', value: '{{prev.data}}', description: 'Data array from previous step' },
+  { label: 'Previous status', value: '{{prev.status}}', description: 'Status code from previous step' },
+  { label: 'Previous text', value: '{{prev.text}}', description: 'Text output from previous step' },
+  { label: 'Previous email_id', value: '{{prev.email_id}}', description: 'Email ID from a send step' },
+  { label: 'Previous image_url', value: '{{prev.image_url}}', description: 'Image URL from a generation step' },
+];
 
 interface AutomationBlockParameterFormProps {
   parameters?: APIParameter[];
@@ -10,6 +19,8 @@ interface AutomationBlockParameterFormProps {
   config: Record<string, string>;
   onConfigChange: (config: Record<string, string>) => void;
   blockLabel: string;
+  /** Zero-based index of this block in the pipeline. When > 0, variable insertion is available. */
+  stepIndex?: number;
 }
 
 export const AutomationBlockParameterForm = ({
@@ -19,8 +30,10 @@ export const AutomationBlockParameterForm = ({
   config,
   onConfigChange,
   blockLabel,
+  stepIndex = 0,
 }: AutomationBlockParameterFormProps) => {
   const [expandedHelp, setExpandedHelp] = useState<string | null>(null);
+  const [variableDropdown, setVariableDropdown] = useState<string | null>(null);
   const selectedOperation = useMemo(
     () => operations.find((op) => op.id === config.__operation),
     [operations, config.__operation]
@@ -28,26 +41,24 @@ export const AutomationBlockParameterForm = ({
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // Validate a single field
+  const canInsertVariables = stepIndex > 0;
+
   const validateField = (param: APIParameter, value: string) => {
     if (!value && param.required) {
       return `${param.displayName} is required`;
     }
-
     if (value && param.pattern) {
       const regex = new RegExp(param.pattern);
       if (!regex.test(value)) {
         return `${param.displayName} does not match required format`;
       }
     }
-
     if (param.validation) {
       const result = param.validation(value);
       if (result !== true && typeof result === 'string') {
         return result;
       }
     }
-
     return '';
   };
 
@@ -62,16 +73,57 @@ export const AutomationBlockParameterForm = ({
         return newErrors;
       }
     });
+    onConfigChange({ ...config, [param.name]: value });
+  };
 
-    onConfigChange({
-      ...config,
-      [param.name]: value,
-    });
+  const insertVariable = (param: APIParameter, variable: string) => {
+    const current = String(config[param.name] ?? param.default ?? '');
+    handleFieldChange(param, current ? `${current} ${variable}` : variable);
+    setVariableDropdown(null);
+  };
+
+  const hasVariableTokens = (value: string) => /\{\{prev\.[^}]+\}\}/.test(value);
+
+  const renderVariableInsert = (param: APIParameter) => {
+    if (!canInsertVariables) return null;
+    if (param.type === 'boolean' || param.type === 'select') return null;
+
+    const isOpen = variableDropdown === param.name;
+
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setVariableDropdown(isOpen ? null : param.name)}
+          className="inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/5 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
+          title="Insert variable from previous step"
+        >
+          <Zap className="h-2.5 w-2.5" />
+          prev
+          <ChevronDown className={cn('h-2.5 w-2.5 transition-transform', isOpen && 'rotate-180')} />
+        </button>
+        {isOpen && (
+          <div className="absolute right-0 top-full z-50 mt-1 w-52 rounded-md border border-border bg-popover p-1 shadow-lg">
+            {VARIABLE_TEMPLATES.map((v) => (
+              <button
+                key={v.value}
+                onClick={() => insertVariable(param, v.value)}
+                className="w-full rounded px-2 py-1.5 text-left hover:bg-accent transition-colors"
+              >
+                <p className="text-[11px] font-mono font-medium text-foreground">{v.value}</p>
+                <p className="text-[10px] text-muted-foreground">{v.description}</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const renderParameterField = (param: APIParameter) => {
     const value = String(config[param.name] ?? param.default ?? '');
     const error = fieldErrors[param.name];
+    const showVarHighlight = hasVariableTokens(value);
 
     return (
       <div key={param.name} className="space-y-1.5">
@@ -80,15 +132,18 @@ export const AutomationBlockParameterForm = ({
             {param.displayName}
             {param.required && <span className="text-destructive">*</span>}
           </label>
-          {param.help && (
-            <button
-              onClick={() => setExpandedHelp(expandedHelp === param.name ? null : param.name)}
-              className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-              title={param.help}
-            >
-              <HelpCircle className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {renderVariableInsert(param)}
+            {param.help && (
+              <button
+                onClick={() => setExpandedHelp(expandedHelp === param.name ? null : param.name)}
+                className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                title={param.help}
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {param.description && (
@@ -126,6 +181,7 @@ export const AutomationBlockParameterForm = ({
             className={cn(
               'w-full rounded border bg-input px-2 py-1.5 text-xs text-foreground font-mono focus:outline-none focus:ring-1 focus:ring-primary resize-none',
               error ? 'border-destructive/50' : 'border-border',
+              showVarHighlight && 'ring-1 ring-primary/30 border-primary/40',
             )}
           />
         ) : param.type === 'number' ? (
@@ -158,8 +214,15 @@ export const AutomationBlockParameterForm = ({
             className={cn(
               'w-full rounded border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary',
               error ? 'border-destructive/50' : 'border-border',
+              showVarHighlight && 'ring-1 ring-primary/30 border-primary/40',
             )}
           />
+        )}
+
+        {showVarHighlight && (
+          <p className="text-[10px] text-primary/80 flex items-center gap-1">
+            <Zap className="h-2.5 w-2.5" /> Uses output from previous step
+          </p>
         )}
 
         {error && (
@@ -180,6 +243,17 @@ export const AutomationBlockParameterForm = ({
 
   return (
     <div className="space-y-4">
+      {canInsertVariables && (
+        <div className="rounded-md border border-primary/20 bg-primary/5 p-2">
+          <p className="text-[11px] font-medium text-primary flex items-center gap-1.5">
+            <Zap className="h-3 w-3" /> Data from previous step is available
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Use the <span className="font-mono text-primary/80">prev</span> button on any field to insert <code className="font-mono text-primary/80">{'{{prev.result}}'}</code> and pass data between steps.
+          </p>
+        </div>
+      )}
+
       {credentialFields.length > 0 && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
           <p className="text-xs font-semibold text-amber-100 mb-2.5">API Credentials</p>
