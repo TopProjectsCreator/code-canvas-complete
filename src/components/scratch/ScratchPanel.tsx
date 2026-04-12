@@ -62,6 +62,7 @@ interface ScratchProject {
   monitors?: unknown[];
   extensions?: string[];
   meta?: Record<string, unknown>;
+  projectVersion?: number;
 }
 
 interface ScratchVmTarget {
@@ -78,7 +79,7 @@ interface ScratchVmLike {
   start: () => void;
   stopAll: () => void;
   greenFlag: () => void;
-  loadProject: (projectData: ArrayBuffer) => Promise<void>;
+  loadProject: (projectData: ArrayBuffer | string | object) => Promise<void>;
   attachRenderer: (renderer: unknown) => void;
   attachStorage: (storage: unknown) => void;
   attachAudioEngine: (audioEngine: unknown) => void;
@@ -447,6 +448,18 @@ const categoryRail = [
   { name: 'Pen', color: '#0fbd8c' },
   { name: 'Music', color: '#d65cd6' },
 ];
+
+const SCRATCH2_CATEGORY_LABEL_OVERRIDES: Record<string, string> = {
+  Variables: 'Data',
+  'My Blocks': 'More Blocks',
+};
+
+const categoryDisplayName = (name: string, version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return SCRATCH2_CATEGORY_LABEL_OVERRIDES[name] || name;
+  }
+  return name;
+};
 
 const generateId = () => Math.random().toString(36).slice(2, 10);
 const formatJson = (value: unknown) => JSON.stringify(value, null, 2);
@@ -1224,13 +1237,29 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
     return map;
   }, []);
+  const visibleCategoryNames = useMemo(() => Object.entries(categoryBlocks)
+    .filter(([, defs]) => defs.some((def) => isBlockDefAvailable(def, scratchVersion)))
+    .map(([name]) => name),
+  [scratchVersion]);
   const visibleCategoryBlocks = useMemo(() => {
-    const entries = Object.entries(categoryBlocks).map(([name, defs]) => [
-      name,
-      defs.filter((def) => isBlockDefAvailable(def, scratchVersion)),
-    ]);
+    const entries = Object.entries(categoryBlocks)
+      .filter(([, defs]) => defs.some((def) => isBlockDefAvailable(def, scratchVersion)))
+      .map(([name, defs]) => [
+        name,
+        defs.filter((def) => isBlockDefAvailable(def, scratchVersion)),
+      ]);
     return Object.fromEntries(entries) as Record<string, ScratchBlockDef[]>;
   }, [scratchVersion]);
+  const visibleCategoryRail = useMemo(
+    () => categoryRail.filter((cat) => visibleCategoryNames.includes(cat.name)),
+    [visibleCategoryNames],
+  );
+
+  useEffect(() => {
+    if (!visibleCategoryNames.includes(activeCategory) && visibleCategoryNames.length > 0) {
+      setActiveCategory(visibleCategoryNames[0]);
+    }
+  }, [activeCategory, visibleCategoryNames]);
 
   useEffect(() => {
     setScratchVersion(semverToScratchVersion(project.meta?.semver));
@@ -1272,17 +1301,33 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setSpriteVisible(visible);
   }, [selectedTarget?.name]);
 
-  const loadVmFromArchive = useCallback(async (nextArchive: ScratchArchive) => {
+  const loadVmFromArchive = useCallback(async (nextArchive: ScratchArchive, version: ScratchCompatibilityVersion = scratchVersion) => {
     if (!vmRef.current) return;
     try {
       const normalizedArchive = ensureArchive(nextArchive);
-      console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames);
-      const data = await exportScratchArchive(normalizedArchive);
-      const ab = data.buffer instanceof ArrayBuffer
-        ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
-        : data.slice().buffer;
-      console.log('[Scratch] Loading project into VM, size:', ab.byteLength);
-      await vmRef.current.loadProject(ab);
+      console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames, 'version:', version);
+
+      if (version === 'scratch2') {
+        const project = safeParseProject(normalizedArchive);
+        const legacyProject = {
+          ...project,
+          projectVersion: 2,
+          meta: {
+            ...(project.meta || {}),
+            semver: '2.0.0',
+          },
+        };
+        console.log('[Scratch] Loading Scratch 2 project into VM from JSON');
+        await vmRef.current.loadProject(JSON.stringify(legacyProject));
+      } else {
+        const data = await exportScratchArchive(normalizedArchive, version === 'scratch3' ? 'sb3' : 'sb2');
+        const ab = data.buffer instanceof ArrayBuffer
+          ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+          : data.slice().buffer;
+        console.log('[Scratch] Loading project into VM, size:', ab.byteLength);
+        await vmRef.current.loadProject(ab);
+      }
+
       projectLoadedRef.current = true;
       console.log('[Scratch] Project loaded successfully, targets:', vmRef.current.runtime?.targets?.length);
       setVmError(null);
@@ -1292,7 +1337,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       console.warn('scratch-vm loadProject warning:', error);
       setVmError(error instanceof Error ? error.message : 'Failed to load Scratch project');
     }
-  }, [syncFromVm]);
+  }, [scratchVersion, syncFromVm]);
 
   // Initialize VM with renderer, storage, and audio engine (dynamic imports)
   useEffect(() => {
@@ -2311,6 +2356,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       const inferredVersion = name.endsWith('.sb2') ? 'scratch2' : bySemver;
       const normalizedProject: ScratchProject = {
         ...importedProject,
+        projectVersion: inferredVersion === 'scratch2' || inferredVersion === 'scratch14' ? 2 : 3,
         targets: (importedProject.targets || []).map((target) => ({
           ...target,
           blocks: normalizeBlocksForVersion(target.blocks, inferredVersion),
@@ -2331,7 +2377,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       setJsonError(null);
       setVmError(null);
       setSelectedTargetIndex(1);
-      await loadVmFromArchive(normalizedArchive);
+      await loadVmFromArchive(normalizedArchive, inferredVersion);
     } catch (error) {
       setVmError(error instanceof Error ? error.message : 'Failed to import Scratch archive (.sb/.sb2/.sb3).');
     }
@@ -2343,6 +2389,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const currentProject = safeParseProject(archive);
     const normalizedProject: ScratchProject = {
       ...currentProject,
+      projectVersion: exportFormat === 'sb3' ? 3 : 2,
       targets: (currentProject.targets || []).map((target) => ({
         ...target,
         blocks: normalizeBlocksForVersion(target.blocks, exportFormat === 'sb3' ? 'scratch3' : 'scratch2'),
@@ -2397,6 +2444,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
     const nextProject: ScratchProject = {
       ...current,
+      projectVersion: nextVersion === 'scratch2' || nextVersion === 'scratch14' ? 2 : 3,
       extensions: (current.extensions || []).filter((ext) => {
         if (nextVersion === 'scratch3') return true;
         if (ext === 'pen' || ext === 'music') return false;
@@ -2426,7 +2474,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     onProjectJsonUpdate(nextJson);
     setProjectJsonDraft(nextJson);
     setJsonError(null);
-    await loadVmFromArchive(nextArchive);
+    await loadVmFromArchive(nextArchive, nextVersion);
   };
 
   const [showJson, setShowJson] = useState(false);
@@ -2434,7 +2482,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   return (
     <div className="h-full flex flex-col" style={{ background: '#855cd6' }}>
       {/* ===== TOP MENU BAR (Scratch purple) ===== */}
-      <div className="h-12 flex items-center px-3 gap-4 shrink-0" style={{ background: '#855cd6' }}>
+      <div className="h-12 flex items-center px-3 gap-4 shrink-0" style={{ background: scratchVersion === 'scratch2' ? '#4c97ff' : scratchVersion === 'scratch14' ? '#34a232' : '#855cd6' }}>
         {/* Logo / brand */}
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
@@ -2477,13 +2525,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             {vmReady ? '● Ready' : '○ Starting'}
           </span>
           <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/90">
-            VM: scratch-vm ({scratchVersion === 'scratch3' ? 'native sb3' : 'compat + legacy import'})
+            VM: scratch-vm ({scratchVersion === 'scratch3' ? 'native sb3' : scratchVersion === 'scratch2' ? 'compat scratch2' : 'compat + legacy import'})
           </span>
         </div>
       </div>
 
       {/* ===== TABS BAR (Code / Costumes / Sounds) ===== */}
-      <div className="h-11 flex items-end px-2 shrink-0" style={{ background: '#855cd6' }}>
+      <div className="h-11 flex items-end px-2 shrink-0" style={{ background: scratchVersion === 'scratch2' ? '#4c97ff' : scratchVersion === 'scratch14' ? '#34a232' : '#855cd6' }}>
         {[
           { key: 'code' as const, icon: <Code2 className="w-4 h-4" />, label: 'Code' },
           { key: 'costumes' as const, icon: <Brush className="w-4 h-4" />, label: 'Costumes' },
