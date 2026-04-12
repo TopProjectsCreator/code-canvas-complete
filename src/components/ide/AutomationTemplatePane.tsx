@@ -81,6 +81,11 @@ const getBlockDefinition = (type: string) => {
   return ALL_AUTOMATION_BLOCKS.find((block) => block.type === type);
 };
 
+const isTriggerBlock = (block: AutomationBlockInstance) => {
+  const def = getBlockDefinition(block.type);
+  return Boolean(def?.isTrigger);
+};
+
 const authLabel: Record<AutomationAuthType, string> = {
   api_key: 'API key needed',
   free: 'Free API',
@@ -300,6 +305,8 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
     [blocks, selectedBlockId],
   );
 
+  const invalidTriggerStart = blocks.length > 0 && !isTriggerBlock(blocks[0]);
+
   const searchableBlocks = useMemo(() => {
     const q = query.trim().toLowerCase();
     return ALL_AUTOMATION_BLOCKS.filter((item) => {
@@ -443,6 +450,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
 
   const handleTestRun = useCallback(async () => {
     if (blocks.length === 0) { toast.error('Add at least one block to test.'); return; }
+    if (invalidTriggerStart) { toast.error('The first block must be a trigger block.'); return; }
     setIsTestRunning(true);
     setTestRunLogs([]);
     setPythonCode(null);
@@ -468,10 +476,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
     await new Promise((r) => setTimeout(r, 300));
     setTestRunLogs((p) => [...p, { icon: 'check' as const, time: now(), text: 'Flow completed' }]);
     setIsTestRunning(false);
-  }, [blocks]);
+  }, [blocks, invalidTriggerStart]);
 
   const generateCode = useCallback((lang: 'python' | 'nodejs') => {
     if (blocks.length === 0) { toast.error('Add blocks first.'); return; }
+    if (invalidTriggerStart) { toast.error('The first block must be a trigger block.'); return; }
     setCodeLanguage(lang);
 
     if (lang === 'python') {
@@ -479,7 +488,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
     } else {
       generateNodeCodeImpl();
     }
-  }, [blocks]);
+  }, [blocks, invalidTriggerStart]);
 
   /** Resolve {{prev.X}} tokens in a config value into Python code expressions. */
   const resolvePyVar = (val: string): string => {
@@ -1175,6 +1184,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
             </div>
           ) : (
             <div className="space-y-2">
+              {invalidTriggerStart && (
+                <div className="rounded-md border border-destructive/60 bg-destructive/10 p-3 text-[11px] text-destructive">
+                  <p className="font-semibold">Invalid first block</p>
+                  <p className="mt-1 text-[11px] text-destructive/90">The first step in an automation must be a trigger block from the Triggers category. Move a trigger block to the top before running or generating code.</p>
+                </div>
+              )}
               {blocks.map((block, index) => {
                 const isSelected = selectedBlockId === block.id;
                 return (
@@ -1188,7 +1203,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
                     >
                       <div className="flex items-start gap-2">
                         <div className="mt-0.5 rounded border border-border bg-background px-1 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                          {index === 0 ? 'TRIGGER' : `STEP ${index}`}
+                          {index === 0 ? (isTriggerBlock(block) ? 'TRIGGER' : 'STEP 0') : `STEP ${index}`}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-foreground">{block.label}</p>
