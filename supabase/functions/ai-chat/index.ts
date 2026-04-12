@@ -416,10 +416,86 @@ Users can attach images, PDFs, videos, and audio. Analyze them thoroughly when p
 
 ## Current Context`;
 
+const AUTOMATION_SECTION = `
+## AUTOMATION PIPELINE EDITOR
+When the user is working with the Automation template, they have access to a visual automation pipeline builder. You can **edit automation.config.json directly** to create, modify, or replace automation pipelines programmatically.
+
+### automation.config.json Schema
+The file must conform to this structure:
+\`\`\`json
+{
+  "version": 1,
+  "blocks": [
+    {
+      "type": "category.subcategory.block-id",
+      "label": "Human-readable label",
+      "category": "Category Name",
+      "subcategory": "Subcategory Name",
+      "auth": "api_key | free | internal | local",
+      "config": {
+        "key": "value"
+      }
+    }
+  ]
+}
+\`\`\`
+
+### Common Block Types
+| Type ID | Label | Auth | Typical Config Keys |
+|---------|-------|------|-------------------|
+| \`internal.internal-triggers.schedule-cron\` | Schedule (Cron) | internal | cron, timezone |
+| \`internal.internal-triggers.webhook-catch\` | Webhook (Catch) | internal | url, method |
+| \`dev-ops.code-cicd.github\` | GitHub | free | owner, repo, field |
+| \`ai-ml.ai-providers.openai\` | OpenAI | api_key | model, task |
+| \`ai-ml.ai-providers.anthropic\` | Anthropic | api_key | model, task |
+| \`ai-ml.ai-providers.google-gemini\` | Google Gemini | api_key | model, task |
+| \`comm.team-chat.slack\` | Slack | free | mode, channel, message |
+| \`comm.team-chat.discord\` | Discord | free | webhook_url, message |
+| \`comm.team-chat.telegram\` | Telegram | api_key | chat_id, message |
+| \`notifications.email.resend\` | Resend | api_key | from_email, to_email, subject, body |
+| \`notifications.email.sendgrid\` | SendGrid | api_key | from_email, to_email, subject, body |
+| \`notifications.sms.twilio\` | Twilio | api_key | from_number, to_number, body |
+| \`data.databases.supabase\` | Supabase | api_key | url, table |
+| \`payments.payment-providers.stripe\` | Stripe | api_key | amount, currency |
+| \`internal.flow-control.filter\` | Filter | internal | field, equals |
+| \`internal.flow-control.delay\` | Delay | internal | seconds |
+| \`internal.flow-control.loop\` | Loop | internal | |
+| \`internal.data-transforms.json-parser\` | JSON Parser | internal | |
+| \`internal.data-transforms.text-formatter\` | Text Formatter | internal | |
+
+### Data Passing Between Steps
+Config values can reference output from the previous step using \`{{prev.result}}\`, \`{{prev.data}}\`, \`{{prev.status}}\`, etc.
+
+Example: An OpenAI block that summarizes GitHub data:
+\`\`\`json
+{
+  "type": "ai-ml.ai-providers.openai",
+  "label": "OpenAI",
+  "category": "AI & Machine Learning",
+  "subcategory": "AI Intelligence Providers",
+  "auth": "api_key",
+  "config": {
+    "model": "gpt-4o-mini",
+    "task": "Summarize: {{prev.result}}"
+  }
+}
+\`\`\`
+
+### Rules
+- Always use \`<code_change file="automation.config.json" lang="json" desc="...">\` to create or update the automation pipeline.
+- The blocks array defines the pipeline execution order (first block = trigger, rest = steps).
+- The first block should typically be a trigger (Schedule, Webhook, etc.).
+- Use proper block type IDs from the table above.
+- Changes to automation.config.json are automatically synced to the visual pipeline editor.
+`;
+
 function buildSystemPrompt(template?: string): string {
   let prompt = AGENT_SYSTEM_PROMPT_BASE;
   if (template === 'arduino') {
     prompt = prompt.replace('## CODE CHANGES', ARDUINO_SECTION + '\n## CODE CHANGES');
+  }
+  if (template === 'automation') {
+    prompt = prompt.replace('## CODE CHANGES', AUTOMATION_SECTION + '\n## CODE CHANGES');
   }
   return prompt;
 }
