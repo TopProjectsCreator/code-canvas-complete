@@ -2221,7 +2221,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     </Suspense>
                   ) : selectedTemplate === "automation" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
-                      <AutomationTemplatePane />
+                      <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} />
                     </Suspense>
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
@@ -2333,7 +2333,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                   </Suspense>
                 ) : selectedTemplate === "automation" ? (
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
-                    <AutomationTemplatePane />
+                    <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} />
                   </Suspense>
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
