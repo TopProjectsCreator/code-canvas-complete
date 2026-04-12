@@ -281,7 +281,9 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
   const [isTestRunning, setIsTestRunning] = useState(false);
   const [testRunLogs, setTestRunLogs] = useState<{ icon: 'check' | 'dot' | 'key' | 'error'; time: string; text: string }[]>([]);
   const [pythonCode, setPythonCode] = useState<string | null>(null);
+  const [nodeCode, setNodeCode] = useState<string | null>(null);
   const [codeLanguage, setCodeLanguage] = useState<'python' | 'nodejs'>('python');
+  const generatedCode = codeLanguage === 'nodejs' ? nodeCode : pythonCode;
   const blocksChangeRef = useRef(onBlocksChange);
   blocksChangeRef.current = onBlocksChange;
 
@@ -509,6 +511,58 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
   };
 
   const generatePythonCodeImpl = useCallback(() => {
+    // ---- Python SDK hint registry ----
+    const getPythonSdkHint = (label: string): string | undefined => {
+      const normalized = label.toLowerCase();
+      if (normalized.includes('openai')) return 'openai';
+      if (normalized.includes('anthropic')) return 'anthropic';
+      if (normalized.includes('google gemini')) return 'google-genai';
+      if (normalized.includes('mistral')) return 'mistralai';
+      if (normalized.includes('groq')) return 'groq';
+      if (normalized.includes('perplexity')) return 'perplexityai';
+      if (normalized.includes('cohere')) return 'cohere';
+      if (normalized.includes('together ai')) return 'togetherai';
+      if (normalized.includes('hugging face')) return 'huggingface_hub';
+      if (normalized.includes('replicate')) return 'replicate';
+      if (normalized.includes('elevenlabs')) return 'elevenlabs';
+      if (normalized.includes('assemblyai')) return 'assemblyai';
+      if (normalized.includes('deepgram')) return 'deepgram';
+      if (normalized.includes('rev.ai') || normalized.includes('rev ai')) return 'revai';
+      if (normalized.includes('murf')) return 'murf';
+      if (normalized.includes('play.ht')) return 'playht';
+      if (normalized.includes('suno')) return 'suno';
+      if (normalized.includes('github')) return 'PyGithub';
+      if (normalized.includes('gitlab')) return 'python-gitlab';
+      if (normalized.includes('stripe')) return 'stripe';
+      if (normalized.includes('twilio')) return 'twilio';
+      if (normalized.includes('slack')) return 'slack-sdk';
+      if (normalized.includes('sendgrid')) return 'sendgrid';
+      if (normalized.includes('resend')) return 'resend';
+      if (normalized.includes('supabase')) return 'supabase';
+      if (normalized.includes('sentry')) return 'sentry-sdk';
+      if (normalized.includes('vercel')) return 'vercel';
+      if (normalized.includes('netlify')) return 'netlify';
+      if (normalized.includes('docker hub')) return 'docker';
+      if (normalized.includes('uptimerobot')) return 'uptimerobot';
+      if (normalized.includes('firebase')) return 'firebase-admin';
+      if (normalized.includes('mongodb')) return 'pymongo';
+      if (normalized.includes('redis')) return 'redis';
+      if (normalized.includes('algolia')) return 'algoliasearch';
+      if (normalized.includes('airtable')) return 'airtable';
+      if (normalized.includes('notion')) return 'notion-client';
+      if (normalized.includes('pinecone')) return 'pinecone-client';
+      if (normalized.includes('google sheets')) return 'gspread';
+      if (normalized.includes('google drive')) return 'PyDrive2';
+      if (normalized.includes('google cloud storage')) return 'google-cloud-storage';
+      if (normalized.includes('aws s3')) return 'boto3';
+      if (normalized.includes('azure blob')) return 'azure-storage-blob';
+      if (normalized.includes('cloudinary')) return 'cloudinary';
+      if (normalized.includes('box')) return 'boxsdk';
+      if (normalized.includes('dropbox')) return 'dropbox';
+      if (normalized.includes('docker')) return 'docker';
+      return undefined;
+    };
+
     // ---- Python snippet registry ----
     type PySig = { pip: string; imports: string[]; code: (cfg: Record<string,string>, envVar: string) => string[] };
     const blockSnippets: Record<string, PySig> = {
@@ -541,6 +595,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
         `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
         `    response = client.chat.completions.create(model="${cfg.model || 'llama-3.3-70b-versatile'}", messages=[{"role": "user", "content": prompt}])`,
         `    return {"result": response.choices[0].message.content}`,
+      ]},
+      'Perplexity AI': { pip: 'perplexityai', imports: ['from perplexity import Perplexity'], code: (cfg, ev) => [
+        `    client = Perplexity(api_key=${ev})`,
+        `    response = client.search(${JSON.stringify(cfg.query || '')})`,
+        `    return {"result": getattr(response, "answer", None) or getattr(response, "text", None) or str(response)}`,
       ]},
       'Cohere': { pip: 'cohere', imports: ['import cohere'], code: (cfg, ev) => [
         `    co = cohere.ClientV2(api_key=${ev})`,
@@ -689,9 +748,13 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
 
     for (const b of blocks) {
       const snippet = blockSnippets[b.label];
+      const sdkHint = getPythonSdkHint(b.label);
       if (snippet) {
         if (snippet.pip !== 'requests') pipPackages.add(snippet.pip);
         snippet.imports.forEach((i) => allImports.add(i));
+      }
+      if (sdkHint && sdkHint !== 'requests') {
+        pipPackages.add(sdkHint);
       }
       if (b.auth === 'api_key') {
         const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
@@ -789,6 +852,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
       } else if (internal) {
         L.push(...internal(b.config));
       } else if (b.auth === 'api_key') {
+        const sdkHint = getPythonSdkHint(b.label);
+        if (sdkHint) {
+          L.push(`    # SDK available: pip install ${sdkHint}`);
+          L.push(`    # Replace this generic request with the ${sdkHint} client for ${b.label}`);
+        }
         L.push(`    headers = {"Authorization": f"Bearer {${ev}}", "Content-Type": "application/json"}`);
         L.push(`    url = config.get("url")`);
         L.push(`    if not url:`);
@@ -797,6 +865,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
         L.push(`    print(f"  ↳ ${b.label} called: {url}")`);
         L.push(`    return {"status": "ok", "response": response.json(), **(prev or {})}`);
       } else {
+        const sdkHint = getPythonSdkHint(b.label);
+        if (sdkHint) {
+          L.push(`    # SDK available: pip install ${sdkHint}`);
+          L.push(`    # A provider-specific SDK may be available for ${b.label}`);
+        }
         L.push(`    url = config.get("url")`);
         L.push(`    if not url:`);
         L.push(`        raise ValueError("Missing required url for ${b.label} step")`);
@@ -837,6 +910,46 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
 
   // ---- Node.js code generation ----
   const generateNodeCodeImpl = useCallback(() => {
+    const getNodeSdkHint = (label: string): string | undefined => {
+      const normalized = label.toLowerCase();
+      if (normalized.includes('openai')) return 'openai';
+      if (normalized.includes('anthropic')) return '@anthropic-ai/sdk';
+      if (normalized.includes('google gemini')) return '@google/genai';
+      if (normalized.includes('mistral')) return 'mistralai';
+      if (normalized.includes('groq')) return 'groq';
+      if (normalized.includes('perplexity')) return 'perplexityai';
+      if (normalized.includes('cohere')) return 'cohere';
+      if (normalized.includes('together ai')) return 'togetherai';
+      if (normalized.includes('hugging face')) return '@huggingface/inference';
+      if (normalized.includes('replicate')) return 'replicate';
+      if (normalized.includes('github')) return '@octokit/rest';
+      if (normalized.includes('gitlab')) return '@gitbeaker/node';
+      if (normalized.includes('stripe')) return 'stripe';
+      if (normalized.includes('twilio')) return 'twilio';
+      if (normalized.includes('slack')) return '@slack/web-api';
+      if (normalized.includes('sendgrid')) return '@sendgrid/mail';
+      if (normalized.includes('resend')) return 'resend';
+      if (normalized.includes('supabase')) return '@supabase/supabase-js';
+      if (normalized.includes('sentry')) return '@sentry/node';
+      if (normalized.includes('vercel')) return 'vercel';
+      if (normalized.includes('netlify')) return 'netlify';
+      if (normalized.includes('docker hub')) return 'dockerode';
+      if (normalized.includes('uptimerobot')) return 'uptimerobot';
+      if (normalized.includes('firebase')) return 'firebase-admin';
+      if (normalized.includes('mongodb')) return 'mongodb';
+      if (normalized.includes('redis')) return 'redis';
+      if (normalized.includes('algolia')) return 'algoliasearch';
+      if (normalized.includes('airtable')) return 'airtable';
+      if (normalized.includes('notion')) return '@notionhq/client';
+      if (normalized.includes('pinecone')) return '@pinecone/client';
+      if (normalized.includes('google sheets') || normalized.includes('google drive') || normalized.includes('google cloud storage')) return 'googleapis';
+      if (normalized.includes('aws s3')) return 'aws-sdk';
+      if (normalized.includes('azure blob')) return '@azure/storage-blob';
+      if (normalized.includes('cloudinary')) return 'cloudinary';
+      if (normalized.includes('dropbox')) return 'dropbox';
+      if (normalized.includes('box')) return 'box-node-sdk';
+      return undefined;
+    };
     type NodeSig = { npm: string; imports: string[]; code: (cfg: Record<string,string>, envVar: string) => string[] };
     const blockSnippets: Record<string, NodeSig> = {
       'OpenAI': { npm: 'openai', imports: ['const OpenAI = require("openai");'], code: (cfg, ev) => [
@@ -963,10 +1076,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
 
     for (const b of blocks) {
       const snippet = blockSnippets[b.label];
+      const sdkHint = getNodeSdkHint(b.label);
       if (snippet) {
         if (!['node-fetch'].includes(snippet.npm)) npmPackages.add(snippet.npm);
         snippet.imports.forEach((i) => allImports.add(i));
       }
+      if (sdkHint) npmPackages.add(sdkHint);
       if (b.auth === 'api_key') {
         const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
         if (!needsAuth.find((a) => a.envVar === ev)) {
@@ -1054,6 +1169,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
       } else if (internal) {
         L.push(...internal(b.config));
       } else if (b.auth === 'api_key' || b.auth === 'free') {
+        const sdkHint = getNodeSdkHint(b.label);
+        if (sdkHint) {
+          L.push(`  // SDK available: npm install ${sdkHint}`);
+          L.push(`  // Replace this generic fetch call with the ${sdkHint} SDK for ${b.label}`);
+        }
         L.push(`  const url = config.url || ""`);
         L.push(`  if (!url) throw new Error("Missing required url for ${b.label} step");`);
         L.push(`  const query = config.query ? JSON.parse(config.query) : undefined;`);
@@ -1093,13 +1213,13 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
     L.push('');
     L.push('runPipeline().catch(console.error);');
 
-    setPythonCode(L.join('\n') + '\n');
+    setNodeCode(L.join('\n') + '\n');
     toast.success('Node.js code generated!');
   }, [blocks]);
 
-  const copyPythonCode = useCallback(() => {
-    if (pythonCode) { navigator.clipboard.writeText(pythonCode); toast.success('Copied to clipboard!'); }
-  }, [pythonCode]);
+  const copyGeneratedCode = useCallback(() => {
+    if (generatedCode) { navigator.clipboard.writeText(generatedCode); toast.success('Copied to clipboard!'); }
+  }, [generatedCode]);
 
   return (
     <div className="grid h-full grid-cols-[290px_1fr_300px] overflow-hidden">
@@ -1264,18 +1384,18 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
         </div>
 
         <div className="h-[calc(100%-41px)] overflow-y-auto p-3 ide-scrollbar">
-          {pythonCode && (
+          {generatedCode && (
             <div className="mb-4 rounded-md border border-border bg-card/60 p-3">
               <div className="mb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
                   <p className="text-xs font-medium">Generated {codeLanguage === 'nodejs' ? 'Node.js' : 'Python'}</p>
                 </div>
-                <button onClick={copyPythonCode} className="rounded p-1 hover:bg-accent" title="Copy">
+                <button onClick={copyGeneratedCode} className="rounded p-1 hover:bg-accent" title="Copy">
                   <ClipboardCopy className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
               </div>
-              <pre className="max-h-[300px] overflow-auto rounded border border-border bg-background p-2 text-[11px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{pythonCode}</pre>
+              <pre className="max-h-[300px] overflow-auto rounded border border-border bg-background p-2 text-[11px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{generatedCode}</pre>
             </div>
           )}
 

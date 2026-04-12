@@ -2411,6 +2411,49 @@ const securityParams: APIParameter[] = [
   ]},
 ];
 
+const uptimeRobotParams: APIParameter[] = [
+  { name: 'monitor_id', displayName: 'Monitor ID', type: 'string' },
+  { name: 'friendly_name', displayName: 'Friendly Name', type: 'string' },
+  { name: 'url', displayName: 'URL', type: 'url', required: true },
+  { name: 'monitor_type', displayName: 'Monitor Type', type: 'select', default: 'http', options: [
+    { label: 'HTTP(s)', value: 'http' },
+    { label: 'Keyword', value: 'keyword' },
+    { label: 'Ping', value: 'ping' },
+  ]},
+  { name: 'alert_contact', displayName: 'Alert Contact', type: 'string', placeholder: 'email or contact id' },
+];
+
+const vercelParams: APIParameter[] = [
+  { name: 'project_id', displayName: 'Project ID', type: 'string' },
+  { name: 'team_id', displayName: 'Team ID', type: 'string' },
+  { name: 'alias', displayName: 'Alias', type: 'string' },
+  { name: 'environment', displayName: 'Environment', type: 'select', default: 'production', options: [
+    { label: 'Production', value: 'production' },
+    { label: 'Preview', value: 'preview' },
+    { label: 'Development', value: 'development' },
+  ]},
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"target":"production"}' },
+];
+
+const netlifyParams: APIParameter[] = [
+  { name: 'site_id', displayName: 'Site ID', type: 'string', required: true },
+  { name: 'branch', displayName: 'Branch', type: 'string', default: 'main' },
+  { name: 'build_command', displayName: 'Build Command', type: 'string', placeholder: 'npm run build' },
+  { name: 'deploy_message', displayName: 'Deploy Message', type: 'string' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"draft":false}' },
+];
+
+const dockerhubParams: APIParameter[] = [
+  { name: 'repository', displayName: 'Repository', type: 'string', required: true, placeholder: 'username/repo' },
+  { name: 'tag', displayName: 'Tag', type: 'string', default: 'latest' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'trigger_build', options: [
+    { label: 'Trigger Build', value: 'trigger_build' },
+    { label: 'Get Tags', value: 'get_tags' },
+    { label: 'Delete Tag', value: 'delete_tag' },
+  ]},
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"docker_tag":"latest"}' },
+];
+
 const weatherParams: APIParameter[] = [
   { name: 'location', displayName: 'Location', type: 'string', required: true, placeholder: 'New York, NY' },
   { name: 'units', displayName: 'Units', type: 'select', default: 'metric', options: [
@@ -2783,10 +2826,10 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Honeycomb', 'free'],
         ['BetterStack', 'free'],
         ['Pingdom', 'api_key', undefined, monitoringParams],
-        ['UptimeRobot', 'free'],
-        ['Vercel', 'free'],
-        ['Netlify', 'free'],
-        ['Docker Hub', 'free'],
+        ['UptimeRobot', 'free', undefined, uptimeRobotParams],
+        ['Vercel', 'free', undefined, vercelParams],
+        ['Netlify', 'free', undefined, netlifyParams],
+        ['Docker Hub', 'free', undefined, dockerhubParams],
       ]),
     ],
   },
