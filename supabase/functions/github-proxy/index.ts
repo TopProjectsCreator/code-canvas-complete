@@ -74,7 +74,7 @@ serve(async (req) => {
         });
         if (!pageResp.ok) {
           return new Response(JSON.stringify({ exists: false }), {
-            status: pageResp.status,
+            status: 200,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
