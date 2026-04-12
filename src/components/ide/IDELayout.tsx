@@ -36,7 +36,7 @@ import { useGitProviderImport } from "@/hooks/useGitProviderImport";
 import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
 import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/collabSyncEngine";
 import { useOfflineProject } from "@/hooks/useOfflineProject";
-import { AutomationTemplatePane } from "@/components/ide/AutomationTemplatePane";
+import { AutomationTemplatePane, type AutomationBlockInstance, serializeAutomationConfig, parseAutomationConfig } from "@/components/ide/AutomationTemplatePane";
 import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
 
 const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
