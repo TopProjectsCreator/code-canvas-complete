@@ -1167,6 +1167,7 @@ export const AutomationTemplatePane = () => {
                     config={selectedBlock.config}
                     onConfigChange={replaceSelectedConfig}
                     blockLabel={selectedBlock.label}
+                    stepIndex={blocks.findIndex((b) => b.id === selectedBlock.id)}
                   />
                 );
               })()}
