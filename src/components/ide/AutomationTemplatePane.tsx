@@ -1,4 +1,4 @@
-import { type DragEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
   CircleDot,
