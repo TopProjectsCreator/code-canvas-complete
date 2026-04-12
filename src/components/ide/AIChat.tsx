@@ -696,7 +696,8 @@ export const AIChat = ({
   onDuplicateFile,
   onOpenFile,
   onAppendToFile,
-  currentTemplate
+  currentTemplate,
+  automationConfig,
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
