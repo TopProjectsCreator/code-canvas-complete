@@ -425,6 +425,24 @@ export const AutomationTemplatePane = () => {
     }
   }, [blocks]);
 
+  /** Resolve {{prev.X}} tokens in a config value into Python code expressions. */
+  const resolvePyVar = (val: string): string => {
+    if (/^\{\{prev\.([^}]+)\}\}$/.test(val)) {
+      const key = val.match(/^\{\{prev\.([^}]+)\}\}$/)![1];
+      return `prev.get("${key}") if prev else None`;
+    }
+    return val.replace(/\{\{prev\.([^}]+)\}\}/g, (_, k) => `{prev.get("${k}", "") if prev else ""}`);
+  };
+
+  /** Resolve {{prev.X}} tokens in a config value into Node.js code expressions. */
+  const resolveJsVar = (val: string): string => {
+    if (/^\{\{prev\.([^}]+)\}\}$/.test(val)) {
+      const key = val.match(/^\{\{prev\.([^}]+)\}\}$/)![1];
+      return `prev?.${key} ?? null`;
+    }
+    return val.replace(/\{\{prev\.([^}]+)\}\}/g, (_, k) => `\${prev?.${k} ?? ""}`);
+  };
+
   const generatePythonCodeImpl = useCallback(() => {
     // ---- Python snippet registry ----
     type PySig = { pip: string; imports: string[]; code: (cfg: Record<string,string>, envVar: string) => string[] };
