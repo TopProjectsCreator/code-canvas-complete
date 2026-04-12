@@ -832,6 +832,7 @@ export const AIChat = ({
       agentMode: true,
       multimodalContent: attachments.length > 0 ? multimodalContent : undefined,
       template: currentTemplate,
+      automationConfig,
     });
     
     setInput('');
