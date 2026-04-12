@@ -49,6 +49,7 @@ function ModelConfigurator({
   onChange: (c: ModelConfig) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [modelFilter, setModelFilter] = useState('');
 
   return (
     <div className="space-y-1.5">
@@ -71,14 +72,28 @@ function ModelConfigurator({
       </Select>
 
       {/* Model */}
-      <Select value={config.model} onValueChange={(v) => onChange({ ...config, model: v })}>
-        <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {(PROVIDER_MODELS[config.provider] || []).map(m => (
-            <SelectItem key={m.id} value={m.id} className="text-xs">{m.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="space-y-2">
+        <input
+          value={modelFilter}
+          onChange={(e) => setModelFilter(e.target.value)}
+          placeholder="Search models..."
+          className="w-full rounded border border-border bg-input px-2 py-1 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
+        />
+        <Select value={config.model} onValueChange={(v) => onChange({ ...config, model: v })}>
+          <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {(PROVIDER_MODELS[config.provider] || [])
+              .filter((m) =>
+                modelFilter.trim()
+                  ? m.label.toLowerCase().includes(modelFilter.toLowerCase()) || m.id.toLowerCase().includes(modelFilter.toLowerCase())
+                  : true
+              )
+              .map(m => (
+                <SelectItem key={m.id} value={m.id} className="text-xs">{m.label}</SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       {/* Advanced Settings */}
       <Collapsible open={open} onOpenChange={setOpen}>

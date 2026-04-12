@@ -34,6 +34,7 @@ export const AutomationBlockParameterForm = ({
 }: AutomationBlockParameterFormProps) => {
   const [expandedHelp, setExpandedHelp] = useState<string | null>(null);
   const [variableDropdown, setVariableDropdown] = useState<string | null>(null);
+  const [selectFilters, setSelectFilters] = useState<Record<string, string>>({});
   const selectedOperation = useMemo(
     () => operations.find((op) => op.id === config.__operation),
     [operations, config.__operation]
@@ -157,21 +158,37 @@ export const AutomationBlockParameterForm = ({
         )}
 
         {param.type === 'select' && param.options ? (
-          <select
-            value={value}
-            onChange={(e) => handleFieldChange(param, e.target.value)}
-            className={cn(
-              'w-full rounded border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary',
-              error ? 'border-destructive/50' : 'border-border',
+          <>
+            {param.options.length > 12 && (
+              <input
+                value={selectFilters[param.name] ?? ''}
+                onChange={(e) => setSelectFilters((prev) => ({ ...prev, [param.name]: e.target.value }))}
+                placeholder={`Filter ${param.displayName}...`}
+                className="w-full rounded border border-border bg-input px-2 py-1.5 text-xs text-foreground mb-2 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
             )}
-          >
-            <option value="">Select {param.displayName}...</option>
-            {param.options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+            <select
+              value={value}
+              onChange={(e) => handleFieldChange(param, e.target.value)}
+              className={cn(
+                'w-full rounded border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary',
+                error ? 'border-destructive/50' : 'border-border',
+              )}
+            >
+              <option value="">Select {param.displayName}...</option>
+              {(param.options || [])
+                .filter((opt) => {
+                  const filter = selectFilters[param.name]?.toLowerCase().trim();
+                  if (!filter) return true;
+                  return opt.label.toLowerCase().includes(filter) || opt.value.toLowerCase().includes(filter);
+                })
+                .map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+            </select>
+          </>
         ) : param.type === 'textarea' ? (
           <textarea
             value={value}

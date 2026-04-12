@@ -704,6 +704,7 @@ export const AIChat = ({
   const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set());
   const [appliedChanges, setAppliedChanges] = useState<Set<string>>(new Set());
   const [showApiKeys, setShowApiKeys] = useState(false);
+  const [byokModelFilter, setByokModelFilter] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const {
@@ -875,10 +876,10 @@ export const AIChat = ({
     });
   };
 
-  const handleApplyChange = (change: CodeChange, changeId: string) => {
+  const handleApplyChange = useCallback((change: CodeChange, changeId: string) => {
     applyCodeChange(change);
     setAppliedChanges(prev => new Set(prev).add(changeId));
-  };
+  }, [applyCodeChange]);
 
   // Auto-apply logic based on autonomy mode
   useEffect(() => {
@@ -891,7 +892,7 @@ export const AIChat = ({
         }
       });
     });
-  }, [messages, autonomyConfig.codeChanges, appliedChanges]);
+  }, [messages, autonomyConfig.codeChanges, appliedChanges, handleApplyChange]);
 
   // Auto-apply tool calls (theme, git, share) based on autonomy mode
   useEffect(() => {
@@ -936,7 +937,30 @@ export const AIChat = ({
         }
       });
     });
-  }, [messages, autonomyConfig, appliedChanges]);
+  }, [
+    messages,
+    autonomyConfig.theme,
+    autonomyConfig.git,
+    autonomyConfig.share,
+    appliedChanges,
+    onSetTheme,
+    onCreateCustomTheme,
+    onGitCommit,
+    onGitInit,
+    onGitCreateBranch,
+    onGitImport,
+    onMakePublic,
+    onMakePrivate,
+    onGetProjectLink,
+    onShareTwitter,
+    onShareLinkedin,
+    onShareEmail,
+    onForkProject,
+    onStarProject,
+    onViewHistory,
+    onSaveProject,
+    onRunProject,
+  ]);
 
   // Resizable width
   const [panelWidth, setPanelWidth] = useState(320);
@@ -1402,6 +1426,7 @@ export const AIChat = ({
                   onClick={() => {
                     setByokProvider(provider);
                     setByokModel(PROVIDER_MODELS[provider]?.[0]?.id || null);
+                    setByokModelFilter('');
                   }}
                   className={cn(
                     'px-2 py-0.5 rounded text-[10px] font-medium transition-all',
@@ -1502,17 +1527,34 @@ export const AIChat = ({
 
             {/* BYOK model picker */}
             {byokProvider && PROVIDER_MODELS[byokProvider] && (
-              <div className="flex items-center gap-1.5 mb-2">
-                <span className="text-[10px] text-muted-foreground">Model:</span>
-                <select
-                  value={byokModel || ''}
-                  onChange={e => setByokModel(e.target.value)}
-                  className="text-[10px] bg-accent/50 border border-border rounded px-1.5 py-0.5 text-foreground outline-none focus:ring-1 focus:ring-primary flex-1"
-                >
-                  {PROVIDER_MODELS[byokProvider].map(m => (
-                    <option key={m.id} value={m.id}>{m.label}</option>
-                  ))}
-                </select>
+              <div className="space-y-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-muted-foreground">Filter models:</span>
+                  <input
+                    value={byokModelFilter}
+                    onChange={(e) => setByokModelFilter(e.target.value)}
+                    placeholder="Search models..."
+                    className="flex-1 rounded border border-border bg-input px-2 py-1 text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground">Model:</span>
+                  <select
+                    value={byokModel || ''}
+                    onChange={e => setByokModel(e.target.value)}
+                    className="text-[10px] bg-accent/50 border border-border rounded px-1.5 py-0.5 text-foreground outline-none focus:ring-1 focus:ring-primary flex-1"
+                  >
+                    {(PROVIDER_MODELS[byokProvider] || [])
+                      .filter((m) =>
+                        byokModelFilter.trim()
+                          ? m.label.toLowerCase().includes(byokModelFilter.toLowerCase()) || m.id.toLowerCase().includes(byokModelFilter.toLowerCase())
+                          : true
+                      )
+                      .map(m => (
+                        <option key={m.id} value={m.id}>{m.label}</option>
+                      ))}
+                  </select>
+                </div>
               </div>
             )}
 
