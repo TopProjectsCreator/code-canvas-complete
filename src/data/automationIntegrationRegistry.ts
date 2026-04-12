@@ -1539,6 +1539,455 @@ const typeformCredentials: APIParameter[] = [
   { name: 'api_token', displayName: 'Personal Access Token', type: 'password', required: true },
 ];
 
+const helpScoutParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Conversation', value: 'createConversation' },
+    { label: 'Add Note', value: 'addNote' },
+    { label: 'Send Reply', value: 'sendReply' },
+  ]},
+  { name: 'customer_email', displayName: 'Customer Email', type: 'email' },
+  { name: 'subject', displayName: 'Subject', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+];
+const helpScoutCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const frontParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Conversation', value: 'createConversation' },
+    { label: 'Send Reply', value: 'sendReply' },
+  ]},
+  { name: 'subject', displayName: 'Subject', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+  { name: 'recipient_email', displayName: 'Recipient Email', type: 'email' },
+];
+const frontCredentials: APIParameter[] = [
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const kustomerParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Conversation', value: 'createConversation' },
+    { label: 'Add Note', value: 'addNote' },
+  ]},
+  { name: 'customer_id', displayName: 'Customer ID', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+];
+const kustomerCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const gladlyParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Ticket', value: 'createTicket' },
+    { label: 'Post Message', value: 'postMessage' },
+  ]},
+  { name: 'subject', displayName: 'Subject', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+];
+const gladlyCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const crispParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Send Chat Message', value: 'sendMessage' },
+    { label: 'Create Contact', value: 'createContact' },
+  ]},
+  { name: 'website_id', displayName: 'Website ID', type: 'string', placeholder: 'website_id' },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+  { name: 'email', displayName: 'Email', type: 'email' },
+];
+const crispCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const tawkToParams: APIParameter[] = [
+  { name: 'widget_id', displayName: 'Widget ID', type: 'string', required: true },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'visitor_name', displayName: 'Visitor Name', type: 'string' },
+];
+const tawkToCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const driftParams: APIParameter[] = [
+  { name: 'contact_email', displayName: 'Contact Email', type: 'email', required: true },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'conversation_type', displayName: 'Conversation Type', type: 'select', options: [
+    { label: 'Bot', value: 'bot' },
+    { label: 'Human', value: 'human' },
+  ]},
+];
+const driftCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const manyChatParams: APIParameter[] = [
+  { name: 'flow_id', displayName: 'Flow ID', type: 'string', required: true },
+  { name: 'subscriber_id', displayName: 'Subscriber ID', type: 'string', required: true },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+];
+const manyChatCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const chatbaseParams: APIParameter[] = [
+  { name: 'query', displayName: 'Query', type: 'textarea', required: true },
+  { name: 'session_id', displayName: 'Session ID', type: 'string' },
+  { name: 'metadata', displayName: 'Metadata (JSON)', type: 'textarea' },
+];
+const chatbaseCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const landbotParams: APIParameter[] = [
+  { name: 'bot_id', displayName: 'Bot ID', type: 'string', required: true },
+  { name: 'visitor_id', displayName: 'Visitor ID', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+];
+const landbotCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const liveChatParams: APIParameter[] = [
+  { name: 'license_id', displayName: 'License ID', type: 'string', required: true },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'visitor_email', displayName: 'Visitor Email', type: 'email' },
+];
+const liveChatCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const jotformParams: APIParameter[] = [
+  { name: 'form_id', displayName: 'Form ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Get Submissions', value: 'getSubmissions' },
+    { label: 'Create Webhook', value: 'createWebhook' },
+  ]},
+];
+const jotformCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const tallyParams: APIParameter[] = [
+  { name: 'form_id', displayName: 'Form ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Get Responses', value: 'getResponses' },
+    { label: 'Create Webhook', value: 'createWebhook' },
+  ]},
+];
+const tallyCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const surveyMonkeyParams: APIParameter[] = [
+  { name: 'survey_id', displayName: 'Survey ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Get Responses', value: 'getResponses' },
+    { label: 'Create Collector', value: 'createCollector' },
+  ]},
+];
+const surveyMonkeyCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const userTestingParams: APIParameter[] = [
+  { name: 'test_id', displayName: 'Test ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Note', value: 'createNote' },
+    { label: 'Get Sessions', value: 'getSessions' },
+  ]},
+  { name: 'note', displayName: 'Note', type: 'textarea' },
+];
+const userTestingCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const qualtricsParams: APIParameter[] = [
+  { name: 'survey_id', displayName: 'Survey ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Get Responses', value: 'getResponses' },
+    { label: 'Send Survey', value: 'sendSurvey' },
+  ]},
+  { name: 'recipient_email', displayName: 'Recipient Email', type: 'email' },
+];
+const qualtricsCredentials: APIParameter[] = [
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const zohoCRMParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Lead', value: 'createLead' },
+    { label: 'Create Contact', value: 'createContact' },
+    { label: 'Update Deal', value: 'updateDeal' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"Last_Name":"Doe","Company":"Acme"}' },
+];
+const zohoCRMCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const copperParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Lead', value: 'createLead' },
+    { label: 'Create Contact', value: 'createContact' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"name":"Jane Doe","email":"jane@example.com"}' },
+];
+const copperCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const keapParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Contact', value: 'createContact' },
+    { label: 'Create Task', value: 'createTask' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"email":"user@example.com","first_name":"User"}' },
+];
+const keapCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const closeParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Lead', value: 'createLead' },
+    { label: 'Create Opportunity', value: 'createOpportunity' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"name":"Lead Name","status":"contacted"}' },
+];
+const closeCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const attioParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Contact', value: 'createContact' },
+    { label: 'Update Contact', value: 'updateContact' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"name":"Alex","email":"alex@example.com"}' },
+];
+const attioCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const folkParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Contact', value: 'createContact' },
+    { label: 'List Contacts', value: 'listContacts' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"name":"Morgan","email":"morgan@example.com"}' },
+];
+const folkCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const apolloParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Lead', value: 'createLead' },
+    { label: 'Search Contact', value: 'searchContact' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"name":"Pat","email":"pat@example.com"}' },
+];
+const apolloCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const linkedInAdsParams: APIParameter[] = [
+  { name: 'account_id', displayName: 'Account ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Campaign', value: 'createCampaign' },
+    { label: 'Get Campaigns', value: 'getCampaigns' },
+  ]},
+  { name: 'campaign_data', displayName: 'Campaign Data (JSON)', type: 'textarea' },
+];
+const linkedInAdsCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const tiktokAdsParams: APIParameter[] = [
+  { name: 'advertiser_id', displayName: 'Advertiser ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Campaign', value: 'createCampaign' },
+    { label: 'Get Campaigns', value: 'getCampaigns' },
+  ]},
+  { name: 'campaign_data', displayName: 'Campaign Data (JSON)', type: 'textarea' },
+];
+const tiktokAdsCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const mixpanelParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Track Event', value: 'trackEvent' },
+    { label: 'Create User', value: 'createUser' },
+  ]},
+  { name: 'event_name', displayName: 'Event Name', type: 'string' },
+  { name: 'distinct_id', displayName: 'Distinct ID', type: 'string' },
+  { name: 'properties', displayName: 'Properties (JSON)', type: 'textarea' },
+];
+const mixpanelCredentials: APIParameter[] = [
+  { name: 'api_secret', displayName: 'API Secret', type: 'password', required: true },
+];
+
+const amplitudeParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Track Event', value: 'trackEvent' },
+    { label: 'Identify User', value: 'identifyUser' },
+  ]},
+  { name: 'event_type', displayName: 'Event Type', type: 'string' },
+  { name: 'user_id', displayName: 'User ID', type: 'string' },
+  { name: 'event_properties', displayName: 'Event Properties (JSON)', type: 'textarea' },
+];
+const amplitudeCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const segmentParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Track Event', value: 'trackEvent' },
+    { label: 'Identify', value: 'identify' },
+  ]},
+  { name: 'user_id', displayName: 'User ID', type: 'string' },
+  { name: 'event', displayName: 'Event', type: 'string' },
+  { name: 'properties', displayName: 'Properties (JSON)', type: 'textarea' },
+];
+const segmentCredentials: APIParameter[] = [
+  { name: 'write_key', displayName: 'Write Key', type: 'password', required: true },
+];
+
+const clearbitParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Enrich Person', value: 'enrichPerson' },
+    { label: 'Enrich Company', value: 'enrichCompany' },
+  ]},
+  { name: 'email', displayName: 'Email', type: 'email' },
+  { name: 'domain', displayName: 'Domain', type: 'string' },
+];
+const clearbitCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const mondayComParams: APIParameter[] = [
+  { name: 'board_id', displayName: 'Board ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Item', value: 'createItem' },
+    { label: 'Update Item', value: 'updateItem' },
+  ]},
+  { name: 'item_name', displayName: 'Item Name', type: 'string' },
+  { name: 'column_values', displayName: 'Column Values (JSON)', type: 'textarea' },
+];
+const mondayComCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const basecampParams: APIParameter[] = [
+  { name: 'project_id', displayName: 'Project ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Todo', value: 'createTodo' },
+    { label: 'Create Message', value: 'createMessage' },
+  ]},
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const basecampCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const todoistParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Task', value: 'createTask' },
+    { label: 'Complete Task', value: 'completeTask' },
+  ]},
+  { name: 'content', displayName: 'Content', type: 'string' },
+  { name: 'project_id', displayName: 'Project ID', type: 'string' },
+  { name: 'due_string', displayName: 'Due Date', type: 'string', placeholder: 'tomorrow at 9am' },
+];
+const todoistCredentials: APIParameter[] = [
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const ticktickParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Task', value: 'createTask' },
+    { label: 'Complete Task', value: 'completeTask' },
+  ]},
+  { name: 'content', displayName: 'Content', type: 'string' },
+  { name: 'due_date', displayName: 'Due Date', type: 'string', placeholder: '2026-01-01' },
+];
+const ticktickCredentials: APIParameter[] = [
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const confluenceParams: APIParameter[] = [
+  { name: 'space_key', displayName: 'Space Key', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Page', value: 'createPage' },
+    { label: 'Update Page', value: 'updatePage' },
+  ]},
+  { name: 'title', displayName: 'Title', type: 'string', required: true },
+  { name: 'body', displayName: 'Body', type: 'textarea', required: true },
+];
+const confluenceCredentials: APIParameter[] = [
+  { name: 'base_url', displayName: 'Confluence URL', type: 'url', required: true },
+  { name: 'email', displayName: 'Email', type: 'email', required: true },
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const sliteParams: APIParameter[] = [
+  { name: 'workspace_id', displayName: 'Workspace ID', type: 'string', required: true },
+  { name: 'title', displayName: 'Title', type: 'string', required: true },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const sliteCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const gitbookParams: APIParameter[] = [
+  { name: 'space_slug', displayName: 'Space Slug', type: 'string', required: true },
+  { name: 'title', displayName: 'Title', type: 'string', required: true },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const gitbookCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const guruParams: APIParameter[] = [
+  { name: 'board_uid', displayName: 'Board UID', type: 'string', required: true },
+  { name: 'title', displayName: 'Title', type: 'string', required: true },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const guruCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const slabParams: APIParameter[] = [
+  { name: 'workspace_id', displayName: 'Workspace ID', type: 'string', required: true },
+  { name: 'title', displayName: 'Title', type: 'string', required: true },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const slabCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const evernoteParams: APIParameter[] = [
+  { name: 'notebook_guid', displayName: 'Notebook GUID', type: 'string', required: true },
+  { name: 'title', displayName: 'Note Title', type: 'string', required: true },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const evernoteCredentials: APIParameter[] = [
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const ollamaParams: APIParameter[] = [
+  { name: 'model_path', displayName: 'Model Path', type: 'string', required: true, placeholder: '/models/llama2' },
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+  { name: 'temperature', displayName: 'Temperature', type: 'number', default: 0.7 },
+  { name: 'max_tokens', displayName: 'Max Tokens', type: 'number', default: 512 },
+  { name: 'system_prompt', displayName: 'System Prompt', type: 'textarea', placeholder: 'You are a helpful assistant.' },
+];
+
 // ============ MARKETING & ADS ============
 const googleadsParams: APIParameter[] = [
   { name: 'customer_id', displayName: 'Customer ID', type: 'string', required: true },
@@ -1785,7 +2234,7 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Hugging Face', 'api_key', undefined, huggingFaceParams, huggingFaceCredentials],
         ['Replicate', 'api_key', undefined, replicateParams, replicateCredentials],
         ['DeepSeek', 'api_key', undefined, deepSeekParams],
-        ['Ollama', 'local'],
+        ['Ollama', 'local', undefined, ollamaParams],
       ]),
       withBlocks('image-video-3d', 'Image, Video & 3D Generation', [
         ['DALL-E', 'api_key', undefined, dalleParams],
@@ -1927,19 +2376,19 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Zendesk', 'api_key', undefined, zendeskParams, zendeskCredentials],
         ['Freshdesk', 'free'],
         ['Gorgias', 'api_key'],
-        ['Help Scout', 'api_key'],
-        ['Front', 'api_key'],
+        ['Help Scout', 'api_key', undefined, helpScoutParams, helpScoutCredentials],
+        ['Front', 'api_key', undefined, frontParams, frontCredentials],
         ['Intercom', 'api_key', undefined, intercomParams, intercomCredentials],
-        ['Kustomer', 'api_key'],
-        ['Gladly', 'api_key'],
+        ['Kustomer', 'api_key', undefined, kustomerParams, kustomerCredentials],
+        ['Gladly', 'api_key', undefined, gladlyParams, gladlyCredentials],
       ]),
       withBlocks('live-chat', 'Live Chat & Chatbots', [
-        ['Crisp', 'free'], ['Tawk.to', 'free'], ['Drift', 'api_key'], ['ManyChat', 'free'], ['Chatbase', 'api_key'],
-        ['Landbot', 'free'], ['LiveChat', 'api_key'],
+        ['Crisp', 'free', undefined, crispParams, crispCredentials], ['Tawk.to', 'free', undefined, tawkToParams, tawkToCredentials], ['Drift', 'api_key', undefined, driftParams, driftCredentials], ['ManyChat', 'free', undefined, manyChatParams, manyChatCredentials], ['Chatbase', 'api_key', undefined, chatbaseParams, chatbaseCredentials],
+        ['Landbot', 'free', undefined, landbotParams, landbotCredentials], ['LiveChat', 'api_key', undefined, liveChatParams, liveChatCredentials],
       ]),
       withBlocks('surveys', 'Surveys & User Feedback', [
-        ['Typeform', 'free'], ['Jotform', 'free'], ['Tally.so', 'free'], ['SurveyMonkey', 'api_key'], ['Hotjar', 'free'],
-        ['UserTesting', 'api_key'], ['Qualtrics', 'api_key'],
+        ['Typeform', 'free', undefined, typeformParams, typeformCredentials], ['Jotform', 'free', undefined, jotformParams, jotformCredentials], ['Tally.so', 'free', undefined, tallyParams, tallyCredentials], ['SurveyMonkey', 'api_key', undefined, surveyMonkeyParams, surveyMonkeyCredentials], ['Hotjar', 'free'],
+        ['UserTesting', 'api_key', undefined, userTestingParams, userTestingCredentials], ['Qualtrics', 'api_key', undefined, qualtricsParams, qualtricsCredentials],
       ]),
     ],
   },
@@ -1951,17 +2400,17 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Salesforce', 'api_key', undefined, salesforceParams, salesforceCredentials],
         ['HubSpot', 'free', undefined, hubspotParams, hubspotCredentials],
         ['Pipedrive', 'api_key', undefined, pipedriveParams, pipedriveCredentials],
-        ['Zoho CRM', 'free'],
-        ['Copper', 'api_key'],
-        ['Keap', 'api_key'],
-        ['Close.com', 'api_key'],
-        ['Attio', 'free'],
-        ['Folk', 'free'],
-        ['Apollo.io', 'api_key'],
+        ['Zoho CRM', 'free', undefined, zohoCRMParams, zohoCRMCredentials],
+        ['Copper', 'api_key', undefined, copperParams, copperCredentials],
+        ['Keap', 'api_key', undefined, keapParams, keapCredentials],
+        ['Close.com', 'api_key', undefined, closeParams, closeCredentials],
+        ['Attio', 'free', undefined, attioParams, attioCredentials],
+        ['Folk', 'free', undefined, folkParams, folkCredentials],
+        ['Apollo.io', 'api_key', undefined, apolloParams, apolloCredentials],
       ]),
       withBlocks('ads-growth', 'Ads & Growth', [
-        ['Google Ads', 'api_key'], ['Meta Ads', 'api_key'], ['LinkedIn Ads', 'api_key'], ['TikTok Ads', 'api_key'],
-        ['Mixpanel', 'free'], ['Amplitude', 'free'], ['Segment', 'free'], ['Clearbit', 'api_key'],
+        ['Google Ads', 'api_key', undefined, googleadsParams, googleadsCredentials], ['Meta Ads', 'api_key', undefined, metaadsParams, metaadsCredentials], ['LinkedIn Ads', 'api_key', undefined, linkedInAdsParams, linkedInAdsCredentials], ['TikTok Ads', 'api_key', undefined, tiktokAdsParams, tiktokAdsCredentials],
+        ['Mixpanel', 'free', undefined, mixpanelParams, mixpanelCredentials], ['Amplitude', 'free', undefined, amplitudeParams, amplitudeCredentials], ['Segment', 'free', undefined, segmentParams, segmentCredentials], ['Clearbit', 'api_key', undefined, clearbitParams, clearbitCredentials],
       ]),
     ],
   },
@@ -1970,12 +2419,12 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Project & Knowledge Management',
     subcategories: [
       withBlocks('tasks', 'Task Management', [
-        ['Asana', 'free'], ['Trello', 'free'], ['ClickUp', 'free'], ['Linear', 'free'], ['Monday.com', 'api_key'],
-        ['Jira', 'api_key'], ['Basecamp', 'api_key'], ['Todoist', 'free'], ['TickTick', 'api_key'],
+        ['Asana', 'free'], ['Trello', 'free'], ['ClickUp', 'free'], ['Linear', 'free'], ['Monday.com', 'api_key', undefined, mondayComParams, mondayComCredentials],
+        ['Jira', 'api_key', undefined, jiraParams, jiraCredentials], ['Basecamp', 'api_key', undefined, basecampParams, basecampCredentials], ['Todoist', 'free', undefined, todoistParams, todoistCredentials], ['TickTick', 'api_key', undefined, ticktickParams, ticktickCredentials],
       ]),
       withBlocks('notes-wiki', 'Notes & Wiki', [
-        ['Notion', 'free'], ['Obsidian Sync', 'api_key'], ['Confluence', 'api_key'], ['Slite', 'free'], ['GitBook', 'free'],
-        ['Guru', 'api_key'], ['Slab', 'api_key'], ['Evernote', 'api_key'],
+        ['Notion', 'free', undefined, notionParams, notionCredentials], ['Obsidian Sync', 'api_key'], ['Confluence', 'api_key', undefined, confluenceParams, confluenceCredentials], ['Slite', 'free', undefined, sliteParams, sliteCredentials], ['GitBook', 'free', undefined, gitbookParams, gitbookCredentials],
+        ['Guru', 'api_key', undefined, guruParams, guruCredentials], ['Slab', 'api_key', undefined, slabParams, slabCredentials], ['Evernote', 'api_key', undefined, evernoteParams, evernoteCredentials],
       ]),
     ],
   },
