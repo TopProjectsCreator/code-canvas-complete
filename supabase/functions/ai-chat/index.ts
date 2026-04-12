@@ -791,6 +791,7 @@ serve(async (req) => {
       enableCodeExecution,
       enableMCP,
       template,
+      automationConfig,
     } = await req.json();
 
     // Check if user has a custom API key for the selected BYOK provider
@@ -927,6 +928,9 @@ serve(async (req) => {
     }
     if (agentSkills && (agentSkills as any[]).length > 0) {
       contextSection += `\n\n### 🧠 Active Agent Skills\nFollow these custom instructions provided by the user:\n${(agentSkills as any[]).map((s: any) => `#### ${s.name}${s.description ? ` (${s.description})` : ""}\n${s.instruction}`).join("\n\n")}`;
+    }
+    if (automationConfig) {
+      contextSection += `\n\n### 🔧 Current Automation Pipeline (\`automation.config.json\`)\n\`\`\`json\n${automationConfig}\n\`\`\`\nYou can modify this file to update the automation pipeline. Changes will be synced to the visual editor automatically.`;
     }
 
     const systemPrompt = agentMode
