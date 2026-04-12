@@ -281,10 +281,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
   blocksChangeRef.current = onBlocksChange;
 
   // Sync with initialBlocks from external changes (file edits)
-  const prevInitialRef = useRef(initialBlocks);
   useEffect(() => {
-    if (initialBlocks && initialBlocks !== prevInitialRef.current) {
-      prevInitialRef.current = initialBlocks;
+    if (!initialBlocks) return;
+    // Compare by serialized content to avoid unnecessary updates
+    const currentJson = JSON.stringify(blocks.map(b => ({ type: b.type, label: b.label, config: b.config })));
+    const incomingJson = JSON.stringify(initialBlocks.map(b => ({ type: b.type, label: b.label, config: b.config })));
+    if (currentJson !== incomingJson) {
       setBlocks(initialBlocks);
     }
   }, [initialBlocks]);

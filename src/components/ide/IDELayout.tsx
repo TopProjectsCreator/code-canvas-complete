@@ -285,6 +285,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [scratchArchive, setScratchArchive] = useState<ScratchArchive | null>(null);
   const [automationBlocks, setAutomationBlocks] = useState<AutomationBlockInstance[] | undefined>(undefined);
   const automationSyncRef = useRef<'pane' | 'file' | null>(null);
+  const lastAutomationJsonRef = useRef<string | null>(null);
   const [historyEntries, setHistoryEntries] = useState<
     Array<{
       id: string;
@@ -466,17 +467,20 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   // When automation.config.json file content changes externally, update pane
   useEffect(() => {
     if (selectedTemplate !== "automation") return;
+    const content = getAutomationConfigContent();
+    if (!content) return;
+    // Skip if content hasn't actually changed (prevents loops)
+    if (content === lastAutomationJsonRef.current) return;
     if (automationSyncRef.current === 'pane') {
       automationSyncRef.current = null;
+      lastAutomationJsonRef.current = content;
       return;
     }
-    const content = getAutomationConfigContent();
-    if (content) {
-      const parsed = parseAutomationConfig(content);
-      if (parsed) {
-        automationSyncRef.current = 'file';
-        setAutomationBlocks(parsed);
-      }
+    const parsed = parseAutomationConfig(content);
+    if (parsed) {
+      lastAutomationJsonRef.current = content;
+      automationSyncRef.current = 'file';
+      setAutomationBlocks(parsed);
     }
   }, [getAutomationConfigContent, selectedTemplate]);
 
@@ -488,6 +492,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     }
     automationSyncRef.current = 'pane';
     const json = serializeAutomationConfig(newBlocks);
+    lastAutomationJsonRef.current = json;
     // Find and update the automation.config.json file
     const findAndUpdate = (nodes: FileNode[]): FileNode[] => {
       return nodes.map(node => {
