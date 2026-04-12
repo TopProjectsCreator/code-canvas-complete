@@ -449,6 +449,72 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     : null;
   const activeFilePath = activeFile ? findFilePathById(files, activeFile.id) || activeFile.name : null;
 
+  // Automation 2-way sync: file → pane
+  const getAutomationConfigContent = useCallback((): string | null => {
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "automation.config.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (!file) return null;
+    return fileContents[file.id] ?? file.content ?? null;
+  }, [files, fileContents]);
+
+  // When automation.config.json file content changes externally, update pane
+  useEffect(() => {
+    if (selectedTemplate !== "automation") return;
+    if (automationSyncRef.current === 'pane') {
+      automationSyncRef.current = null;
+      return;
+    }
+    const content = getAutomationConfigContent();
+    if (content) {
+      const parsed = parseAutomationConfig(content);
+      if (parsed) {
+        automationSyncRef.current = 'file';
+        setAutomationBlocks(parsed);
+      }
+    }
+  }, [getAutomationConfigContent, selectedTemplate]);
+
+  // When blocks change in pane, update the file
+  const handleAutomationBlocksChange = useCallback((newBlocks: AutomationBlockInstance[]) => {
+    if (automationSyncRef.current === 'file') {
+      automationSyncRef.current = null;
+      return;
+    }
+    automationSyncRef.current = 'pane';
+    const json = serializeAutomationConfig(newBlocks);
+    // Find and update the automation.config.json file
+    const findAndUpdate = (nodes: FileNode[]): FileNode[] => {
+      return nodes.map(node => {
+        if (node.type === "file" && node.name === "automation.config.json") {
+          return { ...node, content: json };
+        }
+        if (node.children) {
+          return { ...node, children: findAndUpdate(node.children) };
+        }
+        return node;
+      });
+    };
+    setFiles(prev => findAndUpdate(prev));
+    // Also update fileContents
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "automation.config.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (file) {
+      setFileContents(prev => ({ ...prev, [file.id]: json }));
+    }
+  }, [files]);
+
   useEffect(() => {
     if (!activeFilePath) return;
     void collab.updatePresence({ currentFile: activeFilePath });
