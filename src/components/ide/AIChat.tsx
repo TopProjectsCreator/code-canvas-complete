@@ -75,6 +75,7 @@ interface AIChatProps {
   onOpenFile?: (name: string) => void;
   onAppendToFile?: (name: string, content: string) => void;
   currentTemplate?: string;
+  automationConfig?: string | null;
 }
 
 const quickActions: QuickAction[] = [
