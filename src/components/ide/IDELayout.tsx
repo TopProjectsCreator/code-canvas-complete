@@ -2772,6 +2772,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               });
             }}
             currentTemplate={selectedTemplate || undefined}
+            automationConfig={selectedTemplate === "automation" ? getAutomationConfigContent() : null}
           />
         </div>
 
