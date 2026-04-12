@@ -804,6 +804,7 @@ export const AIChat = ({
       consoleErrors: recentErrors,
       agentMode: true,
       template: currentTemplate,
+      automationConfig,
     });
   };
 
@@ -1301,6 +1302,7 @@ export const AIChat = ({
                               consoleErrors: recentErrors,
                               agentMode: true,
                               template: currentTemplate,
+                              automationConfig,
                             });
                           }}
                         />
