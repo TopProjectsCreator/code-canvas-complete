@@ -527,7 +527,83 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     }
   }, [files]);
 
+  // Scratch 2-way sync: file → pane
+  const getScratchProjectJsonContent = useCallback((): string | null => {
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "project.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (!file) return null;
+    return fileContents[file.id] ?? file.content ?? null;
+  }, [files, fileContents]);
+
+  // When project.json file content changes externally (AI edit), update scratch archive
   useEffect(() => {
+    if (selectedTemplate !== "scratch") return;
+    const content = getScratchProjectJsonContent();
+    if (!content) return;
+    if (scratchSyncRef.current === 'pane') {
+      if (content === lastScratchJsonRef.current) {
+        scratchSyncRef.current = null;
+        return;
+      }
+      scratchSyncRef.current = null;
+      lastScratchJsonRef.current = content;
+    }
+    if (content === lastScratchJsonRef.current) return;
+    try {
+      JSON.parse(content); // validate JSON
+      lastScratchJsonRef.current = content;
+      scratchSyncRef.current = 'file';
+      setScratchArchive(prev => ({
+        projectJson: content,
+        files: prev?.files ?? {},
+        fileNames: prev?.fileNames ?? [],
+      }));
+      setScratchSyncVersion(v => v + 1);
+    } catch {
+      // invalid JSON, skip
+    }
+  }, [getScratchProjectJsonContent, selectedTemplate]);
+
+  // Scratch pane → file sync handler
+  const handleScratchProjectJsonUpdate = useCallback((json: string) => {
+    if (scratchSyncRef.current === 'file') {
+      scratchSyncRef.current = null;
+      return;
+    }
+    scratchSyncRef.current = 'pane';
+    lastScratchJsonRef.current = json;
+    setFiles((prev) =>
+      prev.map((node) => {
+        if (node.type !== "folder") return node;
+        return {
+          ...node,
+          children: (node.children || []).map((child) =>
+            child.name === "project.json" ? { ...child, content: json } : child,
+          ),
+        };
+      }),
+    );
+    // Also update fileContents
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "project.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (file) {
+      setFileContents(prev => ({ ...prev, [file.id]: json }));
+    }
+  }, [files]);
+
+
     if (!activeFilePath) return;
     void collab.updatePresence({ currentFile: activeFilePath });
   }, [activeFilePath, collab]);
