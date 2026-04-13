@@ -283,6 +283,9 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
   const [scratchArchive, setScratchArchive] = useState<ScratchArchive | null>(null);
+  const [scratchSyncVersion, setScratchSyncVersion] = useState(0);
+  const scratchSyncRef = useRef<'pane' | 'file' | null>(null);
+  const lastScratchJsonRef = useRef<string | null>(null);
   const [automationBlocks, setAutomationBlocks] = useState<AutomationBlockInstance[] | undefined>(undefined);
   const [automationSyncVersion, setAutomationSyncVersion] = useState(0);
   const automationSyncRef = useRef<'pane' | 'file' | null>(null);
