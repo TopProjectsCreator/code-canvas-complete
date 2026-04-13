@@ -73,6 +73,7 @@ export const parseAutomationConfig = (json: string): AutomationBlockInstance[] |
 interface AutomationTemplatePaneProps {
   initialBlocks?: AutomationBlockInstance[];
   onBlocksChange?: (blocks: AutomationBlockInstance[]) => void;
+  syncVersion?: number;
 }
 
 const createId = () => Math.random().toString(36).slice(2, 9);
@@ -272,7 +273,10 @@ const starterFlow = (): AutomationBlockInstance[] => [
   },
 ];
 
-export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: AutomationTemplatePaneProps = {}) => {
+const getBlocksSignature = (items: AutomationBlockInstance[]) =>
+  JSON.stringify(items.map((block) => ({ type: block.type, label: block.label, config: block.config })));
+
+export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVersion = 0 }: AutomationTemplatePaneProps = {}) => {
   const [query, setQuery] = useState('');
   const [blocks, setBlocks] = useState<AutomationBlockInstance[]>(initialBlocks ?? starterFlow());
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
@@ -285,21 +289,34 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange }: Automa
   const [codeLanguage, setCodeLanguage] = useState<'python' | 'nodejs'>('python');
   const generatedCode = codeLanguage === 'nodejs' ? nodeCode : pythonCode;
   const blocksChangeRef = useRef(onBlocksChange);
+  const skipNextBlocksEmitRef = useRef(false);
+  const hasMountedRef = useRef(false);
   blocksChangeRef.current = onBlocksChange;
 
   // Sync with initialBlocks from external changes (file edits)
   useEffect(() => {
     if (!initialBlocks) return;
-    // Compare by serialized content to avoid unnecessary updates
-    const currentJson = JSON.stringify(blocks.map(b => ({ type: b.type, label: b.label, config: b.config })));
-    const incomingJson = JSON.stringify(initialBlocks.map(b => ({ type: b.type, label: b.label, config: b.config })));
+    const currentJson = getBlocksSignature(blocks);
+    const incomingJson = getBlocksSignature(initialBlocks);
     if (currentJson !== incomingJson) {
+      skipNextBlocksEmitRef.current = true;
       setBlocks(initialBlocks);
+      setSelectedBlockId((currentSelectedId) =>
+        initialBlocks.some((block) => block.id === currentSelectedId) ? currentSelectedId : null,
+      );
     }
-  }, [initialBlocks]);
+  }, [blocks, initialBlocks, syncVersion]);
 
   // Emit block changes to parent for file sync
   useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    if (skipNextBlocksEmitRef.current) {
+      skipNextBlocksEmitRef.current = false;
+      return;
+    }
     blocksChangeRef.current?.(blocks);
   }, [blocks]);
   const selectedBlock = useMemo(
