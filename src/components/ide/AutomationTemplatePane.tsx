@@ -84,7 +84,13 @@ const getBlockDefinition = (type: string) => {
 
 const isTriggerBlock = (block: AutomationBlockInstance) => {
   const def = getBlockDefinition(block.type);
-  return Boolean(def?.isTrigger);
+  if (def?.isTrigger) return true;
+  // Fallback: check subcategory name for blocks created by AI that may not exactly match registry types
+  if (block.subcategory?.toLowerCase() === 'triggers') return true;
+  // Fallback: check common trigger type patterns
+  const t = block.type?.toLowerCase() ?? '';
+  if (/\b(schedule|cron|webhook|trigger|interval|timer|watcher|poll)\b/.test(t)) return true;
+  return false;
 };
 
 const authLabel: Record<AutomationAuthType, string> = {
