@@ -489,6 +489,108 @@ Example: An OpenAI block that summarizes GitHub data:
 - Changes to automation.config.json are automatically synced to the visual pipeline editor.
 `;
 
+const SCRATCH_SECTION = `
+## SCRATCH BLOCK EDITOR
+When the user is working with the Scratch template, they have access to a visual Scratch block editor. You can **edit project.json directly** to create, modify, or update Scratch projects programmatically.
+
+### project.json Schema (Scratch 3.0)
+The file must conform to this structure:
+\`\`\`json
+{
+  "targets": [
+    {
+      "isStage": true,
+      "name": "Stage",
+      "variables": { "varId": ["my variable", 0] },
+      "lists": {},
+      "broadcasts": {},
+      "blocks": {},
+      "comments": {},
+      "currentCostume": 0,
+      "costumes": [
+        { "name": "backdrop1", "dataFormat": "svg", "assetId": "...", "md5ext": "....svg", "rotationCenterX": 240, "rotationCenterY": 180 }
+      ],
+      "sounds": [],
+      "volume": 100,
+      "layerOrder": 0,
+      "tempo": 60,
+      "videoTransparency": 50,
+      "videoState": "on",
+      "textToSpeechLanguage": null
+    },
+    {
+      "isStage": false,
+      "name": "Sprite1",
+      "variables": {},
+      "lists": {},
+      "broadcasts": {},
+      "blocks": {
+        "blockId1": {
+          "opcode": "event_whenflagclicked",
+          "next": "blockId2",
+          "parent": null,
+          "inputs": {},
+          "fields": {},
+          "shadow": false,
+          "topLevel": true,
+          "x": 0,
+          "y": 0
+        }
+      },
+      "comments": {},
+      "currentCostume": 0,
+      "costumes": [],
+      "sounds": [],
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "size": 100,
+      "direction": 90,
+      "draggable": false,
+      "rotationStyle": "all around",
+      "layerOrder": 1
+    }
+  ],
+  "monitors": [],
+  "extensions": [],
+  "meta": { "semver": "3.0.0", "vm": "0.2.0", "agent": "CodeCanvas" }
+}
+\`\`\`
+
+### Common Block Opcodes
+| Opcode | Category | Shape | Description |
+|--------|----------|-------|-------------|
+| \`event_whenflagclicked\` | Events | hat | When green flag clicked |
+| \`event_whenkeypressed\` | Events | hat | When key pressed (fields: KEY_OPTION) |
+| \`control_wait\` | Control | stack | Wait N seconds (inputs: DURATION) |
+| \`control_repeat\` | Control | c-block | Repeat N times (inputs: TIMES, SUBSTACK) |
+| \`control_forever\` | Control | c-block | Forever loop (inputs: SUBSTACK) |
+| \`control_if\` | Control | c-block | If condition (inputs: CONDITION, SUBSTACK) |
+| \`motion_movesteps\` | Motion | stack | Move N steps (inputs: STEPS) |
+| \`motion_turnright\` | Motion | stack | Turn right N degrees (inputs: DEGREES) |
+| \`motion_gotoxy\` | Motion | stack | Go to x,y (inputs: X, Y) |
+| \`looks_sayforsecs\` | Looks | stack | Say text for N seconds (inputs: MESSAGE, SECS) |
+| \`looks_show\` | Looks | stack | Show sprite |
+| \`looks_hide\` | Looks | stack | Hide sprite |
+| \`sound_play\` | Sound | stack | Play sound (inputs: SOUND_MENU) |
+| \`sensing_askandwait\` | Sensing | stack | Ask and wait (inputs: QUESTION) |
+| \`operator_add\` | Operators | reporter | Add (inputs: NUM1, NUM2) |
+| \`data_setvariableto\` | Variables | stack | Set variable (fields: VARIABLE, inputs: VALUE) |
+
+### Block Linking Rules
+- Each block has \`next\` (id of the block below) and \`parent\` (id of the block above).
+- The first block in a stack has \`topLevel: true\` and \`parent: null\`.
+- Inputs use Scratch's shadow/value encoding: \`"INPUT_NAME": [1, [10, "value"]]\` for literal values.
+- Variable references: \`"INPUT_NAME": [3, [12, "varName", "varId"], [10, "default"]]\`.
+
+### Rules
+- Always use \`<code_change file="project.json" lang="json" desc="...">\` to create or update the Scratch project.
+- Changes to project.json are automatically synced to the visual Scratch block editor.
+- Keep the Stage target (\`isStage: true\`) as the first element in \`targets\`.
+- Generate unique block IDs (e.g. "block-1", "block-2").
+- Make sure \`next\`/\`parent\` links form valid chains.
+`;
+
 function buildSystemPrompt(template?: string): string {
   let prompt = AGENT_SYSTEM_PROMPT_BASE;
   if (template === 'arduino') {
@@ -496,6 +598,9 @@ function buildSystemPrompt(template?: string): string {
   }
   if (template === 'automation') {
     prompt = prompt.replace('## CODE CHANGES', AUTOMATION_SECTION + '\n## CODE CHANGES');
+  }
+  if (template === 'scratch') {
+    prompt = prompt.replace('## CODE CHANGES', SCRATCH_SECTION + '\n## CODE CHANGES');
   }
   return prompt;
 }
