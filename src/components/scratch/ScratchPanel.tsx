@@ -536,7 +536,7 @@ const DEFAULT_SPRITE_ASSET_ID = 'bcf454acf82e4504149f7ffe07081dbc';
 const DEFAULT_STAGE_COSTUME_FILE = `${DEFAULT_STAGE_ASSET_ID}.svg`;
 const DEFAULT_SPRITE_COSTUME_FILE = `${DEFAULT_SPRITE_ASSET_ID}.svg`;
 const DEFAULT_STAGE_COSTUME_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360"><defs><linearGradient id="bg" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#87ceeb"/><stop offset="1" stop-color="#dff3ff"/></linearGradient></defs><rect width="480" height="360" fill="url(#bg)"/><circle cx="410" cy="70" r="40" fill="#ffd35a"/><rect y="260" width="480" height="100" fill="#95d08f"/></svg>`;
-const DEFAULT_SPRITE_COSTUME_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><ellipse cx="48" cy="76" rx="28" ry="14" fill="#d18f3b"/><circle cx="36" cy="40" r="20" fill="#f8a64a"/><circle cx="60" cy="40" r="20" fill="#f8a64a"/><circle cx="48" cy="58" r="20" fill="#f8a64a"/><circle cx="42" cy="56" r="3" fill="#222"/><circle cx="54" cy="56" r="3" fill="#222"/></svg>`;
+const DEFAULT_SPRITE_COSTUME_SVG = `<svg xmlns="http://www.w.org/2000/svg" viewBox="0 0 96 96"><ellipse cx="48" cy="76" rx="28" ry="14" fill="#d18f3b"/><circle cx="36" cy="40" r="20" fill="#f8a64a"/><circle cx="60" cy="40" r="20" fill="#f8a64a"/><circle cx="48" cy="58" r="20" fill="#f8a64a"/><circle cx="42" cy="56" r="3" fill="#222"/><circle cx="54" cy="56" r="3" fill="#222"/></svg>`;
 
 const utf8ToBase64 = (value: string) => btoa(unescape(encodeURIComponent(value)));
 
@@ -2559,24 +2559,24 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [showJson, setShowJson] = useState(false);
 
   return (
-    <div className="h-full flex flex-col" style={{ background: '#855cd6' }}>
-      {/* ===== TOP MENU BAR (Scratch purple) ===== */}
-      <div className="h-12 flex items-center px-3 gap-4 shrink-0" style={{ background: scratchVersion === 'scratch2' ? '#4c97ff' : scratchVersion === 'scratch14' ? '#34a232' : '#855cd6' }}>
+    <div className="h-full flex flex-col" style={{ background: guiColors.headerBg }}>
+      {/* ===== TOP MENU BAR ===== */}
+      <div className="h-12 flex items-center px-3 gap-4 shrink-0" style={{ background: guiColors.headerBg, color: guiColors.headerText }}>
         {/* Logo / brand */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">S</span>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${guiColors.headerText}20` }}>
+            <span style={{ color: guiColors.headerText }} className="font-bold text-sm">S</span>
           </div>
         </div>
 
         {/* File actions */}
         <div className="flex items-center gap-1">
-          <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10 flex items-center gap-1.5">
+          <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-[13px] rounded flex items-center gap-1.5 transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>
             <Upload className="w-3.5 h-3.5" /> File
           </button>
           <input ref={importInputRef} className="hidden" type="file" accept=".sb3,.sb2,.sb" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
-          <button onClick={handleExport} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Save</button>
-          <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Debug</button>
+          <button onClick={handleExport} className="px-3 py-1.5 text-[13px] rounded transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>Save</button>
+          <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-[13px] rounded transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>Debug</button>
         </div>
 
         <div className="flex items-center gap-1 rounded-lg bg-white/10 p-1">
@@ -2600,17 +2600,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         {/* VM status */}
         <div className="flex items-center gap-2">
-          <span className={`text-[11px] px-2 py-0.5 rounded-full ${vmReady ? 'bg-white/20 text-white' : 'bg-yellow-400/30 text-yellow-100'}`}>
+          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: vmReady ? `${guiColors.headerText}20` : '#fbbf24', color: vmReady ? guiColors.headerText : '#78350f' }}>
             {vmReady ? '● Ready' : '○ Starting'}
           </span>
-          <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/90">
+          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: `${guiColors.headerText}10`, color: guiColors.headerText }}>
             VM: scratch-vm ({scratchVersion === 'scratch3' ? 'native sb3' : scratchVersion === 'scratch2' ? 'compat scratch2' : 'compat + legacy import'})
           </span>
         </div>
       </div>
 
       {/* ===== TABS BAR (Code / Costumes / Sounds) ===== */}
-      <div className="h-11 flex items-end px-2 shrink-0" style={{ background: scratchVersion === 'scratch2' ? '#4c97ff' : scratchVersion === 'scratch14' ? '#34a232' : '#855cd6' }}>
+      <div className="h-11 flex items-end px-2 shrink-0" style={{ background: guiColors.tabBg }}>
         {[
           { key: 'code' as const, icon: <Code2 className="w-4 h-4" />, label: 'Code' },
           { key: 'costumes' as const, icon: <Brush className="w-4 h-4" />, label: 'Costumes' },
@@ -2621,9 +2621,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             onClick={() => setActiveEditorTab(tab.key)}
             className={`px-5 h-9 rounded-t-lg text-[13px] font-semibold flex items-center gap-1.5 transition-colors ${
               activeEditorTab === tab.key
-                ? 'bg-white text-[#855cd6]'
-                : 'bg-[#7953c7] text-white/80 hover:bg-[#7248bf]'
+                ? 'bg-white'
+                : ''
             }`}
+            style={{
+              color: activeEditorTab === tab.key ? guiColors.tabBg : guiColors.headerText,
+              opacity: activeEditorTab === tab.key ? 1 : 0.7,
+              background: activeEditorTab === tab.key ? '#ffffff' : `${guiColors.tabBg}`,
+            }}
           >
             {tab.icon} {tab.label}
           </button>
@@ -2635,7 +2640,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         {/* --- LEFT: Category rail + Block flyout --- */}
         <div className="flex min-h-0 shrink-0" style={{ width: leftPaneWidth }}>
           {/* Category rail */}
-          <div className="w-[64px] bg-[#f9f9f9] border-r border-[#e0e0e0] py-2 flex flex-col items-center gap-1 overflow-y-auto shrink-0">
+          <div className="w-[64px] border-r border-[#e0e0e0] py-2 flex flex-col items-center gap-1 overflow-y-auto shrink-0" style={{ background: guiColors.categoryRailBg }}>
             {visibleCategoryRail.map((cat) => {
               const isActive = activeCategory === cat.name;
               return (
@@ -2661,8 +2666,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
 
           {/* Block flyout */}
-          <div className="flex-1 overflow-y-auto py-3 px-3" style={{ background: '#f9f9f9' }}>
-            <div className="text-[18px] font-bold mb-3" style={{ color: categoryColors[activeCategory] || '#4c97ff' }}>
+          <div className="flex-1 overflow-y-auto py-3 px-3" style={{ background: guiColors.flyoutBg }}>
+            <div className="text-[18px] font-bold mb-3" style={{ color: currentCategoryColors[activeCategory] || '#4c97ff' }}>
               {categoryDisplayName(activeCategory, scratchVersion)}
             </div>
             {activeEditorTab === 'code' ? (
@@ -2671,7 +2676,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   variables={Object.entries(selectedTarget?.variables || {})}
                   lists={Object.entries(selectedTarget?.lists || {})}
                   blocks={visibleCategoryBlocks.Variables || []}
-                  color={categoryColors['Variables'] || '#ff8c1a'}
+                  color={currentCategoryColors['Variables'] || currentCategoryColors['Data'] || '#ff8c1a'}
                   onMakeVariable={() => { setRenameTarget(null); setDataPrompt({ type: 'variable', name: '' }); }}
                   onMakeList={() => { setRenameTarget(null); setDataPrompt({ type: 'list', name: '' }); }}
                   onAddBlock={addBlock}
@@ -2683,7 +2688,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               ) : (
               <div className="space-y-1.5">
                 {(visibleCategoryBlocks[activeCategory] || []).map((blockDef) => {
-                  const color = categoryColors[activeCategory] || '#4c97ff';
+                  const color = currentCategoryColors[activeCategory] || '#4c97ff';
                   const shape = getBlockShape(blockDef.opcode);
                   return (
                     <div
