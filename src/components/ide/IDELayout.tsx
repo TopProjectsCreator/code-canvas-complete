@@ -2316,19 +2316,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       <ScratchPanel
                         archive={scratchArchive}
                         onArchiveChange={setScratchArchive}
-                        onProjectJsonUpdate={(json) => {
-                          setFiles((prev) =>
-                            prev.map((node) => {
-                              if (node.type !== "folder") return node;
-                              return {
-                                ...node,
-                                children: (node.children || []).map((child) =>
-                                  child.name === "project.json" ? { ...child, content: json } : child,
-                                ),
-                              };
-                            }),
-                          );
-                        }}
+                        onProjectJsonUpdate={handleScratchProjectJsonUpdate}
                         isRunning={isRunning}
                         onRun={() => setIsRunning(true)}
                         onStop={handleStop}
