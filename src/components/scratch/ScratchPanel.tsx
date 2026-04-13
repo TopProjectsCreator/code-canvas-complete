@@ -435,6 +435,53 @@ const categoryColors: Record<string, string> = {
   Music: '#d65cd6',
 };
 
+const categoryColorsScratch2: Record<string, string> = {
+  Motion: '#0066cc',
+  Looks: '#7f34a8',
+  Sound: '#bc3a7b',
+  Events: '#cc5c2e',
+  Control: '#be7d0f',
+  Sensing: '#3d7eb8',
+  Operators: '#339966',
+  Data: '#e67e22',
+  Variables: '#e67e22',
+  'More Blocks': '#cc5c2e',
+  'My Blocks': '#cc5c2e',
+  Pen: '#0b8235',
+};
+
+const getCategoryColors = (version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return categoryColorsScratch2;
+  }
+  return categoryColors;
+};
+
+const getGUIColors = (version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return {
+      headerBg: '#e9eef2',
+      tabBg: '#e9eef2',
+      categoryRailBg: '#f0f0f0',
+      flyoutBg: '#f0f0f0',
+      blocksBg: '#f0f0f0',
+      stageBg: '#ffffff',
+      headerText: '#4d4d4d',
+      tabText: '#4d4d4d',
+    };
+  }
+  return {
+    headerBg: '#855cd6',
+    tabBg: '#855cd6',
+    categoryRailBg: '#f9f9f9',
+    flyoutBg: '#f9f9f9',
+    blocksBg: '#f9f9f9',
+    stageBg: '#ffffff',
+    headerText: '#ffffff',
+    tabText: '#ffffff',
+  };
+};
+
 const categoryRail = [
   { name: 'Motion', color: '#4c97ff' },
   { name: 'Looks', color: '#9966ff' },
@@ -448,6 +495,26 @@ const categoryRail = [
   { name: 'Pen', color: '#0fbd8c' },
   { name: 'Music', color: '#d65cd6' },
 ];
+
+const categoryRailScratch2 = [
+  { name: 'Motion', color: '#0066cc' },
+  { name: 'Looks', color: '#7f34a8' },
+  { name: 'Sound', color: '#bc3a7b' },
+  { name: 'Events', color: '#cc5c2e' },
+  { name: 'Control', color: '#be7d0f' },
+  { name: 'Sensing', color: '#3d7eb8' },
+  { name: 'Operators', color: '#339966' },
+  { name: 'Variables', color: '#e67e22' },
+  { name: 'My Blocks', color: '#cc5c2e' },
+  { name: 'Pen', color: '#0b8235' },
+];
+
+const getCategoryRail = (version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return categoryRailScratch2;
+  }
+  return categoryRail;
+};
 
 const SCRATCH2_CATEGORY_LABEL_OVERRIDES: Record<string, string> = {
   Variables: 'Data',
@@ -1237,17 +1304,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
     return map;
   }, []);
-  const visibleCategoryNames = useMemo(() => Object.entries(categoryBlocks)
-    .filter(([, defs]) => defs.some((def) => isBlockDefAvailable(def, scratchVersion)))
-    .map(([name]) => name),
-  [scratchVersion]);
+  const visibleCategoryNames = useMemo(
+    () => Object.keys(categoryBlocks).filter(
+      (name) => categoryBlocks[name].some((def) => isBlockDefAvailable(def, scratchVersion)),
+    ),
+    [scratchVersion],
+  );
   const visibleCategoryBlocks = useMemo(() => {
-    const entries = Object.entries(categoryBlocks)
-      .filter(([, defs]) => defs.some((def) => isBlockDefAvailable(def, scratchVersion)))
-      .map(([name, defs]) => [
-        name,
-        defs.filter((def) => isBlockDefAvailable(def, scratchVersion)),
-      ]);
+    const entries = Object.entries(categoryBlocks).map(([name, defs]) => [
+      name,
+      defs.filter((def) => isBlockDefAvailable(def, scratchVersion)),
+    ]);
     return Object.fromEntries(entries) as Record<string, ScratchBlockDef[]>;
   }, [scratchVersion]);
   const visibleCategoryRail = useMemo(
@@ -1318,7 +1385,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           },
         };
         console.log('[Scratch] Loading Scratch 2 project into VM from JSON');
-        await vmRef.current.loadProject(JSON.stringify(legacyProject));
+        await vmRef.current.loadProject(legacyProject);
       } else {
         const data = await exportScratchArchive(normalizedArchive, version === 'scratch3' ? 'sb3' : 'sb2');
         const ab = data.buffer instanceof ArrayBuffer
@@ -2557,7 +2624,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         <div className="flex min-h-0 shrink-0" style={{ width: leftPaneWidth }}>
           {/* Category rail */}
           <div className="w-[64px] bg-[#f9f9f9] border-r border-[#e0e0e0] py-2 flex flex-col items-center gap-1 overflow-y-auto shrink-0">
-            {categoryRail.map((cat) => {
+            {visibleCategoryRail.map((cat) => {
               const isActive = activeCategory === cat.name;
               return (
                 <button
@@ -2584,7 +2651,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           {/* Block flyout */}
           <div className="flex-1 overflow-y-auto py-3 px-3" style={{ background: '#f9f9f9' }}>
             <div className="text-[18px] font-bold mb-3" style={{ color: categoryColors[activeCategory] || '#4c97ff' }}>
-              {activeCategory}
+              {categoryDisplayName(activeCategory, scratchVersion)}
             </div>
             {activeEditorTab === 'code' ? (
               activeCategory === 'Variables' ? (
