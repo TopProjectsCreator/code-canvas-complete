@@ -603,7 +603,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     }
   }, [files]);
 
-
+  useEffect(() => {
     if (!activeFilePath) return;
     void collab.updatePresence({ currentFile: activeFilePath });
   }, [activeFilePath, collab]);
