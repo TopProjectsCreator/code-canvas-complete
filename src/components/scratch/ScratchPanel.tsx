@@ -1317,9 +1317,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     ]);
     return Object.fromEntries(entries) as Record<string, ScratchBlockDef[]>;
   }, [scratchVersion]);
+  const allCategoryRail = useMemo(
+    () => getCategoryRail(scratchVersion),
+    [scratchVersion],
+  );
   const visibleCategoryRail = useMemo(
-    () => categoryRail.filter((cat) => visibleCategoryNames.includes(cat.name)),
-    [visibleCategoryNames],
+    () => allCategoryRail.filter((cat) => visibleCategoryNames.includes(cat.name)),
+    [allCategoryRail, visibleCategoryNames],
+  );
+  const currentCategoryColors = useMemo(
+    () => getCategoryColors(scratchVersion),
+    [scratchVersion],
+  );
+  const guiColors = useMemo(
+    () => getGUIColors(scratchVersion),
+    [scratchVersion],
   );
 
   useEffect(() => {
