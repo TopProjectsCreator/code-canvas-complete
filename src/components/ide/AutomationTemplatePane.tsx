@@ -294,18 +294,18 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   blocksChangeRef.current = onBlocksChange;
 
   // Sync with initialBlocks from external changes (file edits)
+  // Only react to syncVersion bumps (external file changes), NOT to internal block state
+  const prevSyncVersionRef = useRef(syncVersion);
   useEffect(() => {
     if (!initialBlocks) return;
-    const currentJson = getBlocksSignature(blocks);
-    const incomingJson = getBlocksSignature(initialBlocks);
-    if (currentJson !== incomingJson) {
-      skipNextBlocksEmitRef.current = true;
-      setBlocks(initialBlocks);
-      setSelectedBlockId((currentSelectedId) =>
-        initialBlocks.some((block) => block.id === currentSelectedId) ? currentSelectedId : null,
-      );
-    }
-  }, [blocks, initialBlocks, syncVersion]);
+    if (syncVersion === prevSyncVersionRef.current) return;
+    prevSyncVersionRef.current = syncVersion;
+    skipNextBlocksEmitRef.current = true;
+    setBlocks(initialBlocks);
+    setSelectedBlockId((currentSelectedId) =>
+      initialBlocks.some((block) => block.id === currentSelectedId) ? currentSelectedId : null,
+    );
+  }, [initialBlocks, syncVersion]);
 
   // Emit block changes to parent for file sync
   useEffect(() => {
