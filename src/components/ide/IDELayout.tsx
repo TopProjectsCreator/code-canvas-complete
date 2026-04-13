@@ -284,6 +284,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [isForking, setIsForking] = useState(false);
   const [scratchArchive, setScratchArchive] = useState<ScratchArchive | null>(null);
   const [automationBlocks, setAutomationBlocks] = useState<AutomationBlockInstance[] | undefined>(undefined);
+  const [automationSyncVersion, setAutomationSyncVersion] = useState(0);
   const automationSyncRef = useRef<'pane' | 'file' | null>(null);
   const lastAutomationJsonRef = useRef<string | null>(null);
   const [historyEntries, setHistoryEntries] = useState<
@@ -469,18 +470,21 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     if (selectedTemplate !== "automation") return;
     const content = getAutomationConfigContent();
     if (!content) return;
-    // Skip if content hasn't actually changed (prevents loops)
-    if (content === lastAutomationJsonRef.current) return;
     if (automationSyncRef.current === 'pane') {
+      if (content === lastAutomationJsonRef.current) {
+        automationSyncRef.current = null;
+        return;
+      }
       automationSyncRef.current = null;
       lastAutomationJsonRef.current = content;
-      return;
     }
+    if (content === lastAutomationJsonRef.current) return;
     const parsed = parseAutomationConfig(content);
     if (parsed) {
       lastAutomationJsonRef.current = content;
       automationSyncRef.current = 'file';
       setAutomationBlocks(parsed);
+      setAutomationSyncVersion((version) => version + 1);
     }
   }, [getAutomationConfigContent, selectedTemplate]);
 
@@ -2226,7 +2230,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     </Suspense>
                   ) : selectedTemplate === "automation" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
-                      <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} />
+                      <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} syncVersion={automationSyncVersion} />
                     </Suspense>
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
@@ -2338,7 +2342,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                   </Suspense>
                 ) : selectedTemplate === "automation" ? (
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
-                    <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} />
+                    <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} syncVersion={automationSyncVersion} />
                   </Suspense>
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
