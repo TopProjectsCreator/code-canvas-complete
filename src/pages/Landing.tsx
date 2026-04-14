@@ -27,7 +27,7 @@ import { useLandingStats } from "@/hooks/useLandingStats";
 const missionBlocks = [
   {
     title: "Canvas-First Coding",
-    description: "Design projects on visual canvases, then jump directly into the files, terminal, and live preview.",
+    description: "Design projects on visual whiteboards and share documents and powerpoints as a team, then jump directly into the files, terminal, and live preview.",
     icon: <Bot className="h-4 w-4" />,
   },
   {
@@ -94,7 +94,7 @@ const timeline = [
   },
 ];
 
-const floatingBadges = ["Realtime AI Pairing", "All in one IDE", "Live Team Presence", "Edge-Speed Builds", "Built in Git", "Multiplayer Canvases", "Browser Native", ];
+const floatingBadges = ["Realtime AI Pairing", "All in one IDE", "Live Team Presence", "Edge-Speed Builds", "Built in Git", "Multiplayer Canvases", "Browser Native", "Instant Previews", "No Install Required", "Publish builtin", "Office (word/pptx/exel) support", "Live chat and video rooms", "Top-Noch Extentions pane", "Full terminal", "Copy Zapier with our amazing automations system", "Make workflows for easy deploys and actions."];
 const pulseNodes = [
   { id: "NX-01", status: "Synced" },
   { id: "NX-08", status: "Rendering" },
@@ -168,8 +168,8 @@ export default function Landing() {
               </h1>
 
               <p className="mt-6 max-w-2xl text-base text-muted-foreground sm:text-lg">
-                CodeCanvas brings visual project canvases, a full in-browser IDE, and AI coding tools together so you can plan,
-                build, run, and share software from one place.
+                CodeCanvas brings your automations and tools, a full in-browser IDE, and AI coding tools together so you can plan, design,
+                build, run, automate, and share software from one place.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
