@@ -683,7 +683,8 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         `    headers = {"Authorization": f"Bearer {${ev}}", "Accept": "application/vnd.github+json"}`,
         `    owner, repo = "${cfg.owner || 'owner'}", "${cfg.repo || 'repo'}"`,
         `    response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)`,
-        `    return response.json()`,
+        `    data = response.json()`,
+        `    return {"result": json.dumps(data), "data": data, "name": data.get("full_name", ""), "description": data.get("description", ""), "stars": data.get("stargazers_count", 0)}`,
       ]},
       'ElevenLabs': { pip: 'elevenlabs', imports: ['from elevenlabs.client import ElevenLabs as ElevenLabsClient'], code: (cfg, ev) => [
         `    client = ElevenLabsClient(api_key=${ev})`,
@@ -713,12 +714,13 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
 
     const internalSnippets: Record<string, (cfg: Record<string,string>) => string[]> = {
       'Schedule (Cron)': (cfg) => [
-        `    # For production: use APScheduler, celery beat, or system crontab`,
-        `    # pip install apscheduler`,
-        `    # Example: scheduler.add_job(run_pipeline, CronTrigger.from_crontab("${cfg.cron || '0 9 * * *'}"))`,
-        `    import sched, datetime`,
-        `    print(f"⏰ Scheduled: cron={config.get('cron', '0 9 * * *')}, tz={config.get('timezone', 'UTC')}")`,
-        `    print(f"   Next run: configure via crontab -e or APScheduler")`,
+        `    # NOTE: This script runs the pipeline once immediately.`,
+        `    # For recurring execution, use one of these production approaches:`,
+        `    #   pip install apscheduler`,
+        `    #   scheduler.add_job(run_pipeline, CronTrigger.from_crontab("${cfg.cron || '0 9 * * *'}"))`,
+        `    # Or use system crontab: crontab -e → ${cfg.cron || '0 9 * * *'} python3 pipeline.py`,
+        `    print(f"⏰ Trigger: cron={config.get('cron', '0 9 * * *')}, tz={config.get('timezone', 'UTC')}")`,
+        `    print(f"   Running pipeline now (one-shot mode)")`,
         `    return {"triggered": True, "schedule": config.get("cron", "0 9 * * *")}`,
       ],
       'Webhook (Catch)': () => [
@@ -882,11 +884,14 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         }
         L.push(`    headers = {"Authorization": f"Bearer {${ev}}", "Content-Type": "application/json"}`);
         L.push(`    url = config.get("url")`);
-        L.push(`    if not url:`);
-        L.push(`        raise ValueError("Missing required url for ${b.label} step")`);
-        L.push(`    response = requests.request(config.get("method", "POST"), url, headers=headers, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
-        L.push(`    print(f"  ↳ ${b.label} called: {url}")`);
-        L.push(`    return {"status": "ok", "response": response.json(), **(prev or {})}`);
+        L.push(`    if url:`);
+        L.push(`        response = requests.request(config.get("method", "POST"), url, headers=headers, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
+        L.push(`        print(f"  ↳ ${b.label} called: {url}")`);
+        L.push(`        return {"status": "ok", "result": json.dumps(response.json()), "response": response.json(), **(prev or {})}`);
+        L.push(`    else:`);
+        L.push(`        # No URL configured — pass through with config data`);
+        L.push(`        print(f"  ↳ ${b.label}: no URL configured, passing config as data")`);
+        L.push(`        return {"status": "ok", "result": json.dumps(config), **config, **(prev or {})}`);
       } else {
         const sdkHint = getPythonSdkHint(b.label);
         if (sdkHint) {
@@ -894,11 +899,14 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
           L.push(`    # A provider-specific SDK may be available for ${b.label}`);
         }
         L.push(`    url = config.get("url")`);
-        L.push(`    if not url:`);
-        L.push(`        raise ValueError("Missing required url for ${b.label} step")`);
-        L.push(`    response = requests.request(config.get("method", "POST"), url, headers={"Content-Type": "application/json"}, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
-        L.push(`    print(f"  ↳ ${b.label} executed against {url}")`);
-        L.push(`    return {"status": "ok", "response": response.json(), **(prev or {})}`);
+        L.push(`    if url:`);
+        L.push(`        response = requests.request(config.get("method", "POST"), url, headers={"Content-Type": "application/json"}, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
+        L.push(`        print(f"  ↳ ${b.label} executed against {url}")`);
+        L.push(`        return {"status": "ok", "result": json.dumps(response.json()), "response": response.json(), **(prev or {})}`);
+        L.push(`    else:`);
+        L.push(`        # No URL configured — pass through with config data`);
+        L.push(`        print(f"  ↳ ${b.label}: no URL configured, passing config as data")`);
+        L.push(`        return {"status": "ok", "result": json.dumps(config), **config, **(prev or {})}`);
       }
       L.push('');
       L.push('');
@@ -1018,7 +1026,8 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       ]},
       'GitHub': { npm: 'node-fetch', imports: ['const fetch = require("node-fetch");'], code: (cfg, ev) => [
         `  const res = await fetch(\`https://api.github.com/repos/${cfg.owner || 'owner'}/${cfg.repo || 'repo'}\`, { headers: { Authorization: \`Bearer \${${ev}}\`, Accept: "application/vnd.github+json" } });`,
-        `  return await res.json();`,
+        `  const data = await res.json();`,
+        `  return { result: JSON.stringify(data), data, name: data.full_name || "", description: data.description || "", stars: data.stargazers_count || 0 };`,
       ]},
       'Supabase': { npm: '@supabase/supabase-js', imports: ['const { createClient } = require("@supabase/supabase-js");'], code: (cfg, ev) => [
         `  const supabase = createClient(process.env.SUPABASE_URL || "${cfg.url || ''}", ${ev});`,
@@ -1197,17 +1206,23 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
           L.push(`  // SDK available: npm install ${sdkHint}`);
           L.push(`  // Replace this generic fetch call with the ${sdkHint} SDK for ${b.label}`);
         }
-        L.push(`  const url = config.url || ""`);
-        L.push(`  if (!url) throw new Error("Missing required url for ${b.label} step");`);
-        L.push(`  const query = config.query ? JSON.parse(config.query) : undefined;`);
-        L.push(`  const queryString = query ? new URLSearchParams(query).toString() : "";`);
-        L.push(`  const requestUrl = queryString ? url + "?" + queryString : url;`);
-        L.push(`  const body = config.body ? JSON.parse(config.body) : undefined;`);
-        L.push(`  const headers = { "Content-Type": "application/json", ...(b.auth === 'api_key' ? { Authorization: 'Bearer ' + ${ev} } : {}) };`);
-        L.push(`  const response = await fetch(requestUrl, { method: config.method || "POST", headers, body: body ? JSON.stringify(body) : undefined });`);
-        L.push(`  const data = await response.json();`);
-        L.push(`  console.log("  ↳ ${b.label} executed against", requestUrl);`);
-        L.push(`  return { status: response.status, data, ...prev };`);
+        L.push(`  const url = config.url || "";`);
+        L.push(`  if (url) {`);
+        L.push(`    const query = config.query ? JSON.parse(config.query) : undefined;`);
+        L.push(`    const queryString = query ? new URLSearchParams(query).toString() : "";`);
+        L.push(`    const requestUrl = queryString ? url + "?" + queryString : url;`);
+        L.push(`    const body = config.body ? JSON.parse(config.body) : undefined;`);
+        const authHeader = b.auth === 'api_key' ? `Authorization: \`Bearer \${${ev}}\`, ` : '';
+        L.push(`    const headers = { "Content-Type": "application/json", ${authHeader ? `${authHeader}` : ''}};`);
+        L.push(`    const response = await fetch(requestUrl, { method: config.method || "POST", headers, body: body ? JSON.stringify(body) : undefined });`);
+        L.push(`    const data = await response.json();`);
+        L.push(`    console.log("  ↳ ${b.label} executed against", requestUrl);`);
+        L.push(`    return { status: response.status, result: JSON.stringify(data), data, ...prev };`);
+        L.push(`  } else {`);
+        L.push(`    // No URL configured — pass through with config data`);
+        L.push(`    console.log("  ↳ ${b.label}: no URL configured, passing config as data");`);
+        L.push(`    return { status: "ok", result: JSON.stringify(config), ...config, ...prev };`);
+        L.push(`  }`);
       } else {
         L.push(`  console.log("  ↳ ${b.label} executed");`);
         L.push(`  return { status: "ok", ...prev };`);
