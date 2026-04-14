@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowLeft, WifiOff } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowLeft, WifiOff, Fingerprint } from 'lucide-react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface AuthDialogProps {
