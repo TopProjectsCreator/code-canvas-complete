@@ -23,6 +23,7 @@ import { MCPServersPanel, AgentSkillsPanel } from './MCPSkillsPanel';
 import { NotificationSettings } from './NotificationSettings';
 import { AIComparisonPanel } from './AIComparisonPanel';
 import { AIUsageStats } from './AIUsageStats';
+import { PasskeySettings } from './PasskeySettings';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -317,6 +318,10 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                 <Button onClick={handleSaveProfile} disabled={saving} size="sm">
                   {saving ? 'Saving...' : 'Save Changes'}
                 </Button>
+              </div>
+
+              <div className="border-t border-border pt-4">
+                <PasskeySettings />
               </div>
 
               <div className="border-t border-border pt-4">
