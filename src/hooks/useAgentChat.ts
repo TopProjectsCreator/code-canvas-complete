@@ -103,23 +103,38 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     const codeChanges: CodeChange[] = [];
     let cleanContent = content;
 
-    // Parse full code changes
+        // Parse diff-based changes
+
     const codeRegex = /<code_change\s+file="([^"]+)"\s+(?:lang="([^"]+)"\s+)?desc="([^"]+)">([\s\S]*?)<\/code_change>/g;
     let match;
     while ((match = codeRegex.exec(content)) !== null) {
       codeChanges.push({ fileName: match[1], language: match[2] || 'typescript', description: match[3], newCode: match[4].trim() });
       cleanContent = cleanContent.replace(match[0], '');
     }
+    // This version allows attributes in any order and handles extra whitespace
+    const diffRegex = /<code_diff\b([^>]*?)>([\s\S]*?)<\/code_diff>/g;
 
-    // Parse diff-based changes
-    const diffRegex = /<code_diff\s+file="([^"]+)"\s+(?:lang="([^"]+)"\s+)?desc="([^"]+)">([\s\S]*?)<\/code_diff>/g;
     while ((match = diffRegex.exec(content)) !== null) {
-      codeChanges.push({ fileName: match[1], language: match[2] || 'typescript', description: match[3], newCode: '', isDiff: true, diffContent: match[4].trim() });
-      cleanContent = cleanContent.replace(match[0], '');
-    }
+        const attrString = match[1];
+        const diffBody = match[2].trim();
 
-    return { codeChanges, cleanContent: cleanContent.trim() };
-  };
+        // Extract attributes individually to handle any order
+        const fileName = attrString.match(/file="([^"]+)"/)?.[1];
+        const language = attrString.match(/lang="([^"]+)"/)?.[1] || 'typescript';
+        const description = attrString.match(/desc="([^"]+)"/)?.[1] || '';
+
+        if (fileName) {
+            codeChanges.push({ 
+                fileName, 
+                language, 
+                description, 
+                newCode: '', 
+                isDiff: true, 
+                diffContent: diffBody 
+            });
+        }
+        cleanContent = cleanContent.replace(match[0], '');
+    }
 
   const parseWorkflowCommands = (content: string): { workflowActions: WorkflowAction[], cleanContent: string } => {
     const workflowActions: WorkflowAction[] = [];
