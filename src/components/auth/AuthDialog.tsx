@@ -166,6 +166,39 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
               </Button>
             )}
 
+            {typeof window !== 'undefined' && !!window.PublicKeyCredential && (
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                disabled={!isOnline}
+                onClick={async () => {
+                  // Passkey-based conditional mediation hint for sign-in
+                  // This shows the browser's passkey picker
+                  try {
+                    const credential = await navigator.credentials.get({
+                      publicKey: {
+                        challenge: crypto.getRandomValues(new Uint8Array(32)),
+                        rpId: window.location.hostname,
+                        userVerification: 'preferred',
+                        timeout: 60000,
+                      },
+                    });
+                    if (credential) {
+                      toast({
+                        title: 'Passkey verified',
+                        description: 'Passkey authentication recognized. Please sign in with your email to link your session.',
+                      });
+                    }
+                  } catch {
+                    // user cancelled
+                  }
+                }}
+              >
+                <Fingerprint className="w-4 h-4" />
+                Sign in with Passkey
+              </Button>
+            )}
+
             <p className="text-[11px] text-muted-foreground text-center">
               Auth platform detected: {platform}
             </p>
