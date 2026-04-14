@@ -517,20 +517,26 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
 
   /** Resolve {{prev.X}} tokens in a config value into Python code expressions. */
   const resolvePyVar = (val: string): string => {
+    // Standalone token → raw expression (no quotes)
     if (/^\{\{prev\.([^}]+)\}\}$/.test(val)) {
       const key = val.match(/^\{\{prev\.([^}]+)\}\}$/)![1];
       return `prev.get("${key}") if prev else None`;
     }
-    return val.replace(/\{\{prev\.([^}]+)\}\}/g, (_, k) => `{prev.get("${k}", "") if prev else ""}`);
+    // Mixed text + tokens → f-string with single-quoted inner strings to avoid quote collision
+    const inner = val.replace(/\{\{prev\.([^}]+)\}\}/g, (_, k: string) => `{prev.get('${k}', '') if prev else ''}`);
+    return `f"${inner}"`;
   };
 
   /** Resolve {{prev.X}} tokens in a config value into Node.js code expressions. */
   const resolveJsVar = (val: string): string => {
+    // Standalone token → raw expression
     if (/^\{\{prev\.([^}]+)\}\}$/.test(val)) {
       const key = val.match(/^\{\{prev\.([^}]+)\}\}$/)![1];
       return `prev?.${key} ?? null`;
     }
-    return val.replace(/\{\{prev\.([^}]+)\}\}/g, (_, k) => `\${prev?.${k} ?? ""}`);
+    // Mixed text + tokens → template literal
+    const inner = val.replace(/\{\{prev\.([^}]+)\}\}/g, (_, k: string) => `\${prev?.${k} ?? ""}`);
+    return `\`${inner}\``;
   };
 
   const generatePythonCodeImpl = useCallback(() => {
@@ -713,16 +719,19 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     };
 
     const internalSnippets: Record<string, (cfg: Record<string,string>) => string[]> = {
-      'Schedule (Cron)': (cfg) => [
-        `    # NOTE: This script runs the pipeline once immediately.`,
-        `    # For recurring execution, use one of these production approaches:`,
-        `    #   pip install apscheduler`,
-        `    #   scheduler.add_job(run_pipeline, CronTrigger.from_crontab("${cfg.cron || '0 9 * * *'}"))`,
-        `    # Or use system crontab: crontab -e → ${cfg.cron || '0 9 * * *'} python3 pipeline.py`,
-        `    print(f"⏰ Trigger: cron={config.get('cron', '0 9 * * *')}, tz={config.get('timezone', 'UTC')}")`,
-        `    print(f"   Running pipeline now (one-shot mode)")`,
-        `    return {"triggered": True, "schedule": config.get("cron", "0 9 * * *")}`,
-      ],
+      'Schedule (Cron)': (cfg) => {
+        const schedule = cfg.schedule === 'custom' ? (cfg.cron || '0 9 * * *') : (cfg.schedule || '0 9 * * *');
+        return [
+          `    # NOTE: This script runs the pipeline once immediately.`,
+          `    # For recurring execution, deploy with a scheduler:`,
+          `    #   pip install apscheduler`,
+          `    #   scheduler.add_job(run_pipeline, CronTrigger.from_crontab("${schedule}"))`,
+          `    # Or use system crontab: crontab -e → ${schedule} python3 pipeline.py`,
+          `    print(f"⏰ Trigger: cron=${schedule}, tz={config.get('timezone', 'UTC')}")`,
+          `    print(f"   Running pipeline now (one-shot mode)")`,
+          `    return {"triggered": True, "schedule": "${schedule}"}`,
+        ];
+      },
       'Webhook (Catch)': () => [
         `    # For production: use Flask or FastAPI`,
         `    # pip install flask`,
@@ -730,6 +739,59 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         `    # def webhook(): return run_pipeline()`,
         `    print(f"🪝 Webhook endpoint ready at {config.get('url', '/webhook')}")`,
         `    return {"triggered": True}`,
+      ],
+      'RSS Monitor': (cfg) => [
+        `    import feedparser  # pip install feedparser`,
+        `    feed = feedparser.parse("${cfg.feed_url || 'https://example.com/feed.xml'}")`,
+        `    keyword = config.get("keyword_filter", "").lower()`,
+        `    entries = feed.entries[:10]`,
+        `    if keyword:`,
+        `        entries = [e for e in entries if keyword in e.get("title", "").lower()]`,
+        `    print(f"📡 RSS: found {len(entries)} matching entries")`,
+        `    return {"triggered": True, "entries": [{"title": e.title, "link": e.link} for e in entries], "count": len(entries)}`,
+      ],
+      'New Email': () => [
+        `    # For production: use imaplib or an email API (Gmail, Outlook, etc.)`,
+        `    mailbox = config.get("mailbox", "INBOX")`,
+        `    from_filter = config.get("from_filter", "")`,
+        `    subject_filter = config.get("subject_contains", "")`,
+        `    print(f"📧 Watching {mailbox} for new emails" + (f" from {from_filter}" if from_filter else "") + (f" with subject containing '{subject_filter}'" if subject_filter else ""))`,
+        `    return {"triggered": True, "mailbox": mailbox, "filters": {"from": from_filter, "subject": subject_filter}}`,
+      ],
+      'FTP Monitor': (cfg) => [
+        `    # For production: use ftplib`,
+        `    host = config.get("host", "${cfg.host || 'ftp.example.com'}")`,
+        `    watch_path = config.get("watch_path", "${cfg.watch_path || '/'}")`,
+        `    print(f"📂 FTP: watching {host}{watch_path}")`,
+        `    return {"triggered": True, "host": host, "path": watch_path}`,
+      ],
+      'File Watcher': (cfg) => [
+        `    # For production: use watchdog — pip install watchdog`,
+        `    watch_path = config.get("watch_path", "${cfg.watch_path || '/data/'}")`,
+        `    pattern = config.get("pattern", "${cfg.pattern || '*'}")`,
+        `    event_type = config.get("events", "${cfg.events || 'created'}")`,
+        `    print(f"👁️  Watching {watch_path} for {event_type} files matching {pattern}")`,
+        `    return {"triggered": True, "path": watch_path, "pattern": pattern, "event": event_type}`,
+      ],
+      'Database Change': (cfg) => [
+        `    table = config.get("table", "${cfg.table || 'orders'}")`,
+        `    event = config.get("event", "${cfg.event || 'INSERT'}")`,
+        `    print(f"🗄️  Listening for {event} on table '{table}'")`,
+        `    # For production: use database triggers, Supabase Realtime, or pg_notify`,
+        `    return {"triggered": True, "table": table, "event": event}`,
+      ],
+      'Queue Consumer': (cfg) => [
+        `    queue = config.get("queue_name", "${cfg.queue_name || 'my-queue'}")`,
+        `    provider = config.get("provider", "${cfg.provider || 'redis'}")`,
+        `    batch_size = int(config.get("batch_size", "${cfg.batch_size || '1'}"))`,
+        `    print(f"📬 Consuming from {provider} queue '{queue}' (batch={batch_size})")`,
+        `    # For production: use the appropriate SDK (redis/pika/boto3/google-cloud-pubsub)`,
+        `    return {"triggered": True, "queue": queue, "provider": provider}`,
+      ],
+      'Manual Trigger': (cfg) => [
+        `    label = config.get("label", "${cfg.label || 'Run Pipeline'}")`,
+        `    print(f"🖱️  Manual trigger: {label}")`,
+        `    return {"triggered": True, "manual": True}`,
       ],
       'Filter': () => [
         `    if not prev:`,
