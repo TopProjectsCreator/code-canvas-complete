@@ -1333,7 +1333,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       <aside className="border-r border-border bg-background/70 flex flex-col overflow-hidden">
         <div className="border-b border-border px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Add Block</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">{AUTOMATION_BLOCK_COUNT} blocks available</p>
+          {(blocks.length === 0 || invalidTriggerStart) ? (
+            <p className="mt-1 text-[11px] text-amber-500 font-medium">⚡ Pick a trigger to start your pipeline</p>
+          ) : (
+            <p className="mt-1 text-[11px] text-muted-foreground">{AUTOMATION_BLOCK_COUNT} blocks available</p>
+          )}
           <div className="mt-2 flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1">
             <Search className="h-3.5 w-3.5 text-muted-foreground" />
             <input
