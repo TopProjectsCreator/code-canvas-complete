@@ -719,16 +719,19 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     };
 
     const internalSnippets: Record<string, (cfg: Record<string,string>) => string[]> = {
-      'Schedule (Cron)': (cfg) => [
-        `    # NOTE: This script runs the pipeline once immediately.`,
-        `    # For recurring execution, use one of these production approaches:`,
-        `    #   pip install apscheduler`,
-        `    #   scheduler.add_job(run_pipeline, CronTrigger.from_crontab("${cfg.cron || '0 9 * * *'}"))`,
-        `    # Or use system crontab: crontab -e → ${cfg.cron || '0 9 * * *'} python3 pipeline.py`,
-        `    print(f"⏰ Trigger: cron={config.get('cron', '0 9 * * *')}, tz={config.get('timezone', 'UTC')}")`,
-        `    print(f"   Running pipeline now (one-shot mode)")`,
-        `    return {"triggered": True, "schedule": config.get("cron", "0 9 * * *")}`,
-      ],
+      'Schedule (Cron)': (cfg) => {
+        const schedule = cfg.schedule === 'custom' ? (cfg.cron || '0 9 * * *') : (cfg.schedule || '0 9 * * *');
+        return [
+          `    # NOTE: This script runs the pipeline once immediately.`,
+          `    # For recurring execution, deploy with a scheduler:`,
+          `    #   pip install apscheduler`,
+          `    #   scheduler.add_job(run_pipeline, CronTrigger.from_crontab("${schedule}"))`,
+          `    # Or use system crontab: crontab -e → ${schedule} python3 pipeline.py`,
+          `    print(f"⏰ Trigger: cron=${schedule}, tz={config.get('timezone', 'UTC')}")`,
+          `    print(f"   Running pipeline now (one-shot mode)")`,
+          `    return {"triggered": True, "schedule": "${schedule}"}`,
+        ];
+      },
       'Webhook (Catch)': () => [
         `    # For production: use Flask or FastAPI`,
         `    # pip install flask`,
