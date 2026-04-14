@@ -321,6 +321,10 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
               </div>
 
               <div className="border-t border-border pt-4">
+                <PasskeySettings />
+              </div>
+
+              <div className="border-t border-border pt-4">
                 <h4 className="text-sm font-medium text-destructive mb-2">Danger Zone</h4>
                 <Button
                   variant="destructive"
