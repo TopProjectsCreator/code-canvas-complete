@@ -450,13 +450,38 @@ const githubParams: APIParameter[] = [
 
 const cronParams: APIParameter[] = [
   {
-    name: 'cron',
-    displayName: 'Cron Expression',
-    type: 'string',
+    name: 'schedule',
+    displayName: 'Run At',
+    type: 'select',
     required: true,
+    default: 'daily_9am',
+    description: 'Choose a human-readable schedule or pick "Custom" for a raw cron expression',
+    options: [
+      { label: 'Every minute', value: '* * * * *' },
+      { label: 'Every 5 minutes', value: '*/5 * * * *' },
+      { label: 'Every 15 minutes', value: '*/15 * * * *' },
+      { label: 'Every 30 minutes', value: '*/30 * * * *' },
+      { label: 'Every hour', value: '0 * * * *' },
+      { label: 'Every 4 hours', value: '0 */4 * * *' },
+      { label: 'Daily at 9 AM', value: '0 9 * * *' },
+      { label: 'Daily at 12 PM (noon)', value: '0 12 * * *' },
+      { label: 'Daily at 6 PM', value: '0 18 * * *' },
+      { label: 'Daily at midnight', value: '0 0 * * *' },
+      { label: 'Tonight at 8 PM', value: '0 20 * * *' },
+      { label: 'Weekdays at 9 AM', value: '0 9 * * 1-5' },
+      { label: 'Weekends at 10 AM', value: '0 10 * * 0,6' },
+      { label: 'Every Monday at 9 AM', value: '0 9 * * 1' },
+      { label: 'First of month at midnight', value: '0 0 1 * *' },
+      { label: 'Custom', value: 'custom' },
+    ],
+  },
+  {
+    name: 'cron',
+    displayName: 'Custom Cron Expression',
+    type: 'string',
     placeholder: '0 9 * * *',
-    description: 'Cron schedule (min hour day month dayOfWeek)',
-    help: 'Examples: "0 9 * * *" (9am daily), "0 */4 * * *" (every 4 hours), "0 0 * * 0" (Sundays midnight)',
+    description: 'Only used when "Run At" is set to Custom',
+    help: 'Format: min hour day month dayOfWeek. Examples: "0 9 * * *" (9am daily), "0 */4 * * *" (every 4h)',
   },
   {
     name: 'timezone',
@@ -465,15 +490,100 @@ const cronParams: APIParameter[] = [
     default: 'UTC',
     options: [
       { label: 'UTC', value: 'UTC' },
-      { label: 'America/New_York', value: 'America/New_York' },
-      { label: 'America/Chicago', value: 'America/Chicago' },
-      { label: 'America/Denver', value: 'America/Denver' },
-      { label: 'America/Los_Angeles', value: 'America/Los_Angeles' },
+      { label: 'America/New_York (Eastern)', value: 'America/New_York' },
+      { label: 'America/Chicago (Central)', value: 'America/Chicago' },
+      { label: 'America/Denver (Mountain)', value: 'America/Denver' },
+      { label: 'America/Los_Angeles (Pacific)', value: 'America/Los_Angeles' },
       { label: 'Europe/London', value: 'Europe/London' },
       { label: 'Europe/Paris', value: 'Europe/Paris' },
       { label: 'Asia/Tokyo', value: 'Asia/Tokyo' },
+      { label: 'Asia/Shanghai', value: 'Asia/Shanghai' },
+      { label: 'Australia/Sydney', value: 'Australia/Sydney' },
     ],
   },
+];
+
+const rssMonitorParams: APIParameter[] = [
+  { name: 'feed_url', displayName: 'RSS Feed URL', type: 'url', required: true, placeholder: 'https://blog.example.com/feed.xml' },
+  { name: 'poll_interval', displayName: 'Check Every', type: 'select', default: '300', options: [
+    { label: '1 minute', value: '60' },
+    { label: '5 minutes', value: '300' },
+    { label: '15 minutes', value: '900' },
+    { label: '30 minutes', value: '1800' },
+    { label: '1 hour', value: '3600' },
+  ]},
+  { name: 'keyword_filter', displayName: 'Keyword Filter', type: 'string', placeholder: 'Optional keyword to match in titles' },
+];
+
+const newEmailParams: APIParameter[] = [
+  { name: 'mailbox', displayName: 'Mailbox / Folder', type: 'select', default: 'INBOX', options: [
+    { label: 'Inbox', value: 'INBOX' },
+    { label: 'Sent', value: 'Sent' },
+    { label: 'All Mail', value: 'All Mail' },
+  ]},
+  { name: 'from_filter', displayName: 'From (filter)', type: 'email', placeholder: 'sender@example.com' },
+  { name: 'subject_contains', displayName: 'Subject Contains', type: 'string', placeholder: 'invoice' },
+  { name: 'poll_interval', displayName: 'Check Every', type: 'select', default: '300', options: [
+    { label: '1 minute', value: '60' },
+    { label: '5 minutes', value: '300' },
+    { label: '15 minutes', value: '900' },
+    { label: '1 hour', value: '3600' },
+  ]},
+];
+
+const ftpMonitorParams: APIParameter[] = [
+  { name: 'host', displayName: 'FTP Host', type: 'string', required: true, placeholder: 'ftp.example.com' },
+  { name: 'port', displayName: 'Port', type: 'number', default: '21' },
+  { name: 'username', displayName: 'Username', type: 'string', required: true, placeholder: 'ftp_user' },
+  { name: 'password', displayName: 'Password', type: 'password', required: true },
+  { name: 'watch_path', displayName: 'Watch Path', type: 'string', default: '/', placeholder: '/uploads/' },
+  { name: 'poll_interval', displayName: 'Check Every', type: 'select', default: '300', options: [
+    { label: '1 minute', value: '60' },
+    { label: '5 minutes', value: '300' },
+    { label: '15 minutes', value: '900' },
+  ]},
+];
+
+const fileWatcherParams: APIParameter[] = [
+  { name: 'watch_path', displayName: 'Watch Path', type: 'string', required: true, placeholder: '/data/uploads/' },
+  { name: 'pattern', displayName: 'File Pattern', type: 'string', default: '*', placeholder: '*.csv, *.json' },
+  { name: 'events', displayName: 'Watch For', type: 'select', default: 'created', options: [
+    { label: 'File Created', value: 'created' },
+    { label: 'File Modified', value: 'modified' },
+    { label: 'File Deleted', value: 'deleted' },
+    { label: 'Any Change', value: 'all' },
+  ]},
+  { name: 'recursive', displayName: 'Include Subfolders', type: 'boolean', default: 'true' },
+];
+
+const dbChangeParams: APIParameter[] = [
+  { name: 'table', displayName: 'Table Name', type: 'string', required: true, placeholder: 'orders' },
+  { name: 'event', displayName: 'Event Type', type: 'select', default: 'INSERT', options: [
+    { label: 'Row Inserted', value: 'INSERT' },
+    { label: 'Row Updated', value: 'UPDATE' },
+    { label: 'Row Deleted', value: 'DELETE' },
+    { label: 'Any Change', value: '*' },
+  ]},
+  { name: 'filter_column', displayName: 'Filter Column', type: 'string', placeholder: 'status (optional)' },
+  { name: 'filter_value', displayName: 'Filter Value', type: 'string', placeholder: 'completed (optional)' },
+];
+
+const queueConsumerParams: APIParameter[] = [
+  { name: 'queue_name', displayName: 'Queue / Topic Name', type: 'string', required: true, placeholder: 'my-task-queue' },
+  { name: 'provider', displayName: 'Queue Provider', type: 'select', default: 'redis', options: [
+    { label: 'Redis / BullMQ', value: 'redis' },
+    { label: 'RabbitMQ', value: 'rabbitmq' },
+    { label: 'AWS SQS', value: 'sqs' },
+    { label: 'Google Pub/Sub', value: 'pubsub' },
+  ]},
+  { name: 'batch_size', displayName: 'Batch Size', type: 'number', default: '1' },
+  { name: 'visibility_timeout', displayName: 'Visibility Timeout (s)', type: 'number', default: '30' },
+];
+
+const manualTriggerParams: APIParameter[] = [
+  { name: 'label', displayName: 'Button Label', type: 'string', default: 'Run Pipeline', placeholder: 'Run Now' },
+  { name: 'confirm', displayName: 'Require Confirmation', type: 'boolean', default: 'true' },
+  { name: 'input_fields', displayName: 'Input Fields (JSON)', type: 'textarea', placeholder: '[{"name": "email", "type": "string"}]', help: 'Optional: define input fields that will be prompted when the pipeline is triggered manually' },
 ];
 
 const discordParams: APIParameter[] = [

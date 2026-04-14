@@ -517,20 +517,26 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
 
   /** Resolve {{prev.X}} tokens in a config value into Python code expressions. */
   const resolvePyVar = (val: string): string => {
+    // Standalone token → raw expression (no quotes)
     if (/^\{\{prev\.([^}]+)\}\}$/.test(val)) {
       const key = val.match(/^\{\{prev\.([^}]+)\}\}$/)![1];
       return `prev.get("${key}") if prev else None`;
     }
-    return val.replace(/\{\{prev\.([^}]+)\}\}/g, (_, k) => `{prev.get("${k}", "") if prev else ""}`);
+    // Mixed text + tokens → f-string with single-quoted inner strings to avoid quote collision
+    const inner = val.replace(/\{\{prev\.([^}]+)\}\}/g, (_, k: string) => `{prev.get('${k}', '') if prev else ''}`);
+    return `f"${inner}"`;
   };
 
   /** Resolve {{prev.X}} tokens in a config value into Node.js code expressions. */
   const resolveJsVar = (val: string): string => {
+    // Standalone token → raw expression
     if (/^\{\{prev\.([^}]+)\}\}$/.test(val)) {
       const key = val.match(/^\{\{prev\.([^}]+)\}\}$/)![1];
       return `prev?.${key} ?? null`;
     }
-    return val.replace(/\{\{prev\.([^}]+)\}\}/g, (_, k) => `\${prev?.${k} ?? ""}`);
+    // Mixed text + tokens → template literal
+    const inner = val.replace(/\{\{prev\.([^}]+)\}\}/g, (_, k: string) => `\${prev?.${k} ?? ""}`);
+    return `\`${inner}\``;
   };
 
   const generatePythonCodeImpl = useCallback(() => {
