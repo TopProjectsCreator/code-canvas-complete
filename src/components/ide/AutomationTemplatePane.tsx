@@ -347,16 +347,23 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   const visibleCategories = useMemo(() => {
     const visibleTypes = new Set(searchableBlocks.map((item) => item.type));
 
+    // When there are no blocks yet, or the first block is not a trigger, only show trigger blocks
+    const needsTriggerFirst = blocks.length === 0 || (blocks.length > 0 && !isTriggerBlock(blocks[0]));
+
     return AUTOMATION_INTEGRATION_REGISTRY.map((category) => ({
       ...category,
       subcategories: category.subcategories
         .map((subcategory) => ({
           ...subcategory,
-          blocks: subcategory.blocks.filter((block) => visibleTypes.has(`${category.id}.${subcategory.id}.${block.id}`)),
+          blocks: subcategory.blocks.filter((block) => {
+            if (!visibleTypes.has(`${category.id}.${subcategory.id}.${block.id}`)) return false;
+            if (needsTriggerFirst && !block.isTrigger) return false;
+            return true;
+          }),
         }))
         .filter((subcategory) => subcategory.blocks.length > 0),
     })).filter((category) => category.subcategories.length > 0);
-  }, [searchableBlocks]);
+  }, [searchableBlocks, blocks]);
 
   const appendFromRegistry = (type: string) => {
     const entry = ALL_AUTOMATION_BLOCKS.find((item) => item.type === type);
@@ -1323,10 +1330,14 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
 
   return (
     <div className="grid h-full grid-cols-[290px_1fr_300px] overflow-hidden">
-      <aside className="border-r border-border bg-background/70">
+      <aside className="border-r border-border bg-background/70 flex flex-col overflow-hidden">
         <div className="border-b border-border px-3 py-2">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Add Block</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">{AUTOMATION_BLOCK_COUNT} blocks available</p>
+          {(blocks.length === 0 || invalidTriggerStart) ? (
+            <p className="mt-1 text-[11px] text-amber-500 font-medium">⚡ Pick a trigger to start your pipeline</p>
+          ) : (
+            <p className="mt-1 text-[11px] text-muted-foreground">{AUTOMATION_BLOCK_COUNT} blocks available</p>
+          )}
           <div className="mt-2 flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1">
             <Search className="h-3.5 w-3.5 text-muted-foreground" />
             <input
@@ -1338,7 +1349,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
           </div>
         </div>
 
-        <div className="h-[calc(100%-78px)] overflow-y-auto px-2 py-2 ide-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2 ide-scrollbar">
           {visibleCategories.map((category) => (
             <div key={category.id} className="mb-3">
               <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground/80">
@@ -1478,12 +1489,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         </div>
       </section>
 
-      <aside className="border-l border-border bg-background/80">
-        <div className="border-b border-border px-3 py-2">
+      <aside className="border-l border-border bg-background/80 flex flex-col overflow-hidden">
+        <div className="border-b border-border px-3 py-2 shrink-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Config + Run Logs</p>
         </div>
 
-        <div className="h-[calc(100%-41px)] overflow-y-auto p-3 ide-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 ide-scrollbar">
           {generatedCode && (
             <div className="mb-4 rounded-md border border-border bg-card/60 p-3">
               <div className="mb-2 flex items-center justify-between">
