@@ -23,6 +23,7 @@ import { MCPServersPanel, AgentSkillsPanel } from './MCPSkillsPanel';
 import { NotificationSettings } from './NotificationSettings';
 import { AIComparisonPanel } from './AIComparisonPanel';
 import { AIUsageStats } from './AIUsageStats';
+import { PasskeySettings } from './PasskeySettings';
 
 interface SettingsDialogProps {
   open: boolean;
