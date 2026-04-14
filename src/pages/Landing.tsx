@@ -94,7 +94,7 @@ const timeline = [
   },
 ];
 
-const floatingBadges = ["Realtime AI Pairing", "Neon Command Center", "Live Team Presence", "Edge-Speed Builds"];
+const floatingBadges = ["Realtime AI Pairing", "All in one IDE", "Live Team Presence", "Edge-Speed Builds", "Built in Git", "Multiplayer Canvases", "Browser Native", ];
 const pulseNodes = [
   { id: "NX-01", status: "Synced" },
   { id: "NX-08", status: "Rendering" },
