@@ -103,45 +103,53 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     const codeChanges: CodeChange[] = [];
     let cleanContent = content;
 
-        // Parse code-based changes
-
+    // 1. Parse standard code_change blocks
     const codeRegex = /<code_change\s+file="([^"]+)"\s+(?:lang="([^"]+)"\s+)?desc="([^"]+)">([\s\S]*?)<\/code_change>/g;
     let match;
     while ((match = codeRegex.exec(content)) !== null) {
-      codeChanges.push({ fileName: match[1], language: match[2] || 'typescript', description: match[3], newCode: match[4].trim() });
-      cleanContent = cleanContent.replace(match[0], '');
+      codeChanges.push({ 
+        fileName: match[1], 
+        language: match[2] || 'typescript', 
+        description: match[3], 
+        newCode: match[4].trim() 
+      });
     }
 
-    
-    
-    // Parse diff-based changes
+    // 2. Parse diff-based changes (Hardened Version)
     const diffRegex = /<code_diff\b([^>]*?)>([\s\S]*?)<\/code_diff>/g;
 
     while ((match = diffRegex.exec(content)) !== null) {
       const attrString = match[1];
+
+      // FIX: Strip null bytes (\u0000) that crash Postgres/Supabase
       const rawBody = match[2] || '';
       const diffBody = rawBody.replace(/\0/g, '').trim();
-      const fileMatch = attrString.match(/file="([^"]+)"/);
-      const langMatch = attrString.match(/lang="([^"]+)"/);
-      const descMatch = attrString.match(/desc="([^"]+)"/);
 
-      const fileName = fileMatch ? fileMatch[1] : null;
-      const language = langMatch ? langMatch[1] : 'typescript';
-      const description = descMatch ? descMatch[1] : '';
+      // Extract attributes individually to handle any order safely
+      const fileName = attrString.match(/file="([^"]+)"/)?.[1];
+      const language = attrString.match(/lang="([^"]+)"/)?.[1] || 'typescript';
+      const description = attrString.match(/desc="([^"]+)"/)?.[1] || '';
 
       if (fileName) {
         codeChanges.push({ 
           fileName, 
           language, 
           description, 
-          newCode: '', // Leave empty because this is a diff
+          newCode: '', 
           isDiff: true, 
           diffContent: diffBody 
         });
       }
     }
-    cleanContent = cleanContent.replace(/<code_diff\b([^>]*?)>([\s\S]*?)<\/code_diff>/g, '').trim();
 
+    // 3. Clean UI content globally AFTER loops to prevent ghost tags
+    cleanContent = cleanContent
+      .replace(/<code_change[\s\S]*?<\/code_change>/g, '')
+      .replace(/<code_diff[\s\S]*?<\/code_diff>/g, '')
+      .trim();
+
+    return { codeChanges, cleanContent };
+  }; // <--- THIS WAS THE MISSING BRACE CAUSING THE SYNTAX ERROR
   const parseWorkflowCommands = (content: string): { workflowActions: WorkflowAction[], cleanContent: string } => {
     const workflowActions: WorkflowAction[] = [];
     let cleanContent = content;
