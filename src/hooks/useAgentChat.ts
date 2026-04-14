@@ -69,7 +69,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     {
       id: '1',
       role: 'assistant',
-      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🎨 **Generate images** from text descriptions\n- 🎵 **Generate music** with AI (Lyria)\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
+      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🎨 **Generate images and other multimedia** from text descriptions\n- 🎨 **Open widgets** like a live stock ticker or a basic calculator\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,7 +103,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     const codeChanges: CodeChange[] = [];
     let cleanContent = content;
 
-        // Parse diff-based changes
+        // Parse code-based changes
 
     const codeRegex = /<code_change\s+file="([^"]+)"\s+(?:lang="([^"]+)"\s+)?desc="([^"]+)">([\s\S]*?)<\/code_change>/g;
     let match;
@@ -111,30 +111,36 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       codeChanges.push({ fileName: match[1], language: match[2] || 'typescript', description: match[3], newCode: match[4].trim() });
       cleanContent = cleanContent.replace(match[0], '');
     }
-    // This version allows attributes in any order and handles extra whitespace
+
+    
+    
+    // Parse diff-based changes
     const diffRegex = /<code_diff\b([^>]*?)>([\s\S]*?)<\/code_diff>/g;
 
     while ((match = diffRegex.exec(content)) !== null) {
-        const attrString = match[1];
-        const diffBody = match[2].trim();
+      const attrString = match[1];
+      const rawBody = match[2] || '';
+      const diffBody = rawBody.replace(/\0/g, '').trim();
+      const fileMatch = attrString.match(/file="([^"]+)"/);
+      const langMatch = attrString.match(/lang="([^"]+)"/);
+      const descMatch = attrString.match(/desc="([^"]+)"/);
 
-        // Extract attributes individually to handle any order
-        const fileName = attrString.match(/file="([^"]+)"/)?.[1];
-        const language = attrString.match(/lang="([^"]+)"/)?.[1] || 'typescript';
-        const description = attrString.match(/desc="([^"]+)"/)?.[1] || '';
+      const fileName = fileMatch ? fileMatch[1] : null;
+      const language = langMatch ? langMatch[1] : 'typescript';
+      const description = descMatch ? descMatch[1] : '';
 
-        if (fileName) {
-            codeChanges.push({ 
-                fileName, 
-                language, 
-                description, 
-                newCode: '', 
-                isDiff: true, 
-                diffContent: diffBody 
-            });
-        }
-        cleanContent = cleanContent.replace(match[0], '');
+      if (fileName) {
+        codeChanges.push({ 
+          fileName, 
+          language, 
+          description, 
+          newCode: '', // Leave empty because this is a diff
+          isDiff: true, 
+          diffContent: diffBody 
+        });
+      }
     }
+    cleanContent = cleanContent.replace(/<code_diff\b([^>]*?)>([\s\S]*?)<\/code_diff>/g, '').trim();
 
   const parseWorkflowCommands = (content: string): { workflowActions: WorkflowAction[], cleanContent: string } => {
     const workflowActions: WorkflowAction[] = [];
