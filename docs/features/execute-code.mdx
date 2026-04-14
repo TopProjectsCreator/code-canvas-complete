@@ -1,0 +1,22 @@
+---
+title: "execute-code API"
+description: "Reference for the Supabase execute-code function and how shells/compilers are orchestrated."
+---
+
+## How execute-code helps you run commands
+
+Every command you request—from a simple `npm test` to a full Python script—runs through the execute-code layer. The assistant tracks your session, reuses installed packages, and surfaces output directly in the chat so you never have to copy/paste results.
+
+### Sessions and persistence
+
+Once a session starts, the shell keeps its state. That means your installed packages, environment variables, and working directory remain consistent across prompts until you close the session or request a reset. You can see the session ID under the terminal output if you ever want to share it with teammates.
+
+### Executor selection
+
+The system routes commands to the best runner:
+
+- **Wandbox** for compiled languages like Go or Rust.
+- **Container** for shell, Bash, and Python where the environment needs tighter control.
+- **Hybrid** when a mix makes sense—containers for sensitive steps and Wandbox for the rest.
+
+If a command fails, the assistant shows a friendly explanation (missing packages, timeout, etc.) so you can adjust your prompt without digging into logs.

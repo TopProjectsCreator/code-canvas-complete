@@ -1,0 +1,32 @@
+---
+title: "Persistent Shell & Execution"
+description: "How Code Canvas keeps shells, compilers, and containers available to the IDE and AI agents."
+---
+
+## Keep your terminal sessions alive
+
+Every command you prompt runs in a persistent shell. Install packages once, run scripts repeatedly, and still come back to the same state even after a reload.
+
+### How the AI talks to the shell
+
+When you ask for something, the assistant forwards the command to the shell, waits for the output, and displays the result in context. Most languages run immediately, while shell/Bash/Python commands prefer the container runner, so the environment stays isolated while you experiment.
+
+### Sharing shell output
+
+You can pin a terminal output card, copy the full log, or let the AI compress the log into a summary. The session ID shown in the footer links to the run history, making it easy to explain what happened to a teammate.
+
+### Supporting services
+
+When the assistant needs extra context (tests, explanations, generated media), it calls Supabase functions such as `ai-chat`, `generate-command`, or `template-assistant`. All these services run through the same execution layer so your session history stays intact.
+
+### Arduino uploads
+
+When you flash a device, the hardware bridge handles OTA and Bluetooth uploads for you. The UI shows progress indicators, resolves dependencies, and surfaces actionable errors if a required uploader (`avrdude`, `esptool`, `espota.py`) is missing.
+
+### Long-running commands
+
+Commands run up to 30 seconds by default. If you need more time (e.g., heavy builds or dataset exports), stage the work inside a workflow so you can rerun it without losing context.
+
+<Card title="execute-code API" icon="server" href="/features/execute-code">
+  See the API reference for payloads, executor selection, and session lifecycle details.
+</Card>

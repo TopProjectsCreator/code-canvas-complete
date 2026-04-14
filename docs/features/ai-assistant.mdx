@@ -1,0 +1,47 @@
+---
+title: "AI Assistant"
+description: "How the AI copilots understand code, run commands, and extend themselves via MCP and agent skills."
+---
+
+## Let the assistant follow your prompts
+
+Describe the change you want and click the action button. The assistant will suggest replacements, recommend files, and run the terminal commands you approve. Use the **AI Comparison Panel** whenever you want to see how OpenAI, Anthropic, and Gemini interpret the same prompt—then pick the response that matches your tone or desired precision before hitting apply.
+
+### Writing prompts that work
+
+- Start with the goal (“Update the README to highlight AI workflows”).
+- Add constraints (“Keep it short, mention the hardware editor, include a link to the collaboration page”).
+- The assistant highlights the affected files and shows inline diffs so you can accept or adjust each change.
+
+### Autonomy modes for every comfort level
+
+Choose how much the AI should do for you:
+
+- **Safe** keeps you in control—every edit or command shows a preview before applying.
+- **Balanced** lets the assistant apply obvious fixes while still asking you to confirm risky actions.
+- **Fast** moves quickly—approve once and the AI runs through commands, file edits, and deployments without repeated prompts.
+- **Custom** lets you toggle granular permissions: limit which files it edits, which terminals it can open, and whether it can push commits or run workflows.
+
+### Simple explanations and widgets
+
+Click a symbol or file to get a plain-language explanation of what it does, how it’s used, and whether other files depend on it. You also have calculators, color pickers, randomizers, countdowns, and other widgets directly inside the chat, so you gather the data you need without leaving the thread.
+
+### MCP servers and agent skills
+
+Add MCP servers from the **MCP & Skills** panel when you want the assistant to consult private data or internal APIs. Pair them with agent skills (structured instructions) to give the AI personas like “Always format responses as a checklist” or “Explain like a junior AI enthusiast.” Toggle skills per session—the assistant keeps track of which skill and MCP server are active and mentions them in the UI.
+
+<Note>
+  Keep credentials scoped by environment so the assistant only uses them when you explicitly allow it. The MCP panel always shows which servers and skills are live, and you can disable any combination instantly.
+</Note>
+
+<Columns cols={3}>
+  <Card title="Workspace config" icon="gear" href="/features/environment">
+    Control how the assistant sees encrypted env scopes and panel layouts.
+  </Card>
+  <Card title="Workflows & API" icon="flow-branch" href="/features/workflows">
+    Combine AI commands with workflow triggers and API calls.
+  </Card>
+  <Card title="MCP & skills" icon="sparkles" href="/features/ai-mcp">
+    Fine-tune prompts, skills, and MCP servers for the assistant.
+  </Card>
+</Columns>

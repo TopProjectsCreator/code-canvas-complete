@@ -1,0 +1,16 @@
+---
+title: "Supported Arduino boards"
+description: "Which boards work with the Code Canvas hardware workflow." 
+---
+
+## AVR boards
+
+- Uno, Nano, Mega, Leonardo, Micro
+- The workspace uses `avrdude` to upload via serial or Bluetooth.
+- Choose baud and programmer presets from the hardware sidebar.
+
+## ESP boards
+
+- ESP32, ESP8266
+- OTA uploads use `espota.py`, while the Bluetooth flow uses `esptool`.
+- The assistant can select the correct board flavors when you ask for a build.

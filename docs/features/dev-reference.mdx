@@ -1,0 +1,68 @@
+---
+title: "Developer reference"
+description: "Technical reference for customizing Code Canvas, deploying Supabase functions, and extending the workspace." 
+---
+
+## System architecture
+
+## New: Terminal operations safety
+
+For high-stakes terminal work, use the dedicated **Terminal Safety Runbook** page (`features/shell-safety-runbook`).
+It provides command-by-command preflight, validation, and rollback guidance for production-safe operations.
+
+### Frontend stack
+
+The web client runs on Vite/React with Tailwind plus Radix UI components. Key folders:
+
+- `src/components` contains reusable UI kits (buttons, cards, toolbars).
+- `src/pages` wires the router and the Docs view that renders Mintlify pages.
+- `src/contexts` (theme, auth, env) keep shared state so the AI assistant and workspace panels stay in sync.
+
+### Backend services
+
+- `supabase/functions/execute-code` handles shell execution, Wandbox integration, and compiler caching.
+- `tools/arduino-bridge` runs a separate uploader service for OTA and Bluetooth firmware pushes.
+- Other Supabase functions (`ai-chat`, `generate-command`, etc.) provide the AI assistant with specialized tools.
+
+## Customization hooks
+
+### Mintlify settings
+
+`docs/docs.json` controls colors, tabs, and navigation. Update it whenever you add, remove, or reorganize docs pages so the interface reflects new guides.
+
+### Environment overrides
+
+- `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` connect the frontend to Supabase.
+- `EXECUTOR_MODE`, `EXECUTOR_CONTAINER_BASE_URL`, and `EXECUTOR_CONTAINER_API_KEY` point the execute-code function to the right runners.
+- `ARDUINO_BRIDGE_TOKEN`/`VITE_OTA_BRIDGE_TOKEN` secure firmware uploads.
+
+## Local tooling
+
+### CLI commands
+
+- `npm install`, `npm run dev` – front-end development.
+- `npm run build`, `npm run preview` – production bundle.
+- `mint dev` – preview the docs inside `docs/` (must be run from that directory).
+- `mint broken-links`, `mint validate` – verify the doc site.
+- `supabase start` – spin up local Supabase services and emulators before you run the workspace.
+- `supabase functions deploy` – publish updated functions (AI, execute-code, Arduino bridge) after you edit them.
+
+### Testing and linting
+
+- `npm run lint` runs ESLint across the repo and enforces the coding standards used in the workspace.
+- `npm run test` runs Vitest suites that cover shared hooks, contexts, and utilities.
+- `supabase start` (paired with `supabase functions deploy`) brings up local emulators for AI and execution services so you can test prompts and workflows against production-like APIs.
+
+## Extension points
+
+### AI widgets
+
+The assistant loads widgets from `src/components/ai`. Add cards or calculators there to surface new tools like color pickers or project trackers.
+
+### Workflow hooks
+
+Inspect `src/hooks/use-workflow` to see how automation steps are defined and triggered. Each step can call a shell command, run a Supabase function, or open a documentation tab.
+
+<Note>
+  Refer back to the feature pages above for guided, non-developer narratives—this reference is here for situations where you need to debug, extend, or deploy the platform.
+</Note>

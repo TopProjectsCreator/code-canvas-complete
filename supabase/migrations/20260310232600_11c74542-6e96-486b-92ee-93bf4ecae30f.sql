@@ -1,0 +1,2 @@
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS publish_slug TEXT UNIQUE;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ;

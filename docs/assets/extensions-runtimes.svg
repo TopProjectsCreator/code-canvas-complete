@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820">
+  <defs>
+    <style>
+      .title{font:700 34px Arial;fill:#ffe6a7}.h{font:700 24px Arial;fill:#ffffff}.t{font:16px Arial;fill:#dce7f2}.m{font:600 20px Arial;fill:#d6ecff}
+      .box{rx:16;ry:16;stroke:#8aa1b5;stroke-width:2}
+    </style>
+  </defs>
+  <rect width="1400" height="820" fill="#111827"/>
+  <text x="40" y="60" class="title">Extension Runtime Types</text>
+
+  <rect x="70" y="110" width="1260" height="110" class="box" fill="#233247"/>
+  <text x="100" y="156" class="m">All runtimes receive a controlled <tspan fill="#ffffff">ctx</tspan> object</text>
+  <text x="100" y="186" class="t">Includes project file APIs, storage, preview, notifications, and optional AI helpers.</text>
+
+  <rect x="70" y="270" width="390" height="470" class="box" fill="#2d4d71"/>
+  <text x="100" y="320" class="h">Widget runtime</text>
+  <text x="100" y="358" class="t">• Builds interactive mini apps</text>
+  <text x="100" y="388" class="t">• Renders HTML via ctx.showUI()</text>
+  <text x="100" y="418" class="t">• Can expose custom actions</text>
+  <text x="100" y="448" class="t">• Great for dashboards/converters</text>
+
+  <rect x="505" y="270" width="390" height="470" class="box" fill="#476035"/>
+  <text x="535" y="320" class="h">Command runtime</text>
+  <text x="535" y="358" class="t">• Operates on active file content</text>
+  <text x="535" y="388" class="t">• Reads selection/text context</text>
+  <text x="535" y="418" class="t">• Writes transformed output</text>
+  <text x="535" y="448" class="t">• Best for formatters/codemods</text>
+
+  <rect x="940" y="270" width="390" height="470" class="box" fill="#6a3f3f"/>
+  <text x="970" y="320" class="h">Chat-tool runtime</text>
+  <text x="970" y="358" class="t">• Invoked as a chat helper</text>
+  <text x="970" y="388" class="t">• Accepts focused instructions</text>
+  <text x="970" y="418" class="t">• Returns structured responses</text>
+  <text x="970" y="448" class="t">• Ideal for summarize/extract/analyze</text>
+</svg>

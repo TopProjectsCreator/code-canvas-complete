@@ -1,0 +1,16 @@
+---
+title: "Hardware & Arduino"
+description: "Deep dive on the Arduino IDE, bridges, and workflows that keep embedded commands inside Code Canvas." 
+---
+
+## Arduino development from the prompt
+
+Open the hardware panel, select your board (Uno, Nano, Mega, Leonardo, Micro, ESP32, ESP8266), and click **Compile & Upload**. The workspace handles the upload method—OTA for ESP boards, Bluetooth for supported targets—and shows success messages when the device receives the firmware.
+
+### Scratch & block prototyping
+
+Use the Scratch workspace to drag blocks, wire logic, and immediately see a simulation. When you are ready, press **Export to C++** and let the assistant make the text version match your block layout.
+
+### Toolchain health
+
+The UI checks whether the upload tools are available before you try to flash. If a required uploader is missing, the workspace shows a clear warning and a link to the recommended setup steps so you can keep prototyping.

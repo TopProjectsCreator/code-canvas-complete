@@ -1,0 +1,74 @@
+---
+title: "IDE Workspace"
+description: "The workspace features that let you edit, run, and manage every file without leaving the browser."
+---
+
+## Prompt-first code editing
+
+The workspace is built around a promptable editor. Tell the AI which file or component you want to change, and it will highlight the suggested edits before you accept them. You can still navigate files manually with tabs and splits when you prefer a direct touch.
+
+### Tabs, splits, and navigation
+
+- **Tabbed editing** keeps each file accessible so you can switch contexts without losing focus.
+- **Split views** let you pin documentation, terminals, and editors side-by-side. Drag tabs to create custom layouts and save them for later.
+- **File tree and minimap** keep the structure of large workspaces visible, while sticky scopes anchor your viewport when scrolling.
+
+### Global search and multi-tool access
+
+- The universal search bar lets you jump to files, run commands, or trigger AI prompts from a single place.
+- **Multi-cursor column editing** handles aligned data, and **regex replace** previews the impact before you commit.
+- **Dirty indicators, context menus, and tab groups** behave like a desktop IDE but run entirely in the browser.
+
+## Built-in terminals, git, and packages
+
+The WebContainers-powered terminal runs `npm`, `pnpm`, `git`, and custom scripts without extra setup. The Git panel keeps you aware of branches, unstaged changes, and diffs, while provider integrations (GitHub, GitLab, Bitbucket) sync your remote repositories automatically.
+
+### Environment manager & secrets
+
+The environment dashboard stores secrets securely per scope (Preview, Shared, Production). When you ask the AI to read or write a secret, it accesses only the encrypted value, so keys never leak into the chat transcript.
+
+<Note>
+  Panel layout, terminal history, and package state persist in your browser session, so you can reload without losing context.
+</Note>
+
+## Extensions and how they work
+
+The IDE includes an extensions system for creating custom tools, automations, and assistant helpers.
+
+- **Widget extensions** render mini apps inside the IDE UI.
+- **Command extensions** transform active file content.
+- **Chat-tool extensions** add focused helpers for AI workflows.
+
+Use the dedicated extensions guide for lifecycle diagrams, runtime behavior, and practical patterns.
+
+<Card title="Extensions" icon="puzzle" href="/features/ide/extensions">
+  Build, test, publish, and install custom IDE extensions.
+</Card>
+
+## Specialized editor suites
+
+There are dedicated editors for hardware, creative media, CAD, and office work right alongside the code tabs. Visit the subfolders below to explore each one in detail.
+
+<Columns cols={3}>
+  <Card title="Hardware" icon="cpu" href="/features/ide/specialized-editors/arduino/upload">
+    Flash Uno, Nano, Mega, or ESP boards through OTA or Bluetooth.
+  </Card>
+  <Card title="Scratch" icon="blocks" href="/features/ide/specialized-editors/scratch/overview">
+    Build logic visually, then export to text with a prompt.
+  </Card>
+  <Card title="Creative studio" icon="photo" href="/features/ide/specialized-editors/media/overview">
+    Edit video, audio, and 3D scenes without leaving the workspace.
+  </Card>
+</Columns>
+
+<Columns cols={3}>
+  <Card title="Office & docs" icon="file-text" href="/features/ide/specialized-editors/office/overview">
+    Write, collaborate, and ask the AI for summaries directly in docs.
+  </Card>
+  <Card title="CAD & data" icon="layers" href="/features/ide/specialized-editors/cad/overview">
+    Design models or databases with guided prompts.
+  </Card>
+  <Card title="Workflows" icon="flow-branch" href="/features/workflows">
+    Trigger editor actions from automated sequences.
+  </Card>
+</Columns>

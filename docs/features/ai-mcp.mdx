@@ -1,0 +1,36 @@
+---
+title: "AI MCP & skills"
+description: "How Model Context Protocol servers, agent skills, and prompts power the AI copilots." 
+---
+
+## MCP servers
+
+Add Model Context Protocol servers from the sidebar to feed the AI with proprietary data, custom endpoints, or private knowledge bases. Each server definition includes:
+
+- **Name** and optional icon.
+- **URL** plus any required API keys or Bearer tokens.
+- **Permissions** that gate what the agent can do with the returned data.
+
+The client stores the MCP configuration under `src/contexts/MCPContext.tsx` and includes it in the prompt whenever an AI assistant launches.
+
+## Agent skills library
+
+Agent skills are structured instructions you can upload in the **MCP & Skills** panel. Common patterns:
+
+| Example | Effect |
+| --- | --- |
+| "Always use Tailwind utilities." | Every generated CSS snippet conforms to Tailwind tokens from `src/styles`. |
+| "Never apply risky git commands without confirmation." | The assistant prompts you before running destructive git steps. |
+| "Explain code like I'm a junior AI developer." | Response tone and detail adjust automatically.
+
+Skills rely on `skills-lock.json` for versioning, so keep that file in sync when you add or update personas.
+
+## Prompt tuning
+
+Every chat contains:
+
+1. **System instructions** that reference your MCP servers and active skills.
+2. **Workspace context** pulled from `src/pages/Docs.tsx` (open files, git diff, TODOs).
+3. **User request** plus tool metadata (available widgets, workflow steps).
+
+You can edit prompts on-the-fly through the assistant UI and watch the diff in real time. The prompt builder and widget catalog live under `src/components/ai`.

@@ -1,0 +1,504 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Canvas-inspired dark IDE design system */
+
+@layer base {
+  :root,
+  [data-theme="canvas-dark"] {
+    /* Core backgrounds - Canvas signature dark navy */
+    --background: 228 14% 10%;
+    --foreground: 220 13% 91%;
+
+    --card: 228 14% 13%;
+    --card-foreground: 220 13% 91%;
+
+    --popover: 228 14% 15%;
+    --popover-foreground: 220 13% 91%;
+
+    /* Canvas signature orange */
+    --primary: 24 94% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 228 12% 17%;
+    --secondary-foreground: 220 13% 85%;
+
+    --muted: 228 10% 20%;
+    --muted-foreground: 220 10% 50%;
+
+    --accent: 228 12% 22%;
+    --accent-foreground: 220 13% 91%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Subtle borders for Canvas */
+    --border: 228 10% 18%;
+    --input: 228 12% 15%;
+    --ring: 24 94% 50%;
+
+    --radius: 0.375rem;
+
+    /* IDE specific tokens - darker, more contrast */
+    --editor-bg: 228 14% 11%;
+    --editor-line: 228 12% 15%;
+    --editor-selection: 228 40% 28%;
+    --editor-gutter: 220 10% 35%;
+    
+    --terminal-bg: 228 16% 8%;
+    --terminal-text: 142 71% 45%;
+    
+    --sidebar-bg: 228 14% 12%;
+    --sidebar-hover: 228 12% 18%;
+    --sidebar-active: 24 94% 50%;
+    
+    --file-icon-folder: 45 80% 55%;
+    --file-icon-js: 50 100% 50%;
+    --file-icon-ts: 211 60% 48%;
+    --file-icon-css: 264 84% 56%;
+    --file-icon-html: 14 100% 57%;
+    --file-icon-json: 45 70% 50%;
+    
+    /* Syntax highlighting - vivid colors */
+    --syntax-keyword: 291 64% 60%;
+    --syntax-string: 142 71% 45%;
+    --syntax-number: 32 98% 56%;
+    --syntax-function: 199 95% 74%;
+    --syntax-comment: 220 10% 40%;
+    --syntax-variable: 0 0% 90%;
+    --syntax-operator: 24 94% 60%;
+    
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
+    --info: 199 89% 48%;
+
+    --sidebar-background: 228 14% 12%;
+    --sidebar-foreground: 220 13% 85%;
+    --sidebar-primary: 24 94% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 228 12% 20%;
+    --sidebar-accent-foreground: 220 13% 91%;
+    --sidebar-border: 228 10% 18%;
+    --sidebar-ring: 24 94% 50%;
+  }
+
+  /* GitHub Dark Theme */
+  [data-theme="github-dark"] {
+    --background: 220 13% 9%;
+    --foreground: 210 17% 82%;
+
+    --card: 220 13% 12%;
+    --card-foreground: 210 17% 82%;
+
+    --popover: 220 13% 14%;
+    --popover-foreground: 210 17% 82%;
+
+    --primary: 212 92% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 13% 16%;
+    --secondary-foreground: 210 17% 78%;
+
+    --muted: 220 13% 20%;
+    --muted-foreground: 210 12% 50%;
+
+    --accent: 220 13% 22%;
+    --accent-foreground: 210 17% 82%;
+
+    --border: 220 13% 20%;
+    --input: 220 13% 16%;
+    --ring: 212 92% 45%;
+
+    --editor-bg: 220 13% 10%;
+    --editor-line: 220 13% 14%;
+    --editor-gutter: 210 12% 35%;
+    
+    --terminal-bg: 220 13% 8%;
+    --terminal-text: 140 50% 60%;
+
+    --syntax-keyword: 330 100% 71%;
+    --syntax-string: 173 80% 45%;
+    --syntax-number: 173 80% 45%;
+    --syntax-function: 210 100% 75%;
+    --syntax-comment: 210 12% 45%;
+    --syntax-variable: 39 90% 70%;
+    --syntax-operator: 330 100% 71%;
+
+    --sidebar-background: 220 13% 12%;
+    --sidebar-primary: 212 92% 45%;
+  }
+
+  /* Monokai Theme */
+  [data-theme="monokai"] {
+    --background: 70 8% 15%;
+    --foreground: 60 30% 96%;
+
+    --card: 70 8% 18%;
+    --card-foreground: 60 30% 96%;
+
+    --popover: 70 8% 20%;
+    --popover-foreground: 60 30% 96%;
+
+    --primary: 80 76% 53%;
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 70 8% 22%;
+    --secondary-foreground: 60 30% 90%;
+
+    --muted: 70 8% 25%;
+    --muted-foreground: 60 10% 55%;
+
+    --accent: 70 8% 28%;
+    --accent-foreground: 60 30% 96%;
+
+    --border: 70 8% 22%;
+    --input: 70 8% 20%;
+    --ring: 80 76% 53%;
+
+    --editor-bg: 70 8% 16%;
+    --editor-line: 70 8% 20%;
+    --editor-gutter: 60 10% 40%;
+
+    --terminal-bg: 70 8% 12%;
+    --terminal-text: 80 76% 53%;
+
+    --syntax-keyword: 338 95% 56%;
+    --syntax-string: 54 70% 68%;
+    --syntax-number: 261 100% 75%;
+    --syntax-function: 80 76% 53%;
+    --syntax-comment: 60 10% 50%;
+    --syntax-variable: 60 30% 96%;
+    --syntax-operator: 338 95% 56%;
+
+    --sidebar-background: 70 8% 18%;
+    --sidebar-primary: 80 76% 53%;
+  }
+
+  /* Dracula Theme */
+  [data-theme="dracula"] {
+    --background: 231 15% 18%;
+    --foreground: 60 30% 96%;
+
+    --card: 231 15% 21%;
+    --card-foreground: 60 30% 96%;
+
+    --popover: 231 15% 24%;
+    --popover-foreground: 60 30% 96%;
+
+    --primary: 265 89% 78%;
+    --primary-foreground: 231 15% 18%;
+
+    --secondary: 231 15% 26%;
+    --secondary-foreground: 60 30% 90%;
+
+    --muted: 231 15% 30%;
+    --muted-foreground: 225 14% 55%;
+
+    --accent: 231 15% 32%;
+    --accent-foreground: 60 30% 96%;
+
+    --border: 231 15% 26%;
+    --input: 231 15% 24%;
+    --ring: 265 89% 78%;
+
+    --editor-bg: 231 15% 19%;
+    --editor-line: 231 15% 24%;
+    --editor-gutter: 225 14% 45%;
+
+    --terminal-bg: 231 15% 15%;
+    --terminal-text: 135 94% 65%;
+
+    --syntax-keyword: 326 100% 74%;
+    --syntax-string: 65 92% 76%;
+    --syntax-number: 265 89% 78%;
+    --syntax-function: 135 94% 65%;
+    --syntax-comment: 225 14% 50%;
+    --syntax-variable: 60 30% 96%;
+    --syntax-operator: 326 100% 74%;
+
+    --sidebar-background: 231 15% 21%;
+    --sidebar-primary: 265 89% 78%;
+  }
+
+  /* Nord Theme */
+  [data-theme="nord"] {
+    --background: 220 16% 22%;
+    --foreground: 218 27% 88%;
+
+    --card: 220 16% 26%;
+    --card-foreground: 218 27% 88%;
+
+    --popover: 220 16% 28%;
+    --popover-foreground: 218 27% 88%;
+
+    --primary: 193 43% 67%;
+    --primary-foreground: 220 16% 22%;
+
+    --secondary: 220 16% 30%;
+    --secondary-foreground: 218 27% 84%;
+
+    --muted: 220 16% 34%;
+    --muted-foreground: 218 18% 55%;
+
+    --accent: 220 16% 36%;
+    --accent-foreground: 218 27% 88%;
+
+    --border: 220 16% 30%;
+    --input: 220 16% 28%;
+    --ring: 193 43% 67%;
+
+    --editor-bg: 220 16% 23%;
+    --editor-line: 220 16% 28%;
+    --editor-gutter: 218 18% 45%;
+
+    --terminal-bg: 220 16% 18%;
+    --terminal-text: 92 28% 65%;
+
+    --syntax-keyword: 311 20% 63%;
+    --syntax-string: 92 28% 65%;
+    --syntax-number: 311 20% 63%;
+    --syntax-function: 193 43% 67%;
+    --syntax-comment: 218 18% 50%;
+    --syntax-variable: 218 27% 88%;
+    --syntax-operator: 179 25% 65%;
+
+    --sidebar-background: 220 16% 26%;
+    --sidebar-primary: 193 43% 67%;
+  }
+
+  /* Solarized Dark Theme */
+  [data-theme="solarized-dark"] {
+    --background: 192 100% 11%;
+    --foreground: 186 13% 59%;
+
+    --card: 192 81% 14%;
+    --card-foreground: 186 13% 59%;
+
+    --popover: 192 70% 16%;
+    --popover-foreground: 186 13% 59%;
+
+    --primary: 175 59% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 192 60% 18%;
+    --secondary-foreground: 186 13% 55%;
+
+    --muted: 192 50% 22%;
+    --muted-foreground: 186 10% 45%;
+
+    --accent: 192 45% 24%;
+    --accent-foreground: 186 13% 59%;
+
+    --border: 192 60% 18%;
+    --input: 192 70% 16%;
+    --ring: 175 59% 40%;
+
+    --editor-bg: 192 100% 12%;
+    --editor-line: 192 70% 16%;
+    --editor-gutter: 186 10% 35%;
+
+    --terminal-bg: 192 100% 9%;
+    --terminal-text: 68 100% 30%;
+
+    --syntax-keyword: 18 89% 55%;
+    --syntax-string: 175 59% 40%;
+    --syntax-number: 175 59% 40%;
+    --syntax-function: 45 100% 50%;
+    --syntax-comment: 186 10% 40%;
+    --syntax-variable: 186 13% 59%;
+    --syntax-operator: 338 65% 55%;
+
+    --sidebar-background: 192 81% 14%;
+    --sidebar-primary: 175 59% 40%;
+  }
+
+  /* One Dark Theme */
+  [data-theme="one-dark"] {
+    --background: 220 13% 18%;
+    --foreground: 220 14% 71%;
+
+    --card: 220 13% 21%;
+    --card-foreground: 220 14% 71%;
+
+    --popover: 220 13% 24%;
+    --popover-foreground: 220 14% 71%;
+
+    --primary: 207 82% 66%;
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 220 13% 26%;
+    --secondary-foreground: 220 14% 67%;
+
+    --muted: 220 13% 30%;
+    --muted-foreground: 220 10% 50%;
+
+    --accent: 220 13% 32%;
+    --accent-foreground: 220 14% 71%;
+
+    --border: 220 13% 26%;
+    --input: 220 13% 24%;
+    --ring: 207 82% 66%;
+
+    --editor-bg: 220 13% 19%;
+    --editor-line: 220 13% 24%;
+    --editor-gutter: 220 10% 40%;
+
+    --terminal-bg: 220 13% 15%;
+    --terminal-text: 95 38% 62%;
+
+    --syntax-keyword: 286 60% 67%;
+    --syntax-string: 95 38% 62%;
+    --syntax-number: 29 54% 61%;
+    --syntax-function: 207 82% 66%;
+    --syntax-comment: 220 10% 45%;
+    --syntax-variable: 355 65% 65%;
+    --syntax-operator: 187 47% 55%;
+
+    --sidebar-background: 220 13% 21%;
+    --sidebar-primary: 207 82% 66%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'IBM Plex Mono', 'Fira Code', monospace;
+  }
+}
+
+@layer components {
+  .ide-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .ide-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .ide-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+  
+  .ide-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 16px hsl(var(--primary) / 0.25);
+  }
+
+  .code-line {
+    @apply relative pr-4 leading-6 whitespace-pre;
+  }
+
+  .code-line:hover {
+    background: hsl(var(--editor-line));
+  }
+
+  .code-line-number {
+    @apply absolute left-0 w-10 text-right pr-3 select-none;
+    color: hsl(var(--editor-gutter));
+  }
+}
+
+@layer utilities {
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0px) translateX(0px); }
+    50% { transform: translateY(-14px) translateX(8px); }
+  }
+
+  @keyframes float-delayed {
+    0%, 100% { transform: translateY(0px) translateX(0px); }
+    50% { transform: translateY(16px) translateX(-8px); }
+  }
+
+  @keyframes grid-drift {
+    0% { transform: translate3d(0, 0, 0); }
+    100% { transform: translate3d(60px, 60px, 0); }
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0%); }
+    100% { transform: translateX(-50%); }
+  }
+
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 0.35; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.08); }
+  }
+
+  @keyframes scanline {
+    0% { background-position: 0 -120px; }
+    100% { background-position: 0 120px; }
+  }
+
+  @keyframes orbit-ring {
+    0% { transform: rotate(0deg) scale(1); opacity: 0.45; }
+    50% { transform: rotate(180deg) scale(1.08); opacity: 0.8; }
+    100% { transform: rotate(360deg) scale(1); opacity: 0.45; }
+  }
+
+  @keyframes aurora-shift {
+    0% { transform: translate3d(-8%, 0, 0) scale(1); opacity: 0.45; }
+    50% { transform: translate3d(8%, -6%, 0) scale(1.08); opacity: 0.8; }
+    100% { transform: translate3d(-8%, 0, 0) scale(1); opacity: 0.45; }
+  }
+
+  @keyframes tilt-wave {
+    0%, 100% { transform: perspective(800px) rotateX(0deg) rotateY(0deg); }
+    50% { transform: perspective(800px) rotateX(4deg) rotateY(-4deg); }
+  }
+
+  @keyframes shimmer-line {
+    0% { transform: translateX(-130%); }
+    100% { transform: translateX(130%); }
+  }
+
+  .animate-float-slow { animation: float-slow 9s ease-in-out infinite; }
+  .animate-float-delayed { animation: float-delayed 11s ease-in-out infinite; }
+  .animate-grid-drift { animation: grid-drift 28s linear infinite; }
+  .animate-marquee { animation: marquee 26s linear infinite; width: max-content; }
+  .animate-pulse-soft { animation: pulse-soft 4.5s ease-in-out infinite; }
+  .animate-scanline {
+    animation: scanline 10s linear infinite;
+    background-image: linear-gradient(to bottom, transparent 0%, hsl(var(--primary) / 0.06) 45%, transparent 100%);
+    background-size: 100% 120px;
+  }
+  .animate-orbit-ring { animation: orbit-ring 8s linear infinite; }
+  .animate-aurora-shift { animation: aurora-shift 15s ease-in-out infinite; }
+  .animate-tilt-wave { animation: tilt-wave 7s ease-in-out infinite; transform-style: preserve-3d; }
+  .animate-shimmer-line { animation: shimmer-line 3.4s linear infinite; }
+
+  .text-syntax-keyword { color: hsl(var(--syntax-keyword)); }
+  .text-syntax-string { color: hsl(var(--syntax-string)); }
+  .text-syntax-number { color: hsl(var(--syntax-number)); }
+  .text-syntax-function { color: hsl(var(--syntax-function)); }
+  .text-syntax-comment { color: hsl(var(--syntax-comment)); }
+  .text-syntax-variable { color: hsl(var(--syntax-variable)); }
+  .text-syntax-operator { color: hsl(var(--syntax-operator)); }
+
+  /* Mobile safe area insets for notched devices */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Prevent text size adjustment on mobile */
+  @supports (-webkit-touch-callout: none) {
+    body {
+      -webkit-text-size-adjust: 100%;
+    }
+  }
+}
