@@ -69,7 +69,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     {
       id: '1',
       role: 'assistant',
-      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🎨 **Generate images** from text descriptions\n- 🎵 **Generate music** with AI (Lyria)\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
+      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🎨 **Generate images and other multimedia** from text descriptions\n- 🎨 **Open widgets** like a live stock ticker or a basic calculator\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,24 +103,53 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     const codeChanges: CodeChange[] = [];
     let cleanContent = content;
 
-    // Parse full code changes
+    // 1. Parse standard code_change blocks
     const codeRegex = /<code_change\s+file="([^"]+)"\s+(?:lang="([^"]+)"\s+)?desc="([^"]+)">([\s\S]*?)<\/code_change>/g;
     let match;
     while ((match = codeRegex.exec(content)) !== null) {
-      codeChanges.push({ fileName: match[1], language: match[2] || 'typescript', description: match[3], newCode: match[4].trim() });
-      cleanContent = cleanContent.replace(match[0], '');
+      codeChanges.push({ 
+        fileName: match[1], 
+        language: match[2] || 'typescript', 
+        description: match[3], 
+        newCode: match[4].trim() 
+      });
     }
 
-    // Parse diff-based changes
-    const diffRegex = /<code_diff\s+file="([^"]+)"\s+(?:lang="([^"]+)"\s+)?desc="([^"]+)">([\s\S]*?)<\/code_diff>/g;
+    // 2. Parse diff-based changes (Hardened Version)
+    const diffRegex = /<code_diff\b([^>]*?)>([\s\S]*?)<\/code_diff>/g;
+
     while ((match = diffRegex.exec(content)) !== null) {
-      codeChanges.push({ fileName: match[1], language: match[2] || 'typescript', description: match[3], newCode: '', isDiff: true, diffContent: match[4].trim() });
-      cleanContent = cleanContent.replace(match[0], '');
+      const attrString = match[1];
+
+      // FIX: Strip null bytes (\u0000) that crash Postgres/Supabase
+      const rawBody = match[2] || '';
+      const diffBody = rawBody.replace(/\0/g, '').trim();
+
+      // Extract attributes individually to handle any order safely
+      const fileName = attrString.match(/file="([^"]+)"/)?.[1];
+      const language = attrString.match(/lang="([^"]+)"/)?.[1] || 'typescript';
+      const description = attrString.match(/desc="([^"]+)"/)?.[1] || '';
+
+      if (fileName) {
+        codeChanges.push({ 
+          fileName, 
+          language, 
+          description, 
+          newCode: '', 
+          isDiff: true, 
+          diffContent: diffBody 
+        });
+      }
     }
 
-    return { codeChanges, cleanContent: cleanContent.trim() };
-  };
+    // 3. Clean UI content globally AFTER loops to prevent ghost tags
+    cleanContent = cleanContent
+      .replace(/<code_change[\s\S]*?<\/code_change>/g, '')
+      .replace(/<code_diff[\s\S]*?<\/code_diff>/g, '')
+      .trim();
 
+    return { codeChanges, cleanContent };
+  }; // <--- THIS WAS THE MISSING BRACE CAUSING THE SYNTAX ERROR
   const parseWorkflowCommands = (content: string): { workflowActions: WorkflowAction[], cleanContent: string } => {
     const workflowActions: WorkflowAction[] = [];
     let cleanContent = content;
