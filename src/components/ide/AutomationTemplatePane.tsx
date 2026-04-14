@@ -1485,12 +1485,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         </div>
       </section>
 
-      <aside className="border-l border-border bg-background/80">
-        <div className="border-b border-border px-3 py-2">
+      <aside className="border-l border-border bg-background/80 flex flex-col overflow-hidden">
+        <div className="border-b border-border px-3 py-2 shrink-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Config + Run Logs</p>
         </div>
 
-        <div className="h-[calc(100%-41px)] overflow-y-auto p-3 ide-scrollbar">
+        <div className="flex-1 min-h-0 overflow-y-auto p-3 ide-scrollbar">
           {generatedCode && (
             <div className="mb-4 rounded-md border border-border bg-card/60 p-3">
               <div className="mb-2 flex items-center justify-between">
