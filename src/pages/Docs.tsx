@@ -78,6 +78,24 @@ const mdxModules = import.meta.glob("/docs/**/*.mdx", { query: "?raw", eager: tr
   { default: string }
 >;
 
+const assetModules = import.meta.glob("/docs/assets/*.{png,jpg,jpeg,gif,svg,webp}", { eager: true }) as Record<
+  string,
+  { default: string }
+>;
+
+/** Resolve docs/assets/foo.png → hashed Vite URL */
+function resolveAssetUrl(src: string): string {
+  // Try exact key first
+  let key = src.startsWith("/") ? src : `/docs/assets/${src}`;
+  if (assetModules[key]) return assetModules[key].default;
+  // Try just the filename
+  const filename = src.split("/").pop() || "";
+  for (const [k, mod] of Object.entries(assetModules)) {
+    if (k.endsWith(`/${filename}`)) return mod.default;
+  }
+  return src;
+}
+
 function getContent(path: string): string | null {
   // path = "features/ai-assistant" → try "/docs/features/ai-assistant.mdx"
   const key = `/docs/${path}.mdx`;
@@ -233,7 +251,21 @@ export default function Docs() {
                 </header>
 
                 <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:tracking-tight prose-a:text-primary">
-                  <ReactMarkdown>{content.body}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      img: ({ src, alt, ...props }) => (
+                        <img
+                          {...props}
+                          src={src ? resolveAssetUrl(src) : ""}
+                          alt={alt || ""}
+                          className="rounded-lg border border-border my-4 max-w-full"
+                          loading="lazy"
+                        />
+                      ),
+                    }}
+                  >
+                    {content.body}
+                  </ReactMarkdown>
                 </div>
 
                 <footer className="flex flex-col gap-3 border-t border-border pt-6 md:flex-row md:justify-between">
