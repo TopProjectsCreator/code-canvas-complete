@@ -1,54 +1,128 @@
 ---
 title: "Automation Hub"
-description: "Build visual automation pipelines with 70+ integration blocks, triggers, and AI-powered code generation."
+description: "Build visual automation pipelines with 70+ integration blocks, AI-powered code generation, and flexible triggers."
 ---
+
+![Automation pipeline with trigger blocks](automations.png)
 
 ## Visual pipeline builder
 
-The Automation canvas lets you chain blocks together into executable pipelines. Each block represents an action — calling an API, transforming data, sending a notification, or invoking an AI model. Drag blocks from the sidebar, connect them in order, and generate working Python or Node.js code with one click.
+The Automation canvas is a drag-and-drop workflow builder where you chain action blocks into executable pipelines. Each block does one thing — calling an API, running a query, transforming data, sending a notification, or invoking an AI model. Connect them in sequence, set up a trigger, and generate production code with one click.
 
-## Triggers
+## Creating your first automation
 
-Every pipeline starts with a trigger block. Triggers define **when** the automation runs:
+1. Open **Automation** from the sidebar
+2. Click **New Pipeline**
+3. Drag a **trigger block** onto the canvas first — this defines when the automation runs
+4. Add action blocks and connect them with arrows
+5. Configure each block with your settings (API keys, URLs, messages, etc.)
+6. Click **Generate Python** or **Generate Node.js** to export the runnable code
+7. Optionally save to a workflow for scheduled execution
 
-| Trigger | Parameters |
-| --- | --- |
-| **Schedule (Cron)** | Preset times like "Tonight at 8 PM", "Every hour", or a custom cron expression |
-| **Webhook** | Listens for incoming HTTP POST requests |
+## Trigger blocks
+
+Every automation starts with a trigger that defines when it fires:
+
+| Trigger | Description |
+|---|---|
+| **Schedule (Cron)** | Run at a set time — "Every night at 8 PM", "Every hour", or a custom cron expression |
+| **Webhook** | Listens for incoming HTTP POST at a generated endpoint |
 | **RSS Feed Monitor** | Polls a feed URL at a configurable interval |
-| **Email Monitor** | Watches a mailbox with subject/sender filters |
-| **File Watcher** | Monitors a directory for file changes matching a glob pattern |
-| **Database Change** | Fires on INSERT, UPDATE, or DELETE on a specified table |
+| **Email Monitor** | Watches an inbox with subject/sender/keyword filters |
+| **File Watcher** | Monitors a directory or Git path for changes matching a glob |
+| **Database Change** | Fires on INSERT, UPDATE, or DELETE in a database table |
 | **FTP Monitor** | Watches a remote FTP directory for new files |
+| **Manual / Chat** | Run from the chat with a phrase like "Run my weekly report" |
 
-When the first block in a pipeline is not a trigger, the block palette only shows trigger blocks until one is placed.
+![Automation without triggers](notriggers.png)
 
-## Integration blocks
+When the first block is not a trigger, the block palette highlights trigger blocks with a warning to remind you to start with one.
 
-Over 70 blocks are organized into categories:
+## Integration blocks (70+)
 
-- **AI & Language** — OpenAI, Anthropic, Gemini, Hugging Face, text summarization, sentiment analysis
-- **Social & Messaging** — Slack, Discord, Telegram, Twitter, email
-- **Data & Storage** — PostgreSQL, Redis, S3, Google Sheets, CSV parsing
-- **DevOps** — GitHub, Docker, SSH, shell commands
-- **Commerce** — Stripe, PayPal, Shopify
-- **Utilities** — HTTP requests, JSON transforms, delay, conditional branching
+Blocks are organized into categories:
 
-## Code generation
+### AI & Language
+- OpenAI (Chat, Embeddings, Image generation)
+- Anthropic Claude
+- Google Gemini
+- Hugging Face inference
+- Text summarization, sentiment analysis, classification
+- Translation
 
-Click **Generate Python** or **Generate Node.js** to produce a runnable script from your pipeline. The generator:
+### Social & Messaging
+- Slack (message, post, channel lookup)
+- Discord (webhook, bot message)
+- Telegram (message, media)
+- Twitter/X (post, search, DM)
+- Email (SMTP send, read inbox)
 
-- Wraps mixed text and variables in proper f-strings (Python) or template literals (Node.js)
-- Maps trigger parameters to real implementations (e.g., schedule presets → cron expressions)
-- Chains block outputs through a `prev` variable so each step can reference the previous result
-- Pulls API keys from environment variables, never hardcoding secrets
+### Data & Storage
+- PostgreSQL (query, insert, update, delete)
+- Redis (set, get, list operations)
+- AWS S3 (upload, download, list)
+- Google Sheets (read, append, update)
+- CSV parsing and generation
+- JSON transform and filter
+
+### DevOps
+- GitHub (issue create, PR, commit status)
+- Docker (container start, stop, exec)
+- SSH command execution
+- Shell script runner
+
+### Commerce
+- Stripe (payment, customer, subscription queries)
+- PayPal (transaction lookup)
+- Shopify (order, product, customer)
+
+### Utilities
+- HTTP request (GET, POST, PUT, DELETE with auth)
+- JSON path extraction
+- Delay / wait
+- Conditional branch (if/else)
+- Loop (for each item in list)
+- Date and time formatting
+- Random value generator
 
 ## Variable interpolation
 
-Reference the output of any previous step using double-brace tokens:
+Reference the output of any previous block using double-brace tokens:
 
 ```
-Hello {{prev.name}}, your order {{prev.order_id}} is confirmed.
+Hello {{prev.name}}, your order {{prev.order_id}} has shipped.
 ```
 
-The code generator converts these to `f"Hello {prev.get('name', '')}"` in Python or `` `Hello ${prev?.name ?? ''}` `` in Node.js.
+The code generator converts these to:
+
+**Python:**
+```python
+f"Hello {prev.get('name', '')}, your order {prev.get('order_id', '')} has shipped."
+```
+
+**Node.js:**
+```javascript
+`Hello ${prev?.name ?? ''}, your order ${prev?.order_id ?? ''} has shipped.`
+```
+
+## Code generation
+
+Click **Generate Python** or **Generate Node.js** to produce a complete runnable script:
+
+- API keys are pulled from environment variables — secrets are never hardcoded
+- Schedule triggers become cron-compatible main loops
+- Each block output is passed as `prev` to the next block
+- Mixed text/variable fields are wrapped in proper interpolation syntax
+- Error handling is included with try/catch wrappers
+
+![Make workflows with AI](makeworkflowswithai.png)
+
+## AI-assisted automation
+
+Ask the AI assistant to build a pipeline for you:
+
+- **"Create an automation that checks for new GitHub issues and posts them to Slack"**
+- **"Build a daily email digest of all RSS articles about AI"**
+- **"Set up a webhook that saves incoming form data to a database"**
+
+The AI builds the block layout, fills in configuration, and generates the final code in one step.

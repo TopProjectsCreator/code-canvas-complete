@@ -1,22 +1,77 @@
 ---
-title: "Workflows & automation"
-description: "Build repeatable workflows, trigger them from prompts, and inspect their history."
+title: "Workflows & Automation"
+description: "Build repeatable workflows that chain AI prompts, terminal commands, API calls, and editor actions."
 ---
 
-## Workflows keep prompts consistent
+## What are workflows?
 
-Workflows let you string together commands, AI prompts, and media/editor actions so you can repeat anything with a single click. Pick a workflow from the panel, run it manually, or let the AI trigger it via chat.
+Workflows are named, reusable sequences of steps that run inside the Code Canvas workspace. Unlike single AI prompts or one-off terminal commands, workflows remember every step, can be triggered multiple ways, and log each run for review.
+
+Use workflows for:
+
+- **Repeatable tasks** — linting, testing, building, and deploying on demand
+- **Multi-step processes** — generate code → run tests → deploy → notify team
+- **Scheduled jobs** — nightly exports, weekly digests, daily backups
+- **AI-driven automation** — chain prompts that depend on each other's output
+
+![Automation workflows with AI](makeworkflowswithai.png)
+
+## Creating a workflow
+
+1. Open the **Workflows** panel from the sidebar
+2. Click **New Workflow**
+3. Give it a name (e.g., "Run QA and Deploy")
+4. Add steps from the step library:
+   - **AI prompt** — runs a chat prompt and captures the output
+   - **Terminal command** — runs a shell command in the active session
+   - **API call** — sends an HTTP request via the API playground
+   - **File operation** — read, write, or move files
+   - **Wait / condition** — pause or branch based on previous output
+5. Set a trigger (manual, scheduled, or file-change)
+6. Save and run
+
+## Step types
+
+| Step | Description |
+|---|---|
+| **AI prompt** | Sends a prompt to the AI and uses the response in the next step |
+| **Terminal command** | Runs any shell command — `npm test`, `git push`, `python script.py` |
+| **API call** | Sends a REST or GraphQL request with auth headers |
+| **File read/write** | Reads a file into context or writes output to a file |
+| **Webhook trigger** | Fires an outgoing webhook with step data as the payload |
+| **Condition** | Branches the flow based on a test (if output contains "error", etc.) |
+| **Wait** | Pauses for a fixed duration before continuing |
+
+## Running workflows
+
+Workflows can be triggered multiple ways:
+
+- **Manually** — click Run in the workflow list
+- **From chat** — type a natural-language command: `"Run the QA workflow"`
+- **On a schedule** — set a cron expression or a natural-language time
+- **On file change** — monitor paths with glob patterns
+- **Via webhook** — send an HTTP POST to the workflow's endpoint
+
+See [Triggers](/features/workflows/triggers) for detailed configuration.
+
+## Environment scopes
+
+Each workflow step runs within an environment scope (Preview, Shared, Production). Choose the right scope so the workflow uses the correct secrets and variables for its context.
+
+## Sharing and cloning
+
+- **Share** a workflow with teammates by URL — they see the full step list
+- **Clone** a workflow to create a copy for a different project or use case
+- **Version** workflows with Git — the workflow config is stored as a JSON file in your project
 
 <Columns cols={3}>
   <Card title="Triggers" icon="sparkles" href="/features/workflows/triggers">
-    Decide what causes a workflow to run—file changes, chat commands, or schedules.
+    File changes, chat commands, schedules, and webhooks.
   </Card>
-  <Card title="API playground" icon="terminal" href="/features/workflows/api-playground">
-    Send REST/GraphQL calls, save templates, and reuse them inside workflows.
+  <Card title="API Playground" icon="terminal" href="/features/workflows/api-playground">
+    Craft and save REST/GraphQL requests for use in steps.
   </Card>
   <Card title="History" icon="clock" href="/features/workflows/history">
-    Inspect runs, review logs, and rerun steps that failed.
+    Inspect past runs, view step logs, and retry failures.
   </Card>
 </Columns>
-
-Use the workflow builder to name the steps, link conditions, and record context. Each workflow entry stores the prompts it used, the steps it executed, and the environment scope (Preview, Shared, Production). Teammates can clone the workflow, adjust a step, and run it without rebuilding from scratch.

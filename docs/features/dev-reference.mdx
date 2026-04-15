@@ -1,68 +1,172 @@
 ---
-title: "Developer reference"
-description: "Technical reference for customizing Code Canvas, deploying Supabase functions, and extending the workspace." 
+title: "Developer Reference"
+description: "Architecture overview, Supabase functions, CLI commands, and extension points for customizing Code Canvas."
 ---
 
 ## System architecture
 
-## New: Terminal operations safety
+Code Canvas Complete is a Vite/React single-page app (SPA) backed by Supabase Edge Functions for AI, execution, and hardware services.
 
-For high-stakes terminal work, use the dedicated **Terminal Safety Runbook** page (`features/shell-safety-runbook`).
-It provides command-by-command preflight, validation, and rollback guidance for production-safe operations.
+```
+Browser (Vite/React)
+  ├── src/pages/         ← Route pages (IDE, Docs, Landing)
+  ├── src/components/    ← Reusable UI (editor, AI panel, hardware, etc.)
+  ├── src/contexts/      ← Shared state (Auth, Theme, AI, MCP, Env)
+  ├── src/hooks/         ← Custom React hooks
+  └── src/lib/           ← Utility functions and API clients
 
-### Frontend stack
+Supabase Edge Functions
+  ├── ai-chat            ← Multi-model AI chat routing
+  ├── execute-code       ← Code execution orchestration
+  ├── generate-command   ← NL → shell command conversion
+  ├── template-assistant ← Project template management
+  └── arduino-bridge     ← OTA and Bluetooth upload bridge
 
-The web client runs on Vite/React with Tailwind plus Radix UI components. Key folders:
+External services
+  ├── Wandbox            ← Cloud compiler (Go, Rust, C++, etc.)
+  ├── Godbolt            ← Arduino AVR/ESP compilation
+  ├── OpenAI / Anthropic / Gemini ← AI model providers
+  └── Meshy / Tripo / Fal.ai     ← 3D model generation
+```
 
-- `src/components` contains reusable UI kits (buttons, cards, toolbars).
-- `src/pages` wires the router and the Docs view that renders Mintlify pages.
-- `src/contexts` (theme, auth, env) keep shared state so the AI assistant and workspace panels stay in sync.
+## Frontend stack
 
-### Backend services
+| Technology | Purpose |
+|---|---|
+| **Vite** | Build tool and dev server (port 5000) |
+| **React 18** | UI framework |
+| **TypeScript** | Type-safe JavaScript |
+| **Tailwind CSS** | Utility-first styling |
+| **Radix UI** | Accessible component primitives |
+| **Monaco Editor** | VS Code-compatible code editor |
+| **CodeMirror** | Lightweight editor for some panels |
+| **React Router** | Client-side routing |
+| **Zustand** | Lightweight state management |
+| **TanStack Query** | Server state and caching |
 
-- `supabase/functions/execute-code` handles shell execution, Wandbox integration, and compiler caching.
-- `tools/arduino-bridge` runs a separate uploader service for OTA and Bluetooth firmware pushes.
-- Other Supabase functions (`ai-chat`, `generate-command`, etc.) provide the AI assistant with specialized tools.
+Key source folders:
 
-## Customization hooks
+- `src/components/ai/` — AI chat panel, widget catalog, comparison panel
+- `src/components/ide/` — Editor tabs, file tree, terminal, settings dialog
+- `src/components/scratch/` — Scratch VM integration
+- `src/components/arduino/` — Breadboard designer, upload UI
+- `src/components/office/` — Word/Excel/PowerPoint editors
+- `src/contexts/` — ThemeContext, AuthContext, MCPContext, EnvContext
+- `src/pages/` — App routing (App.tsx, Index.tsx, Docs.tsx, Landing.tsx, NotFound.tsx)
 
-### Mintlify settings
+## Backend services
 
-`docs/docs.json` controls colors, tabs, and navigation. Update it whenever you add, remove, or reorganize docs pages so the interface reflects new guides.
+### execute-code function
 
-### Environment overrides
+Routes code execution to the correct runtime:
 
-- `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` connect the frontend to Supabase.
-- `EXECUTOR_MODE`, `EXECUTOR_CONTAINER_BASE_URL`, and `EXECUTOR_CONTAINER_API_KEY` point the execute-code function to the right runners.
-- `ARDUINO_BRIDGE_TOKEN`/`VITE_OTA_BRIDGE_TOKEN` secure firmware uploads.
+```typescript
+POST /functions/v1/execute-code
+{
+  "code": "print('hello')",
+  "language": "python",
+  "mode": "container" | "wandbox" | "hybrid",
+  "sessionId": "optional"
+}
+```
 
-## Local tooling
+Configured via:
+- `EXECUTOR_MODE` — default executor
+- `EXECUTOR_CONTAINER_BASE_URL` — container orchestrator endpoint
+- `EXECUTOR_CONTAINER_API_KEY` — container auth key
 
-### CLI commands
+### ai-chat function
 
-- `npm install`, `npm run dev` – front-end development.
-- `npm run build`, `npm run preview` – production bundle.
-- `mint dev` – preview the docs inside `docs/` (must be run from that directory).
-- `mint broken-links`, `mint validate` – verify the doc site.
-- `supabase start` – spin up local Supabase services and emulators before you run the workspace.
-- `supabase functions deploy` – publish updated functions (AI, execute-code, Arduino bridge) after you edit them.
+Routes AI assistant requests to the right model provider:
 
-### Testing and linting
+```typescript
+POST /functions/v1/ai-chat
+{
+  "messages": [...],
+  "model": "gpt-4o" | "claude-3-5-sonnet" | "gemini-1.5-pro",
+  "systemPrompt": "...",
+  "mcpContext": [...]
+}
+```
 
-- `npm run lint` runs ESLint across the repo and enforces the coding standards used in the workspace.
-- `npm run test` runs Vitest suites that cover shared hooks, contexts, and utilities.
-- `supabase start` (paired with `supabase functions deploy`) brings up local emulators for AI and execution services so you can test prompts and workflows against production-like APIs.
+### arduino-bridge function
+
+Handles firmware upload coordination:
+
+```typescript
+POST /functions/v1/arduino-bridge
+{
+  "method": "ota" | "bluetooth",
+  "boardIp": "192.168.1.100",
+  "binary": "<base64>",
+  "token": "..."
+}
+```
+
+Secured by `ARDUINO_BRIDGE_TOKEN` / `VITE_OTA_BRIDGE_TOKEN`.
+
+## CLI commands
+
+```bash
+# Development
+npm install           # Install all dependencies
+npm run dev           # Start Vite dev server on port 5000
+npm run build         # Production bundle to dist/
+npm run preview       # Preview built bundle
+
+# Code quality
+npm run lint          # Run ESLint
+npm run type-check    # Run TypeScript type checking
+npm run test          # Run Vitest test suite
+
+# Supabase
+supabase start        # Start local Supabase emulator
+supabase functions serve  # Run functions locally
+supabase functions deploy  # Deploy all functions
+
+# Docs (from docs/ directory)
+mint dev              # Preview docs site locally
+mint broken-links     # Check for broken links
+mint validate         # Validate docs structure
+```
+
+## Adding a new route
+
+1. Create a page component in `src/pages/MyPage.tsx`
+2. Add the route to `src/App.tsx`:
+   ```tsx
+   <Route path="/my-page" element={<MyPage />} />
+   ```
+3. Link to it from the relevant navigation component
+
+## Adding an AI widget
+
+1. Create a widget component in `src/components/ai/widgets/`
+2. Register it in the widget catalog in `src/components/ai/WidgetCatalog.tsx`
+3. The assistant will surface it in chat when relevant
 
 ## Extension points
 
-### AI widgets
-
-The assistant loads widgets from `src/components/ai`. Add cards or calculators there to surface new tools like color pickers or project trackers.
-
 ### Workflow hooks
 
-Inspect `src/hooks/use-workflow` to see how automation steps are defined and triggered. Each step can call a shell command, run a Supabase function, or open a documentation tab.
+The workflow system is defined in `src/hooks/use-workflow.ts`. Each step type is a typed handler:
 
-<Note>
-  Refer back to the feature pages above for guided, non-developer narratives—this reference is here for situations where you need to debug, extend, or deploy the platform.
-</Note>
+```typescript
+type WorkflowStep =
+  | { type: 'ai-prompt'; prompt: string }
+  | { type: 'terminal'; command: string }
+  | { type: 'api-call'; url: string; method: string; body: unknown }
+  | { type: 'file-write'; path: string; content: string }
+```
+
+### MCP server integration
+
+MCP server state lives in `src/contexts/MCPContext.tsx`. Add new server types or custom parsers there.
+
+### Theme tokens
+
+Themes are defined in `src/contexts/ThemeContext.tsx` as CSS variable maps. Add new tokens to the theme interface and update `src/styles/themes.css` to use them.
+
+## Terminal safety
+
+For guidance on running safe terminal commands in production environments, see the [Terminal Safety Runbook](/features/shell-safety-runbook).
