@@ -69,7 +69,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     {
       id: '1',
       role: 'assistant',
-      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🎨 **Generate images and other multimedia** from text descriptions\n- 🎨 **Open widgets** like a live stock ticker or a basic calculator\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
+      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🖼️ **Generate images and other multimedia** from text descriptions\n- 🎨 **Open widgets** like a live stock ticker or a calculator or even a CSS picker!\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
