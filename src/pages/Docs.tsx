@@ -24,9 +24,10 @@ interface NavGroup {
 const RAW_GROUPS: { group: string; pages: string[] }[] = [
   { group: "Overview", pages: ["features/index"] },
   {
-    group: "IDEs",
+    group: "IDE",
     pages: [
       "features/ide/index",
+      "features/ide/extensions",
       "features/ide/specialized-editors/index",
       "features/ide/specialized-editors/arduino/upload",
       "features/ide/specialized-editors/arduino/supported-boards",
@@ -39,10 +40,28 @@ const RAW_GROUPS: { group: string; pages: string[] }[] = [
     ],
   },
   { group: "AI", pages: ["features/ai-assistant", "features/ai-mcp"] },
-  { group: "Workflows", pages: ["features/workflows", "features/environment"] },
-  { group: "Execution", pages: ["features/persistent-shell", "features/execute-code"] },
+  {
+    group: "Workflows",
+    pages: [
+      "features/workflows/index",
+      "features/workflows/triggers",
+      "features/workflows/api-playground",
+      "features/workflows/history",
+      "features/environment",
+    ],
+  },
+  { group: "Execution", pages: ["features/persistent-shell", "features/execute-code", "features/hardware"] },
   { group: "Collaboration", pages: ["features/collaboration"] },
   { group: "Deployment", pages: ["features/deployment"] },
+  {
+    group: "Platform",
+    pages: [
+      "features/passkeys",
+      "features/automation",
+      "features/offline-mode",
+      "features/team-management",
+    ],
+  },
   { group: "Developer reference", pages: ["features/dev-reference", "features/shell-safety-runbook"] },
 ];
 
