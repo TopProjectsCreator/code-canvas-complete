@@ -1495,8 +1495,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           const audioMod = await import('scratch-audio');
           const AudioCtor = audioMod.default || audioMod;
           if (typeof AudioCtor === 'function') {
-            const audioEngine = new AudioCtor();
-            vm.attachAudioEngine(audioEngine);
+            try {
+              const audioEngine = new AudioCtor();
+              vm.attachAudioEngine(audioEngine);
+            } catch (audioError) {
+              console.warn('scratch-audio initialization failed:', audioError);
+            }
           }
         } catch (e) {
           console.warn('scratch-audio not available:', e);
