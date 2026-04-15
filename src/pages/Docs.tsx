@@ -3,7 +3,6 @@ import { ArrowLeft, BookOpen, ExternalLink, Search } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
 /* ------------------------------------------------------------------ */
 /*  Navigation structure derived from docs/docs.json                  */
@@ -276,7 +275,6 @@ export default function Docs() {
 
                 <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:tracking-tight prose-a:text-primary">
                   <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
                     components={{
                       img: ({ src, alt, ...props }) => (
                         <img
