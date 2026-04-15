@@ -1,36 +1,110 @@
 ---
-title: "Workspace configuration"
-description: "How to tune panels, environment variables, and package management inside Code Canvas."
+title: "Workspace Configuration"
+description: "Customize themes, manage environment variables, control package scripts, and configure editor panels in Code Canvas."
 ---
 
-## Customize the workspace UI
+## Personalize your workspace
 
-Use the layout controls to show or hide the file tree, minimap, terminal, and terminal split so the interface matches how you work. Drag tabs to create splits, save your favorite layout, collapse panels between tasks, and pin the editor view you need for a specific workflow.
+Code Canvas stores your layout preferences, themes, and panel states in your browser session so the workspace feels consistent across reloads and devices.
 
-### Theme and visibility
+## Themes
 
-Toggle between built-in themes or author your own tokens so the editor feels comfortable for long sessions. Activate high-contrast mode when reviewing code in bright environments, or set the workspace to dark mode for late-night products.
+Choose from 7 built-in themes or create your own:
 
-### Environment scopes
+| Theme | Description |
+|---|---|
+| **Dark** | Deep neutral dark background (default) |
+| **Light** | Clean white with soft gray accents |
+| **Ocean Dark** | Deep blue-tinted dark mode |
+| **Forest** | Green-accented dark mode |
+| **Sunset** | Warm amber and coral tones |
+| **Monokai** | Classic code-editor color scheme |
+| **Midnight** | High-contrast near-black |
 
-The environment manager stores secrets and variables for Preview, Shared, or Production contexts. When the AI or a workflow needs a credential, it only sees the scoped value, so keys never leak into chat. Use the manager to:
+### Custom themes
 
-- Store API keys or tokens for third-party calls the assistant performs.
-- Share encrypted values with collaborators without showing raw text.
-- Attach variables to saved workflows or prompts so the AI automatically selects the right context (e.g., use Preview variables for quick experimentation, Production secrets for releases).
+The **Custom Theme Creator** (Settings → Appearance → Create Theme) lets you define every color token:
 
-Each environment scope can have its own description and expiration date, which helps teams rotate keys and audit access quickly.
+1. Pick a base theme to start from
+2. Adjust background, foreground, accent, border, and syntax colors
+3. Preview the changes live as you edit
+4. Save and name your theme
+5. Export as a JSON file to share with teammates or import on another device
 
-### Package and command panels
+The **Theme Library** shows all your saved custom themes with options to edit, clone, or delete. Use **Import Theme** to load a theme from a JSON file shared by a teammate.
 
-The package manager surfaces `package.json`, dependency graphs, and common scripts so you can run installs and builds without memorizing CLI flags. Click a command to run it and watch output stream into the terminal pane; the AI picks up the same context so you can continue issuing prompts without losing focus.
+## Layout controls
 
-Use the panel to pin favorite scripts (e.g., `npm test`, `npm run lint`, `npm run build`) so collaborators click once and the assistant follows up with the next step.
+Adjust which panels are visible and how they're arranged:
 
-### Status & notifications
+- **File tree** — toggle visibility, adjust width
+- **Minimap** — show or hide the code minimap
+- **Terminal** — split into 2 or 3 terminal panes
+- **Activity bar** — choose which icons appear in the sidebar
+- **Panel layout** — split editor vertically or horizontally, save favorite configurations
 
-Toast notifications confirm when installs finish, when environment values sync, or if a theme change requires reload. The notifications include action links so you can reopen the relevant panel or revert the change.
+Drag any tab to a split zone to arrange multiple files and terminals side by side.
+
+## Environment variables and secrets
+
+![Dependencies and environment panel](dependencies.png)
+
+The environment manager stores secrets per scope so they're available to the right contexts:
+
+| Scope | Used by |
+|---|---|
+| **Preview** | Development server and dev-mode features |
+| **Shared** | Available everywhere (non-sensitive configs) |
+| **Production** | Only active in deployed environments |
+
+### Adding a secret
+
+1. Open **Settings → Environment**
+2. Click **Add Variable**
+3. Enter a key name and value
+4. Select a scope
+5. Click **Save**
+
+Secrets appear masked in the UI. The AI assistant can use them (e.g., to make API calls) without exposing the raw value in the chat transcript.
+
+### Rotating secrets
+
+Set an **expiration date** on any secret. Code Canvas warns you 7 days before expiry and again on the day. Update the value in the environment panel — all workflows and AI sessions pick up the new value immediately.
+
+## Package manager
+
+The Packages panel shows all installed npm packages:
+
+- **Search** — find packages by name with npm registry results
+- **Install** — click to add a package and version
+- **Update** — upgrade to the latest compatible version
+- **Remove** — uninstall and clean `package.json`
+- **Dependency graph** — visualize which packages depend on which others
+
+### Pinned scripts
+
+Pin frequently used scripts from `package.json` for one-click access:
+
+```
+npm run dev     → Start development server
+npm run build   → Build for production
+npm run test    → Run test suite
+npm run lint    → Lint the codebase
+```
+
+The terminal pane shows the output as it streams, and the AI picks up the context so you can immediately follow up with a prompt.
+
+## Status notifications
+
+Toast notifications confirm workspace events:
+
+- Package install complete / failed
+- Environment variable saved or expired
+- Theme changed
+- Layout saved
+
+Notifications include action links — click to reopen the relevant panel or undo the last change.
 
 <Note>
-  Panel layouts, selection state, and terminal history persist inside your browser session. Reloading keeps your context intact, and the workspace stores preferences so new devices inherit the same view.
+  Panel layouts, script pins, and terminal history persist in your browser session. Reload without losing context — preferences sync across devices when you're signed in.
 </Note>

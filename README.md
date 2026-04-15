@@ -160,7 +160,7 @@ Select your preferred method for deploying or developing Code Canvas Complete.
 4. **Build Settings:**
     - Build Command: `npm run build`
     - Output Directory: `dist`
-5. **Environment Variables:** Add your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+5. **Environment Variables:** Add your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. 
 6. Click **Deploy**.
 
 *Note: Supabase Edge Functions must be deployed separately using the Supabase CLI.*
@@ -169,7 +169,7 @@ Select your preferred method for deploying or developing Code Canvas Complete.
 <details>
 <summary><b>Deploy to Replit (One-Click)</b></summary>
 
-1. **Create a new Canvas project** from the GitHub repository on Replit.
+1. **Create a new repl** from the GitHub repository on Replit.
 <img width="600" height="296" alt="image" src="https://github.com/user-attachments/assets/f0033af4-cba9-4941-b89d-241ee891a6e4" />
 
 2. Select **Github**, then input: `https://github.com/TopProjectsCreator/code-canvas-complete`.

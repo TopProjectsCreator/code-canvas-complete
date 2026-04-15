@@ -36,6 +36,8 @@ import { useGitProviderImport } from "@/hooks/useGitProviderImport";
 import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
 import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/collabSyncEngine";
 import { useOfflineProject } from "@/hooks/useOfflineProject";
+import { AutomationTemplatePane, type AutomationBlockInstance, serializeAutomationConfig, parseAutomationConfig } from "@/components/ide/AutomationTemplatePane";
+import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
 
 const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
   ftc: "https://github.com/FIRST-Tech-Challenge/FtcRobotController",
@@ -45,8 +47,6 @@ const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ de
 const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then((m) => ({ default: m.ScratchPanel })));
 const FTCPanel = lazy(() => import("@/components/ftc").then((m) => ({ default: m.FTCPanel })));
 const MinecraftEditor = lazy(() => import("@/components/minecraft").then((m) => ({ default: m.MinecraftEditor })));
-const AutomationTemplatePane = lazy(() => import("@/components/ide/AutomationTemplatePane").then((m) => ({ default: m.AutomationTemplatePane })));
-import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
 
 interface IDELayoutProps {
   projectId?: string;
@@ -283,6 +283,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
   const [scratchArchive, setScratchArchive] = useState<ScratchArchive | null>(null);
+  const [scratchSyncVersion, setScratchSyncVersion] = useState(0);
+  const scratchSyncRef = useRef<'pane' | 'file' | null>(null);
+  const lastScratchJsonRef = useRef<string | null>(null);
+  const [automationBlocks, setAutomationBlocks] = useState<AutomationBlockInstance[] | undefined>(undefined);
+  const [automationSyncVersion, setAutomationSyncVersion] = useState(0);
+  const automationSyncRef = useRef<'pane' | 'file' | null>(null);
+  const lastAutomationJsonRef = useRef<string | null>(null);
   const [historyEntries, setHistoryEntries] = useState<
     Array<{
       id: string;
@@ -446,6 +453,155 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     ? { ...activeFile, content: fileContents?.[activeFile.id] ?? activeFile.content }
     : null;
   const activeFilePath = activeFile ? findFilePathById(files, activeFile.id) || activeFile.name : null;
+
+  // Automation 2-way sync: file → pane
+  const getAutomationConfigContent = useCallback((): string | null => {
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "automation.config.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (!file) return null;
+    return fileContents[file.id] ?? file.content ?? null;
+  }, [files, fileContents]);
+
+  // When automation.config.json file content changes externally, update pane
+  useEffect(() => {
+    if (selectedTemplate !== "automation") return;
+    const content = getAutomationConfigContent();
+    if (!content) return;
+    if (automationSyncRef.current === 'pane') {
+      if (content === lastAutomationJsonRef.current) {
+        automationSyncRef.current = null;
+        return;
+      }
+      automationSyncRef.current = null;
+      lastAutomationJsonRef.current = content;
+    }
+    if (content === lastAutomationJsonRef.current) return;
+    const parsed = parseAutomationConfig(content);
+    if (parsed) {
+      lastAutomationJsonRef.current = content;
+      automationSyncRef.current = 'file';
+      setAutomationBlocks(parsed);
+      setAutomationSyncVersion((version) => version + 1);
+    }
+  }, [getAutomationConfigContent, selectedTemplate]);
+
+  // When blocks change in pane, update the file
+  const handleAutomationBlocksChange = useCallback((newBlocks: AutomationBlockInstance[]) => {
+    if (automationSyncRef.current === 'file') {
+      automationSyncRef.current = null;
+      return;
+    }
+    automationSyncRef.current = 'pane';
+    const json = serializeAutomationConfig(newBlocks);
+    lastAutomationJsonRef.current = json;
+    // Find and update the automation.config.json file
+    const findAndUpdate = (nodes: FileNode[]): FileNode[] => {
+      return nodes.map(node => {
+        if (node.type === "file" && node.name === "automation.config.json") {
+          return { ...node, content: json };
+        }
+        if (node.children) {
+          return { ...node, children: findAndUpdate(node.children) };
+        }
+        return node;
+      });
+    };
+    setFiles(prev => findAndUpdate(prev));
+    // Also update fileContents
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "automation.config.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (file) {
+      setFileContents(prev => ({ ...prev, [file.id]: json }));
+    }
+  }, [files]);
+
+  // Scratch 2-way sync: file → pane
+  const getScratchProjectJsonContent = useCallback((): string | null => {
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "project.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (!file) return null;
+    return fileContents[file.id] ?? file.content ?? null;
+  }, [files, fileContents]);
+
+  // When project.json file content changes externally (AI edit), update scratch archive
+  useEffect(() => {
+    if (selectedTemplate !== "scratch") return;
+    const content = getScratchProjectJsonContent();
+    if (!content) return;
+    if (scratchSyncRef.current === 'pane') {
+      if (content === lastScratchJsonRef.current) {
+        scratchSyncRef.current = null;
+        return;
+      }
+      scratchSyncRef.current = null;
+      lastScratchJsonRef.current = content;
+    }
+    if (content === lastScratchJsonRef.current) return;
+    try {
+      JSON.parse(content); // validate JSON
+      lastScratchJsonRef.current = content;
+      scratchSyncRef.current = 'file';
+      setScratchArchive(prev => ({
+        projectJson: content,
+        files: prev?.files ?? {},
+        fileNames: prev?.fileNames ?? [],
+      }));
+      setScratchSyncVersion(v => v + 1);
+    } catch {
+      // invalid JSON, skip
+    }
+  }, [getScratchProjectJsonContent, selectedTemplate]);
+
+  // Scratch pane → file sync handler
+  const handleScratchProjectJsonUpdate = useCallback((json: string) => {
+    if (scratchSyncRef.current === 'file') {
+      scratchSyncRef.current = null;
+      return;
+    }
+    scratchSyncRef.current = 'pane';
+    lastScratchJsonRef.current = json;
+    setFiles((prev) =>
+      prev.map((node) => {
+        if (node.type !== "folder") return node;
+        return {
+          ...node,
+          children: (node.children || []).map((child) =>
+            child.name === "project.json" ? { ...child, content: json } : child,
+          ),
+        };
+      }),
+    );
+    // Also update fileContents
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "project.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (file) {
+      setFileContents(prev => ({ ...prev, [file.id]: json }));
+    }
+  }, [files]);
 
   useEffect(() => {
     if (!activeFilePath) return;
@@ -2153,26 +2309,14 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     </Suspense>
                   ) : selectedTemplate === "automation" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
-                      <AutomationTemplatePane />
+                      <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} syncVersion={automationSyncVersion} />
                     </Suspense>
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
                       <ScratchPanel
                         archive={scratchArchive}
                         onArchiveChange={setScratchArchive}
-                        onProjectJsonUpdate={(json) => {
-                          setFiles((prev) =>
-                            prev.map((node) => {
-                              if (node.type !== "folder") return node;
-                              return {
-                                ...node,
-                                children: (node.children || []).map((child) =>
-                                  child.name === "project.json" ? { ...child, content: json } : child,
-                                ),
-                              };
-                            }),
-                          );
-                        }}
+                        onProjectJsonUpdate={handleScratchProjectJsonUpdate}
                         isRunning={isRunning}
                         onRun={() => setIsRunning(true)}
                         onStop={handleStop}
@@ -2265,26 +2409,14 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                   </Suspense>
                 ) : selectedTemplate === "automation" ? (
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
-                    <AutomationTemplatePane />
+                    <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} syncVersion={automationSyncVersion} />
                   </Suspense>
-                ) : selectedTemplate === "scratch" ? (
-                  <Suspense fallback={<div className="p-4 text-gray-400">Loading Scratch panel...</div>}>
+                  ) : selectedTemplate === "scratch" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
                     <ScratchPanel
                       archive={scratchArchive}
                       onArchiveChange={setScratchArchive}
-                      onProjectJsonUpdate={(json) => {
-                        setFiles((prev) =>
-                          prev.map((node) => {
-                            if (node.type !== "folder") return node;
-                            return {
-                              ...node,
-                              children: (node.children || []).map((child) =>
-                                child.name === "project.json" ? { ...child, content: json } : child,
-                              ),
-                            };
-                          }),
-                        );
-                      }}
+                      onProjectJsonUpdate={handleScratchProjectJsonUpdate}
                       isRunning={isRunning}
                       onRun={() => setIsRunning(true)}
                       onStop={handleStop}
@@ -2704,6 +2836,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               });
             }}
             currentTemplate={selectedTemplate || undefined}
+            automationConfig={selectedTemplate === "automation" ? getAutomationConfigContent() : null}
           />
         </div>
 

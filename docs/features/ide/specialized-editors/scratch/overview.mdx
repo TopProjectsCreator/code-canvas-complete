@@ -1,16 +1,65 @@
 ---
-title: "Scratch blocks"
-description: "Use block-based programming and export to text." 
+title: "Scratch Block Programming"
+description: "Visual Scratch block programming with a live canvas, sprite management, and AI-assisted export to text code."
 ---
 
-## Visual builder
+## Build programs visually
 
-Drag blocks to model logic, state machines, or robotics behavior. Each block snaps into place, and you can preview the animation instantly.
+The Scratch editor inside Code Canvas gives you the full Scratch VM running in the browser. Drag blocks, manage sprites, and see your program run in a live canvas — all inside the same workspace as your code.
 
-## Export to code
+![Scratch 3D racing game](race3dgame.png)
 
-When the block flow is ready, ask the assistant "Convert to JavaScript" or "Generate Arduino code" and the system creates the corresponding script in your project.
+## Working with blocks
+
+The block palette is organized into categories:
+
+| Category | What it includes |
+|---|---|
+| **Motion** | Move, turn, glide, set position |
+| **Looks** | Show/hide, change costume, set size, say/think |
+| **Sound** | Play sound, set volume, change tempo |
+| **Events** | When green flag clicked, when key pressed, when backdrop switches |
+| **Control** | If/else, repeat, wait, stop, clone |
+| **Sensing** | Touching?, mouse position, timer, ask and wait |
+| **Operators** | Math, comparison, string, random |
+| **Variables** | Create and set variables and lists |
+| **Pen** | Draw on stage with pen up/down/color/size |
+| **Music** | Play notes, set instrument, set tempo |
+
+Drag any block from the palette to the script area and snap them together. Click a stack to run it immediately.
+
+## Sprites and costumes
+
+- **Add sprites** from the library, draw your own, or upload an image
+- **Costumes** — each sprite can have multiple costumes for animation
+- **Backdrops** — set scene backgrounds with the same costume editor
+- The **paint editor** lets you draw or edit sprites with vector and bitmap tools
+
+## Live canvas and controls
+
+The stage shows your program running in real time:
+
+- **Green flag** — run all scripts that start with "when green flag clicked"
+- **Stop** — halt all running scripts immediately
+- **Full-screen** — expand the stage for demos or testing
+- **Stage size** — toggle between normal and small stage modes
+
+## Import and export .sb3 files
+
+- **Import** an existing `.sb3` project file to continue editing
+- **Export** your current project to `.sb3` for sharing or backup
+- Open exported files in the official Scratch website or desktop app
+
+## AI-assisted export to code
+
+Ask the AI to convert your Scratch blocks to text-based code:
+
+- **"Convert this to JavaScript"** — generates equivalent JS with event listeners and canvas rendering
+- **"Generate Arduino code from these blocks"** — translates motion and sensor logic to C++ for hardware
+- **"Explain what these blocks do"** — gives a plain-English walkthrough of your script
+
+The AI respects the block structure: loops become `for`/`while`, conditions become `if`, and events become callbacks.
 
 ## Collaboration
 
-Share the Scratch tab with teammates so everyone can edit the same blocks. Inline notes document what each block does for people reviewing the logic later.
+The Scratch editor tab can be shared with teammates in a Code Canvas collaboration session. Everyone in the room sees the same block canvas and can suggest edits via inline comments.

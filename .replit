@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web"]
+modules = ["nodejs-20", "python-3.11", "web"]
 [agent]
 expertMode = true
 integrations = ["javascript_database:1.0.0"]
@@ -40,5 +40,13 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 8080
-externalPort = 8080
+localPort = 5001
+externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+VITE_SUPABASE_URL = "https://xlmvlplazxrouscupidi.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsbXZscGxhenhyb3VzY3VwaWRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NjYyNjQsImV4cCI6MjA4NTU0MjI2NH0.j5b8QH6RusxDfJ21Fsp7A-ILDPPTL4r6ZpmO_OFoqT8"
+VITE_SUPABASE_PROJECT_ID = "xlmvlplazxrouscupidi"
+VITE_DEPLOY_PLATFORM = "lovable"

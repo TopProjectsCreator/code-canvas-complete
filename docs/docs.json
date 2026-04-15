@@ -20,19 +20,26 @@
             ]
           },
           {
-            "group": "IDEs",
+            "group": "IDE Workspace",
             "pages": [
               "features/ide/index",
               "features/ide/extensions",
+              "features/environment"
+            ]
+          },
+          {
+            "group": "Specialized Editors",
+            "pages": [
               "features/ide/specialized-editors/index",
+              "features/hardware",
               "features/ide/specialized-editors/arduino/upload",
-              "features/ide/specialized-editors/arduino/supported-boards",
-              "features/ide/specialized-editors/arduino/simulator",
               "features/ide/specialized-editors/arduino/coding-ino",
+              "features/ide/specialized-editors/arduino/simulator",
+              "features/ide/specialized-editors/arduino/supported-boards",
               "features/ide/specialized-editors/scratch/overview",
+              "features/ide/specialized-editors/media/overview",
               "features/ide/specialized-editors/office/overview",
-              "features/ide/specialized-editors/cad/overview",
-              "features/ide/specialized-editors/media/overview"
+              "features/ide/specialized-editors/cad/overview"
             ]
           },
           {
@@ -43,10 +50,13 @@
             ]
           },
           {
-            "group": "Workflows",
+            "group": "Workflows & Automation",
             "pages": [
-              "features/workflows",
-              "features/environment"
+              "features/workflows/index",
+              "features/workflows/triggers",
+              "features/workflows/api-playground",
+              "features/workflows/history",
+              "features/automation"
             ]
           },
           {
@@ -59,7 +69,8 @@
           {
             "group": "Collaboration",
             "pages": [
-              "features/collaboration"
+              "features/collaboration",
+              "features/team-management"
             ]
           },
           {
@@ -69,7 +80,14 @@
             ]
           },
           {
-            "group": "Developer reference",
+            "group": "Security & Access",
+            "pages": [
+              "features/passkeys",
+              "features/offline-mode"
+            ]
+          },
+          {
+            "group": "Developer Reference",
             "pages": [
               "features/dev-reference",
               "features/shell-safety-runbook"
@@ -97,7 +115,7 @@
     "primary": {
       "type": "button",
       "label": "Open editor",
-      "href": "/editor"
+      "href": "/"
     }
   },
   "contextual": {

@@ -1,74 +1,124 @@
 ---
 title: "IDE Workspace"
-description: "The workspace features that let you edit, run, and manage every file without leaving the browser."
+description: "Professional-grade browser IDE with multi-file editing, terminals, Git, package management, and specialized editor suites."
 ---
 
-## Prompt-first code editing
+![IDE workspace with file tree, editor tabs, and terminal](ide-workspace.png)
 
-The workspace is built around a promptable editor. Tell the AI which file or component you want to change, and it will highlight the suggested edits before you accept them. You can still navigate files manually with tabs and splits when you prefer a direct touch.
+## Everything in one place
 
-### Tabs, splits, and navigation
+The Code Canvas IDE is a full desktop-class development environment running in your browser. No downloads, no setup — open a project and start writing code immediately. It handles large repos, complex refactors, terminal workflows, Git operations, and package management as naturally as VS Code or JetBrains tools.
 
-- **Tabbed editing** keeps each file accessible so you can switch contexts without losing focus.
-- **Split views** let you pin documentation, terminals, and editors side-by-side. Drag tabs to create custom layouts and save them for later.
-- **File tree and minimap** keep the structure of large workspaces visible, while sticky scopes anchor your viewport when scrolling.
+## Editor features
 
-### Global search and multi-tool access
+### Tabs, splits, and layouts
 
-- The universal search bar lets you jump to files, run commands, or trigger AI prompts from a single place.
-- **Multi-cursor column editing** handles aligned data, and **regex replace** previews the impact before you commit.
-- **Dirty indicators, context menus, and tab groups** behave like a desktop IDE but run entirely in the browser.
+- **Tabbed editing** with dirty indicators (●) shows unsaved files at a glance
+- **Split panes** — drag any tab to create horizontal or vertical splits
+- **Custom layouts** — save and restore your split configuration per project
+- **Minimap** gives a zoomed-out view of the file for fast navigation
+- **Sticky scope header** anchors the current function or class name while you scroll through long files
 
-## Built-in terminals, git, and packages
+### Multi-cursor and advanced editing
 
-The WebContainers-powered terminal runs `npm`, `pnpm`, `git`, and custom scripts without extra setup. The Git panel keeps you aware of branches, unstaged changes, and diffs, while provider integrations (GitHub, GitLab, Bitbucket) sync your remote repositories automatically.
+- **Multi-cursor** (Alt+Click or Ctrl+D for next match) for simultaneous edits
+- **Column/block selection** for aligned data editing
+- **Regex find-and-replace** with live match preview before committing
+- **Bracket matching and auto-close** for all supported languages
+- **Auto-import suggestions** for TypeScript, JavaScript, Python, and Java
 
-### Environment manager & secrets
+### Global search
 
-The environment dashboard stores secrets securely per scope (Preview, Shared, Production). When you ask the AI to read or write a secret, it accesses only the encrypted value, so keys never leak into the chat transcript.
+The command palette (Ctrl+P) lets you:
 
-<Note>
-  Panel layout, terminal history, and package state persist in your browser session, so you can reload without losing context.
-</Note>
+- Jump to any file by name
+- Run editor commands
+- Trigger AI prompts from the keyboard
+- Switch active themes
+- Open settings dialogs
 
-## Extensions and how they work
+## Large repository support
 
-The IDE includes an extensions system for creating custom tools, automations, and assistant helpers.
+Code Canvas handles large codebases efficiently with lazy file loading and virtual scrolling.
 
-- **Widget extensions** render mini apps inside the IDE UI.
-- **Command extensions** transform active file content.
-- **Chat-tool extensions** add focused helpers for AI workflows.
+![Large repos handled efficiently](largerepos.png)
 
-Use the dedicated extensions guide for lifecycle diagrams, runtime behavior, and practical patterns.
+The file tree supports:
 
-<Card title="Extensions" icon="puzzle" href="/features/ide/extensions">
-  Build, test, publish, and install custom IDE extensions.
-</Card>
+- Recursive folder expand/collapse
+- .gitignore-aware filtering
+- File renaming, deletion, and drag-to-move
+- New file/folder creation with template selection
+- Right-click context menus for quick actions
+
+![Choose from templates when creating new projects](easytemplatechanging.png)
+
+## Terminal and shell
+
+The built-in WebContainer terminal runs real Node.js natively in the browser:
+
+- Run `npm`, `pnpm`, `yarn`, and `bun` package managers
+- Execute Node.js scripts, shell scripts, and CLI tools
+- Supports multiple terminal tabs
+- Color-coded output with scrollback
+- Keyboard shortcuts: Ctrl+` to toggle, Ctrl+Shift+C to copy
+
+For Python, Java, Go, C++, and other languages, Code Canvas routes execution through Wandbox for server-side compilation.
+
+## Git integration
+
+![Git initialized and ready](git-initalized.png)
+
+The Git panel is always accessible from the sidebar:
+
+- View staged, unstaged, and untracked file diffs
+- Stage individual files or hunks
+- Commit with a message (AI can suggest commit messages from the diff)
+- Push/pull from GitHub, GitLab, or Bitbucket remotes
+- Switch branches, create new branches, and merge
+- Resolve merge conflicts with a visual 3-way diff
+
+## Package manager
+
+The Packages panel shows installed npm packages with version info. You can:
+
+- Search and install new packages
+- Update or remove existing ones
+- View dependency graphs
+- See bundle size impact estimates
+
+![Dependencies and packages panel](dependencies.png)
+
+## Environment & secrets
+
+All environment variables are stored encrypted per scope:
+
+| Scope | Description |
+|---|---|
+| **Preview** | Used during development and previewing |
+| **Shared** | Available in all environments |
+| **Production** | Only active after deployment |
+
+Secrets never appear in AI chat transcripts. When the assistant reads a secret to perform a task, it accesses the value securely without exposing it.
+
+## Export and convert
+
+Code Canvas can convert files and export to different formats. Ask the AI to convert your project or individual files — for example, exporting a Scratch project to Python, or a notebook to a Node.js script.
+
+![Export to Python and Node](exporttopythonandnode.png)
 
 ## Specialized editor suites
 
-There are dedicated editors for hardware, creative media, CAD, and office work right alongside the code tabs. Visit the subfolders below to explore each one in detail.
+Inside the same workspace, Code Canvas includes purpose-built editors for domains beyond text code:
 
-<Columns cols={3}>
-  <Card title="Hardware" icon="cpu" href="/features/ide/specialized-editors/arduino/upload">
-    Flash Uno, Nano, Mega, or ESP boards through OTA or Bluetooth.
-  </Card>
-  <Card title="Scratch" icon="blocks" href="/features/ide/specialized-editors/scratch/overview">
-    Build logic visually, then export to text with a prompt.
-  </Card>
-  <Card title="Creative studio" icon="photo" href="/features/ide/specialized-editors/media/overview">
-    Edit video, audio, and 3D scenes without leaving the workspace.
-  </Card>
-</Columns>
+- [Arduino & FTC hardware](/features/ide/specialized-editors/arduino/upload)
+- [Scratch visual block programming](/features/ide/specialized-editors/scratch/overview)
+- [3D / Media / Creative studio](/features/ide/specialized-editors/media/overview)
+- [Word, Excel, PowerPoint](/features/ide/specialized-editors/office/overview)
+- [CAD model viewer](/features/ide/specialized-editors/cad/overview)
 
-<Columns cols={3}>
-  <Card title="Office & docs" icon="file-text" href="/features/ide/specialized-editors/office/overview">
-    Write, collaborate, and ask the AI for summaries directly in docs.
-  </Card>
-  <Card title="CAD & data" icon="layers" href="/features/ide/specialized-editors/cad/overview">
-    Design models or databases with guided prompts.
-  </Card>
-  <Card title="Workflows" icon="flow-branch" href="/features/workflows">
-    Trigger editor actions from automated sequences.
-  </Card>
-</Columns>
+## Extensions
+
+The extension marketplace lets you install or build custom tools that run inside the IDE.
+
+See [Extensions](/features/ide/extensions) for how to create and publish your own.

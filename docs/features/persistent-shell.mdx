@@ -1,32 +1,78 @@
 ---
 title: "Persistent Shell & Execution"
-description: "How Code Canvas keeps shells, compilers, and containers available to the IDE and AI agents."
+description: "How Code Canvas keeps terminal sessions, compilers, and AI execution alive across reloads and prompts."
 ---
 
-## Keep your terminal sessions alive
+## Shell sessions that remember
 
-Every command you prompt runs in a persistent shell. Install packages once, run scripts repeatedly, and still come back to the same state even after a reload.
+When you open a terminal in Code Canvas, you get a persistent shell session. Run `npm install`, install a Python package, or set an environment variable — it all stays in place until you explicitly reset the session or close the project.
 
-### How the AI talks to the shell
+## How persistence works
 
-When you ask for something, the assistant forwards the command to the shell, waits for the output, and displays the result in context. Most languages run immediately, while shell/Bash/Python commands prefer the container runner, so the environment stays isolated while you experiment.
+| What's preserved | Duration |
+|---|---|
+| Installed npm packages | Entire session |
+| Python pip packages | Entire session |
+| Shell environment variables | Entire session |
+| Working directory (`cd` state) | Entire session |
+| Command history | Across reloads |
+| Terminal output log | 48 hours |
 
-### Sharing shell output
+The **Session ID** shown in the terminal footer links to the full execution log. Share this ID in a support request or include it in a workflow history entry.
 
-You can pin a terminal output card, copy the full log, or let the AI compress the log into a summary. The session ID shown in the footer links to the run history, making it easy to explain what happened to a teammate.
+## How the AI uses the shell
 
-### Supporting services
+When you ask the assistant to run a command:
 
-When the assistant needs extra context (tests, explanations, generated media), it calls Supabase functions such as `ai-chat`, `generate-command`, or `template-assistant`. All these services run through the same execution layer so your session history stays intact.
+1. It sends the command to the active shell session
+2. Waits for the command to complete (up to 30 seconds)
+3. Captures stdout and stderr
+4. Displays the output in the chat and continues the conversation with that context
 
-### Arduino uploads
+The assistant can chain multiple commands in one response:
 
-When you flash a device, the hardware bridge handles OTA and Bluetooth uploads for you. The UI shows progress indicators, resolves dependencies, and surfaces actionable errors if a required uploader (`avrdude`, `esptool`, `espota.py`) is missing.
+```
+1. npm install missing-package
+2. npm run build
+3. Check for errors and suggest fixes
+```
 
-### Long-running commands
+## Terminal outputs in context
 
-Commands run up to 30 seconds by default. If you need more time (e.g., heavy builds or dataset exports), stage the work inside a workflow so you can rerun it without losing context.
+Pin any terminal output card to keep it visible while chatting. The AI sees pinned outputs as part of its workspace context. Click **Summarize** to have the assistant compress a long output into key points.
 
-<Card title="execute-code API" icon="server" href="/features/execute-code">
-  See the API reference for payloads, executor selection, and session lifecycle details.
+## Supporting services
+
+Additional Supabase functions run alongside the shell executor to support AI workflows:
+
+| Function | What it does |
+|---|---|
+| `ai-chat` | Routes prompts to AI models and returns structured responses |
+| `generate-command` | Converts natural language to safe shell commands |
+| `template-assistant` | Clones and scaffolds project templates |
+| `execute-code` | Routes code to the right executor (WebContainer/Wandbox/Container) |
+
+All these services share the same session state, so your context is consistent across shell commands, AI prompts, and code execution.
+
+## Long-running commands
+
+The default execution timeout is **30 seconds**. For tasks that take longer:
+
+- **Stage them in a workflow** — workflows can run for several minutes
+- **Use `nohup` or background processes** — `nohup npm run build &`
+- **Ask the assistant to break it into steps** — it can split a long task into resumable pieces
+
+## Arduino and hardware uploads
+
+When you flash a board, the hardware bridge takes over from the regular shell:
+
+- `avrdude` handles AVR (Uno, Nano, Mega) uploads
+- `esptool` and `espota.py` handle ESP (ESP32, ESP8266) uploads
+- Progress is shown in a dedicated upload progress bar (not the regular terminal)
+- The bridge reports binary size, transfer rate, and success/fail status
+
+If a required uploader is missing, Code Canvas shows a tooltip with the exact install command. The assistant can run the install for you.
+
+<Card title="Code Execution API" icon="server" href="/features/execute-code">
+  Full reference for the execute-code function, executor modes, and session lifecycle.
 </Card>

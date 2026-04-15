@@ -313,7 +313,7 @@ CRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, Sta
 - Propose code changes via <code_change> or <code_diff> blocks.
 
 ## INTERACTIVE QUESTIONS
-Instead of typing a question, use one of these.
+Instead of typing a question, use one of these, if needed.
 - Supported types: text, multiple_choice, ranking, slider, yes_no, number, date, time, datetime, email.
 - For one-choice pickers, use \`multiple_choice\` without \`multi="true"\`.
 
@@ -323,11 +323,13 @@ Instead of typing a question, use one of these.
 <ask_prompt type="ranking" question="Rank priorities:" options="Speed,Security,Readability" />
 <ask_prompt type="slider" question="Complexity level?" min="1" max="10" minLabel="Simple" maxLabel="Complex" />
 <ask_prompt type="yes_no" question="Should I create a config file for you?" />
+When doing a suggestion like "Should I make this have another level", dont use the yes_no question prompt. 
 <ask_prompt type="number" question="How many items should I generate?" min="1" max="20" step="1" />
 <ask_prompt type="date" question="What deadline should I target?" />
 <ask_prompt type="time" question="What time should I schedule it for?" />
 <ask_prompt type="datetime" question="When should this run?" />
 <ask_prompt type="email" question="What email should receive updates?" placeholder="name@example.com" />
+Do not ask more than 3 questions at a time unless it is needed to be able to sucessfully perform the users request.
 
 ## INLINE WIDGETS — use contextually
 
@@ -416,10 +418,191 @@ Users can attach images, PDFs, videos, and audio. Analyze them thoroughly when p
 
 ## Current Context`;
 
+const AUTOMATION_SECTION = `
+## AUTOMATION PIPELINE EDITOR
+When the user is working with the Automation template, they have access to a visual automation pipeline builder. You can **edit automation.config.json directly** to create, modify, or replace automation pipelines programmatically.
+
+### automation.config.json Schema
+The file must conform to this structure:
+\`\`\`json
+{
+  "version": 1,
+  "blocks": [
+    {
+      "type": "category.subcategory.block-id",
+      "label": "Human-readable label",
+      "category": "Category Name",
+      "subcategory": "Subcategory Name",
+      "auth": "api_key | free | internal | local",
+      "config": {
+        "key": "value"
+      }
+    }
+  ]
+}
+\`\`\`
+
+### Common Block Types
+| Type ID | Label | Auth | Typical Config Keys |
+|---------|-------|------|-------------------|
+| \`internal.internal-triggers.schedule-cron\` | Schedule (Cron) | internal | cron, timezone |
+| \`internal.internal-triggers.webhook-catch\` | Webhook (Catch) | internal | url, method |
+| \`dev-ops.code-cicd.github\` | GitHub | free | owner, repo, field |
+| \`ai-ml.ai-providers.openai\` | OpenAI | api_key | model, task |
+| \`ai-ml.ai-providers.anthropic\` | Anthropic | api_key | model, task |
+| \`ai-ml.ai-providers.google-gemini\` | Google Gemini | api_key | model, task |
+| \`comm.team-chat.slack\` | Slack | free | mode, channel, message |
+| \`comm.team-chat.discord\` | Discord | free | webhook_url, message |
+| \`comm.team-chat.telegram\` | Telegram | api_key | chat_id, message |
+| \`notifications.email.resend\` | Resend | api_key | from_email, to_email, subject, body |
+| \`notifications.email.sendgrid\` | SendGrid | api_key | from_email, to_email, subject, body |
+| \`notifications.sms.twilio\` | Twilio | api_key | from_number, to_number, body |
+| \`data.databases.supabase\` | Supabase | api_key | url, table |
+| \`payments.payment-providers.stripe\` | Stripe | api_key | amount, currency |
+| \`internal.flow-control.filter\` | Filter | internal | field, equals |
+| \`internal.flow-control.delay\` | Delay | internal | seconds |
+| \`internal.flow-control.loop\` | Loop | internal | |
+| \`internal.data-transforms.json-parser\` | JSON Parser | internal | |
+| \`internal.data-transforms.text-formatter\` | Text Formatter | internal | |
+
+### Data Passing Between Steps
+Config values can reference output from the previous step using \`{{prev.result}}\`, \`{{prev.data}}\`, \`{{prev.status}}\`, etc.
+
+Example: An OpenAI block that summarizes GitHub data:
+\`\`\`json
+{
+  "type": "ai-ml.ai-providers.openai",
+  "label": "OpenAI",
+  "category": "AI & Machine Learning",
+  "subcategory": "AI Intelligence Providers",
+  "auth": "api_key",
+  "config": {
+    "model": "gpt-4o-mini",
+    "task": "Summarize: {{prev.result}}"
+  }
+}
+\`\`\`
+
+### Rules
+- Always use \`<code_change file="automation.config.json" lang="json" desc="...">\` to create or update the automation pipeline.
+- The blocks array defines the pipeline execution order (first block = trigger, rest = steps).
+- The first block should typically be a trigger (Schedule, Webhook, etc.).
+- Use proper block type IDs from the table above.
+- Changes to automation.config.json are automatically synced to the visual pipeline editor.
+`;
+
+const SCRATCH_SECTION = `
+## SCRATCH BLOCK EDITOR
+When the user is working with the Scratch template, they have access to a visual Scratch block editor. You can **edit project.json directly** to create, modify, or update Scratch projects programmatically.
+
+### project.json Schema (Scratch 3.0)
+The file must conform to this structure:
+\`\`\`json
+{
+  "targets": [
+    {
+      "isStage": true,
+      "name": "Stage",
+      "variables": { "varId": ["my variable", 0] },
+      "lists": {},
+      "broadcasts": {},
+      "blocks": {},
+      "comments": {},
+      "currentCostume": 0,
+      "costumes": [
+        { "name": "backdrop1", "dataFormat": "svg", "assetId": "...", "md5ext": "....svg", "rotationCenterX": 240, "rotationCenterY": 180 }
+      ],
+      "sounds": [],
+      "volume": 100,
+      "layerOrder": 0,
+      "tempo": 60,
+      "videoTransparency": 50,
+      "videoState": "on",
+      "textToSpeechLanguage": null
+    },
+    {
+      "isStage": false,
+      "name": "Sprite1",
+      "variables": {},
+      "lists": {},
+      "broadcasts": {},
+      "blocks": {
+        "blockId1": {
+          "opcode": "event_whenflagclicked",
+          "next": "blockId2",
+          "parent": null,
+          "inputs": {},
+          "fields": {},
+          "shadow": false,
+          "topLevel": true,
+          "x": 0,
+          "y": 0
+        }
+      },
+      "comments": {},
+      "currentCostume": 0,
+      "costumes": [],
+      "sounds": [],
+      "visible": true,
+      "x": 0,
+      "y": 0,
+      "size": 100,
+      "direction": 90,
+      "draggable": false,
+      "rotationStyle": "all around",
+      "layerOrder": 1
+    }
+  ],
+  "monitors": [],
+  "extensions": [],
+  "meta": { "semver": "3.0.0", "vm": "0.2.0", "agent": "CodeCanvas" }
+}
+\`\`\`
+
+### Common Block Opcodes
+| Opcode | Category | Shape | Description |
+|--------|----------|-------|-------------|
+| \`event_whenflagclicked\` | Events | hat | When green flag clicked |
+| \`event_whenkeypressed\` | Events | hat | When key pressed (fields: KEY_OPTION) |
+| \`control_wait\` | Control | stack | Wait N seconds (inputs: DURATION) |
+| \`control_repeat\` | Control | c-block | Repeat N times (inputs: TIMES, SUBSTACK) |
+| \`control_forever\` | Control | c-block | Forever loop (inputs: SUBSTACK) |
+| \`control_if\` | Control | c-block | If condition (inputs: CONDITION, SUBSTACK) |
+| \`motion_movesteps\` | Motion | stack | Move N steps (inputs: STEPS) |
+| \`motion_turnright\` | Motion | stack | Turn right N degrees (inputs: DEGREES) |
+| \`motion_gotoxy\` | Motion | stack | Go to x,y (inputs: X, Y) |
+| \`looks_sayforsecs\` | Looks | stack | Say text for N seconds (inputs: MESSAGE, SECS) |
+| \`looks_show\` | Looks | stack | Show sprite |
+| \`looks_hide\` | Looks | stack | Hide sprite |
+| \`sound_play\` | Sound | stack | Play sound (inputs: SOUND_MENU) |
+| \`sensing_askandwait\` | Sensing | stack | Ask and wait (inputs: QUESTION) |
+| \`operator_add\` | Operators | reporter | Add (inputs: NUM1, NUM2) |
+| \`data_setvariableto\` | Variables | stack | Set variable (fields: VARIABLE, inputs: VALUE) |
+
+### Block Linking Rules
+- Each block has \`next\` (id of the block below) and \`parent\` (id of the block above).
+- The first block in a stack has \`topLevel: true\` and \`parent: null\`.
+- Inputs use Scratch's shadow/value encoding: \`"INPUT_NAME": [1, [10, "value"]]\` for literal values.
+- Variable references: \`"INPUT_NAME": [3, [12, "varName", "varId"], [10, "default"]]\`.
+
+### Rules
+- Always use \`<code_change file="project.json" lang="json" desc="...">\` to create or update the Scratch project.
+- Changes to project.json are automatically synced to the visual Scratch block editor.
+- Keep the Stage target (\`isStage: true\`) as the first element in \`targets\`.
+- Generate unique block IDs (e.g. "block-1", "block-2").
+- Make sure \`next\`/\`parent\` links form valid chains.
+`;
+
 function buildSystemPrompt(template?: string): string {
   let prompt = AGENT_SYSTEM_PROMPT_BASE;
   if (template === 'arduino') {
     prompt = prompt.replace('## CODE CHANGES', ARDUINO_SECTION + '\n## CODE CHANGES');
+  }
+  if (template === 'automation') {
+    prompt = prompt.replace('## CODE CHANGES', AUTOMATION_SECTION + '\n## CODE CHANGES');
+  }
+  if (template === 'scratch') {
+    prompt = prompt.replace('## CODE CHANGES', SCRATCH_SECTION + '\n## CODE CHANGES');
   }
   return prompt;
 }
@@ -715,6 +898,7 @@ serve(async (req) => {
       enableCodeExecution,
       enableMCP,
       template,
+      automationConfig,
     } = await req.json();
 
     // Check if user has a custom API key for the selected BYOK provider
@@ -851,6 +1035,9 @@ serve(async (req) => {
     }
     if (agentSkills && (agentSkills as any[]).length > 0) {
       contextSection += `\n\n### 🧠 Active Agent Skills\nFollow these custom instructions provided by the user:\n${(agentSkills as any[]).map((s: any) => `#### ${s.name}${s.description ? ` (${s.description})` : ""}\n${s.instruction}`).join("\n\n")}`;
+    }
+    if (automationConfig) {
+      contextSection += `\n\n### 🔧 Current Automation Pipeline (\`automation.config.json\`)\n\`\`\`json\n${automationConfig}\n\`\`\`\nYou can modify this file to update the automation pipeline. Changes will be synced to the visual editor automatically.`;
     }
 
     const systemPrompt = agentMode
@@ -1052,7 +1239,7 @@ serve(async (req) => {
     }
 
     const MODEL_MAP: Record<string, string> = {
-      pro: "google/gemini-2.5-pro",
+      pro: "google/gemini-3.1-pro-preview",
       flash: "google/gemini-3-flash-preview",
       lite: "google/gemini-2.5-flash-lite",
     };

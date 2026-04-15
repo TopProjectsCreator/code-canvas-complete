@@ -27,7 +27,7 @@ import { useLandingStats } from "@/hooks/useLandingStats";
 const missionBlocks = [
   {
     title: "Canvas-First Coding",
-    description: "Design projects on visual canvases, then jump directly into the files, terminal, and live preview.",
+    description: "Design projects on visual whiteboards and share documents and powerpoints as a team, then jump directly into the files, terminal, and live preview.",
     icon: <Bot className="h-4 w-4" />,
   },
   {
@@ -94,7 +94,7 @@ const timeline = [
   },
 ];
 
-const floatingBadges = ["Realtime AI Pairing", "Neon Command Center", "Live Team Presence", "Edge-Speed Builds"];
+const floatingBadges = ["Realtime AI Pairing", "All in one IDE", "Live Team Presence", "Edge-Speed Builds", "Built in Git", "Multiplayer Canvases", "Browser Native", "Instant Previews", "No Install Required", "Publish builtin", "Office (word/pptx/exel) support", "Live chat and video rooms", "Top-Noch Extentions pane", "Full terminal", "Copy Zapier with our amazing automations system", "Make workflows for easy deploys and actions."];
 const pulseNodes = [
   { id: "NX-01", status: "Synced" },
   { id: "NX-08", status: "Rendering" },
@@ -168,8 +168,8 @@ export default function Landing() {
               </h1>
 
               <p className="mt-6 max-w-2xl text-base text-muted-foreground sm:text-lg">
-                CodeCanvas brings visual project canvases, a full in-browser IDE, and AI coding tools together so you can plan,
-                build, run, and share software from one place.
+                CodeCanvas brings your automations and tools, a full in-browser IDE, and AI coding tools together so you can plan, design,
+                build, run, automate, and share software from one place.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -331,6 +331,7 @@ export default function Landing() {
             <h2 className="text-3xl font-bold tracking-tight">Start building on your code canvas</h2>
             <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
               From solo prototyping to team shipping, CodeCanvas keeps planning, coding, and collaboration in one connected space.
+             (Yes, this is live)
             </p>
             <div className="mt-8 grid gap-4 sm:grid-cols-3">
               <AnimatedCounter value={stats.totalUsers} label="Total Users" icon={<Users className="h-6 w-6" />} glowColor="hsl(var(--primary))" />
@@ -340,9 +341,112 @@ export default function Landing() {
             <Button size="lg" className="mt-8 h-12 gap-2 px-10" onClick={() => navigate("/editor")}>
               Start Building <ArrowRight className="h-4 w-4" />
             </Button>
+            <br></br>
             <div className="mt-6 inline-flex items-center gap-2 text-xs text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-primary" />
               No install required · Browser-native runtime
+            </div>
+          </div>
+        </section>
+        <section id="capabilities" class="relative px-6 py-24 border-t border-primary/10 bg-primary/[0.01]">
+          <div class="mx-auto max-w-6xl">
+
+            <div class="mb-16 text-center">
+              <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1 font-mono text-[10px] uppercase tracking-[0.3em] text-primary">
+                Template Library
+              </div>
+              <h2 class="text-3xl font-bold tracking-tight sm:text-5xl">What can you make?</h2>
+              <p class="mt-4 text-muted-foreground max-w-2xl mx-auto">
+                From low-level systems engineering to collaborative office suites—CodeCanvas provides the runtime and environment for any project.
+              </p>
+            </div>
+
+            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+
+              <div class="group rounded-2xl border border-border/50 bg-card/20 p-6 backdrop-blur-sm transition-all hover:border-primary/40">
+                <div class="mb-4 flex items-center gap-3 text-primary">
+                  <div class="p-2 rounded-lg bg-primary/10"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-globe"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg></div>
+                  <span class="font-mono text-xs uppercase tracking-widest">Web Ecosystem</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">react</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">nodejs</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">typescript</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">html</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">javascript</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">php</span>
+                </div>
+              </div>
+
+              <div class="group rounded-2xl border border-border/50 bg-card/20 p-6 backdrop-blur-sm transition-all hover:border-primary/40">
+                <div class="mb-4 flex items-center gap-3 text-primary">
+                  <div class="p-2 rounded-lg bg-primary/10"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cpu"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg></div>
+                  <span class="font-mono text-xs uppercase tracking-widest">Systems & Low-Level</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">rust</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">cpp</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">zig</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">go</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">csharp</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">swift</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">nim</span>
+                </div>
+              </div>
+
+              <div class="group rounded-2xl border border-border/50 bg-card/20 p-6 backdrop-blur-sm transition-all hover:border-primary/40">
+                <div class="mb-4 flex items-center gap-3 text-primary">
+                  <div class="p-2 rounded-lg bg-primary/10"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-brain-circuit"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .52 8.105V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-2.143a4 4 0 0 0 1.143-3V7a3 3 0 1 0-6 0v1"/><path d="M9 13a4.5 4.5 0 0 0 3-4"/><path d="M6.003 5.125A3 3 0 1 0 12 7"/><path d="M14 18h.01"/><path d="M14 14h.01"/><path d="M18 18h.01"/><path d="M18 14h.01"/></svg></div>
+                  <span class="font-mono text-xs uppercase tracking-widest">Logic & Data</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">python</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">haskell</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">julia</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">elixir</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">lisp</span>
+                  <span class="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">ocaml</span>
+                </div>
+              </div>
+
+              <div class="group rounded-2xl border border-border/50 bg-card/20 p-6 backdrop-blur-sm transition-all hover:border-primary/40 md:col-span-2 lg:col-span-3">
+                <div class="mb-4 flex items-center gap-3 text-primary">
+                  <div class="p-2 rounded-lg bg-primary/10"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layers"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg></div>
+                  <span class="font-mono text-xs uppercase tracking-widest">Office & Media Assets</span>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                  <span class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground group-hover:text-foreground group-hover:border-info/30 transition-all">
+                    <span class="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span> Word
+                  </span>
+                  <span class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground group-hover:text-foreground group-hover:border-green-500/30 transition-all">
+                    <span class="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></span> excel
+                  </span>
+                  <span class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground group-hover:text-foreground group-hover:border-orange-500/30 transition-all">
+                    <span class="h-2 w-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]"></span> powerpoint
+                  </span>
+                  <span class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground group-hover:text-foreground group-hover:border-primary/30 transition-all">
+                    <span class="h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]"></span> video & audio
+                  </span>
+                  <span class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground group-hover:text-foreground group-hover:border-primary/30 transition-all">
+                    <span class="h-2 w-2 rounded-full bg-primary"></span> CAD editor
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-12 pt-8 border-t border-border/20">
+              <p class="text-[10px] font-mono uppercase tracking-[0.4em] text-muted-foreground text-center mb-6">Discovery Tier Environments</p>
+              <div class="flex flex-wrap justify-center gap-x-8 gap-y-4 opacity-40 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-700">
+                <span class="text-xs font-mono">secureops</span>
+                <span class="text-xs font-mono">automation</span>
+                <span class="text-xs font-mono">arduino</span>
+                <span class="text-xs font-mono">ftc</span>
+                <span class="text-xs font-mono">pony</span>
+                <span class="text-xs font-mono">lazyk</span>
+                <span class="text-xs font-mono">scratch</span>
+                <span class="text-xs font-mono">nim</span>
+                <span class="text-xs font-mono">crystal</span>
+              </div>
             </div>
           </div>
         </section>

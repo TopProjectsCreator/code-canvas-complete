@@ -62,6 +62,7 @@ interface ScratchProject {
   monitors?: unknown[];
   extensions?: string[];
   meta?: Record<string, unknown>;
+  projectVersion?: number;
 }
 
 interface ScratchVmTarget {
@@ -78,7 +79,7 @@ interface ScratchVmLike {
   start: () => void;
   stopAll: () => void;
   greenFlag: () => void;
-  loadProject: (projectData: ArrayBuffer) => Promise<void>;
+  loadProject: (projectData: ArrayBuffer | string | object) => Promise<void>;
   attachRenderer: (renderer: unknown) => void;
   attachStorage: (storage: unknown) => void;
   attachAudioEngine: (audioEngine: unknown) => void;
@@ -434,6 +435,53 @@ const categoryColors: Record<string, string> = {
   Music: '#d65cd6',
 };
 
+const categoryColorsScratch2: Record<string, string> = {
+  Motion: '#0066cc',
+  Looks: '#7f34a8',
+  Sound: '#bc3a7b',
+  Events: '#cc5c2e',
+  Control: '#be7d0f',
+  Sensing: '#3d7eb8',
+  Operators: '#339966',
+  Data: '#e67e22',
+  Variables: '#e67e22',
+  'More Blocks': '#cc5c2e',
+  'My Blocks': '#cc5c2e',
+  Pen: '#0b8235',
+};
+
+const getCategoryColors = (version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return categoryColorsScratch2;
+  }
+  return categoryColors;
+};
+
+const getGUIColors = (version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return {
+      headerBg: '#e9eef2',
+      tabBg: '#e9eef2',
+      categoryRailBg: '#f0f0f0',
+      flyoutBg: '#f0f0f0',
+      blocksBg: '#f0f0f0',
+      stageBg: '#ffffff',
+      headerText: '#4d4d4d',
+      tabText: '#4d4d4d',
+    };
+  }
+  return {
+    headerBg: '#855cd6',
+    tabBg: '#855cd6',
+    categoryRailBg: '#f9f9f9',
+    flyoutBg: '#f9f9f9',
+    blocksBg: '#f9f9f9',
+    stageBg: '#ffffff',
+    headerText: '#ffffff',
+    tabText: '#ffffff',
+  };
+};
+
 const categoryRail = [
   { name: 'Motion', color: '#4c97ff' },
   { name: 'Looks', color: '#9966ff' },
@@ -448,6 +496,38 @@ const categoryRail = [
   { name: 'Music', color: '#d65cd6' },
 ];
 
+const categoryRailScratch2 = [
+  { name: 'Motion', color: '#0066cc' },
+  { name: 'Looks', color: '#7f34a8' },
+  { name: 'Sound', color: '#bc3a7b' },
+  { name: 'Events', color: '#cc5c2e' },
+  { name: 'Control', color: '#be7d0f' },
+  { name: 'Sensing', color: '#3d7eb8' },
+  { name: 'Operators', color: '#339966' },
+  { name: 'Variables', color: '#e67e22' },
+  { name: 'My Blocks', color: '#cc5c2e' },
+  { name: 'Pen', color: '#0b8235' },
+];
+
+const getCategoryRail = (version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return categoryRailScratch2;
+  }
+  return categoryRail;
+};
+
+const SCRATCH2_CATEGORY_LABEL_OVERRIDES: Record<string, string> = {
+  Variables: 'Data',
+  'My Blocks': 'More Blocks',
+};
+
+const categoryDisplayName = (name: string, version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return SCRATCH2_CATEGORY_LABEL_OVERRIDES[name] || name;
+  }
+  return name;
+};
+
 const generateId = () => Math.random().toString(36).slice(2, 10);
 const formatJson = (value: unknown) => JSON.stringify(value, null, 2);
 
@@ -456,7 +536,7 @@ const DEFAULT_SPRITE_ASSET_ID = 'bcf454acf82e4504149f7ffe07081dbc';
 const DEFAULT_STAGE_COSTUME_FILE = `${DEFAULT_STAGE_ASSET_ID}.svg`;
 const DEFAULT_SPRITE_COSTUME_FILE = `${DEFAULT_SPRITE_ASSET_ID}.svg`;
 const DEFAULT_STAGE_COSTUME_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 360"><defs><linearGradient id="bg" x1="0" x2="0" y1="0" y2="1"><stop stop-color="#87ceeb"/><stop offset="1" stop-color="#dff3ff"/></linearGradient></defs><rect width="480" height="360" fill="url(#bg)"/><circle cx="410" cy="70" r="40" fill="#ffd35a"/><rect y="260" width="480" height="100" fill="#95d08f"/></svg>`;
-const DEFAULT_SPRITE_COSTUME_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><ellipse cx="48" cy="76" rx="28" ry="14" fill="#d18f3b"/><circle cx="36" cy="40" r="20" fill="#f8a64a"/><circle cx="60" cy="40" r="20" fill="#f8a64a"/><circle cx="48" cy="58" r="20" fill="#f8a64a"/><circle cx="42" cy="56" r="3" fill="#222"/><circle cx="54" cy="56" r="3" fill="#222"/></svg>`;
+const DEFAULT_SPRITE_COSTUME_SVG = `<svg xmlns="http://www.w.org/2000/svg" viewBox="0 0 96 96"><ellipse cx="48" cy="76" rx="28" ry="14" fill="#d18f3b"/><circle cx="36" cy="40" r="20" fill="#f8a64a"/><circle cx="60" cy="40" r="20" fill="#f8a64a"/><circle cx="48" cy="58" r="20" fill="#f8a64a"/><circle cx="42" cy="56" r="3" fill="#222"/><circle cx="54" cy="56" r="3" fill="#222"/></svg>`;
 
 const utf8ToBase64 = (value: string) => btoa(unescape(encodeURIComponent(value)));
 
@@ -1224,6 +1304,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
     return map;
   }, []);
+  const visibleCategoryNames = useMemo(
+    () => Object.keys(categoryBlocks).filter(
+      (name) => categoryBlocks[name].some((def) => isBlockDefAvailable(def, scratchVersion)),
+    ),
+    [scratchVersion],
+  );
   const visibleCategoryBlocks = useMemo(() => {
     const entries = Object.entries(categoryBlocks).map(([name, defs]) => [
       name,
@@ -1231,6 +1317,28 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     ]);
     return Object.fromEntries(entries) as Record<string, ScratchBlockDef[]>;
   }, [scratchVersion]);
+  const allCategoryRail = useMemo(
+    () => getCategoryRail(scratchVersion),
+    [scratchVersion],
+  );
+  const visibleCategoryRail = useMemo(
+    () => allCategoryRail.filter((cat) => visibleCategoryNames.includes(cat.name)),
+    [allCategoryRail, visibleCategoryNames],
+  );
+  const currentCategoryColors = useMemo(
+    () => getCategoryColors(scratchVersion),
+    [scratchVersion],
+  );
+  const guiColors = useMemo(
+    () => getGUIColors(scratchVersion),
+    [scratchVersion],
+  );
+
+  useEffect(() => {
+    if (!visibleCategoryNames.includes(activeCategory) && visibleCategoryNames.length > 0) {
+      setActiveCategory(visibleCategoryNames[0]);
+    }
+  }, [activeCategory, visibleCategoryNames]);
 
   useEffect(() => {
     setScratchVersion(semverToScratchVersion(project.meta?.semver));
@@ -1272,17 +1380,33 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setSpriteVisible(visible);
   }, [selectedTarget?.name]);
 
-  const loadVmFromArchive = useCallback(async (nextArchive: ScratchArchive) => {
+  const loadVmFromArchive = useCallback(async (nextArchive: ScratchArchive, version: ScratchCompatibilityVersion = scratchVersion) => {
     if (!vmRef.current) return;
     try {
       const normalizedArchive = ensureArchive(nextArchive);
-      console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames);
-      const data = await exportScratchArchive(normalizedArchive);
-      const ab = data.buffer instanceof ArrayBuffer
-        ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
-        : data.slice().buffer;
-      console.log('[Scratch] Loading project into VM, size:', ab.byteLength);
-      await vmRef.current.loadProject(ab);
+      console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames, 'version:', version);
+
+      if (version === 'scratch2') {
+        const project = safeParseProject(normalizedArchive);
+        const legacyProject = {
+          ...project,
+          projectVersion: 2,
+          meta: {
+            ...(project.meta || {}),
+            semver: '2.0.0',
+          },
+        };
+        console.log('[Scratch] Loading Scratch 2 project into VM from JSON');
+        await vmRef.current.loadProject(legacyProject);
+      } else {
+        const data = await exportScratchArchive(normalizedArchive, version === 'scratch3' ? 'sb3' : 'sb2');
+        const ab = data.buffer instanceof ArrayBuffer
+          ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+          : data.slice().buffer;
+        console.log('[Scratch] Loading project into VM, size:', ab.byteLength);
+        await vmRef.current.loadProject(ab);
+      }
+
       projectLoadedRef.current = true;
       console.log('[Scratch] Project loaded successfully, targets:', vmRef.current.runtime?.targets?.length);
       setVmError(null);
@@ -1292,7 +1416,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       console.warn('scratch-vm loadProject warning:', error);
       setVmError(error instanceof Error ? error.message : 'Failed to load Scratch project');
     }
-  }, [syncFromVm]);
+  }, [scratchVersion, syncFromVm]);
 
   // Initialize VM with renderer, storage, and audio engine (dynamic imports)
   useEffect(() => {
@@ -1367,12 +1491,18 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         useWebGLRenderer = false;
 
         // Dynamically import and attach audio engine
+        let audioReady = false;
         try {
           const audioMod = await import('scratch-audio');
           const AudioCtor = audioMod.default || audioMod;
           if (typeof AudioCtor === 'function') {
-            const audioEngine = new AudioCtor();
-            vm.attachAudioEngine(audioEngine);
+            try {
+              const audioEngine = new AudioCtor();
+              vm.attachAudioEngine(audioEngine);
+              audioReady = true;
+            } catch (audioError) {
+              console.warn('scratch-audio initialization failed:', audioError);
+            }
           }
         } catch (e) {
           console.warn('scratch-audio not available:', e);
@@ -1388,10 +1518,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           const em = (vm as any).extensionManager;
           if (em?.loadExtensionIdSync) {
             em.loadExtensionIdSync('pen');
-            em.loadExtensionIdSync('music');
+            if (audioReady) {
+              em.loadExtensionIdSync('music');
+            }
           } else if (em?.loadExtensionURL) {
             em.loadExtensionURL('pen').catch(() => {});
-            em.loadExtensionURL('music').catch(() => {});
+            if (audioReady) {
+              em.loadExtensionURL('music').catch(() => {});
+            }
           }
           console.log('[Scratch] Extensions loaded');
         } catch (e) {
@@ -2311,6 +2445,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       const inferredVersion = name.endsWith('.sb2') ? 'scratch2' : bySemver;
       const normalizedProject: ScratchProject = {
         ...importedProject,
+        projectVersion: inferredVersion === 'scratch2' || inferredVersion === 'scratch14' ? 2 : 3,
         targets: (importedProject.targets || []).map((target) => ({
           ...target,
           blocks: normalizeBlocksForVersion(target.blocks, inferredVersion),
@@ -2331,7 +2466,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       setJsonError(null);
       setVmError(null);
       setSelectedTargetIndex(1);
-      await loadVmFromArchive(normalizedArchive);
+      await loadVmFromArchive(normalizedArchive, inferredVersion);
     } catch (error) {
       setVmError(error instanceof Error ? error.message : 'Failed to import Scratch archive (.sb/.sb2/.sb3).');
     }
@@ -2343,6 +2478,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const currentProject = safeParseProject(archive);
     const normalizedProject: ScratchProject = {
       ...currentProject,
+      projectVersion: exportFormat === 'sb3' ? 3 : 2,
       targets: (currentProject.targets || []).map((target) => ({
         ...target,
         blocks: normalizeBlocksForVersion(target.blocks, exportFormat === 'sb3' ? 'scratch3' : 'scratch2'),
@@ -2397,6 +2533,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
     const nextProject: ScratchProject = {
       ...current,
+      projectVersion: nextVersion === 'scratch2' || nextVersion === 'scratch14' ? 2 : 3,
       extensions: (current.extensions || []).filter((ext) => {
         if (nextVersion === 'scratch3') return true;
         if (ext === 'pen' || ext === 'music') return false;
@@ -2426,30 +2563,30 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     onProjectJsonUpdate(nextJson);
     setProjectJsonDraft(nextJson);
     setJsonError(null);
-    await loadVmFromArchive(nextArchive);
+    await loadVmFromArchive(nextArchive, nextVersion);
   };
 
   const [showJson, setShowJson] = useState(false);
 
   return (
-    <div className="h-full flex flex-col" style={{ background: '#855cd6' }}>
-      {/* ===== TOP MENU BAR (Scratch purple) ===== */}
-      <div className="h-12 flex items-center px-3 gap-4 shrink-0" style={{ background: '#855cd6' }}>
+    <div className="h-full flex flex-col" style={{ background: guiColors.headerBg }}>
+      {/* ===== TOP MENU BAR ===== */}
+      <div className="h-12 flex items-center px-3 gap-4 shrink-0" style={{ background: guiColors.headerBg, color: guiColors.headerText }}>
         {/* Logo / brand */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">S</span>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${guiColors.headerText}20` }}>
+            <span style={{ color: guiColors.headerText }} className="font-bold text-sm">S</span>
           </div>
         </div>
 
         {/* File actions */}
         <div className="flex items-center gap-1">
-          <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10 flex items-center gap-1.5">
+          <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-[13px] rounded flex items-center gap-1.5 transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>
             <Upload className="w-3.5 h-3.5" /> File
           </button>
           <input ref={importInputRef} className="hidden" type="file" accept=".sb3,.sb2,.sb" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
-          <button onClick={handleExport} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Save</button>
-          <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Debug</button>
+          <button onClick={handleExport} className="px-3 py-1.5 text-[13px] rounded transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>Save</button>
+          <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-[13px] rounded transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>Debug</button>
         </div>
 
         <div className="flex items-center gap-1 rounded-lg bg-white/10 p-1">
@@ -2473,17 +2610,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         {/* VM status */}
         <div className="flex items-center gap-2">
-          <span className={`text-[11px] px-2 py-0.5 rounded-full ${vmReady ? 'bg-white/20 text-white' : 'bg-yellow-400/30 text-yellow-100'}`}>
+          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: vmReady ? `${guiColors.headerText}20` : '#fbbf24', color: vmReady ? guiColors.headerText : '#78350f' }}>
             {vmReady ? '● Ready' : '○ Starting'}
           </span>
-          <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-white/90">
-            VM: scratch-vm ({scratchVersion === 'scratch3' ? 'native sb3' : 'compat + legacy import'})
+          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: `${guiColors.headerText}10`, color: guiColors.headerText }}>
+            VM: scratch-vm ({scratchVersion === 'scratch3' ? 'native sb3' : scratchVersion === 'scratch2' ? 'compat scratch2' : 'compat + legacy import'})
           </span>
         </div>
       </div>
 
       {/* ===== TABS BAR (Code / Costumes / Sounds) ===== */}
-      <div className="h-11 flex items-end px-2 shrink-0" style={{ background: '#855cd6' }}>
+      <div className="h-11 flex items-end px-2 shrink-0" style={{ background: guiColors.tabBg }}>
         {[
           { key: 'code' as const, icon: <Code2 className="w-4 h-4" />, label: 'Code' },
           { key: 'costumes' as const, icon: <Brush className="w-4 h-4" />, label: 'Costumes' },
@@ -2494,9 +2631,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             onClick={() => setActiveEditorTab(tab.key)}
             className={`px-5 h-9 rounded-t-lg text-[13px] font-semibold flex items-center gap-1.5 transition-colors ${
               activeEditorTab === tab.key
-                ? 'bg-white text-[#855cd6]'
-                : 'bg-[#7953c7] text-white/80 hover:bg-[#7248bf]'
+                ? 'bg-white'
+                : ''
             }`}
+            style={{
+              color: activeEditorTab === tab.key ? guiColors.tabBg : guiColors.headerText,
+              opacity: activeEditorTab === tab.key ? 1 : 0.7,
+              background: activeEditorTab === tab.key ? '#ffffff' : `${guiColors.tabBg}`,
+            }}
           >
             {tab.icon} {tab.label}
           </button>
@@ -2508,8 +2650,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         {/* --- LEFT: Category rail + Block flyout --- */}
         <div className="flex min-h-0 shrink-0" style={{ width: leftPaneWidth }}>
           {/* Category rail */}
-          <div className="w-[64px] bg-[#f9f9f9] border-r border-[#e0e0e0] py-2 flex flex-col items-center gap-1 overflow-y-auto shrink-0">
-            {categoryRail.map((cat) => {
+          <div className="w-[64px] border-r border-[#e0e0e0] py-2 flex flex-col items-center gap-1 overflow-y-auto shrink-0" style={{ background: guiColors.categoryRailBg }}>
+            {visibleCategoryRail.map((cat) => {
               const isActive = activeCategory === cat.name;
               return (
                 <button
@@ -2534,9 +2676,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
 
           {/* Block flyout */}
-          <div className="flex-1 overflow-y-auto py-3 px-3" style={{ background: '#f9f9f9' }}>
-            <div className="text-[18px] font-bold mb-3" style={{ color: categoryColors[activeCategory] || '#4c97ff' }}>
-              {activeCategory}
+          <div className="flex-1 overflow-y-auto py-3 px-3" style={{ background: guiColors.flyoutBg }}>
+            <div className="text-[18px] font-bold mb-3" style={{ color: currentCategoryColors[activeCategory] || '#4c97ff' }}>
+              {categoryDisplayName(activeCategory, scratchVersion)}
             </div>
             {activeEditorTab === 'code' ? (
               activeCategory === 'Variables' ? (
@@ -2544,7 +2686,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   variables={Object.entries(selectedTarget?.variables || {})}
                   lists={Object.entries(selectedTarget?.lists || {})}
                   blocks={visibleCategoryBlocks.Variables || []}
-                  color={categoryColors['Variables'] || '#ff8c1a'}
+                  color={currentCategoryColors['Variables'] || currentCategoryColors['Data'] || '#ff8c1a'}
                   onMakeVariable={() => { setRenameTarget(null); setDataPrompt({ type: 'variable', name: '' }); }}
                   onMakeList={() => { setRenameTarget(null); setDataPrompt({ type: 'list', name: '' }); }}
                   onAddBlock={addBlock}
@@ -2556,7 +2698,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               ) : (
               <div className="space-y-1.5">
                 {(visibleCategoryBlocks[activeCategory] || []).map((blockDef) => {
-                  const color = categoryColors[activeCategory] || '#4c97ff';
+                  const color = currentCategoryColors[activeCategory] || '#4c97ff';
                   const shape = getBlockShape(blockDef.opcode);
                   return (
                     <div

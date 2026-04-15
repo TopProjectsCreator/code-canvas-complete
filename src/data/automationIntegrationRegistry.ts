@@ -35,6 +35,7 @@ export interface AutomationRegistryBlock {
   parameters?: APIParameter[];
   credentialFields?: APIParameter[];
   operations?: Operation[];
+  isTrigger?: boolean;
 }
 
 export interface AutomationRegistrySubcategory {
@@ -56,21 +57,227 @@ const slugify = (value: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '');
 
+const genericHttpParams: APIParameter[] = [
+  { name: 'url', displayName: 'Request URL', type: 'url', required: true, description: 'Full API endpoint URL', placeholder: 'https://api.example.com/v1/resource' },
+  { name: 'method', displayName: 'HTTP Method', type: 'select', default: 'POST', options: [
+    { label: 'GET', value: 'GET' },
+    { label: 'POST', value: 'POST' },
+    { label: 'PUT', value: 'PUT' },
+    { label: 'PATCH', value: 'PATCH' },
+    { label: 'DELETE', value: 'DELETE' },
+  ], description: 'HTTP method to use for the request' },
+  { name: 'headers', displayName: 'Headers (JSON)', type: 'textarea', description: 'Optional request headers in JSON format', placeholder: '{"Content-Type": "application/json"}' },
+  { name: 'query', displayName: 'Query Parameters (JSON)', type: 'textarea', description: 'Optional query parameters in JSON format', placeholder: '{"limit": 10}' },
+  { name: 'body', displayName: 'Body (JSON)', type: 'textarea', description: 'Optional JSON body payload', placeholder: '{"key":"value"}' },
+];
+
+const genericApiKeyCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const genericLocalParams: APIParameter[] = [
+  { name: 'model', displayName: 'Model', type: 'string', required: true, placeholder: 'llama2' },
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true, placeholder: 'Hello from automation' },
+  { name: 'temperature', displayName: 'Temperature', type: 'number', default: 0.7 },
+  { name: 'max_tokens', displayName: 'Max Tokens', type: 'number', default: 512 },
+  { name: 'system_prompt', displayName: 'System Prompt', type: 'textarea', placeholder: 'You are a helpful assistant.' },
+];
+
+const genericInternalParamsByLabel: Record<string, APIParameter[]> = {
+  'Filter': [
+    { name: 'field', displayName: 'Field', type: 'string', required: true, placeholder: 'status' },
+    { name: 'equals', displayName: 'Equals', type: 'string', placeholder: 'ok' },
+  ],
+  'Router': [
+    { name: 'routes', displayName: 'Routes (JSON)', type: 'textarea', required: true, placeholder: '[{"name":"success","condition":"status == \'ok\'"}]' },
+  ],
+  'Loop': [
+    { name: 'items', displayName: 'Items (JSON)', type: 'textarea', required: true, placeholder: '[1, 2, 3]' },
+  ],
+  'Delay': [
+    { name: 'seconds', displayName: 'Seconds', type: 'number', required: true, default: 5 },
+  ],
+  'Wait for Approval': [
+    { name: 'approver', displayName: 'Approver', type: 'string', placeholder: 'user@example.com' },
+    { name: 'timeout_seconds', displayName: 'Timeout (seconds)', type: 'number', default: 3600 },
+  ],
+  'Error Handler': [
+    { name: 'retry_count', displayName: 'Retry Count', type: 'number', default: 1 },
+    { name: 'fallback_message', displayName: 'Fallback Message', type: 'textarea' },
+  ],
+  'Switch/Case': [
+    { name: 'field', displayName: 'Field', type: 'string', required: true, placeholder: 'status' },
+    { name: 'cases', displayName: 'Cases (JSON)', type: 'textarea', required: true, placeholder: '[{"value":"ok","next":"success"}]' },
+  ],
+  'Merge': [
+    { name: 'merge_strategy', displayName: 'Merge Strategy', type: 'select', default: 'append', options: [
+      { label: 'Append', value: 'append' },
+      { label: 'Overwrite', value: 'overwrite' },
+    ]},
+  ],
+  'Parallel Split': [
+    { name: 'branches', displayName: 'Branches (JSON)', type: 'textarea', required: true, placeholder: '[{"name":"A"},{"name":"B"}]' },
+  ],
+  'Debounce': [
+    { name: 'interval_ms', displayName: 'Interval (ms)', type: 'number', default: 500 },
+  ],
+  'Rate Limiter': [
+    { name: 'limit_per_minute', displayName: 'Limit / min', type: 'number', default: 60 },
+  ],
+  'Retry': [
+    { name: 'attempts', displayName: 'Attempts', type: 'number', default: 3 },
+    { name: 'backoff_seconds', displayName: 'Backoff Seconds', type: 'number', default: 5 },
+  ],
+  'Circuit Breaker': [
+    { name: 'failure_threshold', displayName: 'Failure Threshold', type: 'number', default: 5 },
+    { name: 'reset_timeout', displayName: 'Reset Timeout (seconds)', type: 'number', default: 60 },
+  ],
+  'Sub-Workflow': [
+    { name: 'workflow_id', displayName: 'Workflow ID', type: 'string', placeholder: 'child-workflow-id' },
+  ],
+  'Text Formatter': [
+    { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'capitalize', options: [
+      { label: 'Uppercase', value: 'uppercase' },
+      { label: 'Lowercase', value: 'lowercase' },
+      { label: 'Title Case', value: 'titlecase' },
+      { label: 'Capitalize', value: 'capitalize' },
+      { label: 'Replace', value: 'replace' },
+    ]},
+    { name: 'text', displayName: 'Text', type: 'textarea', required: true },
+    { name: 'search', displayName: 'Search', type: 'string' },
+    { name: 'replace_with', displayName: 'Replace With', type: 'string' },
+  ],
+  'Date Formatter': [
+    { name: 'date_input', displayName: 'Date Input', type: 'string', required: true, placeholder: '2024-01-15' },
+    { name: 'input_format', displayName: 'Input Format', type: 'string', default: 'YYYY-MM-DD' },
+    { name: 'output_format', displayName: 'Output Format', type: 'string', default: 'MMMM D, YYYY' },
+    { name: 'timezone', displayName: 'Timezone', type: 'string', default: 'UTC' },
+  ],
+  'Math': [
+    { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'add', options: [
+      { label: 'Add', value: 'add' },
+      { label: 'Subtract', value: 'subtract' },
+      { label: 'Multiply', value: 'multiply' },
+      { label: 'Divide', value: 'divide' },
+      { label: 'Power', value: 'power' },
+    ]},
+    { name: 'value_a', displayName: 'Value A', type: 'number', required: true },
+    { name: 'value_b', displayName: 'Value B', type: 'number' },
+  ],
+  'JSON Parser': [
+    { name: 'json_string', displayName: 'JSON String', type: 'textarea', required: true },
+    { name: 'path', displayName: 'Path', type: 'string', placeholder: 'user.email' },
+    { name: 'action', displayName: 'Action', type: 'select', default: 'parse', options: [
+      { label: 'Parse', value: 'parse' },
+      { label: 'Stringify', value: 'stringify' },
+      { label: 'Extract Value', value: 'extract' },
+      { label: 'Validate', value: 'validate' },
+    ]},
+  ],
+  'JS/Python Code': [
+    { name: 'language', displayName: 'Language', type: 'select', required: true, default: 'python', options: [
+      { label: 'Python', value: 'python' },
+      { label: 'JavaScript', value: 'javascript' },
+    ]},
+    { name: 'code', displayName: 'Code', type: 'textarea', required: true, placeholder: 'print("Hello")' },
+    { name: 'input_data', displayName: 'Input Data (JSON)', type: 'textarea', placeholder: '{"key":"value"}' },
+  ],
+  'CSV Generator': [
+    { name: 'data', displayName: 'Data (JSON array)', type: 'textarea', required: true, placeholder: '[{"name":"Alice"}]' },
+    { name: 'headers', displayName: 'Column Headers', type: 'string', placeholder: 'name,email' },
+  ],
+  'PDF Creator': [
+    { name: 'title', displayName: 'Document Title', type: 'string', required: true },
+    { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+    { name: 'orientation', displayName: 'Orientation', type: 'select', default: 'portrait', options: [
+      { label: 'Portrait', value: 'portrait' },
+      { label: 'Landscape', value: 'landscape' },
+    ]},
+  ],
+  'XML Parser': [
+    { name: 'xml_string', displayName: 'XML String', type: 'textarea', required: true },
+    { name: 'path', displayName: 'Path', type: 'string', placeholder: 'root.item' },
+  ],
+  'YAML Parser': [
+    { name: 'yaml_string', displayName: 'YAML String', type: 'textarea', required: true },
+  ],
+  'Base64 Encode/Decode': [
+    { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'encode', options: [
+      { label: 'Encode', value: 'encode' },
+      { label: 'Decode', value: 'decode' },
+    ]},
+    { name: 'input', displayName: 'Input', type: 'textarea', required: true },
+  ],
+  'Hash Generator': [
+    { name: 'algorithm', displayName: 'Algorithm', type: 'select', default: 'sha256', options: [
+      { label: 'SHA-256', value: 'sha256' },
+      { label: 'MD5', value: 'md5' },
+    ]},
+    { name: 'input', displayName: 'Input', type: 'textarea', required: true },
+  ],
+  'UUID Generator': [
+    { name: 'version', displayName: 'Version', type: 'select', default: '4', options: [
+      { label: 'UUID v4', value: '4' },
+      { label: 'UUID v1', value: '1' },
+    ]},
+  ],
+  'Regex Extractor': [
+    { name: 'pattern', displayName: 'Pattern', type: 'string', required: true, placeholder: '\\w+' },
+    { name: 'input', displayName: 'Input Text', type: 'textarea', required: true },
+  ],
+  'HTML Parser': [
+    { name: 'html', displayName: 'HTML', type: 'textarea', required: true },
+    { name: 'selector', displayName: 'CSS Selector', type: 'string', placeholder: 'div.content' },
+  ],
+  'Markdown to HTML': [
+    { name: 'markdown', displayName: 'Markdown', type: 'textarea', required: true },
+  ],
+  'Image Resizer': [
+    { name: 'image_url', displayName: 'Image URL', type: 'url', required: true },
+    { name: 'width', displayName: 'Width', type: 'number', required: true },
+    { name: 'height', displayName: 'Height', type: 'number', required: true },
+  ],
+  'QR Code Generator': [
+    { name: 'text', displayName: 'Text', type: 'textarea', required: true },
+    { name: 'size', displayName: 'Size', type: 'number', default: 300 },
+  ],
+  'Barcode Generator': [
+    { name: 'text', displayName: 'Text', type: 'textarea', required: true },
+    { name: 'format', displayName: 'Format', type: 'string', default: 'code128' },
+  ],
+};
+
+const getDefaultParameters = (label: string, auth: AutomationAuthType): APIParameter[] | undefined => {
+  if (auth === 'internal') return genericInternalParamsByLabel[label] ?? [
+    { name: 'notes', displayName: 'Notes', type: 'textarea', placeholder: 'Internal block settings' },
+  ];
+
+  if (auth === 'local') return genericLocalParams;
+  return genericHttpParams;
+};
+
+const getDefaultCredentialFields = (auth: AutomationAuthType): APIParameter[] | undefined => {
+  if (auth === 'api_key') return genericApiKeyCredentials;
+  return undefined;
+};
+
 const block = (
   label: string,
   auth: AutomationAuthType,
   description?: string,
   parameters?: APIParameter[],
   credentialFields?: APIParameter[],
-  operations?: Operation[]
+  operations?: Operation[],
+  isTrigger?: boolean,
 ): AutomationRegistryBlock => ({
   id: slugify(label),
   label,
   auth,
   description,
-  parameters,
-  credentialFields,
+  parameters: parameters ?? getDefaultParameters(label, auth),
+  credentialFields: credentialFields ?? getDefaultCredentialFields(auth),
   operations,
+  isTrigger,
 });
 
 const withBlocks = (
@@ -82,12 +289,13 @@ const withBlocks = (
     | [string, AutomationAuthType, string | undefined, APIParameter[]]
     | [string, AutomationAuthType, string | undefined, APIParameter[], APIParameter[]]
     | [string, AutomationAuthType, string | undefined, APIParameter[], APIParameter[], Operation[]]
+    | [string, AutomationAuthType, string | undefined, APIParameter[], APIParameter[], Operation[], boolean]
   >
 ): AutomationRegistrySubcategory => ({
   id,
   title,
-  blocks: blocks.map(([label, auth, description, parameters, credentialFields, operations]) =>
-    block(label, auth, description as string | undefined, parameters as APIParameter[] | undefined, credentialFields as APIParameter[] | undefined, operations as Operation[] | undefined)
+  blocks: blocks.map(([label, auth, description, parameters, credentialFields, operations, isTrigger]) =>
+    block(label, auth, description as string | undefined, parameters as APIParameter[] | undefined, credentialFields as APIParameter[] | undefined, operations as Operation[] | undefined, isTrigger as boolean | undefined)
   ),
 });
 
@@ -109,34 +317,85 @@ const openaiParams: APIParameter[] = [
     name: 'model',
     displayName: 'Model',
     type: 'select',
-    description: 'Model to use for completion',
+    description: 'Select the OpenAI model to use for this request',
     required: true,
-    default: 'gpt-4.5-mini',
+    default: 'gpt-5.4',
     options: [
+      { label: 'GPT-5.4', value: 'gpt-5.4' },
+      { label: 'GPT-5.4 Pro', value: 'gpt-5.4-pro' },
+      { label: 'GPT-5.4 Mini', value: 'gpt-5.4-mini' },
+      { label: 'GPT-5.4 Nano', value: 'gpt-5.4-nano' },
+      { label: 'GPT-5.2', value: 'gpt-5.2' },
+      { label: 'GPT-5.2 Pro', value: 'gpt-5.2-pro' },
+      { label: 'GPT-5.2 Mini', value: 'gpt-5.2-mini' },
+      { label: 'GPT-5.1', value: 'gpt-5.1' },
+      { label: 'GPT-5.1 Chat Latest', value: 'gpt-5.1-chat-latest' },
+      { label: 'GPT-5.1 Codex', value: 'gpt-5.1-codex' },
+      { label: 'GPT-5.1 Codex Max', value: 'gpt-5.1-codex-max' },
+      { label: 'GPT-5.1 Codex Mini', value: 'gpt-5.1-codex-mini' },
+      { label: 'GPT-5', value: 'gpt-5' },
+      { label: 'GPT-5 Mini', value: 'gpt-5-mini' },
+      { label: 'GPT-5 Nano', value: 'gpt-5-nano' },
+      { label: 'GPT-4.1', value: 'gpt-4.1' },
+      { label: 'GPT-4.1 Mini', value: 'gpt-4.1-mini' },
+      { label: 'GPT-4.1 Nano', value: 'gpt-4.1-nano' },
       { label: 'GPT-4o', value: 'gpt-4o' },
-      { label: 'GPT-4.5-mini', value: 'gpt-4.5-mini' },
+      { label: 'GPT-4o Mini', value: 'gpt-4o-mini' },
       { label: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+      { label: 'GPT-4', value: 'gpt-4' },
       { label: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
+      { label: 'GPT Image 1.5', value: 'gpt-image-1.5' },
+      { label: 'GPT Image 1', value: 'gpt-image-1' },
+      { label: 'GPT Image 1 Mini', value: 'gpt-image-1-mini' },
+      { label: 'ChatGPT Image Latest', value: 'chatgpt-image-latest' },
+      { label: 'DALL·E 3', value: 'dall-e-3' },
+      { label: 'DALL·E 2', value: 'dall-e-2' },
+      { label: 'GPT Realtime', value: 'gpt-realtime' },
+      { label: 'GPT Realtime Mini', value: 'gpt-realtime-mini' },
+      { label: 'GPT Realtime 1.5', value: 'gpt-realtime-1.5' },
+      { label: 'GPT Audio', value: 'gpt-audio' },
+      { label: 'GPT Audio Mini', value: 'gpt-audio-mini' },
+      { label: 'GPT Audio 1.5', value: 'gpt-audio-1.5' },
+      { label: 'TTS 1', value: 'tts-1' },
+      { label: 'TTS 1 HD', value: 'tts-1-hd' },
+      { label: 'Whisper', value: 'whisper-1' },
+      { label: 'O3', value: 'o3' },
+      { label: 'O3 Mini', value: 'o3-mini' },
+      { label: 'O3 Pro', value: 'o3-pro' },
+      { label: 'O3 Deep Research', value: 'o3-deep-research' },
+      { label: 'O4 Mini', value: 'o4-mini' },
+      { label: 'O4 Mini Deep Research', value: 'o4-mini-deep-research' },
+      { label: 'O1', value: 'o1' },
+      { label: 'O1 Mini', value: 'o1-mini' },
+      { label: 'O1 Pro', value: 'o1-pro' },
+      { label: 'O1 Preview', value: 'o1-preview' },
+      { label: 'Omni Moderation Latest', value: 'omni-moderation-latest' },
+      { label: 'Babbage 002', value: 'babbage-002' },
+      { label: 'Davinci 002', value: 'davinci-002' },
     ],
   },
   {
     name: 'prompt',
-    displayName: 'System Prompt',
+    displayName: 'Prompt',
     type: 'textarea',
-    description: 'You are a helpful assistant. How should the AI behave?',
+    description: 'Instruction or prompt for the model',
     required: true,
-    placeholder: 'You are a helpful assistant that summarizes text.',
+    placeholder: 'Summarize the following text or perform a task...',
   },
   {
     name: 'input',
-    displayName: 'Input Text',
+    displayName: 'Input',
     type: 'textarea',
-    description: 'The text to process',
-    required: true,
-    placeholder: 'Paste or map the data to process here...',
+    description: 'Optional input data for the model',
+    placeholder: 'Text to process, analyze, or summarize',
   },
-  { name: 'temperature', displayName: 'Temperature', type: 'number', description: 'Creativity (0-2)', default: 0.7 },
-  { name: 'max_tokens', displayName: 'Max Tokens', type: 'number', description: 'Max response length', default: 500 },
+  { name: 'temperature', displayName: 'Temperature', type: 'number', description: '0-2, higher = more creative', default: 0.7 },
+  { name: 'top_p', displayName: 'Top P', type: 'number', description: 'Nucleus sampling: 0-1', default: 1 },
+  { name: 'frequency_penalty', displayName: 'Frequency Penalty', type: 'number', description: 'Penalty for repeated tokens', default: 0 },
+  { name: 'presence_penalty', displayName: 'Presence Penalty', type: 'number', description: 'Penalty for introducing new topics', default: 0 },
+  { name: 'max_tokens', displayName: 'Max Tokens', type: 'number', description: 'Maximum response length', default: 500 },
+  { name: 'stop', displayName: 'Stop Sequences', type: 'textarea', description: 'Stop sequence(s) to end generation early', placeholder: '\n###\n' },
+  { name: 'user', displayName: 'User', type: 'string', description: 'Optional end-user identifier', placeholder: 'user-123' },
 ];
 
 const openaiCredentials: APIParameter[] = [
@@ -191,13 +450,38 @@ const githubParams: APIParameter[] = [
 
 const cronParams: APIParameter[] = [
   {
-    name: 'cron',
-    displayName: 'Cron Expression',
-    type: 'string',
+    name: 'schedule',
+    displayName: 'Run At',
+    type: 'select',
     required: true,
+    default: 'daily_9am',
+    description: 'Choose a human-readable schedule or pick "Custom" for a raw cron expression',
+    options: [
+      { label: 'Every minute', value: '* * * * *' },
+      { label: 'Every 5 minutes', value: '*/5 * * * *' },
+      { label: 'Every 15 minutes', value: '*/15 * * * *' },
+      { label: 'Every 30 minutes', value: '*/30 * * * *' },
+      { label: 'Every hour', value: '0 * * * *' },
+      { label: 'Every 4 hours', value: '0 */4 * * *' },
+      { label: 'Daily at 9 AM', value: '0 9 * * *' },
+      { label: 'Daily at 12 PM (noon)', value: '0 12 * * *' },
+      { label: 'Daily at 6 PM', value: '0 18 * * *' },
+      { label: 'Daily at midnight', value: '0 0 * * *' },
+      { label: 'Tonight at 8 PM', value: '0 20 * * *' },
+      { label: 'Weekdays at 9 AM', value: '0 9 * * 1-5' },
+      { label: 'Weekends at 10 AM', value: '0 10 * * 0,6' },
+      { label: 'Every Monday at 9 AM', value: '0 9 * * 1' },
+      { label: 'First of month at midnight', value: '0 0 1 * *' },
+      { label: 'Custom', value: 'custom' },
+    ],
+  },
+  {
+    name: 'cron',
+    displayName: 'Custom Cron Expression',
+    type: 'string',
     placeholder: '0 9 * * *',
-    description: 'Cron schedule (min hour day month dayOfWeek)',
-    help: 'Examples: "0 9 * * *" (9am daily), "0 */4 * * *" (every 4 hours), "0 0 * * 0" (Sundays midnight)',
+    description: 'Only used when "Run At" is set to Custom',
+    help: 'Format: min hour day month dayOfWeek. Examples: "0 9 * * *" (9am daily), "0 */4 * * *" (every 4h)',
   },
   {
     name: 'timezone',
@@ -206,15 +490,100 @@ const cronParams: APIParameter[] = [
     default: 'UTC',
     options: [
       { label: 'UTC', value: 'UTC' },
-      { label: 'America/New_York', value: 'America/New_York' },
-      { label: 'America/Chicago', value: 'America/Chicago' },
-      { label: 'America/Denver', value: 'America/Denver' },
-      { label: 'America/Los_Angeles', value: 'America/Los_Angeles' },
+      { label: 'America/New_York (Eastern)', value: 'America/New_York' },
+      { label: 'America/Chicago (Central)', value: 'America/Chicago' },
+      { label: 'America/Denver (Mountain)', value: 'America/Denver' },
+      { label: 'America/Los_Angeles (Pacific)', value: 'America/Los_Angeles' },
       { label: 'Europe/London', value: 'Europe/London' },
       { label: 'Europe/Paris', value: 'Europe/Paris' },
       { label: 'Asia/Tokyo', value: 'Asia/Tokyo' },
+      { label: 'Asia/Shanghai', value: 'Asia/Shanghai' },
+      { label: 'Australia/Sydney', value: 'Australia/Sydney' },
     ],
   },
+];
+
+const rssMonitorParams: APIParameter[] = [
+  { name: 'feed_url', displayName: 'RSS Feed URL', type: 'url', required: true, placeholder: 'https://blog.example.com/feed.xml' },
+  { name: 'poll_interval', displayName: 'Check Every', type: 'select', default: '300', options: [
+    { label: '1 minute', value: '60' },
+    { label: '5 minutes', value: '300' },
+    { label: '15 minutes', value: '900' },
+    { label: '30 minutes', value: '1800' },
+    { label: '1 hour', value: '3600' },
+  ]},
+  { name: 'keyword_filter', displayName: 'Keyword Filter', type: 'string', placeholder: 'Optional keyword to match in titles' },
+];
+
+const newEmailParams: APIParameter[] = [
+  { name: 'mailbox', displayName: 'Mailbox / Folder', type: 'select', default: 'INBOX', options: [
+    { label: 'Inbox', value: 'INBOX' },
+    { label: 'Sent', value: 'Sent' },
+    { label: 'All Mail', value: 'All Mail' },
+  ]},
+  { name: 'from_filter', displayName: 'From (filter)', type: 'email', placeholder: 'sender@example.com' },
+  { name: 'subject_contains', displayName: 'Subject Contains', type: 'string', placeholder: 'invoice' },
+  { name: 'poll_interval', displayName: 'Check Every', type: 'select', default: '300', options: [
+    { label: '1 minute', value: '60' },
+    { label: '5 minutes', value: '300' },
+    { label: '15 minutes', value: '900' },
+    { label: '1 hour', value: '3600' },
+  ]},
+];
+
+const ftpMonitorParams: APIParameter[] = [
+  { name: 'host', displayName: 'FTP Host', type: 'string', required: true, placeholder: 'ftp.example.com' },
+  { name: 'port', displayName: 'Port', type: 'number', default: '21' },
+  { name: 'username', displayName: 'Username', type: 'string', required: true, placeholder: 'ftp_user' },
+  { name: 'password', displayName: 'Password', type: 'password', required: true },
+  { name: 'watch_path', displayName: 'Watch Path', type: 'string', default: '/', placeholder: '/uploads/' },
+  { name: 'poll_interval', displayName: 'Check Every', type: 'select', default: '300', options: [
+    { label: '1 minute', value: '60' },
+    { label: '5 minutes', value: '300' },
+    { label: '15 minutes', value: '900' },
+  ]},
+];
+
+const fileWatcherParams: APIParameter[] = [
+  { name: 'watch_path', displayName: 'Watch Path', type: 'string', required: true, placeholder: '/data/uploads/' },
+  { name: 'pattern', displayName: 'File Pattern', type: 'string', default: '*', placeholder: '*.csv, *.json' },
+  { name: 'events', displayName: 'Watch For', type: 'select', default: 'created', options: [
+    { label: 'File Created', value: 'created' },
+    { label: 'File Modified', value: 'modified' },
+    { label: 'File Deleted', value: 'deleted' },
+    { label: 'Any Change', value: 'all' },
+  ]},
+  { name: 'recursive', displayName: 'Include Subfolders', type: 'boolean', default: 'true' },
+];
+
+const dbChangeParams: APIParameter[] = [
+  { name: 'table', displayName: 'Table Name', type: 'string', required: true, placeholder: 'orders' },
+  { name: 'event', displayName: 'Event Type', type: 'select', default: 'INSERT', options: [
+    { label: 'Row Inserted', value: 'INSERT' },
+    { label: 'Row Updated', value: 'UPDATE' },
+    { label: 'Row Deleted', value: 'DELETE' },
+    { label: 'Any Change', value: '*' },
+  ]},
+  { name: 'filter_column', displayName: 'Filter Column', type: 'string', placeholder: 'status (optional)' },
+  { name: 'filter_value', displayName: 'Filter Value', type: 'string', placeholder: 'completed (optional)' },
+];
+
+const queueConsumerParams: APIParameter[] = [
+  { name: 'queue_name', displayName: 'Queue / Topic Name', type: 'string', required: true, placeholder: 'my-task-queue' },
+  { name: 'provider', displayName: 'Queue Provider', type: 'select', default: 'redis', options: [
+    { label: 'Redis / BullMQ', value: 'redis' },
+    { label: 'RabbitMQ', value: 'rabbitmq' },
+    { label: 'AWS SQS', value: 'sqs' },
+    { label: 'Google Pub/Sub', value: 'pubsub' },
+  ]},
+  { name: 'batch_size', displayName: 'Batch Size', type: 'number', default: '1' },
+  { name: 'visibility_timeout', displayName: 'Visibility Timeout (s)', type: 'number', default: '30' },
+];
+
+const manualTriggerParams: APIParameter[] = [
+  { name: 'label', displayName: 'Button Label', type: 'string', default: 'Run Pipeline', placeholder: 'Run Now' },
+  { name: 'confirm', displayName: 'Require Confirmation', type: 'boolean', default: 'true' },
+  { name: 'input_fields', displayName: 'Input Fields (JSON)', type: 'textarea', placeholder: '[{"name": "email", "type": "string"}]', help: 'Optional: define input fields that will be prompted when the pipeline is triggered manually' },
 ];
 
 const discordParams: APIParameter[] = [
@@ -223,6 +592,321 @@ const discordParams: APIParameter[] = [
   { name: 'username', displayName: 'Bot Username', type: 'string', placeholder: 'My Bot' },
   { name: 'avatar_url', displayName: 'Avatar URL', type: 'url', placeholder: 'https://...' },
   { name: 'tts', displayName: 'Text-to-Speech', type: 'boolean', placeholder: 'Enable TTS' },
+];
+
+const googleChatParams: APIParameter[] = [
+  { name: 'webhook_url', displayName: 'Webhook URL', type: 'url', required: true, placeholder: 'https://chat.googleapis.com/v1/spaces/...' },
+  { name: 'text', displayName: 'Message Text', type: 'textarea', required: true, placeholder: 'Your message...' },
+  { name: 'thread_key', displayName: 'Thread Key', type: 'string', placeholder: 'Keep messages in the same thread' },
+  { name: 'cards_json', displayName: 'Cards Payload (JSON)', type: 'textarea', placeholder: '{"cards": [...]}' },
+];
+
+const zohoMailParams: APIParameter[] = [
+  { name: 'to', displayName: 'To Email', type: 'email', required: true, placeholder: 'recipient@example.com' },
+  { name: 'from', displayName: 'From Email', type: 'email', required: true, placeholder: 'sender@example.com' },
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true, placeholder: 'Hello from Zoho' },
+  { name: 'content', displayName: 'HTML Content', type: 'textarea', required: true, placeholder: '<p>Hello</p>' },
+  { name: 'cc', displayName: 'CC', type: 'string', placeholder: 'cc@example.com' },
+  { name: 'bcc', displayName: 'BCC', type: 'string', placeholder: 'bcc@example.com' },
+  { name: 'reply_to', displayName: 'Reply To', type: 'email', placeholder: 'reply@example.com' },
+];
+
+const iCloudMailParams: APIParameter[] = [
+  { name: 'to', displayName: 'To Email', type: 'email', required: true },
+  { name: 'from', displayName: 'From Email', type: 'email', required: true },
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true },
+  { name: 'body', displayName: 'Message Body', type: 'textarea', required: true },
+  { name: 'attach_url', displayName: 'Attachment URL', type: 'url' },
+  { name: 'headers', displayName: 'Custom Headers (JSON)', type: 'textarea', placeholder: '{"X-Priority": "1"}' },
+];
+
+const yahooBusinessParams: APIParameter[] = [
+  { name: 'to', displayName: 'To Email', type: 'email', required: true },
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true },
+  { name: 'html_body', displayName: 'HTML Body', type: 'textarea', required: true },
+  { name: 'from', displayName: 'From Email', type: 'email', required: true },
+  { name: 'cc', displayName: 'CC', type: 'string' },
+  { name: 'bcc', displayName: 'BCC', type: 'string' },
+];
+
+const fastmailParams: APIParameter[] = [
+  { name: 'to', displayName: 'To Email', type: 'email', required: true, placeholder: 'recipient@example.com' },
+  { name: 'from', displayName: 'From Email', type: 'email', required: true, placeholder: 'sender@example.com' },
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true, placeholder: 'FastMail message subject' },
+  { name: 'text', displayName: 'Text Body', type: 'textarea', placeholder: 'Plain text version' },
+  { name: 'html', displayName: 'HTML Body', type: 'textarea', placeholder: '<p>Hello</p>' },
+  { name: 'cc', displayName: 'CC', type: 'string', placeholder: 'cc@example.com' },
+  { name: 'bcc', displayName: 'BCC', type: 'string', placeholder: 'bcc@example.com' },
+  { name: 'reply_to', displayName: 'Reply To', type: 'email', placeholder: 'reply@example.com' },
+  { name: 'attachments', displayName: 'Attachments (JSON)', type: 'textarea', placeholder: '[{"filename":"file.txt","content":"..."}]' },
+];
+const fastmailCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const mailchimpTransactionalParams: APIParameter[] = [
+  { name: 'to', displayName: 'To Email', type: 'email', required: true, placeholder: 'recipient@example.com' },
+  { name: 'from_email', displayName: 'From Email', type: 'email', required: true, placeholder: 'sender@example.com' },
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true },
+  { name: 'text', displayName: 'Text Body', type: 'textarea', placeholder: 'Plain text message' },
+  { name: 'html', displayName: 'HTML Body', type: 'textarea', placeholder: '<p>Email content</p>' },
+  { name: 'cc', displayName: 'CC', type: 'string' },
+  { name: 'bcc', displayName: 'BCC', type: 'string' },
+  { name: 'reply_to', displayName: 'Reply To', type: 'email' },
+  { name: 'headers', displayName: 'Headers (JSON)', type: 'textarea', placeholder: '{"X-Tag":"newsletter"}' },
+  { name: 'tags', displayName: 'Tags', type: 'string', placeholder: 'monthly,important' },
+];
+const mailchimpTransactionalCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const lineParams: APIParameter[] = [
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true, placeholder: 'Hello from Line' },
+  { name: 'to', displayName: 'Recipient ID', type: 'string', required: true, placeholder: 'U1234567890abcdef' },
+  { name: 'notification_disabled', displayName: 'Disable Notification', type: 'boolean' },
+];
+
+const wechatParams: APIParameter[] = [
+  { name: 'open_id', displayName: 'OpenID', type: 'string', required: true },
+  { name: 'template_id', displayName: 'Template ID', type: 'string', placeholder: 'wx1234567890abcdef' },
+  { name: 'data', displayName: 'Template Data (JSON)', type: 'textarea', required: true, placeholder: '{"first": {"value": "Hello"}}' },
+];
+
+const zulipParams: APIParameter[] = [
+  { name: 'stream', displayName: 'Stream', type: 'string', required: true },
+  { name: 'topic', displayName: 'Topic', type: 'string', required: true },
+  { name: 'content', displayName: 'Message Content', type: 'textarea', required: true },
+];
+
+const mattermostParams: APIParameter[] = [
+  { name: 'channel', displayName: 'Channel Name', type: 'string', required: true },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'props', displayName: 'Attachments/Props (JSON)', type: 'textarea' },
+];
+
+const rocketchatParams: APIParameter[] = [
+  { name: 'channel', displayName: 'Channel', type: 'string', required: true },
+  { name: 'text', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'alias', displayName: 'Alias', type: 'string' },
+  { name: 'emoji', displayName: 'Emoji', type: 'string' },
+];
+
+const twistParams: APIParameter[] = [
+  { name: 'thread_id', displayName: 'Thread ID', type: 'string', required: true },
+  { name: 'content', displayName: 'Message Content', type: 'textarea', required: true },
+];
+
+const plivoParams: APIParameter[] = [
+  { name: 'src', displayName: 'Source Number', type: 'string', required: true, placeholder: '+1234567890' },
+  { name: 'dst', displayName: 'Destination Number', type: 'string', required: true, placeholder: '+1098765432' },
+  { name: 'text', displayName: 'Message', type: 'textarea', required: true },
+];
+
+const sinchParams: APIParameter[] = [
+  { name: 'from', displayName: 'From Number', type: 'string', required: true },
+  { name: 'to', displayName: 'To Number', type: 'string', required: true },
+  { name: 'message', displayName: 'Message Body', type: 'textarea', required: true },
+];
+
+const telnyxParams: APIParameter[] = [
+  { name: 'from', displayName: 'From Number', type: 'string', required: true },
+  { name: 'to', displayName: 'To Number', type: 'string', required: true },
+  { name: 'body', displayName: 'SMS Body', type: 'textarea', required: true },
+];
+
+const fcmParams: APIParameter[] = [
+  { name: 'topic', displayName: 'Topic', type: 'string', required: true },
+  { name: 'title', displayName: 'Notification Title', type: 'string', required: true },
+  { name: 'body', displayName: 'Notification Body', type: 'textarea', required: true },
+  { name: 'data', displayName: 'Data Payload (JSON)', type: 'textarea' },
+];
+
+const oneSignalParams: APIParameter[] = [
+  { name: 'app_id', displayName: 'App ID', type: 'string', required: true },
+  { name: 'contents', displayName: 'Contents (JSON)', type: 'textarea', required: true, placeholder: '{"en":"Hello"}' },
+  { name: 'included_segments', displayName: 'Included Segments', type: 'string', placeholder: 'Subscribed Users' },
+];
+
+const pusherParams: APIParameter[] = [
+  { name: 'channel', displayName: 'Channel', type: 'string', required: true },
+  { name: 'event', displayName: 'Event', type: 'string', required: true },
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', required: true },
+];
+
+const simpleTextingParams: APIParameter[] = [
+  { name: 'phone_number', displayName: 'Phone Number', type: 'string', required: true },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+];
+
+const clickSendParams: APIParameter[] = [
+  { name: 'to', displayName: 'Recipient', type: 'string', required: true },
+  { name: 'body', displayName: 'Body', type: 'textarea', required: true },
+];
+
+const bandwidthParams: APIParameter[] = [
+  { name: 'to', displayName: 'To Number', type: 'string', required: true },
+  { name: 'from', displayName: 'From Number', type: 'string', required: true },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+];
+
+const ringCentralParams: APIParameter[] = [
+  { name: 'to', displayName: 'To Number', type: 'string', required: true },
+  { name: 'from', displayName: 'From Number', type: 'string', required: true },
+  { name: 'text', displayName: 'Text', type: 'textarea', required: true },
+];
+
+const googleMeetParams: APIParameter[] = [
+  { name: 'meeting_title', displayName: 'Meeting Title', type: 'string', required: true },
+  { name: 'start_time', displayName: 'Start Time', type: 'string', required: true, placeholder: '2025-01-01T10:00:00Z' },
+  { name: 'duration_minutes', displayName: 'Duration (minutes)', type: 'number', default: 60 },
+];
+
+const teamsVideoParams: APIParameter[] = [
+  { name: 'meeting_subject', displayName: 'Meeting Subject', type: 'string', required: true },
+  { name: 'start_time', displayName: 'Start Time', type: 'string', required: true },
+  { name: 'duration', displayName: 'Duration (minutes)', type: 'number', default: 60 },
+];
+
+const aroundParams: APIParameter[] = [
+  { name: 'topic', displayName: 'Topic', type: 'string', required: true },
+  { name: 'starts_at', displayName: 'Starts At', type: 'string', required: true, placeholder: '2025-01-01T10:00:00Z' },
+];
+
+const jitsiParams: APIParameter[] = [
+  { name: 'room_name', displayName: 'Room Name', type: 'string', required: true },
+  { name: 'subject', displayName: 'Subject', type: 'string', placeholder: 'Meeting Subject' },
+];
+
+const demioParams: APIParameter[] = [
+  { name: 'webinar_id', displayName: 'Webinar ID', type: 'string', required: true },
+  { name: 'title', displayName: 'Title', type: 'string', required: true },
+  { name: 'start_time', displayName: 'Start Time', type: 'string', required: true },
+];
+
+const livestormParams: APIParameter[] = [
+  { name: 'event_name', displayName: 'Event Name', type: 'string', required: true },
+  { name: 'scheduled_at', displayName: 'Scheduled At', type: 'string', required: true },
+];
+
+const riversideParams: APIParameter[] = [
+  { name: 'recording_name', displayName: 'Recording Name', type: 'string', required: true },
+  { name: 'template_id', displayName: 'Template ID', type: 'string', placeholder: 'Template identifier' },
+];
+
+const wherebyParams: APIParameter[] = [
+  { name: 'room_name', displayName: 'Room Name', type: 'string', required: true },
+  { name: 'start_time', displayName: 'Start Time', type: 'string', required: true },
+];
+
+const openRouterParams: APIParameter[] = [
+  { name: 'model', displayName: 'Model', type: 'string', required: true, placeholder: 'gpt-4.1-mini' },
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+  { name: 'temperature', displayName: 'Temperature', type: 'number', default: 0.7 },
+];
+
+const perplexityParams: APIParameter[] = [
+  { name: 'query', displayName: 'Query', type: 'textarea', required: true },
+  { name: 'source', displayName: 'Source', type: 'string', placeholder: 'web' },
+];
+
+const togetherAIParams: APIParameter[] = [
+  { name: 'model', displayName: 'Model', type: 'string', required: true, placeholder: 'together-gpt' },
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+];
+
+const huggingFaceParams: APIParameter[] = [
+  { name: 'model', displayName: 'Model', type: 'string', required: true, placeholder: 'gpt-4.1-mini' },
+  { name: 'inputs', displayName: 'Inputs', type: 'textarea', required: true, placeholder: '{"text":"Hello"}' },
+  { name: 'task', displayName: 'Task', type: 'string', placeholder: 'text-generation' },
+  { name: 'parameters', displayName: 'Parameters (JSON)', type: 'textarea', placeholder: '{"max_new_tokens":50}' },
+];
+const huggingFaceCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const replicateParams: APIParameter[] = [
+  { name: 'model', displayName: 'Model', type: 'string', required: true, placeholder: 'stability-ai/stable-diffusion-2' },
+  { name: 'input', displayName: 'Input Payload (JSON)', type: 'textarea', required: true, placeholder: '{"prompt":"A sunny beach"}' },
+  { name: 'version', displayName: 'Version', type: 'string', placeholder: 'Optional model version' },
+];
+const replicateCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const deepSeekParams: APIParameter[] = [
+  { name: 'query', displayName: 'Search Query', type: 'textarea', required: true },
+  { name: 'results', displayName: 'Result Count', type: 'number', default: 5 },
+];
+
+const midjourneyParams: APIParameter[] = [
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+  { name: 'style', displayName: 'Style', type: 'string', placeholder: 'photorealistic' },
+];
+
+const leonardoParams: APIParameter[] = [
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+  { name: 'canvas', displayName: 'Canvas Type', type: 'string', placeholder: 'illustration' },
+];
+
+const runwayParams: APIParameter[] = [
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+  { name: 'model', displayName: 'Model', type: 'string', placeholder: 'gen-2' },
+];
+
+const pikaParams: APIParameter[] = [
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+];
+
+const fireflyParams: APIParameter[] = [
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+  { name: 'style', displayName: 'Style', type: 'string', placeholder: 'photo' },
+];
+
+const lumaParams: APIParameter[] = [
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+];
+
+const splineParams: APIParameter[] = [
+  { name: 'scene_name', displayName: 'Scene Name', type: 'string', required: true },
+  { name: 'description', displayName: 'Description', type: 'textarea' },
+];
+
+const deepgramParams: APIParameter[] = [
+  { name: 'audio_url', displayName: 'Audio URL', type: 'url', required: true },
+  { name: 'language', displayName: 'Language', type: 'string', default: 'en' },
+];
+
+const revAiParams: APIParameter[] = [
+  { name: 'audio_url', displayName: 'Audio URL', type: 'url', required: true },
+  { name: 'language', displayName: 'Language', type: 'string', default: 'en' },
+];
+
+const murfParams: APIParameter[] = [
+  { name: 'script', displayName: 'Script', type: 'textarea', required: true },
+  { name: 'voice_id', displayName: 'Voice ID', type: 'string', placeholder: 'alloy' },
+];
+
+const playhtParams: APIParameter[] = [
+  { name: 'text', displayName: 'Text', type: 'textarea', required: true },
+  { name: 'voice', displayName: 'Voice', type: 'string', default: 'alloy' },
+];
+
+const whisperParams: APIParameter[] = [
+  { name: 'audio_url', displayName: 'Audio URL', type: 'url', required: true },
+  { name: 'model', displayName: 'Model', type: 'string', default: 'whisper-1' },
+];
+
+const sunoParams: APIParameter[] = [
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+];
+
+const udioParams: APIParameter[] = [
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+];
+
+const voicemodParams: APIParameter[] = [
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'voice', displayName: 'Voice', type: 'string' },
 ];
 
 const notionParams: APIParameter[] = [
@@ -279,8 +963,11 @@ const resendParams: APIParameter[] = [
   { name: 'to', displayName: 'To Email', type: 'email', required: true, placeholder: 'recipient@example.com' },
   { name: 'from', displayName: 'From Email', type: 'email', required: true, default: 'noreply@example.com' },
   { name: 'subject', displayName: 'Subject', type: 'string', required: true, placeholder: 'Your subject' },
+  { name: 'text', displayName: 'Plain Text Body', type: 'textarea', description: 'Optional plain text content', placeholder: 'Plain text version of the email' },
   { name: 'html', displayName: 'HTML Body', type: 'textarea', required: true, placeholder: '<p>Email content</p>' },
   { name: 'reply_to', displayName: 'Reply To', type: 'email', placeholder: 'support@example.com' },
+  { name: 'cc', displayName: 'CC', type: 'string', placeholder: 'cc@example.com' },
+  { name: 'bcc', displayName: 'BCC', type: 'string', placeholder: 'bcc@example.com' },
 ];
 const resendCredentials: APIParameter[] = [
   { name: 'api_key', displayName: 'API Key', type: 'password', required: true, placeholder: 're_...' },
@@ -314,8 +1001,61 @@ const gmailParams: APIParameter[] = [
   { name: 'to', displayName: 'To Email', type: 'email', required: true },
   { name: 'subject', displayName: 'Subject', type: 'string', required: true },
   { name: 'message', displayName: 'Message Body', type: 'textarea', required: true },
+  { name: 'cc', displayName: 'CC', type: 'string', placeholder: 'cc@example.com' },
+  { name: 'bcc', displayName: 'BCC', type: 'string', placeholder: 'bcc@example.com' },
+  { name: 'reply_to', displayName: 'Reply To', type: 'email', placeholder: 'reply@example.com' },
+  { name: 'thread_id', displayName: 'Thread ID', type: 'string', placeholder: 'Existing thread ID for replies' },
+  { name: 'attachments', displayName: 'Attachments (JSON)', type: 'textarea', placeholder: '[{"filename":"file.txt","content":"..."}]' },
+];
+
+const outlookParams: APIParameter[] = [
+  { name: 'to', displayName: 'To Email', type: 'email', required: true },
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true },
+  { name: 'message', displayName: 'Message Body', type: 'textarea', required: true },
+  { name: 'cc', displayName: 'CC', type: 'string', placeholder: 'cc@example.com' },
+  { name: 'bcc', displayName: 'BCC', type: 'string', placeholder: 'bcc@example.com' },
+  { name: 'reply_to', displayName: 'Reply To', type: 'email', placeholder: 'reply@example.com' },
+  { name: 'importance', displayName: 'Importance', type: 'select', default: 'normal', options: [
+    { label: 'Low', value: 'low' },
+    { label: 'Normal', value: 'normal' },
+    { label: 'High', value: 'high' },
+  ]},
+];
+
+const brevoParams: APIParameter[] = [
+  { name: 'to', displayName: 'To Email', type: 'email', required: true, placeholder: 'recipient@example.com' },
+  { name: 'from', displayName: 'From Email', type: 'email', required: true, placeholder: 'sender@example.com' },
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true, placeholder: 'Hello!' },
+  { name: 'text', displayName: 'Text Body', type: 'textarea', placeholder: 'Plain text version' },
+  { name: 'html', displayName: 'HTML Body', type: 'textarea', placeholder: '<h1>Hello</h1>' },
+  { name: 'cc', displayName: 'CC', type: 'string', placeholder: 'cc@example.com' },
+  { name: 'bcc', displayName: 'BCC', type: 'string', placeholder: 'bcc@example.com' },
+];
+const brevoCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const mailjetParams: APIParameter[] = [
+  { name: 'to', displayName: 'To Email', type: 'email', required: true, placeholder: 'recipient@example.com' },
+  { name: 'from', displayName: 'From Email', type: 'email', required: true, placeholder: 'sender@example.com' },
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true },
+  { name: 'text', displayName: 'Text Body', type: 'textarea', placeholder: 'Your message' },
+  { name: 'html', displayName: 'HTML Body', type: 'textarea', placeholder: '<p>Email content</p>' },
+];
+const mailjetCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+  { name: 'api_secret', displayName: 'API Secret', type: 'password', required: true },
+];
+
+const protonmailParams: APIParameter[] = [
+  { name: 'to', displayName: 'To Email', type: 'email', required: true },
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true },
+  { name: 'body', displayName: 'Message Body', type: 'textarea', required: true },
   { name: 'cc', displayName: 'CC', type: 'string' },
   { name: 'bcc', displayName: 'BCC', type: 'string' },
+];
+const protonmailCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
 ];
 
 const amazonsesParams: APIParameter[] = [
@@ -375,6 +1115,20 @@ const whatsappParams: APIParameter[] = [
 const whatsappCredentials: APIParameter[] = [
   { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
   { name: 'phone_number_id', displayName: 'Phone Number ID', type: 'string', required: true },
+];
+
+const infobipParams: APIParameter[] = [
+  { name: 'to', displayName: 'Recipient Number', type: 'string', required: true, placeholder: '+1234567890' },
+  { name: 'from', displayName: 'Sender Name or Number', type: 'string', required: true, placeholder: 'MyApp' },
+  { name: 'text', displayName: 'Message Body', type: 'textarea', required: true },
+  { name: 'type', displayName: 'Message Type', type: 'select', default: 'sms', options: [
+    { label: 'SMS', value: 'sms' },
+    { label: 'MMS', value: 'mms' },
+  ] },
+  { name: 'callback_data', displayName: 'Callback Data', type: 'string', placeholder: 'Optional tracking payload' },
+];
+const infobipCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
 ];
 
 // ============ SMS & VOICE ============
@@ -642,6 +1396,135 @@ const cloudinaryCredentials: APIParameter[] = [
   { name: 'cloud_name', displayName: 'Cloud Name', type: 'string', required: true },
   { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
   { name: 'api_secret', displayName: 'API Secret', type: 'password', required: true },
+];
+
+const dropboxParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Upload File', value: 'upload' },
+    { label: 'Download File', value: 'download' },
+    { label: 'Delete File', value: 'delete' },
+    { label: 'List Folder', value: 'list' },
+  ]},
+  { name: 'path', displayName: 'File / Folder Path', type: 'string', required: true, placeholder: '/Apps/MyApp/file.txt' },
+  { name: 'file_content', displayName: 'File Content', type: 'textarea' },
+];
+const boxParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Upload File', value: 'upload' },
+    { label: 'Download File', value: 'download' },
+    { label: 'Create Folder', value: 'createFolder' },
+  ]},
+  { name: 'folder_path', displayName: 'Folder Path', type: 'string', required: true, placeholder: '/Apps/MyApp' },
+  { name: 'file_name', displayName: 'File Name', type: 'string' },
+  { name: 'file_content', displayName: 'File Content', type: 'textarea' },
+];
+const oneDriveParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Upload File', value: 'upload' },
+    { label: 'Download File', value: 'download' },
+    { label: 'Delete File', value: 'delete' },
+    { label: 'List Folder', value: 'list' },
+  ]},
+  { name: 'path', displayName: 'File / Folder Path', type: 'string', required: true, placeholder: '/Documents/report.pdf' },
+  { name: 'file_content', displayName: 'File Content', type: 'textarea' },
+];
+const googleCloudStorageParams: APIParameter[] = [
+  { name: 'bucket', displayName: 'Bucket Name', type: 'string', required: true },
+  { name: 'object_name', displayName: 'Object Name', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Upload Object', value: 'upload' },
+    { label: 'Download Object', value: 'download' },
+    { label: 'Delete Object', value: 'delete' },
+    { label: 'List Objects', value: 'list' },
+  ]},
+  { name: 'content', displayName: 'Content', type: 'textarea' },
+];
+const azureBlobParams: APIParameter[] = [
+  { name: 'container', displayName: 'Container Name', type: 'string', required: true },
+  { name: 'blob_name', displayName: 'Blob Name', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Upload Blob', value: 'upload' },
+    { label: 'Download Blob', value: 'download' },
+    { label: 'Delete Blob', value: 'delete' },
+    { label: 'List Blobs', value: 'list' },
+  ]},
+  { name: 'content', displayName: 'Content', type: 'textarea' },
+];
+const backblazeB2Params: APIParameter[] = [
+  { name: 'bucket_id', displayName: 'Bucket ID', type: 'string', required: true },
+  { name: 'file_name', displayName: 'File Name', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Upload File', value: 'upload' },
+    { label: 'Download File', value: 'download' },
+    { label: 'Delete File', value: 'delete' },
+  ]},
+  { name: 'file_content', displayName: 'File Content', type: 'textarea' },
+];
+const pCloudParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Upload File', value: 'upload' },
+    { label: 'Download File', value: 'download' },
+    { label: 'Delete File', value: 'delete' },
+    { label: 'List Folder', value: 'list' },
+  ]},
+  { name: 'path', displayName: 'Path', type: 'string', required: true, placeholder: '/Documents/report.docx' },
+  { name: 'file_content', displayName: 'File Content', type: 'textarea' },
+];
+const imageKitParams: APIParameter[] = [
+  { name: 'image_url', displayName: 'Image URL', type: 'url', required: true },
+  { name: 'transformation', displayName: 'Transformation', type: 'string', placeholder: 'w-400,h-300,c-scale' },
+  { name: 'folder', displayName: 'Folder', type: 'string', placeholder: '/images' },
+];
+
+const excelOnlineParams: APIParameter[] = [
+  { name: 'workbook_id', displayName: 'Workbook ID', type: 'string', required: true },
+  { name: 'worksheet_name', displayName: 'Worksheet Name', type: 'string', required: true },
+  { name: 'range', displayName: 'Range', type: 'string', placeholder: 'A1:D10' },
+  { name: 'operation', displayName: 'Operation', type: 'select', required: true, options: [
+    { label: 'Read', value: 'read' },
+    { label: 'Write', value: 'write' },
+    { label: 'Append', value: 'append' },
+    { label: 'Clear', value: 'clear' },
+  ]},
+  { name: 'values', displayName: 'Values (JSON)', type: 'textarea', placeholder: '[ ["A", "B"], ["C", "D"] ]' },
+];
+const smartsheetParams: APIParameter[] = [
+  { name: 'sheet_id', displayName: 'Sheet ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Add Row', value: 'addRow' },
+    { label: 'Update Row', value: 'updateRow' },
+    { label: 'List Rows', value: 'listRows' },
+  ]},
+  { name: 'row_data', displayName: 'Row Data (JSON)', type: 'textarea', placeholder: '[{"columnId": 123, "value": "Hello"}]' },
+];
+const codaParams: APIParameter[] = [
+  { name: 'doc_id', displayName: 'Doc ID', type: 'string', required: true },
+  { name: 'table_id', displayName: 'Table ID', type: 'string', required: true },
+  { name: 'row_data', displayName: 'Row Data (JSON)', type: 'textarea', required: true },
+];
+const baserowParams: APIParameter[] = [
+  { name: 'base_id', displayName: 'Base ID', type: 'string', required: true },
+  { name: 'table_id', displayName: 'Table ID', type: 'string', required: true },
+  { name: 'row_data', displayName: 'Row Data (JSON)', type: 'textarea', required: true },
+];
+const seaTableParams: APIParameter[] = [
+  { name: 'table_name', displayName: 'Table Name', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Add Row', value: 'addRow' },
+    { label: 'Update Row', value: 'updateRow' },
+    { label: 'Delete Row', value: 'deleteRow' },
+  ]},
+  { name: 'row_data', displayName: 'Row Data (JSON)', type: 'textarea', required: true },
+];
+const gristParams: APIParameter[] = [
+  { name: 'doc_id', displayName: 'Doc ID', type: 'string', required: true },
+  { name: 'table_name', displayName: 'Table Name', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Add Record', value: 'addRecord' },
+    { label: 'Update Record', value: 'updateRecord' },
+    { label: 'List Records', value: 'listRecords' },
+  ]},
+  { name: 'record_data', displayName: 'Record Data (JSON)', type: 'textarea' },
 ];
 
 // ============ SPREADSHEETS ============
@@ -970,6 +1853,455 @@ const typeformCredentials: APIParameter[] = [
   { name: 'api_token', displayName: 'Personal Access Token', type: 'password', required: true },
 ];
 
+const helpScoutParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Conversation', value: 'createConversation' },
+    { label: 'Add Note', value: 'addNote' },
+    { label: 'Send Reply', value: 'sendReply' },
+  ]},
+  { name: 'customer_email', displayName: 'Customer Email', type: 'email' },
+  { name: 'subject', displayName: 'Subject', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+];
+const helpScoutCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const frontParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Conversation', value: 'createConversation' },
+    { label: 'Send Reply', value: 'sendReply' },
+  ]},
+  { name: 'subject', displayName: 'Subject', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+  { name: 'recipient_email', displayName: 'Recipient Email', type: 'email' },
+];
+const frontCredentials: APIParameter[] = [
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const kustomerParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Conversation', value: 'createConversation' },
+    { label: 'Add Note', value: 'addNote' },
+  ]},
+  { name: 'customer_id', displayName: 'Customer ID', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+];
+const kustomerCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const gladlyParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Ticket', value: 'createTicket' },
+    { label: 'Post Message', value: 'postMessage' },
+  ]},
+  { name: 'subject', displayName: 'Subject', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+];
+const gladlyCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const crispParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Send Chat Message', value: 'sendMessage' },
+    { label: 'Create Contact', value: 'createContact' },
+  ]},
+  { name: 'website_id', displayName: 'Website ID', type: 'string', placeholder: 'website_id' },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+  { name: 'email', displayName: 'Email', type: 'email' },
+];
+const crispCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const tawkToParams: APIParameter[] = [
+  { name: 'widget_id', displayName: 'Widget ID', type: 'string', required: true },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'visitor_name', displayName: 'Visitor Name', type: 'string' },
+];
+const tawkToCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const driftParams: APIParameter[] = [
+  { name: 'contact_email', displayName: 'Contact Email', type: 'email', required: true },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'conversation_type', displayName: 'Conversation Type', type: 'select', options: [
+    { label: 'Bot', value: 'bot' },
+    { label: 'Human', value: 'human' },
+  ]},
+];
+const driftCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const manyChatParams: APIParameter[] = [
+  { name: 'flow_id', displayName: 'Flow ID', type: 'string', required: true },
+  { name: 'subscriber_id', displayName: 'Subscriber ID', type: 'string', required: true },
+  { name: 'message', displayName: 'Message', type: 'textarea' },
+];
+const manyChatCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const chatbaseParams: APIParameter[] = [
+  { name: 'query', displayName: 'Query', type: 'textarea', required: true },
+  { name: 'session_id', displayName: 'Session ID', type: 'string' },
+  { name: 'metadata', displayName: 'Metadata (JSON)', type: 'textarea' },
+];
+const chatbaseCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const landbotParams: APIParameter[] = [
+  { name: 'bot_id', displayName: 'Bot ID', type: 'string', required: true },
+  { name: 'visitor_id', displayName: 'Visitor ID', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+];
+const landbotCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const liveChatParams: APIParameter[] = [
+  { name: 'license_id', displayName: 'License ID', type: 'string', required: true },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'visitor_email', displayName: 'Visitor Email', type: 'email' },
+];
+const liveChatCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const jotformParams: APIParameter[] = [
+  { name: 'form_id', displayName: 'Form ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Get Submissions', value: 'getSubmissions' },
+    { label: 'Create Webhook', value: 'createWebhook' },
+  ]},
+];
+const jotformCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const tallyParams: APIParameter[] = [
+  { name: 'form_id', displayName: 'Form ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Get Responses', value: 'getResponses' },
+    { label: 'Create Webhook', value: 'createWebhook' },
+  ]},
+];
+const tallyCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const surveyMonkeyParams: APIParameter[] = [
+  { name: 'survey_id', displayName: 'Survey ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Get Responses', value: 'getResponses' },
+    { label: 'Create Collector', value: 'createCollector' },
+  ]},
+];
+const surveyMonkeyCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const userTestingParams: APIParameter[] = [
+  { name: 'test_id', displayName: 'Test ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Note', value: 'createNote' },
+    { label: 'Get Sessions', value: 'getSessions' },
+  ]},
+  { name: 'note', displayName: 'Note', type: 'textarea' },
+];
+const userTestingCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const qualtricsParams: APIParameter[] = [
+  { name: 'survey_id', displayName: 'Survey ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Get Responses', value: 'getResponses' },
+    { label: 'Send Survey', value: 'sendSurvey' },
+  ]},
+  { name: 'recipient_email', displayName: 'Recipient Email', type: 'email' },
+];
+const qualtricsCredentials: APIParameter[] = [
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const zohoCRMParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Lead', value: 'createLead' },
+    { label: 'Create Contact', value: 'createContact' },
+    { label: 'Update Deal', value: 'updateDeal' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"Last_Name":"Doe","Company":"Acme"}' },
+];
+const zohoCRMCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const copperParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Lead', value: 'createLead' },
+    { label: 'Create Contact', value: 'createContact' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"name":"Jane Doe","email":"jane@example.com"}' },
+];
+const copperCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const keapParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Contact', value: 'createContact' },
+    { label: 'Create Task', value: 'createTask' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"email":"user@example.com","first_name":"User"}' },
+];
+const keapCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const closeParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Lead', value: 'createLead' },
+    { label: 'Create Opportunity', value: 'createOpportunity' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"name":"Lead Name","status":"contacted"}' },
+];
+const closeCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const attioParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Contact', value: 'createContact' },
+    { label: 'Update Contact', value: 'updateContact' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"name":"Alex","email":"alex@example.com"}' },
+];
+const attioCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const folkParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Contact', value: 'createContact' },
+    { label: 'List Contacts', value: 'listContacts' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"name":"Morgan","email":"morgan@example.com"}' },
+];
+const folkCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const apolloParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Lead', value: 'createLead' },
+    { label: 'Search Contact', value: 'searchContact' },
+  ]},
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"name":"Pat","email":"pat@example.com"}' },
+];
+const apolloCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const linkedInAdsParams: APIParameter[] = [
+  { name: 'account_id', displayName: 'Account ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Campaign', value: 'createCampaign' },
+    { label: 'Get Campaigns', value: 'getCampaigns' },
+  ]},
+  { name: 'campaign_data', displayName: 'Campaign Data (JSON)', type: 'textarea' },
+];
+const linkedInAdsCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const tiktokAdsParams: APIParameter[] = [
+  { name: 'advertiser_id', displayName: 'Advertiser ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Campaign', value: 'createCampaign' },
+    { label: 'Get Campaigns', value: 'getCampaigns' },
+  ]},
+  { name: 'campaign_data', displayName: 'Campaign Data (JSON)', type: 'textarea' },
+];
+const tiktokAdsCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const mixpanelParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Track Event', value: 'trackEvent' },
+    { label: 'Create User', value: 'createUser' },
+  ]},
+  { name: 'event_name', displayName: 'Event Name', type: 'string' },
+  { name: 'distinct_id', displayName: 'Distinct ID', type: 'string' },
+  { name: 'properties', displayName: 'Properties (JSON)', type: 'textarea' },
+];
+const mixpanelCredentials: APIParameter[] = [
+  { name: 'api_secret', displayName: 'API Secret', type: 'password', required: true },
+];
+
+const amplitudeParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Track Event', value: 'trackEvent' },
+    { label: 'Identify User', value: 'identifyUser' },
+  ]},
+  { name: 'event_type', displayName: 'Event Type', type: 'string' },
+  { name: 'user_id', displayName: 'User ID', type: 'string' },
+  { name: 'event_properties', displayName: 'Event Properties (JSON)', type: 'textarea' },
+];
+const amplitudeCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const segmentParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Track Event', value: 'trackEvent' },
+    { label: 'Identify', value: 'identify' },
+  ]},
+  { name: 'user_id', displayName: 'User ID', type: 'string' },
+  { name: 'event', displayName: 'Event', type: 'string' },
+  { name: 'properties', displayName: 'Properties (JSON)', type: 'textarea' },
+];
+const segmentCredentials: APIParameter[] = [
+  { name: 'write_key', displayName: 'Write Key', type: 'password', required: true },
+];
+
+const clearbitParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Enrich Person', value: 'enrichPerson' },
+    { label: 'Enrich Company', value: 'enrichCompany' },
+  ]},
+  { name: 'email', displayName: 'Email', type: 'email' },
+  { name: 'domain', displayName: 'Domain', type: 'string' },
+];
+const clearbitCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const mondayComParams: APIParameter[] = [
+  { name: 'board_id', displayName: 'Board ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Item', value: 'createItem' },
+    { label: 'Update Item', value: 'updateItem' },
+  ]},
+  { name: 'item_name', displayName: 'Item Name', type: 'string' },
+  { name: 'column_values', displayName: 'Column Values (JSON)', type: 'textarea' },
+];
+const mondayComCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const basecampParams: APIParameter[] = [
+  { name: 'project_id', displayName: 'Project ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Todo', value: 'createTodo' },
+    { label: 'Create Message', value: 'createMessage' },
+  ]},
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const basecampCredentials: APIParameter[] = [
+  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
+];
+
+const todoistParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Task', value: 'createTask' },
+    { label: 'Complete Task', value: 'completeTask' },
+  ]},
+  { name: 'content', displayName: 'Content', type: 'string' },
+  { name: 'project_id', displayName: 'Project ID', type: 'string' },
+  { name: 'due_string', displayName: 'Due Date', type: 'string', placeholder: 'tomorrow at 9am' },
+];
+const todoistCredentials: APIParameter[] = [
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const ticktickParams: APIParameter[] = [
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Task', value: 'createTask' },
+    { label: 'Complete Task', value: 'completeTask' },
+  ]},
+  { name: 'content', displayName: 'Content', type: 'string' },
+  { name: 'due_date', displayName: 'Due Date', type: 'string', placeholder: '2026-01-01' },
+];
+const ticktickCredentials: APIParameter[] = [
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const confluenceParams: APIParameter[] = [
+  { name: 'space_key', displayName: 'Space Key', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
+    { label: 'Create Page', value: 'createPage' },
+    { label: 'Update Page', value: 'updatePage' },
+  ]},
+  { name: 'title', displayName: 'Title', type: 'string', required: true },
+  { name: 'body', displayName: 'Body', type: 'textarea', required: true },
+];
+const confluenceCredentials: APIParameter[] = [
+  { name: 'base_url', displayName: 'Confluence URL', type: 'url', required: true },
+  { name: 'email', displayName: 'Email', type: 'email', required: true },
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const sliteParams: APIParameter[] = [
+  { name: 'workspace_id', displayName: 'Workspace ID', type: 'string', required: true },
+  { name: 'title', displayName: 'Title', type: 'string', required: true },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const sliteCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const gitbookParams: APIParameter[] = [
+  { name: 'space_slug', displayName: 'Space Slug', type: 'string', required: true },
+  { name: 'title', displayName: 'Title', type: 'string', required: true },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const gitbookCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const guruParams: APIParameter[] = [
+  { name: 'board_uid', displayName: 'Board UID', type: 'string', required: true },
+  { name: 'title', displayName: 'Title', type: 'string', required: true },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const guruCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const slabParams: APIParameter[] = [
+  { name: 'workspace_id', displayName: 'Workspace ID', type: 'string', required: true },
+  { name: 'title', displayName: 'Title', type: 'string', required: true },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const slabCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const evernoteParams: APIParameter[] = [
+  { name: 'notebook_guid', displayName: 'Notebook GUID', type: 'string', required: true },
+  { name: 'title', displayName: 'Note Title', type: 'string', required: true },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+];
+const evernoteCredentials: APIParameter[] = [
+  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
+];
+
+const ollamaParams: APIParameter[] = [
+  { name: 'model_path', displayName: 'Model Path', type: 'string', required: true, placeholder: '/models/llama2' },
+  { name: 'prompt', displayName: 'Prompt', type: 'textarea', required: true },
+  { name: 'temperature', displayName: 'Temperature', type: 'number', default: 0.7 },
+  { name: 'max_tokens', displayName: 'Max Tokens', type: 'number', default: 512 },
+  { name: 'system_prompt', displayName: 'System Prompt', type: 'textarea', placeholder: 'You are a helpful assistant.' },
+];
+
 // ============ MARKETING & ADS ============
 const googleadsParams: APIParameter[] = [
   { name: 'customer_id', displayName: 'Customer ID', type: 'string', required: true },
@@ -1056,6 +2388,297 @@ const googlemapsCredentials: APIParameter[] = [
 ];
 
 // ============ DATA TRANSFORMATION (INTERNAL) ============
+const sqlDatabaseParams: APIParameter[] = [
+  { name: 'connection_string', displayName: 'Connection String', type: 'string', required: true, description: 'Database connection string or endpoint', placeholder: 'postgres://user:pass@host:5432/db' },
+  { name: 'query', displayName: 'Query / SQL', type: 'textarea', required: true, placeholder: 'SELECT * FROM users WHERE active = true' },
+  { name: 'parameters', displayName: 'Parameters (JSON)', type: 'textarea', placeholder: '{"limit": 10}' },
+];
+
+const graphDatabaseParams: APIParameter[] = [
+  { name: 'database', displayName: 'Database', type: 'string', required: true, placeholder: 'neo4j' },
+  { name: 'cypher', displayName: 'Cypher Query', type: 'textarea', required: true, placeholder: 'MATCH (n) RETURN n LIMIT 25' },
+  { name: 'parameters', displayName: 'Parameters (JSON)', type: 'textarea', placeholder: '{"limit": 25}' },
+];
+
+const faunaDBParams: APIParameter[] = [
+  { name: 'secret', displayName: 'Secret Key', type: 'password', required: true },
+  { name: 'query', displayName: 'FQL Query', type: 'textarea', required: true, placeholder: 'q.Get(q.Ref(q.Collection("users"), "123456"))' },
+];
+
+const surrealDBParams: APIParameter[] = [
+  { name: 'namespace', displayName: 'Namespace', type: 'string', required: true, placeholder: 'test' },
+  { name: 'database', displayName: 'Database', type: 'string', required: true, placeholder: 'test' },
+  { name: 'query', displayName: 'SurrealQL Query', type: 'textarea', required: true, placeholder: 'SELECT * FROM users' },
+];
+
+const tursoParams: APIParameter[] = [
+  { name: 'database', displayName: 'Database Name', type: 'string', required: true, placeholder: 'example' },
+  { name: 'query', displayName: 'SQL Query', type: 'textarea', required: true, placeholder: 'SELECT * FROM users' },
+  { name: 'parameters', displayName: 'Parameters (JSON)', type: 'textarea', placeholder: '{"limit":10}' },
+];
+
+const cdnControlParams: APIParameter[] = [
+  { name: 'service_id', displayName: 'Service ID', type: 'string', required: true },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, default: 'purge', options: [
+    { label: 'Purge Cache', value: 'purge' },
+    { label: 'Get Status', value: 'status' },
+  ]},
+  { name: 'resource', displayName: 'Resource', type: 'string', placeholder: 'URL, tag, or key' },
+];
+
+const spreadsheetParams: APIParameter[] = [
+  { name: 'document_id', displayName: 'Document / Workbook ID', type: 'string', required: true },
+  { name: 'sheet_name', displayName: 'Sheet / Table Name', type: 'string', required: true },
+  { name: 'range', displayName: 'Range', type: 'string', placeholder: 'A1:B10' },
+  { name: 'values', displayName: 'Values (JSON)', type: 'textarea', placeholder: '[["Name","Email"],["Alice","alice@example.com"]]' },
+];
+
+const devOpsParams: APIParameter[] = [
+  { name: 'organization', displayName: 'Organization', type: 'string', placeholder: 'my-org' },
+  { name: 'project', displayName: 'Project', type: 'string', placeholder: 'my-project' },
+  { name: 'repository', displayName: 'Repository', type: 'string', placeholder: 'my-repo' },
+  { name: 'action', displayName: 'Action', type: 'string', placeholder: 'create_work_item' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"title":"Fix bug"}' },
+];
+
+const monitoringParams: APIParameter[] = [
+  { name: 'account_id', displayName: 'Account ID', type: 'string' },
+  { name: 'query', displayName: 'Query', type: 'textarea', placeholder: 'SELECT count(*) FROM errors WHERE status = "failure"' },
+  { name: 'event', displayName: 'Event Data', type: 'textarea', placeholder: '{"message":"Deployment completed"}' },
+];
+
+const paymentGatewayParams: APIParameter[] = [
+  { name: 'amount', displayName: 'Amount (cents)', type: 'number', required: true, placeholder: '1000' },
+  { name: 'currency', displayName: 'Currency', type: 'select', required: true, default: 'usd', options: [
+    { label: 'USD', value: 'usd' },
+    { label: 'EUR', value: 'eur' },
+    { label: 'GBP', value: 'gbp' },
+  ]},
+  { name: 'customer_id', displayName: 'Customer ID', type: 'string' },
+  { name: 'payment_method', displayName: 'Payment Method ID', type: 'string' },
+  { name: 'description', displayName: 'Description', type: 'string' },
+];
+
+const storefrontParams: APIParameter[] = [
+  { name: 'store_id', displayName: 'Store ID', type: 'string', required: true },
+  { name: 'resource', displayName: 'Resource', type: 'select', required: true, default: 'order', options: [
+    { label: 'Order', value: 'order' },
+    { label: 'Product', value: 'product' },
+    { label: 'Customer', value: 'customer' },
+  ]},
+  { name: 'resource_id', displayName: 'Resource ID', type: 'string' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"quantity":1}' },
+];
+
+const supportParams: APIParameter[] = [
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true },
+  { name: 'description', displayName: 'Description', type: 'textarea', required: true },
+  { name: 'customer_email', displayName: 'Customer Email', type: 'email' },
+  { name: 'priority', displayName: 'Priority', type: 'select', default: 'normal', options: [
+    { label: 'Low', value: 'low' },
+    { label: 'Normal', value: 'normal' },
+    { label: 'High', value: 'high' },
+  ]},
+];
+
+const web3Params: APIParameter[] = [
+  { name: 'network', displayName: 'Network', type: 'select', default: 'ethereum', options: [
+    { label: 'Ethereum', value: 'ethereum' },
+    { label: 'Solana', value: 'solana' },
+    { label: 'Polygon', value: 'polygon' },
+  ]},
+  { name: 'endpoint', displayName: 'RPC Endpoint', type: 'url', placeholder: 'https://eth-mainnet.alchemyapi.io/v2/...' },
+  { name: 'method', displayName: 'RPC Method', type: 'string', placeholder: 'eth_blockNumber' },
+  { name: 'params', displayName: 'Parameters (JSON)', type: 'textarea', placeholder: '[]' },
+];
+
+const marketDataParams: APIParameter[] = [
+  { name: 'symbol', displayName: 'Symbol', type: 'string', placeholder: 'ETH' },
+  { name: 'collection', displayName: 'Collection', type: 'string', placeholder: 'cool-cats' },
+  { name: 'token_id', displayName: 'Token ID', type: 'string' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'fetch', options: [
+    { label: 'Fetch Prices', value: 'fetch' },
+    { label: 'Fetch Asset', value: 'asset' },
+  ]},
+];
+
+const identityParams: APIParameter[] = [
+  { name: 'user_id', displayName: 'User ID', type: 'string' },
+  { name: 'email', displayName: 'Email', type: 'email' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'authenticate', options: [
+    { label: 'Authenticate', value: 'authenticate' },
+    { label: 'Create User', value: 'create_user' },
+    { label: 'Update User', value: 'update_user' },
+  ]},
+];
+
+const securityParams: APIParameter[] = [
+  { name: 'query', displayName: 'Query', type: 'textarea', required: true, placeholder: 'example.com' },
+  { name: 'scan_type', displayName: 'Scan Type', type: 'select', default: 'url', options: [
+    { label: 'URL', value: 'url' },
+    { label: 'IP', value: 'ip' },
+    { label: 'Hash', value: 'hash' },
+  ]},
+];
+
+const uptimeRobotParams: APIParameter[] = [
+  { name: 'monitor_id', displayName: 'Monitor ID', type: 'string' },
+  { name: 'friendly_name', displayName: 'Friendly Name', type: 'string' },
+  { name: 'url', displayName: 'URL', type: 'url', required: true },
+  { name: 'monitor_type', displayName: 'Monitor Type', type: 'select', default: 'http', options: [
+    { label: 'HTTP(s)', value: 'http' },
+    { label: 'Keyword', value: 'keyword' },
+    { label: 'Ping', value: 'ping' },
+  ]},
+  { name: 'alert_contact', displayName: 'Alert Contact', type: 'string', placeholder: 'email or contact id' },
+];
+
+const vercelParams: APIParameter[] = [
+  { name: 'project_id', displayName: 'Project ID', type: 'string' },
+  { name: 'team_id', displayName: 'Team ID', type: 'string' },
+  { name: 'alias', displayName: 'Alias', type: 'string' },
+  { name: 'environment', displayName: 'Environment', type: 'select', default: 'production', options: [
+    { label: 'Production', value: 'production' },
+    { label: 'Preview', value: 'preview' },
+    { label: 'Development', value: 'development' },
+  ]},
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"target":"production"}' },
+];
+
+const netlifyParams: APIParameter[] = [
+  { name: 'site_id', displayName: 'Site ID', type: 'string', required: true },
+  { name: 'branch', displayName: 'Branch', type: 'string', default: 'main' },
+  { name: 'build_command', displayName: 'Build Command', type: 'string', placeholder: 'npm run build' },
+  { name: 'deploy_message', displayName: 'Deploy Message', type: 'string' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"draft":false}' },
+];
+
+const dockerhubParams: APIParameter[] = [
+  { name: 'repository', displayName: 'Repository', type: 'string', required: true, placeholder: 'username/repo' },
+  { name: 'tag', displayName: 'Tag', type: 'string', default: 'latest' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'trigger_build', options: [
+    { label: 'Trigger Build', value: 'trigger_build' },
+    { label: 'Get Tags', value: 'get_tags' },
+    { label: 'Delete Tag', value: 'delete_tag' },
+  ]},
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"docker_tag":"latest"}' },
+];
+
+const weatherParams: APIParameter[] = [
+  { name: 'location', displayName: 'Location', type: 'string', required: true, placeholder: 'New York, NY' },
+  { name: 'units', displayName: 'Units', type: 'select', default: 'metric', options: [
+    { label: 'Metric', value: 'metric' },
+    { label: 'Imperial', value: 'imperial' },
+  ]},
+];
+
+const iotParams: APIParameter[] = [
+  { name: 'device_id', displayName: 'Device ID', type: 'string', required: true },
+  { name: 'command', displayName: 'Command', type: 'string', required: true, placeholder: 'turn_on' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"brightness":80}' },
+];
+
+const socialPostParams: APIParameter[] = [
+  { name: 'account_id', displayName: 'Account ID', type: 'string' },
+  { name: 'content', displayName: 'Content', type: 'textarea', required: true },
+  { name: 'media_urls', displayName: 'Media URLs', type: 'string', placeholder: 'https://...' },
+  { name: 'scheduled_time', displayName: 'Scheduled Time', type: 'string', placeholder: '2025-01-01T12:00:00Z' },
+];
+
+const socialManagementParams: APIParameter[] = [
+  { name: 'account_ids', displayName: 'Account IDs', type: 'textarea', placeholder: '["acct1","acct2"]' },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'publish_time', displayName: 'Publish Time', type: 'string', placeholder: '2025-01-01T12:00:00Z' },
+];
+
+const cmsParams: APIParameter[] = [
+  { name: 'site_id', displayName: 'Site ID', type: 'string' },
+  { name: 'content_type', displayName: 'Content Type', type: 'string', placeholder: 'post' },
+  { name: 'title', displayName: 'Title', type: 'string' },
+  { name: 'body', displayName: 'Body', type: 'textarea', required: true },
+];
+
+const hrParams: APIParameter[] = [
+  { name: 'employee_id', displayName: 'Employee ID', type: 'string' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'create', options: [
+    { label: 'Create', value: 'create' },
+    { label: 'Update', value: 'update' },
+  ]},
+  { name: 'fields', displayName: 'Fields (JSON)', type: 'textarea', placeholder: '{"title":"Engineer"}' },
+];
+
+const trainingParams: APIParameter[] = [
+  { name: 'course_id', displayName: 'Course ID', type: 'string' },
+  { name: 'user_id', displayName: 'User ID', type: 'string' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'enroll', options: [
+    { label: 'Enroll', value: 'enroll' },
+    { label: 'Complete', value: 'complete' },
+  ]},
+];
+
+const eSignParams: APIParameter[] = [
+  { name: 'document_id', displayName: 'Document ID', type: 'string' },
+  { name: 'signer_email', displayName: 'Signer Email', type: 'email', required: true },
+  { name: 'subject', displayName: 'Subject', type: 'string' },
+];
+
+const healthParams: APIParameter[] = [
+  { name: 'patient_id', displayName: 'Patient ID', type: 'string' },
+  { name: 'resource', displayName: 'Resource', type: 'string', placeholder: 'vital-signs' },
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"heart_rate":72}' },
+];
+
+const logisticsParams: APIParameter[] = [
+  { name: 'tracking_number', displayName: 'Tracking Number', type: 'string' },
+  { name: 'carrier', displayName: 'Carrier', type: 'string' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'track', options: [
+    { label: 'Track', value: 'track' },
+    { label: 'Create Shipment', value: 'create_shipment' },
+  ]},
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"address":"..."}' },
+];
+
+const financeParams: APIParameter[] = [
+  { name: 'account_id', displayName: 'Account ID', type: 'string' },
+  { name: 'amount', displayName: 'Amount', type: 'number' },
+  { name: 'currency', displayName: 'Currency', type: 'string', default: 'usd' },
+  { name: 'description', displayName: 'Description', type: 'string' },
+];
+
+const designParams: APIParameter[] = [
+  { name: 'project_id', displayName: 'Project ID', type: 'string' },
+  { name: 'asset_url', displayName: 'Asset URL', type: 'url' },
+  { name: 'command', displayName: 'Command', type: 'string', placeholder: 'export_frame' },
+];
+
+const notificationParams: APIParameter[] = [
+  { name: 'title', displayName: 'Title', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'recipients', displayName: 'Recipients', type: 'textarea', placeholder: '["user1","user2"]' },
+];
+
+const alertParams: APIParameter[] = [
+  { name: 'incident_key', displayName: 'Incident Key', type: 'string' },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true },
+  { name: 'severity', displayName: 'Severity', type: 'select', default: 'critical', options: [
+    { label: 'Critical', value: 'critical' },
+    { label: 'High', value: 'high' },
+    { label: 'Normal', value: 'normal' },
+  ]},
+];
+
+const searchParams: APIParameter[] = [
+  { name: 'index_name', displayName: 'Index Name', type: 'string' },
+  { name: 'query', displayName: 'Query', type: 'textarea', required: true },
+  { name: 'document', displayName: 'Document (JSON)', type: 'textarea' },
+];
+
+const analyticsParams: APIParameter[] = [
+  { name: 'property_id', displayName: 'Property ID', type: 'string' },
+  { name: 'query', displayName: 'Query', type: 'textarea' },
+  { name: 'time_range', displayName: 'Time Range', type: 'string', placeholder: 'last_30_days' },
+];
+
 const textFormatterParams: APIParameter[] = [
   { name: 'operation', displayName: 'Operation', type: 'select', required: true, options: [
     { label: 'Uppercase', value: 'uppercase' },
@@ -1143,15 +2766,17 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Mailgun', 'api_key', undefined, mailgunParams, mailgunCredentials],
         ['Postmark', 'api_key', undefined, postmarkParams, postmarkCredentials],
         ['Gmail', 'free', undefined, gmailParams],
-        ['Outlook', 'free', undefined, gmailParams],
+        ['Outlook', 'free', undefined, outlookParams],
         ['Amazon SES', 'api_key', undefined, amazonsesParams, amazonsesCredentials],
         ['SparkPost', 'api_key', undefined, sparkpostParams, sparkpostCredentials],
-        ['Brevo', 'free'],
-        ['Mailjet', 'free'],
-        ['ProtonMail API', 'api_key'],
-        ['Zoho Mail', 'free'],
-        ['iCloud Mail', 'free'],
-        ['Yahoo Business', 'api_key'],
+        ['Brevo', 'free', undefined, brevoParams, brevoCredentials],
+        ['Mailjet', 'free', undefined, mailjetParams, mailjetCredentials],
+        ['ProtonMail API', 'api_key', undefined, protonmailParams, protonmailCredentials],
+        ['Zoho Mail', 'free', undefined, zohoMailParams],
+        ['iCloud Mail', 'free', undefined, iCloudMailParams],
+        ['Yahoo Business', 'api_key', undefined, yahooBusinessParams],
+        ['FastMail', 'api_key', undefined, fastmailParams, fastmailCredentials],
+        ['Mailchimp Transactional', 'api_key', undefined, mailchimpTransactionalParams, mailchimpTransactionalCredentials],
       ]),
       withBlocks('team-chat', 'Team Chat & Collaboration', [
         ['Slack', 'free', undefined, slackParams, slackCredentials],
@@ -1159,40 +2784,41 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Discord', 'free', undefined, discordParams],
         ['Telegram', 'free', undefined, telegramParams, telegramCredentials],
         ['WhatsApp Business', 'api_key', undefined, whatsappParams, whatsappCredentials],
-        ['Line', 'free'],
-        ['WeChat', 'api_key'],
-        ['Zulip', 'free'],
-        ['Mattermost', 'free'],
-        ['Rocket.Chat', 'free'],
-        ['Google Chat', 'free'],
-        ['Twist', 'free'],
+        ['Line', 'free', undefined, lineParams],
+        ['WeChat', 'api_key', undefined, wechatParams],
+        ['Zulip', 'free', undefined, zulipParams],
+        ['Mattermost', 'free', undefined, mattermostParams],
+        ['Rocket.Chat', 'free', undefined, rocketchatParams],
+        ['Google Chat', 'free', undefined, googleChatParams],
+        ['Twist', 'free', undefined, twistParams],
       ]),
       withBlocks('sms-voice', 'SMS, Voice & Mobile Push', [
         ['Twilio', 'api_key', undefined, twilioParams, twilioCredentials],
         ['MessageBird', 'api_key', undefined, messagebirdParams, messagebirdCredentials],
         ['Vonage', 'api_key', undefined, vonageParams, vonageCredentials],
-        ['Plivo', 'api_key'],
-        ['Sinch', 'api_key'],
-        ['Telnyx', 'api_key'],
-        ['Firebase Cloud Messaging', 'free'],
-        ['OneSignal', 'free'],
-        ['Pusher', 'api_key'],
-        ['SimpleTexting', 'api_key'],
-        ['ClickSend', 'api_key'],
-        ['Bandwidth', 'api_key'],
-        ['RingCentral', 'api_key'],
+        ['Infobip', 'api_key', undefined, infobipParams, infobipCredentials],
+        ['Plivo', 'api_key', undefined, plivoParams],
+        ['Sinch', 'api_key', undefined, sinchParams],
+        ['Telnyx', 'api_key', undefined, telnyxParams],
+        ['Firebase Cloud Messaging', 'free', undefined, fcmParams],
+        ['OneSignal', 'free', undefined, oneSignalParams],
+        ['Pusher', 'api_key', undefined, pusherParams],
+        ['SimpleTexting', 'api_key', undefined, simpleTextingParams],
+        ['ClickSend', 'api_key', undefined, clickSendParams],
+        ['Bandwidth', 'api_key', undefined, bandwidthParams],
+        ['RingCentral', 'api_key', undefined, ringCentralParams],
       ]),
       withBlocks('video-conferencing', 'Video Conferencing & Webinars', [
         ['Zoom', 'free', undefined, zoomParams, zoomCredentials],
-        ['Google Meet', 'free'],
-        ['Microsoft Teams Video', 'free'],
+        ['Google Meet', 'free', undefined, googleMeetParams],
+        ['Microsoft Teams Video', 'free', undefined, teamsVideoParams],
         ['Webex', 'api_key', undefined, webexParams, webexCredentials],
-        ['Around', 'api_key'],
-        ['Jitsi', 'free'],
-        ['Demio', 'api_key'],
-        ['Livestorm', 'api_key'],
-        ['Riverside.fm', 'api_key'],
-        ['Whereby', 'free'],
+        ['Around', 'api_key', undefined, aroundParams],
+        ['Jitsi', 'free', undefined, jitsiParams],
+        ['Demio', 'api_key', undefined, demioParams],
+        ['Livestorm', 'api_key', undefined, livestormParams],
+        ['Riverside.fm', 'api_key', undefined, riversideParams],
+        ['Whereby', 'free', undefined, wherebyParams],
       ]),
     ],
   },
@@ -1204,38 +2830,40 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['OpenAI', 'api_key', undefined, openaiParams, openaiCredentials],
         ['Anthropic', 'api_key', undefined, anthropicParams, anthropicCredentials],
         ['Google Gemini', 'free', undefined, googlegeminiParams, googlegeminiCredentials],
-        ['OpenRouter', 'api_key'],
+        ['OpenRouter', 'api_key', undefined, openRouterParams],
         ['Mistral AI', 'api_key', undefined, mistralParams, mistralCredentials],
         ['Groq', 'api_key', undefined, groqParams, groqCredentials],
-        ['Perplexity AI', 'api_key'],
+        ['Perplexity AI', 'api_key', undefined, perplexityParams],
         ['Cohere', 'api_key', undefined, cohereParams, cohereCredentials],
-        ['Together AI', 'api_key'],
-        ['DeepSeek', 'api_key'],
-        ['Ollama', 'local'],
+        ['Together AI', 'api_key', undefined, togetherAIParams],
+        ['Hugging Face', 'api_key', undefined, huggingFaceParams, huggingFaceCredentials],
+        ['Replicate', 'api_key', undefined, replicateParams, replicateCredentials],
+        ['DeepSeek', 'api_key', undefined, deepSeekParams],
+        ['Ollama', 'local', undefined, ollamaParams],
       ]),
       withBlocks('image-video-3d', 'Image, Video & 3D Generation', [
         ['DALL-E', 'api_key', undefined, dalleParams],
-        ['Midjourney', 'api_key'],
-        ['Leonardo.ai', 'api_key'],
+        ['Midjourney', 'api_key', undefined, midjourneyParams],
+        ['Leonardo.ai', 'api_key', undefined, leonardoParams],
         ['Stable Diffusion', 'api_key', undefined, stableParams],
         ['HeyGen', 'api_key', undefined, heygenParams, heygenCredentials],
-        ['RunwayML', 'api_key'],
-        ['Pika Labs', 'api_key'],
-        ['Adobe Firefly', 'api_key'],
-        ['Luma AI', 'api_key'],
-        ['Spline 3D', 'api_key'],
+        ['RunwayML', 'api_key', undefined, runwayParams],
+        ['Pika Labs', 'api_key', undefined, pikaParams],
+        ['Adobe Firefly', 'api_key', undefined, fireflyParams],
+        ['Luma AI', 'api_key', undefined, lumaParams],
+        ['Spline 3D', 'api_key', undefined, splineParams],
       ]),
       withBlocks('audio-voice-music', 'Audio, Voice & Music AI', [
         ['ElevenLabs', 'api_key', undefined, elevenLabsParams, elevenLabsCredentials],
         ['AssemblyAI', 'api_key', undefined, assemblyaiParams, assemblyaiCredentials],
-        ['Deepgram', 'api_key'],
-        ['Rev.ai', 'api_key'],
-        ['Murf.ai', 'api_key'],
-        ['Play.ht', 'api_key'],
-        ['OpenAI Whisper', 'api_key'],
-        ['Suno AI', 'api_key'],
-        ['Udio', 'api_key'],
-        ['Voicemod', 'api_key'],
+        ['Deepgram', 'api_key', undefined, deepgramParams],
+        ['Rev.ai', 'api_key', undefined, revAiParams],
+        ['Murf.ai', 'api_key', undefined, murfParams],
+        ['Play.ht', 'api_key', undefined, playhtParams],
+        ['OpenAI Whisper', 'api_key', undefined, whisperParams],
+        ['Suno AI', 'api_key', undefined, sunoParams],
+        ['Udio', 'api_key', undefined, udioParams],
+        ['Voicemod', 'api_key', undefined, voicemodParams],
       ]),
     ],
   },
@@ -1246,42 +2874,42 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
       withBlocks('databases', 'Relational & NoSQL Databases', [
         ['Supabase', 'free', undefined, supabaseParams, supabaseCredentials],
         ['MongoDB Atlas', 'free', undefined, mongoParams, mongoCredentials],
-        ['PlanetScale', 'api_key'],
+        ['PlanetScale', 'api_key', undefined, sqlDatabaseParams],
         ['Redis', 'free', undefined, redisParams, redisCredentials],
         ['Firebase', 'free', undefined, firebaseParams, firebaseCredentials],
-        ['CockroachDB', 'free'],
-        ['FaunaDB', 'free'],
-        ['MariaDB', 'free'],
-        ['MySQL', 'free'],
-        ['Neo4j', 'api_key'],
-        ['SurrealDB', 'free'],
-        ['Turso', 'free'],
+        ['CockroachDB', 'free', undefined, sqlDatabaseParams],
+        ['FaunaDB', 'free', undefined, faunaDBParams],
+        ['MariaDB', 'free', undefined, sqlDatabaseParams],
+        ['MySQL', 'free', undefined, sqlDatabaseParams],
+        ['Neo4j', 'api_key', undefined, graphDatabaseParams],
+        ['SurrealDB', 'free', undefined, surrealDBParams],
+        ['Turso', 'free', undefined, tursoParams],
       ]),
       withBlocks('cloud-storage-cdn', 'Cloud File Storage & CDN', [
         ['Google Drive', 'free', undefined, googledriveParams],
-        ['Dropbox', 'free'],
-        ['Box', 'free'],
-        ['OneDrive', 'free'],
+        ['Dropbox', 'free', undefined, dropboxParams],
+        ['Box', 'free', undefined, boxParams],
+        ['OneDrive', 'free', undefined, oneDriveParams],
         ['AWS S3', 'api_key', undefined, s3Params, s3Credentials],
-        ['Google Cloud Storage', 'api_key'],
-        ['Azure Blob', 'api_key'],
-        ['Backblaze B2', 'api_key'],
-        ['pCloud', 'api_key'],
+        ['Google Cloud Storage', 'api_key', undefined, googleCloudStorageParams],
+        ['Azure Blob', 'api_key', undefined, azureBlobParams],
+        ['Backblaze B2', 'api_key', undefined, backblazeB2Params],
+        ['pCloud', 'api_key', undefined, pCloudParams],
         ['Cloudinary', 'free', undefined, cloudinaryParams, cloudinaryCredentials],
-        ['ImageKit', 'free'],
-        ['Fastly', 'api_key'],
-        ['Akamai', 'api_key'],
+        ['ImageKit', 'free', undefined, imageKitParams],
+        ['Fastly', 'api_key', undefined, cdnControlParams],
+        ['Akamai', 'api_key', undefined, cdnControlParams],
       ]),
       withBlocks('spreadsheets', 'Spreadsheets & Productive Databases', [
         ['Airtable', 'free', undefined, airtableParams, airtableCredentials],
         ['Google Sheets', 'free', undefined, googlesheetParams],
-        ['Excel Online', 'free'],
-        ['Smartsheet', 'api_key'],
-        ['Coda', 'free'],
+        ['Excel Online', 'free', undefined, spreadsheetParams],
+        ['Smartsheet', 'api_key', undefined, spreadsheetParams],
+        ['Coda', 'free', undefined, spreadsheetParams],
         ['Notion', 'free', undefined, notionParams, notionCredentials],
-        ['Baserow', 'free'],
-        ['SeaTable', 'free'],
-        ['Grist', 'free'],
+        ['Baserow', 'free', undefined, spreadsheetParams],
+        ['SeaTable', 'free', undefined, spreadsheetParams],
+        ['Grist', 'free', undefined, spreadsheetParams],
       ]),
     ],
   },
@@ -1293,25 +2921,25 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['GitHub', 'free', undefined, githubParams],
         ['GitLab', 'free', undefined, gitlabParams, gitlabCredentials],
         ['Bitbucket', 'free', undefined, bitbucketParams, bitbucketCredentials],
-        ['Azure DevOps', 'api_key'],
-        ['Gitea', 'free'],
+        ['Azure DevOps', 'api_key', undefined, devOpsParams],
+        ['Gitea', 'free', undefined, devOpsParams],
         ['CircleCI', 'api_key', undefined, circleciParams, circleciCredentials],
-        ['Travis CI', 'api_key'],
+        ['Travis CI', 'api_key', undefined, devOpsParams],
         ['Jenkins', 'free', undefined, jenkinsParams, jenkinsCredentials],
-        ['SonarQube', 'free'],
+        ['SonarQube', 'free', undefined, devOpsParams],
       ]),
       withBlocks('monitoring', 'Monitoring & Infrastructure', [
         ['Sentry', 'free', undefined, sentryParams, sentryCredentials],
         ['Datadog', 'api_key', undefined, datadogParams, datadogCredentials],
-        ['New Relic', 'api_key'],
-        ['LogRocket', 'api_key'],
+        ['New Relic', 'api_key', undefined, monitoringParams],
+        ['LogRocket', 'api_key', undefined, monitoringParams],
         ['Honeycomb', 'free'],
         ['BetterStack', 'free'],
-        ['Pingdom', 'api_key'],
-        ['UptimeRobot', 'free'],
-        ['Vercel', 'free'],
-        ['Netlify', 'free'],
-        ['Docker Hub', 'free'],
+        ['Pingdom', 'api_key', undefined, monitoringParams],
+        ['UptimeRobot', 'free', undefined, uptimeRobotParams],
+        ['Vercel', 'free', undefined, vercelParams],
+        ['Netlify', 'free', undefined, netlifyParams],
+        ['Docker Hub', 'free', undefined, dockerhubParams],
       ]),
     ],
   },
@@ -1323,25 +2951,25 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Stripe', 'api_key', undefined, stripeParams, stripeCredentials],
         ['PayPal', 'free', undefined, paypalParams, paypalCredentials],
         ['Square', 'api_key', undefined, squareParams, squareCredentials],
-        ['Adyen', 'api_key'],
-        ['Braintree', 'api_key'],
-        ['Lemon Squeezy', 'api_key'],
-        ['Paddle', 'api_key'],
-        ['Mollie', 'api_key'],
-        ['Razorpay', 'api_key'],
-        ['Authorize.net', 'api_key'],
+        ['Adyen', 'api_key', undefined, paymentGatewayParams],
+        ['Braintree', 'api_key', undefined, paymentGatewayParams],
+        ['Lemon Squeezy', 'api_key', undefined, paymentGatewayParams],
+        ['Paddle', 'api_key', undefined, paymentGatewayParams],
+        ['Mollie', 'api_key', undefined, paymentGatewayParams],
+        ['Razorpay', 'api_key', undefined, paymentGatewayParams],
+        ['Authorize.net', 'api_key', undefined, paymentGatewayParams],
       ]),
       withBlocks('storefronts', 'E-commerce & Storefronts', [
         ['Shopify', 'api_key', undefined, shopifyParams, shopifyCredentials],
         ['WooCommerce', 'free', undefined, woocommerceParams, woocommerceCredentials],
-        ['Magento', 'free'],
-        ['BigCommerce', 'api_key'],
-        ['Gumroad', 'free'],
-        ['Etsy', 'api_key'],
-        ['Amazon Seller', 'api_key'],
-        ['Wix Stores', 'api_key'],
-        ['Squarespace', 'api_key'],
-        ['Printful', 'api_key'],
+        ['Magento', 'free', undefined, storefrontParams],
+        ['BigCommerce', 'api_key', undefined, storefrontParams],
+        ['Gumroad', 'free', undefined, storefrontParams],
+        ['Etsy', 'api_key', undefined, storefrontParams],
+        ['Amazon Seller', 'api_key', undefined, storefrontParams],
+        ['Wix Stores', 'api_key', undefined, storefrontParams],
+        ['Squarespace', 'api_key', undefined, storefrontParams],
+        ['Printful', 'api_key', undefined, storefrontParams],
       ]),
     ],
   },
@@ -1351,21 +2979,21 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     subcategories: [
       withBlocks('help-desk', 'Help Desk & Ticketing', [
         ['Zendesk', 'api_key', undefined, zendeskParams, zendeskCredentials],
-        ['Freshdesk', 'free'],
-        ['Gorgias', 'api_key'],
-        ['Help Scout', 'api_key'],
-        ['Front', 'api_key'],
+        ['Freshdesk', 'free', undefined, supportParams],
+        ['Gorgias', 'api_key', undefined, supportParams],
+        ['Help Scout', 'api_key', undefined, helpScoutParams, helpScoutCredentials],
+        ['Front', 'api_key', undefined, frontParams, frontCredentials],
         ['Intercom', 'api_key', undefined, intercomParams, intercomCredentials],
-        ['Kustomer', 'api_key'],
-        ['Gladly', 'api_key'],
+        ['Kustomer', 'api_key', undefined, kustomerParams, kustomerCredentials],
+        ['Gladly', 'api_key', undefined, gladlyParams, gladlyCredentials],
       ]),
       withBlocks('live-chat', 'Live Chat & Chatbots', [
-        ['Crisp', 'free'], ['Tawk.to', 'free'], ['Drift', 'api_key'], ['ManyChat', 'free'], ['Chatbase', 'api_key'],
-        ['Landbot', 'free'], ['LiveChat', 'api_key'],
+        ['Crisp', 'free', undefined, crispParams, crispCredentials], ['Tawk.to', 'free', undefined, tawkToParams, tawkToCredentials], ['Drift', 'api_key', undefined, driftParams, driftCredentials], ['ManyChat', 'free', undefined, manyChatParams, manyChatCredentials], ['Chatbase', 'api_key', undefined, chatbaseParams, chatbaseCredentials],
+        ['Landbot', 'free', undefined, landbotParams, landbotCredentials], ['LiveChat', 'api_key', undefined, liveChatParams, liveChatCredentials],
       ]),
       withBlocks('surveys', 'Surveys & User Feedback', [
-        ['Typeform', 'free'], ['Jotform', 'free'], ['Tally.so', 'free'], ['SurveyMonkey', 'api_key'], ['Hotjar', 'free'],
-        ['UserTesting', 'api_key'], ['Qualtrics', 'api_key'],
+        ['Typeform', 'free', undefined, typeformParams, typeformCredentials], ['Jotform', 'free', undefined, jotformParams, jotformCredentials], ['Tally.so', 'free', undefined, tallyParams, tallyCredentials], ['SurveyMonkey', 'api_key', undefined, surveyMonkeyParams, surveyMonkeyCredentials], ['Hotjar', 'free'],
+        ['UserTesting', 'api_key', undefined, userTestingParams, userTestingCredentials], ['Qualtrics', 'api_key', undefined, qualtricsParams, qualtricsCredentials],
       ]),
     ],
   },
@@ -1377,17 +3005,17 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Salesforce', 'api_key', undefined, salesforceParams, salesforceCredentials],
         ['HubSpot', 'free', undefined, hubspotParams, hubspotCredentials],
         ['Pipedrive', 'api_key', undefined, pipedriveParams, pipedriveCredentials],
-        ['Zoho CRM', 'free'],
-        ['Copper', 'api_key'],
-        ['Keap', 'api_key'],
-        ['Close.com', 'api_key'],
-        ['Attio', 'free'],
-        ['Folk', 'free'],
-        ['Apollo.io', 'api_key'],
+        ['Zoho CRM', 'free', undefined, zohoCRMParams, zohoCRMCredentials],
+        ['Copper', 'api_key', undefined, copperParams, copperCredentials],
+        ['Keap', 'api_key', undefined, keapParams, keapCredentials],
+        ['Close.com', 'api_key', undefined, closeParams, closeCredentials],
+        ['Attio', 'free', undefined, attioParams, attioCredentials],
+        ['Folk', 'free', undefined, folkParams, folkCredentials],
+        ['Apollo.io', 'api_key', undefined, apolloParams, apolloCredentials],
       ]),
       withBlocks('ads-growth', 'Ads & Growth', [
-        ['Google Ads', 'api_key'], ['Meta Ads', 'api_key'], ['LinkedIn Ads', 'api_key'], ['TikTok Ads', 'api_key'],
-        ['Mixpanel', 'free'], ['Amplitude', 'free'], ['Segment', 'free'], ['Clearbit', 'api_key'],
+        ['Google Ads', 'api_key', undefined, googleadsParams, googleadsCredentials], ['Meta Ads', 'api_key', undefined, metaadsParams, metaadsCredentials], ['LinkedIn Ads', 'api_key', undefined, linkedInAdsParams, linkedInAdsCredentials], ['TikTok Ads', 'api_key', undefined, tiktokAdsParams, tiktokAdsCredentials],
+        ['Mixpanel', 'free', undefined, mixpanelParams, mixpanelCredentials], ['Amplitude', 'free', undefined, amplitudeParams, amplitudeCredentials], ['Segment', 'free', undefined, segmentParams, segmentCredentials], ['Clearbit', 'api_key', undefined, clearbitParams, clearbitCredentials],
       ]),
     ],
   },
@@ -1396,12 +3024,12 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Project & Knowledge Management',
     subcategories: [
       withBlocks('tasks', 'Task Management', [
-        ['Asana', 'free'], ['Trello', 'free'], ['ClickUp', 'free'], ['Linear', 'free'], ['Monday.com', 'api_key'],
-        ['Jira', 'api_key'], ['Basecamp', 'api_key'], ['Todoist', 'free'], ['TickTick', 'api_key'],
+        ['Asana', 'free'], ['Trello', 'free'], ['ClickUp', 'free'], ['Linear', 'free'], ['Monday.com', 'api_key', undefined, mondayComParams, mondayComCredentials],
+        ['Jira', 'api_key', undefined, jiraParams, jiraCredentials], ['Basecamp', 'api_key', undefined, basecampParams, basecampCredentials], ['Todoist', 'free', undefined, todoistParams, todoistCredentials], ['TickTick', 'api_key', undefined, ticktickParams, ticktickCredentials],
       ]),
       withBlocks('notes-wiki', 'Notes & Wiki', [
-        ['Notion', 'free'], ['Obsidian Sync', 'api_key'], ['Confluence', 'api_key'], ['Slite', 'free'], ['GitBook', 'free'],
-        ['Guru', 'api_key'], ['Slab', 'api_key'], ['Evernote', 'api_key'],
+        ['Notion', 'free', undefined, notionParams, notionCredentials], ['Obsidian Sync', 'api_key'], ['Confluence', 'api_key', undefined, confluenceParams, confluenceCredentials], ['Slite', 'free', undefined, sliteParams, sliteCredentials], ['GitBook', 'free', undefined, gitbookParams, gitbookCredentials],
+        ['Guru', 'api_key', undefined, guruParams, guruCredentials], ['Slab', 'api_key', undefined, slabParams, slabCredentials], ['Evernote', 'api_key', undefined, evernoteParams, evernoteCredentials],
       ]),
     ],
   },
@@ -1410,12 +3038,12 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Web3 & Blockchain',
     subcategories: [
       withBlocks('chains-wallets', 'Chains & Wallets', [
-        ['Ethereum/Alchemy', 'free'], ['Solana/Helius', 'free'], ['Polygon', 'free'], ['WalletConnect', 'free'],
-        ['Coinbase Cloud', 'api_key'], ['Infura', 'free'], ['Moralis', 'free'],
+        ['Ethereum/Alchemy', 'free', undefined, web3Params], ['Solana/Helius', 'free', undefined, web3Params], ['Polygon', 'free', undefined, web3Params], ['WalletConnect', 'free', undefined, web3Params],
+        ['Coinbase Cloud', 'api_key', undefined, web3Params], ['Infura', 'free', undefined, web3Params], ['Moralis', 'free', undefined, web3Params],
       ]),
       withBlocks('markets-nft', 'Market Data & NFTs', [
-        ['CoinGecko', 'free'], ['CoinMarketCap', 'api_key'], ['OpenSea', 'api_key'], ['Magic Eden', 'api_key'],
-        ['Etherscan', 'free'], ['Rarible', 'api_key'],
+        ['CoinGecko', 'free', undefined, marketDataParams], ['CoinMarketCap', 'api_key', undefined, marketDataParams], ['OpenSea', 'api_key', undefined, marketDataParams], ['Magic Eden', 'api_key', undefined, marketDataParams],
+        ['Etherscan', 'free', undefined, marketDataParams], ['Rarible', 'api_key', undefined, marketDataParams],
       ]),
     ],
   },
@@ -1424,12 +3052,12 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Cybersecurity & IT',
     subcategories: [
       withBlocks('identity', 'Identity & Access', [
-        ['Okta', 'api_key'], ['Auth0', 'free'], ['Clerk', 'free'], ['Stytch', 'api_key'], ['Kinde', 'free'],
-        ['1Password', 'api_key'], ['Dashlane', 'api_key'],
+        ['Okta', 'api_key'], ['Auth0', 'free', undefined, identityParams], ['Clerk', 'free', undefined, identityParams], ['Stytch', 'api_key', undefined, identityParams], ['Kinde', 'free', undefined, identityParams],
+        ['1Password', 'api_key', undefined, identityParams], ['Dashlane', 'api_key', undefined, identityParams],
       ]),
       withBlocks('threat-intel', 'Threat Intel & Security', [
-        ['VirusTotal', 'free'], ['HaveIBeenPwned', 'api_key'], ['Shodan', 'api_key'], ['Cloudflare Security', 'free'],
-        ['CrowdStrike', 'api_key'], ['Splunk', 'api_key'],
+        ['VirusTotal', 'free', undefined, securityParams], ['HaveIBeenPwned', 'api_key', undefined, securityParams], ['Shodan', 'api_key', undefined, securityParams], ['Cloudflare Security', 'free', undefined, securityParams],
+        ['CrowdStrike', 'api_key', undefined, securityParams], ['Splunk', 'api_key', undefined, securityParams],
       ]),
     ],
   },
@@ -1438,11 +3066,11 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Utilities & IoT',
     subcategories: [
       withBlocks('environment', 'Environment', [
-        ['OpenWeatherMap', 'free'], ['Tomorrow.io', 'free'], ['AccuWeather', 'api_key'], ['Google Maps', 'api_key'],
-        ['Mapbox', 'free'], ['AirVisual', 'api_key'],
+        ['OpenWeatherMap', 'free', undefined, weatherParams], ['Tomorrow.io', 'free', undefined, weatherParams], ['AccuWeather', 'api_key', undefined, weatherParams], ['Google Maps', 'api_key'],
+        ['Mapbox', 'free', undefined, weatherParams], ['AirVisual', 'api_key', undefined, weatherParams],
       ]),
       withBlocks('smart-home', 'Smart Home', [
-        ['Philips Hue', 'api_key'], ['Nest', 'api_key'], ['IFTTT', 'free'], ['Home Assistant', 'free'], ['Shelly', 'free'], ['Tuya', 'api_key'],
+        ['Philips Hue', 'api_key', undefined, iotParams], ['Nest', 'api_key', undefined, iotParams], ['IFTTT', 'free', undefined, iotParams], ['Home Assistant', 'free', undefined, iotParams], ['Shelly', 'free', undefined, iotParams], ['Tuya', 'api_key', undefined, iotParams],
       ]),
     ],
   },
@@ -1451,16 +3079,16 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'System & Logic Blocks',
     subcategories: [
       withBlocks('triggers', 'Triggers', [
-        ['Schedule (Cron)', 'internal', undefined, cronParams],
-        ['Webhook (Catch)', 'internal', undefined, webhookParams],
-        ['RSS Monitor', 'internal'],
-        ['New Email', 'internal'],
-        ['FTP Monitor', 'internal'],
-        ['File Watcher', 'internal'],
-        ['Database Change', 'internal'],
-        ['Queue Consumer', 'internal'],
-        ['Manual Trigger', 'internal'],
-        ['Event Bus Listener', 'internal'],
+        ['Schedule (Cron)', 'internal', undefined, cronParams, undefined, undefined, true],
+        ['Webhook (Catch)', 'internal', undefined, webhookParams, undefined, undefined, true],
+        ['RSS Monitor', 'internal', undefined, rssMonitorParams, undefined, undefined, true],
+        ['New Email', 'internal', undefined, newEmailParams, undefined, undefined, true],
+        ['FTP Monitor', 'internal', undefined, ftpMonitorParams, undefined, undefined, true],
+        ['File Watcher', 'internal', undefined, fileWatcherParams, undefined, undefined, true],
+        ['Database Change', 'internal', undefined, dbChangeParams, undefined, undefined, true],
+        ['Queue Consumer', 'internal', undefined, queueConsumerParams, undefined, undefined, true],
+        ['Manual Trigger', 'internal', undefined, manualTriggerParams, undefined, undefined, true],
+        ['Event Bus Listener', 'internal', undefined, undefined, undefined, undefined, true],
       ]),
       withBlocks('logic', 'Logic', [
         ['Filter', 'internal'], ['Router', 'internal'], ['Loop', 'internal'], ['Delay', 'internal'], ['Wait for Approval', 'internal'], ['Error Handler', 'internal'],
@@ -1483,20 +3111,20 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     subcategories: [
       withBlocks('social-platforms', 'Social Platforms', [
         ['Twitter/X', 'api_key', undefined, twitterParams, twitterCredentials],
-        ['Instagram', 'api_key'], ['Facebook Pages', 'api_key'], ['LinkedIn', 'api_key'],
-        ['TikTok', 'api_key'], ['Pinterest', 'api_key'], ['Reddit', 'api_key'],
-        ['YouTube', 'api_key'], ['Mastodon', 'free'], ['Bluesky', 'free'],
-        ['Threads', 'api_key'], ['Tumblr', 'api_key'],
+        ['Instagram', 'api_key', undefined, socialPostParams], ['Facebook Pages', 'api_key', undefined, socialPostParams], ['LinkedIn', 'api_key', undefined, socialPostParams],
+        ['TikTok', 'api_key', undefined, socialPostParams], ['Pinterest', 'api_key', undefined, socialPostParams], ['Reddit', 'api_key', undefined, socialPostParams],
+        ['YouTube', 'api_key', undefined, socialPostParams], ['Mastodon', 'free', undefined, socialPostParams], ['Bluesky', 'free', undefined, socialPostParams],
+        ['Threads', 'api_key', undefined, socialPostParams], ['Tumblr', 'api_key', undefined, socialPostParams],
       ]),
       withBlocks('social-management', 'Social Management & Scheduling', [
-        ['Buffer', 'api_key'], ['Hootsuite', 'api_key'], ['Later', 'api_key'],
-        ['Sprout Social', 'api_key'], ['SocialBee', 'api_key'], ['Publer', 'api_key'],
+        ['Buffer', 'api_key', undefined, socialManagementParams], ['Hootsuite', 'api_key', undefined, socialManagementParams], ['Later', 'api_key', undefined, socialManagementParams],
+        ['Sprout Social', 'api_key', undefined, socialManagementParams], ['SocialBee', 'api_key', undefined, socialManagementParams], ['Publer', 'api_key', undefined, socialManagementParams],
       ]),
       withBlocks('content-cms', 'Content & CMS', [
-        ['WordPress', 'api_key'], ['Ghost', 'api_key'], ['Strapi', 'free'],
-        ['Contentful', 'api_key'], ['Sanity', 'free'], ['Prismic', 'api_key'],
-        ['Webflow', 'api_key'], ['Medium', 'free'], ['Hashnode', 'free'],
-        ['Dev.to', 'free'], ['Substack', 'api_key'],
+        ['WordPress', 'api_key', undefined, cmsParams], ['Ghost', 'api_key', undefined, cmsParams], ['Strapi', 'free', undefined, cmsParams],
+        ['Contentful', 'api_key', undefined, cmsParams], ['Sanity', 'free', undefined, cmsParams], ['Prismic', 'api_key', undefined, cmsParams],
+        ['Webflow', 'api_key', undefined, cmsParams], ['Medium', 'free', undefined, cmsParams], ['Hashnode', 'free', undefined, cmsParams],
+        ['Dev.to', 'free', undefined, cmsParams], ['Substack', 'api_key', undefined, cmsParams],
       ]),
     ],
   },
@@ -1505,32 +3133,32 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Specialized Verticals',
     subcategories: [
       withBlocks('hr', 'HR & Recruiting', [
-        ['Workday', 'api_key'], ['BambooHR', 'api_key'], ['Greenhouse', 'api_key'], ['Lever', 'api_key'], ['Ashby', 'api_key'],
-        ['HiBob', 'api_key'], ['Gusto', 'api_key'], ['Rippling', 'api_key'], ['Deel', 'api_key'], ['Remote.com', 'api_key'],
+        ['Workday', 'api_key', undefined, hrParams], ['BambooHR', 'api_key', undefined, hrParams], ['Greenhouse', 'api_key', undefined, hrParams], ['Lever', 'api_key', undefined, hrParams], ['Ashby', 'api_key', undefined, hrParams],
+        ['HiBob', 'api_key', undefined, hrParams], ['Gusto', 'api_key', undefined, hrParams], ['Rippling', 'api_key', undefined, hrParams], ['Deel', 'api_key', undefined, hrParams], ['Remote.com', 'api_key', undefined, hrParams],
       ]),
       withBlocks('edtech', 'Education (EdTech)', [
-        ['Canvas', 'free'], ['Moodle', 'free'], ['Teachable', 'api_key'], ['Kajabi', 'api_key'], ['Coursera', 'api_key'], ['Duolingo', 'api_key'],
-        ['Udemy', 'api_key'], ['Thinkific', 'api_key'], ['Podia', 'api_key'],
+        ['Canvas', 'free', undefined, trainingParams], ['Moodle', 'free', undefined, trainingParams], ['Teachable', 'api_key', undefined, trainingParams], ['Kajabi', 'api_key', undefined, trainingParams], ['Coursera', 'api_key', undefined, trainingParams], ['Duolingo', 'api_key', undefined, trainingParams],
+        ['Udemy', 'api_key', undefined, trainingParams], ['Thinkific', 'api_key', undefined, trainingParams], ['Podia', 'api_key', undefined, trainingParams],
       ]),
       withBlocks('legal', 'Legal & E-Signature', [
-        ['DocuSign', 'api_key'], ['Dropbox Sign', 'api_key'], ['Ironclad', 'api_key'], ['Clio', 'api_key'], ['PandaDoc', 'api_key'],
-        ['SignNow', 'api_key'], ['Juro', 'api_key'],
+        ['DocuSign', 'api_key', undefined, eSignParams], ['Dropbox Sign', 'api_key', undefined, eSignParams], ['Ironclad', 'api_key', undefined, eSignParams], ['Clio', 'api_key', undefined, eSignParams], ['PandaDoc', 'api_key', undefined, eSignParams],
+        ['SignNow', 'api_key', undefined, eSignParams], ['Juro', 'api_key', undefined, eSignParams],
       ]),
       withBlocks('healthcare', 'Healthcare', [
-        ['Epic', 'api_key'], ['Cerner', 'api_key'], ['Healthie', 'api_key'], ['Redox', 'api_key'], ['Fitbit', 'free'], ['Strava', 'free'],
-        ['Withings', 'api_key'], ['Apple Health', 'free'], ['Google Fit', 'free'],
+        ['Epic', 'api_key', undefined, healthParams], ['Cerner', 'api_key', undefined, healthParams], ['Healthie', 'api_key', undefined, healthParams], ['Redox', 'api_key', undefined, healthParams], ['Fitbit', 'free', undefined, healthParams], ['Strava', 'free', undefined, healthParams],
+        ['Withings', 'api_key', undefined, healthParams], ['Apple Health', 'free', undefined, healthParams], ['Google Fit', 'free', undefined, healthParams],
       ]),
       withBlocks('logistics-real-estate', 'Logistics & Real Estate', [
-        ['AfterShip', 'api_key'], ['Shippo', 'api_key'], ['EasyPost', 'api_key'], ['Zillow', 'api_key'], ['Airbnb', 'api_key'], ['Uber', 'api_key'],
-        ['DoorDash', 'api_key'], ['FedEx', 'api_key'], ['UPS', 'api_key'], ['USPS', 'free'],
+        ['AfterShip', 'api_key', undefined, logisticsParams], ['Shippo', 'api_key', undefined, logisticsParams], ['EasyPost', 'api_key', undefined, logisticsParams], ['Zillow', 'api_key', undefined, logisticsParams], ['Airbnb', 'api_key', undefined, logisticsParams], ['Uber', 'api_key', undefined, logisticsParams],
+        ['DoorDash', 'api_key', undefined, logisticsParams], ['FedEx', 'api_key', undefined, logisticsParams], ['UPS', 'api_key', undefined, logisticsParams], ['USPS', 'free', undefined, logisticsParams],
       ]),
       withBlocks('accounting', 'Accounting & Finance', [
-        ['QuickBooks', 'api_key'], ['Xero', 'api_key'], ['FreshBooks', 'api_key'], ['Wave', 'free'],
-        ['Plaid', 'api_key'], ['Wise', 'api_key'], ['Mercury', 'api_key'],
+        ['QuickBooks', 'api_key', undefined, financeParams], ['Xero', 'api_key', undefined, financeParams], ['FreshBooks', 'api_key', undefined, financeParams], ['Wave', 'free', undefined, financeParams],
+        ['Plaid', 'api_key', undefined, financeParams], ['Wise', 'api_key', undefined, financeParams], ['Mercury', 'api_key', undefined, financeParams],
       ]),
       withBlocks('design', 'Design & Creative', [
-        ['Figma', 'api_key'], ['Canva', 'api_key'], ['Adobe Creative Cloud', 'api_key'],
-        ['InVision', 'api_key'], ['Sketch', 'api_key'], ['Framer', 'free'],
+        ['Figma', 'api_key', undefined, designParams], ['Canva', 'api_key', undefined, designParams], ['Adobe Creative Cloud', 'api_key', undefined, designParams],
+        ['InVision', 'api_key', undefined, designParams], ['Sketch', 'api_key', undefined, designParams], ['Framer', 'free', undefined, designParams],
       ]),
     ],
   },
@@ -1539,13 +3167,13 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Notifications & Alerts',
     subcategories: [
       withBlocks('push-notify', 'Push Notifications', [
-        ['Firebase Cloud Messaging', 'free'], ['OneSignal', 'free'], ['Pusher Beams', 'api_key'],
-        ['Novu', 'free'], ['Knock', 'api_key'], ['MagicBell', 'api_key'],
-        ['Courier', 'api_key'], ['Engagespot', 'free'],
+        ['Firebase Cloud Messaging', 'free', undefined, notificationParams], ['OneSignal', 'free', undefined, notificationParams], ['Pusher Beams', 'api_key', undefined, notificationParams],
+        ['Novu', 'free', undefined, notificationParams], ['Knock', 'api_key', undefined, notificationParams], ['MagicBell', 'api_key', undefined, notificationParams],
+        ['Courier', 'api_key', undefined, notificationParams], ['Engagespot', 'free', undefined, notificationParams],
       ]),
       withBlocks('alerts', 'Alerting & Incident', [
-        ['PagerDuty', 'api_key'], ['OpsGenie', 'api_key'], ['VictorOps', 'api_key'],
-        ['StatusPage', 'api_key'], ['Instatus', 'free'], ['Cachet', 'free'],
+        ['PagerDuty', 'api_key', undefined, alertParams], ['OpsGenie', 'api_key', undefined, alertParams], ['VictorOps', 'api_key', undefined, alertParams],
+        ['StatusPage', 'api_key', undefined, alertParams], ['Instatus', 'free', undefined, alertParams], ['Cachet', 'free', undefined, alertParams],
       ]),
     ],
   },
@@ -1554,14 +3182,14 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Search & Analytics',
     subcategories: [
       withBlocks('search-engines', 'Search Engines', [
-        ['Algolia', 'api_key'], ['Elasticsearch', 'free'], ['Meilisearch', 'free'],
-        ['Typesense', 'free'], ['Pinecone', 'api_key'], ['Weaviate', 'free'],
-        ['Qdrant', 'free'], ['ChromaDB', 'free'],
+        ['Algolia', 'api_key', undefined, searchParams], ['Elasticsearch', 'free', undefined, searchParams], ['Meilisearch', 'free', undefined, searchParams],
+        ['Typesense', 'free', undefined, searchParams], ['Pinecone', 'api_key', undefined, searchParams], ['Weaviate', 'free', undefined, searchParams],
+        ['Qdrant', 'free', undefined, searchParams], ['ChromaDB', 'free', undefined, searchParams],
       ]),
       withBlocks('analytics-bi', 'Analytics & BI', [
-        ['Google Analytics', 'api_key'], ['Plausible', 'free'], ['PostHog', 'free'],
-        ['Metabase', 'free'], ['Looker', 'api_key'], ['Tableau', 'api_key'],
-        ['Apache Superset', 'free'], ['Grafana', 'free'],
+        ['Google Analytics', 'api_key', undefined, analyticsParams], ['Plausible', 'free', undefined, analyticsParams], ['PostHog', 'free', undefined, analyticsParams],
+        ['Metabase', 'free', undefined, analyticsParams], ['Looker', 'api_key', undefined, analyticsParams], ['Tableau', 'api_key', undefined, analyticsParams],
+        ['Apache Superset', 'free', undefined, analyticsParams], ['Grafana', 'free', undefined, analyticsParams],
       ]),
     ],
   },
