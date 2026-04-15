@@ -1,32 +1,93 @@
 ---
-title: "Specialized editors"
-description: "Browse the hardware, creative, and productivity editors that live alongside your code." 
+title: "Specialized Editors"
+description: "Hardware, 3D, media, office, CAD, and Scratch editors built directly into the Code Canvas workspace."
 ---
 
-![Specialized editors collage](specialized-editors.png)
+![Specialized editor panels overview](specialized-editors.png)
 
-These editors run as tabs inside the IDE and extend the workspace beyond traditional coding. Use the cards below to dive into each toolchain and discover the prompts, workflows, and automations available.
+## Beyond text code
 
-<Columns cols={3}>
-  <Card title="Hardware & Arduino" icon="cpu" href="/features/ide/specialized-editors/arduino/upload">
-    Compile, simulate, and upload firmware with a single button.
-  </Card>
-  <Card title="Scratch blocks" icon="braces" href="/features/ide/specialized-editors/scratch/overview">
-    Build logic visually, then export to text.
-  </Card>
-  <Card title="Creative media" icon="video" href="/features/ide/specialized-editors/media/overview">
-    Edit video, audio, and 3D scenes without switching apps.
-  </Card>
-</Columns>
+Code Canvas includes a suite of domain-specific editors accessible alongside regular code tabs. Switch between writing TypeScript, flashing an Arduino, editing a PowerPoint, and generating a 3D model — all without leaving the browser or opening another tool.
 
-<Columns cols={3}>
-  <Card title="Office documents" icon="file-text" href="/features/ide/specialized-editors/office/overview">
-    Draft reports, insert tables, and ask the assistant for summaries.
-  </Card>
-  <Card title="CAD & data" icon="layers" href="/features/ide/specialized-editors/cad/overview">
-    Design models, sketch ERDs, and export specs with guided prompts.
-  </Card>
-  <Card title="Workflows" icon="flow-branch" href="/features/workflows">
-    Combine editor actions into repeatable automations.
-  </Card>
-</Columns>
+## Available editors
+
+### Arduino & FTC Hardware
+
+The hardware suite gives you a complete embedded development environment:
+
+- **Breadboard designer** — drag and drop components onto a virtual breadboard with wiring
+- **Arduino code editor** — syntax-highlighted `.ino` editor with AI suggestions and auto-formatting
+- **Compiler** — uses Godbolt's infrastructure to compile AVR and ESP code server-side
+- **Simulator** — test circuits with virtual sensors, LEDs, buttons, and serial output
+- **OTA upload** — flash ESP32/ESP8266 boards over the network via esptool
+- **Bluetooth upload** — flash AVR boards using a local Arduino bridge
+- **FTC robotics** — write Java/Kotlin robot code with dedicated FTC panel and competition templates
+
+See [Arduino IDE docs](/features/ide/specialized-editors/arduino/upload) for the full upload guide.
+
+### Scratch Block Programming
+
+Build programs with Scratch's visual block interface and see them run in a live canvas:
+
+![Scratch 3D racing game built with blocks](race3dgame.png)
+
+- Full Scratch VM integration with sprite, costume, and sound management
+- Pen, music, motion, looks, and control extension blocks
+- Import and export `.sb3` projects
+- AI-assisted export of Scratch logic to Python or JavaScript
+- Real-time canvas preview with playback controls and green flag execution
+
+See [Scratch editor docs](/features/ide/specialized-editors/scratch/overview).
+
+### 3D Model Generation & Viewer
+
+Generate 3D models with text prompts or import existing files for inspection:
+
+![3D fullscreen model viewer](fullscreenmode-cakestudio3d.png)
+
+- **AI generation** — Meshy, Tripo, Fal.ai, Neural4D, and other text-to-3D providers
+- **Viewer** — orbit, pan, and zoom over .stl, .obj, .glb, .gltf models with material controls
+- **Fullscreen mode** for detailed inspection and screenshots
+- **Annotations** — add dimension notes and inspection comments
+
+See [Media & 3D docs](/features/ide/specialized-editors/media/overview).
+
+### Media Editor (Video & Audio)
+
+Edit video and audio directly in the browser:
+
+- Timeline-based video trimming and clip arrangement
+- Audio waveform editor with cut, fade, and volume adjustment
+- Export to .mp3, .mp4, .webm, and other formats via FFmpeg
+- AI-generated background music (Lyria integration)
+- Image generation for thumbnails, sprites, and assets
+- Screen and microphone recording
+
+See [Media editor docs](/features/ide/specialized-editors/media/overview).
+
+### Office Suite (Word, Excel, PowerPoint)
+
+Create and edit Microsoft Office-compatible documents:
+
+- **Word (.docx)** — rich text editing with headings, lists, tables, images, and export
+- **Excel (.xlsx)** — spreadsheet editing with formulas, charts, and cell formatting
+- **PowerPoint (.pptx)** — slide creation with layouts, transitions, and themes
+
+Ask the AI to summarize, rewrite, translate, or generate new content for any open document without switching apps.
+
+See [Office suite docs](/features/ide/specialized-editors/office/overview).
+
+### CAD Model Viewer
+
+Import and explore CAD and 3D design files:
+
+- Supports .stl, .obj, .glb, .gltf, .fbx files
+- Orbit, pan, zoom, and section-cut controls
+- Material, wireframe, and solid view toggling
+- Download model screenshots for documentation
+
+See [CAD viewer docs](/features/ide/specialized-editors/cad/overview).
+
+## Switching between editors
+
+Open any specialized editor from the **sidebar icon bar** or by using the command palette (Ctrl+P → type the editor name). All editors are co-resident with your code tabs — you can open a TypeScript file and the Arduino breadboard side by side in a split view.

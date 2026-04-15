@@ -1,57 +1,116 @@
 ---
 title: "Team Management"
-description: "Create teams, manage members, enforce policies, and track spending across your organization."
+description: "Create teams, invite members, set policies, build templates, and track spending across your organization."
 ---
 
 ## Creating a team
 
-From the IDE header, open **Team Admin** to create a new team. Give it a name, description, and optional custom icon. Icons use the format `iconName::#hexColor` to pick from the Lucide icon set with a custom accent color.
+From the IDE header, open **Team Admin** to create a new team:
 
-## Member management
+1. Click **Create Team**
+2. Enter a name and description
+3. Choose an icon using the format `iconName::#hexColor` (Lucide icons with custom accent color)
+4. Click **Create**
 
-Invite members by email. Each member gets a role:
+You're assigned as the **Owner** automatically.
 
-| Role | Permissions |
-| --- | --- |
-| **Owner** | Full control — billing, policies, member management, delete team |
-| **Admin** | Manage members, enforce policies, view analytics |
+## Member roles
+
+| Role | What they can do |
+|---|---|
+| **Owner** | Full control — billing, policies, members, delete team |
+| **Admin** | Manage members, enforce policies, view analytics, create templates |
 | **Member** | Access team projects, use shared templates, submit forms |
 
-Pending invitations show an "Invited" badge until the recipient accepts.
+### Inviting members
+
+1. Open **Team Admin → Members**
+2. Click **Invite Member**
+3. Enter the member's email address
+4. Select their role
+5. Click **Send Invite**
+
+The invitee receives an email and sees a pending invitation badge in their dashboard. Once accepted, they appear in the member list with their assigned role.
 
 ## Policies
 
-Team policies enforce rules across all team members:
+Policies enforce rules across all team members. Toggle any policy on or off without deleting it:
 
-- **Allowed languages** — Restrict which programming languages members can create projects in
-- **Required templates** — Mandate a starter template for new projects
-- **AI model restrictions** — Limit which AI model tiers members can use
-- **Spending limits** — Set per-member monthly spending caps (in cents)
+| Policy | Description |
+|---|---|
+| **Allowed languages** | Restrict which programming languages members can create projects in |
+| **Required template** | Force all new projects to use a specific starter template |
+| **AI model restrictions** | Limit which model tiers (Pro, Flash, Lite) members can access |
+| **Spending limits** | Set per-member monthly spend caps in your currency |
 
-Policies can be toggled on/off without deleting them, so you can experiment with rules before enforcing them.
+### Spending limits
+
+When a member hits their monthly cap:
+- AI requests return a quota-exceeded error
+- Server-side code execution is paused
+- The admin receives a notification
+- The cap resets at the start of the next billing cycle
+
+Admins can manually override a cap for a specific member in an emergency.
 
 ## Custom templates
 
-Team admins can create shared templates that appear in every member's template picker. Templates include:
+Team admins build shared starter templates visible to all members:
 
-- A name, description, language, and icon
-- A complete file tree with starter code
-- An optional "required" flag that forces all new projects to start from this template
+1. Open **Team Admin → Templates → New Template**
+2. Fill in:
+   - **Name** and description
+   - **Language** (used to set up syntax highlighting and toolchain)
+   - **Icon** (Lucide icon name)
+   - **File tree** — add files and folders with starter code
+3. Toggle **Required** if all new team projects must use this template
+4. Click **Save Template**
+
+Members see team templates in the new-project dialog alongside the global template library.
 
 ## Forms
 
-Build custom forms (onboarding surveys, project intake, feedback) that team members fill out. Forms support:
+Build custom forms for onboarding, project intake, or team surveys:
 
-- Text, number, select, and checkbox field types
-- Required/optional field validation
-- Response collection with timestamps and user attribution
+1. Open **Team Admin → Forms → New Form**
+2. Add fields:
+   - **Text** — single or multi-line
+   - **Number** — with optional min/max
+   - **Select** — dropdown with predefined options
+   - **Checkbox** — boolean toggle
+3. Mark fields as required or optional
+4. Publish the form — team members see it in the Forms section
+
+Form responses are collected with timestamps and user attribution. Export responses as CSV from the form admin view.
 
 ## Analytics & spending
 
-The analytics tab shows:
+The analytics tab gives admins visibility into team activity:
 
-- Total team spending broken down by category and member
-- AI usage statistics per model tier
-- Project activity and collaboration metrics
+| Metric | Details |
+|---|---|
+| **Total spend** | Breakdown by AI model, execution type, member, and date |
+| **AI usage** | Requests per model tier, token counts, average response time |
+| **Execution usage** | Runtime hours, execution count by language |
+| **Active users** | Daily/weekly active users, session lengths |
+| **Project activity** | Commits, file edits, workflow runs per project |
 
-Spending limits are enforced at the member level — once a member hits their cap, AI and execution requests are paused until the next billing cycle.
+## Approval workflows
+
+Require admin sign-off before sensitive actions execute:
+
+1. Open **Team Admin → Policies → Approvals**
+2. Enable approvals for:
+   - Production deployments
+   - Arduino firmware flashing
+   - Database migrations
+   - AI commands that touch production secrets
+3. Designated approvers receive a notification and click **Approve** or **Deny**
+
+The action waits in a pending state until approved. If denied, the requester sees the reason.
+
+## Deleting a team
+
+Only the **Owner** can delete a team. All projects, templates, forms, and run history are permanently deleted. This action cannot be undone.
+
+From **Team Admin → Settings → Danger Zone**, click **Delete Team** and confirm with the team name.

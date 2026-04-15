@@ -1,55 +1,90 @@
 ---
-title: "Product overview"
-description: "Understand how Code Canvas Complete weaves AI, editors, and cloud IDE workflows into one workspace."
+title: "Product Overview"
+description: "Code Canvas Complete — a full-featured browser IDE with AI, hardware, 3D, media, and collaboration tools built in."
 ---
 
-![Code Canvas workspace overview](product-overview.png)
+![Code Canvas Complete workspace overview](product-overview.png)
 
-## Prompt-first platform
+## The all-in-one browser IDE
 
-Code Canvas Complete lets you prompt the AI to edit files, run commands, build hardware, and collaborate without leaving the browser. This set of pages highlights the real tools you interact with, explains how to ask for what you need, and keeps every capability within easy reach.
+Code Canvas Complete is a professional-grade IDE that runs entirely in the browser. It combines multi-language code editing, AI-powered coding assistance, hardware programming, visual block coding, 3D model generation, audio production, office document editing, and real-time collaboration — all in a single workspace with no local installation required.
 
-<Columns cols={3}>
-  <Card title="IDE workspace" icon="terminal" href="/features/ide">
-    Multi-file editing, WebContainer shells, Git, and project tooling live together without downloads.
-  </Card>
-  <Card title="AI assistant" icon="sparkles" href="/features/ai-assistant">
-    Multi-model agents that execute commands, review code, explain symbols, and surface widgets.
-  </Card>
-  <Card title="Specialized editors" icon="layers" href="/features/ide/specialized-editors/index">
-    Hardware, 3D, media, office, CAD, databases, and workflow automation—right inside the workspace.
-  </Card>
-  <Card title="Persistent shells" icon="server" href="/features/persistent-shell">
-    Supabase functions handle terminal state, Wandbox runners, and container-backed execution.
-  </Card>
-  <Card title="Collaboration" icon="users" href="/features/collaboration">
-    Teams get governance, recordings, context pins, code review, and analytics.
-  </Card>
-  <Card title="Deployment options" icon="rocket" href="/features/deployment">
-    Ship the project to Vercel, Replit, or Koyeb with Supabase-backed services.
-  </Card>
-</Columns>
+Whether you're shipping a web app, flashing an Arduino board, building a Scratch game, or generating a 3D model, Code Canvas Complete gives you the tools and the AI support to do it.
 
-<Columns cols={3}>
-  <Card title="Workspace config" icon="gear" href="/features/environment">
-    Theme controls, encrypted env scopes, and package manager panels keep your workspace stable.
-  </Card>
-  <Card title="Workflows & API" icon="flow-branch" href="/features/workflows">
-    Build visual automations, trigger agents, and call REST/GraphQL endpoints from inside the IDE.
-  </Card>
-  <Card title="MCP & skills" icon="sparkles" href="/features/ai-mcp">
-    Model Context Protocol servers and agent skills extend the assistant with private data sources and personas.
-  </Card>
-</Columns>
+![While you wait for builds](while-you-wait.png)
 
-## Developer reference
+## What you can build
 
-Need to extend the platform? Visit the developer reference for architecture diagrams, Supabase function details, CLI commands, and workflow hooks so you can customize the experience while still keeping the AI workflows friendly.
+- **Full-stack web apps** — React, Vue, Svelte, Node.js, Python, Go, Rust, and 30+ other runtimes
+- **Hardware firmware** — Arduino (AVR/ESP), FTC robot code (Java/Kotlin), breadboard simulation
+- **Visual programs** — Scratch block coding with live preview and export
+- **3D models** — AI-powered generation with Meshy, Tripo, and Fal.ai integrations
+- **Office documents** — Word (.docx), Excel (.xlsx), and PowerPoint (.pptx) editing with AI summaries
+- **CAD designs** — View and explore 3D CAD models (.stl, .obj, etc.)
+- **Media projects** — Video and audio editing with FFmpeg in the browser
 
-## How to use this site
+## Platform sections
 
-Each page in the **Product** tab explains a feature block in depth. Start with the IDE page to understand the core workspace, then explore AI, editors, execution, collaboration, and deployment in sequence. All the content is tied back to the source code under `src/`, `supabase/functions/`, and `tools/` so you can follow along with the implementation.
+### Core workspace
 
-<Note>
-  Need more context? The existing **Guides** tab still holds the base Mintlify tutorials (quickstart, development, Markdown tips). Treat this new Product section as the narrative around what Code Canvas Complete actually does.
-</Note>
+Everything you need for professional code editing lives in the main IDE workspace — tabs, splits, file tree, terminal, Git panel, package manager, environment secrets, and a global search bar.
+
+### AI assistant
+
+The multi-model AI assistant understands the full context of your project. It can edit files, run commands, explain symbols, and generate code. Compare responses from OpenAI, Anthropic, and Gemini side-by-side, then pick the best one.
+
+![Easy template changing with AI](easytemplatechanging.png)
+
+### Specialized editors
+
+Code Canvas includes dedicated editor suites for domains beyond text code:
+
+- **Arduino IDE** with breadboard designer, simulator, and OTA/Bluetooth uploads
+- **FTC Robotics** with Java/Kotlin compilation
+- **Scratch** visual block programming with live canvas
+- **3D model viewer** and AI generation
+- **Video and audio editor** powered by FFmpeg
+- **Word, Excel, PowerPoint** in the browser
+- **CAD model viewer** for .stl, .obj, and .glb files
+
+### Collaboration
+
+Invite teammates, start WebRTC audio/video rooms, pair-program with live cursors, record sessions, and review AI spend per user — all from the collaboration panel.
+
+### Workflows & automation
+
+Build repeatable automation sequences that chain AI prompts, terminal commands, API calls, and file operations. Trigger them manually, on a schedule, or from chat.
+
+## Key highlights
+
+| Feature | Description |
+|---|---|
+| 30+ languages | JS, TS, Python, Java, C++, Go, Rust, Ruby, PHP, Lua, Kotlin, Dart, and more |
+| Multi-model AI | OpenAI GPT-4, Anthropic Claude, Google Gemini, Perplexity, DeepSeek, xAI, and BYOK |
+| Hardware | Arduino AVR/ESP compilation and flashing, FTC robot code |
+| 3D generation | Meshy, Tripo, Fal.ai, Neural4D integrations |
+| Extensions | Widget, command, and chat-tool extension runtimes |
+| Auth | Email/password, Google OAuth, Replit OAuth, and passkey support |
+| Themes | 7 built-in themes + custom theme creator and library |
+
+## Quick navigation
+
+#### Workspace
+- [IDE Workspace](/features/ide) — Editor, terminal, Git, file tree
+- [AI Assistant](/features/ai-assistant) — Chat, models, diffs, autonomy
+- [Environment](/features/environment) — Secrets, themes, packages
+- [Extensions](/features/ide/extensions) — Build and install custom tools
+
+#### Specialized editors
+- [Specialized Editors Overview](/features/ide/specialized-editors/index)
+- [Arduino](/features/ide/specialized-editors/arduino/upload) — Upload, code, simulate boards
+- [Scratch](/features/ide/specialized-editors/scratch/overview) — Block programming
+- [Office Suite](/features/ide/specialized-editors/office/overview) — Word, Excel, PowerPoint
+- [Media Editor](/features/ide/specialized-editors/media/overview) — Video, audio
+- [CAD Viewer](/features/ide/specialized-editors/cad/overview) — 3D model exploration
+
+#### Teamwork
+- [Collaboration](/features/collaboration) — Rooms, cursors, recordings
+- [Team Management](/features/team-management) — Roles, spending, access
+- [Workflows](/features/workflows) — Automation sequences
+- [Deployment](/features/deployment) — Publish to hosting platforms
