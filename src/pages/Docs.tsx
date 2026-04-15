@@ -137,9 +137,10 @@ const assetModules = import.meta.glob("/docs/assets/*.{png,jpg,jpeg,gif,svg,webp
 >;
 
 function resolveAssetUrl(src: string): string {
-  let key = src.startsWith("/") ? src : `/docs/assets/${src}`;
+  const decoded = decodeURIComponent(src);
+  let key = decoded.startsWith("/") ? decoded : `/docs/assets/${decoded}`;
   if (assetModules[key]) return assetModules[key].default;
-  const filename = src.split("/").pop() || "";
+  const filename = decoded.split("/").pop() || "";
   for (const [k, mod] of Object.entries(assetModules)) {
     if (k.endsWith(`/${filename}`)) return mod.default;
   }
