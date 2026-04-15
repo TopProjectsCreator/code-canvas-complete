@@ -1,0 +1,54 @@
+---
+title: "Automation Hub"
+description: "Build visual automation pipelines with 70+ integration blocks, triggers, and AI-powered code generation."
+---
+
+## Visual pipeline builder
+
+The Automation canvas lets you chain blocks together into executable pipelines. Each block represents an action — calling an API, transforming data, sending a notification, or invoking an AI model. Drag blocks from the sidebar, connect them in order, and generate working Python or Node.js code with one click.
+
+## Triggers
+
+Every pipeline starts with a trigger block. Triggers define **when** the automation runs:
+
+| Trigger | Parameters |
+| --- | --- |
+| **Schedule (Cron)** | Preset times like "Tonight at 8 PM", "Every hour", or a custom cron expression |
+| **Webhook** | Listens for incoming HTTP POST requests |
+| **RSS Feed Monitor** | Polls a feed URL at a configurable interval |
+| **Email Monitor** | Watches a mailbox with subject/sender filters |
+| **File Watcher** | Monitors a directory for file changes matching a glob pattern |
+| **Database Change** | Fires on INSERT, UPDATE, or DELETE on a specified table |
+| **FTP Monitor** | Watches a remote FTP directory for new files |
+
+When the first block in a pipeline is not a trigger, the block palette only shows trigger blocks until one is placed.
+
+## Integration blocks
+
+Over 70 blocks are organized into categories:
+
+- **AI & Language** — OpenAI, Anthropic, Gemini, Hugging Face, text summarization, sentiment analysis
+- **Social & Messaging** — Slack, Discord, Telegram, Twitter, email
+- **Data & Storage** — PostgreSQL, Redis, S3, Google Sheets, CSV parsing
+- **DevOps** — GitHub, Docker, SSH, shell commands
+- **Commerce** — Stripe, PayPal, Shopify
+- **Utilities** — HTTP requests, JSON transforms, delay, conditional branching
+
+## Code generation
+
+Click **Generate Python** or **Generate Node.js** to produce a runnable script from your pipeline. The generator:
+
+- Wraps mixed text and variables in proper f-strings (Python) or template literals (Node.js)
+- Maps trigger parameters to real implementations (e.g., schedule presets → cron expressions)
+- Chains block outputs through a `prev` variable so each step can reference the previous result
+- Pulls API keys from environment variables, never hardcoding secrets
+
+## Variable interpolation
+
+Reference the output of any previous step using double-brace tokens:
+
+```
+Hello {{prev.name}}, your order {{prev.order_id}} is confirmed.
+```
+
+The code generator converts these to `f"Hello {prev.get('name', '')}"` in Python or `` `Hello ${prev?.name ?? ''}` `` in Node.js.

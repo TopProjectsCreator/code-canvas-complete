@@ -1,0 +1,57 @@
+---
+title: "Team Management"
+description: "Create teams, manage members, enforce policies, and track spending across your organization."
+---
+
+## Creating a team
+
+From the IDE header, open **Team Admin** to create a new team. Give it a name, description, and optional custom icon. Icons use the format `iconName::#hexColor` to pick from the Lucide icon set with a custom accent color.
+
+## Member management
+
+Invite members by email. Each member gets a role:
+
+| Role | Permissions |
+| --- | --- |
+| **Owner** | Full control — billing, policies, member management, delete team |
+| **Admin** | Manage members, enforce policies, view analytics |
+| **Member** | Access team projects, use shared templates, submit forms |
+
+Pending invitations show an "Invited" badge until the recipient accepts.
+
+## Policies
+
+Team policies enforce rules across all team members:
+
+- **Allowed languages** — Restrict which programming languages members can create projects in
+- **Required templates** — Mandate a starter template for new projects
+- **AI model restrictions** — Limit which AI model tiers members can use
+- **Spending limits** — Set per-member monthly spending caps (in cents)
+
+Policies can be toggled on/off without deleting them, so you can experiment with rules before enforcing them.
+
+## Custom templates
+
+Team admins can create shared templates that appear in every member's template picker. Templates include:
+
+- A name, description, language, and icon
+- A complete file tree with starter code
+- An optional "required" flag that forces all new projects to start from this template
+
+## Forms
+
+Build custom forms (onboarding surveys, project intake, feedback) that team members fill out. Forms support:
+
+- Text, number, select, and checkbox field types
+- Required/optional field validation
+- Response collection with timestamps and user attribution
+
+## Analytics & spending
+
+The analytics tab shows:
+
+- Total team spending broken down by category and member
+- AI usage statistics per model tier
+- Project activity and collaboration metrics
+
+Spending limits are enforced at the member level — once a member hits their cap, AI and execution requests are paused until the next billing cycle.

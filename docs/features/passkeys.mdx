@@ -1,0 +1,39 @@
+---
+title: "Passkey Authentication"
+description: "Set up biometric and hardware-key authentication using the WebAuthn API for passwordless sign-in."
+---
+
+## What are passkeys?
+
+Passkeys use the Web Authentication (WebAuthn) API to let you sign in with your fingerprint, face, or a hardware security key instead of a password. They are phishing-resistant, device-bound credentials stored securely by your operating system or browser.
+
+## Registering a passkey
+
+1. Open **Settings → Passkeys** from the user menu.
+2. Click **Register device** and follow your browser's prompt (Touch ID, Windows Hello, or a USB key).
+3. Give the credential a friendly name like "MacBook Pro" or "YubiKey 5".
+
+The system stores only the public key and a credential ID — your biometric data never leaves your device.
+
+## Signing in with a passkey
+
+From the login screen, click **Sign in with Passkey**. The browser will prompt you to verify with the same biometric or hardware key you registered. If the credential matches, you are authenticated instantly — no password or email code required.
+
+## Managing credentials
+
+| Action | How |
+| --- | --- |
+| View registered devices | Settings → Passkeys |
+| Remove a device | Click the trash icon next to the credential |
+| Add another device | Click **Register device** again |
+
+You can register multiple passkeys across different devices. Removing a passkey does not sign you out of existing sessions.
+
+## Security considerations
+
+- Passkeys are bound to the origin (`replitclone.lovable.app`), so they cannot be phished on a lookalike domain.
+- The server stores only the public key half of the credential.
+- Sign counts are tracked to detect cloned authenticators.
+- Credentials are scoped per user with row-level security — no user can see another user's keys.
+
+> **Note:** Passkeys require a secure context (HTTPS). They will not work on plain HTTP or localhost without special browser flags.
