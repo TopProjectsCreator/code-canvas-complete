@@ -1,0 +1,110 @@
+---
+title: "Workspace Configuration"
+description: "Customize themes, manage environment variables, control package scripts, and configure editor panels in Code Canvas."
+---
+
+## Personalize your workspace
+
+Code Canvas stores your layout preferences, themes, and panel states in your browser session so the workspace feels consistent across reloads and devices.
+
+## Themes
+
+Choose from 7 built-in themes or create your own:
+
+| Theme | Description |
+|---|---|
+| **Dark** | Deep neutral dark background (default) |
+| **Light** | Clean white with soft gray accents |
+| **Ocean Dark** | Deep blue-tinted dark mode |
+| **Forest** | Green-accented dark mode |
+| **Sunset** | Warm amber and coral tones |
+| **Monokai** | Classic code-editor color scheme |
+| **Midnight** | High-contrast near-black |
+
+### Custom themes
+
+The **Custom Theme Creator** (Settings → Appearance → Create Theme) lets you define every color token:
+
+1. Pick a base theme to start from
+2. Adjust background, foreground, accent, border, and syntax colors
+3. Preview the changes live as you edit
+4. Save and name your theme
+5. Export as a JSON file to share with teammates or import on another device
+
+The **Theme Library** shows all your saved custom themes with options to edit, clone, or delete. Use **Import Theme** to load a theme from a JSON file shared by a teammate.
+
+## Layout controls
+
+Adjust which panels are visible and how they're arranged:
+
+- **File tree** — toggle visibility, adjust width
+- **Minimap** — show or hide the code minimap
+- **Terminal** — split into 2 or 3 terminal panes
+- **Activity bar** — choose which icons appear in the sidebar
+- **Panel layout** — split editor vertically or horizontally, save favorite configurations
+
+Drag any tab to a split zone to arrange multiple files and terminals side by side.
+
+## Environment variables and secrets
+
+![Dependencies and environment panel](dependencies.png)
+
+The environment manager stores secrets per scope so they're available to the right contexts:
+
+| Scope | Used by |
+|---|---|
+| **Preview** | Development server and dev-mode features |
+| **Shared** | Available everywhere (non-sensitive configs) |
+| **Production** | Only active in deployed environments |
+
+### Adding a secret
+
+1. Open **Settings → Environment**
+2. Click **Add Variable**
+3. Enter a key name and value
+4. Select a scope
+5. Click **Save**
+
+Secrets appear masked in the UI. The AI assistant can use them (e.g., to make API calls) without exposing the raw value in the chat transcript.
+
+### Rotating secrets
+
+Set an **expiration date** on any secret. Code Canvas warns you 7 days before expiry and again on the day. Update the value in the environment panel — all workflows and AI sessions pick up the new value immediately.
+
+## Package manager
+
+The Packages panel shows all installed npm packages:
+
+- **Search** — find packages by name with npm registry results
+- **Install** — click to add a package and version
+- **Update** — upgrade to the latest compatible version
+- **Remove** — uninstall and clean `package.json`
+- **Dependency graph** — visualize which packages depend on which others
+
+### Pinned scripts
+
+Pin frequently used scripts from `package.json` for one-click access:
+
+```
+npm run dev     → Start development server
+npm run build   → Build for production
+npm run test    → Run test suite
+npm run lint    → Lint the codebase
+```
+
+The terminal pane shows the output as it streams, and the AI picks up the context so you can immediately follow up with a prompt.
+
+## Status notifications
+
+Toast notifications confirm workspace events:
+
+- Package install complete / failed
+- Environment variable saved or expired
+- Theme changed
+- Layout saved
+
+Notifications include action links — click to reopen the relevant panel or undo the last change.
+
+<Note>
+  Panel layouts, script pins, and terminal history persist in your browser session. Reload without losing context — preferences sync across devices when you're signed in.
+</Note>

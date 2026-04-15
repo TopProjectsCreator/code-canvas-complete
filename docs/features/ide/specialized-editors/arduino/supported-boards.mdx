@@ -1,0 +1,60 @@
+---
+title: "Supported Arduino Boards"
+description: "Which AVR and ESP boards work with Code Canvas compilation and upload."
+---
+
+## AVR boards (USB / Bluetooth upload)
+
+Code Canvas supports the full range of popular AVR-based boards using `avrdude` as the upload tool.
+
+| Board | MCU | Upload method |
+|---|---|---|
+| Arduino Uno | ATmega328P | USB-Serial / Bluetooth |
+| Arduino Nano | ATmega328P | USB-Serial / Bluetooth |
+| Arduino Mega 2560 | ATmega2560 | USB-Serial / Bluetooth |
+| Arduino Leonardo | ATmega32U4 | USB-HID / Bluetooth |
+| Arduino Micro | ATmega32U4 | USB-HID / Bluetooth |
+| Arduino Pro Mini | ATmega328P | USB-Serial (with adapter) |
+
+### Baud and programmer settings
+
+The hardware sidebar shows a **Programmer** and **Baud Rate** dropdown. The defaults (115200 baud, `arduino` programmer) work for most boards. Change the programmer to `usbasp` or `stk500v1` for clones that require it.
+
+## ESP boards (OTA / Bluetooth upload)
+
+ESP-based boards support over-the-air (OTA) uploads using `esptool` and `espota.py`.
+
+| Board | MCU | Upload method |
+|---|---|---|
+| ESP32 (generic) | ESP32 | OTA (esptool) / Bluetooth |
+| ESP32-S2 | ESP32-S2 | OTA (esptool) |
+| ESP32-S3 | ESP32-S3 | OTA (esptool) |
+| ESP32-C3 | ESP32-C3 (RISC-V) | OTA (esptool) |
+| ESP8266 (generic) | ESP8266 | OTA (espota.py) / Bluetooth |
+| Wemos D1 Mini | ESP8266 | OTA (espota.py) |
+| NodeMCU | ESP8266 | OTA (espota.py) |
+
+### OTA configuration
+
+For OTA uploads, enter in the hardware sidebar:
+
+1. **Board IP address** — the ESP's IP on your local network
+2. **Port** — default 8266 (ESP8266) or 3232 (ESP32)
+3. **OTA password** — if your sketch requires one
+
+The assistant can detect the board type from your sketch's `#include` statements and pre-fill the correct OTA settings.
+
+## FTC Robotics boards
+
+Code Canvas also supports **FIRST Tech Challenge** robot controller boards:
+
+| Device | SDK | Language |
+|---|---|---|
+| REV Control Hub | FTC SDK 10.x | Java / Kotlin |
+| REV Expansion Hub | FTC SDK 10.x | Java / Kotlin |
+
+FTC projects use the dedicated FTC panel with OpMode templates, hardware map configuration, and Java/Kotlin compilation.
+
+## Requesting a board
+
+If your board isn't listed, open an issue or ask the assistant: **"Add support for [board name]"**. The assistant will check the toolchain requirements and guide you through adding the board configuration.

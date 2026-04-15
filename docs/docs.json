@@ -1,0 +1,140 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Code-Canvas-Docs",
+  "colors": {
+    "primary": "#16A34A",
+    "light": "#07C983",
+    "dark": "#15803D"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Product",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "features/index"
+            ]
+          },
+          {
+            "group": "IDE Workspace",
+            "pages": [
+              "features/ide/index",
+              "features/ide/extensions",
+              "features/environment"
+            ]
+          },
+          {
+            "group": "Specialized Editors",
+            "pages": [
+              "features/ide/specialized-editors/index",
+              "features/hardware",
+              "features/ide/specialized-editors/arduino/upload",
+              "features/ide/specialized-editors/arduino/coding-ino",
+              "features/ide/specialized-editors/arduino/simulator",
+              "features/ide/specialized-editors/arduino/supported-boards",
+              "features/ide/specialized-editors/scratch/overview",
+              "features/ide/specialized-editors/media/overview",
+              "features/ide/specialized-editors/office/overview",
+              "features/ide/specialized-editors/cad/overview"
+            ]
+          },
+          {
+            "group": "AI",
+            "pages": [
+              "features/ai-assistant",
+              "features/ai-mcp"
+            ]
+          },
+          {
+            "group": "Workflows & Automation",
+            "pages": [
+              "features/workflows/index",
+              "features/workflows/triggers",
+              "features/workflows/api-playground",
+              "features/workflows/history",
+              "features/automation"
+            ]
+          },
+          {
+            "group": "Execution",
+            "pages": [
+              "features/persistent-shell",
+              "features/execute-code"
+            ]
+          },
+          {
+            "group": "Collaboration",
+            "pages": [
+              "features/collaboration",
+              "features/team-management"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "features/deployment"
+            ]
+          },
+          {
+            "group": "Security & Access",
+            "pages": [
+              "features/passkeys",
+              "features/offline-mode"
+            ]
+          },
+          {
+            "group": "Developer Reference",
+            "pages": [
+              "features/dev-reference",
+              "features/shell-safety-runbook"
+            ]
+          }
+        ]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "Repository",
+          "href": "https://github.com/TopProjectsCreator/code-canvas-complete",
+          "icon": "github"
+        }
+      ]
+    }
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [],
+    "primary": {
+      "type": "button",
+      "label": "Open editor",
+      "href": "/"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/mintlify",
+      "github": "https://github.com/mintlify",
+      "linkedin": "https://linkedin.com/company/mintlify"
+    }
+  }
+}

@@ -1,0 +1,121 @@
+---
+title: "Code Execution"
+description: "How Code Canvas runs code across languages using WebContainers, Wandbox, and container executors."
+---
+
+## How code execution works
+
+Every command you run — from `npm start` to a Python script to an Arduino compilation — passes through the Code Canvas execution layer. The system automatically routes your code to the right runtime based on language, complexity, and your workspace settings.
+
+## Execution runtimes
+
+Code Canvas uses three execution environments:
+
+### WebContainers (in-browser)
+
+WebContainers run Node.js natively in the browser using a micro-OS called WebAssembly:
+
+- **Languages** — JavaScript, TypeScript, Node.js, npm/pnpm/yarn scripts
+- **Instant startup** — no server round-trip needed
+- **Terminal access** — full bash-like shell with file system access
+- **Offline capable** — works without internet for JS-based projects
+
+### Wandbox (cloud compiler)
+
+Wandbox is a cloud-based compilation service for languages that can't run in the browser:
+
+![C language code running in Code Canvas](c_lang.png)
+
+- **Languages** — C, C++, Go, Rust, Java, Kotlin, Swift, Ruby, PHP, Perl, Haskell, Elixir, Lua, and more
+- **No setup** — no toolchain installation required
+- **Ephemeral** — each compilation is isolated and stateless
+- **Output** — stdout, stderr, and exit code returned in under 5 seconds for most programs
+
+![Mandelbrot set rendering — an example of compute-intensive code executed via Wandbox](mandlebrotset.png)
+
+### Container executor (Supabase function)
+
+For longer-running or stateful workloads, Code Canvas routes to a server-side container:
+
+- **Languages** — Bash, Python, shell scripts, Docker commands, custom CLI tools
+- **Persistent state** — the container keeps your installed packages and working directory across commands in a session
+- **Session ID** — each session has an ID shown in the terminal footer for sharing
+- **30-second default timeout** — stage long jobs in workflows to avoid interruptions
+
+## Executor selection
+
+The system picks the right executor automatically:
+
+| Scenario | Executor |
+|---|---|
+| `npm`, `pnpm`, `node` commands | WebContainer |
+| `python`, `pip` commands | Container executor |
+| Compiled languages (Go, Rust, C++) | Wandbox |
+| `bash`, `sh` scripts | Container executor |
+| Arduino `.ino` compilation | Godbolt (server-side) |
+| Long-running jobs | Workflow step |
+
+Override the default executor in **Settings → Execution → Executor mode**.
+
+## Session persistence
+
+Container sessions maintain state:
+
+- Installed packages stay installed for the session duration
+- Working directory and environment variables persist
+- Shell history is accessible
+- Output from earlier commands is available in the AI's context
+
+Reset a session from the terminal toolbar if you need a clean state.
+
+## AI-integrated execution
+
+The AI assistant is integrated with the execution layer:
+
+- The assistant can run terminal commands directly (with your permission)
+- It captures stdout/stderr and reads the output to continue the conversation
+- Failed commands surface a diagnosis and a suggested fix inline
+- Long outputs are summarized so they don't flood the chat
+
+## Error handling
+
+When execution fails, Code Canvas shows:
+
+1. **Exit code** and signal (if crashed)
+2. **Error message** — the raw stderr output
+3. **AI diagnosis** — plain-English explanation of what went wrong
+4. **Suggested fix** — a one-click prompt to apply the corrective change
+
+Common errors:
+- `Module not found` → installs the missing package and reruns
+- `Syntax error` → jumps to the line and suggests a fix
+- `Timeout` → suggests splitting the task into a workflow
+- `Permission denied` → advises on file permission changes
+
+## Execution API reference
+
+The execute-code Supabase function accepts:
+
+```json
+{
+  "code": "print('hello')",
+  "language": "python",
+  "stdin": "",
+  "mode": "container",
+  "sessionId": "optional-session-id"
+}
+```
+
+Returns:
+
+```json
+{
+  "stdout": "hello\n",
+  "stderr": "",
+  "exitCode": 0,
+  "sessionId": "abc-123",
+  "duration": 412
+}
+```
+
+See the [Developer Reference](/features/dev-reference) for full API documentation and auth details.

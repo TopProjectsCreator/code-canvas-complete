@@ -1,0 +1,144 @@
+---
+title: "Terminal Safety Runbook"
+description: "A practical guide for safe terminal operations in Code Canvas — preflight checks, risky commands, and rollback strategies."
+---
+
+## Why terminal safety matters
+
+The Code Canvas terminal has full access to your project files and runs commands with your credentials. Mistakes in a terminal — especially in production — can delete data, expose secrets, or break a running service. This runbook gives you a concise playbook for common high-risk operations.
+
+## Universal preflight checklist
+
+Before running any command that modifies files or state:
+
+1. **Confirm you're in the right directory** — run `pwd` and check the path
+2. **Confirm you're in the right environment** — Preview, not Production
+3. **Check what's there first** — run `ls -la` before any delete or overwrite
+4. **Prefer dry-run mode** — most tools support `--dry-run` or `--check` flags
+5. **Capture a log** — pipe output to a file during maintenance: `command 2>&1 | tee run.log`
+6. **Create a backup** — copy important files before changing them: `cp -r src/ src.bak/`
+7. **Use explicit paths** — avoid broad wildcards like `rm *`
+8. **Verify exit codes** — check `$?` after critical commands
+
+## High-risk command profiles
+
+### `rm` — file deletion
+
+**Risk:** Permanent data loss. `rm -rf` deletes directories instantly without a trash bin.
+
+```bash
+# Always check before deleting
+ls -la target-directory/
+
+# Safe: move to trash instead of deleting
+mv unwanted-file/ ~/.Trash/
+
+# Dangerous — avoid in production
+rm -rf node_modules/   # Use only in clean-install flows
+```
+
+**Rollback:** Git can recover tracked files with `git checkout -- <file>`. Untracked files deleted with `rm` are gone permanently.
+
+### `npm install` / `pnpm install`
+
+**Risk:** Overwrites `node_modules`, changes `package-lock.json`, can introduce breaking dependency changes.
+
+```bash
+# Check what will change first
+npm outdated
+
+# Install with exact versions to avoid surprises
+npm install --save-exact package-name
+
+# Safe cleanup before reinstall
+rm -rf node_modules package-lock.json
+npm install
+```
+
+**Rollback:** Restore `package.json` and `package-lock.json` from Git, then reinstall.
+
+### `git` — version control
+
+**Risk:** `git reset --hard`, `git push --force`, and `git rebase` can destroy commit history.
+
+```bash
+# Check status before any operation
+git status
+git log --oneline -10
+
+# Safe stash before risky operations
+git stash
+
+# Dangerous — confirm intent before running
+git reset --hard HEAD~1
+git push --force origin main
+```
+
+**Rollback:** Use `git reflog` to find and restore lost commits within 30 days.
+
+### `supabase functions deploy`
+
+**Risk:** Overwrites live edge functions with potentially breaking code.
+
+```bash
+# Test locally first
+supabase functions serve
+
+# Deploy a single function to limit blast radius
+supabase functions deploy function-name
+
+# Deploy all functions
+supabase functions deploy
+```
+
+**Rollback:** Redeploy the previous commit: `git checkout <previous-sha>` then `supabase functions deploy`.
+
+### `npm run build`
+
+**Risk:** Low (only writes to `dist/`), but a failed build can block deployments.
+
+```bash
+# Lint and type-check before building
+npm run lint && npm run type-check
+
+# Then build
+npm run build
+```
+
+**Rollback:** The previous `dist/` is overwritten — keep a deployment copy in the hosting provider (Vercel/Koyeb/Replit will handle rollback through their dashboard).
+
+### Environment variable changes
+
+**Risk:** Wrong environment variable in production can break auth, AI, or database connections.
+
+```bash
+# Before changing an env var:
+# 1. Document the old value securely
+# 2. Test in Preview scope first
+# 3. Then update Shared or Production
+
+# Verify the var is set correctly
+echo $VITE_SUPABASE_URL
+```
+
+**Rollback:** Restore the old value in the environment panel. Changes take effect on the next request — no redeploy needed.
+
+## AI-assisted terminal safety
+
+The AI assistant in Code Canvas helps prevent dangerous operations:
+
+- In **Safe mode** — every command shows a preview before running
+- In **Balanced mode** — the AI asks for confirmation on risky operations (`rm`, `git reset`, `force push`)
+- Agent skill example: `"Never run git reset --hard or rm -rf without explicit user confirmation"`
+
+Add the "Git guardrails" agent skill to enforce confirmation prompts automatically for destructive git commands.
+
+## After an incident
+
+1. Stop further changes immediately
+2. Document what was run and when (use terminal log or session recording)
+3. Assess what data was affected
+4. Use Git (`git reflog`, `git stash list`) to recover tracked files
+5. Restore environment variables if changed
+6. Redeploy the last known-good version from the hosting dashboard
+7. Run a smoke test: trigger an AI prompt, run a test build, check a Supabase function

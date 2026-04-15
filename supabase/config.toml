@@ -1,0 +1,52 @@
+project_id = "xlmvlplazxrouscupidi"
+
+[functions.ai-chat]
+verify_jwt = false
+
+[functions.generate-command]
+verify_jwt = false
+
+[functions.generate-music]
+verify_jwt = false
+
+[functions.template-assistant]
+verify_jwt = false
+
+[functions.validate-api-key]
+verify_jwt = false
+
+[functions.compile-arduino]
+verify_jwt = false
+
+[functions.ai-explain-symbol]
+verify_jwt = false
+
+[functions.ai-generate-tests]
+verify_jwt = false
+
+[functions.session-recorder-sync]
+verify_jwt = false
+
+[functions.manage-env-secrets]
+verify_jwt = false
+
+[functions.compile-ftc]
+verify_jwt = false
+
+[functions.create-extension]
+verify_jwt = false
+
+[functions.publish-extension]
+verify_jwt = false
+
+[functions.list-store-extensions]
+verify_jwt = false
+
+[functions.install-extension]
+verify_jwt = false
+
+[functions.submit-extension-review]
+verify_jwt = false
+
+[functions.generate-extension]
+verify_jwt = false

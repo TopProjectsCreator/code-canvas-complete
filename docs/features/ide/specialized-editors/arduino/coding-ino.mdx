@@ -1,0 +1,65 @@
+---
+title: "Coding in .ino"
+description: "Write, prompt, and AI-complete Arduino sketches with the built-in .ino code editor."
+---
+
+![Arduino breadboard with AI assistant](ardurino-with-assistant.png)
+
+## The .ino editor
+
+The Arduino editor in Code Canvas is a purpose-built `.ino` code editor with:
+
+- **Syntax highlighting** for C++ and Arduino-specific keywords
+- **Auto-indentation** and brace matching
+- **Code folding** for long functions
+- **Error highlighting** with inline messages from the compiler
+- **AI inline suggestions** — press Tab to accept a suggestion
+
+## How AI helps with Arduino code
+
+Tell the assistant what you want to add and it inserts the complete code block in the right place:
+
+| Prompt | Result |
+|---|---|
+| "Add PWM control to pin 5" | Inserts `analogWrite(5, value)` with a variable and setup |
+| "Read temperature from a DHT22 sensor" | Adds the DHT library import, setup, and loop read |
+| "Blink LED on pin 13 at 500ms" | Adds complete blink logic |
+| "Add serial debug output" | Inserts `Serial.begin(9600)` and `Serial.println()` calls |
+| "Debounce the button on pin 2" | Adds a millis-based debounce implementation |
+
+The assistant understands `setup()` and `loop()` structure so it won't duplicate initialization code or re-define already-declared variables.
+
+## Sketch best practices
+
+The assistant follows these patterns automatically:
+
+- Uses `millis()` for non-blocking delays instead of `delay()`
+- Declares pin numbers as `const int` constants at the top
+- Adds comments above each function explaining its purpose
+- Follows the Arduino [style guide](https://www.arduino.cc/en/Reference/StyleGuide) for naming
+
+## AI comparison view
+
+When making a significant change, open the **AI Comparison Panel** to see how different models (GPT-4, Claude, Gemini) would implement the same feature. Compare approaches and pick the clearest implementation before accepting the edit.
+
+## Auto-compile on save
+
+When you save the `.ino` file, Code Canvas automatically queues a compilation for the selected board. You'll see:
+
+- A spinner in the tab while compiling
+- Green checkmark on success (with binary size info)
+- Red error with line number on failure
+
+This keeps the next upload ready without a separate button click.
+
+## Working with libraries
+
+Type `#include <` to see available Arduino library suggestions. The assistant can:
+
+- Suggest which library to use for a given sensor or module
+- Install missing libraries by adding them to the project configuration
+- Show the library documentation inline
+
+## Multi-file sketches
+
+Larger Arduino projects can span multiple files. Add `.cpp` and `.h` files to the project and the Arduino editor handles them as part of the same sketch. The AI can split a large `.ino` file into logical modules on request.

@@ -1,0 +1,76 @@
+---
+title: "MCP Servers & Agent Skills"
+description: "Extend the AI assistant with Model Context Protocol servers and structured agent skills for specialized behaviors."
+---
+
+## What are MCP servers?
+
+Model Context Protocol (MCP) servers are external data adapters that feed the AI assistant with private or specialized information it can't access on its own. Examples:
+
+- A server connected to your internal PostgreSQL database so the AI can answer schema questions
+- A server pointing to your private API docs so the AI can generate correct request payloads
+- A server that reads your team's Jira issues so the AI can reference project context
+- A server connected to a web search provider for real-time information
+
+## Adding an MCP server
+
+1. Open the **MCP & Skills** panel from the sidebar
+2. Click **Add Server**
+3. Enter:
+   - **Name** — display label for this server
+   - **URL** — the endpoint that returns context data
+   - **API key or Bearer token** — if the server requires authentication
+   - **Permissions** — what the assistant can do with the returned data (read-only vs. write)
+4. Click **Connect** — the server appears in the active list
+
+The assistant includes the MCP server's context automatically in every prompt session where the server is toggled on.
+
+## Agent skills
+
+Agent skills are structured instruction sets that shape how the AI responds. They're like persona templates — activate a skill, and the assistant adjusts its tone, format, and priorities for that session.
+
+### Example skills
+
+| Skill name | Effect |
+|---|---|
+| **Tailwind enforcer** | All CSS suggestions use Tailwind utility classes |
+| **Type-safe TypeScript** | All generated code includes full type annotations |
+| **Checklist responder** | Every response is formatted as a numbered checklist |
+| **Junior-friendly** | Explanations are detailed and avoid jargon |
+| **Git guardrails** | Asks for confirmation before any destructive git command |
+| **Arduino expert** | Prioritizes embedded-friendly patterns and hardware safety |
+
+### Creating a skill
+
+1. In the **MCP & Skills** panel, click **New Skill**
+2. Write the instruction in plain language: `"Always include JSDoc comments on every function. Prefer composition over inheritance. Never use `any` types."`
+3. Give it a name and optional icon
+4. Toggle it on to activate for the current session
+
+Skills are stored in `skills-lock.json` and versioned with your project. Teammates who clone the project inherit the same skill library.
+
+## Combining MCP + skills
+
+The most powerful setups combine both:
+
+- **MCP server** providing your company's API schema
+- **Skill** instructing the AI to always use your internal API for external calls instead of third-party services
+
+This results in AI responses that are contextually grounded in your real infrastructure.
+
+## Prompt architecture
+
+Every AI request includes three layers:
+
+1. **System instructions** — active agent skills + MCP server descriptions
+2. **Workspace context** — open files, git diff, terminal output, active TODOs
+3. **User request** — your chat message + any widget or tool metadata
+
+You can view the full prompt in the **Debug** mode under Settings → AI → Show prompt.
+
+## Managing servers and skills
+
+- Toggle any server or skill on/off per session without deleting it
+- Delete a server or skill from the panel context menu
+- Export your skills to share with teammates or import from another project
+- The panel always shows which servers and skills are currently active

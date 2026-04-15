@@ -1,0 +1,62 @@
+---
+title: "CAD & Data Viewer"
+description: "View and inspect 3D CAD models, STL files, and design assets directly in the Code Canvas workspace."
+---
+
+## 3D design in your IDE
+
+The CAD viewer opens mechanical design files, 3D models, and technical assets without leaving the browser. It complements the code editor for projects that involve physical hardware, printed parts, or game assets.
+
+## Supported file formats
+
+| Format | Use case |
+|---|---|
+| `.stl` | 3D printing and mechanical CAD |
+| `.obj` | General 3D geometry with materials |
+| `.glb` / `.gltf` | Game engines, AR/VR, web 3D |
+| `.fbx` | Animation and rigged models |
+| `.3ds` | Autodesk 3D Studio legacy files |
+
+## Viewer controls
+
+- **Orbit** — left-click and drag to rotate around the model
+- **Pan** — right-click and drag to translate the view
+- **Zoom** — scroll wheel or pinch-to-zoom
+- **Reset view** — double-click the model to re-center
+- **Fit to screen** — press F to fit the model in the viewport
+
+## Display modes
+
+Switch between display modes from the toolbar:
+
+| Mode | Description |
+|---|---|
+| **Solid** | Shaded surface render |
+| **Wireframe** | Show mesh edges only |
+| **Solid + Wireframe** | Overlay edges on shaded model |
+| **UV Grid** | Check texture mapping quality |
+| **X-ray** | See through opaque surfaces |
+
+## Annotations and measurements
+
+- Add text labels to specific points on the model
+- Measure edge lengths and face distances
+- Export an annotated screenshot for documentation
+
+## AI integration
+
+Ask the AI about open CAD models:
+
+- **"What is the approximate volume of this object?"** — uses bounding box geometry to estimate
+- **"Describe this part's function"** — interprets the geometry in the context of your project
+- **"Suggest changes for 3D printing"** — reviews common printability issues like overhangs and thin walls
+
+## Database design
+
+In addition to 3D file viewing, the CAD panel includes a basic **Entity Relationship Diagram (ERD)** builder:
+
+- Create tables with column names and data types
+- Define primary keys, foreign keys, and relationships
+- Generate SQL `CREATE TABLE` statements from the diagram
+- Ask the AI to explain constraints and suggest indexes
+- Link the ERD to a workflow that runs migrations on save

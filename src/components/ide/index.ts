@@ -1,0 +1,21 @@
+export { IDELayout } from './IDELayout';
+export { Header } from './Header';
+export { Sidebar } from './Sidebar';
+export { FileTree } from './FileTree';
+export { FileIcon } from './FileIcon';
+export { EditorTabs } from './EditorTabs';
+export { CodeEditor } from './CodeEditor';
+export { FindReplace } from './FindReplace';
+export { Terminal } from './Terminal';
+export { Preview } from './Preview';
+export { NewFileDialog } from './NewFileDialog';
+export { LanguagePicker } from './LanguagePicker';
+export { AIChat } from './AIChat';
+export { GitPanel } from './GitPanel';
+export { PackagePanel } from './PackagePanel';
+export { WorkflowsPanel } from './WorkflowsPanel';
+export { FilePreview } from './FilePreview';
+export { GitProviderImportDialog } from './GitProviderImportDialog';
+export { SettingsDialog } from './SettingsDialog';
+
+export { AdvancedWorkbench } from './AdvancedWorkbench';

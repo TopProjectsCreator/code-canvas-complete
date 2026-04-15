@@ -1,0 +1,60 @@
+---
+title: "Arduino Simulator"
+description: "Test circuits on a virtual breadboard with simulated sensors, LEDs, buttons, and serial output."
+---
+
+## Virtual breadboard
+
+The simulator gives you a drag-and-drop breadboard environment to prototype circuits before touching real hardware. Add components, wire them up, and run your sketch against the simulated components — all in the browser.
+
+## Adding components
+
+Open the component palette and drag any of these onto the breadboard:
+
+| Category | Components |
+|---|---|
+| **Output** | LED (various colors), 7-segment display, LCD 16x2, RGB LED, buzzer |
+| **Input** | Push button, toggle switch, potentiometer, rotary encoder |
+| **Sensors** | Temperature (DHT11/DHT22), ultrasonic (HC-SR04), PIR motion, light (LDR) |
+| **Communication** | OLED display (SSD1306), I2C expander |
+| **Power** | Resistors, capacitors, jumper wires |
+
+## Wiring components
+
+- Click a component pin to start a wire
+- Click another pin to complete the connection
+- Color-coded wires: red for power, black for ground, other colors for signal
+- Hover over a pin to see its label and function
+- Auto-route wires around other components
+
+## Running the simulation
+
+1. Open your `.ino` sketch in the code editor alongside the breadboard
+2. Click **Run Simulation** (or press the green play button)
+3. The sketch compiles and begins executing against the virtual components
+4. Interact with simulated inputs — click buttons, drag potentiometers, type in serial input
+
+## Simulation features
+
+- **Serial monitor** — see `Serial.println()` output in real time
+- **Step mode** — advance execution one instruction at a time for debugging
+- **Pin state view** — see HIGH/LOW and analog values on every connected pin
+- **Timing diagram** — visualize pin state changes over time
+- **Pause and resume** — halt the simulation mid-run to inspect state
+
+## AI assistance in the simulator
+
+Ask the assistant questions about your running simulation:
+
+- **"What happens when I click the button?"** — explains the expected signal flow and code branch
+- **"Why is the LED not turning on?"** — diagnoses wiring issues or logic errors
+- **"Add a second LED that flashes alternately"** — modifies both the code and the breadboard layout
+- **"Simulate the sensor reading 25°C"** — adjusts the virtual sensor value for testing
+
+## From simulation to hardware
+
+Once the circuit behaves correctly in the simulator:
+
+1. Open the **Upload** tab and select your physical board
+2. The same code used in the simulation is ready to compile and flash
+3. The wiring diagram shows the exact connections to recreate on the physical breadboard
