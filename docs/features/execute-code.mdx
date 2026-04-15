@@ -7,8 +7,6 @@ description: "How Code Canvas runs code across languages using WebContainers, Wa
 
 Every command you run — from `npm start` to a Python script to an Arduino compilation — passes through the Code Canvas execution layer. The system automatically routes your code to the right runtime based on language, complexity, and your workspace settings.
 
-![Export to Python and Node](exporttopythonandnode.png)
-
 ## Execution runtimes
 
 Code Canvas uses three execution environments:
@@ -26,10 +24,14 @@ WebContainers run Node.js natively in the browser using a micro-OS called WebAss
 
 Wandbox is a cloud-based compilation service for languages that can't run in the browser:
 
+![C language code running in Code Canvas](c_lang.png)
+
 - **Languages** — C, C++, Go, Rust, Java, Kotlin, Swift, Ruby, PHP, Perl, Haskell, Elixir, Lua, and more
 - **No setup** — no toolchain installation required
 - **Ephemeral** — each compilation is isolated and stateless
 - **Output** — stdout, stderr, and exit code returned in under 5 seconds for most programs
+
+![Mandelbrot set rendering — an example of compute-intensive code executed via Wandbox](mandlebrotset.png)
 
 ### Container executor (Supabase function)
 

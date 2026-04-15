@@ -17,7 +17,7 @@ The Automation canvas is a drag-and-drop workflow builder where you chain action
 4. Add action blocks and connect them with arrows
 5. Configure each block with your settings (API keys, URLs, messages, etc.)
 6. Click **Generate Python** or **Generate Node.js** to export the runnable code
-7. Optionally save to a workflow for scheduled execution
+7. Copy the generated script into your project to run it
 
 ## Trigger blocks
 
@@ -107,6 +107,8 @@ f"Hello {prev.get('name', '')}, your order {prev.get('order_id', '')} has shippe
 
 ## Code generation
 
+![Export automation pipeline to Python or Node.js](exporttopythonandnode.png)
+
 Click **Generate Python** or **Generate Node.js** to produce a complete runnable script:
 
 - API keys are pulled from environment variables — secrets are never hardcoded
@@ -114,8 +116,6 @@ Click **Generate Python** or **Generate Node.js** to produce a complete runnable
 - Each block output is passed as `prev` to the next block
 - Mixed text/variable fields are wrapped in proper interpolation syntax
 - Error handling is included with try/catch wrappers
-
-![Make workflows with AI](makeworkflowswithai.png)
 
 ## AI-assisted automation
 
