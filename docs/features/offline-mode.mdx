@@ -1,0 +1,45 @@
+---
+title: "Offline Mode"
+description: "Work without an internet connection using PWA caching, IndexedDB storage, and automatic sync."
+---
+
+## How offline mode works
+
+Code Canvas is a Progressive Web App (PWA) that caches assets and project data locally. When you lose your internet connection, the IDE continues to function with locally cached files. Changes are saved to IndexedDB and synced back to the server when connectivity returns.
+
+## What works offline
+
+| Feature | Offline support |
+| --- | --- |
+| File editing | ✅ Full editing with syntax highlighting |
+| File tree & tabs | ✅ Navigate and switch between cached files |
+| Terminal (local) | ✅ WebContainer-based shell commands |
+| Theme & settings | ✅ Persisted in localStorage |
+| Project save | ✅ Saved to IndexedDB, synced later |
+
+## What requires internet
+
+| Feature | Why |
+| --- | --- |
+| AI assistant | Calls remote AI models |
+| Cloud execution | Runs on server-side containers |
+| Git push/pull | Communicates with remote repositories |
+| Template cloning | Downloads from GitHub |
+| Collaboration | Real-time sync via WebSocket |
+
+When offline, internet-dependent templates and server execution options are visually disabled with a clear offline indicator in the status bar.
+
+## Auto-save and sync
+
+Projects auto-save to IndexedDB with a 3-second debounce. When you come back online:
+
+1. The sync engine compares local and remote timestamps.
+2. If the local version is newer, it pushes changes to the server.
+3. If the remote version is newer, it prompts you to merge or overwrite.
+4. Conflicts are surfaced in a diff view so you can resolve them manually.
+
+## Installing as a PWA
+
+Click the install prompt in your browser's address bar (or use the browser menu → "Install app") to add Code Canvas to your home screen or dock. The installed app loads instantly from cache and works offline by default.
+
+> **Note:** The PWA caches up to 15 MiB of assets. Very large projects may need to re-download some resources when reconnecting.
