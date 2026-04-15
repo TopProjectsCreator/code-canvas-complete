@@ -3,6 +3,7 @@ import { ArrowLeft, BookOpen, ExternalLink, Search } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 /* ------------------------------------------------------------------ */
 /*  Navigation structure derived from docs/docs.json                  */
@@ -23,9 +24,10 @@ interface NavGroup {
 const RAW_GROUPS: { group: string; pages: string[] }[] = [
   { group: "Overview", pages: ["features/index"] },
   {
-    group: "IDEs",
+    group: "IDE",
     pages: [
       "features/ide/index",
+      "features/ide/extensions",
       "features/ide/specialized-editors/index",
       "features/ide/specialized-editors/arduino/upload",
       "features/ide/specialized-editors/arduino/supported-boards",
@@ -38,10 +40,28 @@ const RAW_GROUPS: { group: string; pages: string[] }[] = [
     ],
   },
   { group: "AI", pages: ["features/ai-assistant", "features/ai-mcp"] },
-  { group: "Workflows", pages: ["features/workflows", "features/environment"] },
-  { group: "Execution", pages: ["features/persistent-shell", "features/execute-code"] },
+  {
+    group: "Workflows",
+    pages: [
+      "features/workflows/index",
+      "features/workflows/triggers",
+      "features/workflows/api-playground",
+      "features/workflows/history",
+      "features/environment",
+    ],
+  },
+  { group: "Execution", pages: ["features/persistent-shell", "features/execute-code", "features/hardware"] },
   { group: "Collaboration", pages: ["features/collaboration"] },
   { group: "Deployment", pages: ["features/deployment"] },
+  {
+    group: "Platform",
+    pages: [
+      "features/passkeys",
+      "features/automation",
+      "features/offline-mode",
+      "features/team-management",
+    ],
+  },
   { group: "Developer reference", pages: ["features/dev-reference", "features/shell-safety-runbook"] },
 ];
 
@@ -100,7 +120,11 @@ function getContent(path: string): string | null {
   // path = "features/ai-assistant" → try "/docs/features/ai-assistant.mdx"
   const key = `/docs/${path}.mdx`;
   const mod = mdxModules[key];
-  return mod?.default ?? null;
+  if (mod?.default) return mod.default;
+  // Also try with /index.mdx suffix for folder-based pages
+  const indexKey = `/docs/${path}/index.mdx`;
+  const indexMod = mdxModules[indexKey];
+  return indexMod?.default ?? null;
 }
 
 /** Strip YAML front-matter and Mintlify JSX-like components */
@@ -252,6 +276,7 @@ export default function Docs() {
 
                 <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:tracking-tight prose-a:text-primary">
                   <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
                     components={{
                       img: ({ src, alt, ...props }) => (
                         <img
