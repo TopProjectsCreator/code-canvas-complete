@@ -1,16 +1,80 @@
 ---
-title: "Workflow history"
-description: "View runs, logs, and rerun failed steps." 
+title: "Workflow History"
+description: "Browse past workflow runs, inspect step-level logs, and retry failed steps."
 ---
 
-## Run list
+## Run history overview
 
-The history log lists every workflow run with the time, the user who triggered it, and the triggers that fired. Each entry links back to the workflow definition and shows whether it succeeded, failed, or is still running.
+Every workflow execution is logged automatically. The history panel shows a chronological list of all runs, including:
 
-## Step logs
+- **Run ID** — unique identifier for sharing and referencing
+- **Workflow name** — which workflow ran
+- **Triggered by** — the user, schedule, file change, or webhook that started it
+- **Started at** — timestamp of when the run began
+- **Duration** — how long the run took to complete
+- **Status** — `Success`, `Failed`, `Running`, or `Skipped`
 
-Drill into any run to see the logs produced by each step. You can copy the output, rerun a single step, or have the assistant summarize the failure if something timed out.
+## Browsing runs
 
-## Sharing history
+Open the **Workflows → History** panel to see the full run list. Filter by:
 
-Pin a run ID in chat or attach it to a support ticket so teammates can jump straight to the logs and see what happened without re-running anything.
+- **Workflow** — see runs for a specific workflow only
+- **Status** — show only failures for faster debugging
+- **Date range** — narrow to a specific window
+- **Triggered by** — filter by user or trigger type
+
+Click any row to open the run detail view.
+
+## Run detail view
+
+The detail view shows every step in the run with its own log:
+
+- **Step name** — the label you gave the step
+- **Input** — what was passed into the step (file content, previous output, prompt)
+- **Output** — the raw result returned by the step
+- **Status** — whether this step succeeded or failed
+- **Duration** — how long this step took
+- **Error** — the error message if the step failed, with suggested fixes
+
+## Retrying steps
+
+If a step fails:
+
+1. Click the step in the detail view
+2. Review the error and adjust settings if needed
+3. Click **Retry Step** to re-run only that step (keeping all previous step outputs)
+
+This avoids re-running expensive AI prompts or API calls that already succeeded.
+
+## Rerunning a full workflow
+
+To rerun the complete workflow with the same inputs:
+
+1. Open the run detail view
+2. Click **Rerun Workflow** in the top toolbar
+3. The workflow starts fresh with a new Run ID but the same configuration
+
+## Sharing a run
+
+To share a specific run with a teammate or support team:
+
+1. Click **Copy Run Link** in the run detail view
+2. Send the link — the recipient can see the full log without needing to be in the same project
+
+You can also paste a run ID into the AI chat: **"Summarize what happened in run 1a2b3c"** and the assistant reads the log and explains it.
+
+## AI log summarization
+
+If a run is long or complex, ask the assistant to summarize it:
+
+- **"What did this workflow do?"** — plain-English step-by-step summary
+- **"Why did step 3 fail?"** — diagnoses the error with a suggested fix
+- **"Compare this run to the previous successful one"** — highlights what changed
+
+## Retention and export
+
+Run history is retained for 30 days by default. Export any run or a date range as:
+
+- **JSON** — full log with all step inputs, outputs, and metadata
+- **CSV** — tabular summary of all runs in a date range
+- **Markdown** — formatted report suitable for documentation or incident postmortems

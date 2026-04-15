@@ -1,49 +1,112 @@
 ---
 title: "AI Assistant"
-description: "How the AI copilots understand code, run commands, and extend themselves via MCP and agent skills."
+description: "A multi-model coding AI that edits files, runs commands, compares models, and extends with MCP servers and agent skills."
 ---
 
-![AI assistant chat with model comparison](ai-assistant.png)
+![AI assistant chat panel with model comparison](ai-assistant.png)
 
-## Let the assistant follow your prompts
+## Your AI coding partner
 
-Describe the change you want and click the action button. The assistant will suggest replacements, recommend files, and run the terminal commands you approve. Use the **AI Comparison Panel** whenever you want to see how OpenAI, Anthropic, and Gemini interpret the same prompt—then pick the response that matches your tone or desired precision before hitting apply.
+The Code Canvas AI assistant understands your entire project — file tree, open tabs, terminal output, console errors, and active workflows — and uses that context to answer precisely. It's not a generic chatbot; it's a context-aware agent that can directly modify your files and run commands on your behalf.
 
-### Writing prompts that work
+## How to write effective prompts
 
-- Start with the goal (“Update the README to highlight AI workflows”).
-- Add constraints (“Keep it short, mention the hardware editor, include a link to the collaboration page”).
-- The assistant highlights the affected files and shows inline diffs so you can accept or adjust each change.
+The AI responds best when you describe what you want to achieve, not just what to type. Include the filename, a clear goal, and any constraints.
 
-### Autonomy modes for every comfort level
+**Good prompt examples:**
+- "Refactor `UserCard.tsx` to use the `useProfile` hook instead of direct Supabase calls."
+- "Add error boundary handling to `App.tsx` and create a new `ErrorPage.tsx`."
+- "Debug why the WebSocket connection drops after 30 seconds and suggest a fix."
+- "Convert all `var` declarations in `utils.js` to `const` or `let` where appropriate."
 
-Choose how much the AI should do for you:
+The assistant will highlight every file it plans to touch and show an inline diff before applying changes.
 
-- **Safe** keeps you in control—every edit or command shows a preview before applying.
-- **Balanced** lets the assistant apply obvious fixes while still asking you to confirm risky actions.
-- **Fast** moves quickly—approve once and the AI runs through commands, file edits, and deployments without repeated prompts.
-- **Custom** lets you toggle granular permissions: limit which files it edits, which terminals it can open, and whether it can push commits or run workflows.
+![Code changes with AI diff preview](codechanges.png)
 
-### Simple explanations and widgets
+## Autonomy modes
 
-Click a symbol or file to get a plain-language explanation of what it does, how it’s used, and whether other files depend on it. You also have calculators, color pickers, randomizers, countdowns, and other widgets directly inside the chat, so you gather the data you need without leaving the thread.
+Choose how independently the AI should operate:
 
-### MCP servers and agent skills
+| Mode | Behavior |
+|---|---|
+| **Safe** | Shows a preview before every file edit or command |
+| **Balanced** | Applies obvious fixes; asks for confirmation on risky actions |
+| **Fast** | Approve once and the AI runs through multi-step tasks without pausing |
+| **Custom** | Toggle granular permissions: which files it edits, which terminals it opens, whether it can push commits |
 
-Add MCP servers from the **MCP & Skills** panel when you want the assistant to consult private data or internal APIs. Pair them with agent skills (structured instructions) to give the AI personas like “Always format responses as a checklist” or “Explain like a junior AI enthusiast.” Toggle skills per session—the assistant keeps track of which skill and MCP server are active and mentions them in the UI.
+## Side-by-side model comparison
 
-<Note>
-  Keep credentials scoped by environment so the assistant only uses them when you explicitly allow it. The MCP panel always shows which servers and skills are live, and you can disable any combination instantly.
-</Note>
+The **AI Comparison Panel** (accessible from Settings → AI) lets you send the same prompt to multiple models simultaneously — OpenAI, Anthropic Claude, Google Gemini, and more. Compare responses side-by-side, see token usage, and pick the response that best matches your intent before applying it.
 
-<Columns cols={3}>
-  <Card title="Workspace config" icon="gear" href="/features/environment">
-    Control how the assistant sees encrypted env scopes and panel layouts.
-  </Card>
-  <Card title="Workflows & API" icon="flow-branch" href="/features/workflows">
-    Combine AI commands with workflow triggers and API calls.
-  </Card>
-  <Card title="MCP & skills" icon="sparkles" href="/features/ai-mcp">
-    Fine-tune prompts, skills, and MCP servers for the assistant.
-  </Card>
-</Columns>
+![Code diffs reviewed before applying](codediffs.png)
+
+## Built-in code diff review
+
+Every suggested change appears as a colored diff before you accept it. Green lines show additions, red shows removals. You can:
+
+- **Accept all** to apply the entire patch in one click
+- **Accept hunk** to apply only a specific section
+- **Reject** to discard and try a different prompt
+- **Copy** the diff to apply manually in a split view
+
+## Supported AI providers
+
+The assistant supports both managed (built-in) AI and your own API keys (BYOK):
+
+| Provider | Models |
+|---|---|
+| OpenAI | GPT-4o, GPT-4 Turbo, GPT-4 Mini |
+| Anthropic | Claude 3.5 Sonnet, Claude 3 Haiku |
+| Google | Gemini 1.5 Pro, Gemini 1.5 Flash |
+| Perplexity | Sonar models |
+| DeepSeek | DeepSeek V3, Coder |
+| xAI | Grok-2 |
+| Cohere | Command R+ |
+| OpenRouter | Any model in the OpenRouter catalog |
+
+Add your own API key in **Settings → AI → Your API Keys** to use any provider with no daily limits.
+
+## Explain, summarize, and inspect
+
+Click any symbol, function, or file to ask the AI to:
+
+- **Explain** what this function does in plain English
+- **Summarize** a file or module in one paragraph
+- **Trace dependencies** — which other files import this component?
+- **Find similar patterns** in the codebase
+- **Suggest refactors** without automatically applying them
+
+## Widgets in chat
+
+The assistant can render interactive widgets inline in the chat panel:
+
+- Color pickers (e.g., "What does this hex color look like?")
+- Timers and countdowns
+- Random value generators
+- Math calculators
+- JSON/YAML formatters
+
+These save you from tab-switching for common utility tasks.
+
+## MCP servers and agent skills
+
+Extend the assistant with **Model Context Protocol (MCP) servers** to give it access to your private data sources, internal APIs, or specialized tools. Combine MCP servers with **agent skills** — structured instruction templates — to create specialized AI personas for your workflow.
+
+Examples:
+- An MCP server that queries your PostgreSQL database so the AI can answer schema questions
+- An agent skill called "Backend Expert" that tells the AI to always respond with type-safe TypeScript patterns
+- An MCP server connected to your internal docs so the AI can reference your style guide
+
+See [MCP & Skills](/features/ai-mcp) for setup details.
+
+## Daily usage limits
+
+Built-in AI access comes with daily request limits per tier:
+
+| Tier | Daily limit |
+|---|---|
+| **Pro** models (GPT-4, Claude 3.5) | 5 requests/day |
+| **Flash** models (Gemini, GPT-4 Mini) | 10 requests/day |
+| **Lite** models | Unlimited free |
+
+Add your own API key to remove all limits and access any model at your own cost.

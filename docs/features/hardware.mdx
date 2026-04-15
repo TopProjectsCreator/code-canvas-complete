@@ -1,16 +1,86 @@
 ---
 title: "Hardware & Arduino"
-description: "Deep dive on the Arduino IDE, bridges, and workflows that keep embedded commands inside Code Canvas." 
+description: "Full Arduino IDE workflow inside Code Canvas — breadboard design, .ino editing, simulation, and physical upload."
 ---
 
-## Arduino development from the prompt
+![Arduino editor with breadboard](ardurino.png)
 
-Open the hardware panel, select your board (Uno, Nano, Mega, Leonardo, Micro, ESP32, ESP8266), and click **Compile & Upload**. The workspace handles the upload method—OTA for ESP boards, Bluetooth for supported targets—and shows success messages when the device receives the firmware.
+## Embedded development in the browser
 
-### Scratch & block prototyping
+Code Canvas includes a complete hardware development environment for Arduino and FTC robotics. Open the hardware panel, select your board, write your sketch, simulate it, and upload to the physical device — all without installing the Arduino IDE locally.
 
-Use the Scratch workspace to drag blocks, wire logic, and immediately see a simulation. When you are ready, press **Export to C++** and let the assistant make the text version match your block layout.
+## The hardware workflow
 
-### Toolchain health
+```
+Design circuit → Write sketch → Compile → Simulate → Upload to board
+```
 
-The UI checks whether the upload tools are available before you try to flash. If a required uploader is missing, the workspace shows a clear warning and a link to the recommended setup steps so you can keep prototyping.
+Each step has dedicated tooling inside Code Canvas:
+
+| Step | Tool |
+|---|---|
+| Design circuit | Breadboard drag-and-drop designer |
+| Write sketch | .ino editor with AI and syntax highlighting |
+| Compile | Godbolt-powered server-side compilation |
+| Simulate | Virtual breadboard with component simulation |
+| Upload | OTA (ESP) or Bluetooth (AVR) upload bridge |
+
+## Breadboard designer
+
+The breadboard designer is a visual circuit design canvas:
+
+- Drag components (LEDs, resistors, buttons, sensors, displays) from the palette
+- Connect pins with click-to-draw wires (auto-colored by signal type)
+- See component datasheets inline by hovering over any part
+- Export the design as a wiring diagram image for documentation
+
+## AI-assisted sketch writing
+
+The AI assistant is deeply integrated with the Arduino editor:
+
+![Arduino editor with AI assistance](ardurino-with-assistant.png)
+
+- **"Add a buzzer that beeps on button press"** — inserts the complete code block
+- **"Read temperature every second and print to serial"** — adds DHT library, setup, and loop logic
+- **"Explain what this setup() function does"** — gives a plain-English breakdown
+- **"Fix this compilation error"** — reads the error, diagnoses the cause, and proposes a fix
+
+## Supported boards
+
+### AVR (Bluetooth upload)
+- Arduino Uno, Nano, Mega, Leonardo, Micro
+
+### ESP (OTA upload)
+- ESP32, ESP32-S2, ESP32-S3, ESP32-C3
+- ESP8266, Wemos D1 Mini, NodeMCU
+
+### FTC Robotics
+- REV Control Hub and Expansion Hub (Java/Kotlin)
+
+See [Supported boards](/features/ide/specialized-editors/arduino/supported-boards) for the full list.
+
+## Toolchain health check
+
+Before a compile or upload, Code Canvas checks whether the required toolchain tools are available:
+
+- `avrdude` — AVR upload tool
+- `esptool` / `espota.py` — ESP upload tools
+- Board libraries and headers
+
+If any tool is missing, the workspace displays a clear warning with a link to the required setup steps. The AI can guide you through installation interactively.
+
+## FTC Robotics
+
+Open the FTC panel for FIRST Tech Challenge development:
+
+- Java and Kotlin code editor with FTC SDK 10.x support
+- OpMode templates (Autonomous and TeleOp) with hardware map stubs
+- Compilation and code verification before pushing to the robot
+- Documentation links to FTC SDK API reference inline
+
+## See also
+
+- [Upload guide](/features/ide/specialized-editors/arduino/upload) — OTA and Bluetooth upload details
+- [Coding .ino](/features/ide/specialized-editors/arduino/coding-ino) — writing and AI-assisting Arduino sketches
+- [Simulator](/features/ide/specialized-editors/arduino/simulator) — virtual breadboard simulation
+- [Supported boards](/features/ide/specialized-editors/arduino/supported-boards) — full board compatibility list

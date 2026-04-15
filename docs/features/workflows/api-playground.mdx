@@ -1,16 +1,78 @@
 ---
-title: "API playground"
-description: "Compose REST/GraphQL requests and link them into workflows." 
+title: "API Playground"
+description: "Compose, test, and save REST and GraphQL requests, then link them into workflow steps."
 ---
 
-## Compose requests
+## What is the API playground?
 
-The API playground lives inside the workspace so you can craft headers, payloads, and query params without leaving the project. Save successful requests as templates and ask the assistant to reuse them inside workflows.
+The API playground is a full-featured HTTP client built into Code Canvas. Craft requests, test APIs, inspect responses, and save templates — all without leaving the workspace. It's connected to the workflow system so every saved request can become a workflow step.
 
-## Use AI to fill payloads
+## Building a request
 
-The assistant reads OpenAPI specs and uses schema-aware prompts so you don’t have to guess required fields. Ask "Call the deployments endpoint" and it will populate the body, headers, and auth automatically.
+1. Open the **API** panel from the sidebar
+2. Select a method: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`
+3. Enter the URL
+4. Add headers, query parameters, and a request body
+5. Click **Send** to execute
 
-## Workflow integration
+## Authentication options
 
-Drag saved templates into workflow steps or embed inline HTTP calls inside chat instructions. Each API step records the URL, method, headers, body, and response so you can replay the run or rerun just that call.
+The playground supports all common auth patterns:
+
+| Auth type | Config |
+|---|---|
+| **Bearer token** | Enter a token — applied as `Authorization: Bearer <token>` |
+| **Basic auth** | Enter username and password — base64-encoded automatically |
+| **API key** | Add as a header or query parameter |
+| **OAuth 2** | Enter client ID and secret — the playground handles the token exchange |
+| **No auth** | Public endpoints |
+
+Store sensitive tokens in your workspace **Environment** and reference them as `{{env.MY_API_KEY}}` so they're never hardcoded in saved requests.
+
+## AI-assisted payload building
+
+The assistant can read OpenAPI/Swagger specs and fill request bodies automatically:
+
+- **"Send a GET request to the /users endpoint with auth"** — builds the full request with headers
+- **"Create a POST to create a new order with a sample body"** — generates a realistic test payload
+- **"What does this API response mean?"** — explains the response fields in plain English
+
+Paste an OpenAPI spec URL into the assistant chat and it can pre-populate the entire request for any endpoint.
+
+## Saving and organizing requests
+
+After a successful request:
+
+1. Click **Save as template**
+2. Give it a name (e.g., "Get current user") and optional folder
+3. Saved templates appear in the left sidebar for quick re-use
+
+Templates support variable interpolation: `{{userId}}` becomes a prompt-able field when you run the template.
+
+## Linking to workflows
+
+Saved requests can be dragged directly into workflow steps:
+
+1. Open a workflow in the workflow builder
+2. Click **Add step → API Call**
+3. Select a saved template from the dropdown, or configure a new request inline
+
+The step sends the request as part of the workflow run. The response is captured as `prev.body`, `prev.status`, and `prev.headers` for the next step to use.
+
+## Inspecting responses
+
+After sending a request, the response pane shows:
+
+- **Status code** with color indicator (green for 2xx, red for 4xx/5xx)
+- **Response body** — formatted JSON or raw text
+- **Headers** — all response headers in a collapsible list
+- **Timing** — total request duration and breakdown (DNS, TLS, first byte, download)
+- **Size** — response body size in bytes
+
+## GraphQL support
+
+Switch the request type to **GraphQL** to get:
+
+- Schema introspection with autocomplete for fields and arguments
+- Variable substitution panel
+- Response viewer with inline type documentation

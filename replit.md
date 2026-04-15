@@ -85,3 +85,28 @@ Located in `supabase/functions/`, these are Deno-based edge functions deployed t
 - Supabase credentials stored as Replit env vars (not in `.env`)
 - `.env` added to `.gitignore`
 - The app uses the existing external Supabase project for all backend functionality
+
+## Documentation
+All 31 docs pages in `docs/features/` have been fully rewritten with comprehensive content and proper image references from `docs/assets/`. Navigation structure updated in `docs/docs.json`.
+
+Docs sections:
+- `docs/index.mdx` — Main landing page
+- `docs/features/index.mdx` — Product overview
+- `docs/features/ai-assistant.mdx`, `ai-mcp.mdx` — AI features
+- `docs/features/ide/` — IDE, extensions, and all specialized editor subpages
+- `docs/features/workflows/` — Workflows, triggers, API playground, history
+- `docs/features/automation.mdx` — Visual automation hub
+- `docs/features/collaboration.mdx`, `team-management.mdx` — Teams
+- `docs/features/deployment.mdx` — Deployment guide
+- `docs/features/environment.mdx`, `execute-code.mdx`, `persistent-shell.mdx` — Execution
+- `docs/features/passkeys.mdx`, `offline-mode.mdx` — Security and PWA
+- `docs/features/shell-safety-runbook.mdx`, `dev-reference.mdx` — Developer reference
+- `docs/features/hardware.mdx` — Hardware overview
+- All images referenced from `docs/assets/` using relative paths
+
+## Bug Fixes Applied
+- Removed `remark-gfm` import from `src/pages/Docs.tsx` (package not installed)
+- Fixed Scratch VM audio crash: music extension gated behind `audioReady` flag in `ScratchPanel.tsx`
+- Custom theme UI fully wired into Settings dialog (ThemeCreator, ThemeLibrary, ThemeImportDialog)
+- Added missing routes `/landing` and `/home` to `src/App.tsx`
+- Custom 404 page with terminal aesthetic and navigation buttons at `src/pages/NotFound.tsx`

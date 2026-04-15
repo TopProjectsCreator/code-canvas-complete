@@ -1,71 +1,113 @@
 ---
-title: "Deployment & Cloud Development"
-description: "Options for shipping Code Canvas Complete to Vercel, Replit, or Koyeb and the environment variables you must configure."
+title: "Deployment"
+description: "Deploy Code Canvas Complete to Vercel, Replit, or Koyeb — and configure Supabase for production."
 ---
 
-## Build and preview commands
+## Deployment options
+
+Code Canvas Complete is a Vite/React app backed by Supabase Edge Functions. You can deploy the frontend to any static hosting provider, and the backend to Supabase's hosted infrastructure.
+
+## Required environment variables
+
+Configure these variables in your deployment dashboard before going live:
+
+| Variable | Purpose |
+|---|---|
+| `VITE_SUPABASE_URL` | Your Supabase project URL — e.g. `https://xyz.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Public anon key for Supabase function calls |
+| `EXECUTOR_MODE` | Default execution runtime (`wandbox`, `container`, or `hybrid`) |
+| `EXECUTOR_CONTAINER_BASE_URL` | Optional: URL for the container executor service |
+| `EXECUTOR_CONTAINER_API_KEY` | API key for authenticating with the container executor |
+| `ARDUINO_BRIDGE_TOKEN` | Token for the Arduino OTA bridge service |
+| `VITE_OTA_BRIDGE_TOKEN` | Frontend-accessible OTA bridge token |
+
+## Build commands
 
 ```bash
 npm install
 npm run build
+```
+
+The output lands in `dist/`. Serve it with any static host or run locally for testing:
+
+```bash
 npm run preview -- --host 0.0.0.0 --port 3000
 ```
 
-`npm run dev` starts the local Vite server at `http://localhost:5173`, while `npm run preview` serves the built bundle so you can test the production experience. Run `npm run lint` and `npm run test` to expand coverage before pushing.
-
-### Preparing Supabase
-
-Run `supabase start` to spin up the local emulator, then `supabase functions deploy` to publish the AI helpers, `execute-code`, and Arduino bridge endpoints. Keep the project ID consistent between local preview and deployed site so the tokens you set in the docs match.
-
-## Required environment variables
-
-| Variable | Purpose |
-| --- | --- |
-| `VITE_SUPABASE_URL` | Supabase project URL for API calls and session persistence. |
-| `VITE_SUPABASE_ANON_KEY` | Public key that powers Supabase functions and Realtime listeners. |
-| `EXECUTOR_MODE` | Default executor when calling `execute-code`. |
-| `EXECUTOR_CONTAINER_BASE_URL` | Optional container orchestrator endpoint for hybrid execution. |
-| `EXECUTOR_CONTAINER_API_KEY` | API key for authenticating against the container manager. |
-| `ARDUINO_BRIDGE_TOKEN` or `VITE_OTA_BRIDGE_TOKEN` | Tokens that secure the Arduino uploader. |
-
-Use the Supabase CLI (`supabase start`/`supabase functions deploy`) or the console to deploy the functions under `supabase/functions/`. The existing `config.toml` already marks AI, environment, and compiler services as `verify_jwt = false`.
-
 ## Deploy to Vercel
 
-1. Push the repository to GitHub, GitLab, or Bitbucket.
-2. Create a new project in Vercel and import the repo (Vite is auto-detected).
-3. Set **Build Command** to `npm run build` and **Output Directory** to `dist`.
-4. Add the `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` environment variables in the Vercel dashboard.
-5. Deploy. Supabase Edge Functions (for AI and execution) must be deployed separately using `supabase deploy`.
+1. Push the repository to GitHub, GitLab, or Bitbucket
+2. Create a new project in Vercel and import the repo (Vite is auto-detected)
+3. Set **Build Command** to `npm run build` and **Output Directory** to `dist`
+4. Add all required environment variables in the Vercel dashboard
+5. Click **Deploy**
+
+The frontend deploys in 60–90 seconds. Supabase Edge Functions must be deployed separately:
+
+```bash
+supabase functions deploy
+```
 
 ## Deploy to Replit
 
-1. Create a Canvas project from the GitHub repo inside Replit.
-2. Allow the Replit Agent to install dependencies and configure the environment.
-3. For production mode, run:
+1. Create a new Replit from the GitHub repo (or use an existing Canvas project)
+2. Set the required environment variables in Replit's **Secrets** panel
+3. For development, run `npm run dev` — Vite starts on port 5000
+4. For a production-like preview:
 
 ```bash
 npm run build
 npm run preview -- --host 0.0.0.0 --port 3000
 ```
 
-4. Use the pop-out preview to open the running app in a new window.
+5. Use Replit Deployments to host the production version
 
 ## Deploy to Koyeb
 
-1. Create a new Web Service and connect the GitHub repository.
-2. Configure the service with:
+1. Create a new **Web Service** in Koyeb and connect the GitHub repository
+2. Configure the service:
    - **Build Command:** `npm run build`
    - **Run Command:** `npm run preview -- --host 0.0.0.0 --port $PORT`
-3. Set the same environment variables listed above.
-4. Deploy the service so it can scale alongside your team.
+3. Add all required environment variables
+4. Deploy — Koyeb scales the service automatically
 
-## Monitoring and rollbacks
+## Setting up Supabase
 
-- Use Supabase logs combined with the workspace analytics tab to monitor AI spend and execution health.
-- Keep backup environment files for `VITE_SUPABASE_URL`/`EXECUTOR_*` so you can roll deployments back quickly.
-- When you need to point the workspace to a new project, update the `.env` files, redeploy the functions, and push the site to Vercel/Replit/Koyeb simultaneously.
+The backend requires Supabase Edge Functions. Deploy them with:
+
+```bash
+# Start the local emulator for testing
+supabase start
+
+# Deploy all functions to production
+supabase functions deploy
+```
+
+Functions deployed include:
+
+| Function | Purpose |
+|---|---|
+| `ai-chat` | Routes AI assistant requests to OpenAI, Anthropic, Gemini |
+| `execute-code` | Orchestrates code execution across runtimes |
+| `arduino-bridge` | Handles OTA and Bluetooth firmware uploads |
+| `generate-command` | Generates terminal commands from AI prompts |
+| `template-assistant` | Manages project templates and scaffolding |
+
+All functions in `config.toml` are pre-configured with `verify_jwt = false` for AI and execution services.
+
+## Monitoring in production
+
+- **Supabase logs** — view edge function invocations, errors, and latency in the Supabase dashboard
+- **Analytics tab** — Code Canvas shows AI spend, execution usage, and active users per team
+- **Error boundaries** — the frontend catches runtime errors and shows a recovery UI
+
+## Rollback procedure
+
+1. Keep a backup of your environment variable values (outside `.env`)
+2. Redeploy the previous Git tag to the hosting provider
+3. Roll back Supabase functions with `supabase functions deploy` at the previous commit
+4. Verify health by running a test AI prompt and a code execution command
 
 <Note>
-  If you need a persistent execution layer in production, deploy the Supabase functions separately and point the web client at the same project so AI features, execution, and analytics stay in sync.
+  The `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` must match the same Supabase project across all deployment targets. Mixing projects causes auth and data access failures.
 </Note>

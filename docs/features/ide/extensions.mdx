@@ -1,52 +1,104 @@
 ---
 title: "Extensions"
-description: "Build, test, publish, and run IDE extensions using widget, command, and chat-tool runtimes."
+description: "Build, test, publish, and install custom IDE extensions using widget, command, and chat-tool runtimes."
 ---
 
-Extensions let you add custom tools to the IDE without leaving your workspace. You can create private helpers for your team, publish shareable tools, and run them in a controlled runtime.
-
-![Code Canvas extension lifecycle](/assets/extensions-lifecycle.svg)
+Extensions add custom tools to the IDE without leaving the workspace. Build private helpers for your team, publish shareable tools to the marketplace, and run them in a controlled, scoped runtime.
 
 ## What extensions can do
 
-- **Read and write project files** through scoped project APIs.
-- **Render mini-app UIs** (widget runtime) directly in the extension panel.
-- **Transform active editor content** (command runtime) for tasks like reformatting or conversion.
-- **Act as chat helpers** (chat-tool runtime) to return targeted AI-assisted output.
-- **Persist extension data** using built-in storage methods.
+![Extension lifecycle from creation to marketplace](extensions-lifecycle.svg)
 
-## How extension development works
+- **Read and write project files** through scoped project APIs
+- **Render mini-app UIs** (widget runtime) in the extension panel
+- **Transform active editor content** (command runtime) for tasks like reformatting, converting, or cleaning data
+- **Act as AI chat helpers** (chat-tool runtime) to return focused, context-aware output
+- **Persist extension data** using built-in key-value storage
 
-1. Open the **Extensions** panel and choose **Create**.
-2. Define a name, description, and runtime (`widget`, `command`, or `chat-tool`).
-3. Generate a starter implementation with AI or write the code manually.
-4. Run it in the built-in sandbox to preview behavior and output.
-5. Save as draft or publish to the store for installation.
-6. Install it and run it from the IDE whenever needed.
+## Extension runtimes
 
-<Note>
-  The extension runtime is intentionally scoped: extensions only receive the context and APIs exposed by the IDE runtime.
-</Note>
-
-## Runtime types explained
-
-![Extension runtime comparison](/assets/extensions-runtimes.svg)
+![Extension runtime comparison](extensions-runtimes.svg)
 
 ### Widget runtime
 
-Use for interactive tools that need UI (forms, previews, converters, inspectors).
+Interactive mini-apps with a full UI. Use for:
+
+- Tools that need forms, buttons, dropdowns, or previews
+- Converters that show input → output side by side
+- Inspectors that display real-time project data (imports, routes, schema)
+- Dashboards showing metrics or logs
 
 ### Command runtime
 
-Use for content transformations on the active file or selected text.
+Transforms the active file or selected text. Use for:
+
+- Code formatters and prettifiers
+- CSV/JSON/YAML converters
+- Header normalizers and case changers
+- Comment generators
 
 ### Chat-tool runtime
 
-Use for focused helper actions that pair well with chat-driven workflows.
+Focused AI chat helpers. Use for:
 
-## Practical examples
+- Schema-to-docs generators ("explain this SQL table")
+- Release note drafters (pulls commit messages and formats them)
+- Code reviewers that return structured feedback
+- Query builders that convert plain language to SQL
 
-- A **CSV cleanup command** that normalizes delimiters and header casing.
-- A **Release notes widget** that pulls commit summaries and drafts markdown.
-- A **Schema explainer chat tool** that converts SQL tables into plain-language docs.
+## Building an extension
 
+1. Open the **Extensions** panel from the sidebar
+2. Click **Create Extension**
+3. Choose a name, description, and runtime type
+4. Generate a starter with the AI: *"Create a command extension that converts camelCase to snake_case"*
+5. Edit the generated code in the built-in editor
+6. Click **Run in sandbox** to test behavior and output
+7. Save as **Draft** to keep it private, or **Publish** to the store
+
+## Extension marketplace
+
+The marketplace lists all available extensions — built-in, community-published, and your team's private extensions:
+
+- **Install** any extension in one click
+- **Rate and review** extensions you've used
+- **Report** extensions that misbehave
+- **Update** to the latest version when available
+
+## Practical extension examples
+
+### CSV Cleaner (command)
+
+Normalizes delimiters, strips trailing whitespace, and standardizes header casing.
+
+```
+Input:  "Name ","Email","Phone "
+Output: "name","email","phone"
+```
+
+### Release Notes Generator (widget)
+
+Pulls the last 20 git commit messages and drafts a formatted markdown changelog.
+
+### Schema Explainer (chat-tool)
+
+Pass a SQL table definition and get a plain-English description of each column, its type, and what it likely stores.
+
+### Convert Anything (widget)
+
+![Convert anything extension](convertanything.png)
+
+Converts files between formats — JSON ↔ YAML ↔ TOML, Markdown ↔ HTML, CSV ↔ Excel, and more — with a live preview of the output.
+
+## Security model
+
+The extension runtime is intentionally scoped:
+
+- Extensions only receive the context and APIs the IDE explicitly exposes
+- File access is limited to the project scope — no access to system files or other projects
+- Network calls must be declared in the extension manifest for review
+- Extensions run in an isolated iframe with no access to the main app's auth tokens
+
+<Note>
+  Review the extension manifest and source code before installing extensions from the community marketplace. Trusted team extensions bypass this review step.
+</Note>

@@ -1,45 +1,72 @@
 ---
 title: "Offline Mode"
-description: "Work without an internet connection using PWA caching, IndexedDB storage, and automatic sync."
+description: "Work without internet using PWA caching, IndexedDB storage, and automatic sync when you reconnect."
 ---
 
 ## How offline mode works
 
-Code Canvas is a Progressive Web App (PWA) that caches assets and project data locally. When you lose your internet connection, the IDE continues to function with locally cached files. Changes are saved to IndexedDB and synced back to the server when connectivity returns.
+Code Canvas is a **Progressive Web App (PWA)** that caches assets and project data locally. When your internet connection drops, the IDE keeps working — you can edit files, run local commands, and navigate your project without interruption. Changes sync automatically when connectivity returns.
 
 ## What works offline
 
 | Feature | Offline support |
-| --- | --- |
+|---|---|
 | File editing | ✅ Full editing with syntax highlighting |
-| File tree & tabs | ✅ Navigate and switch between cached files |
-| Terminal (local) | ✅ WebContainer-based shell commands |
-| Theme & settings | ✅ Persisted in localStorage |
-| Project save | ✅ Saved to IndexedDB, synced later |
+| File tree navigation | ✅ Browse and switch between cached files |
+| Tab management | ✅ Open, close, and arrange editor tabs |
+| Terminal (WebContainer) | ✅ Node.js commands run entirely in-browser |
+| Theme and layout | ✅ Preferences stored in localStorage |
+| Project auto-save | ✅ Saved to IndexedDB every 3 seconds |
+| Scratch editor | ✅ Runs fully in-browser |
 
 ## What requires internet
 
 | Feature | Why |
-| --- | --- |
-| AI assistant | Calls remote AI models |
-| Cloud execution | Runs on server-side containers |
-| Git push/pull | Communicates with remote repositories |
-| Template cloning | Downloads from GitHub |
-| Collaboration | Real-time sync via WebSocket |
+|---|---|
+| AI assistant | Calls remote model APIs (OpenAI, Anthropic, Gemini) |
+| Server-side execution | Python, Go, Rust use remote runtimes |
+| Git push/pull | Communicates with GitHub/GitLab/Bitbucket |
+| Template cloning | Downloads starter files from GitHub |
+| Collaboration / live cursors | Requires WebSocket connection |
+| Arduino upload | Hardware bridge needs network access |
+| 3D generation | Uses remote AI generation APIs |
 
-When offline, internet-dependent templates and server execution options are visually disabled with a clear offline indicator in the status bar.
+When you go offline, internet-dependent features are visually disabled with a **connection indicator** in the status bar. You can still work on everything that runs locally.
 
 ## Auto-save and sync
 
-Projects auto-save to IndexedDB with a 3-second debounce. When you come back online:
+Projects auto-save to **IndexedDB** with a 3-second debounce after each change. When you reconnect:
 
-1. The sync engine compares local and remote timestamps.
-2. If the local version is newer, it pushes changes to the server.
-3. If the remote version is newer, it prompts you to merge or overwrite.
-4. Conflicts are surfaced in a diff view so you can resolve them manually.
+1. The sync engine compares local and remote file timestamps
+2. If your local version is newer → changes are pushed to the server
+3. If the server version is newer → you're prompted to review and merge
+4. Conflicts show in a side-by-side diff so you can resolve them manually
+
+The sync status is always visible in the IDE footer: `Saved locally`, `Syncing...`, or `Up to date`.
 
 ## Installing as a PWA
 
-Click the install prompt in your browser's address bar (or use the browser menu → "Install app") to add Code Canvas to your home screen or dock. The installed app loads instantly from cache and works offline by default.
+Install Code Canvas to your home screen or dock for offline-first access:
 
-> **Note:** The PWA caches up to 15 MiB of assets. Very large projects may need to re-download some resources when reconnecting.
+1. Open Code Canvas in Chrome, Edge, or Safari
+2. Click the install icon in the address bar (or use browser menu → "Install app")
+3. The app installs and opens in its own window
+4. Subsequent launches load instantly from cache — no network required for the shell
+
+The PWA caches approximately **15 MiB** of app shell and commonly used assets. Very large projects may need to re-download some resources when reconnecting after a long offline period.
+
+## Offline indicators
+
+- **Status bar** — shows a cloud icon with a slash when offline
+- **Disabled buttons** — AI chat, Git push/pull, cloud execution buttons show a tooltip explaining they need internet
+- **Auto-save badge** — shows "Saved locally (not synced)" when a change is pending upload
+
+## Troubleshooting
+
+**Files didn't sync after reconnecting:**
+- Refresh the page — the sync engine runs on page load
+- If conflicts prevent auto-sync, they'll appear in a dialog for manual resolution
+
+**PWA cache is stale:**
+- In browser DevTools → Application → Service Workers → click "Update"
+- Or clear the site cache and reload to pull fresh assets
