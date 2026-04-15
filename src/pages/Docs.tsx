@@ -251,7 +251,21 @@ export default function Docs() {
                 </header>
 
                 <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:tracking-tight prose-a:text-primary">
-                  <ReactMarkdown>{content.body}</ReactMarkdown>
+                  <ReactMarkdown
+                    components={{
+                      img: ({ src, alt, ...props }) => (
+                        <img
+                          {...props}
+                          src={src ? resolveAssetUrl(src) : ""}
+                          alt={alt || ""}
+                          className="rounded-lg border border-border my-4 max-w-full"
+                          loading="lazy"
+                        />
+                      ),
+                    }}
+                  >
+                    {content.body}
+                  </ReactMarkdown>
                 </div>
 
                 <footer className="flex flex-col gap-3 border-t border-border pt-6 md:flex-row md:justify-between">
