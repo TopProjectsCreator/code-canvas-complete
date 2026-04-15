@@ -1491,6 +1491,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         useWebGLRenderer = false;
 
         // Dynamically import and attach audio engine
+        let audioReady = false;
         try {
           const audioMod = await import('scratch-audio');
           const AudioCtor = audioMod.default || audioMod;
@@ -1498,6 +1499,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             try {
               const audioEngine = new AudioCtor();
               vm.attachAudioEngine(audioEngine);
+              audioReady = true;
             } catch (audioError) {
               console.warn('scratch-audio initialization failed:', audioError);
             }
@@ -1516,10 +1518,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           const em = (vm as any).extensionManager;
           if (em?.loadExtensionIdSync) {
             em.loadExtensionIdSync('pen');
-            em.loadExtensionIdSync('music');
+            if (audioReady) {
+              em.loadExtensionIdSync('music');
+            }
           } else if (em?.loadExtensionURL) {
             em.loadExtensionURL('pen').catch(() => {});
-            em.loadExtensionURL('music').catch(() => {});
+            if (audioReady) {
+              em.loadExtensionURL('music').catch(() => {});
+            }
           }
           console.log('[Scratch] Extensions loaded');
         } catch (e) {
