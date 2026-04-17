@@ -1510,8 +1510,25 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           console.warn('scratch-storage not available:', e);
         }
 
-        // Keep 2D fallback renderer as primary path for compatibility in this environment
-        useWebGLRenderer = false;
+        // Attach scratch-render when available so the VM can load costumes and execute
+        // renderer-dependent blocks correctly. Keep the 2D fallback as a safety net.
+        try {
+          const renderMod = await import('scratch-render');
+          const RenderCtor = renderMod.default || renderMod;
+          if (typeof RenderCtor === 'function') {
+            const renderer = new RenderCtor(canvas);
+            vm.attachRenderer(renderer);
+            rendererRef.current = renderer as { draw(): void; destroy(): void };
+            useWebGLRenderer = true;
+            console.log('[Scratch] scratch-render attached successfully');
+          } else {
+            console.warn('[Scratch] scratch-render constructor not found; using fallback renderer');
+            useWebGLRenderer = false;
+          }
+        } catch (e) {
+          console.warn('scratch-render not available:', e);
+          useWebGLRenderer = false;
+        }
 
         // Dynamically import and attach audio engine
         let audioReady = false;
