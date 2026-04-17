@@ -130,6 +130,9 @@ const isOpcodeSupportedInVersion = (opcode: string, version: ScratchCompatibilit
   return true;
 };
 
+type ProcArgType = 'string_number' | 'boolean' | 'label';
+type ProcArg = { type: ProcArgType; name: string; id?: string };
+
 type ScratchBlockDef = {
   label: string;
   opcode: string;
@@ -139,6 +142,8 @@ type ScratchBlockDef = {
   minVersion?: ScratchCompatibilityVersion;
   maxVersion?: ScratchCompatibilityVersion;
   proccode?: string;
+  procArgs?: ProcArg[];
+  procWarp?: boolean;
 };
 // Fallback 2D canvas renderer when scratch-render (WebGL) doesn't produce output
 const fallbackImageCache = new Map<string, HTMLImageElement>();
