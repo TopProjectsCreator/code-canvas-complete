@@ -558,12 +558,13 @@ const getDefaultCostumeForTarget = (target: ScratchTarget) => (target.isStage
       rotationCenterY: 48,
     });
 
-const normalizeProjectForVm = (project: ScratchProject): ScratchProject => ({
-  ...project,
-  targets: project.targets.map((target) => {
+const normalizeProjectForVm = (project: ScratchProject): ScratchProject => {
+  const sourceTargets = Array.isArray(project.targets) ? project.targets : [];
+  const normalizedTargets = sourceTargets.map((target, index) => {
+    const isStage = Boolean(target.isStage) || index === 0;
     const costumes = target.costumes && target.costumes.length > 0
       ? target.costumes
-      : [getDefaultCostumeForTarget(target)];
+      : [getDefaultCostumeForTarget({ ...target, isStage } as ScratchTarget)];
 
     // Ensure every block has an `id` property matching its dictionary key.
     // Real .sb3 files store blocks as { [id]: { opcode, ... } } without `id` inside.
@@ -598,14 +599,36 @@ const normalizeProjectForVm = (project: ScratchProject): ScratchProject => ({
 
     return {
       ...target,
+      isStage,
+      name: isStage ? 'Stage' : (typeof target.name === 'string' && target.name.trim() ? target.name : `Sprite${index}`),
       blocks,
       costumes,
       currentCostume: typeof target.currentCostume === 'number'
         ? Math.min(Math.max(0, target.currentCostume), Math.max(0, costumes.length - 1))
         : 0,
+      visible: isStage ? undefined : target.visible !== false,
+      x: isStage ? undefined : Number(target.x || 0),
+      y: isStage ? undefined : Number(target.y || 0),
+      size: isStage ? undefined : Number(target.size || 100),
+      direction: isStage ? undefined : Number(target.direction || 90),
     };
-  }),
-});
+  });
+
+  const stageIndex = normalizedTargets.findIndex((target) => target.isStage);
+  const orderedTargets = stageIndex <= 0
+    ? normalizedTargets
+    : [normalizedTargets[stageIndex], ...normalizedTargets.filter((_, index) => index !== stageIndex)];
+
+  if (orderedTargets.length === 0) {
+    return DEFAULT_PROJECT;
+  }
+
+  return {
+    ...project,
+    projectVersion: typeof project.projectVersion === 'number' ? project.projectVersion : 3,
+    targets: orderedTargets,
+  };
+};
 
 const ensureArchiveAssetsForVm = (archive: ScratchArchive): ScratchArchive => {
   const files = {
@@ -2912,15 +2935,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             <div className="flex items-center gap-3 text-[13px] text-[#575e75]">
               <span className="font-semibold text-[#575e75]">Sprite</span>
               <input
-                value={selectedTarget?.name || 'Sprite1'}
+                value={selectedTarget?.isStage ? 'Stage' : (selectedTarget?.name || 'Sprite1')}
+                disabled={selectedTarget?.isStage}
                 onChange={(e) => {
+                  if (selectedTarget?.isStage) return;
                   const nextName = e.target.value;
                   updateProject((current) => ({
                     ...current,
                     targets: current.targets.map((target, idx) => idx === selectedTargetIndex ? { ...target, name: nextName } : target),
                   }));
                 }}
-                className="h-7 rounded border border-[#d0d0d0] px-2 flex-1 text-[13px] min-w-0"
+                className="h-7 rounded border border-[#d0d0d0] px-2 flex-1 text-[13px] min-w-0 disabled:bg-[#f5f5f5] disabled:text-[#999]"
               />
               <div className="flex items-center gap-1 text-[12px]">
                 <span className="text-[#b5b5b5]">↔</span> x
