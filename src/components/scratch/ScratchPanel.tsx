@@ -2769,6 +2769,65 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   onRenameVariable={renameVariable}
                   onRenameList={renameList}
                 />
+              ) : activeCategory === 'My Blocks' ? (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setProcedurePrompt('')}
+                    className="w-full px-3 py-2 rounded-lg text-white text-[13px] font-semibold hover:brightness-110"
+                    style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
+                  >
+                    Make a Block
+                  </button>
+                  {customProcedures.length === 0 ? (
+                    <div className="text-[12px] text-[#575e75] italic mt-2">
+                      No custom blocks yet. Click "Make a Block" to create one.
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 mt-2">
+                      {customProcedures.map((proccode) => {
+                        const color = currentCategoryColors['My Blocks'] || '#ff6680';
+                        const defDef: ScratchBlockDef = {
+                          label: `define ${proccode}`,
+                          opcode: 'procedures_definition',
+                          proccode,
+                          minVersion: 'scratch2',
+                        };
+                        const callDef: ScratchBlockDef = {
+                          label: proccode,
+                          opcode: 'procedures_call',
+                          proccode,
+                          minVersion: 'scratch2',
+                        };
+                        return (
+                          <div key={proccode} className="space-y-1">
+                            <div
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('application/scratch-block', JSON.stringify(defDef));
+                                e.dataTransfer.effectAllowed = 'copy';
+                              }}
+                              onClick={() => addBlock(defDef)}
+                              className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
+                            >
+                              <ScratchBlockShape label={defDef.label} color={color} shape={getBlockShape(defDef.opcode)} />
+                            </div>
+                            <div
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('application/scratch-block', JSON.stringify(callDef));
+                                e.dataTransfer.effectAllowed = 'copy';
+                              }}
+                              onClick={() => addBlock(callDef)}
+                              className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
+                            >
+                              <ScratchBlockShape label={callDef.label} color={color} shape={getBlockShape(callDef.opcode)} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               ) : (
               <div className="space-y-1.5">
                 {(visibleCategoryBlocks[activeCategory] || []).map((blockDef) => {
