@@ -1057,11 +1057,22 @@ const VariablesFlyout = ({
       {/* Variable reporters */}
       {variables.length > 0 && (
         <div className="space-y-1.5 py-1">
-          {variables.map(([id, [name]]) => (
+          {variables.map(([id, [name]]) => {
+            const reporterDef: ScratchBlockDef = {
+              label: name,
+              opcode: 'data_variable',
+              fields: { VARIABLE: [name, id] },
+            };
+            return (
             <div key={id} className="flex items-center gap-2">
               <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#ff8c1a]" />
               <div
-                className="cursor-pointer"
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(reporterDef));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                className="cursor-grab active:cursor-grabbing"
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, type: 'variable', id, name, allNames: varNames });
@@ -1076,7 +1087,8 @@ const VariablesFlyout = ({
                 <ScratchBlockShape label={name} color={color} shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
