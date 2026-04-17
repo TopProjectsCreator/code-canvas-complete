@@ -1912,15 +1912,27 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setSelectedTargetIndex(project.targets.length);
   };
 
-  const SNAP_DISTANCE = 40;
-  const BLOCK_HEIGHT = 42;
-  const C_BLOCK_INDENT = 24;
+  // Visual heights MUST match ScratchBlockShape.tsx (STACK_H=32, hat = STACK_H + HAT_CURVE = 52)
+  const SNAP_DISTANCE = 28;
+  const STACK_BLOCK_HEIGHT = 32;
+  const HAT_BLOCK_HEIGHT = 52;
+  const C_BLOCK_INDENT = 16;
   const C_BLOCK_MOUTH_HEIGHT = 24;
+  // Default fallback for placement spacing
+  const BLOCK_HEIGHT = STACK_BLOCK_HEIGHT;
 
   const cBlockOpcodes = new Set([
     'control_forever', 'control_repeat', 'control_if', 'control_if_else',
     'control_repeat_until', 'control_wait_until',
   ]);
+
+  // Returns the visual height of a single block (not including its children)
+  const getBlockOwnHeight = (block: ScratchBlockNode) => {
+    if (isEventBlock(block.opcode) || block.opcode === 'procedures_definition' || block.opcode === 'control_start_as_clone') {
+      return HAT_BLOCK_HEIGHT;
+    }
+    return STACK_BLOCK_HEIGHT;
+  };
 
   type SnapResult = { id: string; type: 'next' | 'substack' } | null;
 
@@ -1946,16 +1958,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
   const getNextSnapY = (blocks: Record<string, ScratchBlockNode>, block: ScratchBlockNode) => {
     const by = block.y ?? 0;
-    if (!cBlockOpcodes.has(block.opcode)) return by + BLOCK_HEIGHT;
+    const ownH = getBlockOwnHeight(block);
+    if (!cBlockOpcodes.has(block.opcode)) return by + ownH;
     const substackInput = block.inputs?.SUBSTACK as unknown[];
     const substackRoot = typeof substackInput?.[1] === 'string' ? substackInput[1] : null;
     const substackLen = substackRoot && blocks[substackRoot] ? getStackLength(blocks, substackRoot) : 1;
-    return by + BLOCK_HEIGHT + C_BLOCK_MOUTH_HEIGHT + substackLen * BLOCK_HEIGHT;
+    return by + ownH + C_BLOCK_MOUTH_HEIGHT + substackLen * STACK_BLOCK_HEIGHT;
   };
 
   const getSnapPosition = (blocks: Record<string, ScratchBlockNode>, parent: ScratchBlockNode, type: 'next' | 'substack') => ({
     x: type === 'substack' ? (parent.x ?? 0) + C_BLOCK_INDENT : (parent.x ?? 0),
-    y: type === 'substack' ? (parent.y ?? 0) + BLOCK_HEIGHT : getNextSnapY(blocks, parent),
+    y: type === 'substack' ? (parent.y ?? 0) + getBlockOwnHeight(parent) : getNextSnapY(blocks, parent),
   });
 
   const findSnapTarget = (blocks: Record<string, ScratchBlockNode>, dropX: number, dropY: number, excludeId?: string): SnapResult => {
@@ -2188,6 +2201,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             Object.assign(blocks, vmCompatible.extraBlocks);
           } else {
             const eventId = generateId();
+            const eventY = Math.max(24, finalY - HAT_BLOCK_HEIGHT);
             blocks[eventId] = {
               id: eventId,
               opcode: 'event_whenflagclicked',
@@ -2195,7 +2209,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               parent: null,
               topLevel: true,
               x: finalX,
-              y: Math.max(24, finalY - BLOCK_HEIGHT),
+              y: eventY,
               inputs: {},
               fields: {},
             };
@@ -2206,7 +2220,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               parent: eventId,
               topLevel: false,
               x: finalX,
-              y: finalY,
+              y: eventY + HAT_BLOCK_HEIGHT,
               inputs: vmCompatible.inputs,
               fields: vmCompatible.fields,
               mutation: vmCompatible.mutation,
