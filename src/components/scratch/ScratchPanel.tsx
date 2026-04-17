@@ -1493,18 +1493,44 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   // Custom procedures (My Blocks): derived from procedures_prototype mutations
   // anywhere in the project so the same custom blocks are available across sprites.
   const customProcedures = useMemo(() => {
-    const seen = new Set<string>();
-    const list: string[] = [];
+    const seen = new Map<string, { proccode: string; args: ProcArg[]; warp: boolean }>();
     project.targets.forEach((t) => {
       Object.values(t.blocks || {}).forEach((b) => {
-        const node = b as { opcode?: string; mutation?: { proccode?: string } };
+        const node = b as {
+          opcode?: string;
+          mutation?: { proccode?: string; argumentnames?: string; argumentids?: string; warp?: string };
+        };
         if (node?.opcode === 'procedures_prototype' && node.mutation?.proccode) {
           const pc = node.mutation.proccode;
-          if (!seen.has(pc)) { seen.add(pc); list.push(pc); }
+          if (seen.has(pc)) return;
+          let names: string[] = [];
+          let ids: string[] = [];
+          try { names = JSON.parse(node.mutation.argumentnames || '[]'); } catch { /* noop */ }
+          try { ids = JSON.parse(node.mutation.argumentids || '[]'); } catch { /* noop */ }
+          // Walk proccode tokens to recover %s/%b order + label tokens
+          const tokens = pc.split(/(\s+)/).filter((s) => s.trim().length > 0);
+          const args: ProcArg[] = [];
+          let valueIdx = 0;
+          // Skip the leading name tokens until we hit first %s/%b; tokens before that form the name
+          let nameOver = false;
+          tokens.forEach((tok) => {
+            if (tok === '%s' || tok === '%b') {
+              nameOver = true;
+              args.push({
+                type: tok === '%b' ? 'boolean' : 'string_number',
+                name: names[valueIdx] || `arg${valueIdx + 1}`,
+                id: ids[valueIdx],
+              });
+              valueIdx++;
+            } else if (nameOver) {
+              args.push({ type: 'label', name: tok });
+            }
+          });
+          seen.set(pc, { proccode: pc, args, warp: node.mutation.warp === 'true' });
         }
       });
     });
-    return list;
+    return Array.from(seen.values());
   }, [project]);
 
   const [makeBlockModal, setMakeBlockModal] = useState<{ name: string; runWithoutRefresh: boolean } | null>(null);
