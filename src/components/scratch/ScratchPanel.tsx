@@ -135,9 +135,10 @@ type ScratchBlockDef = {
   opcode: string;
   inputs?: Record<string, unknown>;
   fields?: Record<string, unknown>;
-  action?: 'create_variable' | 'create_list';
+  action?: 'create_variable' | 'create_list' | 'make_procedure';
   minVersion?: ScratchCompatibilityVersion;
   maxVersion?: ScratchCompatibilityVersion;
+  proccode?: string;
 };
 // Fallback 2D canvas renderer when scratch-render (WebGL) doesn't produce output
 const fallbackImageCache = new Map<string, HTMLImageElement>();
