@@ -1454,6 +1454,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   }, [project]);
 
   const [procedurePrompt, setProcedurePrompt] = useState<string | null>(null);
+  const [makeBlockModal, setMakeBlockModal] = useState<{ name: string; runWithoutRefresh: boolean } | null>(null);
+  const [fieldPicker, setFieldPicker] = useState<{ blockId: string; menuBlockId: string; fieldKey: string; options: DropdownOption[]; x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!visibleCategoryNames.includes(activeCategory) && visibleCategoryNames.length > 0) {
