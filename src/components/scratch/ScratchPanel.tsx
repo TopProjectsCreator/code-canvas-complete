@@ -806,15 +806,37 @@ const createVmCompatibleBlockShape = (
   };
 
   const op = blockDef.opcode;
-  const makeProcedureMutation = (proccode: string) => ({
-    tagName: 'mutation',
-    children: [],
-    proccode,
-    argumentids: '[]',
-    argumentnames: '[]',
-    argumentdefaults: '[]',
-    warp: 'false',
-  });
+  const procArgs: ProcArg[] = (blockDef.procArgs || []).map((a) => ({
+    ...a,
+    id: a.id || generateId(),
+  }));
+  const buildProccodeFromName = (name: string, args: ProcArg[]) => {
+    // If the saved proccode already includes %s/%b tokens, trust it; otherwise build it.
+    if (name.includes('%s') || name.includes('%b')) return name;
+    const parts: string[] = [name.trim()];
+    args.forEach((a) => {
+      if (a.type === 'label') parts.push(a.name.trim());
+      else if (a.type === 'boolean') parts.push('%b');
+      else parts.push('%s');
+    });
+    return parts.filter(Boolean).join(' ');
+  };
+  const makeProcedureMutation = (
+    proccode: string,
+    args: ProcArg[],
+    warp: boolean,
+  ) => {
+    const valueArgs = args.filter((a) => a.type !== 'label');
+    return {
+      tagName: 'mutation',
+      children: [],
+      proccode,
+      argumentids: JSON.stringify(valueArgs.map((a) => a.id)),
+      argumentnames: JSON.stringify(valueArgs.map((a) => a.name)),
+      argumentdefaults: JSON.stringify(valueArgs.map((a) => (a.type === 'boolean' ? 'false' : ''))),
+      warp: warp ? 'true' : 'false',
+    };
+  };
 
   if (op === 'compat_foreverif') {
     const ifId = generateId();
@@ -842,7 +864,25 @@ const createVmCompatibleBlockShape = (
 
   if (op === 'procedures_definition') {
     const prototypeId = generateId();
-    const proccode = blockDef.proccode || 'custom block';
+    const warp = !!blockDef.procWarp;
+    const proccode = buildProccodeFromName(blockDef.proccode || 'custom block', procArgs);
+    const valueArgs = procArgs.filter((a) => a.type !== 'label');
+    // Create one argument_reporter shadow per value arg, attached as inputs of the prototype
+    const protoInputs: Record<string, unknown> = {};
+    valueArgs.forEach((a) => {
+      const reporterId = generateId();
+      extraBlocks[reporterId] = {
+        id: reporterId,
+        opcode: a.type === 'boolean' ? 'argument_reporter_boolean' : 'argument_reporter_string_number',
+        parent: prototypeId,
+        topLevel: false,
+        shadow: true,
+        fields: { VALUE: [a.name, null] },
+        inputs: {},
+        next: null,
+      };
+      protoInputs[a.id!] = [1, reporterId];
+    });
     extraBlocks[prototypeId] = {
       id: prototypeId,
       opcode: 'procedures_prototype',
@@ -850,16 +890,25 @@ const createVmCompatibleBlockShape = (
       topLevel: false,
       shadow: true,
       fields: {},
-      inputs: {},
+      inputs: protoInputs,
       next: null,
-      mutation: makeProcedureMutation(proccode),
+      mutation: makeProcedureMutation(proccode, procArgs, warp),
     };
     nextInputs.custom_block = [1, prototypeId];
   }
 
   if (op === 'procedures_call') {
-    const proccode = blockDef.proccode || 'custom block';
-    mutation = makeProcedureMutation(proccode);
+    const warp = !!blockDef.procWarp;
+    const proccode = buildProccodeFromName(blockDef.proccode || 'custom block', procArgs);
+    const valueArgs = procArgs.filter((a) => a.type !== 'label');
+    valueArgs.forEach((a) => {
+      if (a.type === 'boolean') {
+        // Boolean input: empty (no shadow), VM treats missing as false
+      } else {
+        nextInputs[a.id!] = [1, [10, '']];
+      }
+    });
+    mutation = makeProcedureMutation(proccode, procArgs, warp);
   }
 
   // Motion menus
