@@ -3026,12 +3026,48 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             {selectedBlocks.filter((block) => block.opcode && !block.shadow && (block.x !== undefined || block.topLevel)).map((block) => {
               const blockColor = getBlockColor(block.opcode);
               const shape = getBlockShape(block.opcode);
-              const label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
+              const baseLabel = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
+              const blocksMap = selectedTarget?.blocks || {};
+              const menuDefs = DROPDOWN_REGISTRY[block.opcode] || [];
+              // Resolve current menu values from shadow blocks for inline display
+              const menuValues: { def: MenuFieldDef; menuBlockId: string; current: string; options: DropdownOption[] }[] = [];
+              menuDefs.forEach((def) => {
+                const ref = (block.inputs || {})[def.inputKey];
+                if (Array.isArray(ref) && typeof ref[1] === 'string') {
+                  const menuBlockId = ref[1] as string;
+                  const menuBlock = blocksMap[menuBlockId];
+                  const tuple = menuBlock?.fields?.[def.fieldKey];
+                  const current = Array.isArray(tuple) && typeof tuple[0] === 'string' ? (tuple[0] as string) : '';
+                  const options = typeof def.options === 'function'
+                    ? def.options({ spriteNames: spriteTargets.map((s) => s.name), costumeNames: (selectedTarget?.costumes || []).map((c) => c.name), backdropNames: stageBackdrops.map((c) => c.name), soundNames: (selectedTarget?.sounds || []).map((s) => s.name) })
+                    : def.options;
+                  const labelForCurrent = options.find((o) => o.value === current)?.label || current;
+                  menuValues.push({ def, menuBlockId, current: labelForCurrent, options });
+                }
+              });
+              // Substitute the first {placeholder} with current menu label, and the second one (if any), in order.
+              let label = baseLabel;
+              menuValues.forEach((mv) => {
+                label = label.replace(/\{[^}]+\}/, `{${mv.current}}`);
+              });
               const isDragging = block.id === dragBlockId;
               return (
                 <div
                   key={block.id}
                   onPointerDown={(e) => handleBlockPointerDown(block.id, e)}
+                  onClick={(e) => {
+                    if (menuValues.length === 0) return;
+                    e.stopPropagation();
+                    const first = menuValues[0];
+                    setFieldPicker({
+                      blockId: block.id,
+                      menuBlockId: first.menuBlockId,
+                      fieldKey: first.def.fieldKey,
+                      options: first.options,
+                      x: e.clientX,
+                      y: e.clientY,
+                    });
+                  }}
                   className={`absolute select-none touch-none ${isDragging ? 'cursor-grabbing z-50 opacity-80' : 'cursor-grab'}`}
                   style={{
                     left: block.x ?? 40,
