@@ -2201,6 +2201,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             Object.assign(blocks, vmCompatible.extraBlocks);
           } else {
             const eventId = generateId();
+            const eventY = Math.max(24, finalY - HAT_BLOCK_HEIGHT);
             blocks[eventId] = {
               id: eventId,
               opcode: 'event_whenflagclicked',
@@ -2208,7 +2209,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               parent: null,
               topLevel: true,
               x: finalX,
-              y: Math.max(24, finalY - BLOCK_HEIGHT),
+              y: eventY,
               inputs: {},
               fields: {},
             };
@@ -2219,7 +2220,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               parent: eventId,
               topLevel: false,
               x: finalX,
-              y: finalY,
+              y: eventY + HAT_BLOCK_HEIGHT,
               inputs: vmCompatible.inputs,
               fields: vmCompatible.fields,
               mutation: vmCompatible.mutation,
