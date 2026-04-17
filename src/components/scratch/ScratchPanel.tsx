@@ -135,9 +135,10 @@ type ScratchBlockDef = {
   opcode: string;
   inputs?: Record<string, unknown>;
   fields?: Record<string, unknown>;
-  action?: 'create_variable' | 'create_list';
+  action?: 'create_variable' | 'create_list' | 'make_procedure';
   minVersion?: ScratchCompatibilityVersion;
   maxVersion?: ScratchCompatibilityVersion;
+  proccode?: string;
 };
 // Fallback 2D canvas renderer when scratch-render (WebGL) doesn't produce output
 const fallbackImageCache = new Map<string, HTMLImageElement>();
@@ -395,10 +396,7 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'show my list', opcode: 'data_showlist' },
     { label: 'hide my list', opcode: 'data_hidelist' },
   ],
-  'My Blocks': [
-    { label: 'Make a Block', opcode: 'procedures_definition', minVersion: 'scratch2' },
-    { label: 'call custom block', opcode: 'procedures_call', minVersion: 'scratch2' },
-  ],
+  'My Blocks': [],
   Pen: [
     { label: 'erase all', opcode: 'pen_clear' },
     { label: 'stamp', opcode: 'pen_stamp' },
@@ -782,7 +780,7 @@ const createVmCompatibleBlockShape = (
 
   if (op === 'procedures_definition') {
     const prototypeId = generateId();
-    const proccode = 'custom block';
+    const proccode = blockDef.proccode || 'custom block';
     extraBlocks[prototypeId] = {
       id: prototypeId,
       opcode: 'procedures_prototype',
@@ -798,7 +796,7 @@ const createVmCompatibleBlockShape = (
   }
 
   if (op === 'procedures_call') {
-    const proccode = 'custom block';
+    const proccode = blockDef.proccode || 'custom block';
     mutation = makeProcedureMutation(proccode);
   }
 
@@ -1329,7 +1327,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   }, []);
   const visibleCategoryNames = useMemo(
     () => Object.keys(categoryBlocks).filter(
-      (name) => categoryBlocks[name].some((def) => isBlockDefAvailable(def, scratchVersion)),
+      (name) => name === 'My Blocks' || categoryBlocks[name].some((def) => isBlockDefAvailable(def, scratchVersion)),
     ),
     [scratchVersion],
   );
@@ -1356,6 +1354,25 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     () => getGUIColors(scratchVersion),
     [scratchVersion],
   );
+
+  // Custom procedures (My Blocks): derived from procedures_prototype mutations
+  // anywhere in the project so the same custom blocks are available across sprites.
+  const customProcedures = useMemo(() => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    project.targets.forEach((t) => {
+      Object.values(t.blocks || {}).forEach((b) => {
+        const node = b as { opcode?: string; mutation?: { proccode?: string } };
+        if (node?.opcode === 'procedures_prototype' && node.mutation?.proccode) {
+          const pc = node.mutation.proccode;
+          if (!seen.has(pc)) { seen.add(pc); list.push(pc); }
+        }
+      });
+    });
+    return list;
+  }, [project]);
+
+  const [procedurePrompt, setProcedurePrompt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visibleCategoryNames.includes(activeCategory) && visibleCategoryNames.length > 0) {
@@ -2749,6 +2766,65 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   onRenameVariable={renameVariable}
                   onRenameList={renameList}
                 />
+              ) : activeCategory === 'My Blocks' ? (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setProcedurePrompt('')}
+                    className="w-full px-3 py-2 rounded-lg text-white text-[13px] font-semibold hover:brightness-110"
+                    style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
+                  >
+                    Make a Block
+                  </button>
+                  {customProcedures.length === 0 ? (
+                    <div className="text-[12px] text-[#575e75] italic mt-2">
+                      No custom blocks yet. Click "Make a Block" to create one.
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 mt-2">
+                      {customProcedures.map((proccode) => {
+                        const color = currentCategoryColors['My Blocks'] || '#ff6680';
+                        const defDef: ScratchBlockDef = {
+                          label: `define ${proccode}`,
+                          opcode: 'procedures_definition',
+                          proccode,
+                          minVersion: 'scratch2',
+                        };
+                        const callDef: ScratchBlockDef = {
+                          label: proccode,
+                          opcode: 'procedures_call',
+                          proccode,
+                          minVersion: 'scratch2',
+                        };
+                        return (
+                          <div key={proccode} className="space-y-1">
+                            <div
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('application/scratch-block', JSON.stringify(defDef));
+                                e.dataTransfer.effectAllowed = 'copy';
+                              }}
+                              onClick={() => addBlock(defDef)}
+                              className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
+                            >
+                              <ScratchBlockShape label={defDef.label} color={color} shape={getBlockShape(defDef.opcode)} />
+                            </div>
+                            <div
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('application/scratch-block', JSON.stringify(callDef));
+                                e.dataTransfer.effectAllowed = 'copy';
+                              }}
+                              onClick={() => addBlock(callDef)}
+                              className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
+                            >
+                              <ScratchBlockShape label={callDef.label} color={color} shape={getBlockShape(callDef.opcode)} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               ) : (
               <div className="space-y-1.5">
                 {(visibleCategoryBlocks[activeCategory] || []).map((blockDef) => {
@@ -3112,7 +3188,52 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
         </div>
       )}
-      {/* Asset Library Dialog */}
+
+      {/* Custom procedure (My Block) creation dialog */}
+      {procedurePrompt !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setProcedurePrompt(null)}>
+          <div className="bg-white rounded-xl shadow-xl p-5 w-[360px]" onClick={(e) => e.stopPropagation()}>
+            <div className="text-[15px] font-bold text-[#575e75] mb-3">Make a Block</div>
+            <div className="text-[13px] text-[#575e75] mb-1">Block name:</div>
+            <input
+              autoFocus
+              className="w-full h-9 rounded-lg border-2 px-3 text-[14px] outline-none"
+              style={{ borderColor: currentCategoryColors['My Blocks'] || '#ff6680' }}
+              value={procedurePrompt}
+              onChange={(e) => setProcedurePrompt(e.target.value)}
+              placeholder="e.g. jump"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const name = (procedurePrompt || '').trim();
+                  if (!name) return;
+                  if (!customProcedures.includes(name)) {
+                    addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
+                  }
+                  setProcedurePrompt(null);
+                }
+                if (e.key === 'Escape') setProcedurePrompt(null);
+              }}
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setProcedurePrompt(null)} className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]">Cancel</button>
+              <button
+                onClick={() => {
+                  const name = (procedurePrompt || '').trim();
+                  if (!name) return;
+                  if (!customProcedures.includes(name)) {
+                    addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
+                  }
+                  setProcedurePrompt(null);
+                }}
+                className="px-4 py-1.5 rounded-lg text-[13px] text-white hover:brightness-110"
+                style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {libraryOpen && (
         <ScratchLibraryDialog
           mode={libraryOpen}
