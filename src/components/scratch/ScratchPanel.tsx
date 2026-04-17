@@ -2943,22 +2943,45 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     </div>
                   ) : (
                     <div className="space-y-1.5 mt-2">
-                      {customProcedures.map((proccode) => {
+                      {customProcedures.map((proc) => {
                         const color = currentCategoryColors['My Blocks'] || '#ff6680';
+                        const tokens = proc.proccode.split(/\s+/).filter(Boolean);
+                        const valueArgs = proc.args.filter((a) => a.type !== 'label');
+                        const labelTokens: string[] = [];
+                        const nameTokens: string[] = [];
+                        let valueIdx = 0;
+                        let nameOver = false;
+                        tokens.forEach((tok) => {
+                          if (tok === '%s' || tok === '%b') {
+                            nameOver = true;
+                            const a = valueArgs[valueIdx++];
+                            if (a) labelTokens.push(tok === '%b' ? `<${a.name}>` : `[${a.name}]`);
+                          } else if (!nameOver) {
+                            nameTokens.push(tok);
+                          } else {
+                            labelTokens.push(tok);
+                          }
+                        });
+                        const callLabel = [nameTokens.join(' '), ...labelTokens].filter(Boolean).join(' ');
+                        const defLabel = `define ${callLabel}`;
                         const defDef: ScratchBlockDef = {
-                          label: `define ${proccode}`,
+                          label: defLabel,
                           opcode: 'procedures_definition',
-                          proccode,
+                          proccode: proc.proccode,
+                          procArgs: proc.args,
+                          procWarp: proc.warp,
                           minVersion: 'scratch2',
                         };
                         const callDef: ScratchBlockDef = {
-                          label: proccode,
+                          label: callLabel,
                           opcode: 'procedures_call',
-                          proccode,
+                          proccode: proc.proccode,
+                          procArgs: proc.args,
+                          procWarp: proc.warp,
                           minVersion: 'scratch2',
                         };
                         return (
-                          <div key={proccode} className="space-y-1">
+                          <div key={proc.proccode} className="space-y-1">
                             <div
                               draggable
                               onDragStart={(e) => {
