@@ -718,6 +718,63 @@ const getFieldOption = (fields: Record<string, unknown> | undefined, key: string
   return tuple[0];
 };
 
+// Registry of dropdown options for block menus, keyed by the parent opcode.
+// Each entry maps the INPUT key (on the parent block) to:
+//   { menuOpcode, fieldKey, options: [{ value, label }] }
+// "options" can also be a function (target) => Option[] to support dynamic lists
+// (e.g. costumes/sounds/sprite names).
+type DropdownOption = { value: string; label: string };
+type MenuFieldDef = {
+  inputKey: string;
+  fieldKey: string;
+  menuOpcode: string;
+  options: DropdownOption[] | ((ctx: { spriteNames: string[]; costumeNames: string[]; backdropNames: string[]; soundNames: string[] }) => DropdownOption[]);
+};
+
+const DROPDOWN_REGISTRY: Record<string, MenuFieldDef[]> = {
+  motion_goto: [{ inputKey: 'TO', fieldKey: 'TO', menuOpcode: 'motion_goto_menu', options: ({ spriteNames }) => [
+    { value: '_random_', label: 'random position' },
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  motion_glideto: [{ inputKey: 'TO', fieldKey: 'TO', menuOpcode: 'motion_glideto_menu', options: ({ spriteNames }) => [
+    { value: '_random_', label: 'random position' },
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  motion_pointtowards: [{ inputKey: 'TOWARDS', fieldKey: 'TOWARDS', menuOpcode: 'motion_pointtowards_menu', options: ({ spriteNames }) => [
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  looks_switchcostumeto: [{ inputKey: 'COSTUME', fieldKey: 'COSTUME', menuOpcode: 'looks_costume', options: ({ costumeNames }) => costumeNames.map((n) => ({ value: n, label: n })) }],
+  looks_switchbackdropto: [{ inputKey: 'BACKDROP', fieldKey: 'BACKDROP', menuOpcode: 'looks_backdrops', options: ({ backdropNames }) => [
+    ...backdropNames.map((n) => ({ value: n, label: n })),
+    { value: 'next backdrop', label: 'next backdrop' },
+    { value: 'previous backdrop', label: 'previous backdrop' },
+    { value: 'random backdrop', label: 'random backdrop' },
+  ] }],
+  sound_play: [{ inputKey: 'SOUND_MENU', fieldKey: 'SOUND_MENU', menuOpcode: 'sound_sounds_menu', options: ({ soundNames }) => soundNames.map((n) => ({ value: n, label: n })) }],
+  sound_playuntildone: [{ inputKey: 'SOUND_MENU', fieldKey: 'SOUND_MENU', menuOpcode: 'sound_sounds_menu', options: ({ soundNames }) => soundNames.map((n) => ({ value: n, label: n })) }],
+  control_create_clone_of: [{ inputKey: 'CLONE_OPTION', fieldKey: 'CLONE_OPTION', menuOpcode: 'control_create_clone_of_menu', options: ({ spriteNames }) => [
+    { value: '_myself_', label: 'myself' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  sensing_touchingobject: [{ inputKey: 'TOUCHINGOBJECTMENU', fieldKey: 'TOUCHINGOBJECTMENU', menuOpcode: 'sensing_touchingobjectmenu', options: ({ spriteNames }) => [
+    { value: '_mouse_', label: 'mouse-pointer' },
+    { value: '_edge_', label: 'edge' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  sensing_distanceto: [{ inputKey: 'DISTANCETOMENU', fieldKey: 'DISTANCETOMENU', menuOpcode: 'sensing_distancetomenu', options: ({ spriteNames }) => [
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  sensing_keypressed: [{ inputKey: 'KEY_OPTION', fieldKey: 'KEY_OPTION', menuOpcode: 'sensing_keyoptions', options: [
+    'space', 'up arrow', 'down arrow', 'right arrow', 'left arrow', 'any',
+    'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
+    '0','1','2','3','4','5','6','7','8','9',
+  ].map((v) => ({ value: v, label: v })) }],
+};
+
 const createVmCompatibleBlockShape = (
   blockId: string,
   blockDef: ScratchBlockDef,
@@ -1057,11 +1114,22 @@ const VariablesFlyout = ({
       {/* Variable reporters */}
       {variables.length > 0 && (
         <div className="space-y-1.5 py-1">
-          {variables.map(([id, [name]]) => (
+          {variables.map(([id, [name]]) => {
+            const reporterDef: ScratchBlockDef = {
+              label: name,
+              opcode: 'data_variable',
+              fields: { VARIABLE: [name, id] },
+            };
+            return (
             <div key={id} className="flex items-center gap-2">
               <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#ff8c1a]" />
               <div
-                className="cursor-pointer"
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(reporterDef));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                className="cursor-grab active:cursor-grabbing"
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, type: 'variable', id, name, allNames: varNames });
@@ -1076,7 +1144,8 @@ const VariablesFlyout = ({
                 <ScratchBlockShape label={name} color={color} shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -1131,11 +1200,22 @@ const VariablesFlyout = ({
       {/* List reporters */}
       {lists.length > 0 && (
         <div className="space-y-1.5 py-1">
-          {lists.map(([id, [name]]) => (
+          {lists.map(([id, [name]]) => {
+            const listReporterDef: ScratchBlockDef = {
+              label: name,
+              opcode: 'data_listcontents',
+              fields: { LIST: [name, id] },
+            };
+            return (
             <div key={id} className="flex items-center gap-2">
               <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#e6832a]" />
               <div
-                className="cursor-pointer"
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(listReporterDef));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
+                className="cursor-grab active:cursor-grabbing"
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, type: 'list', id, name, allNames: listNames });
@@ -1150,7 +1230,8 @@ const VariablesFlyout = ({
                 <ScratchBlockShape label={name} color="#e6832a" shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -1372,7 +1453,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     return list;
   }, [project]);
 
-  const [procedurePrompt, setProcedurePrompt] = useState<string | null>(null);
+  const [makeBlockModal, setMakeBlockModal] = useState<{ name: string; runWithoutRefresh: boolean } | null>(null);
+  const [fieldPicker, setFieldPicker] = useState<{ blockId: string; menuBlockId: string; fieldKey: string; options: DropdownOption[]; x: number; y: number } | null>(null);
 
   useEffect(() => {
     if (!visibleCategoryNames.includes(activeCategory) && visibleCategoryNames.length > 0) {
@@ -2769,7 +2851,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               ) : activeCategory === 'My Blocks' ? (
                 <div className="space-y-2">
                   <button
-                    onClick={() => setProcedurePrompt('')}
+                    onClick={() => setMakeBlockModal({ name: '', runWithoutRefresh: false })}
                     className="w-full px-3 py-2 rounded-lg text-white text-[13px] font-semibold hover:brightness-110"
                     style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
                   >
@@ -2943,12 +3025,48 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             {selectedBlocks.filter((block) => block.opcode && !block.shadow && (block.x !== undefined || block.topLevel)).map((block) => {
               const blockColor = getBlockColor(block.opcode);
               const shape = getBlockShape(block.opcode);
-              const label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
+              const baseLabel = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
+              const blocksMap = selectedTarget?.blocks || {};
+              const menuDefs = DROPDOWN_REGISTRY[block.opcode] || [];
+              // Resolve current menu values from shadow blocks for inline display
+              const menuValues: { def: MenuFieldDef; menuBlockId: string; current: string; options: DropdownOption[] }[] = [];
+              menuDefs.forEach((def) => {
+                const ref = (block.inputs || {})[def.inputKey];
+                if (Array.isArray(ref) && typeof ref[1] === 'string') {
+                  const menuBlockId = ref[1] as string;
+                  const menuBlock = blocksMap[menuBlockId];
+                  const tuple = menuBlock?.fields?.[def.fieldKey];
+                  const current = Array.isArray(tuple) && typeof tuple[0] === 'string' ? (tuple[0] as string) : '';
+                  const options = typeof def.options === 'function'
+                    ? def.options({ spriteNames: spriteTargets.map((s) => s.name), costumeNames: (selectedTarget?.costumes || []).map((c) => c.name), backdropNames: stageBackdrops.map((c) => c.name), soundNames: (selectedTarget?.sounds || []).map((s) => s.name) })
+                    : def.options;
+                  const labelForCurrent = options.find((o) => o.value === current)?.label || current;
+                  menuValues.push({ def, menuBlockId, current: labelForCurrent, options });
+                }
+              });
+              // Substitute the first {placeholder} with current menu label, and the second one (if any), in order.
+              let label = baseLabel;
+              menuValues.forEach((mv) => {
+                label = label.replace(/\{[^}]+\}/, `{${mv.current}}`);
+              });
               const isDragging = block.id === dragBlockId;
               return (
                 <div
                   key={block.id}
                   onPointerDown={(e) => handleBlockPointerDown(block.id, e)}
+                  onClick={(e) => {
+                    if (menuValues.length === 0) return;
+                    e.stopPropagation();
+                    const first = menuValues[0];
+                    setFieldPicker({
+                      blockId: block.id,
+                      menuBlockId: first.menuBlockId,
+                      fieldKey: first.def.fieldKey,
+                      options: first.options,
+                      x: e.clientX,
+                      y: e.clientY,
+                    });
+                  }}
                   className={`absolute select-none touch-none ${isDragging ? 'cursor-grabbing z-50 opacity-80' : 'cursor-grab'}`}
                   style={{
                     left: block.x ?? 40,
@@ -3189,50 +3307,122 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         </div>
       )}
 
-      {/* Custom procedure (My Block) creation dialog */}
-      {procedurePrompt !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setProcedurePrompt(null)}>
-          <div className="bg-white rounded-xl shadow-xl p-5 w-[360px]" onClick={(e) => e.stopPropagation()}>
-            <div className="text-[15px] font-bold text-[#575e75] mb-3">Make a Block</div>
-            <div className="text-[13px] text-[#575e75] mb-1">Block name:</div>
-            <input
-              autoFocus
-              className="w-full h-9 rounded-lg border-2 px-3 text-[14px] outline-none"
-              style={{ borderColor: currentCategoryColors['My Blocks'] || '#ff6680' }}
-              value={procedurePrompt}
-              onChange={(e) => setProcedurePrompt(e.target.value)}
-              placeholder="e.g. jump"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const name = (procedurePrompt || '').trim();
-                  if (!name) return;
-                  if (!customProcedures.includes(name)) {
-                    addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
+      {/* Make a Block — full editor modal */}
+      {makeBlockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setMakeBlockModal(null)}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-[640px] max-w-[95vw] overflow-hidden border-4"
+            style={{ borderColor: currentCategoryColors['My Blocks'] || '#ff6680' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div
+              className="px-5 py-3 flex items-center justify-between"
+              style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
+            >
+              <div className="text-white text-[16px] font-bold w-full text-center">Make a Block</div>
+              <button onClick={() => setMakeBlockModal(null)} className="text-white/90 hover:text-white text-xl leading-none">×</button>
+            </div>
+
+            {/* Block preview */}
+            <div className="bg-[#eef2ff] px-6 py-8 flex flex-col items-center gap-3">
+              <ScratchBlockShape
+                label={`define ${makeBlockModal.name || 'block name'}`}
+                color={currentCategoryColors['My Blocks'] || '#ff6680'}
+                shape="hat"
+                width={Math.max(220, (makeBlockModal.name.length + 8) * 9)}
+              />
+              <input
+                autoFocus
+                value={makeBlockModal.name}
+                onChange={(e) => setMakeBlockModal({ ...makeBlockModal, name: e.target.value })}
+                placeholder="block name"
+                className="w-[260px] h-9 rounded-lg border-2 px-3 text-[14px] outline-none text-center"
+                style={{ borderColor: currentCategoryColors['My Blocks'] || '#ff6680' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const name = makeBlockModal.name.trim();
+                    if (!name) return;
+                    if (!customProcedures.includes(name)) {
+                      addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
+                    }
+                    setMakeBlockModal(null);
                   }
-                  setProcedurePrompt(null);
-                }
-                if (e.key === 'Escape') setProcedurePrompt(null);
-              }}
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setProcedurePrompt(null)} className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]">Cancel</button>
-              <button
-                onClick={() => {
-                  const name = (procedurePrompt || '').trim();
-                  if (!name) return;
-                  if (!customProcedures.includes(name)) {
-                    addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
-                  }
-                  setProcedurePrompt(null);
+                  if (e.key === 'Escape') setMakeBlockModal(null);
                 }}
-                className="px-4 py-1.5 rounded-lg text-[13px] text-white hover:brightness-110"
-                style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
-              >
-                OK
-              </button>
+              />
+            </div>
+
+            {/* Footer with run-without-refresh + actions */}
+            <div className="flex items-center justify-between px-6 py-4">
+              <label className="flex items-center gap-2 text-[13px] text-[#575e75] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={makeBlockModal.runWithoutRefresh}
+                  onChange={(e) => setMakeBlockModal({ ...makeBlockModal, runWithoutRefresh: e.target.checked })}
+                />
+                Run without screen refresh
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMakeBlockModal(null)}
+                  className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const name = makeBlockModal.name.trim();
+                    if (!name) return;
+                    if (!customProcedures.includes(name)) {
+                      addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
+                    }
+                    setMakeBlockModal(null);
+                  }}
+                  className="px-5 py-1.5 rounded-lg text-[13px] text-white hover:brightness-110"
+                  style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
+                >
+                  OK
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Field dropdown picker (canvas blocks) */}
+      {fieldPicker && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setFieldPicker(null)} />
+          <div
+            className="fixed z-50 bg-white border border-[#d0d0d0] rounded-lg shadow-xl py-1 min-w-[160px] max-h-[320px] overflow-y-auto"
+            style={{ left: fieldPicker.x, top: fieldPicker.y + 6 }}
+          >
+            {fieldPicker.options.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  const { menuBlockId, fieldKey } = fieldPicker;
+                  updateProject((current) => ({
+                    ...current,
+                    targets: current.targets.map((t, idx) => {
+                      if (idx !== selectedTargetIndex) return t;
+                      const blocks = { ...(t.blocks || {}) };
+                      const mb = blocks[menuBlockId];
+                      if (!mb) return t;
+                      blocks[menuBlockId] = { ...mb, fields: { ...(mb.fields || {}), [fieldKey]: [opt.value, null] } };
+                      return { ...t, blocks };
+                    }),
+                  }));
+                  setFieldPicker(null);
+                }}
+                className="block w-full text-left px-3 py-1.5 text-[13px] text-[#575e75] hover:bg-[#f0ebff]"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </>
       )}
       {libraryOpen && (
         <ScratchLibraryDialog
