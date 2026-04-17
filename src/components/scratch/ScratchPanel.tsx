@@ -2852,7 +2852,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               ) : activeCategory === 'My Blocks' ? (
                 <div className="space-y-2">
                   <button
-                    onClick={() => setProcedurePrompt('')}
+                    onClick={() => setMakeBlockModal({ name: '', runWithoutRefresh: false })}
                     className="w-full px-3 py-2 rounded-lg text-white text-[13px] font-semibold hover:brightness-110"
                     style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
                   >
