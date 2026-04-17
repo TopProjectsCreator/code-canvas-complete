@@ -3191,7 +3191,52 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
         </div>
       )}
-      {/* Asset Library Dialog */}
+
+      {/* Custom procedure (My Block) creation dialog */}
+      {procedurePrompt !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setProcedurePrompt(null)}>
+          <div className="bg-white rounded-xl shadow-xl p-5 w-[360px]" onClick={(e) => e.stopPropagation()}>
+            <div className="text-[15px] font-bold text-[#575e75] mb-3">Make a Block</div>
+            <div className="text-[13px] text-[#575e75] mb-1">Block name:</div>
+            <input
+              autoFocus
+              className="w-full h-9 rounded-lg border-2 px-3 text-[14px] outline-none"
+              style={{ borderColor: currentCategoryColors['My Blocks'] || '#ff6680' }}
+              value={procedurePrompt}
+              onChange={(e) => setProcedurePrompt(e.target.value)}
+              placeholder="e.g. jump"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const name = (procedurePrompt || '').trim();
+                  if (!name) return;
+                  if (!customProcedures.includes(name)) {
+                    addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
+                  }
+                  setProcedurePrompt(null);
+                }
+                if (e.key === 'Escape') setProcedurePrompt(null);
+              }}
+            />
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setProcedurePrompt(null)} className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]">Cancel</button>
+              <button
+                onClick={() => {
+                  const name = (procedurePrompt || '').trim();
+                  if (!name) return;
+                  if (!customProcedures.includes(name)) {
+                    addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
+                  }
+                  setProcedurePrompt(null);
+                }}
+                className="px-4 py-1.5 rounded-lg text-[13px] text-white hover:brightness-110"
+                style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {libraryOpen && (
         <ScratchLibraryDialog
           mode={libraryOpen}
