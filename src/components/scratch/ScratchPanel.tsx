@@ -1327,7 +1327,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   }, []);
   const visibleCategoryNames = useMemo(
     () => Object.keys(categoryBlocks).filter(
-      (name) => categoryBlocks[name].some((def) => isBlockDefAvailable(def, scratchVersion)),
+      (name) => name === 'My Blocks' || categoryBlocks[name].some((def) => isBlockDefAvailable(def, scratchVersion)),
     ),
     [scratchVersion],
   );
