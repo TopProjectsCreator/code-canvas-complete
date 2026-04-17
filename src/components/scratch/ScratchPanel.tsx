@@ -396,10 +396,7 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'show my list', opcode: 'data_showlist' },
     { label: 'hide my list', opcode: 'data_hidelist' },
   ],
-  'My Blocks': [
-    { label: 'Make a Block', opcode: 'procedures_definition', minVersion: 'scratch2' },
-    { label: 'call custom block', opcode: 'procedures_call', minVersion: 'scratch2' },
-  ],
+  'My Blocks': [],
   Pen: [
     { label: 'erase all', opcode: 'pen_clear' },
     { label: 'stamp', opcode: 'pen_stamp' },
