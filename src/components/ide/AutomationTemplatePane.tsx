@@ -550,6 +550,8 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     // ---- Python SDK hint registry ----
     const getPythonSdkHint = (label: string): string | undefined => {
       const normalized = label.toLowerCase();
+      if (normalized.includes('google ads')) return 'google-ads';
+      if (normalized === 'gmail' || normalized.includes('gmail ')) return 'google-api-python-client';
       if (normalized.includes('openai')) return 'openai';
       if (normalized.includes('anthropic')) return 'anthropic';
       if (normalized.includes('google gemini')) return 'google-genai';
@@ -603,10 +605,35 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     type PySig = { pip: string; imports: string[]; code: (cfg: Record<string,string>, envVar: string) => string[] };
     const blockSnippets: Record<string, PySig> = {
       'OpenAI': { pip: 'openai', imports: ['from openai import OpenAI'], code: (cfg, ev) => [
+        `    # Docs: https://platform.openai.com/docs/api-reference/chat/create`,
         `    client = OpenAI(api_key=${ev})`,
-        `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
+        `    instruction = config.get("prompt", ${JSON.stringify(cfg.prompt || cfg.task || 'Summarize this')})`,
+        `    source_text = config.get("input") or (prev.get("result") if prev else None) or ${JSON.stringify(cfg.input || cfg.task || 'Hello')}`,
+        `    prompt = f"{instruction}\\n\\n{source_text}" if source_text else instruction`,
         `    response = client.chat.completions.create(model="${cfg.model || 'gpt-4o-mini'}", messages=[{"role": "user", "content": prompt}])`,
         `    return {"result": response.choices[0].message.content}`,
+      ]},
+      'Google Ads': { pip: 'requests', imports: [], code: (cfg) => [
+        `    # Docs: https://developers.google.com/google-ads/api/rest/auth`,
+        `    customer_id = config.get("customer_id") or os.getenv("GOOGLE_ADS_CUSTOMER_ID")`,
+        `    developer_token = config.get("developer_token") or os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN")`,
+        `    access_token = os.getenv("GOOGLE_ADS_ACCESS_TOKEN")`,
+        `    if not customer_id or not developer_token or not access_token:`,
+        `        raise EnvironmentError("Google Ads requires GOOGLE_ADS_ACCESS_TOKEN, GOOGLE_ADS_DEVELOPER_TOKEN, and GOOGLE_ADS_CUSTOMER_ID (or customer_id in config).")`,
+        `    login_customer_id = config.get("login_customer_id") or os.getenv("GOOGLE_ADS_LOGIN_CUSTOMER_ID")`,
+        `    gaql_query = config.get("query") or ${JSON.stringify(cfg.query || 'SELECT campaign.id, campaign.name, campaign.status FROM campaign ORDER BY campaign.id DESC LIMIT 10')}`,
+        `    api_version = config.get("api_version") or os.getenv("GOOGLE_ADS_API_VERSION", "v22")`,
+        `    endpoint = config.get("url") or f"https://googleads.googleapis.com/{api_version}/customers/{customer_id}/googleAds:searchStream"`,
+        `    headers = {"Authorization": f"Bearer {access_token}", "developer-token": developer_token, "Content-Type": "application/json"}`,
+        `    if login_customer_id:`,
+        `        headers["login-customer-id"] = str(login_customer_id).replace("-", "")`,
+        `    response = requests.post(endpoint, headers=headers, json={"query": gaql_query})`,
+        `    response.raise_for_status()`,
+        `    data = response.json()`,
+        `    rows = []`,
+        `    for batch in data if isinstance(data, list) else [data]:`,
+        `        rows.extend(batch.get("results", []))`,
+        `    return {"status": "ok", "result": json.dumps(rows), "rows": rows, "count": len(rows), **(prev or {})}`,
       ]},
       'Anthropic': { pip: 'anthropic', imports: ['import anthropic'], code: (cfg, ev) => [
         `    client = anthropic.Anthropic(api_key=${ev})`,
@@ -692,6 +719,27 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         `    response = client.table("${cfg.table || 'items'}").select("*").execute()`,
         `    return {"data": response.data}`,
       ]},
+      'Gmail': { pip: 'requests', imports: ['import base64', 'from email.message import EmailMessage'], code: (cfg) => [
+        `    # Docs: https://developers.google.com/gmail/api/guides/sending`,
+        `    access_token = os.getenv("GMAIL_ACCESS_TOKEN")`,
+        `    sender = config.get("from") or os.getenv("GMAIL_SENDER_EMAIL")`,
+        `    recipient = config.get("to", ${JSON.stringify(cfg.to || 'recipient@example.com')})`,
+        `    if not access_token or not sender:`,
+        `        raise EnvironmentError("Gmail requires GMAIL_ACCESS_TOKEN and GMAIL_SENDER_EMAIL environment variables.")`,
+        `    msg = EmailMessage()`,
+        `    msg["To"] = recipient`,
+        `    msg["From"] = sender`,
+        `    msg["Subject"] = config.get("subject", ${JSON.stringify(cfg.subject || 'Automation Update')})`,
+        `    body_text = config.get("message") or (prev.get("result") if prev else None) or ${JSON.stringify(cfg.message || 'Hello from automation')}`,
+        `    msg.set_content(str(body_text))`,
+        `    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()`,
+        `    response = requests.post("https://gmail.googleapis.com/gmail/v1/users/me/messages/send",`,
+        `        headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},`,
+        `        json={"raw": raw})`,
+        `    response.raise_for_status()`,
+        `    data = response.json()`,
+        `    return {"status": "ok", "result": json.dumps(data), "response": data, **(prev or {})}`,
+      ]},
       'GitHub': { pip: 'requests', imports: [], code: (cfg, ev) => [
         `    headers = {"Authorization": f"Bearer {${ev}}", "Accept": "application/vnd.github+json"}`,
         `    owner, repo = "${cfg.owner || 'owner'}", "${cfg.repo || 'repo'}"`,
@@ -729,13 +777,10 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       'Schedule (Cron)': (cfg) => {
         const schedule = cfg.schedule === 'custom' ? (cfg.cron || '0 9 * * *') : (cfg.schedule || '0 9 * * *');
         return [
-          `    # NOTE: This script runs the pipeline once immediately.`,
-          `    # For recurring execution, deploy with a scheduler:`,
-          `    #   pip install apscheduler`,
-          `    #   scheduler.add_job(run_pipeline, CronTrigger.from_crontab("${schedule}"))`,
-          `    # Or use system crontab: crontab -e → ${schedule} python3 pipeline.py`,
+          `    # This trigger is informational when run inside run_pipeline().`,
+          `    # Recurring execution is handled by start_scheduler() in __main__.`,
           `    print(f"⏰ Trigger: cron=${schedule}, tz={config.get('timezone', 'UTC')}")`,
-          `    print(f"   Running pipeline now (one-shot mode)")`,
+          `    print(f"   Trigger context resolved; downstream steps will execute now.")`,
           `    return {"triggered": True, "schedule": "${schedule}"}`,
         ];
       },
@@ -850,7 +895,19 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       if (sdkHint && sdkHint !== 'requests') {
         pipPackages.add(sdkHint);
       }
-      if (b.auth === 'api_key') {
+      if (b.label === 'Google Ads') {
+        const ev = 'GOOGLE_ADS_ACCESS_TOKEN';
+        if (!needsAuth.find((a) => a.envVar === ev)) {
+          const extras: string[] = ['GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_ADS_CUSTOMER_ID'];
+          needsAuth.push({ label: b.label, envVar: ev, extraEnvVars: extras });
+        }
+      } else if (b.label === 'Gmail') {
+        const ev = 'GMAIL_ACCESS_TOKEN';
+        if (!needsAuth.find((a) => a.envVar === ev)) {
+          const extras: string[] = ['GMAIL_SENDER_EMAIL'];
+          needsAuth.push({ label: b.label, envVar: ev, extraEnvVars: extras });
+        }
+      } else if (b.auth === 'api_key') {
         const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
         if (!needsAuth.find((a) => a.envVar === ev)) {
           const extras: string[] = [];
@@ -858,6 +915,13 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
           needsAuth.push({ label: b.label, envVar: ev, extraEnvVars: extras });
         }
       }
+    }
+
+    const scheduleBlock = blocks.find((b) => b.label === 'Schedule (Cron)');
+    if (scheduleBlock) {
+      pipPackages.add('apscheduler');
+      allImports.add('from apscheduler.schedulers.blocking import BlockingScheduler');
+      allImports.add('from apscheduler.triggers.cron import CronTrigger');
     }
 
     const L: string[] = [];
@@ -951,31 +1015,47 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
           L.push(`    # SDK available: pip install ${sdkHint}`);
           L.push(`    # Replace this generic request with the ${sdkHint} client for ${b.label}`);
         }
-        L.push(`    headers = {"Authorization": f"Bearer {${ev}}", "Content-Type": "application/json"}`);
+        L.push(`    headers = {"Content-Type": "application/json"}`);
+        L.push(`    if config.get("headers"):`);
+        L.push(`        custom_headers = json.loads(config["headers"])`);
+        L.push(`        if isinstance(custom_headers, dict):`);
+        L.push(`            headers.update(custom_headers)`);
+        L.push(`    auth_header = config.get("auth_header") or "Authorization"`);
+        L.push(`    auth_prefix = config.get("auth_prefix", "Bearer").strip()`);
+        L.push(`    token_val = ${ev}`);
+        L.push(`    if auth_header and token_val and auth_header not in headers:`);
+        L.push(`        headers[auth_header] = f"{auth_prefix} {token_val}".strip() if auth_prefix else token_val`);
         L.push(`    url = config.get("url")`);
         L.push(`    if url:`);
         L.push(`        response = requests.request(config.get("method", "POST"), url, headers=headers, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
+        L.push(`        response.raise_for_status()`);
+        L.push(`        content_type = response.headers.get("Content-Type", "")`);
+        L.push(`        data = response.json() if "application/json" in content_type else {"text": response.text}`);
         L.push(`        print(f"  ↳ ${b.label} called: {url}")`);
-        L.push(`        return {"status": "ok", "result": json.dumps(response.json()), "response": response.json(), **(prev or {})}`);
+        L.push(`        return {"status": "ok", "result": json.dumps(data), "response": data, **(prev or {})}`);
         L.push(`    else:`);
-        L.push(`        # No URL configured — pass through with config data`);
-        L.push(`        print(f"  ↳ ${b.label}: no URL configured, passing config as data")`);
-        L.push(`        return {"status": "ok", "result": json.dumps(config), **config, **(prev or {})}`);
+        L.push(`        raise ValueError("No API URL configured for ${b.label}. Set config.url to a valid endpoint.")`);
       } else {
         const sdkHint = getPythonSdkHint(b.label);
         if (sdkHint) {
           L.push(`    # SDK available: pip install ${sdkHint}`);
           L.push(`    # A provider-specific SDK may be available for ${b.label}`);
         }
+        L.push(`    headers = {"Content-Type": "application/json"}`);
+        L.push(`    if config.get("headers"):`);
+        L.push(`        custom_headers = json.loads(config["headers"])`);
+        L.push(`        if isinstance(custom_headers, dict):`);
+        L.push(`            headers.update(custom_headers)`);
         L.push(`    url = config.get("url")`);
         L.push(`    if url:`);
-        L.push(`        response = requests.request(config.get("method", "POST"), url, headers={"Content-Type": "application/json"}, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
+        L.push(`        response = requests.request(config.get("method", "POST"), url, headers=headers, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
+        L.push(`        response.raise_for_status()`);
+        L.push(`        content_type = response.headers.get("Content-Type", "")`);
+        L.push(`        data = response.json() if "application/json" in content_type else {"text": response.text}`);
         L.push(`        print(f"  ↳ ${b.label} executed against {url}")`);
-        L.push(`        return {"status": "ok", "result": json.dumps(response.json()), "response": response.json(), **(prev or {})}`);
+        L.push(`        return {"status": "ok", "result": json.dumps(data), "response": data, **(prev or {})}`);
         L.push(`    else:`);
-        L.push(`        # No URL configured — pass through with config data`);
-        L.push(`        print(f"  ↳ ${b.label}: no URL configured, passing config as data")`);
-        L.push(`        return {"status": "ok", "result": json.dumps(config), **config, **(prev or {})}`);
+        L.push(`        raise ValueError("No API URL configured for ${b.label}. Set config.url to a valid endpoint.")`);
       }
       L.push('');
       L.push('');
@@ -1000,9 +1080,32 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     L.push('    print("✅ Pipeline complete!")');
     L.push('    return result');
     L.push('');
-    L.push('');
-    L.push('if __name__ == "__main__":');
-    L.push('    run_pipeline()');
+    if (scheduleBlock) {
+      const schedule = scheduleBlock.config.schedule === 'custom'
+        ? (scheduleBlock.config.cron || '0 9 * * *')
+        : (scheduleBlock.config.schedule || '0 9 * * *');
+      const timezone = scheduleBlock.config.timezone || 'UTC';
+      L.push('def start_scheduler():');
+      L.push('    """Run the pipeline repeatedly using APScheduler."""');
+      L.push(`    cron_expr = os.getenv("PIPELINE_CRON", "${schedule}")`);
+      L.push(`    timezone = os.getenv("PIPELINE_TIMEZONE", "${timezone}")`);
+      L.push('    scheduler = BlockingScheduler(timezone=timezone)');
+      L.push('    scheduler.add_job(run_pipeline, CronTrigger.from_crontab(cron_expr, timezone=timezone))');
+      L.push('    print(f"🕒 Scheduler started: cron={cron_expr}, timezone={timezone}")');
+      L.push('    run_pipeline()  # Optional immediate run on startup');
+      L.push('    scheduler.start()');
+      L.push('');
+      L.push('');
+      L.push('if __name__ == "__main__":');
+      L.push('    if os.getenv("RUN_ONCE", "0") == "1":');
+      L.push('        run_pipeline()');
+      L.push('    else:');
+      L.push('        start_scheduler()');
+    } else {
+      L.push('');
+      L.push('if __name__ == "__main__":');
+      L.push('    run_pipeline()');
+    }
 
     setPythonCode(L.join('\n') + '\n');
     toast.success('Python code generated!');
