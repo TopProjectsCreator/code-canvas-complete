@@ -3308,50 +3308,122 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         </div>
       )}
 
-      {/* Custom procedure (My Block) creation dialog */}
-      {procedurePrompt !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setProcedurePrompt(null)}>
-          <div className="bg-white rounded-xl shadow-xl p-5 w-[360px]" onClick={(e) => e.stopPropagation()}>
-            <div className="text-[15px] font-bold text-[#575e75] mb-3">Make a Block</div>
-            <div className="text-[13px] text-[#575e75] mb-1">Block name:</div>
-            <input
-              autoFocus
-              className="w-full h-9 rounded-lg border-2 px-3 text-[14px] outline-none"
-              style={{ borderColor: currentCategoryColors['My Blocks'] || '#ff6680' }}
-              value={procedurePrompt}
-              onChange={(e) => setProcedurePrompt(e.target.value)}
-              placeholder="e.g. jump"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const name = (procedurePrompt || '').trim();
-                  if (!name) return;
-                  if (!customProcedures.includes(name)) {
-                    addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
+      {/* Make a Block — full editor modal */}
+      {makeBlockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setMakeBlockModal(null)}>
+          <div
+            className="bg-white rounded-2xl shadow-2xl w-[640px] max-w-[95vw] overflow-hidden border-4"
+            style={{ borderColor: currentCategoryColors['My Blocks'] || '#ff6680' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div
+              className="px-5 py-3 flex items-center justify-between"
+              style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
+            >
+              <div className="text-white text-[16px] font-bold w-full text-center">Make a Block</div>
+              <button onClick={() => setMakeBlockModal(null)} className="text-white/90 hover:text-white text-xl leading-none">×</button>
+            </div>
+
+            {/* Block preview */}
+            <div className="bg-[#eef2ff] px-6 py-8 flex flex-col items-center gap-3">
+              <ScratchBlockShape
+                label={`define ${makeBlockModal.name || 'block name'}`}
+                color={currentCategoryColors['My Blocks'] || '#ff6680'}
+                shape="hat"
+                width={Math.max(220, (makeBlockModal.name.length + 8) * 9)}
+              />
+              <input
+                autoFocus
+                value={makeBlockModal.name}
+                onChange={(e) => setMakeBlockModal({ ...makeBlockModal, name: e.target.value })}
+                placeholder="block name"
+                className="w-[260px] h-9 rounded-lg border-2 px-3 text-[14px] outline-none text-center"
+                style={{ borderColor: currentCategoryColors['My Blocks'] || '#ff6680' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const name = makeBlockModal.name.trim();
+                    if (!name) return;
+                    if (!customProcedures.includes(name)) {
+                      addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
+                    }
+                    setMakeBlockModal(null);
                   }
-                  setProcedurePrompt(null);
-                }
-                if (e.key === 'Escape') setProcedurePrompt(null);
-              }}
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setProcedurePrompt(null)} className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]">Cancel</button>
-              <button
-                onClick={() => {
-                  const name = (procedurePrompt || '').trim();
-                  if (!name) return;
-                  if (!customProcedures.includes(name)) {
-                    addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
-                  }
-                  setProcedurePrompt(null);
+                  if (e.key === 'Escape') setMakeBlockModal(null);
                 }}
-                className="px-4 py-1.5 rounded-lg text-[13px] text-white hover:brightness-110"
-                style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
-              >
-                OK
-              </button>
+              />
+            </div>
+
+            {/* Footer with run-without-refresh + actions */}
+            <div className="flex items-center justify-between px-6 py-4">
+              <label className="flex items-center gap-2 text-[13px] text-[#575e75] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={makeBlockModal.runWithoutRefresh}
+                  onChange={(e) => setMakeBlockModal({ ...makeBlockModal, runWithoutRefresh: e.target.checked })}
+                />
+                Run without screen refresh
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMakeBlockModal(null)}
+                  className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const name = makeBlockModal.name.trim();
+                    if (!name) return;
+                    if (!customProcedures.includes(name)) {
+                      addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
+                    }
+                    setMakeBlockModal(null);
+                  }}
+                  className="px-5 py-1.5 rounded-lg text-[13px] text-white hover:brightness-110"
+                  style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
+                >
+                  OK
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Field dropdown picker (canvas blocks) */}
+      {fieldPicker && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setFieldPicker(null)} />
+          <div
+            className="fixed z-50 bg-white border border-[#d0d0d0] rounded-lg shadow-xl py-1 min-w-[160px] max-h-[320px] overflow-y-auto"
+            style={{ left: fieldPicker.x, top: fieldPicker.y + 6 }}
+          >
+            {fieldPicker.options.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  const { menuBlockId, fieldKey } = fieldPicker;
+                  updateProject((current) => ({
+                    ...current,
+                    targets: current.targets.map((t, idx) => {
+                      if (idx !== selectedTargetIndex) return t;
+                      const blocks = { ...(t.blocks || {}) };
+                      const mb = blocks[menuBlockId];
+                      if (!mb) return t;
+                      blocks[menuBlockId] = { ...mb, fields: { ...(mb.fields || {}), [fieldKey]: [opt.value, null] } };
+                      return { ...t, blocks };
+                    }),
+                  }));
+                  setFieldPicker(null);
+                }}
+                className="block w-full text-left px-3 py-1.5 text-[13px] text-[#575e75] hover:bg-[#f0ebff]"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </>
       )}
       {libraryOpen && (
         <ScratchLibraryDialog
