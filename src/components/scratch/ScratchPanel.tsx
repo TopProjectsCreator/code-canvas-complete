@@ -718,6 +718,63 @@ const getFieldOption = (fields: Record<string, unknown> | undefined, key: string
   return tuple[0];
 };
 
+// Registry of dropdown options for block menus, keyed by the parent opcode.
+// Each entry maps the INPUT key (on the parent block) to:
+//   { menuOpcode, fieldKey, options: [{ value, label }] }
+// "options" can also be a function (target) => Option[] to support dynamic lists
+// (e.g. costumes/sounds/sprite names).
+type DropdownOption = { value: string; label: string };
+type MenuFieldDef = {
+  inputKey: string;
+  fieldKey: string;
+  menuOpcode: string;
+  options: DropdownOption[] | ((ctx: { spriteNames: string[]; costumeNames: string[]; backdropNames: string[]; soundNames: string[] }) => DropdownOption[]);
+};
+
+const DROPDOWN_REGISTRY: Record<string, MenuFieldDef[]> = {
+  motion_goto: [{ inputKey: 'TO', fieldKey: 'TO', menuOpcode: 'motion_goto_menu', options: ({ spriteNames }) => [
+    { value: '_random_', label: 'random position' },
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  motion_glideto: [{ inputKey: 'TO', fieldKey: 'TO', menuOpcode: 'motion_glideto_menu', options: ({ spriteNames }) => [
+    { value: '_random_', label: 'random position' },
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  motion_pointtowards: [{ inputKey: 'TOWARDS', fieldKey: 'TOWARDS', menuOpcode: 'motion_pointtowards_menu', options: ({ spriteNames }) => [
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  looks_switchcostumeto: [{ inputKey: 'COSTUME', fieldKey: 'COSTUME', menuOpcode: 'looks_costume', options: ({ costumeNames }) => costumeNames.map((n) => ({ value: n, label: n })) }],
+  looks_switchbackdropto: [{ inputKey: 'BACKDROP', fieldKey: 'BACKDROP', menuOpcode: 'looks_backdrops', options: ({ backdropNames }) => [
+    ...backdropNames.map((n) => ({ value: n, label: n })),
+    { value: 'next backdrop', label: 'next backdrop' },
+    { value: 'previous backdrop', label: 'previous backdrop' },
+    { value: 'random backdrop', label: 'random backdrop' },
+  ] }],
+  sound_play: [{ inputKey: 'SOUND_MENU', fieldKey: 'SOUND_MENU', menuOpcode: 'sound_sounds_menu', options: ({ soundNames }) => soundNames.map((n) => ({ value: n, label: n })) }],
+  sound_playuntildone: [{ inputKey: 'SOUND_MENU', fieldKey: 'SOUND_MENU', menuOpcode: 'sound_sounds_menu', options: ({ soundNames }) => soundNames.map((n) => ({ value: n, label: n })) }],
+  control_create_clone_of: [{ inputKey: 'CLONE_OPTION', fieldKey: 'CLONE_OPTION', menuOpcode: 'control_create_clone_of_menu', options: ({ spriteNames }) => [
+    { value: '_myself_', label: 'myself' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  sensing_touchingobject: [{ inputKey: 'TOUCHINGOBJECTMENU', fieldKey: 'TOUCHINGOBJECTMENU', menuOpcode: 'sensing_touchingobjectmenu', options: ({ spriteNames }) => [
+    { value: '_mouse_', label: 'mouse-pointer' },
+    { value: '_edge_', label: 'edge' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  sensing_distanceto: [{ inputKey: 'DISTANCETOMENU', fieldKey: 'DISTANCETOMENU', menuOpcode: 'sensing_distancetomenu', options: ({ spriteNames }) => [
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  sensing_keypressed: [{ inputKey: 'KEY_OPTION', fieldKey: 'KEY_OPTION', menuOpcode: 'sensing_keyoptions', options: [
+    'space', 'up arrow', 'down arrow', 'right arrow', 'left arrow', 'any',
+    'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
+    '0','1','2','3','4','5','6','7','8','9',
+  ].map((v) => ({ value: v, label: v })) }],
+};
+
 const createVmCompatibleBlockShape = (
   blockId: string,
   blockDef: ScratchBlockDef,
