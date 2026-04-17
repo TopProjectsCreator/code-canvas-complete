@@ -4,6 +4,18 @@
  * Supports inline input slots: [value] for reporter inputs, <value> for boolean inputs.
  */
 
+export type SlotType = 'reporter' | 'boolean' | 'dropdown';
+export interface SlotRect {
+  /** Sequential index across reporter+boolean slots (excludes dropdowns by default unless `includeDropdowns`). */
+  index: number;
+  type: SlotType;
+  /** Slot bounds in SVG/local coordinates (the SVG is sized to match these coords 1:1). */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 interface ScratchBlockShapeProps {
   label: string;
   color: string;
@@ -14,7 +26,10 @@ interface ScratchBlockShapeProps {
   mouthHeight?: number;
   className?: string;
   style?: React.CSSProperties;
+  /** Called once per render with all input slot rects (reporter [..] / boolean <..>). */
+  onSlots?: (slots: SlotRect[]) => void;
 }
+
 
 const NOTCH_W = 15;
 const NOTCH_H = 4;
