@@ -783,7 +783,7 @@ const createVmCompatibleBlockShape = (
 
   if (op === 'procedures_definition') {
     const prototypeId = generateId();
-    const proccode = 'custom block';
+    const proccode = blockDef.proccode || 'custom block';
     extraBlocks[prototypeId] = {
       id: prototypeId,
       opcode: 'procedures_prototype',
@@ -799,7 +799,7 @@ const createVmCompatibleBlockShape = (
   }
 
   if (op === 'procedures_call') {
-    const proccode = 'custom block';
+    const proccode = blockDef.proccode || 'custom block';
     mutation = makeProcedureMutation(proccode);
   }
 
