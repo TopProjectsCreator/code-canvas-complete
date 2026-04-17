@@ -622,7 +622,8 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         `        raise EnvironmentError("Google Ads requires GOOGLE_ADS_ACCESS_TOKEN, GOOGLE_ADS_DEVELOPER_TOKEN, and GOOGLE_ADS_CUSTOMER_ID (or customer_id in config).")`,
         `    login_customer_id = config.get("login_customer_id") or os.getenv("GOOGLE_ADS_LOGIN_CUSTOMER_ID")`,
         `    gaql_query = config.get("query") or ${JSON.stringify(cfg.query || 'SELECT campaign.id, campaign.name, campaign.status FROM campaign ORDER BY campaign.id DESC LIMIT 10')}`,
-        `    endpoint = f"https://googleads.googleapis.com/v18/customers/{customer_id}/googleAds:searchStream"`,
+        `    api_version = config.get("api_version") or os.getenv("GOOGLE_ADS_API_VERSION", "v22")`,
+        `    endpoint = config.get("url") or f"https://googleads.googleapis.com/{api_version}/customers/{customer_id}/googleAds:searchStream"`,
         `    headers = {"Authorization": f"Bearer {access_token}", "developer-token": developer_token, "Content-Type": "application/json"}`,
         `    if login_customer_id:`,
         `        headers["login-customer-id"] = str(login_customer_id).replace("-", "")`,
@@ -1014,7 +1015,16 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
           L.push(`    # SDK available: pip install ${sdkHint}`);
           L.push(`    # Replace this generic request with the ${sdkHint} client for ${b.label}`);
         }
-        L.push(`    headers = {"Authorization": f"Bearer {${ev}}", "Content-Type": "application/json"}`);
+        L.push(`    headers = {"Content-Type": "application/json"}`);
+        L.push(`    if config.get("headers"):`);
+        L.push(`        custom_headers = json.loads(config["headers"])`);
+        L.push(`        if isinstance(custom_headers, dict):`);
+        L.push(`            headers.update(custom_headers)`);
+        L.push(`    auth_header = config.get("auth_header") or "Authorization"`);
+        L.push(`    auth_prefix = config.get("auth_prefix", "Bearer").strip()`);
+        L.push(`    token_val = ${ev}`);
+        L.push(`    if auth_header and token_val and auth_header not in headers:`);
+        L.push(`        headers[auth_header] = f"{auth_prefix} {token_val}".strip() if auth_prefix else token_val`);
         L.push(`    url = config.get("url")`);
         L.push(`    if url:`);
         L.push(`        response = requests.request(config.get("method", "POST"), url, headers=headers, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
@@ -1031,9 +1041,14 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
           L.push(`    # SDK available: pip install ${sdkHint}`);
           L.push(`    # A provider-specific SDK may be available for ${b.label}`);
         }
+        L.push(`    headers = {"Content-Type": "application/json"}`);
+        L.push(`    if config.get("headers"):`);
+        L.push(`        custom_headers = json.loads(config["headers"])`);
+        L.push(`        if isinstance(custom_headers, dict):`);
+        L.push(`            headers.update(custom_headers)`);
         L.push(`    url = config.get("url")`);
         L.push(`    if url:`);
-        L.push(`        response = requests.request(config.get("method", "POST"), url, headers={"Content-Type": "application/json"}, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
+        L.push(`        response = requests.request(config.get("method", "POST"), url, headers=headers, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
         L.push(`        response.raise_for_status()`);
         L.push(`        content_type = response.headers.get("Content-Type", "")`);
         L.push(`        data = response.json() if "application/json" in content_type else {"text": response.text}`);
