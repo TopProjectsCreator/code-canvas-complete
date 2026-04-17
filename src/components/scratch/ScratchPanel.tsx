@@ -130,6 +130,9 @@ const isOpcodeSupportedInVersion = (opcode: string, version: ScratchCompatibilit
   return true;
 };
 
+type ProcArgType = 'string_number' | 'boolean' | 'label';
+type ProcArg = { type: ProcArgType; name: string; id?: string };
+
 type ScratchBlockDef = {
   label: string;
   opcode: string;
@@ -139,6 +142,8 @@ type ScratchBlockDef = {
   minVersion?: ScratchCompatibilityVersion;
   maxVersion?: ScratchCompatibilityVersion;
   proccode?: string;
+  procArgs?: ProcArg[];
+  procWarp?: boolean;
 };
 // Fallback 2D canvas renderer when scratch-render (WebGL) doesn't produce output
 const fallbackImageCache = new Map<string, HTMLImageElement>();
@@ -801,15 +806,37 @@ const createVmCompatibleBlockShape = (
   };
 
   const op = blockDef.opcode;
-  const makeProcedureMutation = (proccode: string) => ({
-    tagName: 'mutation',
-    children: [],
-    proccode,
-    argumentids: '[]',
-    argumentnames: '[]',
-    argumentdefaults: '[]',
-    warp: 'false',
-  });
+  const procArgs: ProcArg[] = (blockDef.procArgs || []).map((a) => ({
+    ...a,
+    id: a.id || generateId(),
+  }));
+  const buildProccodeFromName = (name: string, args: ProcArg[]) => {
+    // If the saved proccode already includes %s/%b tokens, trust it; otherwise build it.
+    if (name.includes('%s') || name.includes('%b')) return name;
+    const parts: string[] = [name.trim()];
+    args.forEach((a) => {
+      if (a.type === 'label') parts.push(a.name.trim());
+      else if (a.type === 'boolean') parts.push('%b');
+      else parts.push('%s');
+    });
+    return parts.filter(Boolean).join(' ');
+  };
+  const makeProcedureMutation = (
+    proccode: string,
+    args: ProcArg[],
+    warp: boolean,
+  ) => {
+    const valueArgs = args.filter((a) => a.type !== 'label');
+    return {
+      tagName: 'mutation',
+      children: [],
+      proccode,
+      argumentids: JSON.stringify(valueArgs.map((a) => a.id)),
+      argumentnames: JSON.stringify(valueArgs.map((a) => a.name)),
+      argumentdefaults: JSON.stringify(valueArgs.map((a) => (a.type === 'boolean' ? 'false' : ''))),
+      warp: warp ? 'true' : 'false',
+    };
+  };
 
   if (op === 'compat_foreverif') {
     const ifId = generateId();
@@ -837,7 +864,25 @@ const createVmCompatibleBlockShape = (
 
   if (op === 'procedures_definition') {
     const prototypeId = generateId();
-    const proccode = blockDef.proccode || 'custom block';
+    const warp = !!blockDef.procWarp;
+    const proccode = buildProccodeFromName(blockDef.proccode || 'custom block', procArgs);
+    const valueArgs = procArgs.filter((a) => a.type !== 'label');
+    // Create one argument_reporter shadow per value arg, attached as inputs of the prototype
+    const protoInputs: Record<string, unknown> = {};
+    valueArgs.forEach((a) => {
+      const reporterId = generateId();
+      extraBlocks[reporterId] = {
+        id: reporterId,
+        opcode: a.type === 'boolean' ? 'argument_reporter_boolean' : 'argument_reporter_string_number',
+        parent: prototypeId,
+        topLevel: false,
+        shadow: true,
+        fields: { VALUE: [a.name, null] },
+        inputs: {},
+        next: null,
+      };
+      protoInputs[a.id!] = [1, reporterId];
+    });
     extraBlocks[prototypeId] = {
       id: prototypeId,
       opcode: 'procedures_prototype',
@@ -845,16 +890,25 @@ const createVmCompatibleBlockShape = (
       topLevel: false,
       shadow: true,
       fields: {},
-      inputs: {},
+      inputs: protoInputs,
       next: null,
-      mutation: makeProcedureMutation(proccode),
+      mutation: makeProcedureMutation(proccode, procArgs, warp),
     };
     nextInputs.custom_block = [1, prototypeId];
   }
 
   if (op === 'procedures_call') {
-    const proccode = blockDef.proccode || 'custom block';
-    mutation = makeProcedureMutation(proccode);
+    const warp = !!blockDef.procWarp;
+    const proccode = buildProccodeFromName(blockDef.proccode || 'custom block', procArgs);
+    const valueArgs = procArgs.filter((a) => a.type !== 'label');
+    valueArgs.forEach((a) => {
+      if (a.type === 'boolean') {
+        // Boolean input: empty (no shadow), VM treats missing as false
+      } else {
+        nextInputs[a.id!] = [1, [10, '']];
+      }
+    });
+    mutation = makeProcedureMutation(proccode, procArgs, warp);
   }
 
   // Motion menus
@@ -1439,21 +1493,51 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   // Custom procedures (My Blocks): derived from procedures_prototype mutations
   // anywhere in the project so the same custom blocks are available across sprites.
   const customProcedures = useMemo(() => {
-    const seen = new Set<string>();
-    const list: string[] = [];
+    const seen = new Map<string, { proccode: string; args: ProcArg[]; warp: boolean }>();
     project.targets.forEach((t) => {
       Object.values(t.blocks || {}).forEach((b) => {
-        const node = b as { opcode?: string; mutation?: { proccode?: string } };
+        const node = b as {
+          opcode?: string;
+          mutation?: { proccode?: string; argumentnames?: string; argumentids?: string; warp?: string };
+        };
         if (node?.opcode === 'procedures_prototype' && node.mutation?.proccode) {
           const pc = node.mutation.proccode;
-          if (!seen.has(pc)) { seen.add(pc); list.push(pc); }
+          if (seen.has(pc)) return;
+          let names: string[] = [];
+          let ids: string[] = [];
+          try { names = JSON.parse(node.mutation.argumentnames || '[]'); } catch { /* noop */ }
+          try { ids = JSON.parse(node.mutation.argumentids || '[]'); } catch { /* noop */ }
+          // Walk proccode tokens to recover %s/%b order + label tokens
+          const tokens = pc.split(/(\s+)/).filter((s) => s.trim().length > 0);
+          const args: ProcArg[] = [];
+          let valueIdx = 0;
+          // Skip the leading name tokens until we hit first %s/%b; tokens before that form the name
+          let nameOver = false;
+          tokens.forEach((tok) => {
+            if (tok === '%s' || tok === '%b') {
+              nameOver = true;
+              args.push({
+                type: tok === '%b' ? 'boolean' : 'string_number',
+                name: names[valueIdx] || `arg${valueIdx + 1}`,
+                id: ids[valueIdx],
+              });
+              valueIdx++;
+            } else if (nameOver) {
+              args.push({ type: 'label', name: tok });
+            }
+          });
+          seen.set(pc, { proccode: pc, args, warp: node.mutation.warp === 'true' });
         }
       });
     });
-    return list;
+    return Array.from(seen.values());
   }, [project]);
 
-  const [makeBlockModal, setMakeBlockModal] = useState<{ name: string; runWithoutRefresh: boolean } | null>(null);
+  const [makeBlockModal, setMakeBlockModal] = useState<{
+    name: string;
+    runWithoutRefresh: boolean;
+    args: ProcArg[];
+  } | null>(null);
   const [fieldPicker, setFieldPicker] = useState<{ blockId: string; menuBlockId: string; fieldKey: string; options: DropdownOption[]; x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -2851,7 +2935,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               ) : activeCategory === 'My Blocks' ? (
                 <div className="space-y-2">
                   <button
-                    onClick={() => setMakeBlockModal({ name: '', runWithoutRefresh: false })}
+                    onClick={() => setMakeBlockModal({ name: '', runWithoutRefresh: false, args: [] })}
                     className="w-full px-3 py-2 rounded-lg text-white text-[13px] font-semibold hover:brightness-110"
                     style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
                   >
@@ -2863,22 +2947,45 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     </div>
                   ) : (
                     <div className="space-y-1.5 mt-2">
-                      {customProcedures.map((proccode) => {
+                      {customProcedures.map((proc) => {
                         const color = currentCategoryColors['My Blocks'] || '#ff6680';
+                        const tokens = proc.proccode.split(/\s+/).filter(Boolean);
+                        const valueArgs = proc.args.filter((a) => a.type !== 'label');
+                        const labelTokens: string[] = [];
+                        const nameTokens: string[] = [];
+                        let valueIdx = 0;
+                        let nameOver = false;
+                        tokens.forEach((tok) => {
+                          if (tok === '%s' || tok === '%b') {
+                            nameOver = true;
+                            const a = valueArgs[valueIdx++];
+                            if (a) labelTokens.push(tok === '%b' ? `<${a.name}>` : `[${a.name}]`);
+                          } else if (!nameOver) {
+                            nameTokens.push(tok);
+                          } else {
+                            labelTokens.push(tok);
+                          }
+                        });
+                        const callLabel = [nameTokens.join(' '), ...labelTokens].filter(Boolean).join(' ');
+                        const defLabel = `define ${callLabel}`;
                         const defDef: ScratchBlockDef = {
-                          label: `define ${proccode}`,
+                          label: defLabel,
                           opcode: 'procedures_definition',
-                          proccode,
+                          proccode: proc.proccode,
+                          procArgs: proc.args,
+                          procWarp: proc.warp,
                           minVersion: 'scratch2',
                         };
                         const callDef: ScratchBlockDef = {
-                          label: proccode,
+                          label: callLabel,
                           opcode: 'procedures_call',
-                          proccode,
+                          proccode: proc.proccode,
+                          procArgs: proc.args,
+                          procWarp: proc.warp,
                           minVersion: 'scratch2',
                         };
                         return (
-                          <div key={proccode} className="space-y-1">
+                          <div key={proc.proccode} className="space-y-1">
                             <div
                               draggable
                               onDragStart={(e) => {
@@ -3308,87 +3415,175 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       )}
 
       {/* Make a Block — full editor modal */}
-      {makeBlockModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setMakeBlockModal(null)}>
-          <div
-            className="bg-white rounded-2xl shadow-2xl w-[640px] max-w-[95vw] overflow-hidden border-4"
-            style={{ borderColor: currentCategoryColors['My Blocks'] || '#ff6680' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
+      {makeBlockModal && (() => {
+        const myColor = currentCategoryColors['My Blocks'] || '#ff6680';
+        const previewName = makeBlockModal.name.trim() || 'block name';
+        const previewArgs = makeBlockModal.args
+          .map((a) => {
+            if (a.type === 'label') return a.name.trim();
+            if (a.type === 'boolean') return `<${a.name || 'boolean'}>`;
+            return `[${a.name || 'number or text'}]`;
+          })
+          .filter(Boolean)
+          .join(' ');
+        const previewLabel = `define ${previewName}${previewArgs ? ' ' + previewArgs : ''}`;
+        const updateArg = (idx: number, patch: Partial<ProcArg>) => {
+          setMakeBlockModal({
+            ...makeBlockModal,
+            args: makeBlockModal.args.map((a, i) => (i === idx ? { ...a, ...patch } : a)),
+          });
+        };
+        const removeArg = (idx: number) => {
+          setMakeBlockModal({
+            ...makeBlockModal,
+            args: makeBlockModal.args.filter((_, i) => i !== idx),
+          });
+        };
+        const addArg = (type: ProcArgType) => {
+          const defaultName =
+            type === 'label'
+              ? 'label text'
+              : type === 'boolean'
+                ? `boolean${makeBlockModal.args.filter((a) => a.type === 'boolean').length + 1}`
+                : `arg${makeBlockModal.args.filter((a) => a.type === 'string_number').length + 1}`;
+          setMakeBlockModal({
+            ...makeBlockModal,
+            args: [...makeBlockModal.args, { type, name: defaultName, id: generateId() }],
+          });
+        };
+        const submit = () => {
+          const name = makeBlockModal.name.trim();
+          if (!name) return;
+          // Build proccode from name + args
+          const parts: string[] = [name];
+          makeBlockModal.args.forEach((a) => {
+            if (a.type === 'label') parts.push(a.name.trim());
+            else if (a.type === 'boolean') parts.push('%b');
+            else parts.push('%s');
+          });
+          const proccode = parts.filter(Boolean).join(' ');
+          if (!customProcedures.some((p) => p.proccode === proccode)) {
+            addBlock({
+              label: previewLabel,
+              opcode: 'procedures_definition',
+              proccode,
+              procArgs: makeBlockModal.args,
+              procWarp: makeBlockModal.runWithoutRefresh,
+              minVersion: 'scratch2',
+            });
+          }
+          setMakeBlockModal(null);
+        };
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setMakeBlockModal(null)}>
             <div
-              className="px-5 py-3 flex items-center justify-between"
-              style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
+              className="bg-white rounded-2xl shadow-2xl w-[640px] max-w-[95vw] overflow-hidden border-4"
+              style={{ borderColor: myColor }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <div className="text-white text-[16px] font-bold w-full text-center">Make a Block</div>
-              <button onClick={() => setMakeBlockModal(null)} className="text-white/90 hover:text-white text-xl leading-none">×</button>
-            </div>
+              {/* Header */}
+              <div className="px-5 py-3 flex items-center justify-between" style={{ background: myColor }}>
+                <div className="text-white text-[16px] font-bold w-full text-center">Make a Block</div>
+                <button onClick={() => setMakeBlockModal(null)} className="text-white/90 hover:text-white text-xl leading-none">×</button>
+              </div>
 
-            {/* Block preview */}
-            <div className="bg-[#eef2ff] px-6 py-8 flex flex-col items-center gap-3">
-              <ScratchBlockShape
-                label={`define ${makeBlockModal.name || 'block name'}`}
-                color={currentCategoryColors['My Blocks'] || '#ff6680'}
-                shape="hat"
-                width={Math.max(220, (makeBlockModal.name.length + 8) * 9)}
-              />
-              <input
-                autoFocus
-                value={makeBlockModal.name}
-                onChange={(e) => setMakeBlockModal({ ...makeBlockModal, name: e.target.value })}
-                placeholder="block name"
-                className="w-[260px] h-9 rounded-lg border-2 px-3 text-[14px] outline-none text-center"
-                style={{ borderColor: currentCategoryColors['My Blocks'] || '#ff6680' }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const name = makeBlockModal.name.trim();
-                    if (!name) return;
-                    if (!customProcedures.includes(name)) {
-                      addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
-                    }
-                    setMakeBlockModal(null);
-                  }
-                  if (e.key === 'Escape') setMakeBlockModal(null);
-                }}
-              />
-            </div>
-
-            {/* Footer with run-without-refresh + actions */}
-            <div className="flex items-center justify-between px-6 py-4">
-              <label className="flex items-center gap-2 text-[13px] text-[#575e75] cursor-pointer">
+              {/* Block preview */}
+              <div className="bg-[#eef2ff] px-6 py-6 flex flex-col items-center gap-3">
+                <ScratchBlockShape label={previewLabel} color={myColor} shape="hat" />
                 <input
-                  type="checkbox"
-                  checked={makeBlockModal.runWithoutRefresh}
-                  onChange={(e) => setMakeBlockModal({ ...makeBlockModal, runWithoutRefresh: e.target.checked })}
+                  autoFocus
+                  value={makeBlockModal.name}
+                  onChange={(e) => setMakeBlockModal({ ...makeBlockModal, name: e.target.value })}
+                  placeholder="block name"
+                  className="w-[300px] h-9 rounded-lg border-2 px-3 text-[14px] outline-none text-center"
+                  style={{ borderColor: myColor }}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setMakeBlockModal(null); }}
                 />
-                Run without screen refresh
-              </label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setMakeBlockModal(null)}
-                  className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    const name = makeBlockModal.name.trim();
-                    if (!name) return;
-                    if (!customProcedures.includes(name)) {
-                      addBlock({ label: `define ${name}`, opcode: 'procedures_definition', proccode: name, minVersion: 'scratch2' });
-                    }
-                    setMakeBlockModal(null);
-                  }}
-                  className="px-5 py-1.5 rounded-lg text-[13px] text-white hover:brightness-110"
-                  style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
-                >
-                  OK
-                </button>
+
+                {/* Args list */}
+                {makeBlockModal.args.length > 0 && (
+                  <div className="w-full max-w-[480px] space-y-1.5 mt-1">
+                    {makeBlockModal.args.map((a, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-white rounded-lg border border-[#d0d0d0] px-2 py-1.5">
+                        <span
+                          className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded text-white"
+                          style={{ background: a.type === 'boolean' ? '#59c059' : a.type === 'label' ? '#a0a0a0' : '#5cb1d6' }}
+                        >
+                          {a.type === 'string_number' ? 'value' : a.type === 'boolean' ? 'bool' : 'text'}
+                        </span>
+                        <input
+                          value={a.name}
+                          onChange={(e) => updateArg(idx, { name: e.target.value })}
+                          className="flex-1 h-7 rounded border border-[#d0d0d0] px-2 text-[12px] outline-none focus:border-[#855cd6]"
+                        />
+                        <button
+                          onClick={() => removeArg(idx)}
+                          className="text-[#575e75] hover:text-red-500 text-[16px] leading-none px-1"
+                          title="Remove"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add arg buttons */}
+                <div className="flex gap-2 mt-1 flex-wrap justify-center">
+                  <button
+                    onClick={() => addArg('string_number')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#5cb1d6] text-white text-[12px] font-semibold hover:brightness-110"
+                  >
+                    <span className="bg-white/30 rounded-full px-1.5 text-[10px]">+</span>
+                    Add an input <span className="opacity-80">number or text</span>
+                  </button>
+                  <button
+                    onClick={() => addArg('boolean')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#59c059] text-white text-[12px] font-semibold hover:brightness-110"
+                  >
+                    <span className="bg-white/30 rounded-full px-1.5 text-[10px]">+</span>
+                    Add an input <span className="opacity-80">boolean</span>
+                  </button>
+                  <button
+                    onClick={() => addArg('label')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#a0a0a0] text-white text-[12px] font-semibold hover:brightness-110"
+                  >
+                    <span className="bg-white/30 rounded-full px-1.5 text-[10px]">+</span>
+                    Add a label
+                  </button>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between px-6 py-4">
+                <label className="flex items-center gap-2 text-[13px] text-[#575e75] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={makeBlockModal.runWithoutRefresh}
+                    onChange={(e) => setMakeBlockModal({ ...makeBlockModal, runWithoutRefresh: e.target.checked })}
+                  />
+                  Run without screen refresh
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setMakeBlockModal(null)}
+                    className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={submit}
+                    className="px-5 py-1.5 rounded-lg text-[13px] text-white hover:brightness-110"
+                    style={{ background: myColor }}
+                  >
+                    OK
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Field dropdown picker (canvas blocks) */}
       {fieldPicker && (
