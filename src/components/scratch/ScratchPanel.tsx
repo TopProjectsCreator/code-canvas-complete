@@ -1358,6 +1358,25 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     [scratchVersion],
   );
 
+  // Custom procedures (My Blocks): derived from procedures_prototype mutations
+  // anywhere in the project so the same custom blocks are available across sprites.
+  const customProcedures = useMemo(() => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    project.targets.forEach((t) => {
+      Object.values(t.blocks || {}).forEach((b) => {
+        const node = b as { opcode?: string; mutation?: { proccode?: string } };
+        if (node?.opcode === 'procedures_prototype' && node.mutation?.proccode) {
+          const pc = node.mutation.proccode;
+          if (!seen.has(pc)) { seen.add(pc); list.push(pc); }
+        }
+      });
+    });
+    return list;
+  }, [project]);
+
+  const [procedurePrompt, setProcedurePrompt] = useState<string | null>(null);
+
   useEffect(() => {
     if (!visibleCategoryNames.includes(activeCategory) && visibleCategoryNames.length > 0) {
       setActiveCategory(visibleCategoryNames[0]);
