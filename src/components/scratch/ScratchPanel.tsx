@@ -3652,6 +3652,37 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 <div
                   key={block.id}
                   onPointerDown={(e) => handleBlockPointerDown(block.id, e)}
+                  // CRITICAL: must preventDefault on dragOver so drop fires when releasing
+                  // a flyout reporter ON TOP of an existing block (otherwise browser cancels drop).
+                  onDragOver={(e) => {
+                    if (e.dataTransfer.types.includes('application/scratch-block')) {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'copy';
+                    }
+                  }}
+                  onDrop={(e) => {
+                    if (!e.dataTransfer.types.includes('application/scratch-block')) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setInputDropTarget(null);
+                    // Compute coords relative to the workspace (not this block)
+                    const ws = workspaceRef.current;
+                    if (!ws) return;
+                    const rect = ws.getBoundingClientRect();
+                    const x = (e.clientX - rect.left) / workspaceZoom;
+                    const y = (e.clientY - rect.top) / workspaceZoom;
+                    try {
+                      const raw = e.dataTransfer.getData('application/scratch-block');
+                      if (!raw) return;
+                      const data = JSON.parse(raw) as ScratchBlockDef;
+                      const droppedShape = getBlockShape(data.opcode);
+                      if (droppedShape === 'reporter' || droppedShape === 'boolean') {
+                        const target = findSlotDropTarget(selectedTarget?.blocks || {}, x, y, droppedShape, new Set());
+                        if (target) { attachReporterToSlot(data, target.blockId, target.inputKey); return; }
+                      }
+                      addBlock(data, x, y);
+                    } catch (err) { console.error('[scratch-block-drop]', err); }
+                  }}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
