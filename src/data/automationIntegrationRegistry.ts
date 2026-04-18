@@ -515,6 +515,45 @@ const rssMonitorParams: APIParameter[] = [
   { name: 'keyword_filter', displayName: 'Keyword Filter', type: 'string', placeholder: 'Optional keyword to match in titles' },
 ];
 
+const newsapiParams: APIParameter[] = [
+  { name: 'query', displayName: 'Search Query', type: 'string', required: true, placeholder: 'artificial intelligence' },
+  { name: 'endpoint', displayName: 'Endpoint', type: 'select', default: 'everything', options: [
+    { label: 'Everything', value: 'everything' },
+    { label: 'Top Headlines', value: 'top-headlines' },
+  ]},
+  { name: 'language', displayName: 'Language', type: 'string', default: 'en', placeholder: 'en' },
+  { name: 'sort_by', displayName: 'Sort By', type: 'select', default: 'publishedAt', options: [
+    { label: 'Published At', value: 'publishedAt' },
+    { label: 'Relevancy', value: 'relevancy' },
+    { label: 'Popularity', value: 'popularity' },
+  ]},
+  { name: 'page_size', displayName: 'Page Size', type: 'number', default: 20 },
+];
+
+const descriptParams: APIParameter[] = [
+  { name: 'project_id', displayName: 'Project ID', type: 'string', required: true, placeholder: 'proj_123' },
+  { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'transcribe', options: [
+    { label: 'Transcribe Audio', value: 'transcribe' },
+    { label: 'Create Clip', value: 'create_clip' },
+    { label: 'Export Project', value: 'export' },
+  ]},
+  { name: 'media_url', displayName: 'Media URL', type: 'url', placeholder: 'https://example.com/audio.mp3' },
+  { name: 'transcript_format', displayName: 'Transcript Format', type: 'select', default: 'text', options: [
+    { label: 'Plain Text', value: 'text' },
+    { label: 'SRT', value: 'srt' },
+    { label: 'VTT', value: 'vtt' },
+    { label: 'JSON', value: 'json' },
+  ]},
+  { name: 'language', displayName: 'Language', type: 'string', default: 'en', placeholder: 'en' },
+];
+
+const gnewsParams: APIParameter[] = [
+  { name: 'query', displayName: 'Search Query', type: 'string', required: true, placeholder: 'technology' },
+  { name: 'language', displayName: 'Language', type: 'string', default: 'en', placeholder: 'en' },
+  { name: 'country', displayName: 'Country', type: 'string', default: 'us', placeholder: 'us' },
+  { name: 'max', displayName: 'Max Results', type: 'number', default: 10 },
+];
+
 const newEmailParams: APIParameter[] = [
   { name: 'mailbox', displayName: 'Mailbox / Folder', type: 'select', default: 'INBOX', options: [
     { label: 'Inbox', value: 'INBOX' },
@@ -3125,6 +3164,13 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Contentful', 'api_key', undefined, cmsParams], ['Sanity', 'free', undefined, cmsParams], ['Prismic', 'api_key', undefined, cmsParams],
         ['Webflow', 'api_key', undefined, cmsParams], ['Medium', 'free', undefined, cmsParams], ['Hashnode', 'free', undefined, cmsParams],
         ['Dev.to', 'free', undefined, cmsParams], ['Substack', 'api_key', undefined, cmsParams],
+      ]),
+      withBlocks('news-media', 'News & Media APIs', [
+        ['NewsAPI', 'api_key', undefined, newsapiParams],
+        ['GNews', 'api_key', undefined, gnewsParams],
+      ]),
+      withBlocks('audio-video-editing', 'Audio & Video Editing APIs', [
+        ['Descript', 'api_key', undefined, descriptParams],
       ]),
     ],
   },
