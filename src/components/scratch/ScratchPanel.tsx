@@ -2600,10 +2600,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         const cx = ax + slot.width / 2;
         const cy = ay + slot.height / 2;
         // Very generous snap zone: large bounding box pad + wide radius from slot center.
-        const PAD = 40;
+        const PAD = 80;
         const inBox = wsX >= ax - PAD && wsX <= ax + slot.width + PAD && wsY >= ay - PAD && wsY <= ay + slot.height + PAD;
         const distToCenter = Math.hypot(wsX - cx, wsY - cy);
-        if (inBox || distToCenter <= 60) {
+        if (inBox || distToCenter <= 120) {
           const score = distToCenter;
           if (!best || score < best.score) {
             best = { blockId, inputKey, type: slot.type, x: ax, y: ay, width: slot.width, height: slot.height, score };
