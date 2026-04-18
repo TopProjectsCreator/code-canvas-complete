@@ -23,4 +23,19 @@ describe('scratch sb3 import/export', () => {
     expect(outImported.archive.projectJson).toContain('Sprite1');
     expect(outImported.archive.files['a.txt']).toBeTruthy();
   });
+
+  it('exports assets present in files even when fileNames is stale', async () => {
+    const data = await exportSb3({
+      projectJson: JSON.stringify({ targets: [], meta: { semver: '3.0.0' } }),
+      files: {
+        'extra.txt': btoa('hello'),
+      },
+      fileNames: ['project.json'],
+    });
+
+    const out = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+    const imported = await importSb3(out);
+
+    expect(imported.archive.files['extra.txt']).toBeTruthy();
+  });
 });
