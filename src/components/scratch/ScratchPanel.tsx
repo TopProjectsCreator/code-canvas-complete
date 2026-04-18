@@ -801,7 +801,13 @@ const getOrderedInputKeysForBlock = (block: ScratchBlockNode): string[] => {
     }
     return [];
   }
-  return INPUT_KEYS_BY_OPCODE[op] || [];
+  const registered = INPUT_KEYS_BY_OPCODE[op];
+  if (registered && registered.length) return registered;
+  // Fallback: derive from existing inputs (excluding stack mouths) so unregistered blocks still accept reporters.
+  if (block.inputs) {
+    return Object.keys(block.inputs).filter((k) => k !== 'SUBSTACK' && k !== 'SUBSTACK2' && k !== 'CUSTOM_BLOCK');
+  }
+  return [];
 };
 
 // Registry of dropdown options for block menus, keyed by the parent opcode.
