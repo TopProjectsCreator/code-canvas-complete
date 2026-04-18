@@ -723,6 +723,87 @@ const getFieldOption = (fields: Record<string, unknown> | undefined, key: string
   return tuple[0];
 };
 
+// Ordered input keys per opcode — must match the order of [..]/<..> slots in each block's label.
+const INPUT_KEYS_BY_OPCODE: Record<string, string[]> = {
+  motion_movesteps: ['STEPS'],
+  motion_turnright: ['DEGREES'],
+  motion_turnleft: ['DEGREES'],
+  motion_gotoxy: ['X', 'Y'],
+  motion_glidesecstoxy: ['SECS', 'X', 'Y'],
+  motion_glideto: ['SECS'],
+  motion_pointindirection: ['DIRECTION'],
+  motion_changexby: ['DX'],
+  motion_setx: ['X'],
+  motion_changeyby: ['DY'],
+  motion_sety: ['Y'],
+  looks_sayforsecs: ['MESSAGE', 'SECS'],
+  looks_say: ['MESSAGE'],
+  looks_thinkforsecs: ['MESSAGE', 'SECS'],
+  looks_think: ['MESSAGE'],
+  looks_changeeffectby: ['CHANGE'],
+  looks_seteffectto: ['VALUE'],
+  looks_changesizeby: ['CHANGE'],
+  looks_setsizeto: ['SIZE'],
+  looks_goforwardbackwardlayers: ['NUM'],
+  sound_changeeffectby: ['VALUE'],
+  sound_seteffectto: ['VALUE'],
+  sound_changevolumeby: ['VOLUME'],
+  sound_setvolumeto: ['VOLUME'],
+  control_wait: ['DURATION'],
+  control_repeat: ['TIMES'],
+  control_if: ['CONDITION'],
+  control_if_else: ['CONDITION'],
+  control_repeat_until: ['CONDITION'],
+  control_wait_until: ['CONDITION'],
+  sensing_askandwait: ['QUESTION'],
+  operator_add: ['NUM1', 'NUM2'],
+  operator_subtract: ['NUM1', 'NUM2'],
+  operator_multiply: ['NUM1', 'NUM2'],
+  operator_divide: ['NUM1', 'NUM2'],
+  operator_random: ['FROM', 'TO'],
+  operator_gt: ['OPERAND1', 'OPERAND2'],
+  operator_lt: ['OPERAND1', 'OPERAND2'],
+  operator_equals: ['OPERAND1', 'OPERAND2'],
+  operator_and: ['OPERAND1', 'OPERAND2'],
+  operator_or: ['OPERAND1', 'OPERAND2'],
+  operator_not: ['OPERAND'],
+  operator_join: ['STRING1', 'STRING2'],
+  operator_letter_of: ['LETTER', 'STRING'],
+  operator_length: ['STRING'],
+  operator_contains: ['STRING1', 'STRING2'],
+  operator_mod: ['NUM1', 'NUM2'],
+  operator_round: ['NUM'],
+  operator_mathop: ['NUM'],
+  data_setvariableto: ['VALUE'],
+  data_changevariableby: ['VALUE'],
+  data_addtolist: ['ITEM'],
+  data_deleteoflist: ['INDEX'],
+  data_insertatlist: ['ITEM', 'INDEX'],
+  data_replaceitemoflist: ['INDEX', 'ITEM'],
+  data_itemoflist: ['INDEX'],
+  data_itemnumoflist: ['ITEM'],
+  data_listcontainsitem: ['ITEM'],
+  pen_changePenColorParamBy: ['VALUE'],
+  pen_setPenColorParamTo: ['VALUE'],
+  pen_changePenSizeBy: ['SIZE'],
+  pen_setPenSizeTo: ['SIZE'],
+};
+
+const getOrderedInputKeysForBlock = (block: ScratchBlockNode): string[] => {
+  const op = block.opcode;
+  if (op === 'procedures_call') {
+    const argIdsJson = block.mutation?.argumentids;
+    if (typeof argIdsJson === 'string') {
+      try {
+        const ids = JSON.parse(argIdsJson) as string[];
+        if (Array.isArray(ids)) return ids;
+      } catch { /* ignore */ }
+    }
+    return [];
+  }
+  return INPUT_KEYS_BY_OPCODE[op] || [];
+};
+
 // Registry of dropdown options for block menus, keyed by the parent opcode.
 // Each entry maps the INPUT key (on the parent block) to:
 //   { menuOpcode, fieldKey, options: [{ value, label }] }
@@ -1398,6 +1479,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   } | null>(null);
   const [dragBlockId, setDragBlockId] = useState<string | null>(null);
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
+  // Per-block input slot rects (in block-local SVG coords). Populated by ScratchBlockShape onSlots.
+  const slotsRegistryRef = useRef<Map<string, { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]>>(new Map());
+  const [inputDropTarget, setInputDropTarget] = useState<{ blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [vmError, setVmError] = useState<string | null>(null);
   const [scratchVersion, setScratchVersion] = useState<ScratchCompatibilityVersion>('scratch3');
@@ -2458,16 +2542,104 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     });
   };
 
+  // Find a compatible empty input slot under the workspace coords (in unzoomed space).
+  // sourceShape: 'reporter' | 'boolean' — strict matching.
+  const findSlotDropTarget = useCallback((
+    blocks: Record<string, ScratchBlockNode>,
+    wsX: number,
+    wsY: number,
+    sourceShape: 'reporter' | 'boolean',
+    excludeIds: Set<string>,
+  ): { blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null => {
+    let best: { blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number; score: number } | null = null;
+    slotsRegistryRef.current.forEach((slots, blockId) => {
+      if (excludeIds.has(blockId)) return;
+      const block = blocks[blockId];
+      if (!block) return;
+      const bx = block.x ?? 0;
+      const by = block.y ?? 0;
+      const orderedKeys = getOrderedInputKeysForBlock(block);
+      slots.forEach((slot) => {
+        if (slot.type !== sourceShape) return;
+        const inputKey = orderedKeys[slot.index];
+        if (!inputKey) return;
+        // Skip if this input already holds a non-shadow block reference.
+        const existing = block.inputs?.[inputKey] as unknown[] | undefined;
+        if (Array.isArray(existing) && existing[0] === 3 && typeof existing[1] === 'string') return;
+        const ax = bx + slot.x;
+        const ay = by + slot.y;
+        if (wsX >= ax - 4 && wsX <= ax + slot.width + 4 && wsY >= ay - 4 && wsY <= ay + slot.height + 4) {
+          const cx = ax + slot.width / 2;
+          const cy = ay + slot.height / 2;
+          const score = Math.abs(wsX - cx) + Math.abs(wsY - cy);
+          if (!best || score < best.score) {
+            best = { blockId, inputKey, type: slot.type, x: ax, y: ay, width: slot.width, height: slot.height, score };
+          }
+        }
+      });
+    });
+    if (!best) return null;
+    const { score: _s, ...rest } = best;
+    return rest;
+  }, []);
+
   const handleWorkspaceDrop = (e: React.DragEvent) => {
     e.preventDefault();
     try {
-      const data = JSON.parse(e.dataTransfer.getData('application/scratch-block'));
+      const data = JSON.parse(e.dataTransfer.getData('application/scratch-block')) as ScratchBlockDef;
       const rect = e.currentTarget.getBoundingClientRect();
       const x = (e.clientX - rect.left) / workspaceZoom;
       const y = (e.clientY - rect.top) / workspaceZoom;
+      // If the dragged block is a reporter or boolean and is dropped over a compatible slot,
+      // attach it as an input instead of placing it free in the workspace.
+      const droppedShape = getBlockShape(data.opcode);
+      if (droppedShape === 'reporter' || droppedShape === 'boolean') {
+        const blocks = selectedTarget?.blocks || {};
+        const target = findSlotDropTarget(blocks, x, y, droppedShape, new Set());
+        if (target) {
+          attachReporterToSlot(data, target.blockId, target.inputKey);
+          return;
+        }
+      }
       addBlock(data, x, y);
     } catch { /* ignore */ }
   };
+
+  // Create a new reporter/boolean block from a flyout def and attach it as a slot input on parentId.
+  const attachReporterToSlot = (blockDef: ScratchBlockDef, parentId: string, inputKey: string) => {
+    const newId = generateId();
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        const parent = blocks[parentId];
+        if (!parent) return target;
+        const dataResolved = ensureDataRefForTarget(target, blockDef);
+        const vmCompat = createVmCompatibleBlockShape(newId, { ...blockDef, fields: dataResolved.fields });
+        blocks[newId] = {
+          id: newId,
+          opcode: vmCompat.opcodeOverride,
+          parent: parentId,
+          topLevel: false,
+          shadow: false,
+          inputs: vmCompat.inputs,
+          fields: vmCompat.fields,
+          mutation: vmCompat.mutation,
+          next: null,
+        };
+        Object.assign(blocks, vmCompat.extraBlocks);
+        // Preserve original shadow if any (so removing the reporter restores the default value).
+        const oldInput = parent.inputs?.[inputKey] as unknown[] | undefined;
+        const shadowRef = Array.isArray(oldInput) && oldInput.length >= 2 ? oldInput[oldInput.length - 1] : null;
+        const newInputs = { ...(parent.inputs || {}) };
+        newInputs[inputKey] = shadowRef ? [3, newId, shadowRef] : [3, newId, [10, '']];
+        blocks[parentId] = { ...parent, inputs: newInputs };
+        return { ...dataResolved.target, blocks };
+      }),
+    }));
+  };
+
 
   // ── Pointer-based block dragging ──
   const getWorkspaceCoords = useCallback((clientX: number, clientY: number) => {
@@ -2591,24 +2763,73 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       }));
     }
 
-    // Compute snap preview
+    // Compute snap / slot drop preview
     const blocks = selectedTarget?.blocks || {};
-    const snap = findSnapTarget(blocks, newX, newY, drag.blockId);
-    if (snap && blocks[snap.id]) {
-      const parent = blocks[snap.id];
-      const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, snap.type);
-      setSnapPreview({ ...snap, x: snapX, y: snapY });
-    } else {
+    const draggedShape = getBlockShape(blocks[drag.blockId]?.opcode || '');
+    const isReporterDrag = draggedShape === 'reporter' || draggedShape === 'boolean';
+    if (isReporterDrag) {
+      const exclude = new Set([drag.blockId]);
+      const slotTarget = findSlotDropTarget(blocks, x, y, draggedShape, exclude);
+      setInputDropTarget(slotTarget);
       setSnapPreview(null);
+    } else {
+      setInputDropTarget(null);
+      const snap = findSnapTarget(blocks, newX, newY, drag.blockId);
+      if (snap && blocks[snap.id]) {
+        const parent = blocks[snap.id];
+        const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, snap.type);
+        setSnapPreview({ ...snap, x: snapX, y: snapY });
+      } else {
+        setSnapPreview(null);
+      }
     }
-  }, [getWorkspaceCoords, selectedTarget, selectedTargetIndex, updateProject, getBlockStack]);
+  }, [getWorkspaceCoords, selectedTarget, selectedTargetIndex, updateProject, getBlockStack, findSlotDropTarget]);
 
   const handleWorkspacePointerUp = useCallback(() => {
     const drag = dragRef.current;
     if (!drag) return;
 
+    const slotDrop = inputDropTarget;
     const snap = snapPreview;
-    if (snap) {
+
+    if (slotDrop) {
+      // Attach this dragged reporter/boolean as an input on slotDrop.blockId/slotDrop.inputKey.
+      updateProject((current) => ({
+        ...current,
+        targets: current.targets.map((target, idx) => {
+          if (idx !== selectedTargetIndex) return target;
+          const blocks = { ...(target.blocks || {}) };
+          const dragged = blocks[drag.blockId];
+          const parent = blocks[slotDrop.blockId];
+          if (!dragged || !parent) return target;
+          // Detach dragged from any prior input slot reference on its previous parent.
+          if (dragged.parent && blocks[dragged.parent]) {
+            const prev = { ...blocks[dragged.parent] };
+            if (prev.inputs) {
+              const newInputs: Record<string, unknown> = {};
+              for (const [k, v] of Object.entries(prev.inputs)) {
+                if (Array.isArray(v) && v[0] === 3 && v[1] === drag.blockId) {
+                  // Restore default shadow if present in tuple.
+                  const shadow = v[2];
+                  newInputs[k] = shadow ? [1, shadow] : [1, [10, '']];
+                } else {
+                  newInputs[k] = v;
+                }
+              }
+              prev.inputs = newInputs;
+              blocks[dragged.parent] = prev;
+            }
+          }
+          const oldInput = parent.inputs?.[slotDrop.inputKey] as unknown[] | undefined;
+          const shadowRef = Array.isArray(oldInput) && oldInput.length >= 2 ? oldInput[oldInput.length - 1] : null;
+          const newInputs = { ...(parent.inputs || {}) };
+          newInputs[slotDrop.inputKey] = shadowRef ? [3, drag.blockId, shadowRef] : [3, drag.blockId, [10, '']];
+          blocks[slotDrop.blockId] = { ...parent, inputs: newInputs };
+          blocks[drag.blockId] = { ...dragged, parent: slotDrop.blockId, topLevel: false };
+          return { ...target, blocks };
+        }),
+      }));
+    } else if (snap) {
       updateProject((current) => ({
         ...current,
         targets: current.targets.map((target, idx) => {
@@ -2647,7 +2868,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     dragRef.current = null;
     setDragBlockId(null);
     setSnapPreview(null);
-  }, [snapPreview, selectedTargetIndex, updateProject, getBlockStack]);
+    setInputDropTarget(null);
+  }, [snapPreview, inputDropTarget, selectedTargetIndex, updateProject, getBlockStack]);
 
   const runPreview = async () => {
     if (!vmRef.current || !vmReady) return;
@@ -2941,6 +3163,53 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   >
                     Make a Block
                   </button>
+                  {(() => {
+                    // Collect distinct parameter reporters across all custom procedures.
+                    const seen = new Map<string, { name: string; type: 'string_number' | 'boolean' }>();
+                    customProcedures.forEach((p) => {
+                      p.args.forEach((a) => {
+                        if (a.type === 'label') return;
+                        const key = `${a.type}::${a.name}`;
+                        if (!seen.has(key)) seen.set(key, { name: a.name, type: a.type });
+                      });
+                    });
+                    const paramList = Array.from(seen.values());
+                    if (paramList.length === 0) return null;
+                    const color = currentCategoryColors['My Blocks'] || '#ff6680';
+                    return (
+                      <div className="space-y-1.5 mt-2">
+                        <div className="text-[11px] uppercase tracking-wide text-[#575e75] font-semibold">Parameters</div>
+                        {paramList.map((p) => {
+                          const opcode = p.type === 'boolean' ? 'argument_reporter_boolean' : 'argument_reporter_string_number';
+                          const def: ScratchBlockDef = {
+                            label: p.type === 'boolean' ? `<${p.name}>` : `[${p.name}]`,
+                            opcode,
+                            fields: { VALUE: [p.name, null] },
+                            minVersion: 'scratch2',
+                          };
+                          return (
+                            <div
+                              key={`${p.type}-${p.name}`}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('application/scratch-block', JSON.stringify(def));
+                                e.dataTransfer.effectAllowed = 'copy';
+                              }}
+                              onClick={() => addBlock(def)}
+                              className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all inline-block mr-1"
+                            >
+                              <ScratchBlockShape
+                                label={p.name}
+                                color={color}
+                                shape={p.type === 'boolean' ? 'boolean' : 'reporter'}
+                                width={Math.max(60, p.name.length * 8 + 24)}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                   {customProcedures.length === 0 ? (
                     <div className="text-[12px] text-[#575e75] italic mt-2">
                       No custom blocks yet. Click "Make a Block" to create one.
@@ -3181,7 +3450,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     transition: isDragging ? 'none' : 'left 0.08s ease-out, top 0.08s ease-out',
                   }}
                 >
-                  <ScratchBlockShape label={label} color={blockColor} shape={shape} />
+                  <ScratchBlockShape
+                    label={label}
+                    color={blockColor}
+                    shape={shape}
+                    onSlots={(slots) => {
+                      slotsRegistryRef.current.set(block.id, slots.filter((s) => s.type === 'reporter' || s.type === 'boolean') as { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]);
+                    }}
+                  />
                 </div>
               );
             })}
@@ -3193,6 +3469,20 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               >
                 <div className="h-1 w-24 rounded-full bg-white shadow-[0_0_8px_2px_rgba(255,255,255,0.8)]" />
               </div>
+            )}
+            {/* Input slot drop highlight */}
+            {inputDropTarget && (
+              <div
+                className="absolute pointer-events-none z-40 rounded-md"
+                style={{
+                  left: inputDropTarget.x - 2,
+                  top: inputDropTarget.y - 2,
+                  width: inputDropTarget.width + 4,
+                  height: inputDropTarget.height + 4,
+                  boxShadow: '0 0 0 3px #ffbf00, 0 0 8px 2px rgba(255,191,0,0.6)',
+                  borderRadius: inputDropTarget.type === 'reporter' ? 12 : 4,
+                }}
+              />
             )}
           </div>
           {/* Zoom controls */}
