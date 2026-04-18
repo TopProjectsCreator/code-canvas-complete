@@ -1487,7 +1487,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
   // Per-block input slot rects (in block-local SVG coords). Populated by ScratchBlockShape onSlots.
   const slotsRegistryRef = useRef<Map<string, { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]>>(new Map());
+  const [slotsTick, setSlotsTick] = useState(0);
   const [inputDropTarget, setInputDropTarget] = useState<{ blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null>(null);
+  const [editingShadow, setEditingShadow] = useState<{ blockId: string; inputKey: string } | null>(null);
   const [blockContextMenu, setBlockContextMenu] = useState<{ blockId: string; x: number; y: number } | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [vmError, setVmError] = useState<string | null>(null);
@@ -2653,8 +2655,46 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }));
   };
 
+  // Update the literal value inside a shadow input (e.g., the "10" in `repeat [10]`).
+  const updateShadowValue = (parentId: string, inputKey: string, newValue: string) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        const parent = blocks[parentId];
+        if (!parent) return target;
+        const ref = (parent.inputs || {})[inputKey] as unknown[] | undefined;
+        if (!Array.isArray(ref)) return target;
+        // Determine where the shadow tuple lives: ref[1] for shadow-only [1, [..]] or ref[2] for [3, id, [..]]
+        const shadowIdx = ref[0] === 1 ? 1 : ref.length - 1;
+        const shadowTuple = ref[shadowIdx];
+        // Inline literal shadow: tuple like [4, '10']
+        if (Array.isArray(shadowTuple) && typeof shadowTuple[0] === 'number') {
+          const newTuple = [shadowTuple[0], newValue];
+          const newRef = [...ref];
+          newRef[shadowIdx] = newTuple;
+          const newInputs = { ...(parent.inputs || {}), [inputKey]: newRef };
+          blocks[parentId] = { ...parent, inputs: newInputs };
+          return { ...target, blocks };
+        }
+        // Block-id shadow (separate shadow block in blocks map)
+        if (typeof shadowTuple === 'string' && blocks[shadowTuple]) {
+          const sb = blocks[shadowTuple];
+          const fields = { ...(sb.fields || {}) };
+          const firstFieldKey = Object.keys(fields)[0];
+          if (firstFieldKey) {
+            const cur = fields[firstFieldKey] as unknown[];
+            fields[firstFieldKey] = [newValue, Array.isArray(cur) ? cur[1] : null];
+            blocks[shadowTuple] = { ...sb, fields };
+          }
+          return { ...target, blocks };
+        }
+        return target;
+      }),
+    }));
+  };
 
-  // ── Pointer-based block dragging ──
   const getWorkspaceCoords = useCallback((clientX: number, clientY: number) => {
     const ws = workspaceRef.current;
     if (!ws) return { x: 0, y: 0 };
@@ -3620,9 +3660,60 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     color={blockColor}
                     shape={shape}
                     onSlots={(slots) => {
-                      slotsRegistryRef.current.set(block.id, slots.filter((s) => s.type === 'reporter' || s.type === 'boolean') as { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]);
+                      const filtered = slots.filter((s) => s.type === 'reporter' || s.type === 'boolean') as { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[];
+                      const prev = slotsRegistryRef.current.get(block.id);
+                      const same = prev && prev.length === filtered.length && prev.every((p, i) => p.x === filtered[i].x && p.y === filtered[i].y && p.width === filtered[i].width && p.height === filtered[i].height);
+                      slotsRegistryRef.current.set(block.id, filtered);
+                      if (!same) setSlotsTick((t) => t + 1);
                     }}
                   />
+                  {/* Editable shadow value overlays */}
+                  {(() => {
+                    void slotsTick;
+                    const slots = slotsRegistryRef.current.get(block.id) || [];
+                    const orderedKeys = getOrderedInputKeysForBlock(block);
+                    return slots.map((slot) => {
+                      if (slot.type !== 'reporter') return null;
+                      const inputKey = orderedKeys[slot.index];
+                      if (!inputKey) return null;
+                      const ref = (block.inputs || {})[inputKey] as unknown[] | undefined;
+                      if (!Array.isArray(ref)) return null;
+                      // If a real reporter block is attached, don't show editable input
+                      if (ref[0] === 3 && typeof ref[1] === 'string') return null;
+                      const shadowTuple = (ref[0] === 1 ? ref[1] : ref[ref.length - 1]) as unknown;
+                      if (!Array.isArray(shadowTuple)) return null;
+                      const currentValue = String(shadowTuple[1] ?? '');
+                      const isEditing = editingShadow?.blockId === block.id && editingShadow?.inputKey === inputKey;
+                      return (
+                        <input
+                          key={inputKey}
+                          type="text"
+                          value={currentValue}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => { e.stopPropagation(); setEditingShadow({ blockId: block.id, inputKey }); }}
+                          onFocus={() => setEditingShadow({ blockId: block.id, inputKey })}
+                          onBlur={() => setEditingShadow(null)}
+                          onChange={(e) => updateShadowValue(block.id, inputKey, e.target.value)}
+                          className="absolute text-center outline-none"
+                          style={{
+                            left: slot.x,
+                            top: slot.y,
+                            width: slot.width,
+                            height: slot.height,
+                            borderRadius: slot.height / 2,
+                            background: 'white',
+                            color: '#575e75',
+                            fontSize: 11,
+                            fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+                            border: isEditing ? '2px solid #ffbf00' : 'none',
+                            padding: 0,
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               );
             })}
