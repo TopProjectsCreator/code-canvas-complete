@@ -3163,6 +3163,53 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   >
                     Make a Block
                   </button>
+                  {(() => {
+                    // Collect distinct parameter reporters across all custom procedures.
+                    const seen = new Map<string, { name: string; type: 'string_number' | 'boolean' }>();
+                    customProcedures.forEach((p) => {
+                      p.args.forEach((a) => {
+                        if (a.type === 'label') return;
+                        const key = `${a.type}::${a.name}`;
+                        if (!seen.has(key)) seen.set(key, { name: a.name, type: a.type });
+                      });
+                    });
+                    const paramList = Array.from(seen.values());
+                    if (paramList.length === 0) return null;
+                    const color = currentCategoryColors['My Blocks'] || '#ff6680';
+                    return (
+                      <div className="space-y-1.5 mt-2">
+                        <div className="text-[11px] uppercase tracking-wide text-[#575e75] font-semibold">Parameters</div>
+                        {paramList.map((p) => {
+                          const opcode = p.type === 'boolean' ? 'argument_reporter_boolean' : 'argument_reporter_string_number';
+                          const def: ScratchBlockDef = {
+                            label: p.type === 'boolean' ? `<${p.name}>` : `[${p.name}]`,
+                            opcode,
+                            fields: { VALUE: [p.name, null] },
+                            minVersion: 'scratch2',
+                          };
+                          return (
+                            <div
+                              key={`${p.type}-${p.name}`}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('application/scratch-block', JSON.stringify(def));
+                                e.dataTransfer.effectAllowed = 'copy';
+                              }}
+                              onClick={() => addBlock(def)}
+                              className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all inline-block mr-1"
+                            >
+                              <ScratchBlockShape
+                                label={p.name}
+                                color={color}
+                                shape={p.type === 'boolean' ? 'boolean' : 'reporter'}
+                                width={Math.max(60, p.name.length * 8 + 24)}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                   {customProcedures.length === 0 ? (
                     <div className="text-[12px] text-[#575e75] italic mt-2">
                       No custom blocks yet. Click "Make a Block" to create one.
