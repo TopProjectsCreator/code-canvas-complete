@@ -2753,6 +2753,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       flyoutDragRef.current = null;
       setFlyoutDrag(null);
       const lastTarget = inputDropTargetRef.current;
+      inputDropTargetRef.current = null;
       setInputDropTarget(null);
       console.log('[flyout-drop] up', { moved, hasStash: !!stash, lastTarget });
       if (!stash) return;
