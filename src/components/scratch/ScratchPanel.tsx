@@ -2655,8 +2655,46 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }));
   };
 
+  // Update the literal value inside a shadow input (e.g., the "10" in `repeat [10]`).
+  const updateShadowValue = (parentId: string, inputKey: string, newValue: string) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        const parent = blocks[parentId];
+        if (!parent) return target;
+        const ref = (parent.inputs || {})[inputKey] as unknown[] | undefined;
+        if (!Array.isArray(ref)) return target;
+        // Determine where the shadow tuple lives: ref[1] for shadow-only [1, [..]] or ref[2] for [3, id, [..]]
+        const shadowIdx = ref[0] === 1 ? 1 : ref.length - 1;
+        const shadowTuple = ref[shadowIdx];
+        // Inline literal shadow: tuple like [4, '10']
+        if (Array.isArray(shadowTuple) && typeof shadowTuple[0] === 'number') {
+          const newTuple = [shadowTuple[0], newValue];
+          const newRef = [...ref];
+          newRef[shadowIdx] = newTuple;
+          const newInputs = { ...(parent.inputs || {}), [inputKey]: newRef };
+          blocks[parentId] = { ...parent, inputs: newInputs };
+          return { ...target, blocks };
+        }
+        // Block-id shadow (separate shadow block in blocks map)
+        if (typeof shadowTuple === 'string' && blocks[shadowTuple]) {
+          const sb = blocks[shadowTuple];
+          const fields = { ...(sb.fields || {}) };
+          const firstFieldKey = Object.keys(fields)[0];
+          if (firstFieldKey) {
+            const cur = fields[firstFieldKey] as unknown[];
+            fields[firstFieldKey] = [newValue, Array.isArray(cur) ? cur[1] : null];
+            blocks[shadowTuple] = { ...sb, fields };
+          }
+          return { ...target, blocks };
+        }
+        return target;
+      }),
+    }));
+  };
 
-  // ── Pointer-based block dragging ──
   const getWorkspaceCoords = useCallback((clientX: number, clientY: number) => {
     const ws = workspaceRef.current;
     if (!ws) return { x: 0, y: 0 };
