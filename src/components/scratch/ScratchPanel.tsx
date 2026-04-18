@@ -3403,7 +3403,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     transition: isDragging ? 'none' : 'left 0.08s ease-out, top 0.08s ease-out',
                   }}
                 >
-                  <ScratchBlockShape label={label} color={blockColor} shape={shape} />
+                  <ScratchBlockShape
+                    label={label}
+                    color={blockColor}
+                    shape={shape}
+                    onSlots={(slots) => {
+                      slotsRegistryRef.current.set(block.id, slots.filter((s) => s.type === 'reporter' || s.type === 'boolean') as { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]);
+                    }}
+                  />
                 </div>
               );
             })}
@@ -3415,6 +3422,20 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               >
                 <div className="h-1 w-24 rounded-full bg-white shadow-[0_0_8px_2px_rgba(255,255,255,0.8)]" />
               </div>
+            )}
+            {/* Input slot drop highlight */}
+            {inputDropTarget && (
+              <div
+                className="absolute pointer-events-none z-40 rounded-md"
+                style={{
+                  left: inputDropTarget.x - 2,
+                  top: inputDropTarget.y - 2,
+                  width: inputDropTarget.width + 4,
+                  height: inputDropTarget.height + 4,
+                  boxShadow: '0 0 0 3px #ffbf00, 0 0 8px 2px rgba(255,191,0,0.6)',
+                  borderRadius: inputDropTarget.type === 'reporter' ? 12 : 4,
+                }}
+              />
             )}
           </div>
           {/* Zoom controls */}
