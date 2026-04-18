@@ -3683,48 +3683,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                       const shadowTuple = (ref[0] === 1 ? ref[1] : ref[ref.length - 1]) as unknown;
                       if (!Array.isArray(shadowTuple)) return null;
                       const currentValue = String(shadowTuple[1] ?? '');
-                      const isEditing = editingShadow?.blockId === block.id && editingShadow?.inputKey === inputKey;
-                      // Disable pointer events while ANY block is being dragged so the input
-                      // doesn't intercept pointerup and block reporter snapping into the slot.
                       const anyDragging = dragBlockId !== null;
                       return (
-                        <input
-                          key={`${inputKey}-${currentValue}`}
-                          type="text"
-                          defaultValue={currentValue}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onPointerUp={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onMouseUp={(e) => e.stopPropagation()}
-                          onClick={(e) => { e.stopPropagation(); setEditingShadow({ blockId: block.id, inputKey }); }}
-                          onFocus={() => setEditingShadow({ blockId: block.id, inputKey })}
-                          onBlur={(e) => {
-                            updateShadowValue(block.id, inputKey, e.target.value);
-                            setEditingShadow(null);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              (e.target as HTMLInputElement).blur();
-                            }
-                          }}
-                          className="absolute text-center outline-none"
-                          style={{
-                            left: slot.x,
-                            top: slot.y,
-                            width: slot.width,
-                            height: slot.height,
-                            borderRadius: slot.height / 2,
-                            background: 'white',
-                            color: '#575e75',
-                            fontSize: 11,
-                            fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
-                            border: isEditing ? '2px solid #ffbf00' : 'none',
-                            padding: 0,
-                            boxSizing: 'border-box',
-                            pointerEvents: anyDragging && !isEditing ? 'none' : 'auto',
-                            zIndex: 1,
-                          }}
+                        <ShadowInput
+                          key={`${block.id}-${inputKey}`}
+                          value={currentValue}
+                          left={slot.x}
+                          top={slot.y}
+                          width={slot.width}
+                          height={slot.height}
+                          disablePointer={anyDragging}
+                          onCommit={(v) => updateShadowValue(block.id, inputKey, v)}
                         />
                       );
                     });
