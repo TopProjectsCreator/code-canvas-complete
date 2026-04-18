@@ -154,10 +154,18 @@ async function handleModelsLab(apiKey: string, prompt: string, taskId: string | 
     body: JSON.stringify({ key: apiKey, prompt, negative_prompt: "low quality", guidance_scale: 15, num_inference_steps: 64 }),
   });
   const data = await createResp.json();
-  if (data.status === "error") {
+  if (data.status === "error" || !createResp.ok) {
+    const errMsg = data.message || data.messege || "ModelsLab failed";
+    const isBilling = typeof errMsg === "string" && /out of credits|subscribe|fund your wallet|exhausted/i.test(errMsg);
     return new Response(
-      JSON.stringify({ error: data.message || "ModelsLab failed" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      JSON.stringify({
+        status: "FAILED",
+        error: isBilling
+          ? "Your ModelsLab account is out of credits. Top up at modelslab.com or switch providers (Meshy, Tripo, Sloyd, Neural4D)."
+          : errMsg,
+        billing: isBilling,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   }
   if (data.status === "success" && data.output?.[0]) {
