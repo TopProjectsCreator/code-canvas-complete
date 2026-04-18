@@ -3196,39 +3196,50 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       await loadVmFromArchive(normalizedArchive, inferredVersion);
     } catch (error) {
       setVmError(error instanceof Error ? error.message : 'Failed to import Scratch archive (.sb/.sb2/.sb3).');
+    } finally {
+      if (importInputRef.current) {
+        importInputRef.current.value = '';
+      }
     }
   };
 
   const handleExport = async () => {
-    const exportFormat = scratchVersion === 'scratch3' ? 'sb3' : 'sb2';
-    const semver = exportFormat === 'sb3' ? '3.0.0' : '2.0.0';
-    const currentProject = safeParseProject(archive);
-    const normalizedProject: ScratchProject = {
-      ...currentProject,
-      projectVersion: exportFormat === 'sb3' ? 3 : 2,
-      targets: (currentProject.targets || []).map((target) => ({
-        ...target,
-        blocks: normalizeBlocksForVersion(target.blocks, exportFormat === 'sb3' ? 'scratch3' : 'scratch2'),
-      })),
-      extensions: (currentProject.extensions || []).filter((ext) => exportFormat === 'sb3' || (ext !== 'pen' && ext !== 'music')),
-      meta: {
-        ...(currentProject.meta || {}),
-        semver,
-      },
-    };
-    const exportArchive = ensureArchive({
-      ...ensureArchive(archive),
-      projectJson: formatJson(normalizedProject),
-    });
-    const data = await exportScratchArchive(exportArchive, exportFormat);
-    const mime = exportFormat === 'sb3' ? 'application/x.scratch.sb3' : 'application/x.scratch.sb2';
-    const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `project.${exportFormat}`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const exportFormat = scratchVersion === 'scratch3' ? 'sb3' : 'sb2';
+      const semver = exportFormat === 'sb3' ? '3.0.0' : '2.0.0';
+      const currentProject = safeParseProject(archive);
+      const normalizedProject: ScratchProject = {
+        ...currentProject,
+        projectVersion: exportFormat === 'sb3' ? 3 : 2,
+        targets: (currentProject.targets || []).map((target) => ({
+          ...target,
+          blocks: normalizeBlocksForVersion(target.blocks, exportFormat === 'sb3' ? 'scratch3' : 'scratch2'),
+        })),
+        extensions: (currentProject.extensions || []).filter((ext) => exportFormat === 'sb3' || (ext !== 'pen' && ext !== 'music')),
+        meta: {
+          ...(currentProject.meta || {}),
+          semver,
+        },
+      };
+      const exportArchive = ensureArchive({
+        ...ensureArchive(archive),
+        projectJson: formatJson(normalizedProject),
+      });
+      const data = await exportScratchArchive(exportArchive, exportFormat);
+      const mime = exportFormat === 'sb3' ? 'application/x.scratch.sb3' : 'application/x.scratch.sb2';
+      const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `project.${exportFormat}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setVmError(null);
+    } catch (error) {
+      setVmError(error instanceof Error ? error.message : 'Failed to export Scratch archive (.sb2/.sb3).');
+    }
   };
 
   const applyJsonDraft = async () => {
