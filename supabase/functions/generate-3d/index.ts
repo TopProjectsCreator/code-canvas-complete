@@ -181,9 +181,17 @@ async function handleFal(apiKey: string, prompt: string, corsHeaders: Record<str
   });
   const data = await resp.json();
   if (!resp.ok) {
+    const errMsg = data.detail || data.message || data.error || "Fal.ai generation failed";
+    const isBilling = typeof errMsg === "string" && /exhausted balance|user is locked|top up/i.test(errMsg);
     return new Response(
-      JSON.stringify({ error: data.detail || data.message || "Fal.ai generation failed" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: resp.status }
+      JSON.stringify({
+        status: "FAILED",
+        error: isBilling
+          ? "Your Fal.ai account is out of credits. Top up at fal.ai/dashboard/billing or switch providers (Meshy, Tripo, Sloyd, ModelsLab, Neural4D)."
+          : errMsg,
+        billing: isBilling,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   }
   return new Response(
