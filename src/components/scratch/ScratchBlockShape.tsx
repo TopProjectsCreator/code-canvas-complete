@@ -204,6 +204,8 @@ export const getBlockShape = (opcode: string): ScratchBlockShapeProps['shape'] =
   if (opcode.startsWith('event_when') || opcode === 'control_start_as_clone' || opcode === 'procedures_definition') return 'hat';
   if (opcode === 'control_stop' || opcode === 'control_delete_this_clone') return 'cap';
   if (['control_repeat', 'control_forever', 'control_if', 'control_if_else', 'control_repeat_until', 'control_wait_until', 'compat_foreverif'].includes(opcode)) return 'c-block';
+  if (opcode === 'argument_reporter_boolean') return 'boolean';
+  if (opcode === 'argument_reporter_string_number') return 'reporter';
   if (['sensing_answer', 'sensing_mousex', 'sensing_mousey', 'sensing_loudness', 'sensing_timer', 'sensing_dayssince2000', 'sensing_current',
     'operator_add', 'operator_subtract', 'operator_multiply', 'operator_divide', 'operator_random',
     'operator_join', 'operator_letter_of', 'operator_length', 'operator_mod', 'operator_round', 'operator_mathop',
@@ -228,6 +230,7 @@ export const ScratchBlockShape = ({
   mouthHeight = 24,
   className = '',
   style = {},
+  onSlots,
 }: ScratchBlockShapeProps) => {
   const segments = parseLabel(label);
   const hasInputs = segments.some((s) => s.type !== 'text');
@@ -237,6 +240,33 @@ export const ScratchBlockShape = ({
   const h = height ?? (shape === 'hat' ? STACK_H + HAT_CURVE : shape === 'reporter' || shape === 'boolean' ? 28 : STACK_H);
   const totalH = shape === 'c-block' ? STACK_H + mouthHeight + STACK_H + NOTCH_H : h + NOTCH_H;
   const darker = darken(color);
+
+  // Compute slot rects for hit-testing reporter/boolean drops.
+  // Mirrors layout from renderSegments() — keep in sync.
+  if (onSlots) {
+    const collected: SlotRect[] = [];
+    let x = shape === 'boolean' ? h / 2 + 4 : shape === 'reporter' ? h / 2 : 10;
+    const inputY = (h - INPUT_H) / 2;
+    const boolY = (h - BOOL_H) / 2;
+    let slotIndex = 0;
+    for (const seg of segments) {
+      if (seg.type === 'text') {
+        x += seg.value.length * CHAR_W;
+      } else if (seg.type === 'reporter') {
+        const inputW = Math.max(seg.value.length * CHAR_W + INPUT_PAD * 2 + 4, 28);
+        collected.push({ index: slotIndex++, type: 'reporter', x, y: inputY, width: inputW, height: INPUT_H });
+        x += inputW + 4;
+      } else if (seg.type === 'boolean') {
+        const inputW = Math.max(seg.value.length * CHAR_W + BOOL_H + 4, 32);
+        collected.push({ index: slotIndex++, type: 'boolean', x, y: boolY, width: inputW, height: BOOL_H });
+        x += inputW + 4;
+      } else if (seg.type === 'dropdown') {
+        x += seg.value.length * CHAR_W + DROPDOWN_PAD * 2 + DROPDOWN_ARROW + 8;
+      }
+    }
+    // Emit during render — guarded by onSlots; consumer should memoize handler or accept frequent calls
+    queueMicrotask(() => onSlots(collected));
+  }
 
   let pathD: string;
   switch (shape) {
