@@ -18,6 +18,9 @@ import { decodeDataUrl, encodeDataUrl, parseXml, buildNewPptx } from './officeUt
 interface SlideElement {
   id: string;
   type: 'text' | 'image';
+  placeholderType?: 'shape' | 'table' | 'link' | 'video';
+  linkUrl?: string;
+  tableRows?: string[][];
   x: number;
   y: number;
   width: number;
@@ -200,12 +203,51 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
 
       slides.forEach((slideData) => {
         const slide = pptx.addSlide();
+        slide.background = { color: themeTone === 'dark' ? '1F2937' : 'FFFFFF' };
 
         slideData.elements.forEach((el) => {
           const x = toSlideX(el.x);
           const y = toSlideY(el.y);
           const w = toSlideW(el.width);
           const h = toSlideH(el.height);
+
+          if (el.placeholderType === 'shape') {
+            slide.addShape(pptx.ShapeType.rect, {
+              x,
+              y,
+              w,
+              h,
+              fill: { color: 'E5E7EB', transparency: 25 },
+              line: { color: '6B7280', pt: 1 },
+              radius: 0.04,
+            });
+            if (el.content) {
+              slide.addText(el.content, {
+                x,
+                y: y + Math.max(0.05, h / 3),
+                w,
+                h: Math.max(0.2, h / 3),
+                fontSize: Math.max(10, el.fontSize || 14),
+                align: 'center',
+                color: toPptxColor(el.color),
+              });
+            }
+            return;
+          }
+
+          if (el.placeholderType === 'table' && el.tableRows?.length) {
+            slide.addTable(el.tableRows, {
+              x,
+              y,
+              w,
+              h,
+              border: { type: 'solid', color: '6B7280', pt: 1 },
+              color: toPptxColor(el.color),
+              fontSize: Math.max(10, el.fontSize || 12),
+              valign: 'middle',
+            });
+            return;
+          }
 
           if (el.type === 'image' && el.content?.startsWith('data:image/')) {
             try {
@@ -229,6 +271,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             valign: 'top',
             breakLine: true,
             color: toPptxColor(el.color),
+            hyperlink: el.placeholderType === 'link' && el.linkUrl ? { url: el.linkUrl } : undefined,
           });
         });
       });
@@ -249,7 +292,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save presentation');
     }
-  }, [file.id, slides, onContentChange]);
+  }, [file.id, slides, onContentChange, themeTone]);
 
   // Auto-save when slides change
   const initialLoadDone = useRef(false);
@@ -395,14 +438,41 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   };
 
   const insertPlaceholder = (label: string) => {
+    const normalized = label.toLowerCase();
+    const placeholderType: SlideElement['placeholderType'] =
+      normalized === 'shape' ? 'shape'
+        : normalized === 'table' ? 'table'
+          : normalized === 'link' ? 'link'
+            : normalized === 'video' ? 'video'
+              : undefined;
+
+    const linkUrl = (placeholderType === 'link' || placeholderType === 'video')
+      ? prompt(`Enter ${label} URL:`)?.trim() || undefined
+      : undefined;
+
+    const baseContent = placeholderType === 'link'
+      ? (linkUrl ? `Open link: ${linkUrl}` : 'Link')
+      : placeholderType === 'video'
+        ? (linkUrl ? `Play video: ${linkUrl}` : 'Video')
+        : label;
+
     const el: SlideElement = {
       id: newId(),
       type: 'text',
+      placeholderType,
+      linkUrl,
+      tableRows: placeholderType === 'table'
+        ? [
+          ['Header 1', 'Header 2', 'Header 3'],
+          ['Row 1', 'Value', 'Value'],
+          ['Row 2', 'Value', 'Value'],
+        ]
+        : undefined,
       x: 100,
       y: 180,
       width: 520,
       height: 44,
-      content: `${label}`,
+      content: baseContent,
       fontSize: 16,
       fontWeight: 500,
       fontStyle: 'italic',
@@ -648,7 +718,17 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                           />
                         ) : (
                           <div className="w-full h-full p-1 whitespace-pre-wrap overflow-hidden" style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle || 'normal', textDecoration: el.textDecoration || 'none', textAlign: el.textAlign || 'left', color: el.color || '#1A1A1A' }}>
-                            {el.content || <span className="text-muted-foreground/40 italic">Click to add text</span>}
+                            {el.placeholderType === 'table' && el.tableRows?.length ? (
+                              <div className="h-full border border-dashed border-muted-foreground/50 rounded-sm p-1 text-[11px] leading-tight">
+                                {el.tableRows.map((row, idx) => (
+                                  <div key={idx} className="truncate">
+                                    {row.join(' | ')}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              el.content || <span className="text-muted-foreground/40 italic">Click to add text</span>
+                            )}
                           </div>
                         )
                       ) : (
@@ -689,7 +769,9 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               if (!el) return null;
               return (
                 <div className="px-3 py-1.5 border-t border-border bg-background flex items-center gap-3 text-xs">
-                  <span className="text-muted-foreground font-medium">{el.type === 'text' ? 'Text Box' : 'Image'}</span>
+                  <span className="text-muted-foreground font-medium">
+                    {el.type === 'image' ? 'Image' : (el.placeholderType ? `${el.placeholderType[0].toUpperCase()}${el.placeholderType.slice(1)}` : 'Text Box')}
+                  </span>
                   <span className="text-muted-foreground">X: {Math.round(el.x)}</span>
                   <span className="text-muted-foreground">Y: {Math.round(el.y)}</span>
                   <span className="text-muted-foreground">W: {Math.round(el.width)}</span>
