@@ -2813,6 +2813,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }));
   }, [selectedTargetIndex, updateProject, getBlockStack]);
 
+  const handleBlockPointerDown = useCallback((blockId: string, e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const { x, y } = getWorkspaceCoords(e.clientX, e.clientY);
