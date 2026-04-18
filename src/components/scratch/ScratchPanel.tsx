@@ -1482,6 +1482,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   // Per-block input slot rects (in block-local SVG coords). Populated by ScratchBlockShape onSlots.
   const slotsRegistryRef = useRef<Map<string, { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]>>(new Map());
   const [inputDropTarget, setInputDropTarget] = useState<{ blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null>(null);
+  const [blockContextMenu, setBlockContextMenu] = useState<{ blockId: string; x: number; y: number } | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [vmError, setVmError] = useState<string | null>(null);
   const [scratchVersion, setScratchVersion] = useState<ScratchCompatibilityVersion>('scratch3');
@@ -2678,6 +2679,140 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     return ids;
   }, []);
 
+  // Delete a block and its entire descendant stack (next chain + SUBSTACK + reporter inputs).
+  const deleteBlockStack = useCallback((blockId: string) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        if (!blocks[blockId]) return target;
+        // Collect all ids to delete: stack + reporter/boolean inputs (recursively).
+        const toDelete = new Set<string>();
+        const collect = (id: string) => {
+          if (toDelete.has(id) || !blocks[id]) return;
+          toDelete.add(id);
+          const b = blocks[id];
+          if (b.next) collect(b.next);
+          if (b.inputs) {
+            for (const v of Object.values(b.inputs)) {
+              if (Array.isArray(v) && typeof v[1] === 'string') collect(v[1] as string);
+              if (Array.isArray(v) && typeof v[2] === 'string') collect(v[2] as string);
+            }
+          }
+        };
+        collect(blockId);
+        // Detach from parent
+        const root = blocks[blockId];
+        if (root.parent && blocks[root.parent]) {
+          const parent = { ...blocks[root.parent] };
+          if (parent.next === blockId) parent.next = null;
+          if (parent.inputs) {
+            const newInputs = { ...parent.inputs };
+            for (const [k, v] of Object.entries(newInputs)) {
+              if (Array.isArray(v) && v[1] === blockId) {
+                // Restore shadow if present
+                const shadow = v[2];
+                if (shadow) newInputs[k] = [1, shadow];
+                else delete newInputs[k];
+              }
+            }
+            parent.inputs = newInputs;
+          }
+          blocks[root.parent] = parent;
+        }
+        toDelete.forEach((id) => { delete blocks[id]; });
+        return { ...target, blocks };
+      }),
+    }));
+  }, [selectedTargetIndex, updateProject]);
+
+  // Duplicate a block stack (next chain + SUBSTACK + reporter inputs), placed offset from original.
+  const duplicateBlockStack = useCallback((blockId: string) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        const root = blocks[blockId];
+        if (!root) return target;
+        const idMap = new Map<string, string>();
+        const collect = (id: string) => {
+          if (idMap.has(id) || !blocks[id]) return;
+          idMap.set(id, generateId());
+          const b = blocks[id];
+          if (b.next) collect(b.next);
+          if (b.inputs) {
+            for (const v of Object.values(b.inputs)) {
+              if (Array.isArray(v) && typeof v[1] === 'string' && blocks[v[1] as string]) collect(v[1] as string);
+              if (Array.isArray(v) && typeof v[2] === 'string' && blocks[v[2] as string]) collect(v[2] as string);
+            }
+          }
+        };
+        collect(blockId);
+        idMap.forEach((newId, oldId) => {
+          const orig = blocks[oldId];
+          const cloneInputs: Record<string, unknown> = {};
+          if (orig.inputs) {
+            for (const [k, v] of Object.entries(orig.inputs)) {
+              if (Array.isArray(v)) {
+                const arr = [...v];
+                if (typeof arr[1] === 'string' && idMap.has(arr[1] as string)) arr[1] = idMap.get(arr[1] as string)!;
+                if (typeof arr[2] === 'string' && idMap.has(arr[2] as string)) arr[2] = idMap.get(arr[2] as string)!;
+                cloneInputs[k] = arr;
+              } else cloneInputs[k] = v;
+            }
+          }
+          blocks[newId] = {
+            ...orig,
+            id: newId,
+            inputs: cloneInputs,
+            next: orig.next && idMap.has(orig.next) ? idMap.get(orig.next)! : null,
+            parent: orig.parent && idMap.has(orig.parent) ? idMap.get(orig.parent)! : null,
+            x: oldId === blockId ? (orig.x ?? 40) + 30 : orig.x,
+            y: oldId === blockId ? (orig.y ?? 40) + 30 : orig.y,
+            topLevel: oldId === blockId ? true : orig.topLevel,
+          };
+        });
+        // Root duplicate has no parent
+        const newRootId = idMap.get(blockId)!;
+        blocks[newRootId] = { ...blocks[newRootId], parent: null, topLevel: true };
+        return { ...target, blocks };
+      }),
+    }));
+  }, [selectedTargetIndex, updateProject]);
+
+  // Clean Up: arrange all top-level stacks vertically along the left side.
+  const cleanUpBlocks = useCallback(() => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        const tops = Object.values(blocks).filter((b) => b && b.opcode && !b.shadow && (b.topLevel || !b.parent) && b.x !== undefined);
+        // Sort by current y then x for stable order
+        tops.sort((a, b) => (a.y ?? 0) - (b.y ?? 0) || (a.x ?? 0) - (b.x ?? 0));
+        let cursorY = 24;
+        const STACK_GAP = 24;
+        const APPROX_BLOCK_H = 36;
+        tops.forEach((t) => {
+          const stackIds = getBlockStack(blocks, t.id);
+          const dx = 24 - (t.x ?? 0);
+          const dy = cursorY - (t.y ?? 0);
+          stackIds.forEach((sid) => {
+            const b = blocks[sid];
+            if (!b) return;
+            blocks[sid] = { ...b, x: (b.x ?? 0) + dx, y: (b.y ?? 0) + dy };
+          });
+          // Estimate height by counting chained blocks (not inputs) for spacing
+          const chainCount = stackIds.filter((sid) => blocks[sid] && !blocks[sid].shadow).length;
+          cursorY += chainCount * APPROX_BLOCK_H + STACK_GAP;
+        });
+        return { ...target, blocks };
+      }),
+    }));
+  }, [selectedTargetIndex, updateProject, getBlockStack]);
+
   const handleBlockPointerDown = useCallback((blockId: string, e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -3449,6 +3584,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 <div
                   key={block.id}
                   onPointerDown={(e) => handleBlockPointerDown(block.id, e)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setBlockContextMenu({ blockId: block.id, x: e.clientX, y: e.clientY });
+                  }}
                   onClick={(e) => {
                     if (menuValues.length === 0) return;
                     e.stopPropagation();
@@ -3935,6 +4075,39 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           onClose={() => setLibraryOpen(null)}
           onSelect={addLibraryAsset}
         />
+      )}
+      {blockContextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            onClick={() => setBlockContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setBlockContextMenu(null); }}
+          />
+          <div
+            className="fixed z-[61] min-w-[160px] rounded-md border border-border bg-popover text-popover-foreground shadow-lg py-1 text-sm"
+            style={{ left: blockContextMenu.x, top: blockContextMenu.y }}
+          >
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => { duplicateBlockStack(blockContextMenu.blockId); setBlockContextMenu(null); }}
+            >
+              Duplicate
+            </button>
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => { deleteBlockStack(blockContextMenu.blockId); setBlockContextMenu(null); }}
+            >
+              Delete Block
+            </button>
+            <div className="my-1 border-t border-border" />
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => { cleanUpBlocks(); setBlockContextMenu(null); }}
+            >
+              Clean up Blocks
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
