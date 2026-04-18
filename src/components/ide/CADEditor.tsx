@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback, Suspense, useMemo } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useState, useRef, Suspense, useMemo } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, Center, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -417,6 +417,8 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   
   const { hasCustomKey } = useApiKeys();
   const [activeQuickTool, setActiveQuickTool] = useState<string | null>(null);
+  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
 
   const PROVIDERS_3D = [
     { id: 'meshy', label: 'Meshy AI', desc: 'Preview + refine workflow' },
@@ -622,6 +624,34 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
     { label: 'Measure', icon: <Ruler className="w-3.5 h-3.5" /> },
   ];
 
+  const runQuickTool = (tool: string) => {
+    const togglingOff = activeQuickTool === tool;
+    setActiveQuickTool(togglingOff ? null : tool);
+
+    switch (tool) {
+      case 'Sketch':
+        setShowGrid((prev) => togglingOff ? false : !prev);
+        return;
+      case 'Extrude':
+        handleSelectPrimitive('cube');
+        return;
+      case 'Revolve':
+        handleSelectPrimitive('torus');
+        return;
+      case 'Loft':
+        handleSelectPrimitive('cone');
+        return;
+      case 'Boolean':
+        setWireframe(w => !w);
+        return;
+      case 'Measure':
+        setShowInfo((prev) => togglingOff ? false : !prev);
+        return;
+      default:
+        return;
+    }
+  };
+
   return (
     <TooltipProvider>
       <div className="flex-1 flex flex-col overflow-hidden bg-[#0d1117] text-white">
@@ -638,15 +668,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                 variant="ghost"
                 size="sm"
                 className={cn("h-7 text-xs hover:text-white hover:bg-white/10 gap-1.5 px-2", activeQuickTool === tool.label ? "text-primary bg-white/10" : "text-white/80")}
-                onClick={() => {
-                  setActiveQuickTool(tool.label);
-                  if (tool.label === 'Sketch') setShowGrid(true);
-                  if (tool.label === 'Extrude') handleSelectPrimitive('cube');
-                  if (tool.label === 'Revolve') handleSelectPrimitive('torus');
-                  if (tool.label === 'Loft') handleSelectPrimitive('cone');
-                  if (tool.label === 'Boolean') setWireframe(w => !w);
-                  if (tool.label === 'Measure') setShowInfo(true);
-                }}
+                onClick={() => runQuickTool(tool.label)}
               >
                 {tool.icon}
                 {tool.label}
@@ -654,6 +676,28 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
             ))}
           </div>
           <div className="flex items-center gap-1">
+            <Tooltip><TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className={cn("h-7 w-7 hover:bg-white/10", leftPanelOpen ? "text-primary" : "text-white/70")}
+                onClick={() => setLeftPanelOpen(v => !v)}
+              >
+                <PanelLeft className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger><TooltipContent>Toggle Feature Panel</TooltipContent></Tooltip>
+
+            <Tooltip><TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className={cn("h-7 w-7 hover:bg-white/10", rightPanelOpen ? "text-primary" : "text-white/70")}
+                onClick={() => setRightPanelOpen(v => !v)}
+              >
+                <PanelRight className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger><TooltipContent>Toggle Properties Panel</TooltipContent></Tooltip>
+
             <Tooltip><TooltipTrigger asChild>
               <Button size="icon" variant="ghost" className={cn("h-7 w-7 hover:bg-white/10", wireframe ? "text-primary" : "text-white/70")} onClick={() => setWireframe(!wireframe)}>
                 <Layers className="w-3.5 h-3.5" />
@@ -717,7 +761,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
         </div>
 
         <div className="flex-1 flex min-h-0">
-          <aside className="w-64 bg-[#0f141b] border-r border-[#2b313c] p-3 space-y-3 overflow-auto">
+          {leftPanelOpen && <aside className="w-64 bg-[#0f141b] border-r border-[#2b313c] p-3 space-y-3 overflow-auto">
             <div>
               <div className="text-[11px] uppercase tracking-wide text-white/50 mb-2 flex items-center gap-1.5">
                 <PanelLeft className="w-3 h-3" />
@@ -749,7 +793,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                 ))}
               </div>
             </div>
-          </aside>
+          </aside>}
 
           <div className="flex-1 flex flex-col min-w-0">
             {showInfo && displayGeometry && (
@@ -845,7 +889,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
             </div>
           </div>
 
-          <aside className="w-72 bg-[#0f141b] border-l border-[#2b313c] p-3 space-y-3 overflow-auto">
+          {rightPanelOpen && <aside className="w-72 bg-[#0f141b] border-l border-[#2b313c] p-3 space-y-3 overflow-auto">
             <div className="text-[11px] uppercase tracking-wide text-white/50 mb-1 flex items-center gap-1.5">
               <PanelRight className="w-3 h-3" />
               Properties
@@ -874,7 +918,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                 <Sparkles className="w-3.5 h-3.5 mr-2" /> Text to 3D
               </Button>
             </div>
-          </aside>
+          </aside>}
         </div>
 
         <div className="h-7 border-t border-[#2b313c] bg-[#161b22] px-3 text-[11px] text-white/60 flex items-center justify-between">
