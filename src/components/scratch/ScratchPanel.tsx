@@ -2763,17 +2763,27 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       }));
     }
 
-    // Compute snap preview
+    // Compute snap / slot drop preview
     const blocks = selectedTarget?.blocks || {};
-    const snap = findSnapTarget(blocks, newX, newY, drag.blockId);
-    if (snap && blocks[snap.id]) {
-      const parent = blocks[snap.id];
-      const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, snap.type);
-      setSnapPreview({ ...snap, x: snapX, y: snapY });
-    } else {
+    const draggedShape = getBlockShape(blocks[drag.blockId]?.opcode || '');
+    const isReporterDrag = draggedShape === 'reporter' || draggedShape === 'boolean';
+    if (isReporterDrag) {
+      const exclude = new Set([drag.blockId]);
+      const slotTarget = findSlotDropTarget(blocks, x, y, draggedShape, exclude);
+      setInputDropTarget(slotTarget);
       setSnapPreview(null);
+    } else {
+      setInputDropTarget(null);
+      const snap = findSnapTarget(blocks, newX, newY, drag.blockId);
+      if (snap && blocks[snap.id]) {
+        const parent = blocks[snap.id];
+        const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, snap.type);
+        setSnapPreview({ ...snap, x: snapX, y: snapY });
+      } else {
+        setSnapPreview(null);
+      }
     }
-  }, [getWorkspaceCoords, selectedTarget, selectedTargetIndex, updateProject, getBlockStack]);
+  }, [getWorkspaceCoords, selectedTarget, selectedTargetIndex, updateProject, getBlockStack, findSlotDropTarget]);
 
   const handleWorkspacePointerUp = useCallback(() => {
     const drag = dragRef.current;
