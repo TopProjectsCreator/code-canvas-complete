@@ -1180,6 +1180,7 @@ const VariablesFlyout = ({
   onDeleteList,
   onRenameVariable,
   onRenameList,
+  onStartFlyoutDrag,
 }: {
   variables: [string, [string, ScratchInputPrimitive]][];
   lists: [string, [string, ScratchInputPrimitive[]]][];
@@ -1192,6 +1193,7 @@ const VariablesFlyout = ({
   onDeleteList: (id: string) => void;
   onRenameVariable: (id: string, oldName: string) => void;
   onRenameList: (id: string, oldName: string) => void;
+  onStartFlyoutDrag: (blockDef: ScratchBlockDef, color: string, e: React.PointerEvent) => void;
 }) => {
   const [contextMenu, setContextMenu] = useState<{
     x: number; y: number; type: 'variable' | 'list'; id: string; name: string;
