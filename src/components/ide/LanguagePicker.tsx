@@ -19,11 +19,16 @@ import {
   FileVideo,
   FileAudio,
   FileText,
+  ShieldAlert,
+  Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import ReactMarkdown from "react-markdown";
 import { useAttachments } from "@/hooks/useAttachments";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { isOfflineCapable } from "@/services/offlineStorage";
+import { WifiOff } from "lucide-react";
 
 // Re-export the type so existing imports from this file still work
 export type { LanguageTemplate } from "@/data/templateRegistry";
@@ -73,8 +78,20 @@ const templateVisuals: Record<LanguageTemplate, { icon: React.ReactNode; color: 
   d: { icon: <Code2 className="w-8 h-8" />, color: "from-red-600 to-red-800" },
   groovy: { icon: <Coffee className="w-8 h-8" />, color: "from-blue-400 to-teal-500" },
   pascal: { icon: <Code2 className="w-8 h-8" />, color: "from-blue-300 to-blue-500" },
+  swift: { icon: <Code2 className="w-8 h-8" />, color: "from-orange-400 to-red-500" },
+  crystal: { icon: <Sparkles className="w-8 h-8" />, color: "from-cyan-500 to-blue-600" },
+  elixir: { icon: <Sparkles className="w-8 h-8" />, color: "from-purple-500 to-fuchsia-600" },
+  erlang: { icon: <Code2 className="w-8 h-8" />, color: "from-red-500 to-rose-600" },
+  julia: { icon: <Code2 className="w-8 h-8" />, color: "from-green-500 to-purple-600" },
+  ocaml: { icon: <Code2 className="w-8 h-8" />, color: "from-amber-500 to-orange-600" },
+  pony: { icon: <Code2 className="w-8 h-8" />, color: "from-sky-500 to-indigo-600" },
+  scala: { icon: <Code2 className="w-8 h-8" />, color: "from-red-600 to-orange-500" },
+  vim: { icon: <TerminalIcon className="w-8 h-8" />, color: "from-green-600 to-emerald-700" },
+  lazyk: { icon: <Braces className="w-8 h-8" />, color: "from-pink-500 to-purple-700" },
   react: { icon: <Globe className="w-8 h-8" />, color: "from-cyan-400 to-blue-500" },
   nodejs: { icon: <TerminalIcon className="w-8 h-8" />, color: "from-green-500 to-green-700" },
+  secureops: { icon: <ShieldAlert className="w-8 h-8" />, color: "from-rose-500 to-orange-600" },
+  automation: { icon: <Workflow className="w-8 h-8" />, color: "from-indigo-500 to-violet-600" },
   sqlite: { icon: <Braces className="w-8 h-8" />, color: "from-blue-400 to-cyan-500" },
   arduino: { icon: <Cpu className="w-8 h-8" />, color: "from-cyan-500 to-blue-600" },
   scratch: { icon: <Bot className="w-8 h-8" />, color: "from-orange-400 to-blue-500" },
@@ -420,6 +437,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
 export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const isOnline = useOnlineStatus();
 
   const filteredLanguages = useMemo(() => {
     if (!searchQuery.trim()) return languages;
@@ -466,30 +484,45 @@ export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-            {filteredLanguages.map((lang) => (
-              <button
-                key={lang.id}
-                onClick={() => onSelect(lang.id)}
-                onMouseEnter={() => setHoveredId(lang.id)}
-                onMouseLeave={() => setHoveredId(null)}
-                className={cn(
-                  "relative p-4 rounded-lg border border-border bg-card transition-all duration-150 text-left group",
-                  "hover:border-primary/50 hover:bg-accent/30",
-                  hoveredId === lang.id && "border-primary/50 bg-accent/30",
-                )}
-              >
-                <div
+            {filteredLanguages.map((lang) => {
+              const offlineOk = isOfflineCapable(lang.id);
+              const disabled = !isOnline && !offlineOk;
+              return (
+                <button
+                  key={lang.id}
+                  onClick={() => !disabled && onSelect(lang.id)}
+                  onMouseEnter={() => setHoveredId(lang.id)}
+                  onMouseLeave={() => setHoveredId(null)}
+                  disabled={disabled}
                   className={cn(
-                    "w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center text-white mb-3",
-                    lang.color,
+                    "relative p-4 rounded-lg border border-border bg-card transition-all duration-150 text-left group",
+                    disabled
+                      ? "opacity-40 cursor-not-allowed"
+                      : "hover:border-primary/50 hover:bg-accent/30",
+                    !disabled && hoveredId === lang.id && "border-primary/50 bg-accent/30",
                   )}
                 >
-                  <div className="scale-75">{lang.icon}</div>
-                </div>
-                <h3 className="text-sm font-medium text-foreground mb-0.5">{lang.name}</h3>
-                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{lang.description}</p>
-              </button>
-            ))}
+                  {disabled && (
+                    <div className="absolute top-2 right-2">
+                      <WifiOff className="w-3.5 h-3.5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "w-10 h-10 rounded-lg bg-gradient-to-br flex items-center justify-center text-white mb-3",
+                      disabled ? "grayscale" : "",
+                      lang.color,
+                    )}
+                  >
+                    <div className="scale-75">{lang.icon}</div>
+                  </div>
+                  <h3 className="text-sm font-medium text-foreground mb-0.5">{lang.name}</h3>
+                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                    {disabled ? "Requires internet" : lang.description}
+                  </p>
+                </button>
+              );
+            })}
           </div>
         )}
 

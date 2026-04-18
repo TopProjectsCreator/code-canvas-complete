@@ -1,10 +1,11 @@
-modules = ["nodejs-20", "web"]
+modules = ["nodejs-20", "python-3.11", "web"]
 [agent]
 expertMode = true
 integrations = ["javascript_database:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
+packages = ["killall"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -23,6 +24,14 @@ author = "agent"
 task = "workflow.run"
 args = "Start application"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Lint"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Fund "
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -35,6 +44,40 @@ task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
 
+[[workflows.workflow]]
+name = "Lint"
+author = "agent"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run lint"
+
+[[workflows.workflow]]
+name = "Fund "
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm fund"
+
+[workflows.workflow.metadata]
+isValidation = true
+
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+VITE_SUPABASE_URL = "https://xlmvlplazxrouscupidi.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsbXZscGxhenhyb3VzY3VwaWRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NjYyNjQsImV4cCI6MjA4NTU0MjI2NH0.j5b8QH6RusxDfJ21Fsp7A-ILDPPTL4r6ZpmO_OFoqT8"
+VITE_SUPABASE_PROJECT_ID = "xlmvlplazxrouscupidi"
+VITE_DEPLOY_PLATFORM = "lovable"

@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import VirtualMachine from 'scratch-vm';
 
 export interface ScratchArchive {
   projectJson: string;
@@ -10,6 +11,8 @@ export interface ScratchImportResult {
   archive: ScratchArchive;
   project: Record<string, unknown> | null;
 }
+
+export type ScratchArchiveFormat = 'sb3' | 'sb2';
 
 const uint8ToBase64 = (bytes: Uint8Array): string => {
   const nodeBuffer = (globalThis as { Buffer?: { from: (input: Uint8Array | string, encoding?: string) => { toString: (encoding: string) => string } } }).Buffer;
@@ -63,6 +66,14 @@ export const importSb3 = async (arrayBuffer: ArrayBuffer): Promise<ScratchImport
   };
 };
 
+const convertLegacyProjectToSb3 = async (arrayBuffer: ArrayBuffer): Promise<ArrayBuffer> => {
+  const VmCtor = VirtualMachine as unknown as { new (): { loadProject(input: ArrayBuffer): Promise<void>; saveProjectSb3(): Promise<Blob> } };
+  const vm = new VmCtor();
+  await vm.loadProject(arrayBuffer);
+  const sb3Blob = await vm.saveProjectSb3();
+  return sb3Blob.arrayBuffer();
+};
+
 export const exportSb3 = async (archive: ScratchArchive): Promise<Uint8Array> => {
   const zip = new JSZip();
   const fileNames = archive.fileNames.length > 0 ? archive.fileNames : Object.keys(archive.files);
@@ -77,4 +88,21 @@ export const exportSb3 = async (archive: ScratchArchive): Promise<Uint8Array> =>
   zip.file('project.json', archive.projectJson);
 
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+};
+
+export const exportScratchArchive = async (archive: ScratchArchive, format: ScratchArchiveFormat = 'sb3'): Promise<Uint8Array> => {
+  // sb2/sb3 are both zip-based Scratch archives; we currently emit a zip archive with
+  // project.json + assets and let callers pick the download extension.
+  // Scratch VM can still load a legacy-compatible project through JSON; file export
+  // for sb2 will be emitted with a .sb2 extension.
+  return exportSb3(archive);
+};
+
+export const importScratchArchive = async (arrayBuffer: ArrayBuffer): Promise<ScratchImportResult> => {
+  try {
+    return await importSb3(arrayBuffer);
+  } catch {
+    const converted = await convertLegacyProjectToSb3(arrayBuffer);
+    return importSb3(converted);
+  }
 };

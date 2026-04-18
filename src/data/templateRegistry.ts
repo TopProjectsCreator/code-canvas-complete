@@ -29,8 +29,20 @@ export type LanguageTemplate =
   | "d"
   | "groovy"
   | "pascal"
+  | "swift"
+  | "crystal"
+  | "elixir"
+  | "erlang"
+  | "julia"
+  | "ocaml"
+  | "pony"
+  | "scala"
+  | "vim"
+  | "lazyk"
   | "react"
   | "nodejs"
+  | "secureops"
+  | "automation"
   | "sqlite"
   | "arduino"
   | "scratch"
@@ -124,6 +136,66 @@ export const TEMPLATES: TemplateMeta[] = [
     aiDescription: "Pascal structured programming",
   },
   {
+    id: "swift",
+    name: "Swift",
+    description: "Apple platform development with Swift",
+    aiDescription: "Swift app and systems development",
+  },
+  {
+    id: "crystal",
+    name: "Crystal",
+    description: "Fast Ruby-like language with static typing",
+    aiDescription: "Crystal compiled programming",
+  },
+  {
+    id: "elixir",
+    name: "Elixir",
+    description: "Functional programming on the Erlang VM",
+    aiDescription: "Elixir concurrent functional programming",
+  },
+  {
+    id: "erlang",
+    name: "Erlang",
+    description: "Fault-tolerant distributed systems",
+    aiDescription: "Erlang OTP style development",
+  },
+  {
+    id: "julia",
+    name: "Julia",
+    description: "High-performance numerical computing",
+    aiDescription: "Julia scientific computing",
+  },
+  {
+    id: "ocaml",
+    name: "OCaml",
+    description: "Functional and imperative programming",
+    aiDescription: "OCaml functional programming",
+  },
+  {
+    id: "pony",
+    name: "Pony",
+    description: "Actor-model language for safe concurrency",
+    aiDescription: "Pony actor concurrency",
+  },
+  {
+    id: "scala",
+    name: "Scala",
+    description: "JVM functional/object-oriented development",
+    aiDescription: "Scala JVM development",
+  },
+  {
+    id: "vim",
+    name: "Vim Script",
+    description: "Editor automation with Vim script",
+    aiDescription: "Vim script automation",
+  },
+  {
+    id: "lazyk",
+    name: "Lazy K",
+    description: "Esoteric combinator calculus language",
+    aiDescription: "Lazy K esoteric language",
+  },
+  {
     id: "react",
     name: "React",
     description: "Build UIs with React components",
@@ -134,6 +206,18 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "Node.js",
     description: "Server-side JavaScript with Node.js",
     aiDescription: "Node.js server with Express",
+  },
+  {
+    id: "secureops",
+    name: "SecureOps Platform",
+    description: "Security operations starter with event pipelines and risk scoring modules",
+    aiDescription: "Security operations platform with typed modules and incident workflows",
+  },
+  {
+    id: "automation",
+    name: "Automation Canvas",
+    description: "Design trigger/action automations with drag-and-drop workflow blocks",
+    aiDescription: "Zapier-style visual automation builder with triggers, AI, and delivery actions",
   },
   { id: "sqlite", name: "SQLite", description: "Embedded database with SQLite", aiDescription: "SQL database queries" },
   {

@@ -14,6 +14,7 @@ import {
   Users
 } from 'lucide-react';
 import { PresenceAvatars } from './CollabDialog';
+import { OfflineIndicator } from './OfflineIndicator';
 import type { PresenceState } from '@/hooks/useCollaboration';
 import { ProjectMenu } from './ProjectMenu';
 import type { LanguageTemplate } from '@/data/templateRegistry';
@@ -143,6 +144,7 @@ export const Header = ({
 
       {/* Right section */}
       <div className="flex items-center gap-0.5 sm:gap-1">
+        <OfflineIndicator />
         {/* Run/Stop button on mobile only */}
         <button
           onClick={isRunning ? onStop : onRun}

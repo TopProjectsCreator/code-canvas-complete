@@ -3,7 +3,7 @@ import { FileNode } from '@/types/ide';
 import { getFileLanguage } from '@/data/defaultFiles';
 import { supabase } from '@/integrations/supabase/client';
 
-export type GitProvider = 'github' | 'gitlab' | 'bitbucket';
+export type GitProvider = 'github' | 'gitlab' | 'bitbucket' | 'replit' | 'bolt' | 'firebase';
 
 interface RepoInfo {
   name: string;
@@ -12,6 +12,9 @@ interface RepoInfo {
   stargazers_count: number;
   language: string | null;
   default_branch: string;
+  resolvedProvider?: GitProvider;
+  resolvedOwner?: string;
+  resolvedRepo?: string;
 }
 
 interface SearchResult {
@@ -65,12 +68,34 @@ const getUserGithubToken = async (): Promise<string | null> => {
   }
 };
 
+const fetchReplitOEmbedMetadata = async (owner: string, repo: string) => {
+  const url = `https://replit.com/data/oembed?url=${encodeURIComponent(`https://replit.com/@${owner}/${repo}`)}`;
+  const r = await fetch(url);
+  if (!r.ok) return { exists: false };
+  const d = await r.json();
+  return {
+    exists: true,
+    title: typeof d?.title === 'string' ? d.title : repo,
+    description: typeof d?.author_name === 'string' ? `By ${d.author_name}` : null,
+    githubOwner: null,
+    githubRepo: null,
+  };
+};
+
 // Helper to call the github-proxy edge function
-const ghProxy = async (body: Record<string, string>) => {
+const ghProxy = async (body: Record<string, unknown>) => {
   const userToken = await getUserGithubToken();
   const payload = userToken ? { ...body, userToken } : body;
   const { data, error } = await supabase.functions.invoke('github-proxy', { body: payload });
   if (error) throw new Error(error.message || 'Proxy request failed');
+  if (data?.error === 'Unknown action') {
+    if (body.action === 'replit-metadata' && typeof body.owner === 'string' && typeof body.repo === 'string') {
+      return fetchReplitOEmbedMetadata(body.owner, body.repo);
+    }
+    if (body.action === 'replit-download-zip') {
+      throw new Error('Replit download proxy is not deployed yet. Please deploy supabase/functions/github-proxy before importing Replit zips.');
+    }
+  }
   if (data?.error) throw new Error(data.error);
   return data;
 };
@@ -205,12 +230,151 @@ const bitbucket = {
   },
 };
 
-const adapters = { github, gitlab, bitbucket };
+const extractWrappedGitRepo = (url: string): { provider: 'github' | 'gitlab' | 'bitbucket'; owner: string; repo: string } | null => {
+  const decoded = (() => {
+    try {
+      return decodeURIComponent(url);
+    } catch {
+      return url;
+    }
+  })();
+  const normalized = decoded.replace(/^https?:\/\//i, '');
+  const parsers: Array<{ provider: 'github' | 'gitlab' | 'bitbucket'; matcher: RegExp }> = [
+    { provider: 'github', matcher: /github\.com\/([^\/\s#?]+)\/([^\/\s#?]+)/i },
+    { provider: 'gitlab', matcher: /gitlab\.com\/([^\/\s#?]+(?:\/[^\/\s#?]+)*)\/([^\/\s#?]+)/i },
+    { provider: 'bitbucket', matcher: /bitbucket\.org\/([^\/\s#?]+)\/([^\/\s#?]+)/i },
+  ];
+
+  for (const { provider, matcher } of parsers) {
+    const m = normalized.match(matcher);
+    if (m) {
+      return { provider, owner: m[1], repo: m[2].replace(/\.git$/, '') };
+    }
+  }
+  return null;
+};
+
+const replit = {
+  parseUrl(url: string) {
+    const trimmed = url.trim();
+    // replit.com/github/owner/repo → delegate to github
+    const ghMatch = trimmed.match(/replit\.com\/github\/([^\/\s#?]+)\/([^\/\s#?]+)/i);
+    if (ghMatch) return { owner: ghMatch[1], repo: ghMatch[2].replace(/\.git$/, ''), isGithub: true };
+    // replit.com/@user/repl
+    const replMatch = trimmed.match(/replit\.com\/@([^\/\s#?]+)\/([^\/\s#?]+)/i);
+    if (replMatch) return { owner: replMatch[1], repo: replMatch[2].replace(/[#?].*$/, ''), isGithub: false };
+    return null;
+  },
+  async fetchRepoInfo(owner: string, repo: string): Promise<RepoInfo> {
+    const metadata = await ghProxy({ action: 'replit-metadata', owner, repo });
+    if (!metadata?.exists) {
+      throw new Error('Repl not found. Make sure it exists and is public.');
+    }
+
+    if (metadata?.githubOwner && metadata?.githubRepo) {
+      return {
+        name: metadata.githubRepo,
+        full_name: `${metadata.githubOwner}/${metadata.githubRepo}`,
+        description: metadata.description ?? null,
+        stargazers_count: 0,
+        language: null,
+        default_branch: 'main',
+        resolvedProvider: 'github',
+        resolvedOwner: metadata.githubOwner,
+        resolvedRepo: metadata.githubRepo,
+      };
+    }
+
+    return {
+      name: metadata?.title || repo,
+      full_name: `@${owner}/${repo}`,
+      description: metadata?.description ?? null,
+      stargazers_count: 0,
+      language: null,
+      default_branch: 'main',
+    };
+  },
+  async fetchFullTree(owner: string, repo: string, _branch: string): Promise<{ path: string; type: 'blob' | 'tree' }[]> {
+    // Replit provides a zip download at /@user/repl.zip
+    const zipUrl = `https://replit.com/@${owner}/${repo}.zip`;
+    const r = await fetch(zipUrl);
+    if (!r.ok) {
+      throw new Error('This Replit project cannot be downloaded directly. If this repl is GitHub-backed, import the GitHub repository URL instead.');
+    }
+    const bytes = await r.arrayBuffer();
+    const { default: JSZip } = await import('jszip');
+    const zip = await JSZip.loadAsync(bytes);
+    const items: { path: string; type: 'blob' | 'tree' }[] = [];
+    zip.forEach((relativePath, entry) => {
+      if (entry.dir) {
+        items.push({ path: relativePath.replace(/\/$/, ''), type: 'tree' });
+      } else {
+        items.push({ path: relativePath, type: 'blob' });
+      }
+    });
+    // Also store zip ref for fetchFileContent
+    (replit as any)._lastZip = zip;
+    return items;
+  },
+  async fetchFileContent(_owner: string, _repo: string, path: string, _branch: string): Promise<string> {
+    const zip = (replit as any)._lastZip;
+    if (!zip) throw new Error('Zip not loaded');
+    const file = zip.file(path);
+    if (!file) throw new Error(`File not found in zip: ${path}`);
+    return file.async('string');
+  },
+  searchRepos: github.searchRepos,
+};
+
+const bolt = {
+  parseUrl(url: string) {
+    const trimmed = url.trim();
+    if (!/bolt\.new/i.test(trimmed)) return null;
+    const wrapped = extractWrappedGitRepo(trimmed);
+    if (!wrapped) return null;
+    return { owner: wrapped.owner, repo: wrapped.repo, resolvedProvider: wrapped.provider };
+  },
+  async fetchRepoInfo(owner: string, repo: string): Promise<RepoInfo> {
+    return github.fetchRepoInfo(owner, repo);
+  },
+  async fetchFullTree(owner: string, repo: string, branch: string) {
+    return github.fetchFullTree(owner, repo, branch);
+  },
+  async fetchFileContent(owner: string, repo: string, path: string, branch: string) {
+    return github.fetchFileContent(owner, repo, path, branch);
+  },
+  searchRepos: github.searchRepos,
+};
+
+const firebase = {
+  parseUrl(url: string) {
+    const trimmed = url.trim();
+    if (!/firebase\.google\.com|studio\.firebase\.google\.com/i.test(trimmed)) return null;
+    const wrapped = extractWrappedGitRepo(trimmed);
+    if (!wrapped) return null;
+    return { owner: wrapped.owner, repo: wrapped.repo, resolvedProvider: wrapped.provider };
+  },
+  async fetchRepoInfo(owner: string, repo: string): Promise<RepoInfo> {
+    return github.fetchRepoInfo(owner, repo);
+  },
+  async fetchFullTree(owner: string, repo: string, branch: string) {
+    return github.fetchFullTree(owner, repo, branch);
+  },
+  async fetchFileContent(owner: string, repo: string, path: string, branch: string) {
+    return github.fetchFileContent(owner, repo, path, branch);
+  },
+  searchRepos: github.searchRepos,
+};
+
+const adapters = { github, gitlab, bitbucket, replit, bolt, firebase };
 
 export const detectProvider = (url: string): GitProvider | null => {
+  if (/bolt\.new/i.test(url)) return 'bolt';
+  if (/firebase\.google\.com|studio\.firebase\.google\.com/i.test(url)) return 'firebase';
   if (/github\.com/i.test(url)) return 'github';
   if (/gitlab\.com/i.test(url)) return 'gitlab';
   if (/bitbucket\.org/i.test(url)) return 'bitbucket';
+  if (/replit\.com/i.test(url)) return 'replit';
   return null;
 };
 
@@ -287,18 +451,42 @@ export const useGitProviderImport = () => {
     setImportProgress('Parsing URL...');
 
     try {
-      const adapter = adapters[provider];
+      let adapter = adapters[provider];
       const parsed = adapter.parseUrl(urlOrPath);
       if (!parsed) {
-        throw new Error(provider === 'github'
-          ? 'Invalid URL. Use format: github.com/owner/repo or owner/repo'
-          : `Invalid ${provider} URL.`);
+        throw new Error(
+          provider === 'github'
+            ? 'Invalid URL. Use format: github.com/owner/repo or owner/repo'
+            : provider === 'replit'
+              ? 'Invalid Replit URL. Use format: replit.com/@owner/repo or replit.com/github/owner/repo'
+              : provider === 'bolt'
+                ? 'Invalid Bolt URL. Include a Git URL in your Bolt link (for example: bolt.new/~/github.com/owner/repo).'
+                : provider === 'firebase'
+                  ? 'Invalid Firebase Studio URL. Include a Git URL in your import link (GitHub/GitLab/Bitbucket).'
+              : `Invalid ${provider} URL.`,
+        );
       }
 
-      const { owner, repo } = parsed;
+      // If Replit URL is GitHub-backed, use GitHub adapter
+      if (provider === 'replit' && (parsed as any).isGithub) {
+        adapter = adapters.github;
+      }
+      if ((provider === 'bolt' || provider === 'firebase') && (parsed as any).resolvedProvider) {
+        adapter = adapters[(parsed as any).resolvedProvider as 'github' | 'gitlab' | 'bitbucket'];
+      }
+
+      let { owner, repo } = parsed;
 
       setImportProgress('Fetching repository info...');
       const repoInfo = await adapter.fetchRepoInfo(owner, repo);
+
+      // Replit URLs can map to an underlying GitHub repository.
+      if (provider === 'replit' && repoInfo.resolvedProvider === 'github' && repoInfo.resolvedOwner && repoInfo.resolvedRepo) {
+        adapter = adapters.github;
+        owner = repoInfo.resolvedOwner;
+        repo = repoInfo.resolvedRepo;
+        setImportProgress('Resolved Replit project to GitHub source...');
+      }
 
       setImportProgress('Fetching file tree...');
       const tree = await adapter.fetchFullTree(owner, repo, repoInfo.default_branch);

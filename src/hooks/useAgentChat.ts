@@ -56,16 +56,20 @@ interface UseAgentChatProps {
   onRunProject?: () => void;
   onRenameFile?: (oldName: string, newName: string) => void;
   onDeleteFile?: (name: string) => void;
+  onCreateFile?: (name: string, type: 'file' | 'folder', content?: string) => void;
+  onDuplicateFile?: (sourceName: string, targetName: string) => void;
+  onOpenFile?: (name: string) => void;
+  onAppendToFile?: (name: string, content: string) => void;
   workflows?: Workflow[];
   autonomyConfig?: AutonomyConfig;
 }
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, workflows = [], autonomyConfig }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, workflows = [], autonomyConfig }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>([
     {
       id: '1',
       role: 'assistant',
-      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🎨 **Generate images** from text descriptions\n- 🎵 **Generate music** with AI (Lyria)\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
+      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🖼️ **Generate images and other multimedia** from text descriptions\n- 🎨 **Open widgets** like a live stock ticker or a calculator or even a CSS picker!\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -99,24 +103,53 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     const codeChanges: CodeChange[] = [];
     let cleanContent = content;
 
-    // Parse full code changes
+    // 1. Parse standard code_change blocks
     const codeRegex = /<code_change\s+file="([^"]+)"\s+(?:lang="([^"]+)"\s+)?desc="([^"]+)">([\s\S]*?)<\/code_change>/g;
     let match;
     while ((match = codeRegex.exec(content)) !== null) {
-      codeChanges.push({ fileName: match[1], language: match[2] || 'typescript', description: match[3], newCode: match[4].trim() });
-      cleanContent = cleanContent.replace(match[0], '');
+      codeChanges.push({ 
+        fileName: match[1], 
+        language: match[2] || 'typescript', 
+        description: match[3], 
+        newCode: match[4].trim() 
+      });
     }
 
-    // Parse diff-based changes
-    const diffRegex = /<code_diff\s+file="([^"]+)"\s+(?:lang="([^"]+)"\s+)?desc="([^"]+)">([\s\S]*?)<\/code_diff>/g;
+    // 2. Parse diff-based changes (Hardened Version)
+    const diffRegex = /<code_diff\b([^>]*?)>([\s\S]*?)<\/code_diff>/g;
+
     while ((match = diffRegex.exec(content)) !== null) {
-      codeChanges.push({ fileName: match[1], language: match[2] || 'typescript', description: match[3], newCode: '', isDiff: true, diffContent: match[4].trim() });
-      cleanContent = cleanContent.replace(match[0], '');
+      const attrString = match[1];
+
+      // FIX: Strip null bytes (\u0000) that crash Postgres/Supabase
+      const rawBody = match[2] || '';
+      const diffBody = rawBody.replace(/\0/g, '').trim();
+
+      // Extract attributes individually to handle any order safely
+      const fileName = attrString.match(/file="([^"]+)"/)?.[1];
+      const language = attrString.match(/lang="([^"]+)"/)?.[1] || 'typescript';
+      const description = attrString.match(/desc="([^"]+)"/)?.[1] || '';
+
+      if (fileName) {
+        codeChanges.push({ 
+          fileName, 
+          language, 
+          description, 
+          newCode: '', 
+          isDiff: true, 
+          diffContent: diffBody 
+        });
+      }
     }
 
-    return { codeChanges, cleanContent: cleanContent.trim() };
-  };
+    // 3. Clean UI content globally AFTER loops to prevent ghost tags
+    cleanContent = cleanContent
+      .replace(/<code_change[\s\S]*?<\/code_change>/g, '')
+      .replace(/<code_diff[\s\S]*?<\/code_diff>/g, '')
+      .trim();
 
+    return { codeChanges, cleanContent };
+  }; // <--- THIS WAS THE MISSING BRACE CAUSING THE SYNTAX ERROR
   const parseWorkflowCommands = (content: string): { workflowActions: WorkflowAction[], cleanContent: string } => {
     const workflowActions: WorkflowAction[] = [];
     let cleanContent = content;
@@ -341,8 +374,17 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     return { widgets, cleanContent: cleanContent.trim() };
   };
 
-  const parseFileManagementActions = (content: string): { actions: Array<{ type: 'rename' | 'delete'; oldName?: string; newName?: string; name?: string }>; cleanContent: string } => {
-    const actions: Array<{ type: 'rename' | 'delete'; oldName?: string; newName?: string; name?: string }> = [];
+  type FileAction =
+    | { type: 'rename'; oldName: string; newName: string }
+    | { type: 'move'; from: string; to: string }
+    | { type: 'delete'; name: string }
+    | { type: 'create'; name: string; fileType: 'file' | 'folder'; content?: string }
+    | { type: 'duplicate'; sourceName: string; targetName: string }
+    | { type: 'open'; name: string }
+    | { type: 'append'; name: string; content: string };
+
+  const parseFileManagementActions = (content: string): { actions: FileAction[]; cleanContent: string } => {
+    const actions: FileAction[] = [];
     let cleanContent = content;
 
     const renameRegex = /<rename_file\s+old="([^"]+)"\s+new="([^"]+)"\s*\/>/g;
@@ -352,9 +394,79 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       cleanContent = cleanContent.replace(match[0], '');
     }
 
+    const moveRegex = /<move_file\s+from="([^"]+)"\s+to="([^"]+)"\s*\/>/g;
+    while ((match = moveRegex.exec(content)) !== null) {
+      actions.push({ type: 'move', from: match[1], to: match[2] });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
     const deleteRegex = /<delete_file\s+name="([^"]+)"\s*\/>/g;
     while ((match = deleteRegex.exec(content)) !== null) {
       actions.push({ type: 'delete', name: match[1] });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    // Self-closing version for quick file creation.
+    // Example: <create_file name="src/new.ts" type="file" content="console.log('hi')" />
+    const createRegex = /<create_file\s+name="([^"]+)"(?:\s+type="(file|folder)")?(?:\s+content="([^"]*)")?\s*\/>/g;
+    while ((match = createRegex.exec(content)) !== null) {
+      actions.push({
+        type: 'create',
+        name: match[1],
+        fileType: (match[2] as 'file' | 'folder') || 'file',
+        content: match[3] ?? undefined,
+      });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    // Block version for rich, multiline file creation content.
+    const createBlockRegex = /<create_file\s+name="([^"]+)"(?:\s+type="(file|folder)")?\s*>([\s\S]*?)<\/create_file>/g;
+    while ((match = createBlockRegex.exec(content)) !== null) {
+      actions.push({
+        type: 'create',
+        name: match[1],
+        fileType: (match[2] as 'file' | 'folder') || 'file',
+        content: match[3].trim(),
+      });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    const createFolderRegex = /<create_folder\s+name="([^"]+)"\s*\/>/g;
+    while ((match = createFolderRegex.exec(content)) !== null) {
+      actions.push({
+        type: 'create',
+        name: match[1],
+        fileType: 'folder',
+      });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    const duplicateRegex = /<duplicate_file\s+source="([^"]+)"\s+target="([^"]+)"\s*\/>/g;
+    while ((match = duplicateRegex.exec(content)) !== null) {
+      actions.push({
+        type: 'duplicate',
+        sourceName: match[1],
+        targetName: match[2],
+      });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    const openRegex = /<open_file\s+name="([^"]+)"\s*\/>/g;
+    while ((match = openRegex.exec(content)) !== null) {
+      actions.push({
+        type: 'open',
+        name: match[1],
+      });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    const appendRegex = /<append_file\s+name="([^"]+)"\s*>([\s\S]*?)<\/append_file>/g;
+    while ((match = appendRegex.exec(content)) !== null) {
+      actions.push({
+        type: 'append',
+        name: match[1],
+        content: match[2].trim(),
+      });
       cleanContent = cleanContent.replace(match[0], '');
     }
 
@@ -505,13 +617,105 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
     const { actions: fileActions, cleanContent: afterFileActions } = parseFileManagementActions(content);
     fileActions.forEach((action) => {
-      if (action.type === 'rename' && action.oldName && action.newName) {
+      if (action.type === 'rename') {
         onRenameFile?.(action.oldName, action.newName);
-        allSteps.push({ id: generateId(), type: 'tool_call', content: `Renamed file: ${action.oldName} → ${action.newName}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'apply_code', arguments: { oldName: action.oldName, newName: action.newName }, status: 'completed' } });
+        allSteps.push({
+          id: generateId(),
+          type: 'tool_call',
+          content: `Renamed file: ${action.oldName} → ${action.newName}`,
+          timestamp: new Date(),
+          toolCall: {
+            id: generateId(),
+            name: 'move_file',
+            arguments: { oldName: action.oldName, newName: action.newName },
+            status: 'completed',
+          },
+        });
       }
-      if (action.type === 'delete' && action.name) {
+      if (action.type === 'move') {
+        onRenameFile?.(action.from, action.to);
+        allSteps.push({
+          id: generateId(),
+          type: 'tool_call',
+          content: `Moved file: ${action.from} → ${action.to}`,
+          timestamp: new Date(),
+          toolCall: {
+            id: generateId(),
+            name: 'move_file',
+            arguments: { from: action.from, to: action.to },
+            status: 'completed',
+          },
+        });
+      }
+      if (action.type === 'delete') {
         onDeleteFile?.(action.name);
-        allSteps.push({ id: generateId(), type: 'tool_call', content: `Deleted file: ${action.name}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'apply_code', arguments: { name: action.name }, status: 'completed' } });
+        allSteps.push({
+          id: generateId(),
+          type: 'tool_call',
+          content: `Deleted file: ${action.name}`,
+          timestamp: new Date(),
+          toolCall: { id: generateId(), name: 'apply_code', arguments: { name: action.name }, status: 'completed' },
+        });
+      }
+      if (action.type === 'create') {
+        onCreateFile?.(action.name, action.fileType, action.content);
+        allSteps.push({
+          id: generateId(),
+          type: 'tool_call',
+          content: `Created ${action.fileType}: ${action.name}`,
+          timestamp: new Date(),
+          toolCall: {
+            id: generateId(),
+            name: 'create_file',
+            arguments: { name: action.name, type: action.fileType },
+            status: 'completed',
+          },
+        });
+      }
+      if (action.type === 'duplicate') {
+        onDuplicateFile?.(action.sourceName, action.targetName);
+        allSteps.push({
+          id: generateId(),
+          type: 'tool_call',
+          content: `Duplicated file: ${action.sourceName} → ${action.targetName}`,
+          timestamp: new Date(),
+          toolCall: {
+            id: generateId(),
+            name: 'duplicate_file',
+            arguments: { source: action.sourceName, target: action.targetName },
+            status: 'completed',
+          },
+        });
+      }
+      if (action.type === 'open') {
+        onOpenFile?.(action.name);
+        allSteps.push({
+          id: generateId(),
+          type: 'tool_call',
+          content: `Opened file: ${action.name}`,
+          timestamp: new Date(),
+          toolCall: {
+            id: generateId(),
+            name: 'open_file',
+            arguments: { name: action.name },
+            status: 'completed',
+          },
+        });
+      }
+      if (action.type === 'append') {
+        onAppendToFile?.(action.name, action.content);
+        allSteps.push({
+          id: generateId(),
+          type: 'tool_call',
+          content: `Appended content to file: ${action.name}`,
+          timestamp: new Date(),
+          toolCall: {
+            id: generateId(),
+            name: 'append_file',
+            arguments: { name: action.name },
+            status: 'completed',
+          },
+        });
       }
     });
     content = afterFileActions;
@@ -546,8 +750,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       consoleErrors?: string;
       agentMode?: boolean;
       workflows?: Array<{ name: string; type: string; command: string }>;
-      multimodalContent?: any; // OpenAI-compatible content parts (array) or string
+      multimodalContent?: any;
       template?: string;
+      automationConfig?: string | null;
     } = {}
   ) => {
     if (!messageContent.trim() || isLoading) return;
@@ -588,6 +793,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         byokProvider: aiProvider.allowsBYOK ? (byokProvider || undefined) : undefined,
         byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
         template: context.template,
+        automationConfig: context.automationConfig || null,
       }, {
         accessToken: session.access_token,
         signal: abortControllerRef.current.signal,
@@ -860,7 +1066,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       setCurrentStep(null);
       abortControllerRef.current = null;
     }
-  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, workflows, aiProvider]);
+  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, workflows, aiProvider]);
 
   const applyCodeChange = useCallback((change: CodeChange) => {
     if (onApplyCode) {

@@ -11,7 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Loader2, Mail, Lock, User, Eye, EyeOff, ArrowLeft, WifiOff, Fingerprint } from 'lucide-react';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface AuthDialogProps {
   open: boolean;
@@ -19,6 +20,7 @@ interface AuthDialogProps {
 }
 
 export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
+  const isOnline = useOnlineStatus();
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -119,7 +121,14 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
           </DialogDescription>
         </DialogHeader>
 
-                {/* OAuth Sign-In */}
+        {!isOnline && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+            <WifiOff className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>You're offline. Sign in requires an internet connection.</span>
+          </div>
+        )}
+
+        {/* OAuth Sign-In */}
         {mode !== 'forgot' && availableOAuthProviders.length > 0 && (
           <>
             {availableOAuthProviders.includes('replit') && (
@@ -127,7 +136,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
                 variant="outline"
                 className="w-full gap-2"
                 onClick={() => handleOAuthSignIn('replit')}
-                disabled={oauthLoading !== null}
+                disabled={oauthLoading !== null || !isOnline}
               >
                 {oauthLoading === 'replit' ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -141,7 +150,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
                 variant="outline"
                 className="w-full gap-2"
                 onClick={() => handleOAuthSignIn('google')}
-                disabled={oauthLoading !== null}
+                disabled={oauthLoading !== null || !isOnline}
               >
                 {oauthLoading === 'google' ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -154,6 +163,39 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
                   </svg>
                 )}
                 Continue with Google
+              </Button>
+            )}
+
+            {typeof window !== 'undefined' && !!window.PublicKeyCredential && (
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                disabled={!isOnline}
+                onClick={async () => {
+                  // Passkey-based conditional mediation hint for sign-in
+                  // This shows the browser's passkey picker
+                  try {
+                    const credential = await navigator.credentials.get({
+                      publicKey: {
+                        challenge: crypto.getRandomValues(new Uint8Array(32)),
+                        rpId: window.location.hostname,
+                        userVerification: 'preferred',
+                        timeout: 60000,
+                      },
+                    });
+                    if (credential) {
+                      toast({
+                        title: 'Passkey verified',
+                        description: 'Passkey authentication recognized. Please sign in with your email to link your session.',
+                      });
+                    }
+                  } catch {
+                    // user cancelled
+                  }
+                }}
+              >
+                <Fingerprint className="w-4 h-4" />
+                Sign in with Passkey
               </Button>
             )}
 

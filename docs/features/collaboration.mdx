@@ -1,28 +1,89 @@
 ---
 title: "Collaboration"
-description: "Team administration, pairing, and analytics inside Code Canvas."
+description: "Real-time pair programming, WebRTC rooms, inline comments, session recordings, and team analytics in Code Canvas."
 ---
 
-## Teams, rooms, and governance
+## Built for teams
 
-Invite teammates, assign roles, and control AI spend per person or team. Shared policies define who can run agents, edit certain branches, or trigger deployments so you don’t have to track permissions manually.
+Code Canvas is designed for collaborative development from the ground up. Every tool — from the AI assistant to the hardware editor — supports real-time multi-user access, shared context, and governance controls that keep teams productive without stepping on each other.
 
-### WebRTC chatrooms and pair programming
+## WebRTC chatrooms and pair programming
 
-Start a chatroom from the top bar to open a WebRTC audio/video session that sticks with the workspace. Live cursors, inline messaging, and shared terminals let pairs talk through prompts while the AI answers in context.
+Start a voice/video room from the collaboration panel to pair-program in real time:
 
-### Inline comments, sticky notes, and context pins
+- **Live cursors** — see where teammates are editing with colored cursor labels
+- **Shared terminal** — run commands that all room members can see and respond to
+- **Live chat** — text messages inside the room that persist in the session log
+- **Audio/video** — WebRTC-powered call with screen share support
+- **Room privacy** — rooms are workspace-scoped, not public
 
-Drop inline comments on files, pin symbols with descriptions, or add sticky notes to the workspace so collaborators land exactly where you left off. Pinned contexts and project bookmarks survive reloads and include links to the AI prompts or workflows you were running.
+Rooms stay open as long as a session is active. Rejoin a room after a reload and see the same context where you left off.
 
-### Session recordings and playbacks
+## Inline comments and sticky notes
 
-Enable session recording to capture everything the AI and team did during a pairing session. The playback includes prompts, outputs, terminal commands, and analytics so you can revisit how the assistant shaped the project, highlight a bug, or prepare a demo.
+Leave feedback directly on files and code:
 
-### Analytics, approvals, and support
+- **Inline comment** — right-click any line in the editor and choose "Add comment"
+- **Sticky note** — pin a floating note to a panel or editor region for workspace-wide context
+- **Context pin** — pin a symbol, file reference, or AI prompt result so teammates land on the right spot when they open the project
+- **Bookmark links** — copy a deep link to a specific comment or pin for async handoffs
 
-The analytics tab shows AI spend, active users, and feature usage so you can stop wasteful experiments before they become bills. Approval roles let leads sign off on sensitive workflows (deployments, Arduino flashing) before they run, and the built-in support link (or your helpdesk) can include session links and recordings for faster triage.
+Comments survive reloads and are visible to all teammates with project access.
+
+## Session recordings
+
+Enable session recording to capture everything that happens during a work session:
+
+1. Click **Record** in the collaboration panel before starting work
+2. The session records all AI prompts, terminal commands, file edits, and team messages
+3. Stop recording when done — the session is saved to the project history
+
+Recordings include:
+
+- Full prompt/response transcript
+- Terminal command log with output
+- File diff timeline (what changed and when)
+- Analytics summary (AI tokens used, execution time, models called)
+
+Teammates can play back a recording step by step to understand how a feature was built or where a bug was introduced.
+
+## Shared AI context
+
+When multiple teammates are in a room:
+
+- AI chat threads are visible to all room members in real time
+- Any teammate can type into the chat and the AI responds to the group
+- File suggestions and diffs are highlighted for everyone simultaneously
+- Accepting a diff applies the change for all collaborators at once
+
+## Analytics, approvals, and spending
+
+The analytics tab shows team-wide usage data:
+
+| Metric | Description |
+|---|---|
+| **AI spend** | Total cost broken down by model, user, and date |
+| **Active users** | Who has been active, for how long, on which projects |
+| **Execution time** | Server-side code execution usage per user |
+| **Feature usage** | Which editors and tools are used most |
+
+**Approval workflows** — require a lead to sign off on sensitive actions before they execute:
+
+- Arduino firmware flashing
+- Production deployments
+- Database schema migrations
+- AI commands that touch critical files
+
+Admins configure which actions need approval in **Team Management → Policies**.
+
+## Presence indicators
+
+The IDE header shows who is currently active in the project:
+
+- Avatar icons for all online teammates
+- Click an avatar to jump to their current cursor position
+- Status indicators (active, idle, offline)
 
 <Note>
-  WebRTC rooms, chatrooms, and inline notes keep the AI-centric workflow collaborative; use bookmarks and recordings to hand off work without re-explaining context.
+  WebRTC rooms, inline comments, and session recordings keep AI-centric teamwork connected. Use recordings and context pins to hand off work without losing any context.
 </Note>

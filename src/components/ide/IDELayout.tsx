@@ -28,10 +28,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ScratchArchive, importSb3 } from "@/services/scratchSb3";
+import { ScratchArchive, importScratchArchive } from "@/services/scratchSb3";
 import { createDataProvider } from "@/integrations/data/provider";
 import { buildProjectShareUrl } from "@/lib/publishing";
 import { useGitHubImport } from "@/hooks/useGitHubImport";
+import { useGitProviderImport } from "@/hooks/useGitProviderImport";
+import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
+import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/collabSyncEngine";
+import { useOfflineProject } from "@/hooks/useOfflineProject";
+import { AutomationTemplatePane, type AutomationBlockInstance, serializeAutomationConfig, parseAutomationConfig } from "@/components/ide/AutomationTemplatePane";
+import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
 
 const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
   ftc: "https://github.com/FIRST-Tech-Challenge/FtcRobotController",
@@ -40,7 +46,6 @@ const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
 const ArduinoPanel = lazy(() => import("@/components/arduino").then((m) => ({ default: m.ArduinoPanel })));
 const ScratchPanel = lazy(() => import("@/components/scratch/ScratchPanel").then((m) => ({ default: m.ScratchPanel })));
 const FTCPanel = lazy(() => import("@/components/ftc").then((m) => ({ default: m.FTCPanel })));
-const PartsInventoryDialog = lazy(() => import("@/components/ide/PartsInventoryDialog").then((m) => ({ default: m.PartsInventoryDialog })));
 
 interface IDELayoutProps {
   projectId?: string;
@@ -277,6 +282,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
   const [scratchArchive, setScratchArchive] = useState<ScratchArchive | null>(null);
+  const [scratchSyncVersion, setScratchSyncVersion] = useState(0);
+  const scratchSyncRef = useRef<'pane' | 'file' | null>(null);
+  const lastScratchJsonRef = useRef<string | null>(null);
+  const [automationBlocks, setAutomationBlocks] = useState<AutomationBlockInstance[] | undefined>(undefined);
+  const [automationSyncVersion, setAutomationSyncVersion] = useState(0);
+  const automationSyncRef = useRef<'pane' | 'file' | null>(null);
+  const lastAutomationJsonRef = useRef<string | null>(null);
   const [historyEntries, setHistoryEntries] = useState<
     Array<{
       id: string;
@@ -294,9 +306,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     }>
   >([]);
   const editedFilesRef = useRef<Set<string>>(new Set());
+  const collabEngineRef = useRef<CollaborationSyncEngine>(new CollaborationSyncEngine());
   const { executeCode, executeShellCommand, isExecuting } = useCodeExecution();
   const collab = useCollaboration(currentProject?.id);
   const { importRepository: gitImportRepo } = useGitHubImport();
+  const { importRepository: gitProviderImport } = useGitProviderImport();
+  const { saveLocally, isOfflineCapable: checkOffline } = useOfflineProject();
+  const offlineSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const addHistoryEntry = useCallback(
     (type: (typeof historyEntries)[0]["type"], label: string, detail?: string) => {
@@ -349,11 +365,20 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     if (githubRepo) {
       toast({ title: "Cloning template", description: `Importing from GitHub...` });
       try {
-        const imported = await gitImportRepo(githubRepo);
+        // Use the provider import (tree API) which is much faster and avoids rate limits
+        const imported = await gitProviderImport(githubRepo, 'github');
         if (imported) {
           setFiles(imported);
           const importOriginals: Record<string, string> = {};
-          collectContents(imported);
+          const collectImportedContents = (nodes: FileNode[]) => {
+            nodes.forEach((node) => {
+              if (node.type === "file" && node.content) {
+                importOriginals[node.id] = node.content;
+              }
+              if (node.children) collectImportedContents(node.children);
+            });
+          };
+          collectImportedContents(imported);
           setOriginalFileContents(importOriginals);
           toast({ title: "Template loaded", description: "Repository cloned successfully!" });
         }
@@ -361,7 +386,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         toast({ title: "Clone failed", description: "Using default template files", variant: "destructive" });
       }
     }
-  }, [gitImportRepo, toast]);
+  }, [gitProviderImport, toast]);
 
   // Load shared project from URL
   useEffect(() => {
@@ -428,10 +453,178 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     : null;
   const activeFilePath = activeFile ? findFilePathById(files, activeFile.id) || activeFile.name : null;
 
+  // Automation 2-way sync: file → pane
+  const getAutomationConfigContent = useCallback((): string | null => {
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "automation.config.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (!file) return null;
+    return fileContents[file.id] ?? file.content ?? null;
+  }, [files, fileContents]);
+
+  // When automation.config.json file content changes externally, update pane
+  useEffect(() => {
+    if (selectedTemplate !== "automation") return;
+    const content = getAutomationConfigContent();
+    if (!content) return;
+    if (automationSyncRef.current === 'pane') {
+      if (content === lastAutomationJsonRef.current) {
+        automationSyncRef.current = null;
+        return;
+      }
+      automationSyncRef.current = null;
+      lastAutomationJsonRef.current = content;
+    }
+    if (content === lastAutomationJsonRef.current) return;
+    const parsed = parseAutomationConfig(content);
+    if (parsed) {
+      lastAutomationJsonRef.current = content;
+      automationSyncRef.current = 'file';
+      setAutomationBlocks(parsed);
+      setAutomationSyncVersion((version) => version + 1);
+    }
+  }, [getAutomationConfigContent, selectedTemplate]);
+
+  // When blocks change in pane, update the file
+  const handleAutomationBlocksChange = useCallback((newBlocks: AutomationBlockInstance[]) => {
+    if (automationSyncRef.current === 'file') {
+      automationSyncRef.current = null;
+      return;
+    }
+    automationSyncRef.current = 'pane';
+    const json = serializeAutomationConfig(newBlocks);
+    lastAutomationJsonRef.current = json;
+    // Find and update the automation.config.json file
+    const findAndUpdate = (nodes: FileNode[]): FileNode[] => {
+      return nodes.map(node => {
+        if (node.type === "file" && node.name === "automation.config.json") {
+          return { ...node, content: json };
+        }
+        if (node.children) {
+          return { ...node, children: findAndUpdate(node.children) };
+        }
+        return node;
+      });
+    };
+    setFiles(prev => findAndUpdate(prev));
+    // Also update fileContents
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "automation.config.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (file) {
+      setFileContents(prev => ({ ...prev, [file.id]: json }));
+    }
+  }, [files]);
+
+  // Scratch 2-way sync: file → pane
+  const getScratchProjectJsonContent = useCallback((): string | null => {
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "project.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (!file) return null;
+    return fileContents[file.id] ?? file.content ?? null;
+  }, [files, fileContents]);
+
+  // When project.json file content changes externally (AI edit), update scratch archive
+  useEffect(() => {
+    if (selectedTemplate !== "scratch") return;
+    const content = getScratchProjectJsonContent();
+    if (!content) return;
+    if (scratchSyncRef.current === 'pane') {
+      if (content === lastScratchJsonRef.current) {
+        scratchSyncRef.current = null;
+        return;
+      }
+      scratchSyncRef.current = null;
+      lastScratchJsonRef.current = content;
+    }
+    if (content === lastScratchJsonRef.current) return;
+    try {
+      JSON.parse(content); // validate JSON
+      lastScratchJsonRef.current = content;
+      scratchSyncRef.current = 'file';
+      setScratchArchive(prev => ({
+        projectJson: content,
+        files: prev?.files ?? {},
+        fileNames: prev?.fileNames ?? [],
+      }));
+      setScratchSyncVersion(v => v + 1);
+    } catch {
+      // invalid JSON, skip
+    }
+  }, [getScratchProjectJsonContent, selectedTemplate]);
+
+  // Scratch pane → file sync handler
+  const handleScratchProjectJsonUpdate = useCallback((json: string) => {
+    if (scratchSyncRef.current === 'file') {
+      scratchSyncRef.current = null;
+      return;
+    }
+    scratchSyncRef.current = 'pane';
+    lastScratchJsonRef.current = json;
+    setFiles((prev) =>
+      prev.map((node) => {
+        if (node.type !== "folder") return node;
+        return {
+          ...node,
+          children: (node.children || []).map((child) =>
+            child.name === "project.json" ? { ...child, content: json } : child,
+          ),
+        };
+      }),
+    );
+    // Also update fileContents
+    const findFile = (nodes: FileNode[]): FileNode | null => {
+      for (const n of nodes) {
+        if (n.type === "file" && n.name === "project.json") return n;
+        if (n.children) { const f = findFile(n.children); if (f) return f; }
+      }
+      return null;
+    };
+    const file = findFile(files);
+    if (file) {
+      setFileContents(prev => ({ ...prev, [file.id]: json }));
+    }
+  }, [files]);
+
   useEffect(() => {
     if (!activeFilePath) return;
     void collab.updatePresence({ currentFile: activeFilePath });
   }, [activeFilePath, collab]);
+
+  useEffect(() => {
+    const engine = collabEngineRef.current;
+    engine.reset();
+
+    const registerNodes = (nodes: FileNode[], parentPath = "") => {
+      nodes.forEach((node) => {
+        const nextPath = parentPath ? `${parentPath}/${node.name}` : node.name;
+        if (node.type === "file") {
+          const content = fileContents[node.id] ?? node.content ?? "";
+          engine.initializeFile(node.id, nextPath, content);
+          return;
+        }
+        if (node.children) registerNodes(node.children, nextPath);
+      });
+    };
+
+    registerNodes(files);
+  }, [files, fileContents]);
 
   useEffect(() => {
     const remoteUpdate = collab.remoteFileUpdate;
@@ -454,6 +647,31 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       return applyUpdate(prev);
     });
   }, [collab.remoteFileUpdate]);
+
+  useEffect(() => {
+    const patch = collab.remoteFilePatch;
+    if (!patch || !isRemotePatchEnvelope(patch)) return;
+
+    const update = collabEngineRef.current.materializeUpdate(patch);
+    if (!update) return;
+
+    setFileContents((prev) => {
+      if (prev[update.fileId] === update.content) return prev;
+      return { ...prev, [update.fileId]: update.content };
+    });
+
+    setFiles((prev) => {
+      const applyUpdate = (nodes: FileNode[]): FileNode[] =>
+        nodes.map((node) => {
+          if (node.id === update.fileId && node.type === "file") {
+            return { ...node, content: update.content };
+          }
+          if (node.children) return { ...node, children: applyUpdate(node.children) };
+          return node;
+        });
+      return applyUpdate(prev);
+    });
+  }, [collab.remoteFilePatch]);
 
   // Track Git changes when files are modified
   useEffect(() => {
@@ -682,8 +900,21 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       ]);
 
       try {
-        const result = await executeShellCommand(workflow.command);
-        const success = !result.error;
+        const runResult = await runWorkflow(
+          workflow.command,
+          createShellWorkflowAdapter(async (command) => executeShellCommand(command)),
+          {
+            workflowId: workflow.id,
+            workflowName: workflow.name,
+            vars: {
+              branch: gitState.currentBranch,
+            },
+          },
+          {
+            maxParallel: 2,
+          },
+        );
+        const success = runResult.status === "success";
 
         setWorkflows((prev) =>
           prev.map((w) =>
@@ -692,7 +923,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         );
 
         setTerminalHistory((prev) => {
-          const outputLines = result.output.map((line) => ({
+          const outputLines = runResult.output.map((line) => ({
             id: generateId(),
             type: success ? ("output" as const) : ("error" as const),
             content: line,
@@ -704,7 +935,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             type: success ? "output" : "error",
             content: success
               ? `✅ Workflow "${workflow.name}" completed successfully`
-              : `❌ Workflow "${workflow.name}" failed: ${result.error}`,
+              : `❌ Workflow "${workflow.name}" failed`,
             timestamp: new Date(),
           };
 
@@ -714,7 +945,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         setCurrentlyRunningWorkflow(null);
       }
     },
-    [executeShellCommand],
+    [executeShellCommand, gitState.currentBranch],
   );
 
   const handleCreateWorkflow = useCallback((workflow: Omit<Workflow, "id">) => {
@@ -1019,27 +1250,39 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   );
 
   const handleImportScratchProject = useCallback(async (file: File) => {
-    const parsed = await importSb3(await file.arrayBuffer());
-    setScratchArchive(parsed.archive);
-    setSelectedTemplate("scratch");
-    const templateFiles = getTemplateFiles("scratch");
-    setFiles(
-      templateFiles.map((node) => {
-        if (node.type === "folder") {
-          return {
-            ...node,
-            children: (node.children || []).map((child) =>
-              child.name === "project.json" ? { ...child, content: parsed.archive.projectJson } : child,
-            ),
-          };
-        }
-        return node;
-      }),
-    );
-    setTerminalHistory((prev) => [
-      ...prev,
-      { id: generateId(), type: "info", content: `📦 Imported Scratch project: ${file.name}`, timestamp: new Date() },
-    ]);
+    try {
+      const parsed = await importScratchArchive(await file.arrayBuffer());
+      setScratchArchive(parsed.archive);
+      setSelectedTemplate("scratch");
+      const templateFiles = getTemplateFiles("scratch");
+      setFiles(
+        templateFiles.map((node) => {
+          if (node.type === "folder") {
+            return {
+              ...node,
+              children: (node.children || []).map((child) =>
+                child.name === "project.json" ? { ...child, content: parsed.archive.projectJson } : child,
+              ),
+            };
+          }
+          return node;
+        }),
+      );
+      setTerminalHistory((prev) => [
+        ...prev,
+        { id: generateId(), type: "info", content: `📦 Imported Scratch project: ${file.name}`, timestamp: new Date() },
+      ]);
+    } catch (error) {
+      setTerminalHistory((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          type: "error",
+          content: `❌ Failed to import Scratch project (.sb/.sb2/.sb3): ${error instanceof Error ? error.message : 'unknown error'}`,
+          timestamp: new Date(),
+        },
+      ]);
+    }
   }, []);
 
   const handleTabClick = useCallback((tabId: string) => {
@@ -1072,6 +1315,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       const filePath = findFilePathById(files, fileId);
       if (filePath) {
+        void collab.broadcastFilePatch(collabEngineRef.current, fileId, filePath, content);
         void collab.broadcastFileChange({ fileId, filePath, content });
       }
 
@@ -1231,8 +1475,9 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       // PHP
       "index.php",
       "main.php",
-      // Swift
+      // Swift / Crystal
       "main.swift",
+      "main.cr",
       // Kotlin
       "Main.kt",
       "App.kt",
@@ -1256,10 +1501,14 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       "script.R",
       // Haskell
       "Main.hs",
-      // Elixir
+      // Elixir / Erlang / OCaml / Pony / Julia / Vim Script / Lazy K
       "main.exs",
-      // Julia
+      "main.erl",
+      "main.ml",
+      "main.pony",
       "main.jl",
+      "main.vim",
+      "main.lazy",
       // Dart
       "main.dart",
       // Web
@@ -1626,6 +1875,40 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     }
   }, [fileContents]);
 
+  // Auto-save to IndexedDB for offline-capable templates (debounced 3s)
+  useEffect(() => {
+    if (!selectedTemplate || !checkOffline(selectedTemplate)) return;
+    if (files.length === 0) return;
+
+    if (offlineSaveTimerRef.current) clearTimeout(offlineSaveTimerRef.current);
+    offlineSaveTimerRef.current = setTimeout(() => {
+      // Apply in-memory edits to file tree before saving
+      const mergedFiles = JSON.parse(JSON.stringify(files)) as FileNode[];
+      const applyEdits = (nodes: FileNode[]) => {
+        for (const node of nodes) {
+          if (node.type === 'file' && fileContents[node.id]) {
+            node.content = fileContents[node.id];
+          }
+          if (node.children) applyEdits(node.children);
+        }
+      };
+      applyEdits(mergedFiles);
+
+      saveLocally(
+        mergedFiles,
+        selectedTemplate,
+        localProjectName,
+        currentProject?.id ? `remote-${currentProject.id}` : undefined,
+        currentProject?.id,
+      );
+    }, 3000);
+
+    return () => {
+      if (offlineSaveTimerRef.current) clearTimeout(offlineSaveTimerRef.current);
+    };
+  }, [files, fileContents, selectedTemplate, localProjectName, currentProject, saveLocally, checkOffline]);
+
+
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1858,8 +2141,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       <CollabDialog open={showCollabDialog} onOpenChange={setShowCollabDialog} projectId={currentProject?.id} />
 
-      <Suspense fallback={null}>
-        <PartsInventoryDialog
+      <PartsInventoryDialog
           open={showPartsInventory}
           onOpenChange={(open) => {
             setShowPartsInventory(open);
@@ -1873,7 +2155,6 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           initialTab={partsInventoryInitialTab}
           identifyWithImage={partsInventoryIdentifyWithImage}
         />
-      </Suspense>
 
       <GitProviderImportDialog
         open={showGitImportDialog}
@@ -1992,7 +2273,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             // Mobile: Single panel view with bottom nav switcher
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Editor Panel */}
-              {mobileActivePanel === "editor" && selectedTemplate !== "scratch" && (
+              {mobileActivePanel === "editor" && selectedTemplate !== "scratch" && selectedTemplate !== "automation" && (
                 <div className="h-full flex flex-col">
                   <EditorTabs
                     tabs={openTabs}
@@ -2025,24 +2306,16 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         onFileUpdate={handleContentChange}
                       />
                     </Suspense>
+                  ) : selectedTemplate === "automation" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
+                      <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} syncVersion={automationSyncVersion} />
+                    </Suspense>
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
                       <ScratchPanel
                         archive={scratchArchive}
                         onArchiveChange={setScratchArchive}
-                        onProjectJsonUpdate={(json) => {
-                          setFiles((prev) =>
-                            prev.map((node) => {
-                              if (node.type !== "folder") return node;
-                              return {
-                                ...node,
-                                children: (node.children || []).map((child) =>
-                                  child.name === "project.json" ? { ...child, content: json } : child,
-                                ),
-                              };
-                            }),
-                          );
-                        }}
+                        onProjectJsonUpdate={handleScratchProjectJsonUpdate}
                         isRunning={isRunning}
                         onRun={() => setIsRunning(true)}
                         onStop={handleStop}
@@ -2078,8 +2351,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           ) : (
             // Desktop: Resizable panels
             <ResizablePanelGroup direction="horizontal" className="flex-1">
-              {/* Editor panel - hidden for scratch template */}
-              {selectedTemplate !== "scratch" && (
+              {/* Editor panel - hidden for scratch and automation templates */}
+              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && (
                 <>
                   <ResizablePanel defaultSize={54} minSize={34}>
                     <div className="h-full flex flex-col">
@@ -2107,8 +2380,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                 </>
               )}
 
-              {/* Preview panel or Arduino/Scratch panel */}
-              <ResizablePanel defaultSize={selectedTemplate === "scratch" ? 100 : 46} minSize={24}>
+              {/* Preview panel or Arduino/Scratch/Automation panel */}
+              <ResizablePanel defaultSize={selectedTemplate === "scratch" || selectedTemplate === "automation" ? 100 : 46} minSize={24}>
                 {selectedTemplate === "arduino" ? (
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
                     <ArduinoPanel
@@ -2125,24 +2398,16 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       onFileUpdate={handleContentChange}
                     />
                   </Suspense>
-                ) : selectedTemplate === "scratch" ? (
-                  <Suspense fallback={<div className="p-4 text-gray-400">Loading Scratch panel...</div>}>
+                ) : selectedTemplate === "automation" ? (
+                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
+                    <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} syncVersion={automationSyncVersion} />
+                  </Suspense>
+                  ) : selectedTemplate === "scratch" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
                     <ScratchPanel
                       archive={scratchArchive}
                       onArchiveChange={setScratchArchive}
-                      onProjectJsonUpdate={(json) => {
-                        setFiles((prev) =>
-                          prev.map((node) => {
-                            if (node.type !== "folder") return node;
-                            return {
-                              ...node,
-                              children: (node.children || []).map((child) =>
-                                child.name === "project.json" ? { ...child, content: json } : child,
-                              ),
-                            };
-                          }),
-                        );
-                      }}
+                      onProjectJsonUpdate={handleScratchProjectJsonUpdate}
                       isRunning={isRunning}
                       onRun={() => setIsRunning(true)}
                       onStop={handleStop}
@@ -2425,7 +2690,136 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               const target = findFileByName(files, name);
               if (target) handleDeleteFile(target.id);
             }}
+            onCreateFile={(name, type, content) => {
+              const normalizedName = name.trim();
+              if (!normalizedName) return;
+
+              const pathParts = normalizedName.split("/").filter(Boolean);
+              const finalName = pathParts[pathParts.length - 1];
+              if (!finalName) return;
+
+              const ensureFolderByPath = (nodes: FileNode[], segments: string[]): string | null => {
+                if (segments.length === 0) return null;
+                const root = nodes[0];
+                if (!root || root.type !== "folder") return null;
+
+                let currentFolder = root;
+                for (const segment of segments) {
+                  const children = currentFolder.children || [];
+                  let nextFolder = children.find(
+                    (child) => child.type === "folder" && child.name === segment,
+                  );
+                  if (!nextFolder) {
+                    const folderNode: FileNode = {
+                      id: generateId(),
+                      name: segment,
+                      type: "folder",
+                      children: [],
+                    };
+                    setFiles((prev) => {
+                      const clone = structuredClone(prev) as FileNode[];
+                      const rootClone = clone[0];
+                      if (!rootClone || rootClone.type !== "folder") return prev;
+                      const walk = (folder: FileNode): FileNode => {
+                        if (folder.id === currentFolder.id) {
+                          return { ...folder, children: [...(folder.children || []), folderNode] };
+                        }
+                        return {
+                          ...folder,
+                          children: (folder.children || []).map((child) =>
+                            child.type === "folder" ? walk(child) : child,
+                          ),
+                        };
+                      };
+                      return [walk(rootClone)];
+                    });
+                    nextFolder = folderNode;
+                  }
+                  currentFolder = nextFolder;
+                }
+                return currentFolder.id;
+              };
+
+              const parentPath = pathParts.slice(0, -1);
+              const parentId = ensureFolderByPath(files, parentPath);
+              handleCreateFile(parentId, finalName, type);
+
+              if (type === "file" && typeof content === "string" && content.trim()) {
+                const updateFileContentByName = (nodes: FileNode[]): FileNode[] =>
+                  nodes.map((node) => {
+                    if (node.type === "file" && node.name === finalName) {
+                      return { ...node, content };
+                    }
+                    if (node.children) {
+                      return { ...node, children: updateFileContentByName(node.children) };
+                    }
+                    return node;
+                  });
+                setFiles((prev) => updateFileContentByName(prev));
+              }
+            }}
+            onDuplicateFile={(sourceName, targetName) => {
+              const findFileByName = (nodes: FileNode[], target: string): FileNode | null => {
+                for (const node of nodes) {
+                  if (node.type === "file" && node.name === target) return node;
+                  if (node.children) {
+                    const found = findFileByName(node.children, target);
+                    if (found) return found;
+                  }
+                }
+                return null;
+              };
+              const source = findFileByName(files, sourceName);
+              if (!source || source.type !== "file") return;
+              handleCreateFile(null, targetName, "file");
+              setFiles((prev) =>
+                prev.map((node) =>
+                  node.type === "folder"
+                    ? {
+                        ...node,
+                        children: (node.children || []).map((child) =>
+                          child.type === "file" && child.name === targetName
+                            ? { ...child, content: source.content, language: source.language }
+                            : child,
+                        ),
+                      }
+                    : node,
+                ),
+              );
+            }}
+            onOpenFile={(name) => {
+              const findFileByName = (nodes: FileNode[], targetName: string): FileNode | null => {
+                for (const node of nodes) {
+                  if (node.type === "file" && node.name === targetName) return node;
+                  if (node.children) {
+                    const found = findFileByName(node.children, targetName);
+                    if (found) return found;
+                  }
+                }
+                return null;
+              };
+              const target = findFileByName(files, name);
+              if (target) handleFileSelect(target);
+            }}
+            onAppendToFile={(name, appendedContent) => {
+              setFiles((prev) => {
+                const appendToTarget = (nodes: FileNode[]): FileNode[] =>
+                  nodes.map((node) => {
+                    if (node.type === "file" && node.name === name) {
+                      const existing = node.content || "";
+                      const next = existing.endsWith("\n") || existing.length === 0
+                        ? `${existing}${appendedContent}`
+                        : `${existing}\n${appendedContent}`;
+                      return { ...node, content: next };
+                    }
+                    if (node.children) return { ...node, children: appendToTarget(node.children) };
+                    return node;
+                  });
+                return appendToTarget(prev);
+              });
+            }}
             currentTemplate={selectedTemplate || undefined}
+            automationConfig={selectedTemplate === "automation" ? getAutomationConfigContent() : null}
           />
         </div>
 
@@ -2435,7 +2829,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             activePanel={mobileActivePanel}
             onPanelChange={setMobileActivePanel}
             showPreview={selectedTemplate !== "typescript" && selectedTemplate !== "python"}
-            showTerminal={selectedTemplate !== "scratch"}
+            showTerminal={selectedTemplate !== "scratch" && selectedTemplate !== "automation"}
           />
         )}
       </div>

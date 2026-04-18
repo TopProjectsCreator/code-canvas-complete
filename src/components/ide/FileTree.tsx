@@ -4,7 +4,7 @@ import { FileNode } from '@/types/ide';
 import { FileIcon } from './FileIcon';
 import { cn } from '@/lib/utils';
 
-const BINARY_EXTENSIONS = ['pptx', 'docx', 'xlsx', 'pdf', 'zip', 'stl', 'obj', 'glb', 'gltf', 'sb3'];
+const BINARY_EXTENSIONS = ['pptx', 'docx', 'xlsx', 'pdf', 'zip', 'stl', 'obj', 'glb', 'gltf', 'sb3', 'sb2'];
 const MIME_MAP: Record<string, string> = {
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -12,6 +12,7 @@ const MIME_MAP: Record<string, string> = {
   pdf: 'application/pdf',
   zip: 'application/zip',
   sb3: 'application/x.scratch.sb3',
+  sb2: 'application/x.scratch.sb2',
 };
 
 const downloadFile = (node: FileNode, currentContent?: string) => {

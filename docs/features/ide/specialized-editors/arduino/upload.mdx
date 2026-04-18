@@ -1,16 +1,62 @@
 ---
-title: "Arduino uploads"
-description: "How to push firmware to your boards from Code Canvas." 
+title: "Arduino Uploads"
+description: "How to push compiled firmware to Arduino and ESP boards from Code Canvas via OTA or Bluetooth."
 ---
 
-## OTA and Bluetooth flashing
+![Arduino upload interface with board selector](ardurino.png)
 
-From the hardware panel you can choose OTA (ESP32/ESP8266) or Bluetooth (AVR/ESP) uploads. The UI collects the binary or hex payload, streams it to `tools/arduino-bridge`, and reports success or failure right inside the workspace.
+## Overview
+
+The Upload panel compiles your `.ino` sketch for the selected board and transfers the binary to the physical device. It supports two transfer methods — OTA (over-the-air) for ESP boards and Bluetooth for AVR boards — without requiring any local IDE installation.
+
+## Selecting your board
+
+1. Open the **Hardware** panel from the sidebar
+2. Click the **Board** dropdown and choose your device (Uno, Mega, ESP32, etc.)
+3. The upload method is selected automatically based on the board type
+
+## OTA upload (ESP32 / ESP8266)
+
+Over-the-air upload works over your local Wi-Fi network:
+
+1. Your ESP board must already have OTA support flashed (via USB the first time)
+2. Enter the board's **IP address** — find it by running `Serial.println(WiFi.localIP())` in a sketch
+3. Enter the **port** (default: 3232 for ESP32, 8266 for ESP8266)
+4. Enter an **OTA password** if your sketch requires one
+5. Click **Upload** — the binary streams over the network
+
+Progress messages appear in the upload log. On success, the board reboots automatically.
+
+## Bluetooth upload (AVR boards)
+
+Bluetooth upload uses a local Arduino bridge service:
+
+1. Pair your Bluetooth-to-serial adapter (HC-05 / HC-06) with your computer
+2. Enter the **Bluetooth port** in the hardware sidebar (e.g., `/dev/cu.HC-05-SerialPort` or `COM6`)
+3. Click **Upload** — the bridge connects, resets the board, and flashes using `avrdude`
+
+## AI-assisted upload
+
+Ask the assistant to handle the upload for you:
+
+- **"Flash the latest build"** — compiles and triggers the upload automatically
+- **"What IP address should I enter?"** — reads your sketch to find the WiFi IP print statement
+- **"My upload failed, what should I do?"** — diagnoses the error and suggests fixes
 
 ## Prompt helpers
 
-Ask the assistant "Flash the latest build" to automatically run the compiler, package the binary, and trigger the uploader. If it detects a missing uploader (avrdude/esptool), it suggests the install steps.
+If a required uploader is missing (avrdude, esptool, espota.py), the workspace shows a clear warning with installation steps. The assistant can also:
 
-## Feedback and retries
+- Auto-detect board type from your sketch's `#include` statements
+- Suggest the correct baud rate for your board
+- Verify the binary size before flashing
 
-Uploads show progress messages and a final status card. Use the retry button to rerun a failed upload without re-entering settings.
+## Progress and retry
+
+The upload shows:
+
+- Percentage progress bar during binary transfer
+- Bytes written vs. total binary size
+- Final **Success** or **Error** status card
+
+If the upload fails, click **Retry** to re-flash without re-entering your board settings. The assistant logs the error so you can ask for a diagnosis.

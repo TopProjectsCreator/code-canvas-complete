@@ -16,13 +16,19 @@ import { useApiKeys, AIProvider, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   User, Palette, Keyboard, Check, Upload, Loader2, Key, Shield, Zap,
-  ExternalLink, Eye, EyeOff, Trash2, CheckCircle, XCircle, Settings2, Server, Sparkles, Bell, Brain, BarChart3
+  ExternalLink, Eye, EyeOff, Trash2, CheckCircle, XCircle, Settings2, Server, Sparkles, Bell, Brain, BarChart3,
+  Plus, Library, Download, Pencil, Share2
 } from 'lucide-react';
+import { ThemeCreator } from './ThemeCreator';
+import { ThemeLibrary } from './ThemeLibrary';
+import { ThemeImportDialog, getThemeShareUrl } from './ThemeImportDialog';
+import { CustomTheme } from '@/contexts/ThemeContext';
 import { cn } from '@/lib/utils';
 import { MCPServersPanel, AgentSkillsPanel } from './MCPSkillsPanel';
 import { NotificationSettings } from './NotificationSettings';
 import { AIComparisonPanel } from './AIComparisonPanel';
 import { AIUsageStats } from './AIUsageStats';
+import { PasskeySettings } from './PasskeySettings';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -74,7 +80,7 @@ type ValidationState = 'idle' | 'validating' | 'valid' | 'invalid';
 
 export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: SettingsDialogProps) => {
   const { user, profile, updateProfile, signOut } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, customThemes, addCustomTheme, deleteCustomTheme, updateCustomTheme } = useTheme();
   const { toast } = useToast();
   const { apiKeys, saveApiKey, deleteApiKey, loading: apiLoading, getUsageForTier, fetchApiKeys } = useApiKeys();
   
@@ -91,6 +97,11 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [validation, setValidation] = useState<ValidationState>('idle');
   const [validationError, setValidationError] = useState<string>('');
+
+  // Appearance sub-view state
+  type AppearanceView = 'main' | 'creator' | 'library' | { type: 'edit'; theme: CustomTheme };
+  const [appearanceView, setAppearanceView] = useState<AppearanceView>('main');
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   // Editor settings state
   const [shellExecutorMode, setShellExecutorMode] = useState<'webcontainer' | 'wandbox'>(() => {
@@ -320,6 +331,10 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
               </div>
 
               <div className="border-t border-border pt-4">
+                <PasskeySettings />
+              </div>
+
+              <div className="border-t border-border pt-4">
                 <h4 className="text-sm font-medium text-destructive mb-2">Danger Zone</h4>
                 <Button
                   variant="destructive"
@@ -501,33 +516,158 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
             </TabsContent>
 
             {/* Appearance Tab */}
-            <TabsContent value="appearance" className="space-y-4 mt-0">
-              <div>
-                <h4 className="text-sm font-medium mb-3">Editor Theme</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {themes.map((t) => {
-                    const info = themeInfo[t];
-                    return (
-                      <button
-                        key={t}
-                        onClick={() => setTheme(t)}
-                        className={cn(
-                          'p-3 rounded-lg border text-left transition-all',
-                          theme === t
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border hover:border-primary/50'
-                        )}
+            <TabsContent value="appearance" className="mt-0 h-full">
+              {appearanceView === 'creator' ? (
+                <ThemeCreator
+                  onSave={(ct) => { addCustomTheme(ct); setAppearanceView('main'); }}
+                  onBack={() => setAppearanceView('main')}
+                />
+              ) : appearanceView === 'library' ? (
+                <ThemeLibrary
+                  existingThemeNames={customThemes.map(ct => ct.name)}
+                  onImport={(ct) => { addCustomTheme(ct); setAppearanceView('main'); }}
+                  onBack={() => setAppearanceView('main')}
+                />
+              ) : typeof appearanceView === 'object' && appearanceView.type === 'edit' ? (
+                <ThemeCreator
+                  existingTheme={appearanceView.theme}
+                  onSave={(ct) => { updateCustomTheme(ct); setTheme(`custom-${ct.id}`); setAppearanceView('main'); }}
+                  onBack={() => setAppearanceView('main')}
+                />
+              ) : (
+                <div className="space-y-5">
+                  {/* Built-in themes */}
+                  <div>
+                    <h4 className="text-sm font-medium mb-3">Built-in Themes</h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {themes.map((t) => {
+                        const info = themeInfo[t];
+                        return (
+                          <button
+                            key={t}
+                            onClick={() => setTheme(t)}
+                            className={cn(
+                              'p-3 rounded-lg border text-left transition-all',
+                              theme === t
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border hover:border-primary/50'
+                            )}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium">{info.name}</span>
+                              {theme === t && <Check className="w-3.5 h-3.5 text-primary" />}
+                            </div>
+                            <span className="text-xs text-muted-foreground">{info.description}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Custom themes */}
+                  {customThemes.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-3">My Custom Themes</h4>
+                      <div className="space-y-2">
+                        {customThemes.map((ct) => {
+                          const isActive = theme === `custom-${ct.id}`;
+                          return (
+                            <div
+                              key={ct.id}
+                              className={cn(
+                                'rounded-lg border p-2.5 transition-all',
+                                isActive ? 'border-primary bg-primary/5' : 'border-border'
+                              )}
+                            >
+                              <div className="flex items-center justify-between">
+                                <button
+                                  className="flex items-center gap-2.5 flex-1 text-left"
+                                  onClick={() => setTheme(`custom-${ct.id}`)}
+                                >
+                                  <div className="flex gap-0.5 shrink-0">
+                                    {[ct.colors.background, ct.colors.primary, ct.colors.syntaxKeyword, ct.colors.syntaxString].map((c, i) => (
+                                      <div key={i} className="w-4 h-4 rounded-sm border border-border/50" style={{ backgroundColor: c }} />
+                                    ))}
+                                  </div>
+                                  <span className="text-sm font-medium">{ct.name}</span>
+                                  {isActive && <Check className="w-3.5 h-3.5 text-primary ml-auto" />}
+                                </button>
+                                <div className="flex items-center gap-0.5 ml-2">
+                                  <button
+                                    title="Share theme"
+                                    onClick={() => {
+                                      const url = getThemeShareUrl(ct);
+                                      navigator.clipboard.writeText(url);
+                                      toast({ title: 'Share link copied!' });
+                                    }}
+                                    className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                                  >
+                                    <Share2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    title="Edit theme"
+                                    onClick={() => setAppearanceView({ type: 'edit', theme: ct })}
+                                    className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    title="Delete theme"
+                                    onClick={() => deleteCustomTheme(ct.id)}
+                                    className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="border-t border-border pt-4">
+                    <h4 className="text-sm font-medium mb-3">Custom Themes</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={() => setAppearanceView('creator')}
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium">{info.name}</span>
-                          {theme === t && <Check className="w-3.5 h-3.5 text-primary" />}
-                        </div>
-                        <span className="text-xs text-muted-foreground">{info.description}</span>
-                      </button>
-                    );
-                  })}
+                        <Plus className="w-3.5 h-3.5" />
+                        Create
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={() => setAppearanceView('library')}
+                      >
+                        <Library className="w-3.5 h-3.5" />
+                        Library
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        onClick={() => setImportDialogOpen(true)}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        Import
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              <ThemeImportDialog
+                open={importDialogOpen}
+                onOpenChange={setImportDialogOpen}
+                onImport={(ct) => { addCustomTheme(ct); setImportDialogOpen(false); }}
+              />
             </TabsContent>
 
             {/* Editor Tab */}

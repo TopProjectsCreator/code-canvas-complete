@@ -81,6 +81,7 @@ export const WorkflowsPanel = ({
   onDeleteWorkflow,
   currentlyRunning,
 }: WorkflowsPanelProps) => {
+
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newWorkflow, setNewWorkflow] = useState({

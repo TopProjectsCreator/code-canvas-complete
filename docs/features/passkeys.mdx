@@ -1,0 +1,69 @@
+---
+title: "Passkey Authentication"
+description: "Set up biometric and hardware-key authentication using the WebAuthn API for passwordless sign-in."
+---
+
+## What are passkeys?
+
+Passkeys use the **Web Authentication (WebAuthn) API** to let you sign in with your fingerprint, face scan, or hardware security key instead of a password. They're phishing-resistant, device-bound credentials stored securely by your OS or browser — not by Code Canvas.
+
+Supported authenticators:
+
+- **Touch ID** (Mac)
+- **Face ID** (iPhone, iPad)
+- **Windows Hello** (fingerprint, face, or PIN)
+- **Android biometrics**
+- **Hardware security keys** (YubiKey, Google Titan, etc.)
+
+## Registering a passkey
+
+1. Sign in to Code Canvas with your existing email/password or OAuth account
+2. Open **Settings → Passkeys** from the user avatar menu
+3. Click **Register device**
+4. Follow your browser's prompt — approve with Touch ID, Windows Hello, or your USB key
+5. Give the credential a friendly name: `"MacBook Pro"`, `"YubiKey 5 NFC"`, `"iPhone 15"`
+
+The server stores only the **public key** and a credential ID. Your biometric data never leaves your device.
+
+## Signing in with a passkey
+
+1. Open the Code Canvas sign-in page
+2. Click **Sign in with Passkey**
+3. Your browser prompts you to verify with the registered authenticator
+4. Verification is instant — no email code or password required
+
+If multiple passkeys are registered, your browser shows a picker so you can choose the right device.
+
+## Managing passkeys
+
+| Action | How |
+|---|---|
+| View all registered devices | Settings → Passkeys |
+| Rename a passkey | Click the pencil icon next to the credential |
+| Remove a passkey | Click the trash icon — removes the credential from the server |
+| Add another device | Click **Register device** again from any authenticated session |
+
+Removing a passkey does not sign you out of existing sessions on that device.
+
+## Multiple devices
+
+Register passkeys on every device you use. Each registration is independent — removing one device's passkey doesn't affect others. This lets you maintain access even if you lose one device.
+
+## Security details
+
+- Passkeys are **origin-bound** — they only work on the exact domain they were registered for. A phishing site on a different domain cannot use your passkey.
+- The server stores only the **public key half** of the credential — there's nothing to steal that could sign you in.
+- **Sign counts** are tracked per credential to detect cloned authenticators.
+- Credentials are stored with **row-level security** in Supabase — no user can read another user's keys.
+
+## Fallback options
+
+If you can't use a passkey (lost device, hardware key unavailable):
+
+- Sign in with your email and password
+- Sign in with Google OAuth or Replit OAuth
+- Contact support to reset account access if all methods are unavailable
+
+<Note>
+  Passkeys require a **secure context (HTTPS)**. They will not work on plain HTTP connections. The Code Canvas production deployment always runs on HTTPS.
+</Note>

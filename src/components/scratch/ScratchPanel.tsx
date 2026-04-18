@@ -19,8 +19,9 @@ import {
   Play,
 } from 'lucide-react';
 import VirtualMachine from 'scratch-vm';
-import { ScratchArchive, exportSb3, importSb3 } from '@/services/scratchSb3';
+import { ScratchArchive, exportScratchArchive, importScratchArchive } from '@/services/scratchSb3';
 import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
+import { ShadowInput } from './ShadowInput';
 import { ScratchLibraryDialog, type LibraryMode } from './ScratchLibraryDialog';
 import { type ScratchLibraryAsset, assetUrl } from '@/data/scratchLibrary';
 
@@ -62,6 +63,7 @@ interface ScratchProject {
   monitors?: unknown[];
   extensions?: string[];
   meta?: Record<string, unknown>;
+  projectVersion?: number;
 }
 
 interface ScratchVmTarget {
@@ -78,7 +80,7 @@ interface ScratchVmLike {
   start: () => void;
   stopAll: () => void;
   greenFlag: () => void;
-  loadProject: (projectData: ArrayBuffer) => Promise<void>;
+  loadProject: (projectData: ArrayBuffer | string | object) => Promise<void>;
   attachRenderer: (renderer: unknown) => void;
   attachStorage: (storage: unknown) => void;
   attachAudioEngine: (audioEngine: unknown) => void;
@@ -108,12 +110,41 @@ const semverToScratchVersion = (semver: unknown): ScratchCompatibilityVersion =>
   return 'scratch3';
 };
 
+const versionRank: Record<ScratchCompatibilityVersion, number> = {
+  scratch14: 0,
+  scratch2: 1,
+  scratch3: 2,
+};
+
+const isOpcodeSupportedInVersion = (opcode: string, version: ScratchCompatibilityVersion) => {
+  if (!opcode || opcode === 'compat_foreverif') return false;
+  if (version === 'scratch3') return true;
+
+  if (opcode.startsWith('pen_') || opcode.startsWith('music_')) return false;
+  if (['control_start_as_clone', 'control_create_clone_of', 'control_delete_this_clone'].includes(opcode)) return false;
+
+  if (version === 'scratch14') {
+    if (opcode.startsWith('procedures_')) return false;
+    if (opcode === 'event_whengreaterthan') return false;
+  }
+
+  return true;
+};
+
+type ProcArgType = 'string_number' | 'boolean' | 'label';
+type ProcArg = { type: ProcArgType; name: string; id?: string };
+
 type ScratchBlockDef = {
   label: string;
   opcode: string;
   inputs?: Record<string, unknown>;
   fields?: Record<string, unknown>;
-  action?: 'create_variable' | 'create_list';
+  action?: 'create_variable' | 'create_list' | 'make_procedure';
+  minVersion?: ScratchCompatibilityVersion;
+  maxVersion?: ScratchCompatibilityVersion;
+  proccode?: string;
+  procArgs?: ProcArg[];
+  procWarp?: boolean;
 };
 // Fallback 2D canvas renderer when scratch-render (WebGL) doesn't produce output
 const fallbackImageCache = new Map<string, HTMLImageElement>();
@@ -309,10 +340,11 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'if <> then else', opcode: 'control_if_else' },
     { label: 'wait until <>', opcode: 'control_wait_until' },
     { label: 'repeat until <>', opcode: 'control_repeat_until' },
+    { label: 'forever if <>', opcode: 'compat_foreverif', maxVersion: 'scratch14' },
     { label: 'stop {all}', opcode: 'control_stop', fields: { STOP_OPTION: ['all', null] } },
-    { label: 'when I start as a clone', opcode: 'control_start_as_clone' },
-    { label: 'create clone of {myself}', opcode: 'control_create_clone_of', fields: { CLONE_OPTION: ['_myself_', null] } },
-    { label: 'delete this clone', opcode: 'control_delete_this_clone' },
+    { label: 'when I start as a clone', opcode: 'control_start_as_clone', minVersion: 'scratch3' },
+    { label: 'create clone of {myself}', opcode: 'control_create_clone_of', fields: { CLONE_OPTION: ['_myself_', null] }, minVersion: 'scratch3' },
+    { label: 'delete this clone', opcode: 'control_delete_this_clone', minVersion: 'scratch3' },
   ],
   Sensing: [
     { label: 'touching {mouse-pointer} ?', opcode: 'sensing_touchingobject', fields: { TOUCHINGOBJECTMENU: ['_mouse_', null] } },
@@ -370,10 +402,7 @@ const categoryBlocks: Record<string, ScratchBlockDef[]> = {
     { label: 'show my list', opcode: 'data_showlist' },
     { label: 'hide my list', opcode: 'data_hidelist' },
   ],
-  'My Blocks': [
-    { label: 'Make a Block', opcode: 'procedures_definition' },
-    { label: 'call custom block', opcode: 'procedures_call' },
-  ],
+  'My Blocks': [],
   Pen: [
     { label: 'erase all', opcode: 'pen_clear' },
     { label: 'stamp', opcode: 'pen_stamp' },
@@ -410,6 +439,53 @@ const categoryColors: Record<string, string> = {
   Music: '#d65cd6',
 };
 
+const categoryColorsScratch2: Record<string, string> = {
+  Motion: '#0066cc',
+  Looks: '#7f34a8',
+  Sound: '#bc3a7b',
+  Events: '#cc5c2e',
+  Control: '#be7d0f',
+  Sensing: '#3d7eb8',
+  Operators: '#339966',
+  Data: '#e67e22',
+  Variables: '#e67e22',
+  'More Blocks': '#cc5c2e',
+  'My Blocks': '#cc5c2e',
+  Pen: '#0b8235',
+};
+
+const getCategoryColors = (version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return categoryColorsScratch2;
+  }
+  return categoryColors;
+};
+
+const getGUIColors = (version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return {
+      headerBg: '#e9eef2',
+      tabBg: '#e9eef2',
+      categoryRailBg: '#f0f0f0',
+      flyoutBg: '#f0f0f0',
+      blocksBg: '#f0f0f0',
+      stageBg: '#ffffff',
+      headerText: '#4d4d4d',
+      tabText: '#4d4d4d',
+    };
+  }
+  return {
+    headerBg: '#855cd6',
+    tabBg: '#855cd6',
+    categoryRailBg: '#f9f9f9',
+    flyoutBg: '#f9f9f9',
+    blocksBg: '#f9f9f9',
+    stageBg: '#ffffff',
+    headerText: '#ffffff',
+    tabText: '#ffffff',
+  };
+};
+
 const categoryRail = [
   { name: 'Motion', color: '#4c97ff' },
   { name: 'Looks', color: '#9966ff' },
@@ -423,6 +499,38 @@ const categoryRail = [
   { name: 'Pen', color: '#0fbd8c' },
   { name: 'Music', color: '#d65cd6' },
 ];
+
+const categoryRailScratch2 = [
+  { name: 'Motion', color: '#0066cc' },
+  { name: 'Looks', color: '#7f34a8' },
+  { name: 'Sound', color: '#bc3a7b' },
+  { name: 'Events', color: '#cc5c2e' },
+  { name: 'Control', color: '#be7d0f' },
+  { name: 'Sensing', color: '#3d7eb8' },
+  { name: 'Operators', color: '#339966' },
+  { name: 'Variables', color: '#e67e22' },
+  { name: 'My Blocks', color: '#cc5c2e' },
+  { name: 'Pen', color: '#0b8235' },
+];
+
+const getCategoryRail = (version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return categoryRailScratch2;
+  }
+  return categoryRail;
+};
+
+const SCRATCH2_CATEGORY_LABEL_OVERRIDES: Record<string, string> = {
+  Variables: 'Data',
+  'My Blocks': 'More Blocks',
+};
+
+const categoryDisplayName = (name: string, version: ScratchCompatibilityVersion) => {
+  if (version === 'scratch2' || version === 'scratch14') {
+    return SCRATCH2_CATEGORY_LABEL_OVERRIDES[name] || name;
+  }
+  return name;
+};
 
 const generateId = () => Math.random().toString(36).slice(2, 10);
 const formatJson = (value: unknown) => JSON.stringify(value, null, 2);
@@ -454,12 +562,13 @@ const getDefaultCostumeForTarget = (target: ScratchTarget) => (target.isStage
       rotationCenterY: 48,
     });
 
-const normalizeProjectForVm = (project: ScratchProject): ScratchProject => ({
-  ...project,
-  targets: project.targets.map((target) => {
+const normalizeProjectForVm = (project: ScratchProject): ScratchProject => {
+  const sourceTargets = Array.isArray(project.targets) ? project.targets : [];
+  const normalizedTargets = sourceTargets.map((target, index) => {
+    const isStage = Boolean(target.isStage) || index === 0;
     const costumes = target.costumes && target.costumes.length > 0
       ? target.costumes
-      : [getDefaultCostumeForTarget(target)];
+      : [getDefaultCostumeForTarget({ ...target, isStage } as ScratchTarget)];
 
     // Ensure every block has an `id` property matching its dictionary key.
     // Real .sb3 files store blocks as { [id]: { opcode, ... } } without `id` inside.
@@ -494,14 +603,36 @@ const normalizeProjectForVm = (project: ScratchProject): ScratchProject => ({
 
     return {
       ...target,
+      isStage,
+      name: isStage ? 'Stage' : (typeof target.name === 'string' && target.name.trim() ? target.name : `Sprite${index}`),
       blocks,
       costumes,
       currentCostume: typeof target.currentCostume === 'number'
         ? Math.min(Math.max(0, target.currentCostume), Math.max(0, costumes.length - 1))
         : 0,
+      visible: isStage ? undefined : target.visible !== false,
+      x: isStage ? undefined : Number(target.x || 0),
+      y: isStage ? undefined : Number(target.y || 0),
+      size: isStage ? undefined : Number(target.size || 100),
+      direction: isStage ? undefined : Number(target.direction || 90),
     };
-  }),
-});
+  });
+
+  const stageIndex = normalizedTargets.findIndex((target) => target.isStage);
+  const orderedTargets = stageIndex <= 0
+    ? normalizedTargets
+    : [normalizedTargets[stageIndex], ...normalizedTargets.filter((_, index) => index !== stageIndex)];
+
+  if (orderedTargets.length === 0) {
+    return DEFAULT_PROJECT;
+  }
+
+  return {
+    ...project,
+    projectVersion: typeof project.projectVersion === 'number' ? project.projectVersion : 3,
+    targets: orderedTargets,
+  };
+};
 
 const ensureArchiveAssetsForVm = (archive: ScratchArchive): ScratchArchive => {
   const files = {
@@ -564,6 +695,14 @@ const getExtensionId = (opcode: string): string | null => {
   return null;
 };
 
+const isBlockDefAvailable = (blockDef: ScratchBlockDef, version: ScratchCompatibilityVersion) => {
+  const minVersion = blockDef.minVersion || 'scratch14';
+  const maxVersion = blockDef.maxVersion || 'scratch3';
+  if (versionRank[version] < versionRank[minVersion]) return false;
+  if (versionRank[version] > versionRank[maxVersion]) return false;
+  return isOpcodeSupportedInVersion(blockDef.opcode, version) || blockDef.opcode === 'compat_foreverif';
+};
+
 const extensionOf = (name: string) => {
   const idx = name.lastIndexOf('.');
   return idx >= 0 ? name.slice(idx + 1).toLowerCase() : '';
@@ -583,6 +722,150 @@ const getFieldOption = (fields: Record<string, unknown> | undefined, key: string
   const tuple = fields?.[key];
   if (!Array.isArray(tuple) || typeof tuple[0] !== 'string') return fallback;
   return tuple[0];
+};
+
+// Ordered input keys per opcode — must match the order of [..]/<..> slots in each block's label.
+const INPUT_KEYS_BY_OPCODE: Record<string, string[]> = {
+  motion_movesteps: ['STEPS'],
+  motion_turnright: ['DEGREES'],
+  motion_turnleft: ['DEGREES'],
+  motion_gotoxy: ['X', 'Y'],
+  motion_glidesecstoxy: ['SECS', 'X', 'Y'],
+  motion_glideto: ['SECS'],
+  motion_pointindirection: ['DIRECTION'],
+  motion_changexby: ['DX'],
+  motion_setx: ['X'],
+  motion_changeyby: ['DY'],
+  motion_sety: ['Y'],
+  looks_sayforsecs: ['MESSAGE', 'SECS'],
+  looks_say: ['MESSAGE'],
+  looks_thinkforsecs: ['MESSAGE', 'SECS'],
+  looks_think: ['MESSAGE'],
+  looks_changeeffectby: ['CHANGE'],
+  looks_seteffectto: ['VALUE'],
+  looks_changesizeby: ['CHANGE'],
+  looks_setsizeto: ['SIZE'],
+  looks_goforwardbackwardlayers: ['NUM'],
+  sound_changeeffectby: ['VALUE'],
+  sound_seteffectto: ['VALUE'],
+  sound_changevolumeby: ['VOLUME'],
+  sound_setvolumeto: ['VOLUME'],
+  control_wait: ['DURATION'],
+  control_repeat: ['TIMES'],
+  control_if: ['CONDITION'],
+  control_if_else: ['CONDITION'],
+  control_repeat_until: ['CONDITION'],
+  control_wait_until: ['CONDITION'],
+  sensing_askandwait: ['QUESTION'],
+  operator_add: ['NUM1', 'NUM2'],
+  operator_subtract: ['NUM1', 'NUM2'],
+  operator_multiply: ['NUM1', 'NUM2'],
+  operator_divide: ['NUM1', 'NUM2'],
+  operator_random: ['FROM', 'TO'],
+  operator_gt: ['OPERAND1', 'OPERAND2'],
+  operator_lt: ['OPERAND1', 'OPERAND2'],
+  operator_equals: ['OPERAND1', 'OPERAND2'],
+  operator_and: ['OPERAND1', 'OPERAND2'],
+  operator_or: ['OPERAND1', 'OPERAND2'],
+  operator_not: ['OPERAND'],
+  operator_join: ['STRING1', 'STRING2'],
+  operator_letter_of: ['LETTER', 'STRING'],
+  operator_length: ['STRING'],
+  operator_contains: ['STRING1', 'STRING2'],
+  operator_mod: ['NUM1', 'NUM2'],
+  operator_round: ['NUM'],
+  operator_mathop: ['NUM'],
+  data_setvariableto: ['VALUE'],
+  data_changevariableby: ['VALUE'],
+  data_addtolist: ['ITEM'],
+  data_deleteoflist: ['INDEX'],
+  data_insertatlist: ['ITEM', 'INDEX'],
+  data_replaceitemoflist: ['INDEX', 'ITEM'],
+  data_itemoflist: ['INDEX'],
+  data_itemnumoflist: ['ITEM'],
+  data_listcontainsitem: ['ITEM'],
+  pen_changePenColorParamBy: ['VALUE'],
+  pen_setPenColorParamTo: ['VALUE'],
+  pen_changePenSizeBy: ['SIZE'],
+  pen_setPenSizeTo: ['SIZE'],
+};
+
+const getOrderedInputKeysForBlock = (block: ScratchBlockNode): string[] => {
+  const op = block.opcode;
+  if (op === 'procedures_call') {
+    const argIdsJson = block.mutation?.argumentids;
+    if (typeof argIdsJson === 'string') {
+      try {
+        const ids = JSON.parse(argIdsJson) as string[];
+        if (Array.isArray(ids)) return ids;
+      } catch { /* ignore */ }
+    }
+    return [];
+  }
+  const registered = INPUT_KEYS_BY_OPCODE[op];
+  if (registered && registered.length) return registered;
+  // Fallback: derive from existing inputs (excluding stack mouths) so unregistered blocks still accept reporters.
+  if (block.inputs) {
+    return Object.keys(block.inputs).filter((k) => k !== 'SUBSTACK' && k !== 'SUBSTACK2' && k !== 'CUSTOM_BLOCK');
+  }
+  return [];
+};
+
+// Registry of dropdown options for block menus, keyed by the parent opcode.
+// Each entry maps the INPUT key (on the parent block) to:
+//   { menuOpcode, fieldKey, options: [{ value, label }] }
+// "options" can also be a function (target) => Option[] to support dynamic lists
+// (e.g. costumes/sounds/sprite names).
+type DropdownOption = { value: string; label: string };
+type MenuFieldDef = {
+  inputKey: string;
+  fieldKey: string;
+  menuOpcode: string;
+  options: DropdownOption[] | ((ctx: { spriteNames: string[]; costumeNames: string[]; backdropNames: string[]; soundNames: string[] }) => DropdownOption[]);
+};
+
+const DROPDOWN_REGISTRY: Record<string, MenuFieldDef[]> = {
+  motion_goto: [{ inputKey: 'TO', fieldKey: 'TO', menuOpcode: 'motion_goto_menu', options: ({ spriteNames }) => [
+    { value: '_random_', label: 'random position' },
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  motion_glideto: [{ inputKey: 'TO', fieldKey: 'TO', menuOpcode: 'motion_glideto_menu', options: ({ spriteNames }) => [
+    { value: '_random_', label: 'random position' },
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  motion_pointtowards: [{ inputKey: 'TOWARDS', fieldKey: 'TOWARDS', menuOpcode: 'motion_pointtowards_menu', options: ({ spriteNames }) => [
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  looks_switchcostumeto: [{ inputKey: 'COSTUME', fieldKey: 'COSTUME', menuOpcode: 'looks_costume', options: ({ costumeNames }) => costumeNames.map((n) => ({ value: n, label: n })) }],
+  looks_switchbackdropto: [{ inputKey: 'BACKDROP', fieldKey: 'BACKDROP', menuOpcode: 'looks_backdrops', options: ({ backdropNames }) => [
+    ...backdropNames.map((n) => ({ value: n, label: n })),
+    { value: 'next backdrop', label: 'next backdrop' },
+    { value: 'previous backdrop', label: 'previous backdrop' },
+    { value: 'random backdrop', label: 'random backdrop' },
+  ] }],
+  sound_play: [{ inputKey: 'SOUND_MENU', fieldKey: 'SOUND_MENU', menuOpcode: 'sound_sounds_menu', options: ({ soundNames }) => soundNames.map((n) => ({ value: n, label: n })) }],
+  sound_playuntildone: [{ inputKey: 'SOUND_MENU', fieldKey: 'SOUND_MENU', menuOpcode: 'sound_sounds_menu', options: ({ soundNames }) => soundNames.map((n) => ({ value: n, label: n })) }],
+  control_create_clone_of: [{ inputKey: 'CLONE_OPTION', fieldKey: 'CLONE_OPTION', menuOpcode: 'control_create_clone_of_menu', options: ({ spriteNames }) => [
+    { value: '_myself_', label: 'myself' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  sensing_touchingobject: [{ inputKey: 'TOUCHINGOBJECTMENU', fieldKey: 'TOUCHINGOBJECTMENU', menuOpcode: 'sensing_touchingobjectmenu', options: ({ spriteNames }) => [
+    { value: '_mouse_', label: 'mouse-pointer' },
+    { value: '_edge_', label: 'edge' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  sensing_distanceto: [{ inputKey: 'DISTANCETOMENU', fieldKey: 'DISTANCETOMENU', menuOpcode: 'sensing_distancetomenu', options: ({ spriteNames }) => [
+    { value: '_mouse_', label: 'mouse-pointer' },
+    ...spriteNames.map((n) => ({ value: n, label: n })),
+  ] }],
+  sensing_keypressed: [{ inputKey: 'KEY_OPTION', fieldKey: 'KEY_OPTION', menuOpcode: 'sensing_keyoptions', options: [
+    'space', 'up arrow', 'down arrow', 'right arrow', 'left arrow', 'any',
+    'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
+    '0','1','2','3','4','5','6','7','8','9',
+  ].map((v) => ({ value: v, label: v })) }],
 };
 
 const createVmCompatibleBlockShape = (
@@ -611,19 +894,83 @@ const createVmCompatibleBlockShape = (
   };
 
   const op = blockDef.opcode;
-  const makeProcedureMutation = (proccode: string) => ({
-    tagName: 'mutation',
-    children: [],
-    proccode,
-    argumentids: '[]',
-    argumentnames: '[]',
-    argumentdefaults: '[]',
-    warp: 'false',
-  });
+  const procArgs: ProcArg[] = (blockDef.procArgs || []).map((a) => ({
+    ...a,
+    id: a.id || generateId(),
+  }));
+  const buildProccodeFromName = (name: string, args: ProcArg[]) => {
+    // If the saved proccode already includes %s/%b tokens, trust it; otherwise build it.
+    if (name.includes('%s') || name.includes('%b')) return name;
+    const parts: string[] = [name.trim()];
+    args.forEach((a) => {
+      if (a.type === 'label') parts.push(a.name.trim());
+      else if (a.type === 'boolean') parts.push('%b');
+      else parts.push('%s');
+    });
+    return parts.filter(Boolean).join(' ');
+  };
+  const makeProcedureMutation = (
+    proccode: string,
+    args: ProcArg[],
+    warp: boolean,
+  ) => {
+    const valueArgs = args.filter((a) => a.type !== 'label');
+    return {
+      tagName: 'mutation',
+      children: [],
+      proccode,
+      argumentids: JSON.stringify(valueArgs.map((a) => a.id)),
+      argumentnames: JSON.stringify(valueArgs.map((a) => a.name)),
+      argumentdefaults: JSON.stringify(valueArgs.map((a) => (a.type === 'boolean' ? 'false' : ''))),
+      warp: warp ? 'true' : 'false',
+    };
+  };
+
+  if (op === 'compat_foreverif') {
+    const ifId = generateId();
+    nextInputs.SUBSTACK = [2, ifId];
+    extraBlocks[ifId] = {
+      id: ifId,
+      opcode: 'control_if',
+      parent: blockId,
+      topLevel: false,
+      shadow: false,
+      fields: {},
+      inputs: {
+        CONDITION: [1, [10, 'true']],
+      },
+      next: null,
+    };
+    return {
+      inputs: nextInputs,
+      fields: nextFields,
+      extraBlocks,
+      mutation,
+      opcodeOverride: 'control_forever',
+    };
+  }
 
   if (op === 'procedures_definition') {
     const prototypeId = generateId();
-    const proccode = 'custom block';
+    const warp = !!blockDef.procWarp;
+    const proccode = buildProccodeFromName(blockDef.proccode || 'custom block', procArgs);
+    const valueArgs = procArgs.filter((a) => a.type !== 'label');
+    // Create one argument_reporter shadow per value arg, attached as inputs of the prototype
+    const protoInputs: Record<string, unknown> = {};
+    valueArgs.forEach((a) => {
+      const reporterId = generateId();
+      extraBlocks[reporterId] = {
+        id: reporterId,
+        opcode: a.type === 'boolean' ? 'argument_reporter_boolean' : 'argument_reporter_string_number',
+        parent: prototypeId,
+        topLevel: false,
+        shadow: true,
+        fields: { VALUE: [a.name, null] },
+        inputs: {},
+        next: null,
+      };
+      protoInputs[a.id!] = [1, reporterId];
+    });
     extraBlocks[prototypeId] = {
       id: prototypeId,
       opcode: 'procedures_prototype',
@@ -631,16 +978,25 @@ const createVmCompatibleBlockShape = (
       topLevel: false,
       shadow: true,
       fields: {},
-      inputs: {},
+      inputs: protoInputs,
       next: null,
-      mutation: makeProcedureMutation(proccode),
+      mutation: makeProcedureMutation(proccode, procArgs, warp),
     };
     nextInputs.custom_block = [1, prototypeId];
   }
 
   if (op === 'procedures_call') {
-    const proccode = 'custom block';
-    mutation = makeProcedureMutation(proccode);
+    const warp = !!blockDef.procWarp;
+    const proccode = buildProccodeFromName(blockDef.proccode || 'custom block', procArgs);
+    const valueArgs = procArgs.filter((a) => a.type !== 'label');
+    valueArgs.forEach((a) => {
+      if (a.type === 'boolean') {
+        // Boolean input: empty (no shadow), VM treats missing as false
+      } else {
+        nextInputs[a.id!] = [1, [10, '']];
+      }
+    });
+    mutation = makeProcedureMutation(proccode, procArgs, warp);
   }
 
   // Motion menus
@@ -687,6 +1043,7 @@ const createVmCompatibleBlockShape = (
     fields: nextFields,
     extraBlocks,
     mutation,
+    opcodeOverride: op,
   };
 };
 
@@ -752,6 +1109,64 @@ const ensureDataRefForTarget = (target: ScratchTarget, blockDef: ScratchBlockDef
   return { target: nextTarget, fields: nextFields };
 };
 
+const normalizeBlocksForVersion = (
+  blocks: Record<string, ScratchBlockNode> | undefined,
+  version: ScratchCompatibilityVersion,
+): Record<string, ScratchBlockNode> => {
+  if (!blocks) return {};
+  const nextBlocks: Record<string, ScratchBlockNode> = { ...blocks };
+  const unsupportedIds = new Set(
+    Object.entries(nextBlocks)
+      .filter(([, block]) => !isOpcodeSupportedInVersion(block.opcode, version))
+      .map(([id]) => id),
+  );
+  if (!unsupportedIds.size) return nextBlocks;
+
+  for (const removeId of unsupportedIds) {
+    const removed = nextBlocks[removeId];
+    if (!removed) continue;
+    const parentId = removed.parent || null;
+    const nextId = removed.next || null;
+    if (parentId && nextBlocks[parentId]) {
+      const parent = { ...nextBlocks[parentId] };
+      if (parent.next === removeId) parent.next = nextId && !unsupportedIds.has(nextId) ? nextId : null;
+      if (parent.inputs) {
+        const patchedInputs = { ...parent.inputs };
+        Object.entries(patchedInputs).forEach(([key, value]) => {
+          if (Array.isArray(value) && value[1] === removeId) patchedInputs[key] = [2, null];
+        });
+        parent.inputs = patchedInputs;
+      }
+      nextBlocks[parentId] = parent;
+    }
+    if (nextId && nextBlocks[nextId] && !unsupportedIds.has(nextId)) {
+      nextBlocks[nextId] = { ...nextBlocks[nextId], parent: parentId, topLevel: parentId ? false : true };
+    }
+    delete nextBlocks[removeId];
+  }
+
+  for (const [id, block] of Object.entries(nextBlocks)) {
+    const patched: ScratchBlockNode = { ...block };
+    if (patched.parent && !nextBlocks[patched.parent]) {
+      patched.parent = null;
+      patched.topLevel = true;
+    }
+    if (patched.next && !nextBlocks[patched.next]) patched.next = null;
+    if (patched.inputs) {
+      const cleanedInputs = { ...patched.inputs };
+      Object.entries(cleanedInputs).forEach(([key, value]) => {
+        if (Array.isArray(value) && typeof value[1] === 'string' && !nextBlocks[value[1]]) {
+          delete cleanedInputs[key];
+        }
+      });
+      patched.inputs = cleanedInputs;
+    }
+    nextBlocks[id] = patched;
+  }
+
+  return nextBlocks;
+};
+
 /** Variables category flyout — matches real Scratch editor layout */
 const VariablesFlyout = ({
   variables,
@@ -765,6 +1180,7 @@ const VariablesFlyout = ({
   onDeleteList,
   onRenameVariable,
   onRenameList,
+  onStartFlyoutDrag,
 }: {
   variables: [string, [string, ScratchInputPrimitive]][];
   lists: [string, [string, ScratchInputPrimitive[]]][];
@@ -777,6 +1193,7 @@ const VariablesFlyout = ({
   onDeleteList: (id: string) => void;
   onRenameVariable: (id: string, oldName: string) => void;
   onRenameList: (id: string, oldName: string) => void;
+  onStartFlyoutDrag: (blockDef: ScratchBlockDef, color: string, e: React.PointerEvent) => void;
 }) => {
   const [contextMenu, setContextMenu] = useState<{
     x: number; y: number; type: 'variable' | 'list'; id: string; name: string;
@@ -841,11 +1258,18 @@ const VariablesFlyout = ({
       {/* Variable reporters */}
       {variables.length > 0 && (
         <div className="space-y-1.5 py-1">
-          {variables.map(([id, [name]]) => (
+          {variables.map(([id, [name]]) => {
+            const reporterDef: ScratchBlockDef = {
+              label: name,
+              opcode: 'data_variable',
+              fields: { VARIABLE: [name, id] },
+            };
+            return (
             <div key={id} className="flex items-center gap-2">
               <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#ff8c1a]" />
               <div
-                className="cursor-pointer"
+                onPointerDown={(e) => onStartFlyoutDrag(reporterDef, color, e)}
+                className="cursor-grab active:cursor-grabbing"
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, type: 'variable', id, name, allNames: varNames });
@@ -860,7 +1284,8 @@ const VariablesFlyout = ({
                 <ScratchBlockShape label={name} color={color} shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -880,17 +1305,13 @@ const VariablesFlyout = ({
           )}
           {varBlocks.map((blockDef) => {
             const shape = getBlockShape(blockDef.opcode);
+            const patched = activeVarId && activeVarName
+              ? { ...blockDef, fields: { ...blockDef.fields, VARIABLE: [activeVarName, activeVarId] } }
+              : blockDef;
             return (
               <div
                 key={blockDef.label}
-                draggable
-                onDragStart={(e) => {
-                  const patched = activeVarId && activeVarName
-                    ? { ...blockDef, fields: { ...blockDef.fields, VARIABLE: [activeVarName, activeVarId] } }
-                    : blockDef;
-                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(patched));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
+                onPointerDown={(e) => onStartFlyoutDrag(patched, color, e)}
                 onClick={() => handleAddVarBlock(blockDef)}
                 className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
               >
@@ -915,11 +1336,18 @@ const VariablesFlyout = ({
       {/* List reporters */}
       {lists.length > 0 && (
         <div className="space-y-1.5 py-1">
-          {lists.map(([id, [name]]) => (
+          {lists.map(([id, [name]]) => {
+            const listReporterDef: ScratchBlockDef = {
+              label: name,
+              opcode: 'data_listcontents',
+              fields: { LIST: [name, id] },
+            };
+            return (
             <div key={id} className="flex items-center gap-2">
               <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#e6832a]" />
               <div
-                className="cursor-pointer"
+                onPointerDown={(e) => onStartFlyoutDrag(listReporterDef, '#e6832a', e)}
+                className="cursor-grab active:cursor-grabbing"
                 onContextMenu={(e) => {
                   e.preventDefault();
                   setContextMenu({ x: e.clientX, y: e.clientY, type: 'list', id, name, allNames: listNames });
@@ -934,7 +1362,8 @@ const VariablesFlyout = ({
                 <ScratchBlockShape label={name} color="#e6832a" shape="reporter" width={Math.max(80, name.length * 8 + 30)} />
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -954,17 +1383,13 @@ const VariablesFlyout = ({
           )}
           {listBlocks.map((blockDef) => {
             const shape = getBlockShape(blockDef.opcode);
+            const patched = activeListId && activeListName
+              ? { ...blockDef, fields: { ...blockDef.fields, LIST: [activeListName, activeListId] } }
+              : blockDef;
             return (
               <div
                 key={blockDef.label}
-                draggable
-                onDragStart={(e) => {
-                  const patched = activeListId && activeListName
-                    ? { ...blockDef, fields: { ...blockDef.fields, LIST: [activeListName, activeListId] } }
-                    : blockDef;
-                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(patched));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
+                onPointerDown={(e) => onStartFlyoutDrag(patched, '#e6832a', e)}
                 onClick={() => handleAddListBlock(blockDef)}
                 className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
               >
@@ -1046,7 +1471,24 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     detached: boolean;
   } | null>(null);
   const [dragBlockId, setDragBlockId] = useState<string | null>(null);
+  // Pointer-based flyout drag (replaces failed HTML5 dataTransfer approach).
+  // Tracks a block definition being dragged from the flyout/palette into the workspace.
+  const [flyoutDrag, setFlyoutDrag] = useState<{
+    blockDef: ScratchBlockDef;
+    color: string;
+    ghostX: number;
+    ghostY: number;
+  } | null>(null);
+  const flyoutDragRef = useRef<{ blockDef: ScratchBlockDef; color: string; startX: number; startY: number } | null>(null);
+  // Used to disable shadow input pointer-events so drops land on the slot, not the input overlay.
+  const isHtml5Dragging = flyoutDrag !== null;
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
+  // Per-block input slot rects (in block-local SVG coords). Populated by ScratchBlockShape onSlots.
+  const slotsRegistryRef = useRef<Map<string, { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]>>(new Map());
+  const [slotsTick, setSlotsTick] = useState(0);
+  const [inputDropTarget, setInputDropTarget] = useState<{ blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null>(null);
+  const [editingShadow, setEditingShadow] = useState<{ blockId: string; inputKey: string } | null>(null);
+  const [blockContextMenu, setBlockContextMenu] = useState<{ blockId: string; x: number; y: number } | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [vmError, setVmError] = useState<string | null>(null);
   const [scratchVersion, setScratchVersion] = useState<ScratchCompatibilityVersion>('scratch3');
@@ -1109,6 +1551,91 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     Object.values(categoryBlocks).forEach((defs) => defs.forEach((d) => { map[d.opcode] = d.label; }));
     return map;
   }, []);
+  const visibleCategoryNames = useMemo(
+    () => Object.keys(categoryBlocks).filter(
+      (name) => name === 'My Blocks' || categoryBlocks[name].some((def) => isBlockDefAvailable(def, scratchVersion)),
+    ),
+    [scratchVersion],
+  );
+  const visibleCategoryBlocks = useMemo(() => {
+    const entries = Object.entries(categoryBlocks).map(([name, defs]) => [
+      name,
+      defs.filter((def) => isBlockDefAvailable(def, scratchVersion)),
+    ]);
+    return Object.fromEntries(entries) as Record<string, ScratchBlockDef[]>;
+  }, [scratchVersion]);
+  const allCategoryRail = useMemo(
+    () => getCategoryRail(scratchVersion),
+    [scratchVersion],
+  );
+  const visibleCategoryRail = useMemo(
+    () => allCategoryRail.filter((cat) => visibleCategoryNames.includes(cat.name)),
+    [allCategoryRail, visibleCategoryNames],
+  );
+  const currentCategoryColors = useMemo(
+    () => getCategoryColors(scratchVersion),
+    [scratchVersion],
+  );
+  const guiColors = useMemo(
+    () => getGUIColors(scratchVersion),
+    [scratchVersion],
+  );
+
+  // Custom procedures (My Blocks): derived from procedures_prototype mutations
+  // anywhere in the project so the same custom blocks are available across sprites.
+  const customProcedures = useMemo(() => {
+    const seen = new Map<string, { proccode: string; args: ProcArg[]; warp: boolean }>();
+    project.targets.forEach((t) => {
+      Object.values(t.blocks || {}).forEach((b) => {
+        const node = b as {
+          opcode?: string;
+          mutation?: { proccode?: string; argumentnames?: string; argumentids?: string; warp?: string };
+        };
+        if (node?.opcode === 'procedures_prototype' && node.mutation?.proccode) {
+          const pc = node.mutation.proccode;
+          if (seen.has(pc)) return;
+          let names: string[] = [];
+          let ids: string[] = [];
+          try { names = JSON.parse(node.mutation.argumentnames || '[]'); } catch { /* noop */ }
+          try { ids = JSON.parse(node.mutation.argumentids || '[]'); } catch { /* noop */ }
+          // Walk proccode tokens to recover %s/%b order + label tokens
+          const tokens = pc.split(/(\s+)/).filter((s) => s.trim().length > 0);
+          const args: ProcArg[] = [];
+          let valueIdx = 0;
+          // Skip the leading name tokens until we hit first %s/%b; tokens before that form the name
+          let nameOver = false;
+          tokens.forEach((tok) => {
+            if (tok === '%s' || tok === '%b') {
+              nameOver = true;
+              args.push({
+                type: tok === '%b' ? 'boolean' : 'string_number',
+                name: names[valueIdx] || `arg${valueIdx + 1}`,
+                id: ids[valueIdx],
+              });
+              valueIdx++;
+            } else if (nameOver) {
+              args.push({ type: 'label', name: tok });
+            }
+          });
+          seen.set(pc, { proccode: pc, args, warp: node.mutation.warp === 'true' });
+        }
+      });
+    });
+    return Array.from(seen.values());
+  }, [project]);
+
+  const [makeBlockModal, setMakeBlockModal] = useState<{
+    name: string;
+    runWithoutRefresh: boolean;
+    args: ProcArg[];
+  } | null>(null);
+  const [fieldPicker, setFieldPicker] = useState<{ blockId: string; menuBlockId: string; fieldKey: string; options: DropdownOption[]; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!visibleCategoryNames.includes(activeCategory) && visibleCategoryNames.length > 0) {
+      setActiveCategory(visibleCategoryNames[0]);
+    }
+  }, [activeCategory, visibleCategoryNames]);
 
   useEffect(() => {
     setScratchVersion(semverToScratchVersion(project.meta?.semver));
@@ -1150,17 +1677,33 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setSpriteVisible(visible);
   }, [selectedTarget?.name]);
 
-  const loadVmFromArchive = useCallback(async (nextArchive: ScratchArchive) => {
+  const loadVmFromArchive = useCallback(async (nextArchive: ScratchArchive, version: ScratchCompatibilityVersion = scratchVersion) => {
     if (!vmRef.current) return;
     try {
       const normalizedArchive = ensureArchive(nextArchive);
-      console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames);
-      const data = await exportSb3(normalizedArchive);
-      const ab = data.buffer instanceof ArrayBuffer
-        ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
-        : data.slice().buffer;
-      console.log('[Scratch] Loading project into VM, size:', ab.byteLength);
-      await vmRef.current.loadProject(ab);
+      console.log('[Scratch] loadVmFromArchive — files:', Object.keys(normalizedArchive.files).length, 'fileNames:', normalizedArchive.fileNames, 'version:', version);
+
+      if (version === 'scratch2') {
+        const project = safeParseProject(normalizedArchive);
+        const legacyProject = {
+          ...project,
+          projectVersion: 2,
+          meta: {
+            ...(project.meta || {}),
+            semver: '2.0.0',
+          },
+        };
+        console.log('[Scratch] Loading Scratch 2 project into VM from JSON');
+        await vmRef.current.loadProject(legacyProject);
+      } else {
+        const data = await exportScratchArchive(normalizedArchive, version === 'scratch3' ? 'sb3' : 'sb2');
+        const ab = data.buffer instanceof ArrayBuffer
+          ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+          : data.slice().buffer;
+        console.log('[Scratch] Loading project into VM, size:', ab.byteLength);
+        await vmRef.current.loadProject(ab);
+      }
+
       projectLoadedRef.current = true;
       console.log('[Scratch] Project loaded successfully, targets:', vmRef.current.runtime?.targets?.length);
       setVmError(null);
@@ -1170,7 +1713,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       console.warn('scratch-vm loadProject warning:', error);
       setVmError(error instanceof Error ? error.message : 'Failed to load Scratch project');
     }
-  }, [syncFromVm]);
+  }, [scratchVersion, syncFromVm]);
 
   // Initialize VM with renderer, storage, and audio engine (dynamic imports)
   useEffect(() => {
@@ -1241,16 +1784,39 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           console.warn('scratch-storage not available:', e);
         }
 
-        // Keep 2D fallback renderer as primary path for compatibility in this environment
-        useWebGLRenderer = false;
+        // Attach scratch-render when available so the VM can load costumes and execute
+        // renderer-dependent blocks correctly. Keep the 2D fallback as a safety net.
+        try {
+          const renderMod = await import('scratch-render');
+          const RenderCtor = renderMod.default || renderMod;
+          if (typeof RenderCtor === 'function') {
+            const renderer = new RenderCtor(canvas);
+            vm.attachRenderer(renderer);
+            rendererRef.current = renderer as { draw(): void; destroy(): void };
+            useWebGLRenderer = true;
+            console.log('[Scratch] scratch-render attached successfully');
+          } else {
+            console.warn('[Scratch] scratch-render constructor not found; using fallback renderer');
+            useWebGLRenderer = false;
+          }
+        } catch (e) {
+          console.warn('scratch-render not available:', e);
+          useWebGLRenderer = false;
+        }
 
         // Dynamically import and attach audio engine
+        let audioReady = false;
         try {
           const audioMod = await import('scratch-audio');
           const AudioCtor = audioMod.default || audioMod;
           if (typeof AudioCtor === 'function') {
-            const audioEngine = new AudioCtor();
-            vm.attachAudioEngine(audioEngine);
+            try {
+              const audioEngine = new AudioCtor();
+              vm.attachAudioEngine(audioEngine);
+              audioReady = true;
+            } catch (audioError) {
+              console.warn('scratch-audio initialization failed:', audioError);
+            }
           }
         } catch (e) {
           console.warn('scratch-audio not available:', e);
@@ -1266,10 +1832,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           const em = (vm as any).extensionManager;
           if (em?.loadExtensionIdSync) {
             em.loadExtensionIdSync('pen');
-            em.loadExtensionIdSync('music');
+            if (audioReady) {
+              em.loadExtensionIdSync('music');
+            }
           } else if (em?.loadExtensionURL) {
             em.loadExtensionURL('pen').catch(() => {});
-            em.loadExtensionURL('music').catch(() => {});
+            if (audioReady) {
+              em.loadExtensionURL('music').catch(() => {});
+            }
           }
           console.log('[Scratch] Extensions loaded');
         } catch (e) {
@@ -1656,15 +2226,27 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setSelectedTargetIndex(project.targets.length);
   };
 
-  const SNAP_DISTANCE = 40;
-  const BLOCK_HEIGHT = 42;
-  const C_BLOCK_INDENT = 24;
+  // Visual heights MUST match ScratchBlockShape.tsx (STACK_H=32, hat = STACK_H + HAT_CURVE = 52)
+  const SNAP_DISTANCE = 28;
+  const STACK_BLOCK_HEIGHT = 32;
+  const HAT_BLOCK_HEIGHT = 52;
+  const C_BLOCK_INDENT = 16;
   const C_BLOCK_MOUTH_HEIGHT = 24;
+  // Default fallback for placement spacing
+  const BLOCK_HEIGHT = STACK_BLOCK_HEIGHT;
 
   const cBlockOpcodes = new Set([
     'control_forever', 'control_repeat', 'control_if', 'control_if_else',
     'control_repeat_until', 'control_wait_until',
   ]);
+
+  // Returns the visual height of a single block (not including its children)
+  const getBlockOwnHeight = (block: ScratchBlockNode) => {
+    if (isEventBlock(block.opcode) || block.opcode === 'procedures_definition' || block.opcode === 'control_start_as_clone') {
+      return HAT_BLOCK_HEIGHT;
+    }
+    return STACK_BLOCK_HEIGHT;
+  };
 
   type SnapResult = { id: string; type: 'next' | 'substack' } | null;
 
@@ -1690,16 +2272,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
   const getNextSnapY = (blocks: Record<string, ScratchBlockNode>, block: ScratchBlockNode) => {
     const by = block.y ?? 0;
-    if (!cBlockOpcodes.has(block.opcode)) return by + BLOCK_HEIGHT;
+    const ownH = getBlockOwnHeight(block);
+    if (!cBlockOpcodes.has(block.opcode)) return by + ownH;
     const substackInput = block.inputs?.SUBSTACK as unknown[];
     const substackRoot = typeof substackInput?.[1] === 'string' ? substackInput[1] : null;
     const substackLen = substackRoot && blocks[substackRoot] ? getStackLength(blocks, substackRoot) : 1;
-    return by + BLOCK_HEIGHT + C_BLOCK_MOUTH_HEIGHT + substackLen * BLOCK_HEIGHT;
+    return by + ownH + C_BLOCK_MOUTH_HEIGHT + substackLen * STACK_BLOCK_HEIGHT;
   };
 
   const getSnapPosition = (blocks: Record<string, ScratchBlockNode>, parent: ScratchBlockNode, type: 'next' | 'substack') => ({
     x: type === 'substack' ? (parent.x ?? 0) + C_BLOCK_INDENT : (parent.x ?? 0),
-    y: type === 'substack' ? (parent.y ?? 0) + BLOCK_HEIGHT : getNextSnapY(blocks, parent),
+    y: type === 'substack' ? (parent.y ?? 0) + getBlockOwnHeight(parent) : getNextSnapY(blocks, parent),
   });
 
   const findSnapTarget = (blocks: Record<string, ScratchBlockNode>, dropX: number, dropY: number, excludeId?: string): SnapResult => {
@@ -1848,6 +2431,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
   const addBlock = (blockDef: ScratchBlockDef, dropX?: number, dropY?: number) => {
     if (!selectedTarget || selectedTarget.isStage || activeEditorTab !== 'code') return;
+    if (!isBlockDefAvailable(blockDef, scratchVersion)) {
+      setVmError(`"${blockDef.label}" is not available in ${SCRATCH_VERSION_OPTIONS.find((v) => v.value === scratchVersion)?.label || 'this version'}.`);
+      return;
+    }
     const blockId = generateId();
     const blockCount = Object.keys(selectedTarget.blocks || {}).length;
     const finalX = dropX ?? 40;
@@ -1883,7 +2470,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             blocks[snapResult.id] = { ...parent, inputs: parentInputs };
             blocks[blockId] = {
               id: blockId,
-              opcode: blockDef.opcode,
+              opcode: vmCompatible.opcodeOverride,
               next: null,
               parent: snapResult.id,
               topLevel: false,
@@ -1899,7 +2486,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             blocks[snapResult.id] = { ...parent, next: blockId };
             blocks[blockId] = {
               id: blockId,
-              opcode: blockDef.opcode,
+              opcode: vmCompatible.opcodeOverride,
               next: null,
               parent: snapResult.id,
               topLevel: false,
@@ -1912,7 +2499,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           }
           Object.assign(blocks, vmCompatible.extraBlocks);
         } else {
-          if (isEventBlock(blockDef.opcode) || blockDef.opcode === 'procedures_definition') {
+          const droppedShape = getBlockShape(blockDef.opcode);
+          const isReporterLike = droppedShape === 'reporter' || droppedShape === 'boolean';
+          if (isEventBlock(blockDef.opcode) || blockDef.opcode === 'procedures_definition' || isReporterLike) {
             blocks[blockId] = {
               id: blockId,
               opcode: blockDef.opcode,
@@ -1928,6 +2517,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             Object.assign(blocks, vmCompatible.extraBlocks);
           } else {
             const eventId = generateId();
+            const eventY = Math.max(24, finalY - HAT_BLOCK_HEIGHT);
             blocks[eventId] = {
               id: eventId,
               opcode: 'event_whenflagclicked',
@@ -1935,18 +2525,18 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               parent: null,
               topLevel: true,
               x: finalX,
-              y: Math.max(24, finalY - BLOCK_HEIGHT),
+              y: eventY,
               inputs: {},
               fields: {},
             };
             blocks[blockId] = {
               id: blockId,
-              opcode: blockDef.opcode,
+              opcode: vmCompatible.opcodeOverride,
               next: null,
               parent: eventId,
               topLevel: false,
               x: finalX,
-              y: finalY,
+              y: eventY + HAT_BLOCK_HEIGHT,
               inputs: vmCompatible.inputs,
               fields: vmCompatible.fields,
               mutation: vmCompatible.mutation,
@@ -1961,18 +2551,152 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     });
   };
 
+  // Find a compatible empty input slot under the workspace coords (in unzoomed space).
+  // sourceShape: 'reporter' | 'boolean' — strict matching.
+  const findSlotDropTarget = useCallback((
+    blocks: Record<string, ScratchBlockNode>,
+    wsX: number,
+    wsY: number,
+    sourceShape: 'reporter' | 'boolean',
+    excludeIds: Set<string>,
+  ): { blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null => {
+    let best: { blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number; score: number } | null = null;
+    slotsRegistryRef.current.forEach((slots, blockId) => {
+      if (excludeIds.has(blockId)) return;
+      const block = blocks[blockId];
+      if (!block) return;
+      const bx = block.x ?? 0;
+      const by = block.y ?? 0;
+      const orderedKeys = getOrderedInputKeysForBlock(block);
+      slots.forEach((slot) => {
+        if (slot.type !== sourceShape) return;
+        const inputKey = orderedKeys[slot.index];
+        if (!inputKey) return;
+        // Skip if this input already holds a non-shadow block reference.
+        const existing = block.inputs?.[inputKey] as unknown[] | undefined;
+        if (Array.isArray(existing) && existing[0] === 3 && typeof existing[1] === 'string') return;
+        const ax = bx + slot.x;
+        const ay = by + slot.y;
+        const cx = ax + slot.width / 2;
+        const cy = ay + slot.height / 2;
+        // Very generous snap zone: large bounding box pad + wide radius from slot center.
+        const PAD = 80;
+        const inBox = wsX >= ax - PAD && wsX <= ax + slot.width + PAD && wsY >= ay - PAD && wsY <= ay + slot.height + PAD;
+        const distToCenter = Math.hypot(wsX - cx, wsY - cy);
+        if (inBox || distToCenter <= 120) {
+          const score = distToCenter;
+          if (!best || score < best.score) {
+            best = { blockId, inputKey, type: slot.type, x: ax, y: ay, width: slot.width, height: slot.height, score };
+          }
+        }
+      });
+    });
+    if (!best) return null;
+    const { score: _s, ...rest } = best;
+    return rest;
+  }, []);
+
   const handleWorkspaceDrop = (e: React.DragEvent) => {
     e.preventDefault();
     try {
-      const data = JSON.parse(e.dataTransfer.getData('application/scratch-block'));
+      const raw = e.dataTransfer.getData('application/scratch-block');
+      if (!raw) { console.warn('[scratch-drop] no payload on dataTransfer'); return; }
+      const data = JSON.parse(raw) as ScratchBlockDef;
       const rect = e.currentTarget.getBoundingClientRect();
       const x = (e.clientX - rect.left) / workspaceZoom;
       const y = (e.clientY - rect.top) / workspaceZoom;
+      // If the dragged block is a reporter or boolean and is dropped over a compatible slot,
+      // attach it as an input instead of placing it free in the workspace.
+      const droppedShape = getBlockShape(data.opcode);
+      console.log('[scratch-drop]', { opcode: data.opcode, droppedShape, x, y, slots: slotsRegistryRef.current.size });
+      if (droppedShape === 'reporter' || droppedShape === 'boolean') {
+        const blocks = selectedTarget?.blocks || {};
+        const target = findSlotDropTarget(blocks, x, y, droppedShape, new Set());
+        console.log('[scratch-drop] slot target:', target);
+        if (target) {
+          attachReporterToSlot(data, target.blockId, target.inputKey);
+          return;
+        }
+      }
       addBlock(data, x, y);
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[scratch-drop] error', err); }
   };
 
-  // ── Pointer-based block dragging ──
+  // Create a new reporter/boolean block from a flyout def and attach it as a slot input on parentId.
+  const attachReporterToSlot = (blockDef: ScratchBlockDef, parentId: string, inputKey: string) => {
+    const newId = generateId();
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        const parent = blocks[parentId];
+        if (!parent) return target;
+        const dataResolved = ensureDataRefForTarget(target, blockDef);
+        const vmCompat = createVmCompatibleBlockShape(newId, { ...blockDef, fields: dataResolved.fields });
+        blocks[newId] = {
+          id: newId,
+          opcode: vmCompat.opcodeOverride,
+          parent: parentId,
+          topLevel: false,
+          shadow: false,
+          inputs: vmCompat.inputs,
+          fields: vmCompat.fields,
+          mutation: vmCompat.mutation,
+          next: null,
+        };
+        Object.assign(blocks, vmCompat.extraBlocks);
+        // Preserve original shadow if any (so removing the reporter restores the default value).
+        const oldInput = parent.inputs?.[inputKey] as unknown[] | undefined;
+        const shadowRef = Array.isArray(oldInput) && oldInput.length >= 2 ? oldInput[oldInput.length - 1] : null;
+        const newInputs = { ...(parent.inputs || {}) };
+        newInputs[inputKey] = shadowRef ? [3, newId, shadowRef] : [3, newId, [10, '']];
+        blocks[parentId] = { ...parent, inputs: newInputs };
+        return { ...dataResolved.target, blocks };
+      }),
+    }));
+  };
+
+  // Update the literal value inside a shadow input (e.g., the "10" in `repeat [10]`).
+  const updateShadowValue = (parentId: string, inputKey: string, newValue: string) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        const parent = blocks[parentId];
+        if (!parent) return target;
+        const ref = (parent.inputs || {})[inputKey] as unknown[] | undefined;
+        if (!Array.isArray(ref)) return target;
+        // Determine where the shadow tuple lives: ref[1] for shadow-only [1, [..]] or ref[2] for [3, id, [..]]
+        const shadowIdx = ref[0] === 1 ? 1 : ref.length - 1;
+        const shadowTuple = ref[shadowIdx];
+        // Inline literal shadow: tuple like [4, '10']
+        if (Array.isArray(shadowTuple) && typeof shadowTuple[0] === 'number') {
+          const newTuple = [shadowTuple[0], newValue];
+          const newRef = [...ref];
+          newRef[shadowIdx] = newTuple;
+          const newInputs = { ...(parent.inputs || {}), [inputKey]: newRef };
+          blocks[parentId] = { ...parent, inputs: newInputs };
+          return { ...target, blocks };
+        }
+        // Block-id shadow (separate shadow block in blocks map)
+        if (typeof shadowTuple === 'string' && blocks[shadowTuple]) {
+          const sb = blocks[shadowTuple];
+          const fields = { ...(sb.fields || {}) };
+          const firstFieldKey = Object.keys(fields)[0];
+          if (firstFieldKey) {
+            const cur = fields[firstFieldKey] as unknown[];
+            fields[firstFieldKey] = [newValue, Array.isArray(cur) ? cur[1] : null];
+            blocks[shadowTuple] = { ...sb, fields };
+          }
+          return { ...target, blocks };
+        }
+        return target;
+      }),
+    }));
+  };
+
   const getWorkspaceCoords = useCallback((clientX: number, clientY: number) => {
     const ws = workspaceRef.current;
     if (!ws) return { x: 0, y: 0 };
@@ -1982,6 +2706,72 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       y: (clientY - rect.top) / workspaceZoom,
     };
   }, [workspaceZoom]);
+
+  // Pointer-based flyout drag: starts when user presses on a flyout/palette block.
+  // Tracks pointer globally; on release, decides whether to attach to a slot or place free.
+  const startFlyoutDrag = useCallback((blockDef: ScratchBlockDef, color: string, e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    flyoutDragRef.current = { blockDef, color, startX: e.clientX, startY: e.clientY };
+    setFlyoutDrag({ blockDef, color, ghostX: e.clientX, ghostY: e.clientY });
+
+    let moved = false;
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - (flyoutDragRef.current?.startX ?? ev.clientX);
+      const dy = ev.clientY - (flyoutDragRef.current?.startY ?? ev.clientY);
+      if (!moved && Math.hypot(dx, dy) < 4) return;
+      moved = true;
+      setFlyoutDrag((prev) => prev ? { ...prev, ghostX: ev.clientX, ghostY: ev.clientY } : prev);
+
+      const ws = workspaceRef.current;
+      if (!ws) return;
+      const rect = ws.getBoundingClientRect();
+      if (ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom) {
+        setInputDropTarget(null);
+        return;
+      }
+      const x = (ev.clientX - rect.left) / workspaceZoom;
+      const y = (ev.clientY - rect.top) / workspaceZoom;
+      const shape = getBlockShape(blockDef.opcode);
+      if (shape === 'reporter' || shape === 'boolean') {
+        const t = findSlotDropTarget(selectedTarget?.blocks || {}, x, y, shape, new Set());
+        setInputDropTarget(t);
+      } else {
+        setInputDropTarget(null);
+      }
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      const stash = flyoutDragRef.current;
+      flyoutDragRef.current = null;
+      setFlyoutDrag(null);
+      setInputDropTarget(null);
+      if (!stash) return;
+      if (!moved) return; // click-only; existing onClick handler handles add
+
+      const ws = workspaceRef.current;
+      if (!ws) return;
+      const rect = ws.getBoundingClientRect();
+      if (ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom) return;
+      const x = (ev.clientX - rect.left) / workspaceZoom;
+      const y = (ev.clientY - rect.top) / workspaceZoom;
+      const shape = getBlockShape(stash.blockDef.opcode);
+      if (shape === 'reporter' || shape === 'boolean') {
+        const t = findSlotDropTarget(selectedTarget?.blocks || {}, x, y, shape, new Set());
+        if (t) {
+          attachReporterToSlot(stash.blockDef, t.blockId, t.inputKey);
+          return;
+        }
+      }
+      addBlock(stash.blockDef, x, y);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, [workspaceZoom, selectedTarget]);
 
   const getBlockStack = useCallback((blocks: Record<string, ScratchBlockNode>, startId: string): string[] => {
     const ids: string[] = [startId];
@@ -2002,6 +2792,140 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }
     return ids;
   }, []);
+
+  // Delete a block and its entire descendant stack (next chain + SUBSTACK + reporter inputs).
+  const deleteBlockStack = useCallback((blockId: string) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        if (!blocks[blockId]) return target;
+        // Collect all ids to delete: stack + reporter/boolean inputs (recursively).
+        const toDelete = new Set<string>();
+        const collect = (id: string) => {
+          if (toDelete.has(id) || !blocks[id]) return;
+          toDelete.add(id);
+          const b = blocks[id];
+          if (b.next) collect(b.next);
+          if (b.inputs) {
+            for (const v of Object.values(b.inputs)) {
+              if (Array.isArray(v) && typeof v[1] === 'string') collect(v[1] as string);
+              if (Array.isArray(v) && typeof v[2] === 'string') collect(v[2] as string);
+            }
+          }
+        };
+        collect(blockId);
+        // Detach from parent
+        const root = blocks[blockId];
+        if (root.parent && blocks[root.parent]) {
+          const parent = { ...blocks[root.parent] };
+          if (parent.next === blockId) parent.next = null;
+          if (parent.inputs) {
+            const newInputs = { ...parent.inputs };
+            for (const [k, v] of Object.entries(newInputs)) {
+              if (Array.isArray(v) && v[1] === blockId) {
+                // Restore shadow if present
+                const shadow = v[2];
+                if (shadow) newInputs[k] = [1, shadow];
+                else delete newInputs[k];
+              }
+            }
+            parent.inputs = newInputs;
+          }
+          blocks[root.parent] = parent;
+        }
+        toDelete.forEach((id) => { delete blocks[id]; });
+        return { ...target, blocks };
+      }),
+    }));
+  }, [selectedTargetIndex, updateProject]);
+
+  // Duplicate a block stack (next chain + SUBSTACK + reporter inputs), placed offset from original.
+  const duplicateBlockStack = useCallback((blockId: string) => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        const root = blocks[blockId];
+        if (!root) return target;
+        const idMap = new Map<string, string>();
+        const collect = (id: string) => {
+          if (idMap.has(id) || !blocks[id]) return;
+          idMap.set(id, generateId());
+          const b = blocks[id];
+          if (b.next) collect(b.next);
+          if (b.inputs) {
+            for (const v of Object.values(b.inputs)) {
+              if (Array.isArray(v) && typeof v[1] === 'string' && blocks[v[1] as string]) collect(v[1] as string);
+              if (Array.isArray(v) && typeof v[2] === 'string' && blocks[v[2] as string]) collect(v[2] as string);
+            }
+          }
+        };
+        collect(blockId);
+        idMap.forEach((newId, oldId) => {
+          const orig = blocks[oldId];
+          const cloneInputs: Record<string, unknown> = {};
+          if (orig.inputs) {
+            for (const [k, v] of Object.entries(orig.inputs)) {
+              if (Array.isArray(v)) {
+                const arr = [...v];
+                if (typeof arr[1] === 'string' && idMap.has(arr[1] as string)) arr[1] = idMap.get(arr[1] as string)!;
+                if (typeof arr[2] === 'string' && idMap.has(arr[2] as string)) arr[2] = idMap.get(arr[2] as string)!;
+                cloneInputs[k] = arr;
+              } else cloneInputs[k] = v;
+            }
+          }
+          blocks[newId] = {
+            ...orig,
+            id: newId,
+            inputs: cloneInputs,
+            next: orig.next && idMap.has(orig.next) ? idMap.get(orig.next)! : null,
+            parent: orig.parent && idMap.has(orig.parent) ? idMap.get(orig.parent)! : null,
+            x: oldId === blockId ? (orig.x ?? 40) + 30 : orig.x,
+            y: oldId === blockId ? (orig.y ?? 40) + 30 : orig.y,
+            topLevel: oldId === blockId ? true : orig.topLevel,
+          };
+        });
+        // Root duplicate has no parent
+        const newRootId = idMap.get(blockId)!;
+        blocks[newRootId] = { ...blocks[newRootId], parent: null, topLevel: true };
+        return { ...target, blocks };
+      }),
+    }));
+  }, [selectedTargetIndex, updateProject]);
+
+  // Clean Up: arrange all top-level stacks vertically along the left side.
+  const cleanUpBlocks = useCallback(() => {
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        const tops = Object.values(blocks).filter((b) => b && b.opcode && !b.shadow && (b.topLevel || !b.parent) && b.x !== undefined);
+        // Sort by current y then x for stable order
+        tops.sort((a, b) => (a.y ?? 0) - (b.y ?? 0) || (a.x ?? 0) - (b.x ?? 0));
+        let cursorY = 24;
+        const STACK_GAP = 24;
+        const APPROX_BLOCK_H = 36;
+        tops.forEach((t) => {
+          const stackIds = getBlockStack(blocks, t.id);
+          const dx = 24 - (t.x ?? 0);
+          const dy = cursorY - (t.y ?? 0);
+          stackIds.forEach((sid) => {
+            const b = blocks[sid];
+            if (!b) return;
+            blocks[sid] = { ...b, x: (b.x ?? 0) + dx, y: (b.y ?? 0) + dy };
+          });
+          // Estimate height by counting chained blocks (not inputs) for spacing
+          const chainCount = stackIds.filter((sid) => blocks[sid] && !blocks[sid].shadow).length;
+          cursorY += chainCount * APPROX_BLOCK_H + STACK_GAP;
+        });
+        return { ...target, blocks };
+      }),
+    }));
+  }, [selectedTargetIndex, updateProject, getBlockStack]);
 
   const handleBlockPointerDown = useCallback((blockId: string, e: React.PointerEvent) => {
     e.preventDefault();
@@ -2094,24 +3018,73 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       }));
     }
 
-    // Compute snap preview
+    // Compute snap / slot drop preview
     const blocks = selectedTarget?.blocks || {};
-    const snap = findSnapTarget(blocks, newX, newY, drag.blockId);
-    if (snap && blocks[snap.id]) {
-      const parent = blocks[snap.id];
-      const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, snap.type);
-      setSnapPreview({ ...snap, x: snapX, y: snapY });
-    } else {
+    const draggedShape = getBlockShape(blocks[drag.blockId]?.opcode || '');
+    const isReporterDrag = draggedShape === 'reporter' || draggedShape === 'boolean';
+    if (isReporterDrag) {
+      const exclude = new Set([drag.blockId]);
+      const slotTarget = findSlotDropTarget(blocks, x, y, draggedShape, exclude);
+      setInputDropTarget(slotTarget);
       setSnapPreview(null);
+    } else {
+      setInputDropTarget(null);
+      const snap = findSnapTarget(blocks, newX, newY, drag.blockId);
+      if (snap && blocks[snap.id]) {
+        const parent = blocks[snap.id];
+        const { x: snapX, y: snapY } = getSnapPosition(blocks, parent, snap.type);
+        setSnapPreview({ ...snap, x: snapX, y: snapY });
+      } else {
+        setSnapPreview(null);
+      }
     }
-  }, [getWorkspaceCoords, selectedTarget, selectedTargetIndex, updateProject, getBlockStack]);
+  }, [getWorkspaceCoords, selectedTarget, selectedTargetIndex, updateProject, getBlockStack, findSlotDropTarget]);
 
   const handleWorkspacePointerUp = useCallback(() => {
     const drag = dragRef.current;
     if (!drag) return;
 
+    const slotDrop = inputDropTarget;
     const snap = snapPreview;
-    if (snap) {
+
+    if (slotDrop) {
+      // Attach this dragged reporter/boolean as an input on slotDrop.blockId/slotDrop.inputKey.
+      updateProject((current) => ({
+        ...current,
+        targets: current.targets.map((target, idx) => {
+          if (idx !== selectedTargetIndex) return target;
+          const blocks = { ...(target.blocks || {}) };
+          const dragged = blocks[drag.blockId];
+          const parent = blocks[slotDrop.blockId];
+          if (!dragged || !parent) return target;
+          // Detach dragged from any prior input slot reference on its previous parent.
+          if (dragged.parent && blocks[dragged.parent]) {
+            const prev = { ...blocks[dragged.parent] };
+            if (prev.inputs) {
+              const newInputs: Record<string, unknown> = {};
+              for (const [k, v] of Object.entries(prev.inputs)) {
+                if (Array.isArray(v) && v[0] === 3 && v[1] === drag.blockId) {
+                  // Restore default shadow if present in tuple.
+                  const shadow = v[2];
+                  newInputs[k] = shadow ? [1, shadow] : [1, [10, '']];
+                } else {
+                  newInputs[k] = v;
+                }
+              }
+              prev.inputs = newInputs;
+              blocks[dragged.parent] = prev;
+            }
+          }
+          const oldInput = parent.inputs?.[slotDrop.inputKey] as unknown[] | undefined;
+          const shadowRef = Array.isArray(oldInput) && oldInput.length >= 2 ? oldInput[oldInput.length - 1] : null;
+          const newInputs = { ...(parent.inputs || {}) };
+          newInputs[slotDrop.inputKey] = shadowRef ? [3, drag.blockId, shadowRef] : [3, drag.blockId, [10, '']];
+          blocks[slotDrop.blockId] = { ...parent, inputs: newInputs };
+          blocks[drag.blockId] = { ...dragged, parent: slotDrop.blockId, topLevel: false };
+          return { ...target, blocks };
+        }),
+      }));
+    } else if (snap) {
       updateProject((current) => ({
         ...current,
         targets: current.targets.map((target, idx) => {
@@ -2150,7 +3123,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     dragRef.current = null;
     setDragBlockId(null);
     setSnapPreview(null);
-  }, [snapPreview, selectedTargetIndex, updateProject, getBlockStack]);
+    setInputDropTarget(null);
+  }, [snapPreview, inputDropTarget, selectedTargetIndex, updateProject, getBlockStack]);
 
   const runPreview = async () => {
     if (!vmRef.current || !vmReady) return;
@@ -2178,26 +3152,68 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const handleImport = async (file: File) => {
     try {
       const data = await file.arrayBuffer();
-      const parsed = await importSb3(data);
-      onArchiveChange(parsed.archive);
-      onProjectJsonUpdate(parsed.archive.projectJson);
-      setProjectJsonDraft(parsed.archive.projectJson);
+      const parsed = await importScratchArchive(data);
+      const importedProject = safeParseProject(parsed.archive);
+      const bySemver = semverToScratchVersion(importedProject.meta?.semver);
+      const name = file.name.toLowerCase();
+      const inferredVersion = name.endsWith('.sb2') ? 'scratch2' : bySemver;
+      const normalizedProject: ScratchProject = {
+        ...importedProject,
+        projectVersion: inferredVersion === 'scratch2' || inferredVersion === 'scratch14' ? 2 : 3,
+        targets: (importedProject.targets || []).map((target) => ({
+          ...target,
+          blocks: normalizeBlocksForVersion(target.blocks, inferredVersion),
+        })),
+        meta: {
+          ...(importedProject.meta || {}),
+          semver: SCRATCH_VERSION_OPTIONS.find((option) => option.value === inferredVersion)?.semver || '3.0.0',
+        },
+      };
+      const normalizedArchive = ensureArchive({
+        ...parsed.archive,
+        projectJson: formatJson(normalizedProject),
+      });
+      onArchiveChange(normalizedArchive);
+      onProjectJsonUpdate(normalizedArchive.projectJson);
+      setProjectJsonDraft(normalizedArchive.projectJson);
+      setScratchVersion(inferredVersion);
       setJsonError(null);
       setVmError(null);
       setSelectedTargetIndex(1);
-      await loadVmFromArchive(parsed.archive);
+      await loadVmFromArchive(normalizedArchive, inferredVersion);
     } catch (error) {
-      setVmError(error instanceof Error ? error.message : 'Failed to import .sb3 file');
+      setVmError(error instanceof Error ? error.message : 'Failed to import Scratch archive (.sb/.sb2/.sb3).');
     }
   };
 
   const handleExport = async () => {
-    const data = await exportSb3(ensureArchive(archive));
-    const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer], { type: 'application/x.scratch.sb3' });
+    const exportFormat = scratchVersion === 'scratch3' ? 'sb3' : 'sb2';
+    const semver = exportFormat === 'sb3' ? '3.0.0' : '2.0.0';
+    const currentProject = safeParseProject(archive);
+    const normalizedProject: ScratchProject = {
+      ...currentProject,
+      projectVersion: exportFormat === 'sb3' ? 3 : 2,
+      targets: (currentProject.targets || []).map((target) => ({
+        ...target,
+        blocks: normalizeBlocksForVersion(target.blocks, exportFormat === 'sb3' ? 'scratch3' : 'scratch2'),
+      })),
+      extensions: (currentProject.extensions || []).filter((ext) => exportFormat === 'sb3' || (ext !== 'pen' && ext !== 'music')),
+      meta: {
+        ...(currentProject.meta || {}),
+        semver,
+      },
+    };
+    const exportArchive = ensureArchive({
+      ...ensureArchive(archive),
+      projectJson: formatJson(normalizedProject),
+    });
+    const data = await exportScratchArchive(exportArchive, exportFormat);
+    const mime = exportFormat === 'sb3' ? 'application/x.scratch.sb3' : 'application/x.scratch.sb2';
+    const blob = new Blob([data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'project.sb3';
+    a.download = `project.${exportFormat}`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -2221,55 +3237,77 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }
   };
 
-  const handleVersionToggle = (nextVersion: ScratchCompatibilityVersion) => {
-    setScratchVersion(nextVersion);
-    const parsed = safeParseProject(archive);
+  const handleVersionToggle = async (nextVersion: ScratchCompatibilityVersion) => {
     const semver = SCRATCH_VERSION_OPTIONS.find((option) => option.value === nextVersion)?.semver || '3.0.0';
-    const updatedProject: ScratchProject = {
-      ...parsed,
+    const current = safeParseProject(archive);
+    const currentSemver = typeof current.meta?.semver === 'string' ? current.meta.semver : '';
+    if (currentSemver === semver) return;
+
+    setScratchVersion(nextVersion);
+
+    const nextProject: ScratchProject = {
+      ...current,
+      projectVersion: nextVersion === 'scratch2' || nextVersion === 'scratch14' ? 2 : 3,
+      extensions: (current.extensions || []).filter((ext) => {
+        if (nextVersion === 'scratch3') return true;
+        if (ext === 'pen' || ext === 'music') return false;
+        return true;
+      }),
+      targets: (current.targets || []).map((target) => ({
+        ...target,
+        blocks: normalizeBlocksForVersion(target.blocks, nextVersion),
+      })),
       meta: {
-        ...(parsed.meta || {}),
+        ...(current.meta || {}),
         semver,
       },
     };
-    const nextJson = formatJson(updatedProject);
-    const nextArchive = ensureArchive({
-      ...ensureArchive(archive),
+
+    const nextJson = formatJson(nextProject);
+    const currentArchive = ensureArchive(archive);
+    const nextArchive: ScratchArchive = {
+      ...currentArchive,
+      fileNames: currentArchive.fileNames.includes('project.json')
+        ? currentArchive.fileNames
+        : [...currentArchive.fileNames, 'project.json'],
       projectJson: nextJson,
-    });
+    };
+
     onArchiveChange(nextArchive);
     onProjectJsonUpdate(nextJson);
     setProjectJsonDraft(nextJson);
+    setJsonError(null);
+    await loadVmFromArchive(nextArchive, nextVersion);
   };
 
   const [showJson, setShowJson] = useState(false);
 
   return (
-    <div className="h-full flex flex-col" style={{ background: '#855cd6' }}>
-      {/* ===== TOP MENU BAR (Scratch purple) ===== */}
-      <div className="h-12 flex items-center px-3 gap-4 shrink-0" style={{ background: '#855cd6' }}>
+    <div className="h-full flex flex-col" style={{ background: guiColors.headerBg }}>
+      {/* ===== TOP MENU BAR ===== */}
+      <div className="h-12 flex items-center px-3 gap-4 shrink-0" style={{ background: guiColors.headerBg, color: guiColors.headerText }}>
         {/* Logo / brand */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-            <span className="text-white font-bold text-sm">S</span>
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${guiColors.headerText}20` }}>
+            <span style={{ color: guiColors.headerText }} className="font-bold text-sm">S</span>
           </div>
         </div>
 
         {/* File actions */}
         <div className="flex items-center gap-1">
-          <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10 flex items-center gap-1.5">
+          <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-[13px] rounded flex items-center gap-1.5 transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>
             <Upload className="w-3.5 h-3.5" /> File
           </button>
-          <input ref={importInputRef} className="hidden" type="file" accept=".sb3" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
-          <button onClick={handleExport} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Save</button>
-          <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-white/90 text-[13px] rounded hover:bg-white/10">Debug</button>
+          <input ref={importInputRef} className="hidden" type="file" accept=".sb3,.sb2,.sb" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
+          <button onClick={handleExport} className="px-3 py-1.5 text-[13px] rounded transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>Save</button>
+          <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-[13px] rounded transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>Debug</button>
         </div>
 
         <div className="flex items-center gap-1 rounded-lg bg-white/10 p-1">
           {SCRATCH_VERSION_OPTIONS.map((option) => (
             <button
               key={option.value}
-              onClick={() => handleVersionToggle(option.value)}
+              onClick={() => void handleVersionToggle(option.value)}
               type="button"
               className={`px-2 py-1 text-[12px] rounded transition-colors ${
                 scratchVersion === option.value
@@ -2285,13 +3323,18 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         <div className="flex-1" />
 
         {/* VM status */}
-        <span className={`text-[11px] px-2 py-0.5 rounded-full ${vmReady ? 'bg-white/20 text-white' : 'bg-yellow-400/30 text-yellow-100'}`}>
-          {vmReady ? '● Ready' : '○ Starting'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: vmReady ? `${guiColors.headerText}20` : '#fbbf24', color: vmReady ? guiColors.headerText : '#78350f' }}>
+            {vmReady ? '● Ready' : '○ Starting'}
+          </span>
+          <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: `${guiColors.headerText}10`, color: guiColors.headerText }}>
+            VM: scratch-vm ({scratchVersion === 'scratch3' ? 'native sb3' : scratchVersion === 'scratch2' ? 'compat scratch2' : 'compat + legacy import'})
+          </span>
+        </div>
       </div>
 
       {/* ===== TABS BAR (Code / Costumes / Sounds) ===== */}
-      <div className="h-11 flex items-end px-2 shrink-0" style={{ background: '#855cd6' }}>
+      <div className="h-11 flex items-end px-2 shrink-0" style={{ background: guiColors.tabBg }}>
         {[
           { key: 'code' as const, icon: <Code2 className="w-4 h-4" />, label: 'Code' },
           { key: 'costumes' as const, icon: <Brush className="w-4 h-4" />, label: 'Costumes' },
@@ -2302,9 +3345,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             onClick={() => setActiveEditorTab(tab.key)}
             className={`px-5 h-9 rounded-t-lg text-[13px] font-semibold flex items-center gap-1.5 transition-colors ${
               activeEditorTab === tab.key
-                ? 'bg-white text-[#855cd6]'
-                : 'bg-[#7953c7] text-white/80 hover:bg-[#7248bf]'
+                ? 'bg-white'
+                : ''
             }`}
+            style={{
+              color: activeEditorTab === tab.key ? guiColors.tabBg : guiColors.headerText,
+              opacity: activeEditorTab === tab.key ? 1 : 0.7,
+              background: activeEditorTab === tab.key ? '#ffffff' : `${guiColors.tabBg}`,
+            }}
           >
             {tab.icon} {tab.label}
           </button>
@@ -2316,8 +3364,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         {/* --- LEFT: Category rail + Block flyout --- */}
         <div className="flex min-h-0 shrink-0" style={{ width: leftPaneWidth }}>
           {/* Category rail */}
-          <div className="w-[64px] bg-[#f9f9f9] border-r border-[#e0e0e0] py-2 flex flex-col items-center gap-1 overflow-y-auto shrink-0">
-            {categoryRail.map((cat) => {
+          <div className="w-[64px] border-r border-[#e0e0e0] py-2 flex flex-col items-center gap-1 overflow-y-auto shrink-0" style={{ background: guiColors.categoryRailBg }}>
+            {visibleCategoryRail.map((cat) => {
               const isActive = activeCategory === cat.name;
               return (
                 <button
@@ -2342,17 +3390,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
 
           {/* Block flyout */}
-          <div className="flex-1 overflow-y-auto py-3 px-3" style={{ background: '#f9f9f9' }}>
-            <div className="text-[18px] font-bold mb-3" style={{ color: categoryColors[activeCategory] || '#4c97ff' }}>
-              {activeCategory}
+          <div className="flex-1 overflow-y-auto py-3 px-3" style={{ background: guiColors.flyoutBg }}>
+            <div className="text-[18px] font-bold mb-3" style={{ color: currentCategoryColors[activeCategory] || '#4c97ff' }}>
+              {categoryDisplayName(activeCategory, scratchVersion)}
             </div>
             {activeEditorTab === 'code' ? (
               activeCategory === 'Variables' ? (
                 <VariablesFlyout
                   variables={Object.entries(selectedTarget?.variables || {})}
                   lists={Object.entries(selectedTarget?.lists || {})}
-                  blocks={categoryBlocks['Variables'] || []}
-                  color={categoryColors['Variables'] || '#ff8c1a'}
+                  blocks={visibleCategoryBlocks.Variables || []}
+                  color={currentCategoryColors['Variables'] || currentCategoryColors['Data'] || '#ff8c1a'}
                   onMakeVariable={() => { setRenameTarget(null); setDataPrompt({ type: 'variable', name: '' }); }}
                   onMakeList={() => { setRenameTarget(null); setDataPrompt({ type: 'list', name: '' }); }}
                   onAddBlock={addBlock}
@@ -2360,20 +3408,134 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   onDeleteList={deleteList}
                   onRenameVariable={renameVariable}
                   onRenameList={renameList}
+                  onStartFlyoutDrag={startFlyoutDrag}
                 />
+              ) : activeCategory === 'My Blocks' ? (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setMakeBlockModal({ name: '', runWithoutRefresh: false, args: [] })}
+                    className="w-full px-3 py-2 rounded-lg text-white text-[13px] font-semibold hover:brightness-110"
+                    style={{ background: currentCategoryColors['My Blocks'] || '#ff6680' }}
+                  >
+                    Make a Block
+                  </button>
+                  {(() => {
+                    // Collect distinct parameter reporters across all custom procedures.
+                    const seen = new Map<string, { name: string; type: 'string_number' | 'boolean' }>();
+                    customProcedures.forEach((p) => {
+                      p.args.forEach((a) => {
+                        if (a.type === 'label') return;
+                        const key = `${a.type}::${a.name}`;
+                        if (!seen.has(key)) seen.set(key, { name: a.name, type: a.type });
+                      });
+                    });
+                    const paramList = Array.from(seen.values());
+                    if (paramList.length === 0) return null;
+                    const color = currentCategoryColors['My Blocks'] || '#ff6680';
+                    return (
+                      <div className="space-y-1.5 mt-2">
+                        <div className="text-[11px] uppercase tracking-wide text-[#575e75] font-semibold">Parameters</div>
+                        {paramList.map((p) => {
+                          const opcode = p.type === 'boolean' ? 'argument_reporter_boolean' : 'argument_reporter_string_number';
+                          const def: ScratchBlockDef = {
+                            label: p.type === 'boolean' ? `<${p.name}>` : `[${p.name}]`,
+                            opcode,
+                            fields: { VALUE: [p.name, null] },
+                            minVersion: 'scratch2',
+                          };
+                          return (
+                            <div
+                              key={`${p.type}-${p.name}`}
+                              onPointerDown={(e) => startFlyoutDrag(def, color, e)}
+                              onClick={() => addBlock(def)}
+                              className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all inline-block mr-1"
+                            >
+                              <ScratchBlockShape
+                                label={p.name}
+                                color={color}
+                                shape={p.type === 'boolean' ? 'boolean' : 'reporter'}
+                                width={Math.max(60, p.name.length * 8 + 24)}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                  {customProcedures.length === 0 ? (
+                    <div className="text-[12px] text-[#575e75] italic mt-2">
+                      No custom blocks yet. Click "Make a Block" to create one.
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5 mt-2">
+                      {customProcedures.map((proc) => {
+                        const color = currentCategoryColors['My Blocks'] || '#ff6680';
+                        const tokens = proc.proccode.split(/\s+/).filter(Boolean);
+                        const valueArgs = proc.args.filter((a) => a.type !== 'label');
+                        const labelTokens: string[] = [];
+                        const nameTokens: string[] = [];
+                        let valueIdx = 0;
+                        let nameOver = false;
+                        tokens.forEach((tok) => {
+                          if (tok === '%s' || tok === '%b') {
+                            nameOver = true;
+                            const a = valueArgs[valueIdx++];
+                            if (a) labelTokens.push(tok === '%b' ? `<${a.name}>` : `[${a.name}]`);
+                          } else if (!nameOver) {
+                            nameTokens.push(tok);
+                          } else {
+                            labelTokens.push(tok);
+                          }
+                        });
+                        const callLabel = [nameTokens.join(' '), ...labelTokens].filter(Boolean).join(' ');
+                        const defLabel = `define ${callLabel}`;
+                        const defDef: ScratchBlockDef = {
+                          label: defLabel,
+                          opcode: 'procedures_definition',
+                          proccode: proc.proccode,
+                          procArgs: proc.args,
+                          procWarp: proc.warp,
+                          minVersion: 'scratch2',
+                        };
+                        const callDef: ScratchBlockDef = {
+                          label: callLabel,
+                          opcode: 'procedures_call',
+                          proccode: proc.proccode,
+                          procArgs: proc.args,
+                          procWarp: proc.warp,
+                          minVersion: 'scratch2',
+                        };
+                        return (
+                          <div key={proc.proccode} className="space-y-1">
+                            <div
+                              onPointerDown={(e) => startFlyoutDrag(defDef, color, e)}
+                              onClick={() => addBlock(defDef)}
+                              className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
+                            >
+                              <ScratchBlockShape label={defDef.label} color={color} shape={getBlockShape(defDef.opcode)} />
+                            </div>
+                            <div
+                              onPointerDown={(e) => startFlyoutDrag(callDef, color, e)}
+                              onClick={() => addBlock(callDef)}
+                              className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
+                            >
+                              <ScratchBlockShape label={callDef.label} color={color} shape={getBlockShape(callDef.opcode)} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               ) : (
               <div className="space-y-1.5">
-                {(categoryBlocks[activeCategory] || []).map((blockDef) => {
-                  const color = categoryColors[activeCategory] || '#4c97ff';
+                {(visibleCategoryBlocks[activeCategory] || []).map((blockDef) => {
+                  const color = currentCategoryColors[activeCategory] || '#4c97ff';
                   const shape = getBlockShape(blockDef.opcode);
                   return (
                     <div
                       key={blockDef.label}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
-                        e.dataTransfer.effectAllowed = 'copy';
-                      }}
+                      onPointerDown={(e) => startFlyoutDrag(blockDef, color, e)}
                       onClick={() => addBlock(blockDef)}
                       className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                     >
@@ -2460,8 +3622,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         {/* --- CENTER: Workspace --- */}
         <div className="flex-1 min-w-0 relative overflow-hidden scratch-workspace" style={{ background: '#fff' }}
-          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
-          onDrop={handleWorkspaceDrop}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            // Live highlight: peek at the dragged opcode via dataTransfer types if available.
+            // Fallback: try both shapes and prefer reporter, since most palette drags are reporters.
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / workspaceZoom;
+            const y = (e.clientY - rect.top) / workspaceZoom;
+            const blocks = selectedTarget?.blocks || {};
+            const r = findSlotDropTarget(blocks, x, y, 'reporter', new Set());
+            const b = r ? null : findSlotDropTarget(blocks, x, y, 'boolean', new Set());
+            setInputDropTarget(r || b);
+          }}
+          onDragLeave={() => setInputDropTarget(null)}
+          onDrop={(e) => { setInputDropTarget(null); handleWorkspaceDrop(e); }}
           onPointerMove={handleWorkspacePointerMove}
           onPointerUp={handleWorkspacePointerUp}
           onPointerLeave={handleWorkspacePointerUp}
@@ -2479,12 +3654,84 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             {selectedBlocks.filter((block) => block.opcode && !block.shadow && (block.x !== undefined || block.topLevel)).map((block) => {
               const blockColor = getBlockColor(block.opcode);
               const shape = getBlockShape(block.opcode);
-              const label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
+              const baseLabel = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
+              const blocksMap = selectedTarget?.blocks || {};
+              const menuDefs = DROPDOWN_REGISTRY[block.opcode] || [];
+              // Resolve current menu values from shadow blocks for inline display
+              const menuValues: { def: MenuFieldDef; menuBlockId: string; current: string; options: DropdownOption[] }[] = [];
+              menuDefs.forEach((def) => {
+                const ref = (block.inputs || {})[def.inputKey];
+                if (Array.isArray(ref) && typeof ref[1] === 'string') {
+                  const menuBlockId = ref[1] as string;
+                  const menuBlock = blocksMap[menuBlockId];
+                  const tuple = menuBlock?.fields?.[def.fieldKey];
+                  const current = Array.isArray(tuple) && typeof tuple[0] === 'string' ? (tuple[0] as string) : '';
+                  const options = typeof def.options === 'function'
+                    ? def.options({ spriteNames: spriteTargets.map((s) => s.name), costumeNames: (selectedTarget?.costumes || []).map((c) => c.name), backdropNames: stageBackdrops.map((c) => c.name), soundNames: (selectedTarget?.sounds || []).map((s) => s.name) })
+                    : def.options;
+                  const labelForCurrent = options.find((o) => o.value === current)?.label || current;
+                  menuValues.push({ def, menuBlockId, current: labelForCurrent, options });
+                }
+              });
+              // Substitute the first {placeholder} with current menu label, and the second one (if any), in order.
+              let label = baseLabel;
+              menuValues.forEach((mv) => {
+                label = label.replace(/\{[^}]+\}/, `{${mv.current}}`);
+              });
               const isDragging = block.id === dragBlockId;
               return (
                 <div
                   key={block.id}
                   onPointerDown={(e) => handleBlockPointerDown(block.id, e)}
+                  // CRITICAL: must preventDefault on dragOver so drop fires when releasing
+                  // a flyout reporter ON TOP of an existing block (otherwise browser cancels drop).
+                  onDragOver={(e) => {
+                    if (e.dataTransfer.types.includes('application/scratch-block')) {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'copy';
+                    }
+                  }}
+                  onDrop={(e) => {
+                    if (!e.dataTransfer.types.includes('application/scratch-block')) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setInputDropTarget(null);
+                    // Compute coords relative to the workspace (not this block)
+                    const ws = workspaceRef.current;
+                    if (!ws) return;
+                    const rect = ws.getBoundingClientRect();
+                    const x = (e.clientX - rect.left) / workspaceZoom;
+                    const y = (e.clientY - rect.top) / workspaceZoom;
+                    try {
+                      const raw = e.dataTransfer.getData('application/scratch-block');
+                      if (!raw) return;
+                      const data = JSON.parse(raw) as ScratchBlockDef;
+                      const droppedShape = getBlockShape(data.opcode);
+                      if (droppedShape === 'reporter' || droppedShape === 'boolean') {
+                        const target = findSlotDropTarget(selectedTarget?.blocks || {}, x, y, droppedShape, new Set());
+                        if (target) { attachReporterToSlot(data, target.blockId, target.inputKey); return; }
+                      }
+                      addBlock(data, x, y);
+                    } catch (err) { console.error('[scratch-block-drop]', err); }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setBlockContextMenu({ blockId: block.id, x: e.clientX, y: e.clientY });
+                  }}
+                  onClick={(e) => {
+                    if (menuValues.length === 0) return;
+                    e.stopPropagation();
+                    const first = menuValues[0];
+                    setFieldPicker({
+                      blockId: block.id,
+                      menuBlockId: first.menuBlockId,
+                      fieldKey: first.def.fieldKey,
+                      options: first.options,
+                      x: e.clientX,
+                      y: e.clientY,
+                    });
+                  }}
                   className={`absolute select-none touch-none ${isDragging ? 'cursor-grabbing z-50 opacity-80' : 'cursor-grab'}`}
                   style={{
                     left: block.x ?? 40,
@@ -2492,7 +3739,49 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     transition: isDragging ? 'none' : 'left 0.08s ease-out, top 0.08s ease-out',
                   }}
                 >
-                  <ScratchBlockShape label={label} color={blockColor} shape={shape} />
+                  <ScratchBlockShape
+                    label={label}
+                    color={blockColor}
+                    shape={shape}
+                    onSlots={(slots) => {
+                      const filtered = slots.filter((s) => s.type === 'reporter' || s.type === 'boolean') as { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[];
+                      const prev = slotsRegistryRef.current.get(block.id);
+                      const same = prev && prev.length === filtered.length && prev.every((p, i) => p.x === filtered[i].x && p.y === filtered[i].y && p.width === filtered[i].width && p.height === filtered[i].height);
+                      slotsRegistryRef.current.set(block.id, filtered);
+                      if (!same) setSlotsTick((t) => t + 1);
+                    }}
+                  />
+                  {/* Editable shadow value overlays */}
+                  {(() => {
+                    void slotsTick;
+                    const slots = slotsRegistryRef.current.get(block.id) || [];
+                    const orderedKeys = getOrderedInputKeysForBlock(block);
+                    return slots.map((slot) => {
+                      if (slot.type !== 'reporter') return null;
+                      const inputKey = orderedKeys[slot.index];
+                      if (!inputKey) return null;
+                      const ref = (block.inputs || {})[inputKey] as unknown[] | undefined;
+                      if (!Array.isArray(ref)) return null;
+                      // If a real reporter block is attached, don't show editable input
+                      if (ref[0] === 3 && typeof ref[1] === 'string') return null;
+                      const shadowTuple = (ref[0] === 1 ? ref[1] : ref[ref.length - 1]) as unknown;
+                      if (!Array.isArray(shadowTuple)) return null;
+                      const currentValue = String(shadowTuple[1] ?? '');
+                      const anyDragging = dragBlockId !== null || isHtml5Dragging;
+                      return (
+                        <ShadowInput
+                          key={`${block.id}-${inputKey}`}
+                          value={currentValue}
+                          left={slot.x}
+                          top={slot.y}
+                          width={slot.width}
+                          height={slot.height}
+                          disablePointer={anyDragging}
+                          onCommit={(v) => updateShadowValue(block.id, inputKey, v)}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               );
             })}
@@ -2505,6 +3794,20 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 <div className="h-1 w-24 rounded-full bg-white shadow-[0_0_8px_2px_rgba(255,255,255,0.8)]" />
               </div>
             )}
+            {/* Input slot drop highlight */}
+            {inputDropTarget && (
+              <div
+                className="absolute pointer-events-none z-40 rounded-md"
+                style={{
+                  left: inputDropTarget.x - 2,
+                  top: inputDropTarget.y - 2,
+                  width: inputDropTarget.width + 4,
+                  height: inputDropTarget.height + 4,
+                  boxShadow: '0 0 0 3px #ffbf00, 0 0 8px 2px rgba(255,191,0,0.6)',
+                  borderRadius: inputDropTarget.type === 'reporter' ? 12 : 4,
+                }}
+              />
+            )}
           </div>
           {/* Zoom controls */}
           <div className="absolute right-3 bottom-3 flex flex-col gap-1.5">
@@ -2512,6 +3815,19 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             <button className="w-8 h-8 rounded-full bg-[#855cd6] text-white flex items-center justify-center shadow-md hover:bg-[#7248bf]" onClick={() => setWorkspaceZoom((z) => Math.max(0.7, z - 0.1))}><ZoomOut className="w-4 h-4" /></button>
             <button className="w-8 h-8 rounded-full bg-white border border-[#d0d0d0] text-[#575e75] flex items-center justify-center shadow-md" onClick={() => setWorkspaceZoom(1)}><CircleMinus className="w-4 h-4" /></button>
           </div>
+          {/* Floating ghost block following cursor during flyout drag */}
+          {flyoutDrag && (
+            <div
+              className="fixed pointer-events-none z-[9999] opacity-80"
+              style={{ left: flyoutDrag.ghostX + 8, top: flyoutDrag.ghostY + 8 }}
+            >
+              <ScratchBlockShape
+                label={flyoutDrag.blockDef.label}
+                color={flyoutDrag.color}
+                shape={getBlockShape(flyoutDrag.blockDef.opcode)}
+              />
+            </div>
+          )}
         </div>
 
         {/* --- RIGHT: Stage + Sprite info + Sprite list --- */}
@@ -2564,15 +3880,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             <div className="flex items-center gap-3 text-[13px] text-[#575e75]">
               <span className="font-semibold text-[#575e75]">Sprite</span>
               <input
-                value={selectedTarget?.name || 'Sprite1'}
+                value={selectedTarget?.isStage ? 'Stage' : (selectedTarget?.name || 'Sprite1')}
+                disabled={selectedTarget?.isStage}
                 onChange={(e) => {
+                  if (selectedTarget?.isStage) return;
                   const nextName = e.target.value;
                   updateProject((current) => ({
                     ...current,
                     targets: current.targets.map((target, idx) => idx === selectedTargetIndex ? { ...target, name: nextName } : target),
                   }));
                 }}
-                className="h-7 rounded border border-[#d0d0d0] px-2 flex-1 text-[13px] min-w-0"
+                className="h-7 rounded border border-[#d0d0d0] px-2 flex-1 text-[13px] min-w-0 disabled:bg-[#f5f5f5] disabled:text-[#999]"
               />
               <div className="flex items-center gap-1 text-[12px]">
                 <span className="text-[#b5b5b5]">↔</span> x
@@ -2722,7 +4040,212 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
         </div>
       )}
-      {/* Asset Library Dialog */}
+
+      {/* Make a Block — full editor modal */}
+      {makeBlockModal && (() => {
+        const myColor = currentCategoryColors['My Blocks'] || '#ff6680';
+        const previewName = makeBlockModal.name.trim() || 'block name';
+        const previewArgs = makeBlockModal.args
+          .map((a) => {
+            if (a.type === 'label') return a.name.trim();
+            if (a.type === 'boolean') return `<${a.name || 'boolean'}>`;
+            return `[${a.name || 'number or text'}]`;
+          })
+          .filter(Boolean)
+          .join(' ');
+        const previewLabel = `define ${previewName}${previewArgs ? ' ' + previewArgs : ''}`;
+        const updateArg = (idx: number, patch: Partial<ProcArg>) => {
+          setMakeBlockModal({
+            ...makeBlockModal,
+            args: makeBlockModal.args.map((a, i) => (i === idx ? { ...a, ...patch } : a)),
+          });
+        };
+        const removeArg = (idx: number) => {
+          setMakeBlockModal({
+            ...makeBlockModal,
+            args: makeBlockModal.args.filter((_, i) => i !== idx),
+          });
+        };
+        const addArg = (type: ProcArgType) => {
+          const defaultName =
+            type === 'label'
+              ? 'label text'
+              : type === 'boolean'
+                ? `boolean${makeBlockModal.args.filter((a) => a.type === 'boolean').length + 1}`
+                : `arg${makeBlockModal.args.filter((a) => a.type === 'string_number').length + 1}`;
+          setMakeBlockModal({
+            ...makeBlockModal,
+            args: [...makeBlockModal.args, { type, name: defaultName, id: generateId() }],
+          });
+        };
+        const submit = () => {
+          const name = makeBlockModal.name.trim();
+          if (!name) return;
+          // Build proccode from name + args
+          const parts: string[] = [name];
+          makeBlockModal.args.forEach((a) => {
+            if (a.type === 'label') parts.push(a.name.trim());
+            else if (a.type === 'boolean') parts.push('%b');
+            else parts.push('%s');
+          });
+          const proccode = parts.filter(Boolean).join(' ');
+          if (!customProcedures.some((p) => p.proccode === proccode)) {
+            addBlock({
+              label: previewLabel,
+              opcode: 'procedures_definition',
+              proccode,
+              procArgs: makeBlockModal.args,
+              procWarp: makeBlockModal.runWithoutRefresh,
+              minVersion: 'scratch2',
+            });
+          }
+          setMakeBlockModal(null);
+        };
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setMakeBlockModal(null)}>
+            <div
+              className="bg-white rounded-2xl shadow-2xl w-[640px] max-w-[95vw] overflow-hidden border-4"
+              style={{ borderColor: myColor }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="px-5 py-3 flex items-center justify-between" style={{ background: myColor }}>
+                <div className="text-white text-[16px] font-bold w-full text-center">Make a Block</div>
+                <button onClick={() => setMakeBlockModal(null)} className="text-white/90 hover:text-white text-xl leading-none">×</button>
+              </div>
+
+              {/* Block preview */}
+              <div className="bg-[#eef2ff] px-6 py-6 flex flex-col items-center gap-3">
+                <ScratchBlockShape label={previewLabel} color={myColor} shape="hat" />
+                <input
+                  autoFocus
+                  value={makeBlockModal.name}
+                  onChange={(e) => setMakeBlockModal({ ...makeBlockModal, name: e.target.value })}
+                  placeholder="block name"
+                  className="w-[300px] h-9 rounded-lg border-2 px-3 text-[14px] outline-none text-center"
+                  style={{ borderColor: myColor }}
+                  onKeyDown={(e) => { if (e.key === 'Escape') setMakeBlockModal(null); }}
+                />
+
+                {/* Args list */}
+                {makeBlockModal.args.length > 0 && (
+                  <div className="w-full max-w-[480px] space-y-1.5 mt-1">
+                    {makeBlockModal.args.map((a, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-white rounded-lg border border-[#d0d0d0] px-2 py-1.5">
+                        <span
+                          className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded text-white"
+                          style={{ background: a.type === 'boolean' ? '#59c059' : a.type === 'label' ? '#a0a0a0' : '#5cb1d6' }}
+                        >
+                          {a.type === 'string_number' ? 'value' : a.type === 'boolean' ? 'bool' : 'text'}
+                        </span>
+                        <input
+                          value={a.name}
+                          onChange={(e) => updateArg(idx, { name: e.target.value })}
+                          className="flex-1 h-7 rounded border border-[#d0d0d0] px-2 text-[12px] outline-none focus:border-[#855cd6]"
+                        />
+                        <button
+                          onClick={() => removeArg(idx)}
+                          className="text-[#575e75] hover:text-red-500 text-[16px] leading-none px-1"
+                          title="Remove"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add arg buttons */}
+                <div className="flex gap-2 mt-1 flex-wrap justify-center">
+                  <button
+                    onClick={() => addArg('string_number')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#5cb1d6] text-white text-[12px] font-semibold hover:brightness-110"
+                  >
+                    <span className="bg-white/30 rounded-full px-1.5 text-[10px]">+</span>
+                    Add an input <span className="opacity-80">number or text</span>
+                  </button>
+                  <button
+                    onClick={() => addArg('boolean')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#59c059] text-white text-[12px] font-semibold hover:brightness-110"
+                  >
+                    <span className="bg-white/30 rounded-full px-1.5 text-[10px]">+</span>
+                    Add an input <span className="opacity-80">boolean</span>
+                  </button>
+                  <button
+                    onClick={() => addArg('label')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#a0a0a0] text-white text-[12px] font-semibold hover:brightness-110"
+                  >
+                    <span className="bg-white/30 rounded-full px-1.5 text-[10px]">+</span>
+                    Add a label
+                  </button>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between px-6 py-4">
+                <label className="flex items-center gap-2 text-[13px] text-[#575e75] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={makeBlockModal.runWithoutRefresh}
+                    onChange={(e) => setMakeBlockModal({ ...makeBlockModal, runWithoutRefresh: e.target.checked })}
+                  />
+                  Run without screen refresh
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setMakeBlockModal(null)}
+                    className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={submit}
+                    className="px-5 py-1.5 rounded-lg text-[13px] text-white hover:brightness-110"
+                    style={{ background: myColor }}
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Field dropdown picker (canvas blocks) */}
+      {fieldPicker && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setFieldPicker(null)} />
+          <div
+            className="fixed z-50 bg-white border border-[#d0d0d0] rounded-lg shadow-xl py-1 min-w-[160px] max-h-[320px] overflow-y-auto"
+            style={{ left: fieldPicker.x, top: fieldPicker.y + 6 }}
+          >
+            {fieldPicker.options.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => {
+                  const { menuBlockId, fieldKey } = fieldPicker;
+                  updateProject((current) => ({
+                    ...current,
+                    targets: current.targets.map((t, idx) => {
+                      if (idx !== selectedTargetIndex) return t;
+                      const blocks = { ...(t.blocks || {}) };
+                      const mb = blocks[menuBlockId];
+                      if (!mb) return t;
+                      blocks[menuBlockId] = { ...mb, fields: { ...(mb.fields || {}), [fieldKey]: [opt.value, null] } };
+                      return { ...t, blocks };
+                    }),
+                  }));
+                  setFieldPicker(null);
+                }}
+                className="block w-full text-left px-3 py-1.5 text-[13px] text-[#575e75] hover:bg-[#f0ebff]"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       {libraryOpen && (
         <ScratchLibraryDialog
           mode={libraryOpen}
@@ -2730,6 +4253,39 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           onClose={() => setLibraryOpen(null)}
           onSelect={addLibraryAsset}
         />
+      )}
+      {blockContextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            onClick={() => setBlockContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setBlockContextMenu(null); }}
+          />
+          <div
+            className="fixed z-[61] min-w-[160px] rounded-md border border-border bg-popover text-popover-foreground shadow-lg py-1 text-sm"
+            style={{ left: blockContextMenu.x, top: blockContextMenu.y }}
+          >
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => { duplicateBlockStack(blockContextMenu.blockId); setBlockContextMenu(null); }}
+            >
+              Duplicate
+            </button>
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => { deleteBlockStack(blockContextMenu.blockId); setBlockContextMenu(null); }}
+            >
+              Delete Block
+            </button>
+            <div className="my-1 border-t border-border" />
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => { cleanUpBlocks(); setBlockContextMenu(null); }}
+            >
+              Clean up Blocks
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

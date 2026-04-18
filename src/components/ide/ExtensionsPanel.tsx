@@ -70,9 +70,11 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
   const ref = useRef<HTMLIFrameElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewReady, setPreviewReady] = useState(false);
+  const [bridgeReady, setBridgeReady] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [bridgeHasFile, setBridgeHasFile] = useState(false);
 
   const previewDocument = useMemo(() => `<!DOCTYPE html>
 <html>
@@ -93,6 +95,10 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
 
   useEffect(() => {
     setPreviewReady(false);
+    setBridgeReady(false);
+    setPendingFile(null);
+    setSelectedFileName(null);
+    setBridgeHasFile(false);
   }, [previewDocument]);
 
   const postFileToPreview = useCallback(async (file: File) => {
@@ -106,51 +112,56 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
         name: file.name,
         type: file.type,
         lastModified: file.lastModified,
+        size: file.size,
         buffer,
       },
-    }, '*');
+    }, '*', [buffer]);
   }, []);
 
   useEffect(() => {
-    if (!previewReady || !pendingFile) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.source !== ref.current?.contentWindow) return;
+
+      if (event.data?.type === 'cc-ext-ready') {
+        setBridgeReady(true);
+        return;
+      }
+
+      if (event.data?.type !== 'cc-ext-file-state') return;
+
+      const hasFile = Boolean(event.data?.payload?.hasFile);
+      const name = typeof event.data?.payload?.name === 'string' ? event.data.payload.name : null;
+
+      setBridgeHasFile(hasFile);
+      setSelectedFileName(name);
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  useEffect(() => {
+    if (!previewReady || !bridgeReady || !pendingFile) return;
     void postFileToPreview(pendingFile).then(() => setPendingFile(null));
-  }, [pendingFile, postFileToPreview, previewReady]);
+  }, [bridgeReady, pendingFile, postFileToPreview, previewReady]);
 
   const handleBridgeFile = useCallback((file: File | null | undefined) => {
     if (!file) return;
     setSelectedFileName(file.name);
+    setBridgeHasFile(false);
 
-    if (!previewReady) {
+    if (!previewReady || !bridgeReady) {
       setPendingFile(file);
       return;
     }
 
     void postFileToPreview(file);
-  }, [postFileToPreview, previewReady]);
+  }, [bridgeReady, postFileToPreview, previewReady]);
 
   return (
     <div className="space-y-2">
       {enableFileBridge && (
-        <div
-          className={`rounded border border-dashed p-2 ${isDraggingFile ? 'border-primary bg-accent/50' : 'border-border bg-card'}`}
-          onDragEnter={(event) => {
-            event.preventDefault();
-            setIsDraggingFile(true);
-          }}
-          onDragOver={(event) => {
-            event.preventDefault();
-            setIsDraggingFile(true);
-          }}
-          onDragLeave={(event) => {
-            event.preventDefault();
-            setIsDraggingFile(false);
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            setIsDraggingFile(false);
-            handleBridgeFile(event.dataTransfer.files?.[0]);
-          }}
-        >
+        <div className={`rounded border p-2 ${isDraggingFile ? 'border-primary bg-accent/50' : 'border-border bg-card'}`}>
           <input
             ref={fileInputRef}
             type="file"
@@ -164,7 +175,11 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
             <div className="min-w-0">
               <p className="text-[11px] font-medium text-foreground">Upload for ConvertAnything</p>
               <p className="truncate text-[10px] text-muted-foreground">
-                {selectedFileName ? `Selected: ${selectedFileName}` : 'Drop a file here or use Browse file.'}
+                {bridgeHasFile && selectedFileName
+                  ? `Selected: ${selectedFileName}`
+                  : selectedFileName
+                    ? `Sending: ${selectedFileName}`
+                    : 'Use the drop zone below or Browse file.'}
               </p>
             </div>
             <button
@@ -178,15 +193,50 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
         </div>
       )}
 
-      <iframe
-        key={previewDocument}
-        ref={ref}
-        srcDoc={previewDocument}
-        onLoad={() => setPreviewReady(true)}
-        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"
-        className={`w-full rounded border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
-        title="Extension preview"
-      />
+      <div className="relative">
+        <iframe
+          key={previewDocument}
+          ref={ref}
+          srcDoc={previewDocument}
+          onLoad={() => setPreviewReady(true)}
+          sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"
+          className={`w-full rounded border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
+          title="Extension preview"
+        />
+
+        {enableFileBridge && !bridgeHasFile && (
+          <div
+            className={`absolute inset-x-3 top-[78px] z-10 h-[112px] rounded-[10px] border-2 border-dashed transition-colors ${isDraggingFile ? 'border-primary bg-accent/40' : 'border-transparent bg-transparent'}`}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            onDragEnter={(event) => {
+              event.preventDefault();
+              setIsDraggingFile(true);
+            }}
+            onDragOver={(event) => {
+              event.preventDefault();
+              setIsDraggingFile(true);
+            }}
+            onDragLeave={(event) => {
+              event.preventDefault();
+              setIsDraggingFile(false);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setIsDraggingFile(false);
+              handleBridgeFile(event.dataTransfer.files?.[0]);
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Upload a file for ConvertAnything"
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -235,6 +285,8 @@ export const ExtensionsPanel = ({
   const [previewData, setPreviewData] = useState<{ title?: string; content: string; language?: string } | null>(null);
 
   const slug = useMemo(() => makeSlug(name), [name]);
+  const featuredBuiltin = BUILTIN_EXTENSIONS.find((ext) => ext.slug === 'convert-anything') ?? BUILTIN_EXTENSIONS[0] ?? null;
+  const remainingBuiltins = BUILTIN_EXTENSIONS.filter((ext) => ext.id !== featuredBuiltin?.id);
 
   /* ---- data fetching ---- */
 
@@ -506,8 +558,46 @@ export const ExtensionsPanel = ({
 
           {/* Built-in Extensions */}
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Built-in</p>
-            {BUILTIN_EXTENSIONS.map(ext => (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-muted-foreground">Built-in Tools</p>
+              {builtinView && (
+                <span className="text-[10px] text-primary">Active: {builtinView.name}</span>
+              )}
+            </div>
+
+            {featuredBuiltin && (
+              <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-foreground">{featuredBuiltin.icon} {featuredBuiltin.name}</p>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Built-in</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Upload, convert, and download files directly in the extension panel.</p>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => runBuiltinExtension(featuredBuiltin)}
+                    className="flex-1 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
+                  >
+                    {builtinView?.id === featuredBuiltin.id ? 'Open ConvertAnything' : 'Launch ConvertAnything'}
+                  </button>
+                  {builtinView?.id === featuredBuiltin.id && (
+                    <button
+                      onClick={() => {
+                        setBuiltinView(null);
+                        setBuiltinHtml('');
+                      }}
+                      className="rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent"
+                    >
+                      Close
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {remainingBuiltins.map(ext => (
               <div key={ext.id} className="rounded-md border border-border bg-card p-2.5 text-xs">
                 <div className="flex items-center justify-between gap-2">
                   <button onClick={() => runBuiltinExtension(ext)} className="text-left flex-1 min-w-0">

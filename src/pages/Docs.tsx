@@ -3,15 +3,16 @@ import { ArrowLeft, BookOpen, ExternalLink, Search } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 /* ------------------------------------------------------------------ */
-/*  Navigation structure derived from docs/docs.json                  */
+/*  Navigation structure                                               */
 /* ------------------------------------------------------------------ */
 
 interface NavPage {
-  path: string;       // e.g. "features/ai-assistant"
-  slug: string;       // url-safe key  "features--ai-assistant"
-  label: string;      // derived from path
+  path: string;
+  slug: string;
+  label: string;
   group: string;
 }
 
@@ -20,29 +21,65 @@ interface NavGroup {
   pages: NavPage[];
 }
 
-const RAW_GROUPS: { group: string; pages: string[] }[] = [
+type PageEntry = string | { path: string; label: string };
+
+const RAW_GROUPS: { group: string; pages: PageEntry[] }[] = [
   { group: "Overview", pages: ["features/index"] },
   {
-    group: "IDEs",
+    group: "IDE Workspace",
     pages: [
       "features/ide/index",
-      "features/ide/specialized-editors/index",
-      "features/ide/specialized-editors/arduino/upload",
-      "features/ide/specialized-editors/arduino/supported-boards",
-      "features/ide/specialized-editors/arduino/simulator",
-      "features/ide/specialized-editors/arduino/coding-ino",
-      "features/ide/specialized-editors/scratch/overview",
-      "features/ide/specialized-editors/office/overview",
-      "features/ide/specialized-editors/cad/overview",
-      "features/ide/specialized-editors/media/overview",
+      "features/ide/extensions",
+      "features/environment",
+    ],
+  },
+  {
+    group: "Specialized Editors",
+    pages: [
+      { path: "features/ide/specialized-editors/index", label: "Overview" },
+      "features/hardware",
+      { path: "features/ide/specialized-editors/arduino/upload", label: "Arduino Upload" },
+      { path: "features/ide/specialized-editors/arduino/coding-ino", label: "Coding in .ino" },
+      { path: "features/ide/specialized-editors/arduino/simulator", label: "Simulator" },
+      { path: "features/ide/specialized-editors/arduino/supported-boards", label: "Supported Boards" },
+      { path: "features/ide/specialized-editors/scratch/overview", label: "Scratch" },
+      { path: "features/ide/specialized-editors/media/overview", label: "Media & 3D" },
+      { path: "features/ide/specialized-editors/office/overview", label: "Office Suite" },
+      { path: "features/ide/specialized-editors/cad/overview", label: "CAD Viewer" },
     ],
   },
   { group: "AI", pages: ["features/ai-assistant", "features/ai-mcp"] },
-  { group: "Workflows", pages: ["features/workflows", "features/environment"] },
-  { group: "Execution", pages: ["features/persistent-shell", "features/execute-code"] },
-  { group: "Collaboration", pages: ["features/collaboration"] },
+  {
+    group: "Workflows & Automation",
+    pages: [
+      { path: "features/workflows/index", label: "Workflows" },
+      { path: "features/workflows/triggers", label: "Triggers" },
+      { path: "features/workflows/api-playground", label: "API Playground" },
+      { path: "features/workflows/history", label: "History" },
+      "features/automation",
+    ],
+  },
+  {
+    group: "Execution",
+    pages: [
+      "features/persistent-shell",
+      "features/execute-code",
+      "features/hardware",
+    ],
+  },
+  {
+    group: "Collaboration",
+    pages: ["features/collaboration", "features/team-management"],
+  },
   { group: "Deployment", pages: ["features/deployment"] },
-  { group: "Developer reference", pages: ["features/dev-reference"] },
+  {
+    group: "Security & Access",
+    pages: ["features/passkeys", "features/offline-mode"],
+  },
+  {
+    group: "Developer Reference",
+    pages: ["features/dev-reference", "features/shell-safety-runbook"],
+  },
 ];
 
 function slugify(path: string) {
@@ -59,18 +96,34 @@ function labelFromPath(path: string) {
 
 const NAV_GROUPS: NavGroup[] = RAW_GROUPS.map((g) => ({
   group: g.group,
-  pages: g.pages.map((p) => ({
-    path: p,
-    slug: slugify(p),
-    label: labelFromPath(p),
-    group: g.group,
-  })),
+  pages: g.pages.map((entry) => {
+    if (typeof entry === "string") {
+      return {
+        path: entry,
+        slug: slugify(entry),
+        label: labelFromPath(entry),
+        group: g.group,
+      };
+    }
+    return {
+      path: entry.path,
+      slug: slugify(entry.path),
+      label: entry.label,
+      group: g.group,
+    };
+  }),
 }));
 
-const ALL_PAGES = NAV_GROUPS.flatMap((g) => g.pages);
+// Deduplicate pages (same path can appear in multiple groups — keep first occurrence)
+const seen = new Set<string>();
+const ALL_PAGES = NAV_GROUPS.flatMap((g) => g.pages).filter((p) => {
+  if (seen.has(p.slug)) return false;
+  seen.add(p.slug);
+  return true;
+});
 
 /* ------------------------------------------------------------------ */
-/*  Eagerly import every .mdx file under docs/ as raw text            */
+/*  File imports                                                       */
 /* ------------------------------------------------------------------ */
 
 const mdxModules = import.meta.glob("/docs/**/*.mdx", { query: "?raw", eager: true }) as Record<
@@ -78,20 +131,36 @@ const mdxModules = import.meta.glob("/docs/**/*.mdx", { query: "?raw", eager: tr
   { default: string }
 >;
 
-function getContent(path: string): string | null {
-  // path = "features/ai-assistant" → try "/docs/features/ai-assistant.mdx"
-  const key = `/docs/${path}.mdx`;
-  const mod = mdxModules[key];
-  return mod?.default ?? null;
+const assetModules = import.meta.glob("/docs/assets/*.{png,jpg,jpeg,gif,svg,webp}", { eager: true }) as Record<
+  string,
+  { default: string }
+>;
+
+function resolveAssetUrl(src: string): string {
+  const decoded = decodeURIComponent(src);
+  let key = decoded.startsWith("/") ? decoded : `/docs/assets/${decoded}`;
+  if (assetModules[key]) return assetModules[key].default;
+  const filename = decoded.split("/").pop() || "";
+  for (const [k, mod] of Object.entries(assetModules)) {
+    if (k.endsWith(`/${filename}`)) return mod.default;
+  }
+  return src;
 }
 
-/** Strip YAML front-matter and Mintlify JSX-like components */
+function getContent(path: string): string | null {
+  const key = `/docs/${path}.mdx`;
+  const mod = mdxModules[key];
+  if (mod?.default) return mod.default;
+  const indexKey = `/docs/${path}/index.mdx`;
+  const indexMod = mdxModules[indexKey];
+  return indexMod?.default ?? null;
+}
+
 function cleanMdx(raw: string): { title: string; description: string; body: string } {
   let title = "";
   let description = "";
   let body = raw;
 
-  // Extract front-matter
   const fm = raw.match(/^---\n([\s\S]*?)\n---/);
   if (fm) {
     const block = fm[1];
@@ -100,21 +169,20 @@ function cleanMdx(raw: string): { title: string; description: string; body: stri
     body = raw.slice(fm[0].length).trim();
   }
 
-  // Strip Mintlify components like <Card>, <Columns>, <Note> etc — keep inner text
   body = body
     .replace(/<Columns[^>]*>/g, "")
     .replace(/<\/Columns>/g, "")
     .replace(/<Card\s+title="([^"]*)"[^>]*>/g, "\n#### $1\n")
     .replace(/<\/Card>/g, "")
-    .replace(/<Note>/g, "> **Note:** ")
-    .replace(/<\/Note>/g, "")
-    .replace(/<[A-Z][^>]*\/>/g, ""); // self-closing custom components
+    .replace(/<Note>/g, "\n> **Note:** ")
+    .replace(/<\/Note>/g, "\n")
+    .replace(/<[A-Z][^>]*\/>/g, "");
 
   return { title, description, body };
 }
 
 /* ------------------------------------------------------------------ */
-/*  Component                                                         */
+/*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
 export default function Docs() {
@@ -122,7 +190,6 @@ export default function Docs() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
 
-  // If no slug, redirect to first page
   useEffect(() => {
     if (!slug && ALL_PAGES.length > 0) {
       navigate(`/docs/${ALL_PAGES[0].slug}`, { replace: true });
@@ -164,12 +231,12 @@ export default function Docs() {
               </div>
               <h1 className="text-3xl font-bold tracking-tight md:text-4xl">CodeCanvas Docs</h1>
               <p className="max-w-3xl text-muted-foreground">
-                Powered by Mintlify — covering the IDE, AI copilots, editors, execution, collaboration, and deployment.
+                Full feature reference for the IDE, AI assistant, editors, execution, collaboration, and deployment.
               </p>
             </div>
             <div className="flex gap-2">
               <Button asChild variant="outline">
-                <Link to="/">Landing</Link>
+                <Link to="/">Home</Link>
               </Button>
               <Button asChild>
                 <Link to="/editor">Open Editor</Link>
@@ -178,7 +245,7 @@ export default function Docs() {
           </div>
         </header>
 
-        <div className="grid gap-6 lg:grid-cols-[320px,1fr]">
+        <div className="grid gap-6 lg:grid-cols-[280px,1fr]">
           {/* Sidebar */}
           <aside className="space-y-4 rounded-2xl border border-border bg-card p-4 lg:sticky lg:top-6 lg:h-[calc(100vh-4rem)] lg:overflow-auto">
             <label className="relative block">
@@ -196,17 +263,17 @@ export default function Docs() {
                   <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {g.group}
                   </h2>
-                  <ul className="space-y-1">
+                  <ul className="space-y-0.5">
                     {g.pages.map((p) => {
                       const isActive = activePage?.slug === p.slug;
                       return (
                         <li key={p.slug}>
                           <Link
                             to={`/docs/${p.slug}`}
-                            className={`block rounded-md px-3 py-2 text-sm transition-colors ${
+                            className={`block rounded-md px-3 py-1.5 text-sm transition-colors ${
                               isActive
-                                ? "bg-primary/15 text-primary"
-                                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                                ? "bg-primary/20 font-medium text-primary"
+                                : "text-foreground/70 hover:bg-secondary hover:text-foreground"
                             }`}
                           >
                             {p.label}
@@ -221,7 +288,7 @@ export default function Docs() {
           </aside>
 
           {/* Main content */}
-          <main className="rounded-2xl border border-border bg-card p-6 md:p-8">
+          <main className="min-w-0 rounded-2xl border border-border bg-card p-6 md:p-8">
             {content ? (
               <article className="space-y-6">
                 <header className="space-y-3 border-b border-border pb-6">
@@ -232,8 +299,89 @@ export default function Docs() {
                   )}
                 </header>
 
-                <div className="prose prose-sm max-w-none dark:prose-invert prose-headings:tracking-tight prose-a:text-primary">
-                  <ReactMarkdown>{content.body}</ReactMarkdown>
+                <div className="docs-body">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      img: ({ src, alt, ...props }) => (
+                        <img
+                          {...props}
+                          src={src ? resolveAssetUrl(src) : ""}
+                          alt={alt || ""}
+                          className="rounded-lg border border-border my-4 max-w-full"
+                          loading="lazy"
+                        />
+                      ),
+                      table: ({ children }) => (
+                        <div className="my-4 w-full overflow-x-auto">
+                          <table className="w-full border-collapse text-sm">{children}</table>
+                        </div>
+                      ),
+                      thead: ({ children }) => (
+                        <thead className="border-b border-border bg-muted/50">{children}</thead>
+                      ),
+                      tbody: ({ children }) => (
+                        <tbody className="divide-y divide-border">{children}</tbody>
+                      ),
+                      tr: ({ children }) => (
+                        <tr className="hover:bg-muted/30 transition-colors">{children}</tr>
+                      ),
+                      th: ({ children }) => (
+                        <th className="px-4 py-2 text-left font-semibold text-foreground">{children}</th>
+                      ),
+                      td: ({ children }) => (
+                        <td className="px-4 py-2 text-foreground/90">{children}</td>
+                      ),
+                      h1: ({ children }) => (
+                        <h1 className="mt-8 mb-4 text-2xl font-bold text-foreground">{children}</h1>
+                      ),
+                      h2: ({ children }) => (
+                        <h2 className="mt-8 mb-3 text-xl font-bold text-foreground">{children}</h2>
+                      ),
+                      h3: ({ children }) => (
+                        <h3 className="mt-6 mb-2 text-lg font-semibold text-foreground">{children}</h3>
+                      ),
+                      h4: ({ children }) => (
+                        <h4 className="mt-4 mb-2 text-base font-semibold text-foreground">{children}</h4>
+                      ),
+                      p: ({ children }) => (
+                        <p className="mb-4 leading-7 text-foreground/90">{children}</p>
+                      ),
+                      ul: ({ children }) => (
+                        <ul className="mb-4 ml-6 list-disc space-y-1 text-foreground/90">{children}</ul>
+                      ),
+                      ol: ({ children }) => (
+                        <ol className="mb-4 ml-6 list-decimal space-y-1 text-foreground/90">{children}</ol>
+                      ),
+                      li: ({ children }) => (
+                        <li className="leading-7">{children}</li>
+                      ),
+                      code: ({ className, children, ...props }) => {
+                        const isBlock = className?.includes("language-");
+                        if (isBlock) {
+                          return (
+                            <code className="block rounded-lg bg-muted border border-border px-4 py-3 text-sm font-mono text-foreground overflow-x-auto whitespace-pre">{children}</code>
+                          );
+                        }
+                        return (
+                          <code className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono text-foreground/90" {...props}>{children}</code>
+                        );
+                      },
+                      pre: ({ children }) => (
+                        <pre className="my-4 overflow-x-auto rounded-lg border border-border bg-muted p-4">{children}</pre>
+                      ),
+                      blockquote: ({ children }) => (
+                        <blockquote className="my-4 border-l-4 border-primary pl-4 text-foreground/80 italic">{children}</blockquote>
+                      ),
+                      a: ({ href, children }) => (
+                        <a href={href} className="text-primary underline underline-offset-2 hover:text-primary/80" target={href?.startsWith("http") ? "_blank" : undefined} rel={href?.startsWith("http") ? "noopener noreferrer" : undefined}>{children}</a>
+                      ),
+                      hr: () => <hr className="my-6 border-border" />,
+                      strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
+                    }}
+                  >
+                    {content.body}
+                  </ReactMarkdown>
                 </div>
 
                 <footer className="flex flex-col gap-3 border-t border-border pt-6 md:flex-row md:justify-between">

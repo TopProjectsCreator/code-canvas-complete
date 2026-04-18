@@ -193,6 +193,16 @@ const html = \`
     $('#qualityRow').style.display = showQ ? '' : 'none';
   }
 
+  function emitFileState(file) {
+    window.parent.postMessage({
+      type: 'cc-ext-file-state',
+      payload: {
+        hasFile: !!file,
+        name: file ? file.name : null,
+      },
+    }, '*');
+  }
+
   function setFile(f) {
     selectedFile = f;
     if (f) {
@@ -210,10 +220,14 @@ const html = \`
     }
     $('#result').innerHTML = '';
     $('#errorMsg').textContent = '';
+    if (!f && input) input.value = '';
+    emitFileState(f);
   }
 
   const input = $('#fileInput');
   const dz = $('#dropZone');
+
+  window.parent.postMessage({ type: 'cc-ext-ready' }, '*');
 
   input.addEventListener('change', e => { if (e.target.files && e.target.files[0]) setFile(e.target.files[0]); });
   $('#removeFile').addEventListener('click', () => setFile(null));
@@ -230,7 +244,15 @@ const html = \`
     if (event.data?.type !== 'cc-ext-file') return;
     try {
       const payload = event.data.payload || {};
-      const file = new File([payload.buffer], payload.name || 'upload.bin', {
+      const filePart = payload.buffer instanceof ArrayBuffer
+        ? payload.buffer
+        : payload.buffer?.buffer instanceof ArrayBuffer
+          ? payload.buffer.buffer
+          : null;
+
+      if (!filePart) throw new Error('No file payload received');
+
+      const file = new File([filePart], payload.name || 'upload.bin', {
         type: payload.type || 'application/octet-stream',
         lastModified: payload.lastModified || Date.now(),
       });
@@ -239,6 +261,8 @@ const html = \`
       $('#errorMsg').textContent = '❌ Failed to receive uploaded file';
     }
   });
+
+  emitFileState(null);
 
   $$('.cat-btn').forEach(btn => btn.addEventListener('click', () => {
     $$('.cat-btn').forEach(b => b.classList.remove('active'));

@@ -1,16 +1,88 @@
 ---
-title: "Workflow triggers"
-description: "How file changes, chat commands, and schedules start workflows." 
+title: "Workflow Triggers"
+description: "Configure file-change, chat command, schedule, and webhook triggers for Code Canvas workflows."
 ---
 
-## File-change triggers
+## What is a trigger?
 
-Tell a workflow to run whenever specific paths change. Use glob patterns (`src/**`, `docs/**`, `arduino/**`) so the workflow only fires when the files you care about mutate. The assistant notifies you when the trigger fires and shows the diff that launched the workflow.
+A trigger defines the condition that starts a workflow automatically. Without a trigger, workflows run only when you click **Run** manually. Add a trigger to run them on a schedule, on file changes, or from a chat command.
 
-## Chat commands
+![Automation without a trigger block](notriggers.png)
 
-Type natural-language commands inside the AI chat ("Run QA workflow", "Deploy preview") to trigger a saved workflow. The assistant lists available workflows, reveals the steps each runs, and lets you confirm before execution.
+When a workflow has no trigger configured, Code Canvas shows a warning badge on the workflow card as a reminder.
 
-## Scheduled runs
+## Trigger types
 
-Schedule workflows (nightly exports, weekly presentations) and let the workspace run them while you sleep. Each scheduled run records the timestamp, the triggers that fired, and the logs produced.
+### File-change triggers
+
+Run a workflow whenever files matching a path pattern change:
+
+1. Select **File Change** as the trigger type
+2. Enter a glob pattern:
+   - `src/**` — any change inside the `src/` folder
+   - `docs/**/*.mdx` — any MDX file in the docs folder
+   - `arduino/**/*.ino` — any Arduino sketch change
+   - `*.json` — any JSON file at the project root
+3. Optionally set a **debounce** (e.g., wait 2 seconds after the last change)
+
+The trigger fires after the save event. The AI receives a diff of what changed so it can tailor its response.
+
+### Chat command triggers
+
+Type a natural-language phrase in AI chat to run a workflow:
+
+```
+Run QA workflow
+Deploy preview
+Flash the latest firmware
+Generate weekly report
+```
+
+The assistant matches the phrase to saved workflows and shows a confirmation card before running. You can accept, modify, or cancel.
+
+### Scheduled triggers
+
+Set a workflow to run automatically at a fixed time:
+
+| Preset | Schedule |
+|---|---|
+| Every hour | `0 * * * *` |
+| Every morning at 8 AM | `0 8 * * *` |
+| Weekdays at 9 AM | `0 9 * * 1-5` |
+| Weekly on Monday | `0 0 * * 1` |
+| First of every month | `0 0 1 * *` |
+
+Use natural language in the trigger config ("Every night at 8 PM") and Code Canvas converts it to a cron expression automatically.
+
+### Webhook triggers
+
+Generate a unique HTTPS endpoint for your workflow. Send a POST request to this URL to trigger the workflow with custom data:
+
+```bash
+curl -X POST https://app.codecanvas.dev/api/webhooks/<workflow-id> \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <your-token>" \
+  -d '{"event": "deploy", "branch": "main"}'
+```
+
+The request body is available as `{{trigger.body}}` in subsequent workflow steps.
+
+## Multiple triggers
+
+A workflow can have multiple triggers — for example:
+
+- A nightly **schedule** trigger for regular runs
+- A **file-change** trigger for immediate runs when code changes
+- A **webhook** trigger for CI integration
+
+All triggers share the same workflow and log their runs in the history.
+
+## Trigger conditions
+
+Add conditions to prevent triggers from firing unnecessarily:
+
+- **Branch filter** — only trigger on commits to `main` or `release/*`
+- **File filter** — only trigger when files matching a secondary pattern change
+- **Environment filter** — only trigger in Production, not Preview
+
+Conditions are evaluated before the workflow starts — if the condition fails, the run is skipped (and marked "Skipped" in history).
