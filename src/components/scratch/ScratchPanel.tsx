@@ -3584,6 +3584,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 <div
                   key={block.id}
                   onPointerDown={(e) => handleBlockPointerDown(block.id, e)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setBlockContextMenu({ blockId: block.id, x: e.clientX, y: e.clientY });
+                  }}
                   onClick={(e) => {
                     if (menuValues.length === 0) return;
                     e.stopPropagation();
