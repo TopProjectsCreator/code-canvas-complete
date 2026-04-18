@@ -1485,6 +1485,23 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     detached: boolean;
   } | null>(null);
   const [dragBlockId, setDragBlockId] = useState<string | null>(null);
+  // True while an HTML5 drag (e.g. flyout block being dragged into workspace) is in progress.
+  // Used to disable shadow input pointer-events so drops land on the slot, not the input overlay.
+  const [isHtml5Dragging, setIsHtml5Dragging] = useState(false);
+  useEffect(() => {
+    const onStart = (e: DragEvent) => {
+      if (e.dataTransfer?.types?.includes('application/scratch-block')) setIsHtml5Dragging(true);
+    };
+    const onEnd = () => setIsHtml5Dragging(false);
+    window.addEventListener('dragstart', onStart);
+    window.addEventListener('dragend', onEnd);
+    window.addEventListener('drop', onEnd);
+    return () => {
+      window.removeEventListener('dragstart', onStart);
+      window.removeEventListener('dragend', onEnd);
+      window.removeEventListener('drop', onEnd);
+    };
+  }, []);
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
   // Per-block input slot rects (in block-local SVG coords). Populated by ScratchBlockShape onSlots.
   const slotsRegistryRef = useRef<Map<string, { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]>>(new Map());
@@ -3684,7 +3701,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                       const shadowTuple = (ref[0] === 1 ? ref[1] : ref[ref.length - 1]) as unknown;
                       if (!Array.isArray(shadowTuple)) return null;
                       const currentValue = String(shadowTuple[1] ?? '');
-                      const anyDragging = dragBlockId !== null;
+                      const anyDragging = dragBlockId !== null || isHtml5Dragging;
                       return (
                         <ShadowInput
                           key={`${block.id}-${inputKey}`}
