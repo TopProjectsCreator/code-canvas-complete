@@ -2492,7 +2492,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           }
           Object.assign(blocks, vmCompatible.extraBlocks);
         } else {
-          if (isEventBlock(blockDef.opcode) || blockDef.opcode === 'procedures_definition') {
+          const droppedShape = getBlockShape(blockDef.opcode);
+          const isReporterLike = droppedShape === 'reporter' || droppedShape === 'boolean';
+          if (isEventBlock(blockDef.opcode) || blockDef.opcode === 'procedures_definition' || isReporterLike) {
             blocks[blockId] = {
               id: blockId,
               opcode: blockDef.opcode,
