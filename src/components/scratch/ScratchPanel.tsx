@@ -3388,8 +3388,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         {/* --- CENTER: Workspace --- */}
         <div className="flex-1 min-w-0 relative overflow-hidden scratch-workspace" style={{ background: '#fff' }}
-          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
-          onDrop={handleWorkspaceDrop}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            // Live highlight: peek at the dragged opcode via dataTransfer types if available.
+            // Fallback: try both shapes and prefer reporter, since most palette drags are reporters.
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / workspaceZoom;
+            const y = (e.clientY - rect.top) / workspaceZoom;
+            const blocks = selectedTarget?.blocks || {};
+            const r = findSlotDropTarget(blocks, x, y, 'reporter', new Set());
+            const b = r ? null : findSlotDropTarget(blocks, x, y, 'boolean', new Set());
+            setInputDropTarget(r || b);
+          }}
+          onDragLeave={() => setInputDropTarget(null)}
+          onDrop={(e) => { setInputDropTarget(null); handleWorkspaceDrop(e); }}
           onPointerMove={handleWorkspacePointerMove}
           onPointerUp={handleWorkspacePointerUp}
           onPointerLeave={handleWorkspacePointerUp}
