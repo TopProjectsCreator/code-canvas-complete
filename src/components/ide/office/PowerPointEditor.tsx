@@ -224,7 +224,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             fontSize: el.fontSize || 16,
             bold: (el.fontWeight || 400) >= 600,
             italic: el.fontStyle === 'italic',
-            underline: el.textDecoration === 'underline',
+            underline: el.textDecoration === 'underline' ? { style: 'sng' } : undefined,
             align: el.textAlign || 'left',
             valign: 'top',
             breakLine: true,
