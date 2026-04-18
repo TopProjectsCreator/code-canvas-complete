@@ -2619,23 +2619,27 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const handleWorkspaceDrop = (e: React.DragEvent) => {
     e.preventDefault();
     try {
-      const data = JSON.parse(e.dataTransfer.getData('application/scratch-block')) as ScratchBlockDef;
+      const raw = e.dataTransfer.getData('application/scratch-block');
+      if (!raw) { console.warn('[scratch-drop] no payload on dataTransfer'); return; }
+      const data = JSON.parse(raw) as ScratchBlockDef;
       const rect = e.currentTarget.getBoundingClientRect();
       const x = (e.clientX - rect.left) / workspaceZoom;
       const y = (e.clientY - rect.top) / workspaceZoom;
       // If the dragged block is a reporter or boolean and is dropped over a compatible slot,
       // attach it as an input instead of placing it free in the workspace.
       const droppedShape = getBlockShape(data.opcode);
+      console.log('[scratch-drop]', { opcode: data.opcode, droppedShape, x, y, slots: slotsRegistryRef.current.size });
       if (droppedShape === 'reporter' || droppedShape === 'boolean') {
         const blocks = selectedTarget?.blocks || {};
         const target = findSlotDropTarget(blocks, x, y, droppedShape, new Set());
+        console.log('[scratch-drop] slot target:', target);
         if (target) {
           attachReporterToSlot(data, target.blockId, target.inputKey);
           return;
         }
       }
       addBlock(data, x, y);
-    } catch { /* ignore */ }
+    } catch (err) { console.error('[scratch-drop] error', err); }
   };
 
   // Create a new reporter/boolean block from a flyout def and attach it as a slot input on parentId.
