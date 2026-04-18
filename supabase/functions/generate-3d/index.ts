@@ -174,10 +174,10 @@ async function handleModelsLab(apiKey: string, prompt: string, taskId: string | 
 
 async function handleFal(apiKey: string, prompt: string, corsHeaders: Record<string, string>) {
   // Fal.ai Hyper3D Rodin - synchronous
-  const resp = await fetch("https://fal.run/fal-ai/hyper3d-rodin/text-to-3d", {
+  const resp = await fetch("https://fal.run/fal-ai/hyper3d/rodin", {
     method: "POST",
     headers: { Authorization: `Key ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, geometry_file_format: "glb" }),
   });
   const data = await resp.json();
   if (!resp.ok) {
