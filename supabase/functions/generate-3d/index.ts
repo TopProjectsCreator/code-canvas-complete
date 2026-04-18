@@ -267,16 +267,24 @@ async function handleNeural4D(apiKey: string, prompt: string, taskId: string | n
     );
   }
 
-  const createResp = await fetch("https://alb.neural4d.com:3000/api/generateModelWithText", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, modelCount: 1, disablePbr: 0 }),
-  });
+  let createResp: Response;
+  try {
+    createResp = await fetch("https://alb.neural4d.com:3000/api/generateModelWithText", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, modelCount: 1, disablePbr: 0 }),
+    });
+  } catch (_e) {
+    return new Response(
+      JSON.stringify({ status: "FAILED", error: unreachableMsg, unreachable: true }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+    );
+  }
   const createData = await createResp.json();
   if (!createResp.ok) {
     return new Response(
-      JSON.stringify({ error: createData.error || createData.message || "Failed to start Neural4D generation" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: createResp.status }
+      JSON.stringify({ status: "FAILED", error: createData.error || createData.message || "Failed to start Neural4D generation" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   }
 
