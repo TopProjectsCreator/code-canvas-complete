@@ -610,7 +610,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         `    instruction = config.get("prompt", ${JSON.stringify(cfg.prompt || cfg.task || 'Summarize this')})`,
         `    source_text = config.get("input") or (prev.get("result") if prev else None) or ${JSON.stringify(cfg.input || cfg.task || 'Hello')}`,
         `    prompt = f"{instruction}\\n\\n{source_text}" if source_text else instruction`,
-        `    response = client.chat.completions.create(model="${cfg.model || 'gpt-4o-mini'}", messages=[{"role": "user", "content": prompt}])`,
+        `    response = client.chat.completions.create(model=${JSON.stringify(cfg.model || 'gpt-4o-mini')}, messages=[{"role": "user", "content": prompt}])`,
         `    return {"result": response.choices[0].message.content}`,
       ]},
       'Google Ads': { pip: 'requests', imports: [], code: (cfg) => [
@@ -638,25 +638,25 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       'Anthropic': { pip: 'anthropic', imports: ['import anthropic'], code: (cfg, ev) => [
         `    client = anthropic.Anthropic(api_key=${ev})`,
         `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
-        `    message = client.messages.create(model="${cfg.model || 'claude-sonnet-4-20250514'}", max_tokens=1024, messages=[{"role": "user", "content": prompt}])`,
+        `    message = client.messages.create(model=${JSON.stringify(cfg.model || 'claude-sonnet-4-20250514')}, max_tokens=1024, messages=[{"role": "user", "content": prompt}])`,
         `    return {"result": message.content[0].text}`,
       ]},
       'Google Gemini': { pip: 'google-genai', imports: ['from google import genai'], code: (cfg, ev) => [
         `    client = genai.Client(api_key=${ev})`,
         `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
-        `    response = client.models.generate_content(model="${cfg.model || 'gemini-2.5-flash'}", contents=prompt)`,
+        `    response = client.models.generate_content(model=${JSON.stringify(cfg.model || 'gemini-2.5-flash')}, contents=prompt)`,
         `    return {"result": response.text}`,
       ]},
       'Mistral AI': { pip: 'mistralai', imports: ['from mistralai import Mistral'], code: (cfg, ev) => [
         `    client = Mistral(api_key=${ev})`,
         `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
-        `    response = client.chat.complete(model="${cfg.model || 'mistral-large-latest'}", messages=[{"role": "user", "content": prompt}])`,
+        `    response = client.chat.complete(model=${JSON.stringify(cfg.model || 'mistral-large-latest')}, messages=[{"role": "user", "content": prompt}])`,
         `    return {"result": response.choices[0].message.content}`,
       ]},
       'Groq': { pip: 'groq', imports: ['from groq import Groq'], code: (cfg, ev) => [
         `    client = Groq(api_key=${ev})`,
         `    prompt = prev.get("result", ${JSON.stringify(cfg.task || 'Hello')}) if prev else ${JSON.stringify(cfg.task || 'Hello')}`,
-        `    response = client.chat.completions.create(model="${cfg.model || 'llama-3.3-70b-versatile'}", messages=[{"role": "user", "content": prompt}])`,
+        `    response = client.chat.completions.create(model=${JSON.stringify(cfg.model || 'llama-3.3-70b-versatile')}, messages=[{"role": "user", "content": prompt}])`,
         `    return {"result": response.choices[0].message.content}`,
       ]},
       'Perplexity AI': { pip: 'perplexityai', imports: ['from perplexity import Perplexity'], code: (cfg, ev) => [
@@ -673,12 +673,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       'Resend': { pip: 'resend', imports: ['import resend'], code: (cfg, ev) => [
         `    resend.api_key = ${ev}`,
         `    body_html = prev.get("result", ${JSON.stringify(cfg.body || '<p>Hello!</p>')}) if prev else ${JSON.stringify(cfg.body || '<p>Hello!</p>')}`,
-        `    r = resend.Emails.send({"from": "${cfg.from_email || 'you@yourdomain.com'}", "to": ["${cfg.to_email || 'recipient@example.com'}"], "subject": ${JSON.stringify(cfg.subject || 'Hello from automation')}, "html": body_html})`,
+        `    r = resend.Emails.send({"from": ${JSON.stringify(cfg.from_email || 'you@yourdomain.com')}, "to": [${JSON.stringify(cfg.to_email || 'recipient@example.com')}], "subject": ${JSON.stringify(cfg.subject || 'Hello from automation')}, "html": body_html})`,
         `    return {"email_id": r["id"]}`,
       ]},
       'SendGrid': { pip: 'sendgrid', imports: ['from sendgrid import SendGridAPIClient', 'from sendgrid.helpers.mail import Mail'], code: (cfg, ev) => [
         `    body_html = prev.get("result", ${JSON.stringify(cfg.body || '<p>Hello!</p>')}) if prev else ${JSON.stringify(cfg.body || '<p>Hello!</p>')}`,
-        `    message = Mail(from_email="${cfg.from_email || 'you@yourdomain.com'}", to_emails="${cfg.to_email || 'recipient@example.com'}", subject=${JSON.stringify(cfg.subject || 'Hello')}, html_content=body_html)`,
+        `    message = Mail(from_email=${JSON.stringify(cfg.from_email || 'you@yourdomain.com')}, to_emails=${JSON.stringify(cfg.to_email || 'recipient@example.com')}, subject=${JSON.stringify(cfg.subject || 'Hello')}, html_content=body_html)`,
         `    sg = SendGridAPIClient(${ev})`,
         `    response = sg.send(message)`,
         `    return {"status_code": response.status_code}`,
@@ -686,13 +686,13 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       'Twilio': { pip: 'twilio', imports: ['from twilio.rest import Client as TwilioClient'], code: (cfg, ev) => [
         `    client = TwilioClient(${ev}, TWILIO_AUTH_TOKEN)`,
         `    body_text = prev.get("result", ${JSON.stringify(cfg.body || 'Hello from automation')}) if prev else ${JSON.stringify(cfg.body || 'Hello from automation')}`,
-        `    message = client.messages.create(body=body_text, from_="${cfg.from_number || '+1234567890'}", to="${cfg.to_number || '+0987654321'}")`,
+        `    message = client.messages.create(body=body_text, from_=${JSON.stringify(cfg.from_number || '+1234567890')}, to=${JSON.stringify(cfg.to_number || '+0987654321')})`,
         `    return {"sid": message.sid}`,
       ]},
       'Slack': { pip: 'slack-sdk', imports: ['from slack_sdk import WebClient'], code: (cfg, ev) => [
         `    client = WebClient(token=${ev})`,
         `    msg_text = prev.get("result", ${JSON.stringify(cfg.message || 'Hello from automation!')}) if prev else ${JSON.stringify(cfg.message || 'Hello from automation!')}`,
-        `    response = client.chat_postMessage(channel="${cfg.channel || '#general'}", text=msg_text)`,
+        `    response = client.chat_postMessage(channel=${JSON.stringify(cfg.channel || '#general')}, text=msg_text)`,
         `    return {"ts": response["ts"]}`,
       ]},
       'Discord': { pip: 'requests', imports: [], code: (cfg) => [
@@ -703,20 +703,20 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       ]},
       'Telegram': { pip: 'requests', imports: [], code: (cfg, ev) => [
         `    bot_token = ${ev}`,
-        `    chat_id = "${cfg.chat_id || ''}"`,
+        `    chat_id = ${JSON.stringify(cfg.chat_id || '')}`,
         `    msg_text = prev.get("result", ${JSON.stringify(cfg.message || 'Hello!')}) if prev else ${JSON.stringify(cfg.message || 'Hello!')}`,
         `    response = requests.post(f"https://api.telegram.org/bot{bot_token}/sendMessage", json={"chat_id": chat_id, "text": msg_text})`,
         `    return response.json()`,
       ]},
       'Stripe': { pip: 'stripe', imports: ['import stripe'], code: (cfg, ev) => [
         `    stripe.api_key = ${ev}`,
-        `    intent = stripe.PaymentIntent.create(amount=${cfg.amount || '1000'}, currency="${cfg.currency || 'usd'}")`,
+        `    intent = stripe.PaymentIntent.create(amount=${cfg.amount || '1000'}, currency=${JSON.stringify(cfg.currency || 'usd')})`,
         `    return {"client_secret": intent.client_secret}`,
       ]},
       'Supabase': { pip: 'supabase', imports: ['from supabase import create_client'], code: (cfg, ev) => [
-        `    url = os.getenv("SUPABASE_URL", "${cfg.url || ''}")`,
+        `    url = os.getenv("SUPABASE_URL", ${JSON.stringify(cfg.url || '')})`,
         `    client = create_client(url, ${ev})`,
-        `    response = client.table("${cfg.table || 'items'}").select("*").execute()`,
+        `    response = client.table(${JSON.stringify(cfg.table || 'items')}).select("*").execute()`,
         `    return {"data": response.data}`,
       ]},
       'Gmail': { pip: 'requests', imports: ['import base64', 'from email.message import EmailMessage'], code: (cfg) => [
@@ -742,7 +742,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       ]},
       'GitHub': { pip: 'requests', imports: [], code: (cfg, ev) => [
         `    headers = {"Authorization": f"Bearer {${ev}}", "Accept": "application/vnd.github+json"}`,
-        `    owner, repo = "${cfg.owner || 'owner'}", "${cfg.repo || 'repo'}"`,
+        `    owner, repo = ${JSON.stringify(cfg.owner || 'owner')}, ${JSON.stringify(cfg.repo || 'repo')}`,
         `    response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)`,
         `    data = response.json()`,
         `    return {"result": json.dumps(data), "data": data, "name": data.get("full_name", ""), "description": data.get("description", ""), "stars": data.get("stargazers_count", 0)}`,
@@ -750,7 +750,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       'ElevenLabs': { pip: 'elevenlabs', imports: ['from elevenlabs.client import ElevenLabs as ElevenLabsClient'], code: (cfg, ev) => [
         `    client = ElevenLabsClient(api_key=${ev})`,
         `    text_input = prev.get("result", ${JSON.stringify(cfg.text || 'Hello world')}) if prev else ${JSON.stringify(cfg.text || 'Hello world')}`,
-        `    audio = client.text_to_speech.convert(voice_id="${cfg.voice_id || '21m00Tcm4TlvDq8ikWAM'}", text=text_input, model_id="eleven_multilingual_v2")`,
+        `    audio = client.text_to_speech.convert(voice_id=${JSON.stringify(cfg.voice_id || '21m00Tcm4TlvDq8ikWAM')}, text=text_input, model_id="eleven_multilingual_v2")`,
         `    return {"status": "audio_generated"}`,
       ]},
       'Sentry': { pip: 'sentry-sdk', imports: ['import sentry_sdk'], code: (_cfg, ev) => [
@@ -1158,52 +1158,54 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       'OpenAI': { npm: 'openai', imports: ['const OpenAI = require("openai");'], code: (cfg, ev) => [
         `  const client = new OpenAI({ apiKey: ${ev} });`,
         `  const prompt = prev?.result ?? ${JSON.stringify(cfg.task || 'Hello')};`,
-        `  const response = await client.chat.completions.create({ model: "${cfg.model || 'gpt-4o-mini'}", messages: [{ role: "user", content: prompt }] });`,
+        `  const response = await client.chat.completions.create({ model: ${JSON.stringify(cfg.model || 'gpt-4o-mini')}, messages: [{ role: "user", content: prompt }] });`,
         `  return { result: response.choices[0].message.content };`,
       ]},
       'Anthropic': { npm: '@anthropic-ai/sdk', imports: ['const Anthropic = require("@anthropic-ai/sdk");'], code: (cfg, ev) => [
         `  const client = new Anthropic({ apiKey: ${ev} });`,
         `  const prompt = prev?.result ?? ${JSON.stringify(cfg.task || 'Hello')};`,
-        `  const message = await client.messages.create({ model: "${cfg.model || 'claude-sonnet-4-20250514'}", max_tokens: 1024, messages: [{ role: "user", content: prompt }] });`,
+        `  const message = await client.messages.create({ model: ${JSON.stringify(cfg.model || 'claude-sonnet-4-20250514')}, max_tokens: 1024, messages: [{ role: "user", content: prompt }] });`,
         `  return { result: message.content[0].text };`,
       ]},
       'Google Gemini': { npm: '@google/genai', imports: ['const { GoogleGenAI } = require("@google/genai");'], code: (cfg, ev) => [
         `  const ai = new GoogleGenAI({ apiKey: ${ev} });`,
         `  const prompt = prev?.result ?? ${JSON.stringify(cfg.task || 'Hello')};`,
-        `  const response = await ai.models.generateContent({ model: "${cfg.model || 'gemini-2.5-flash'}", contents: prompt });`,
+        `  const response = await ai.models.generateContent({ model: ${JSON.stringify(cfg.model || 'gemini-2.5-flash')}, contents: prompt });`,
         `  return { result: response.text };`,
       ]},
       'Resend': { npm: 'resend', imports: ['const { Resend } = require("resend");'], code: (cfg, ev) => [
         `  const resend = new Resend(${ev});`,
         `  const bodyHtml = prev?.result ?? ${JSON.stringify(cfg.body || '<p>Hello!</p>')};`,
-        `  const { data } = await resend.emails.send({ from: "${cfg.from_email || 'you@yourdomain.com'}", to: ["${cfg.to_email || 'recipient@example.com'}"], subject: ${JSON.stringify(cfg.subject || 'Hello from automation')}, html: bodyHtml });`,
+        `  const { data } = await resend.emails.send({ from: ${JSON.stringify(cfg.from_email || 'you@yourdomain.com')}, to: [${JSON.stringify(cfg.to_email || 'recipient@example.com')}], subject: ${JSON.stringify(cfg.subject || 'Hello from automation')}, html: bodyHtml });`,
         `  return { email_id: data?.id };`,
       ]},
       'Slack': { npm: '@slack/web-api', imports: ['const { WebClient } = require("@slack/web-api");'], code: (cfg, ev) => [
         `  const client = new WebClient(${ev});`,
         `  const msgText = prev?.result ?? ${JSON.stringify(cfg.message || 'Hello from automation!')};`,
-        `  const response = await client.chat.postMessage({ channel: "${cfg.channel || '#general'}", text: msgText });`,
+        `  const response = await client.chat.postMessage({ channel: ${JSON.stringify(cfg.channel || '#general')}, text: msgText });`,
         `  return { ts: response.ts };`,
       ]},
       'Stripe': { npm: 'stripe', imports: ['const Stripe = require("stripe");'], code: (cfg, ev) => [
         `  const stripe = new Stripe(${ev});`,
-        `  const intent = await stripe.paymentIntents.create({ amount: ${cfg.amount || '1000'}, currency: "${cfg.currency || 'usd'}" });`,
+        `  const intent = await stripe.paymentIntents.create({ amount: ${cfg.amount || '1000'}, currency: ${JSON.stringify(cfg.currency || 'usd')} });`,
         `  return { client_secret: intent.client_secret };`,
       ]},
       'Twilio': { npm: 'twilio', imports: ['const twilio = require("twilio");'], code: (cfg, ev) => [
         `  const client = twilio(${ev}, process.env.TWILIO_AUTH_TOKEN);`,
         `  const bodyText = prev?.result ?? ${JSON.stringify(cfg.body || 'Hello from automation')};`,
-        `  const message = await client.messages.create({ body: bodyText, from: "${cfg.from_number || '+1234567890'}", to: "${cfg.to_number || '+0987654321'}" });`,
+        `  const message = await client.messages.create({ body: bodyText, from: ${JSON.stringify(cfg.from_number || '+1234567890')}, to: ${JSON.stringify(cfg.to_number || '+0987654321')} });`,
         `  return { sid: message.sid };`,
       ]},
       'GitHub': { npm: 'node-fetch', imports: ['const fetch = require("node-fetch");'], code: (cfg, ev) => [
-        `  const res = await fetch(\`https://api.github.com/repos/${cfg.owner || 'owner'}/${cfg.repo || 'repo'}\`, { headers: { Authorization: \`Bearer \${${ev}}\`, Accept: "application/vnd.github+json" } });`,
+        `  const owner = ${JSON.stringify(cfg.owner || 'owner')};`,
+        `  const repo = ${JSON.stringify(cfg.repo || 'repo')};`,
+        `  const res = await fetch(\`https://api.github.com/repos/\${encodeURIComponent(owner)}/\${encodeURIComponent(repo)}\`, { headers: { Authorization: \`Bearer \${${ev}}\`, Accept: "application/vnd.github+json" } });`,
         `  const data = await res.json();`,
         `  return { result: JSON.stringify(data), data, name: data.full_name || "", description: data.description || "", stars: data.stargazers_count || 0 };`,
       ]},
       'Supabase': { npm: '@supabase/supabase-js', imports: ['const { createClient } = require("@supabase/supabase-js");'], code: (cfg, ev) => [
-        `  const supabase = createClient(process.env.SUPABASE_URL || "${cfg.url || ''}", ${ev});`,
-        `  const { data } = await supabase.from("${cfg.table || 'items'}").select("*");`,
+        `  const supabase = createClient(process.env.SUPABASE_URL || ${JSON.stringify(cfg.url || '')}, ${ev});`,
+        `  const { data } = await supabase.from(${JSON.stringify(cfg.table || 'items')}).select("*");`,
         `  return { data };`,
       ]},
       'Discord': { npm: 'node-fetch', imports: ['const fetch = require("node-fetch");'], code: (cfg) => [
@@ -1213,13 +1215,13 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       ]},
       'Telegram': { npm: 'node-fetch', imports: ['const fetch = require("node-fetch");'], code: (cfg, ev) => [
         `  const msgText = prev?.result ?? ${JSON.stringify(cfg.message || 'Hello!')};`,
-        `  const res = await fetch(\`https://api.telegram.org/bot\${${ev}}/sendMessage\`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: "${cfg.chat_id || ''}", text: msgText }) });`,
+        `  const res = await fetch(\`https://api.telegram.org/bot\${${ev}}/sendMessage\`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ chat_id: ${JSON.stringify(cfg.chat_id || '')}, text: msgText }) });`,
         `  return await res.json();`,
       ]},
       'ElevenLabs': { npm: 'elevenlabs', imports: ['const { ElevenLabsClient } = require("elevenlabs");'], code: (cfg, ev) => [
         `  const client = new ElevenLabsClient({ apiKey: ${ev} });`,
         `  const textInput = prev?.result ?? ${JSON.stringify(cfg.text || 'Hello world')};`,
-        `  const audio = await client.textToSpeech.convert("${cfg.voice_id || '21m00Tcm4TlvDq8ikWAM'}", { text: textInput, model_id: "eleven_multilingual_v2" });`,
+        `  const audio = await client.textToSpeech.convert(${JSON.stringify(cfg.voice_id || '21m00Tcm4TlvDq8ikWAM')}, { text: textInput, model_id: "eleven_multilingual_v2" });`,
         `  return { status: "audio_generated" };`,
       ]},
       'DALL-E': { npm: 'openai', imports: ['const OpenAI = require("openai");'], code: (cfg, ev) => [
