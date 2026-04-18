@@ -64,14 +64,14 @@ const PROVIDER_TESTS: Record<string, { url: string; method: string; headers: (ke
     headers: (key) => ({ Authorization: `Bearer ${key}` }),
   },
   tripo: {
-    url: "https://api.tripo3d.ai/v2/openapi/task",
+    url: "https://api.tripo3d.ai/v2/openapi/user/balance",
     method: "GET",
     headers: (key) => ({ Authorization: `Bearer ${key}` }),
   },
   modelslab: {
     url: "https://modelslab.com/api/v6/3d/text2model",
     method: "POST",
-    headers: (key) => ({ "Content-Type": "application/json" }),
+    headers: () => ({ "Content-Type": "application/json" }),
     body: JSON.stringify({ key: "test", prompt: "test", negative_prompt: "", guidance_scale: 15, num_inference_steps: 64, seed: null }),
   },
   fal: {
@@ -81,7 +81,7 @@ const PROVIDER_TESTS: Record<string, { url: string; method: string; headers: (ke
     body: JSON.stringify({ prompt: "test" }),
   },
   neural4d: {
-    url: "https://alb.neural4d.com:3000/api/queryPointsInfo",
+    url: "https://alb.neural4d.com:3000/api/queryUserPointInfo",
     method: "POST",
     headers: (key) => ({ Authorization: `Bearer ${key}`, "Content-Type": "application/json" }),
     body: JSON.stringify({}),
