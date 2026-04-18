@@ -1,86 +1,47 @@
-## Add Browser-Native Shell via WebContainers (Node.js)
 
-### Overview
 
-Integrate `@webcontainer/api` to provide a real Node.js shell (jsh) directly in the browser. Shell/bash/JS commands run locally via WebContainers. Compiled languages (Python, C, Rust, etc.) continue using the existing edge function (Wandbox + optional container backend -- both kept intact).
+## Root Cause Analysis
 
-### Files to Change
+After 6+ failed attempts using HTML5 drag-and-drop (`dragstart`/`dragover`/`drop` + `dataTransfer`), reporters still won't snap into slots. The session replay confirms why: the workspace uses **pointer-based dragging** (`onPointerDown`/`onPointerMove` with `setPointerCapture`), not HTML5 drag. Evidence:
 
-**1. Install `@webcontainer/api**`
+- Session replay shows `cursor-grab` + manual `left`/`top` style updates (pointer drag), NOT native drag ghost
+- Memory `mem://features/scratch-blocks-engine` explicitly states: *"custom pointer-based drag-and-drop system (replacing the native HTML5)"*
+- Console logs show ZERO `[scratch-drop]` events firing — because no `drop` event ever happens
+- Highlighting works because it's driven by `pointermove`, but the "drop" handler is on `dragend`/`drop` which never fires
 
-- Add the package dependency
+The HTML5 `dataTransfer` payload only exists for flyout→workspace drags. Workspace→workspace reporter moves use pointer events with internal state (`dragBlockId`), and the `pointerup` handler never checks for slot targets — it just drops the block at the cursor position as a free-floating stack.
 
-**2. New file: `src/hooks/useWebContainer.ts**`
+## The Guaranteed Fix
 
-- Singleton pattern: one WebContainer instance shared across the app
-- `boot()` on first use, expose status (`idle` | `booting` | `ready` | `error`)
-- `spawn(command, args)` -- runs a command, returns stdout/stderr as string arrays
-- `writeFile(path, content)` / `readFile(path)` for syncing project files
-- `teardown()` cleanup on unmount
-- Lazy boot: container only starts when the user first runs a shell command
+Stop relying on HTML5 drop events entirely. Hook into the **existing pointer-up handler** that already runs at the end of every drag (both flyout and workspace).
 
-**3. Update `src/hooks/useCodeExecution.ts**`
+### Changes to `src/components/scratch/ScratchPanel.tsx`
 
-- Import `useWebContainer`
-- New routing logic at the top of `executeCode`:
-  - If language is `shell`, `bash`, or `javascript` and WebContainer is available, run via WebContainer's `jsh` or `node`
-  - Otherwise, fall through to existing edge function path (Wandbox/container -- untouched)
-- `executeShellCommand` routes through WebContainer when ready
-- Keep all existing session tracking and edge function code as-is (container backend still works for those who configure it)
+1. **Locate the global `pointerup` handler** that finalizes block drags (where `dragBlockId` is cleared and the block is committed to its new position).
 
-**4. Update `src/components/ide/Terminal.tsx**`
+2. **Before committing the position**, if the dragged block's shape is `reporter` or `boolean`:
+   - Convert pointer client coords → workspace coords (subtract workspace `getBoundingClientRect()`, divide by `workspaceZoom`)
+   - Call `findSlotDropTarget(blocks, x, y, shape, excludeSet)` with the dragged block excluded
+   - If a target slot is found → call `attachReporterToSlot(draggedBlockData, target.blockId, target.inputKey)` and SKIP the normal "place at x,y" logic
+   - Else → fall through to normal placement
 
-- Import `useWebContainer` for boot status
-- Show a "Booting shell..." indicator on first command if container is still starting
-- No structural changes to the terminal UI -- commands still flow through `useCodeExecution`
-- If the use is attempting to use pip or uv or something not supported without setting up container runner,  They will be alerted that it wont work and detailed instructions how to make it work.
+3. **For flyout drags** (which currently use HTML5): convert them to pointer-based too by starting a synthetic pointer drag on `pointerdown` of flyout items, so the same unified `pointerup` handler resolves them. This eliminates the dual-path complexity.
 
-**5. Update `vite.config.ts**`
+4. **Remove all the failed HTML5 patches**: `onDragOver`/`onDrop` on block divs, `isHtml5Dragging` window listeners, `handleWorkspaceDrop` HTML5 path. Keep only pointer logic.
 
-- Add required COOP/COEP headers for WebContainers:
+5. **Visual confirmation**: When `findSlotDropTarget` returns a hit during pointer drag, set a `hoveredSlot` state and render a 3px solid blue outline on that slot's bounding rect (replaces current yellow tint which is misleading).
 
-```text
-server.headers:
-  Cross-Origin-Embedder-Policy: require-corp
-  Cross-Origin-Opener-Policy: same-origin
-```
+### Why this is guaranteed to work
+- The pointer-up handler is **already firing today** (that's how blocks get placed when you drop them on empty workspace). We're just adding a slot-check branch before the placement step.
+- No browser drag-cancel quirks, no z-index/pointer-events interference from `ShadowInput` overlays, no `dataTransfer` payloads to lose.
+- Single code path for flyout + workspace drags.
 
-**6. Update `README.md**`
+### Files
+- `src/components/scratch/ScratchPanel.tsx` (only file)
 
-- Add a section explaining that shell commands now run via WebContainers in-browser for Node.js
-- Keep the existing container runner documentation for users who want full Linux shell with Python/system tools
-- Note the COOP/COEP header requirement for production deployments
+### Out of scope (unrelated noise in logs)
+- `pen.*` translation warnings — cosmetic, ignore
+- `lovable.dev` postMessage origin error — Lovable script, not ours
+- `scratch-audio` constructor error — pre-existing, unrelated
+- "No V2 Bitmap adapter" — pre-existing costume loader warning
 
-7. **System Instructions**
-  Edit the system instructions so that the bots know of this limitation.
-8. Settings
-  Keep a setting so that users who really want to can use the wandbox api instead of this.
-
-### Architecture
-
-```text
-Terminal Command
-    |
-    +-- shell/bash/js --> WebContainer (in-browser, real Node.js shell)
-    |                     (npm, npx, node all work natively)
-    |
-    +-- python/c/rust/go/etc --> Edge Function
-                                   |
-                                   +-- Wandbox (default)
-                                   +-- Container backend (if configured)
-```
-
-### What stays the same
-
-- Edge function `execute-code` is untouched -- Wandbox and container backend remain
-- `EXECUTOR_MODE` env var still works for container deployments
-- All compiled language execution unchanged
-- AI chat shell commands route through the same `useCodeExecution` hook
-
-### Technical Notes
-
-- WebContainers require SharedArrayBuffer, which needs COOP/COEP headers
-- The COEP `require-corp` header may break loading cross-origin resources (images, fonts from CDNs) unless they have CORS headers. We'll use `credentialless` instead of `require-corp` to avoid this issue where possible.
-- Boot time is ~2-3 seconds on first use, then instant for subsequent commands. 
-
-&nbsp;
