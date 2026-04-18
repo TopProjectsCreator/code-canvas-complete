@@ -2748,19 +2748,27 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       const stash = flyoutDragRef.current;
       flyoutDragRef.current = null;
       setFlyoutDrag(null);
+      const lastTarget = inputDropTargetRef.current;
       setInputDropTarget(null);
+      console.log('[flyout-drop] up', { moved, hasStash: !!stash, lastTarget });
       if (!stash) return;
       if (!moved) return; // click-only; existing onClick handler handles add
 
       const ws = workspaceRef.current;
       if (!ws) return;
       const rect = ws.getBoundingClientRect();
-      if (ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom) return;
+      if (ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom) {
+        console.log('[flyout-drop] outside workspace');
+        return;
+      }
       const x = (ev.clientX - rect.left) / workspaceZoom;
       const y = (ev.clientY - rect.top) / workspaceZoom;
       const shape = getBlockShape(stash.blockDef.opcode);
+      console.log('[flyout-drop] coords', { x, y, shape, opcode: stash.blockDef.opcode });
       if (shape === 'reporter' || shape === 'boolean') {
-        const t = findSlotDropTarget(selectedTarget?.blocks || {}, x, y, shape, new Set());
+        // Prefer the live target captured during move (avoids stale-closure issues with selectedTarget).
+        const t = lastTarget ?? findSlotDropTarget(selectedTarget?.blocks || {}, x, y, shape, new Set());
+        console.log('[flyout-drop] slot target', t);
         if (t) {
           attachReporterToSlot(stash.blockDef, t.blockId, t.inputKey);
           return;
