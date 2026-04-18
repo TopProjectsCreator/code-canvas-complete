@@ -3684,17 +3684,30 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                       if (!Array.isArray(shadowTuple)) return null;
                       const currentValue = String(shadowTuple[1] ?? '');
                       const isEditing = editingShadow?.blockId === block.id && editingShadow?.inputKey === inputKey;
+                      // Disable pointer events while ANY block is being dragged so the input
+                      // doesn't intercept pointerup and block reporter snapping into the slot.
+                      const anyDragging = dragBlockId !== null;
                       return (
                         <input
-                          key={inputKey}
+                          key={`${inputKey}-${currentValue}`}
                           type="text"
-                          value={currentValue}
+                          defaultValue={currentValue}
                           onPointerDown={(e) => e.stopPropagation()}
+                          onPointerUp={(e) => e.stopPropagation()}
                           onMouseDown={(e) => e.stopPropagation()}
+                          onMouseUp={(e) => e.stopPropagation()}
                           onClick={(e) => { e.stopPropagation(); setEditingShadow({ blockId: block.id, inputKey }); }}
                           onFocus={() => setEditingShadow({ blockId: block.id, inputKey })}
-                          onBlur={() => setEditingShadow(null)}
-                          onChange={(e) => updateShadowValue(block.id, inputKey, e.target.value)}
+                          onBlur={(e) => {
+                            updateShadowValue(block.id, inputKey, e.target.value);
+                            setEditingShadow(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
                           className="absolute text-center outline-none"
                           style={{
                             left: slot.x,
@@ -3709,6 +3722,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                             border: isEditing ? '2px solid #ffbf00' : 'none',
                             padding: 0,
                             boxSizing: 'border-box',
+                            pointerEvents: anyDragging && !isEditing ? 'none' : 'auto',
+                            zIndex: 1,
                           }}
                         />
                       );
