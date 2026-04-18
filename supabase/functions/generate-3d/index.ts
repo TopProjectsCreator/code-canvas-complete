@@ -148,7 +148,7 @@ async function handleModelsLab(apiKey: string, prompt: string, taskId: string | 
     );
   }
 
-  const createResp = await fetch("https://modelslab.com/api/v6/3d/text2model", {
+  const createResp = await fetch("https://modelslab.com/api/v6/3d/text_to_3d", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ key: apiKey, prompt, negative_prompt: "low quality", guidance_scale: 15, num_inference_steps: 64 }),
