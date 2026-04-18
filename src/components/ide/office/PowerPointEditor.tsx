@@ -28,6 +28,7 @@ interface SlideElement {
   fontStyle?: 'normal' | 'italic';
   textDecoration?: 'none' | 'underline';
   textAlign?: 'left' | 'center' | 'right';
+  color?: string;
 }
 
 interface SlideData {
@@ -51,6 +52,12 @@ const toSlideX = (x: number) => (x / CANVAS_W) * SLIDE_W_IN;
 const toSlideY = (y: number) => (y / CANVAS_H) * SLIDE_H_IN;
 const toSlideW = (w: number) => (w / CANVAS_W) * SLIDE_W_IN;
 const toSlideH = (h: number) => (h / CANVAS_H) * SLIDE_H_IN;
+const toPptxColor = (value?: string) => (value || '#1A1A1A').replace('#', '').toUpperCase();
+const normalizeImageDataForPptx = (value: string) => {
+  const match = value.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) return value;
+  return `${match[1]};base64,${match[2]}`;
+};
 
 export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProps) => {
   const [loading, setLoading] = useState(true);
@@ -110,13 +117,14 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 content: text,
                 fontSize: isTitle ? 28 : 16,
                 fontWeight: isTitle ? 700 : 400,
+                color: '#1A1A1A',
               });
             }
           }
           if (elements.length === 0) {
             elements.push(
-              { id: newId(), type: 'text', x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700 },
-              { id: newId(), type: 'text', x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400 },
+              { id: newId(), type: 'text', x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700, color: '#1A1A1A' },
+              { id: newId(), type: 'text', x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400, color: '#1A1A1A' },
             );
           }
           parsed.push({ elements });
@@ -124,8 +132,8 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
         if (parsed.length === 0) {
           parsed.push({
             elements: [
-              { id: newId(), type: 'text', x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700 },
-              { id: newId(), type: 'text', x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400 },
+              { id: newId(), type: 'text', x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700, color: '#1A1A1A' },
+              { id: newId(), type: 'text', x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400, color: '#1A1A1A' },
             ]
           });
         }
@@ -201,7 +209,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
 
           if (el.type === 'image' && el.content?.startsWith('data:image/')) {
             try {
-              slide.addImage({ data: el.content, x, y, w, h });
+              slide.addImage({ data: normalizeImageDataForPptx(el.content), x, y, w, h });
             } catch {
               // Skip invalid image payloads instead of failing whole save
             }
@@ -215,9 +223,12 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             h,
             fontSize: el.fontSize || 16,
             bold: (el.fontWeight || 400) >= 600,
+            italic: el.fontStyle === 'italic',
+            underline: el.textDecoration === 'underline',
+            align: el.textAlign || 'left',
             valign: 'top',
             breakLine: true,
-            color: '1A1A1A',
+            color: toPptxColor(el.color),
           });
         });
       });
@@ -283,8 +294,8 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     commitSlides(prev => {
       const next = [...prev, {
         elements: [
-          { id: newId(), type: 'text' as const, x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700 },
-          { id: newId(), type: 'text' as const, x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400 },
+          { id: newId(), type: 'text' as const, x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700, color: '#1A1A1A' },
+          { id: newId(), type: 'text' as const, x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400, color: '#1A1A1A' },
         ]
       }];
       nextIndex = next.length - 1;
@@ -332,7 +343,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   };
 
   const addTextBox = () => {
-    const el: SlideElement = { id: newId(), type: 'text', x: 100, y: 200, width: 400, height: 50, content: 'New text box', fontSize: 16, fontWeight: 400 };
+    const el: SlideElement = { id: newId(), type: 'text', x: 100, y: 200, width: 400, height: 50, content: 'New text box', fontSize: 16, fontWeight: 400, color: '#1A1A1A' };
     commitSlides(prev => prev.map((s, i) => i === activeSlide ? { ...s, elements: [...s.elements, el] } : s));
     setSelectedElement(el.id);
   };
@@ -395,6 +406,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
       fontSize: 16,
       fontWeight: 500,
       fontStyle: 'italic',
+      color: '#1A1A1A',
     };
     commitSlides(prev => prev.map((s, i) => i === activeSlide ? { ...s, elements: [...s.elements, el] } : s));
     setSelectedElement(el.id);
@@ -456,6 +468,20 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, textAlign: 'right' }))}><AlignRight className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <label className="h-7 px-2 rounded hover:bg-muted/50 flex items-center cursor-pointer" title="Text Color">
+                        <span className="text-[11px] mr-1">A</span>
+                        <input
+                          type="color"
+                          className="h-4 w-4 border-0 p-0 bg-transparent cursor-pointer"
+                          value={(currentSlide?.elements.find(e => e.id === selectedElement && e.type === 'text') as SlideElement | undefined)?.color || '#1A1A1A'}
+                          onChange={(e) => updateSelectedTextElement(el => ({ ...el, color: e.target.value }))}
+                        />
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent>Text Color</TooltipContent>
+                  </Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={addTextBox}><Type className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Text Box</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleImageUpload}><Image className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Insert Image</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => insertPlaceholder('Shape')}><Square className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Shape</TooltipContent></Tooltip>
@@ -612,7 +638,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                         isEditing ? (
                           <textarea
                             className="w-full h-full bg-transparent outline-none resize-none p-1"
-                            style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, color: 'inherit' }}
+                            style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, color: el.color || '#1A1A1A' }}
                             value={el.content}
                             autoFocus
                             onChange={(e) => updateElementContent(el.id, e.target.value)}
@@ -621,7 +647,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                             onMouseDown={(e) => e.stopPropagation()}
                           />
                         ) : (
-                          <div className="w-full h-full p-1 whitespace-pre-wrap overflow-hidden" style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle || 'normal', textDecoration: el.textDecoration || 'none', textAlign: el.textAlign || 'left' }}>
+                          <div className="w-full h-full p-1 whitespace-pre-wrap overflow-hidden" style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle || 'normal', textDecoration: el.textDecoration || 'none', textAlign: el.textAlign || 'left', color: el.color || '#1A1A1A' }}>
                             {el.content || <span className="text-muted-foreground/40 italic">Click to add text</span>}
                           </div>
                         )
