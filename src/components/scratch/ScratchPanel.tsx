@@ -723,6 +723,87 @@ const getFieldOption = (fields: Record<string, unknown> | undefined, key: string
   return tuple[0];
 };
 
+// Ordered input keys per opcode — must match the order of [..]/<..> slots in each block's label.
+const INPUT_KEYS_BY_OPCODE: Record<string, string[]> = {
+  motion_movesteps: ['STEPS'],
+  motion_turnright: ['DEGREES'],
+  motion_turnleft: ['DEGREES'],
+  motion_gotoxy: ['X', 'Y'],
+  motion_glidesecstoxy: ['SECS', 'X', 'Y'],
+  motion_glideto: ['SECS'],
+  motion_pointindirection: ['DIRECTION'],
+  motion_changexby: ['DX'],
+  motion_setx: ['X'],
+  motion_changeyby: ['DY'],
+  motion_sety: ['Y'],
+  looks_sayforsecs: ['MESSAGE', 'SECS'],
+  looks_say: ['MESSAGE'],
+  looks_thinkforsecs: ['MESSAGE', 'SECS'],
+  looks_think: ['MESSAGE'],
+  looks_changeeffectby: ['CHANGE'],
+  looks_seteffectto: ['VALUE'],
+  looks_changesizeby: ['CHANGE'],
+  looks_setsizeto: ['SIZE'],
+  looks_goforwardbackwardlayers: ['NUM'],
+  sound_changeeffectby: ['VALUE'],
+  sound_seteffectto: ['VALUE'],
+  sound_changevolumeby: ['VOLUME'],
+  sound_setvolumeto: ['VOLUME'],
+  control_wait: ['DURATION'],
+  control_repeat: ['TIMES'],
+  control_if: ['CONDITION'],
+  control_if_else: ['CONDITION'],
+  control_repeat_until: ['CONDITION'],
+  control_wait_until: ['CONDITION'],
+  sensing_askandwait: ['QUESTION'],
+  operator_add: ['NUM1', 'NUM2'],
+  operator_subtract: ['NUM1', 'NUM2'],
+  operator_multiply: ['NUM1', 'NUM2'],
+  operator_divide: ['NUM1', 'NUM2'],
+  operator_random: ['FROM', 'TO'],
+  operator_gt: ['OPERAND1', 'OPERAND2'],
+  operator_lt: ['OPERAND1', 'OPERAND2'],
+  operator_equals: ['OPERAND1', 'OPERAND2'],
+  operator_and: ['OPERAND1', 'OPERAND2'],
+  operator_or: ['OPERAND1', 'OPERAND2'],
+  operator_not: ['OPERAND'],
+  operator_join: ['STRING1', 'STRING2'],
+  operator_letter_of: ['LETTER', 'STRING'],
+  operator_length: ['STRING'],
+  operator_contains: ['STRING1', 'STRING2'],
+  operator_mod: ['NUM1', 'NUM2'],
+  operator_round: ['NUM'],
+  operator_mathop: ['NUM'],
+  data_setvariableto: ['VALUE'],
+  data_changevariableby: ['VALUE'],
+  data_addtolist: ['ITEM'],
+  data_deleteoflist: ['INDEX'],
+  data_insertatlist: ['ITEM', 'INDEX'],
+  data_replaceitemoflist: ['INDEX', 'ITEM'],
+  data_itemoflist: ['INDEX'],
+  data_itemnumoflist: ['ITEM'],
+  data_listcontainsitem: ['ITEM'],
+  pen_changePenColorParamBy: ['VALUE'],
+  pen_setPenColorParamTo: ['VALUE'],
+  pen_changePenSizeBy: ['SIZE'],
+  pen_setPenSizeTo: ['SIZE'],
+};
+
+const getOrderedInputKeysForBlock = (block: ScratchBlockNode): string[] => {
+  const op = block.opcode;
+  if (op === 'procedures_call') {
+    const argIdsJson = block.mutation?.argumentids;
+    if (typeof argIdsJson === 'string') {
+      try {
+        const ids = JSON.parse(argIdsJson) as string[];
+        if (Array.isArray(ids)) return ids;
+      } catch { /* ignore */ }
+    }
+    return [];
+  }
+  return INPUT_KEYS_BY_OPCODE[op] || [];
+};
+
 // Registry of dropdown options for block menus, keyed by the parent opcode.
 // Each entry maps the INPUT key (on the parent block) to:
 //   { menuOpcode, fieldKey, options: [{ value, label }] }
