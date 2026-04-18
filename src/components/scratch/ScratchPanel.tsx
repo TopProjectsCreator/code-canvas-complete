@@ -4076,6 +4076,39 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           onSelect={addLibraryAsset}
         />
       )}
+      {blockContextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-[60]"
+            onClick={() => setBlockContextMenu(null)}
+            onContextMenu={(e) => { e.preventDefault(); setBlockContextMenu(null); }}
+          />
+          <div
+            className="fixed z-[61] min-w-[160px] rounded-md border border-border bg-popover text-popover-foreground shadow-lg py-1 text-sm"
+            style={{ left: blockContextMenu.x, top: blockContextMenu.y }}
+          >
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => { duplicateBlockStack(blockContextMenu.blockId); setBlockContextMenu(null); }}
+            >
+              Duplicate
+            </button>
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => { deleteBlockStack(blockContextMenu.blockId); setBlockContextMenu(null); }}
+            >
+              Delete Block
+            </button>
+            <div className="my-1 border-t border-border" />
+            <button
+              className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+              onClick={() => { cleanUpBlocks(); setBlockContextMenu(null); }}
+            >
+              Clean up Blocks
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };
