@@ -1180,6 +1180,7 @@ const VariablesFlyout = ({
   onDeleteList,
   onRenameVariable,
   onRenameList,
+  onStartFlyoutDrag,
 }: {
   variables: [string, [string, ScratchInputPrimitive]][];
   lists: [string, [string, ScratchInputPrimitive[]]][];
@@ -1192,6 +1193,7 @@ const VariablesFlyout = ({
   onDeleteList: (id: string) => void;
   onRenameVariable: (id: string, oldName: string) => void;
   onRenameList: (id: string, oldName: string) => void;
+  onStartFlyoutDrag: (blockDef: ScratchBlockDef, color: string, e: React.PointerEvent) => void;
 }) => {
   const [contextMenu, setContextMenu] = useState<{
     x: number; y: number; type: 'variable' | 'list'; id: string; name: string;
@@ -1266,11 +1268,7 @@ const VariablesFlyout = ({
             <div key={id} className="flex items-center gap-2">
               <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#ff8c1a]" />
               <div
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(reporterDef));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
+                onPointerDown={(e) => onStartFlyoutDrag(reporterDef, color, e)}
                 className="cursor-grab active:cursor-grabbing"
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -1307,17 +1305,13 @@ const VariablesFlyout = ({
           )}
           {varBlocks.map((blockDef) => {
             const shape = getBlockShape(blockDef.opcode);
+            const patched = activeVarId && activeVarName
+              ? { ...blockDef, fields: { ...blockDef.fields, VARIABLE: [activeVarName, activeVarId] } }
+              : blockDef;
             return (
               <div
                 key={blockDef.label}
-                draggable
-                onDragStart={(e) => {
-                  const patched = activeVarId && activeVarName
-                    ? { ...blockDef, fields: { ...blockDef.fields, VARIABLE: [activeVarName, activeVarId] } }
-                    : blockDef;
-                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(patched));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
+                onPointerDown={(e) => onStartFlyoutDrag(patched, color, e)}
                 onClick={() => handleAddVarBlock(blockDef)}
                 className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
               >
@@ -1352,11 +1346,7 @@ const VariablesFlyout = ({
             <div key={id} className="flex items-center gap-2">
               <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#e6832a]" />
               <div
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(listReporterDef));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
+                onPointerDown={(e) => onStartFlyoutDrag(listReporterDef, '#e6832a', e)}
                 className="cursor-grab active:cursor-grabbing"
                 onContextMenu={(e) => {
                   e.preventDefault();
@@ -1393,17 +1383,13 @@ const VariablesFlyout = ({
           )}
           {listBlocks.map((blockDef) => {
             const shape = getBlockShape(blockDef.opcode);
+            const patched = activeListId && activeListName
+              ? { ...blockDef, fields: { ...blockDef.fields, LIST: [activeListName, activeListId] } }
+              : blockDef;
             return (
               <div
                 key={blockDef.label}
-                draggable
-                onDragStart={(e) => {
-                  const patched = activeListId && activeListName
-                    ? { ...blockDef, fields: { ...blockDef.fields, LIST: [activeListName, activeListId] } }
-                    : blockDef;
-                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(patched));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
+                onPointerDown={(e) => onStartFlyoutDrag(patched, '#e6832a', e)}
                 onClick={() => handleAddListBlock(blockDef)}
                 className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
               >
@@ -1485,23 +1471,17 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     detached: boolean;
   } | null>(null);
   const [dragBlockId, setDragBlockId] = useState<string | null>(null);
-  // True while an HTML5 drag (e.g. flyout block being dragged into workspace) is in progress.
+  // Pointer-based flyout drag (replaces failed HTML5 dataTransfer approach).
+  // Tracks a block definition being dragged from the flyout/palette into the workspace.
+  const [flyoutDrag, setFlyoutDrag] = useState<{
+    blockDef: ScratchBlockDef;
+    color: string;
+    ghostX: number;
+    ghostY: number;
+  } | null>(null);
+  const flyoutDragRef = useRef<{ blockDef: ScratchBlockDef; color: string; startX: number; startY: number } | null>(null);
   // Used to disable shadow input pointer-events so drops land on the slot, not the input overlay.
-  const [isHtml5Dragging, setIsHtml5Dragging] = useState(false);
-  useEffect(() => {
-    const onStart = (e: DragEvent) => {
-      if (e.dataTransfer?.types?.includes('application/scratch-block')) setIsHtml5Dragging(true);
-    };
-    const onEnd = () => setIsHtml5Dragging(false);
-    window.addEventListener('dragstart', onStart);
-    window.addEventListener('dragend', onEnd);
-    window.addEventListener('drop', onEnd);
-    return () => {
-      window.removeEventListener('dragstart', onStart);
-      window.removeEventListener('dragend', onEnd);
-      window.removeEventListener('drop', onEnd);
-    };
-  }, []);
+  const isHtml5Dragging = flyoutDrag !== null;
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
   // Per-block input slot rects (in block-local SVG coords). Populated by ScratchBlockShape onSlots.
   const slotsRegistryRef = useRef<Map<string, { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]>>(new Map());
@@ -2727,6 +2707,72 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     };
   }, [workspaceZoom]);
 
+  // Pointer-based flyout drag: starts when user presses on a flyout/palette block.
+  // Tracks pointer globally; on release, decides whether to attach to a slot or place free.
+  const startFlyoutDrag = useCallback((blockDef: ScratchBlockDef, color: string, e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    flyoutDragRef.current = { blockDef, color, startX: e.clientX, startY: e.clientY };
+    setFlyoutDrag({ blockDef, color, ghostX: e.clientX, ghostY: e.clientY });
+
+    let moved = false;
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - (flyoutDragRef.current?.startX ?? ev.clientX);
+      const dy = ev.clientY - (flyoutDragRef.current?.startY ?? ev.clientY);
+      if (!moved && Math.hypot(dx, dy) < 4) return;
+      moved = true;
+      setFlyoutDrag((prev) => prev ? { ...prev, ghostX: ev.clientX, ghostY: ev.clientY } : prev);
+
+      const ws = workspaceRef.current;
+      if (!ws) return;
+      const rect = ws.getBoundingClientRect();
+      if (ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom) {
+        setInputDropTarget(null);
+        return;
+      }
+      const x = (ev.clientX - rect.left) / workspaceZoom;
+      const y = (ev.clientY - rect.top) / workspaceZoom;
+      const shape = getBlockShape(blockDef.opcode);
+      if (shape === 'reporter' || shape === 'boolean') {
+        const t = findSlotDropTarget(selectedTarget?.blocks || {}, x, y, shape, new Set());
+        setInputDropTarget(t);
+      } else {
+        setInputDropTarget(null);
+      }
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      const stash = flyoutDragRef.current;
+      flyoutDragRef.current = null;
+      setFlyoutDrag(null);
+      setInputDropTarget(null);
+      if (!stash) return;
+      if (!moved) return; // click-only; existing onClick handler handles add
+
+      const ws = workspaceRef.current;
+      if (!ws) return;
+      const rect = ws.getBoundingClientRect();
+      if (ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom) return;
+      const x = (ev.clientX - rect.left) / workspaceZoom;
+      const y = (ev.clientY - rect.top) / workspaceZoom;
+      const shape = getBlockShape(stash.blockDef.opcode);
+      if (shape === 'reporter' || shape === 'boolean') {
+        const t = findSlotDropTarget(selectedTarget?.blocks || {}, x, y, shape, new Set());
+        if (t) {
+          attachReporterToSlot(stash.blockDef, t.blockId, t.inputKey);
+          return;
+        }
+      }
+      addBlock(stash.blockDef, x, y);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, [workspaceZoom, selectedTarget]);
+
   const getBlockStack = useCallback((blocks: Record<string, ScratchBlockNode>, startId: string): string[] => {
     const ids: string[] = [startId];
     let current = blocks[startId];
@@ -3362,6 +3408,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   onDeleteList={deleteList}
                   onRenameVariable={renameVariable}
                   onRenameList={renameList}
+                  onStartFlyoutDrag={startFlyoutDrag}
                 />
               ) : activeCategory === 'My Blocks' ? (
                 <div className="space-y-2">
@@ -3399,11 +3446,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                           return (
                             <div
                               key={`${p.type}-${p.name}`}
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData('application/scratch-block', JSON.stringify(def));
-                                e.dataTransfer.effectAllowed = 'copy';
-                              }}
+                              onPointerDown={(e) => startFlyoutDrag(def, color, e)}
                               onClick={() => addBlock(def)}
                               className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all inline-block mr-1"
                             >
@@ -3465,22 +3508,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         return (
                           <div key={proc.proccode} className="space-y-1">
                             <div
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData('application/scratch-block', JSON.stringify(defDef));
-                                e.dataTransfer.effectAllowed = 'copy';
-                              }}
+                              onPointerDown={(e) => startFlyoutDrag(defDef, color, e)}
                               onClick={() => addBlock(defDef)}
                               className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                             >
                               <ScratchBlockShape label={defDef.label} color={color} shape={getBlockShape(defDef.opcode)} />
                             </div>
                             <div
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData('application/scratch-block', JSON.stringify(callDef));
-                                e.dataTransfer.effectAllowed = 'copy';
-                              }}
+                              onPointerDown={(e) => startFlyoutDrag(callDef, color, e)}
                               onClick={() => addBlock(callDef)}
                               className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                             >
@@ -3500,11 +3535,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   return (
                     <div
                       key={blockDef.label}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
-                        e.dataTransfer.effectAllowed = 'copy';
-                      }}
+                      onPointerDown={(e) => startFlyoutDrag(blockDef, color, e)}
                       onClick={() => addBlock(blockDef)}
                       className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                     >
@@ -3784,6 +3815,19 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             <button className="w-8 h-8 rounded-full bg-[#855cd6] text-white flex items-center justify-center shadow-md hover:bg-[#7248bf]" onClick={() => setWorkspaceZoom((z) => Math.max(0.7, z - 0.1))}><ZoomOut className="w-4 h-4" /></button>
             <button className="w-8 h-8 rounded-full bg-white border border-[#d0d0d0] text-[#575e75] flex items-center justify-center shadow-md" onClick={() => setWorkspaceZoom(1)}><CircleMinus className="w-4 h-4" /></button>
           </div>
+          {/* Floating ghost block following cursor during flyout drag */}
+          {flyoutDrag && (
+            <div
+              className="fixed pointer-events-none z-[9999] opacity-80"
+              style={{ left: flyoutDrag.ghostX + 8, top: flyoutDrag.ghostY + 8 }}
+            >
+              <ScratchBlockShape
+                label={flyoutDrag.blockDef.label}
+                color={flyoutDrag.color}
+                shape={getBlockShape(flyoutDrag.blockDef.opcode)}
+              />
+            </div>
+          )}
         </div>
 
         {/* --- RIGHT: Stage + Sprite info + Sprite list --- */}
