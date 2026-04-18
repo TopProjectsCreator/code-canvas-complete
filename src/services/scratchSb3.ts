@@ -76,7 +76,10 @@ const convertLegacyProjectToSb3 = async (arrayBuffer: ArrayBuffer): Promise<Arra
 
 export const exportSb3 = async (archive: ScratchArchive): Promise<Uint8Array> => {
   const zip = new JSZip();
-  const fileNames = archive.fileNames.length > 0 ? archive.fileNames : Object.keys(archive.files);
+  const fileNames = Array.from(new Set([
+    ...archive.fileNames,
+    ...Object.keys(archive.files),
+  ]));
 
   for (const name of fileNames) {
     if (name === 'project.json') continue;
