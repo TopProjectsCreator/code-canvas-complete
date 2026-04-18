@@ -207,9 +207,10 @@ export const getBlockShape = (opcode: string): ScratchBlockShapeProps['shape'] =
   if (opcode === 'argument_reporter_boolean') return 'boolean';
   if (opcode === 'argument_reporter_string_number') return 'reporter';
   if (['sensing_answer', 'sensing_mousex', 'sensing_mousey', 'sensing_loudness', 'sensing_timer', 'sensing_dayssince2000', 'sensing_current',
+    'sensing_username', 'sensing_of',
     'operator_add', 'operator_subtract', 'operator_multiply', 'operator_divide', 'operator_random',
     'operator_join', 'operator_letter_of', 'operator_length', 'operator_mod', 'operator_round', 'operator_mathop',
-    'data_itemoflist', 'data_lengthoflist', 'sensing_distanceto',
+    'data_variable', 'data_listcontents', 'data_itemoflist', 'data_itemnumoflist', 'data_lengthoflist', 'sensing_distanceto',
     'motion_xposition', 'motion_yposition', 'motion_direction',
     'looks_costumenumbername', 'looks_backdropnumbername', 'looks_size',
     'sound_volume',
