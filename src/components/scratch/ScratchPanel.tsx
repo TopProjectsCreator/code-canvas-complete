@@ -21,6 +21,7 @@ import {
 import VirtualMachine from 'scratch-vm';
 import { ScratchArchive, exportScratchArchive, importScratchArchive } from '@/services/scratchSb3';
 import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
+import { ShadowInput } from './ShadowInput';
 import { ScratchLibraryDialog, type LibraryMode } from './ScratchLibraryDialog';
 import { type ScratchLibraryAsset, assetUrl } from '@/data/scratchLibrary';
 
