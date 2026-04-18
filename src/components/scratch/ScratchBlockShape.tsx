@@ -228,6 +228,7 @@ export const ScratchBlockShape = ({
   mouthHeight = 24,
   className = '',
   style = {},
+  onSlots,
 }: ScratchBlockShapeProps) => {
   const segments = parseLabel(label);
   const hasInputs = segments.some((s) => s.type !== 'text');
@@ -237,6 +238,33 @@ export const ScratchBlockShape = ({
   const h = height ?? (shape === 'hat' ? STACK_H + HAT_CURVE : shape === 'reporter' || shape === 'boolean' ? 28 : STACK_H);
   const totalH = shape === 'c-block' ? STACK_H + mouthHeight + STACK_H + NOTCH_H : h + NOTCH_H;
   const darker = darken(color);
+
+  // Compute slot rects for hit-testing reporter/boolean drops.
+  // Mirrors layout from renderSegments() — keep in sync.
+  if (onSlots) {
+    const collected: SlotRect[] = [];
+    let x = shape === 'boolean' ? h / 2 + 4 : shape === 'reporter' ? h / 2 : 10;
+    const inputY = (h - INPUT_H) / 2;
+    const boolY = (h - BOOL_H) / 2;
+    let slotIndex = 0;
+    for (const seg of segments) {
+      if (seg.type === 'text') {
+        x += seg.value.length * CHAR_W;
+      } else if (seg.type === 'reporter') {
+        const inputW = Math.max(seg.value.length * CHAR_W + INPUT_PAD * 2 + 4, 28);
+        collected.push({ index: slotIndex++, type: 'reporter', x, y: inputY, width: inputW, height: INPUT_H });
+        x += inputW + 4;
+      } else if (seg.type === 'boolean') {
+        const inputW = Math.max(seg.value.length * CHAR_W + BOOL_H + 4, 32);
+        collected.push({ index: slotIndex++, type: 'boolean', x, y: boolY, width: inputW, height: BOOL_H });
+        x += inputW + 4;
+      } else if (seg.type === 'dropdown') {
+        x += seg.value.length * CHAR_W + DROPDOWN_PAD * 2 + DROPDOWN_ARROW + 8;
+      }
+    }
+    // Emit during render — guarded by onSlots; consumer should memoize handler or accept frequent calls
+    queueMicrotask(() => onSlots(collected));
+  }
 
   let pathD: string;
   switch (shape) {
