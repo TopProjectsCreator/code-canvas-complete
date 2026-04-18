@@ -192,22 +192,71 @@ async function handleFal(apiKey: string, prompt: string, corsHeaders: Record<str
   );
 }
 
-async function handleNeural4D(apiKey: string, prompt: string, corsHeaders: Record<string, string>) {
-  // Neural4D - fast synchronous generation
-  const resp = await fetch("https://api.neural4d.com/v1/generate", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, format: "glb" }),
-  });
-  const data = await resp.json();
-  if (!resp.ok) {
+async function handleNeural4D(apiKey: string, prompt: string, taskId: string | null, corsHeaders: Record<string, string>) {
+  // Neural4D uses an async flow:
+  // 1) create generation job -> returns uuids[]
+  // 2) poll /retrieveModel with uuid until codeStatus=0
+  if (taskId) {
+    const statusResp = await fetch("https://alb.neural4d.com:3000/api/retrieveModel", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ uuid: taskId }),
+    });
+    const statusData = await statusResp.json();
+    if (!statusResp.ok) {
+      return new Response(
+        JSON.stringify({ error: statusData.error || statusData.message || "Neural4D status check failed" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: statusResp.status }
+      );
+    }
+
+    const codeStatus = statusData.codeStatus;
+    if (codeStatus === 0 && statusData.modelUrl) {
+      return new Response(
+        JSON.stringify({ status: "SUCCEEDED", glbUrl: statusData.modelUrl }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } else if (codeStatus === -3) {
+      return new Response(
+        JSON.stringify({ status: "FAILED", error: statusData.message || "Neural4D generation failed" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } else if (codeStatus === -1 || codeStatus === -2) {
+      return new Response(
+        JSON.stringify({ error: statusData.message || "Neural4D request invalid" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ error: data.error || data.message || "Neural4D generation failed" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: resp.status }
+      JSON.stringify({ status: "PENDING" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
+
+  const createResp = await fetch("https://alb.neural4d.com:3000/api/generateModelWithText", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, modelCount: 1, disablePbr: 0 }),
+  });
+  const createData = await createResp.json();
+  if (!createResp.ok) {
+    return new Response(
+      JSON.stringify({ error: createData.error || createData.message || "Failed to start Neural4D generation" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: createResp.status }
+    );
+  }
+
+  const firstUuid = Array.isArray(createData.uuids) ? createData.uuids[0] : null;
+  if (!firstUuid) {
+    return new Response(
+      JSON.stringify({ error: createData.message || "Neural4D did not return a model id" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+    );
+  }
+
   return new Response(
-    JSON.stringify({ status: "SUCCEEDED", glbUrl: data.model_url || data.url }),
+    JSON.stringify({ status: "polling", taskId: firstUuid }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
@@ -281,7 +330,7 @@ serve(async (req) => {
       case "fal":
         return await handleFal(apiKey, prompt, corsHeaders);
       case "neural4d":
-        return await handleNeural4D(apiKey, prompt, corsHeaders);
+        return await handleNeural4D(apiKey, prompt, taskId, corsHeaders);
       default:
         return new Response(
           JSON.stringify({ error: "Unknown provider" }),

@@ -81,10 +81,10 @@ const PROVIDER_TESTS: Record<string, { url: string; method: string; headers: (ke
     body: JSON.stringify({ prompt: "test" }),
   },
   neural4d: {
-    url: "https://api.neural4d.com/v1/generate",
+    url: "https://alb.neural4d.com:3000/api/queryPointsInfo",
     method: "POST",
     headers: (key) => ({ Authorization: `Bearer ${key}`, "Content-Type": "application/json" }),
-    body: JSON.stringify({ prompt: "test" }),
+    body: JSON.stringify({}),
   },
 
   stability: {
