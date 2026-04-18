@@ -3622,9 +3622,60 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     color={blockColor}
                     shape={shape}
                     onSlots={(slots) => {
-                      slotsRegistryRef.current.set(block.id, slots.filter((s) => s.type === 'reporter' || s.type === 'boolean') as { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]);
+                      const filtered = slots.filter((s) => s.type === 'reporter' || s.type === 'boolean') as { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[];
+                      const prev = slotsRegistryRef.current.get(block.id);
+                      const same = prev && prev.length === filtered.length && prev.every((p, i) => p.x === filtered[i].x && p.y === filtered[i].y && p.width === filtered[i].width && p.height === filtered[i].height);
+                      slotsRegistryRef.current.set(block.id, filtered);
+                      if (!same) setSlotsTick((t) => t + 1);
                     }}
                   />
+                  {/* Editable shadow value overlays */}
+                  {(() => {
+                    void slotsTick;
+                    const slots = slotsRegistryRef.current.get(block.id) || [];
+                    const orderedKeys = getOrderedInputKeysForBlock(block);
+                    return slots.map((slot) => {
+                      if (slot.type !== 'reporter') return null;
+                      const inputKey = orderedKeys[slot.index];
+                      if (!inputKey) return null;
+                      const ref = (block.inputs || {})[inputKey] as unknown[] | undefined;
+                      if (!Array.isArray(ref)) return null;
+                      // If a real reporter block is attached, don't show editable input
+                      if (ref[0] === 3 && typeof ref[1] === 'string') return null;
+                      const shadowTuple = (ref[0] === 1 ? ref[1] : ref[ref.length - 1]) as unknown;
+                      if (!Array.isArray(shadowTuple)) return null;
+                      const currentValue = String(shadowTuple[1] ?? '');
+                      const isEditing = editingShadow?.blockId === block.id && editingShadow?.inputKey === inputKey;
+                      return (
+                        <input
+                          key={inputKey}
+                          type="text"
+                          value={currentValue}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={(e) => { e.stopPropagation(); setEditingShadow({ blockId: block.id, inputKey }); }}
+                          onFocus={() => setEditingShadow({ blockId: block.id, inputKey })}
+                          onBlur={() => setEditingShadow(null)}
+                          onChange={(e) => updateShadowValue(block.id, inputKey, e.target.value)}
+                          className="absolute text-center outline-none"
+                          style={{
+                            left: slot.x,
+                            top: slot.y,
+                            width: slot.width,
+                            height: slot.height,
+                            borderRadius: slot.height / 2,
+                            background: 'white',
+                            color: '#575e75',
+                            fontSize: 11,
+                            fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif",
+                            border: isEditing ? '2px solid #ffbf00' : 'none',
+                            padding: 0,
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               );
             })}
