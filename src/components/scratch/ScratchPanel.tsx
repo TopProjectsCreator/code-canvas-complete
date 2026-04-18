@@ -3521,22 +3521,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         return (
                           <div key={proc.proccode} className="space-y-1">
                             <div
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData('application/scratch-block', JSON.stringify(defDef));
-                                e.dataTransfer.effectAllowed = 'copy';
-                              }}
+                              onPointerDown={(e) => startFlyoutDrag(defDef, color, e)}
                               onClick={() => addBlock(defDef)}
                               className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                             >
                               <ScratchBlockShape label={defDef.label} color={color} shape={getBlockShape(defDef.opcode)} />
                             </div>
                             <div
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData('application/scratch-block', JSON.stringify(callDef));
-                                e.dataTransfer.effectAllowed = 'copy';
-                              }}
+                              onPointerDown={(e) => startFlyoutDrag(callDef, color, e)}
                               onClick={() => addBlock(callDef)}
                               className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                             >
