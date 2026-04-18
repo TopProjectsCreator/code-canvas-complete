@@ -2542,16 +2542,104 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     });
   };
 
+  // Find a compatible empty input slot under the workspace coords (in unzoomed space).
+  // sourceShape: 'reporter' | 'boolean' — strict matching.
+  const findSlotDropTarget = useCallback((
+    blocks: Record<string, ScratchBlockNode>,
+    wsX: number,
+    wsY: number,
+    sourceShape: 'reporter' | 'boolean',
+    excludeIds: Set<string>,
+  ): { blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null => {
+    let best: { blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number; score: number } | null = null;
+    slotsRegistryRef.current.forEach((slots, blockId) => {
+      if (excludeIds.has(blockId)) return;
+      const block = blocks[blockId];
+      if (!block) return;
+      const bx = block.x ?? 0;
+      const by = block.y ?? 0;
+      const orderedKeys = getOrderedInputKeysForBlock(block);
+      slots.forEach((slot) => {
+        if (slot.type !== sourceShape) return;
+        const inputKey = orderedKeys[slot.index];
+        if (!inputKey) return;
+        // Skip if this input already holds a non-shadow block reference.
+        const existing = block.inputs?.[inputKey] as unknown[] | undefined;
+        if (Array.isArray(existing) && existing[0] === 3 && typeof existing[1] === 'string') return;
+        const ax = bx + slot.x;
+        const ay = by + slot.y;
+        if (wsX >= ax - 4 && wsX <= ax + slot.width + 4 && wsY >= ay - 4 && wsY <= ay + slot.height + 4) {
+          const cx = ax + slot.width / 2;
+          const cy = ay + slot.height / 2;
+          const score = Math.abs(wsX - cx) + Math.abs(wsY - cy);
+          if (!best || score < best.score) {
+            best = { blockId, inputKey, type: slot.type, x: ax, y: ay, width: slot.width, height: slot.height, score };
+          }
+        }
+      });
+    });
+    if (!best) return null;
+    const { score: _s, ...rest } = best;
+    return rest;
+  }, []);
+
   const handleWorkspaceDrop = (e: React.DragEvent) => {
     e.preventDefault();
     try {
-      const data = JSON.parse(e.dataTransfer.getData('application/scratch-block'));
+      const data = JSON.parse(e.dataTransfer.getData('application/scratch-block')) as ScratchBlockDef;
       const rect = e.currentTarget.getBoundingClientRect();
       const x = (e.clientX - rect.left) / workspaceZoom;
       const y = (e.clientY - rect.top) / workspaceZoom;
+      // If the dragged block is a reporter or boolean and is dropped over a compatible slot,
+      // attach it as an input instead of placing it free in the workspace.
+      const droppedShape = getBlockShape(data.opcode);
+      if (droppedShape === 'reporter' || droppedShape === 'boolean') {
+        const blocks = selectedTarget?.blocks || {};
+        const target = findSlotDropTarget(blocks, x, y, droppedShape, new Set());
+        if (target) {
+          attachReporterToSlot(data, target.blockId, target.inputKey);
+          return;
+        }
+      }
       addBlock(data, x, y);
     } catch { /* ignore */ }
   };
+
+  // Create a new reporter/boolean block from a flyout def and attach it as a slot input on parentId.
+  const attachReporterToSlot = (blockDef: ScratchBlockDef, parentId: string, inputKey: string) => {
+    const newId = generateId();
+    updateProject((current) => ({
+      ...current,
+      targets: current.targets.map((target, idx) => {
+        if (idx !== selectedTargetIndex) return target;
+        const blocks = { ...(target.blocks || {}) };
+        const parent = blocks[parentId];
+        if (!parent) return target;
+        const dataResolved = ensureDataRefForTarget(target, blockDef);
+        const vmCompat = createVmCompatibleBlockShape(newId, { ...blockDef, fields: dataResolved.fields });
+        blocks[newId] = {
+          id: newId,
+          opcode: vmCompat.opcodeOverride,
+          parent: parentId,
+          topLevel: false,
+          shadow: false,
+          inputs: vmCompat.inputs,
+          fields: vmCompat.fields,
+          mutation: vmCompat.mutation,
+          next: null,
+        };
+        Object.assign(blocks, vmCompat.extraBlocks);
+        // Preserve original shadow if any (so removing the reporter restores the default value).
+        const oldInput = parent.inputs?.[inputKey] as unknown[] | undefined;
+        const shadowRef = Array.isArray(oldInput) && oldInput.length >= 2 ? oldInput[oldInput.length - 1] : null;
+        const newInputs = { ...(parent.inputs || {}) };
+        newInputs[inputKey] = shadowRef ? [3, newId, shadowRef] : [3, newId, [10, '']];
+        blocks[parentId] = { ...parent, inputs: newInputs };
+        return { ...dataResolved.target, blocks };
+      }),
+    }));
+  };
+
 
   // ── Pointer-based block dragging ──
   const getWorkspaceCoords = useCallback((clientX: number, clientY: number) => {
