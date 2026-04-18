@@ -1383,17 +1383,13 @@ const VariablesFlyout = ({
           )}
           {listBlocks.map((blockDef) => {
             const shape = getBlockShape(blockDef.opcode);
+            const patched = activeListId && activeListName
+              ? { ...blockDef, fields: { ...blockDef.fields, LIST: [activeListName, activeListId] } }
+              : blockDef;
             return (
               <div
                 key={blockDef.label}
-                draggable
-                onDragStart={(e) => {
-                  const patched = activeListId && activeListName
-                    ? { ...blockDef, fields: { ...blockDef.fields, LIST: [activeListName, activeListId] } }
-                    : blockDef;
-                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(patched));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
+                onPointerDown={(e) => onStartFlyoutDrag(patched, '#e6832a', e)}
                 onClick={() => handleAddListBlock(blockDef)}
                 className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
               >
