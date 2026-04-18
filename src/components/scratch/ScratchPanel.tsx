@@ -2738,8 +2738,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       const shape = getBlockShape(blockDef.opcode);
       if (shape === 'reporter' || shape === 'boolean') {
         const t = findSlotDropTarget(selectedTarget?.blocks || {}, x, y, shape, new Set());
+        inputDropTargetRef.current = t;
         setInputDropTarget(t);
       } else {
+        inputDropTargetRef.current = null;
         setInputDropTarget(null);
       }
     };
