@@ -220,17 +220,26 @@ async function handleNeural4D(apiKey: string, prompt: string, taskId: string | n
   // Neural4D uses an async flow:
   // 1) create generation job -> returns uuids[]
   // 2) poll /retrieveModel with uuid until codeStatus=0
+  const unreachableMsg = "Neural4D's API (port 3000) is not reachable from our servers. Please switch providers (Meshy, Tripo, Sloyd, ModelsLab, or Fal.ai).";
   if (taskId) {
-    const statusResp = await fetch("https://alb.neural4d.com:3000/api/retrieveModel", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ uuid: taskId }),
-    });
+    let statusResp: Response;
+    try {
+      statusResp = await fetch("https://alb.neural4d.com:3000/api/retrieveModel", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ uuid: taskId }),
+      });
+    } catch (_e) {
+      return new Response(
+        JSON.stringify({ status: "FAILED", error: unreachableMsg, unreachable: true }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
     const statusData = await statusResp.json();
     if (!statusResp.ok) {
       return new Response(
-        JSON.stringify({ error: statusData.error || statusData.message || "Neural4D status check failed" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: statusResp.status }
+        JSON.stringify({ status: "FAILED", error: statusData.error || statusData.message || "Neural4D status check failed" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
 
