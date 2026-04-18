@@ -6,7 +6,6 @@ import {
   backdropLibrary,
   soundLibrary,
   assetUrl,
-  getUniqueTags,
 } from '@/data/scratchLibrary';
 
 export type LibraryMode = 'costumes' | 'backdrops' | 'sounds';
@@ -17,6 +16,13 @@ interface ScratchLibraryDialogProps {
   onClose: () => void;
   onSelect: (asset: ScratchLibraryAsset) => void;
 }
+
+// Curated tag whitelist per mode — keeps the chip bar to one tidy row of common categories.
+const MODE_TAGS: Record<LibraryMode, string[]> = {
+  costumes: ['animals', 'people', 'fantasy', 'food', 'sports', 'music', 'dance', 'things', 'letters'],
+  backdrops: ['outdoors', 'indoors', 'sports', 'music', 'space', 'fantasy', 'patterns', 'nature'],
+  sounds: ['music', 'effects', 'animals', 'human', 'notes', 'voice', 'percussion', 'loops'],
+};
 
 const modeConfig: Record<LibraryMode, { title: string; library: ScratchLibraryAsset[]; accent: string }> = {
   costumes: { title: 'Choose a Costume', library: costumeLibrary, accent: '#855cd6' },
@@ -31,7 +37,12 @@ export function ScratchLibraryDialog({ mode, open, onClose, onSelect }: ScratchL
 
   const { title, library, accent } = modeConfig[mode];
 
-  const tags = useMemo(() => getUniqueTags(library), [library]);
+  // Only show whitelist tags that actually appear in this library.
+  const tags = useMemo(() => {
+    const present = new Set<string>();
+    library.forEach((a) => a.tags.forEach((t) => present.add(t)));
+    return MODE_TAGS[mode].filter((t) => present.has(t));
+  }, [library, mode]);
 
   const filtered = useMemo(() => {
     let items = library;
