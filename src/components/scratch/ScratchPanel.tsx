@@ -3408,6 +3408,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   onDeleteList={deleteList}
                   onRenameVariable={renameVariable}
                   onRenameList={renameList}
+                  onStartFlyoutDrag={startFlyoutDrag}
                 />
               ) : activeCategory === 'My Blocks' ? (
                 <div className="space-y-2">
