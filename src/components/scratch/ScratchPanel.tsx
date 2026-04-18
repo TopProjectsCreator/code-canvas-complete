@@ -1268,11 +1268,7 @@ const VariablesFlyout = ({
             <div key={id} className="flex items-center gap-2">
               <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#ff8c1a]" />
               <div
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(reporterDef));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
+                onPointerDown={(e) => onStartFlyoutDrag(reporterDef, color, e)}
                 className="cursor-grab active:cursor-grabbing"
                 onContextMenu={(e) => {
                   e.preventDefault();
