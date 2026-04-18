@@ -2721,6 +2721,72 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     };
   }, [workspaceZoom]);
 
+  // Pointer-based flyout drag: starts when user presses on a flyout/palette block.
+  // Tracks pointer globally; on release, decides whether to attach to a slot or place free.
+  const startFlyoutDrag = useCallback((blockDef: ScratchBlockDef, color: string, e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    flyoutDragRef.current = { blockDef, color, startX: e.clientX, startY: e.clientY };
+    setFlyoutDrag({ blockDef, color, ghostX: e.clientX, ghostY: e.clientY });
+
+    let moved = false;
+
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - (flyoutDragRef.current?.startX ?? ev.clientX);
+      const dy = ev.clientY - (flyoutDragRef.current?.startY ?? ev.clientY);
+      if (!moved && Math.hypot(dx, dy) < 4) return;
+      moved = true;
+      setFlyoutDrag((prev) => prev ? { ...prev, ghostX: ev.clientX, ghostY: ev.clientY } : prev);
+
+      const ws = workspaceRef.current;
+      if (!ws) return;
+      const rect = ws.getBoundingClientRect();
+      if (ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom) {
+        setInputDropTarget(null);
+        return;
+      }
+      const x = (ev.clientX - rect.left) / workspaceZoom;
+      const y = (ev.clientY - rect.top) / workspaceZoom;
+      const shape = getBlockShape(blockDef.opcode);
+      if (shape === 'reporter' || shape === 'boolean') {
+        const t = findSlotDropTarget(selectedTarget?.blocks || {}, x, y, shape, new Set());
+        setInputDropTarget(t);
+      } else {
+        setInputDropTarget(null);
+      }
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      const stash = flyoutDragRef.current;
+      flyoutDragRef.current = null;
+      setFlyoutDrag(null);
+      setInputDropTarget(null);
+      if (!stash) return;
+      if (!moved) return; // click-only; existing onClick handler handles add
+
+      const ws = workspaceRef.current;
+      if (!ws) return;
+      const rect = ws.getBoundingClientRect();
+      if (ev.clientX < rect.left || ev.clientX > rect.right || ev.clientY < rect.top || ev.clientY > rect.bottom) return;
+      const x = (ev.clientX - rect.left) / workspaceZoom;
+      const y = (ev.clientY - rect.top) / workspaceZoom;
+      const shape = getBlockShape(stash.blockDef.opcode);
+      if (shape === 'reporter' || shape === 'boolean') {
+        const t = findSlotDropTarget(selectedTarget?.blocks || {}, x, y, shape, new Set());
+        if (t) {
+          attachReporterToSlot(stash.blockDef, t.blockId, t.inputKey);
+          return;
+        }
+      }
+      addBlock(stash.blockDef, x, y);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, [workspaceZoom, selectedTarget]);
+
   const getBlockStack = useCallback((blocks: Record<string, ScratchBlockNode>, startId: string): string[] => {
     const ids: string[] = [startId];
     let current = blocks[startId];
