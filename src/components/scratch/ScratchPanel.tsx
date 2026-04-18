@@ -1479,6 +1479,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   } | null>(null);
   const [dragBlockId, setDragBlockId] = useState<string | null>(null);
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
+  // Per-block input slot rects (in block-local SVG coords). Populated by ScratchBlockShape onSlots.
+  const slotsRegistryRef = useRef<Map<string, { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]>>(new Map());
+  const [inputDropTarget, setInputDropTarget] = useState<{ blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [vmError, setVmError] = useState<string | null>(null);
   const [scratchVersion, setScratchVersion] = useState<ScratchCompatibilityVersion>('scratch3');
