@@ -2572,11 +2572,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         const ay = by + slot.y;
         const cx = ax + slot.width / 2;
         const cy = ay + slot.height / 2;
-        // Generous snap zone: expand bounding box by ~20px and also accept any point within 30px of slot center.
-        const PAD = 20;
+        // Very generous snap zone: large bounding box pad + wide radius from slot center.
+        const PAD = 40;
         const inBox = wsX >= ax - PAD && wsX <= ax + slot.width + PAD && wsY >= ay - PAD && wsY <= ay + slot.height + PAD;
         const distToCenter = Math.hypot(wsX - cx, wsY - cy);
-        if (inBox || distToCenter <= 30) {
+        if (inBox || distToCenter <= 60) {
           const score = distToCenter;
           if (!best || score < best.score) {
             best = { blockId, inputKey, type: slot.type, x: ax, y: ay, width: slot.width, height: slot.height, score };
@@ -3388,8 +3388,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         {/* --- CENTER: Workspace --- */}
         <div className="flex-1 min-w-0 relative overflow-hidden scratch-workspace" style={{ background: '#fff' }}
-          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
-          onDrop={handleWorkspaceDrop}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            // Live highlight: peek at the dragged opcode via dataTransfer types if available.
+            // Fallback: try both shapes and prefer reporter, since most palette drags are reporters.
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / workspaceZoom;
+            const y = (e.clientY - rect.top) / workspaceZoom;
+            const blocks = selectedTarget?.blocks || {};
+            const r = findSlotDropTarget(blocks, x, y, 'reporter', new Set());
+            const b = r ? null : findSlotDropTarget(blocks, x, y, 'boolean', new Set());
+            setInputDropTarget(r || b);
+          }}
+          onDragLeave={() => setInputDropTarget(null)}
+          onDrop={(e) => { setInputDropTarget(null); handleWorkspaceDrop(e); }}
           onPointerMove={handleWorkspacePointerMove}
           onPointerUp={handleWorkspacePointerUp}
           onPointerLeave={handleWorkspacePointerUp}
