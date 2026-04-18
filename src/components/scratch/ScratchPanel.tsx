@@ -2570,10 +2570,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         if (Array.isArray(existing) && existing[0] === 3 && typeof existing[1] === 'string') return;
         const ax = bx + slot.x;
         const ay = by + slot.y;
-        if (wsX >= ax - 4 && wsX <= ax + slot.width + 4 && wsY >= ay - 4 && wsY <= ay + slot.height + 4) {
-          const cx = ax + slot.width / 2;
-          const cy = ay + slot.height / 2;
-          const score = Math.abs(wsX - cx) + Math.abs(wsY - cy);
+        const cx = ax + slot.width / 2;
+        const cy = ay + slot.height / 2;
+        // Generous snap zone: expand bounding box by ~20px and also accept any point within 30px of slot center.
+        const PAD = 20;
+        const inBox = wsX >= ax - PAD && wsX <= ax + slot.width + PAD && wsY >= ay - PAD && wsY <= ay + slot.height + PAD;
+        const distToCenter = Math.hypot(wsX - cx, wsY - cy);
+        if (inBox || distToCenter <= 30) {
+          const score = distToCenter;
           if (!best || score < best.score) {
             best = { blockId, inputKey, type: slot.type, x: ax, y: ay, width: slot.width, height: slot.height, score };
           }
