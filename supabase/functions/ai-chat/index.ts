@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { DOCS_INDEX } from "../_shared/docsIndex.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -624,7 +625,138 @@ const BASE_TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "search_docs",
+      description:
+        "Search CodeCanvas IDE built-in documentation. Returns matching pages with title, slug, category, and summary. Use this BEFORE answering questions about IDE features, then call read_doc with the most relevant slug to get full content.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Keywords to search docs for (e.g. 'arduino flashing', 'extensions runtime')" },
+          limit: { type: "number", description: "Max results to return (default 5, max 10)" },
+        },
+        required: ["query"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_doc",
+      description:
+        "Read the full content of a specific CodeCanvas documentation page by its slug. Use after search_docs to get details before replying.",
+      parameters: {
+        type: "object",
+        properties: {
+          slug: { type: "string", description: "The doc slug returned from search_docs" },
+        },
+        required: ["slug"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_my_projects",
+      description:
+        "List the user's other projects in CodeCanvas (excluding the current one). Use this when the user references something they built before, or when you need code/assets from another project. Returns id, name, language, description, updated_at.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Optional name filter" },
+          limit: { type: "number", description: "Max projects to return (default 20)" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_project_file",
+      description:
+        "Read a specific file from one of the user's other projects. Call list_my_projects first to get the project_id. Use this to copy patterns, components, or content from prior work.",
+      parameters: {
+        type: "object",
+        properties: {
+          project_id: { type: "string", description: "Project ID from list_my_projects" },
+          file_path: { type: "string", description: "Full file name/path to read (e.g. 'src/App.tsx')" },
+        },
+        required: ["project_id", "file_path"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
+
+function searchDocs(query: string, limit = 5): string {
+  const q = query.toLowerCase().trim();
+  if (!q) return JSON.stringify({ results: [] });
+  const terms = q.split(/\s+/).filter(Boolean);
+  const scored = (DOCS_INDEX as any[]).map((d) => {
+    const hay = `${d.title} ${d.category} ${d.summary} ${d.slug}`.toLowerCase();
+    let score = 0;
+    for (const t of terms) {
+      if (hay.includes(t)) score += 2;
+      if (d.title.toLowerCase().includes(t)) score += 3;
+      if (d.slug.toLowerCase().includes(t)) score += 2;
+    }
+    return { d, score };
+  }).filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, Math.min(limit || 5, 10));
+  return JSON.stringify({
+    results: scored.map(({ d }) => ({ slug: d.slug, title: d.title, category: d.category, summary: d.summary })),
+    next_step: scored.length > 0 ? "Call read_doc with the most relevant slug to get full content before answering." : "No matches; try web_search.",
+  });
+}
+
+function readDoc(slug: string): string {
+  const doc = (DOCS_INDEX as any[]).find((d) => d.slug === slug);
+  if (!doc) return JSON.stringify({ error: `Doc '${slug}' not found. Use search_docs to find valid slugs.` });
+  return JSON.stringify({ slug: doc.slug, title: doc.title, category: doc.category, content: doc.content });
+}
+
+async function listMyProjects(supabase: any, userId: string, currentProjectId: string | null, query?: string, limit = 20): Promise<string> {
+  try {
+    let q = supabase.from("projects").select("id, name, language, description, updated_at").eq("user_id", userId).order("updated_at", { ascending: false }).limit(Math.min(limit || 20, 50));
+    if (currentProjectId) q = q.neq("id", currentProjectId);
+    if (query) q = q.ilike("name", `%${query}%`);
+    const { data, error } = await q;
+    if (error) return JSON.stringify({ error: error.message });
+    return JSON.stringify({ projects: data || [] });
+  } catch (e: any) {
+    return JSON.stringify({ error: e?.message || "Failed to list projects" });
+  }
+}
+
+async function readProjectFile(supabase: any, userId: string, projectId: string, filePath: string): Promise<string> {
+  try {
+    const { data, error } = await supabase.from("projects").select("id, name, files, user_id").eq("id", projectId).maybeSingle();
+    if (error) return JSON.stringify({ error: error.message });
+    if (!data) return JSON.stringify({ error: "Project not found" });
+    if (data.user_id !== userId) return JSON.stringify({ error: "Access denied: project belongs to another user" });
+    const files: any = data.files || [];
+    const flat: Array<{ path: string; content: string }> = [];
+    const walk = (nodes: any[], prefix = "") => {
+      for (const n of nodes || []) {
+        const p = prefix ? `${prefix}/${n.name}` : n.name;
+        if (n.type === "folder" && n.children) walk(n.children, p);
+        else if (n.type === "file") flat.push({ path: p, content: n.content || "" });
+      }
+    };
+    if (Array.isArray(files)) walk(files);
+    const norm = filePath.replace(/^\/+/, "");
+    const match = flat.find((f) => f.path === norm || f.path.endsWith("/" + norm) || f.path.split("/").pop() === norm);
+    if (!match) return JSON.stringify({ error: `File '${filePath}' not found`, available_files: flat.map((f) => f.path).slice(0, 50) });
+    const content = match.content.length > 20000 ? match.content.slice(0, 20000) + "\n\n... [truncated]" : match.content;
+    return JSON.stringify({ project: data.name, file: match.path, content });
+  } catch (e: any) {
+    return JSON.stringify({ error: e?.message || "Failed to read file" });
+  }
+}
 
 function buildMCPTool(mcpServers: any[]): any {
   const serverList = mcpServers.map((s: any) => s.name).join(", ");
@@ -1241,7 +1373,7 @@ serve(async (req) => {
     const MODEL_MAP: Record<string, string> = {
       pro: "google/gemini-3.1-pro-preview",
       flash: "google/gemini-3-flash-preview",
-      lite: "google/gemini-2.5-flash-lite",
+      lite: "openai/gpt-5-nano",
     };
     const selectedModel = MODEL_MAP[model] || MODEL_MAP.flash;
     console.log(`Using Lovable gateway with model: ${selectedModel}`);
