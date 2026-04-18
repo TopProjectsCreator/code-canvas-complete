@@ -112,9 +112,17 @@ async function handleTripo(apiKey: string, prompt: string, taskId: string | null
   });
   const data = await createResp.json();
   if (!createResp.ok) {
+    const errMsg = data.message || data.error || "Tripo generation failed";
+    const isBilling = typeof errMsg === "string" && /credit|balance|payment|subscribe/i.test(errMsg);
     return new Response(
-      JSON.stringify({ error: data.message || "Tripo generation failed" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: createResp.status }
+      JSON.stringify({
+        status: "FAILED",
+        error: isBilling
+          ? "Your Tripo account is out of credits. Top up at tripo3d.ai or switch providers (Meshy, Sloyd, Neural4D)."
+          : errMsg,
+        billing: isBilling,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   }
   return new Response(
