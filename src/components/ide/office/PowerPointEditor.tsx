@@ -219,7 +219,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               h,
               fill: { color: 'E5E7EB', transparency: 25 },
               line: { color: '6B7280', pt: 1 },
-              radius: 0.04,
+              rectRadius: 0.04,
             });
             if (el.content) {
               slide.addText(el.content, {
@@ -236,7 +236,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
           }
 
           if (el.placeholderType === 'table' && el.tableRows?.length) {
-            slide.addTable(el.tableRows, {
+            slide.addTable(el.tableRows.map((row: string[]) => row.map((cell) => ({ text: String(cell ?? '') }))), {
               x,
               y,
               w,
