@@ -1031,6 +1031,7 @@ serve(async (req) => {
       enableMCP,
       template,
       automationConfig,
+      projectId: currentProjectId,
     } = await req.json();
 
     // Check if user has a custom API key for the selected BYOK provider
@@ -1196,6 +1197,16 @@ serve(async (req) => {
           result = args.query ? await executeWebSearch(args.query, key) : "Search failed: query was missing.";
         } else if (fnName === "mcp_call") {
           result = await executeMCPCall(args.server_name || "", args.method || "", args.params, enabledMCPServers);
+        } else if (fnName === "search_docs") {
+          result = args.query ? searchDocs(args.query, args.limit) : JSON.stringify({ error: "query required" });
+        } else if (fnName === "read_doc") {
+          result = args.slug ? readDoc(args.slug) : JSON.stringify({ error: "slug required" });
+        } else if (fnName === "list_my_projects") {
+          result = await listMyProjects(serviceSupabaseForContext, userId, currentProjectId || null, args.query, args.limit);
+        } else if (fnName === "read_project_file") {
+          result = (args.project_id && args.file_path)
+            ? await readProjectFile(serviceSupabaseForContext, userId, args.project_id, args.file_path)
+            : JSON.stringify({ error: "project_id and file_path required" });
         } else {
           result = `Unknown tool: ${fnName}`;
         }
