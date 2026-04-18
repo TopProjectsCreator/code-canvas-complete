@@ -1487,6 +1487,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const slotsRegistryRef = useRef<Map<string, { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]>>(new Map());
   const [slotsTick, setSlotsTick] = useState(0);
   const [inputDropTarget, setInputDropTarget] = useState<{ blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null>(null);
+  // Mirror of inputDropTarget used inside pointer-up handlers to avoid stale-closure misses.
+  const inputDropTargetRef = useRef<typeof inputDropTarget>(null);
   const [editingShadow, setEditingShadow] = useState<{ blockId: string; inputKey: string } | null>(null);
   const [blockContextMenu, setBlockContextMenu] = useState<{ blockId: string; x: number; y: number } | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
