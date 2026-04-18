@@ -3815,6 +3815,19 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             <button className="w-8 h-8 rounded-full bg-[#855cd6] text-white flex items-center justify-center shadow-md hover:bg-[#7248bf]" onClick={() => setWorkspaceZoom((z) => Math.max(0.7, z - 0.1))}><ZoomOut className="w-4 h-4" /></button>
             <button className="w-8 h-8 rounded-full bg-white border border-[#d0d0d0] text-[#575e75] flex items-center justify-center shadow-md" onClick={() => setWorkspaceZoom(1)}><CircleMinus className="w-4 h-4" /></button>
           </div>
+          {/* Floating ghost block following cursor during flyout drag */}
+          {flyoutDrag && (
+            <div
+              className="fixed pointer-events-none z-[9999] opacity-80"
+              style={{ left: flyoutDrag.ghostX + 8, top: flyoutDrag.ghostY + 8 }}
+            >
+              <ScratchBlockShape
+                label={flyoutDrag.blockDef.label}
+                color={flyoutDrag.color}
+                shape={getBlockShape(flyoutDrag.blockDef.opcode)}
+              />
+            </div>
+          )}
         </div>
 
         {/* --- RIGHT: Stage + Sprite info + Sprite list --- */}
