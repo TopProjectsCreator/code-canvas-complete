@@ -1305,17 +1305,13 @@ const VariablesFlyout = ({
           )}
           {varBlocks.map((blockDef) => {
             const shape = getBlockShape(blockDef.opcode);
+            const patched = activeVarId && activeVarName
+              ? { ...blockDef, fields: { ...blockDef.fields, VARIABLE: [activeVarName, activeVarId] } }
+              : blockDef;
             return (
               <div
                 key={blockDef.label}
-                draggable
-                onDragStart={(e) => {
-                  const patched = activeVarId && activeVarName
-                    ? { ...blockDef, fields: { ...blockDef.fields, VARIABLE: [activeVarName, activeVarId] } }
-                    : blockDef;
-                  e.dataTransfer.setData('application/scratch-block', JSON.stringify(patched));
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
+                onPointerDown={(e) => onStartFlyoutDrag(patched, color, e)}
                 onClick={() => handleAddVarBlock(blockDef)}
                 className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
               >
