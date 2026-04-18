@@ -3548,11 +3548,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   return (
                     <div
                       key={blockDef.label}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('application/scratch-block', JSON.stringify(blockDef));
-                        e.dataTransfer.effectAllowed = 'copy';
-                      }}
+                      onPointerDown={(e) => startFlyoutDrag(blockDef, color, e)}
                       onClick={() => addBlock(blockDef)}
                       className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                     >
