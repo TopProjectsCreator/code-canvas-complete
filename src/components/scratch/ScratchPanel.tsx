@@ -2789,8 +2789,47 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const drag = dragRef.current;
     if (!drag) return;
 
+    const slotDrop = inputDropTarget;
     const snap = snapPreview;
-    if (snap) {
+
+    if (slotDrop) {
+      // Attach this dragged reporter/boolean as an input on slotDrop.blockId/slotDrop.inputKey.
+      updateProject((current) => ({
+        ...current,
+        targets: current.targets.map((target, idx) => {
+          if (idx !== selectedTargetIndex) return target;
+          const blocks = { ...(target.blocks || {}) };
+          const dragged = blocks[drag.blockId];
+          const parent = blocks[slotDrop.blockId];
+          if (!dragged || !parent) return target;
+          // Detach dragged from any prior input slot reference on its previous parent.
+          if (dragged.parent && blocks[dragged.parent]) {
+            const prev = { ...blocks[dragged.parent] };
+            if (prev.inputs) {
+              const newInputs: Record<string, unknown> = {};
+              for (const [k, v] of Object.entries(prev.inputs)) {
+                if (Array.isArray(v) && v[0] === 3 && v[1] === drag.blockId) {
+                  // Restore default shadow if present in tuple.
+                  const shadow = v[2];
+                  newInputs[k] = shadow ? [1, shadow] : [1, [10, '']];
+                } else {
+                  newInputs[k] = v;
+                }
+              }
+              prev.inputs = newInputs;
+              blocks[dragged.parent] = prev;
+            }
+          }
+          const oldInput = parent.inputs?.[slotDrop.inputKey] as unknown[] | undefined;
+          const shadowRef = Array.isArray(oldInput) && oldInput.length >= 2 ? oldInput[oldInput.length - 1] : null;
+          const newInputs = { ...(parent.inputs || {}) };
+          newInputs[slotDrop.inputKey] = shadowRef ? [3, drag.blockId, shadowRef] : [3, drag.blockId, [10, '']];
+          blocks[slotDrop.blockId] = { ...parent, inputs: newInputs };
+          blocks[drag.blockId] = { ...dragged, parent: slotDrop.blockId, topLevel: false };
+          return { ...target, blocks };
+        }),
+      }));
+    } else if (snap) {
       updateProject((current) => ({
         ...current,
         targets: current.targets.map((target, idx) => {
@@ -2829,7 +2868,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     dragRef.current = null;
     setDragBlockId(null);
     setSnapPreview(null);
-  }, [snapPreview, selectedTargetIndex, updateProject, getBlockStack]);
+    setInputDropTarget(null);
+  }, [snapPreview, inputDropTarget, selectedTargetIndex, updateProject, getBlockStack]);
 
   const runPreview = async () => {
     if (!vmRef.current || !vmReady) return;
