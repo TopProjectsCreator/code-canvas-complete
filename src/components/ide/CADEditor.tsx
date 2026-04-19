@@ -1012,6 +1012,12 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                   {genProgress}
                 </div>
               )}
+
+              {genError && (
+                <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive whitespace-pre-wrap">
+                  {genError}
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setTextTo3DOpen(false)} disabled={generating}>
