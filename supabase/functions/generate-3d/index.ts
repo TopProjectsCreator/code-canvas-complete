@@ -217,72 +217,84 @@ async function handleFal(apiKey: string, prompt: string, corsHeaders: Record<str
 }
 
 async function handleNeural4D(apiKey: string, prompt: string, taskId: string | null, corsHeaders: Record<string, string>) {
-  // Neural4D uses an async flow:
-  // 1) create generation job -> returns uuids[]
-  // 2) poll /retrieveModel with uuid until codeStatus=0
+  // Neural4D async flow:
+  // 1) POST /generateModelWithText -> { uuids: [...] }
+  // 2) Poll POST /retrieveModel { uuid } until codeStatus === 0
+  const BASE = "https://alb.neural4d.com:3000/api";
+  const jsonHeaders = { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" };
+  const jsonResp = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status });
+
+  const tryFetch = async (url: string, body: unknown): Promise<{ ok: true; data: any; status: number } | { ok: false; resp: Response }> => {
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(20000),
+      });
+      let data: any = {};
+      try { data = await r.json(); } catch { /* ignore */ }
+      return { ok: true, data, status: r.status };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      return {
+        ok: false,
+        resp: jsonResp({
+          status: "FAILED",
+          error: `Neural4D temporarily unreachable (${msg}). Please retry, or switch to Meshy / Tripo / Sloyd.`,
+          unreachable: true,
+        }),
+      };
+    }
+  };
+
   if (taskId) {
-    const statusResp = await fetch("https://alb.neural4d.com:3000/api/retrieveModel", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ uuid: taskId }),
-    });
-    const statusData = await statusResp.json();
-    if (!statusResp.ok) {
-      return new Response(
-        JSON.stringify({ error: statusData.error || statusData.message || "Neural4D status check failed" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: statusResp.status }
-      );
+    const result = await tryFetch(`${BASE}/retrieveModel`, { uuid: taskId });
+    if (!result.ok) return result.resp;
+    const { data, status } = result;
+
+    if (status >= 400) {
+      const errMsg = data.error || data.message || `Neural4D status check failed (${status})`;
+      return jsonResp({ status: "FAILED", error: errMsg }, 200);
     }
 
-    const codeStatus = statusData.codeStatus;
-    if (codeStatus === 0 && statusData.modelUrl) {
-      return new Response(
-        JSON.stringify({ status: "SUCCEEDED", glbUrl: statusData.modelUrl }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const codeStatus = data.codeStatus;
+    if (codeStatus === 0 && data.modelUrl) {
+      return jsonResp({ status: "SUCCEEDED", glbUrl: data.modelUrl });
     } else if (codeStatus === -3) {
-      return new Response(
-        JSON.stringify({ status: "FAILED", error: statusData.message || "Neural4D generation failed" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResp({ status: "FAILED", error: data.message || "Neural4D generation failed" });
     } else if (codeStatus === -1 || codeStatus === -2) {
-      return new Response(
-        JSON.stringify({ error: statusData.message || "Neural4D request invalid" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
+      return jsonResp({ status: "FAILED", error: data.message || "Neural4D request invalid" });
     }
-
-    return new Response(
-      JSON.stringify({ status: "PENDING" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResp({ status: "PENDING" });
   }
 
-  const createResp = await fetch("https://alb.neural4d.com:3000/api/generateModelWithText", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, modelCount: 1, disablePbr: 0 }),
-  });
-  const createData = await createResp.json();
-  if (!createResp.ok) {
-    return new Response(
-      JSON.stringify({ error: createData.error || createData.message || "Failed to start Neural4D generation" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: createResp.status }
-    );
+  const result = await tryFetch(`${BASE}/generateModelWithText`, { prompt, modelCount: 1, disablePbr: 0 });
+  if (!result.ok) return result.resp;
+  const { data, status } = result;
+
+  if (status >= 400) {
+    const errMsg = data.error || data.message || `Neural4D returned ${status}`;
+    const isAuth = status === 401 || /unauthor/i.test(String(errMsg));
+    const isBilling = /credit|balance|insufficient|points|quota/i.test(String(errMsg));
+    return jsonResp({
+      status: "FAILED",
+      error: isAuth
+        ? "Neural4D API key is invalid. Get one at neural4d.com/api and re-add it."
+        : isBilling
+        ? "Your Neural4D account is out of credits. Top up at neural4d.com or switch providers."
+        : errMsg,
+      billing: isBilling,
+    }, 200);
   }
 
-  const firstUuid = Array.isArray(createData.uuids) ? createData.uuids[0] : null;
+  const firstUuid = Array.isArray(data.uuids) ? data.uuids[0] : null;
   if (!firstUuid) {
-    return new Response(
-      JSON.stringify({ error: createData.message || "Neural4D did not return a model id" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
+    return jsonResp({ status: "FAILED", error: data.message || "Neural4D did not return a model id" });
   }
 
-  return new Response(
-    JSON.stringify({ status: "polling", taskId: firstUuid }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  return jsonResp({ status: "polling", taskId: firstUuid });
 }
 
 serve(async (req) => {
