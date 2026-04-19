@@ -934,7 +934,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
         </div>
 
         {/* Text to 3D Dialog */}
-        <Dialog open={textTo3DOpen} onOpenChange={setTextTo3DOpen}>
+        <Dialog open={textTo3DOpen} onOpenChange={(open) => { if (!open) { cancelledRef.current = true; setGenerating(false); setGenProgress(''); setError(null); } setTextTo3DOpen(open); }}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
