@@ -492,9 +492,11 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   };
 
   const pollForResult = async (taskId: string) => {
-    const maxAttempts = 60; // 5 minutes max
+    // Neural4D can take ~1000s (~17 min). Other providers usually finish in <5 min.
+    const maxAttempts = selected3DProvider === 'neural4d' ? 240 : 60; // up to 20 min for n4d, 5 min others
+    const intervalMs = selected3DProvider === 'neural4d' ? 5000 : 5000;
     for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(r => setTimeout(r, 5000)); // Poll every 5s
+      await new Promise(r => setTimeout(r, intervalMs)); // Poll every 5s
       
       const { data, error } = await supabase.functions.invoke('generate-3d', {
         body: { taskId, provider: selected3DProvider },
