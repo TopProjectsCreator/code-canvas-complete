@@ -683,17 +683,27 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         `    response = sg.send(message)`,
         `    return {"status_code": response.status_code}`,
       ]},
-      'Twilio': { pip: 'twilio', imports: ['from twilio.rest import Client as TwilioClient'], code: (cfg, ev) => [
-        `    client = TwilioClient(${ev}, TWILIO_AUTH_TOKEN)`,
-        `    body_text = prev.get("result", ${JSON.stringify(cfg.body || 'Hello from automation')}) if prev else ${JSON.stringify(cfg.body || 'Hello from automation')}`,
-        `    message = client.messages.create(body=body_text, from_="${cfg.from_number || '+1234567890'}", to="${cfg.to_number || '+0987654321'}")`,
-        `    return {"sid": message.sid}`,
+      'Twilio': { pip: 'twilio', imports: ['from twilio.rest import Client as TwilioClient'], code: (cfg) => [
+        `    # Docs: https://www.twilio.com/docs/messaging/api/message-resource#create-a-message-resource`,
+        `    account_sid = os.getenv("TWILIO_ACCOUNT_SID")`,
+        `    auth_token = os.getenv("TWILIO_AUTH_TOKEN")`,
+        `    if not account_sid or not auth_token:`,
+        `        raise EnvironmentError("Twilio requires TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN environment variables.")`,
+        `    client = TwilioClient(account_sid, auth_token)`,
+        `    body_text = config.get("message") or (prev.get("result") if prev else None) or ${JSON.stringify(cfg.message || 'Hello from automation')}`,
+        `    message = client.messages.create(body=body_text, from_="${cfg.from || '+1234567890'}", to="${cfg.to || '+0987654321'}")`,
+        `    return {"sid": message.sid, "status": message.status}`,
       ]},
-      'Slack': { pip: 'slack-sdk', imports: ['from slack_sdk import WebClient'], code: (cfg, ev) => [
-        `    client = WebClient(token=${ev})`,
-        `    msg_text = prev.get("result", ${JSON.stringify(cfg.message || 'Hello from automation!')}) if prev else ${JSON.stringify(cfg.message || 'Hello from automation!')}`,
-        `    response = client.chat_postMessage(channel="${cfg.channel || '#general'}", text=msg_text)`,
-        `    return {"ts": response["ts"]}`,
+      'Slack': { pip: 'requests', imports: [], code: (cfg) => [
+        `    # Docs: https://api.slack.com/messaging/webhooks`,
+        `    webhook_url = os.getenv("SLACK_WEBHOOK_URL")`,
+        `    if not webhook_url:`,
+        `        raise EnvironmentError("Slack webhook requires SLACK_WEBHOOK_URL environment variable.")`,
+        `    msg_text = config.get("message") or (prev.get("result") if prev else None) or ${JSON.stringify(cfg.message || 'Hello from automation!')}`,
+        `    payload = {"text": msg_text}`,
+        `    response = requests.post(webhook_url, json=payload)`,
+        `    response.raise_for_status()`,
+        `    return {"status": "ok", "status_code": response.status_code}`,
       ]},
       'Discord': { pip: 'requests', imports: [], code: (cfg) => [
         `    webhook_url = config.get("webhook_url", "")`,
@@ -908,7 +918,9 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
           needsAuth.push({ label: b.label, envVar: ev, extraEnvVars: extras });
         }
       } else if (b.auth === 'api_key') {
-        const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+        let ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+        if (b.label === 'Slack') ev = 'SLACK_WEBHOOK_URL';
+        if (b.label === 'Twilio') ev = 'TWILIO_ACCOUNT_SID';
         if (!needsAuth.find((a) => a.envVar === ev)) {
           const extras: string[] = [];
           if (b.label === 'Twilio') extras.push('TWILIO_AUTH_TOKEN');
@@ -1179,22 +1191,29 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         `  const { data } = await resend.emails.send({ from: "${cfg.from_email || 'you@yourdomain.com'}", to: ["${cfg.to_email || 'recipient@example.com'}"], subject: ${JSON.stringify(cfg.subject || 'Hello from automation')}, html: bodyHtml });`,
         `  return { email_id: data?.id };`,
       ]},
-      'Slack': { npm: '@slack/web-api', imports: ['const { WebClient } = require("@slack/web-api");'], code: (cfg, ev) => [
-        `  const client = new WebClient(${ev});`,
-        `  const msgText = prev?.result ?? ${JSON.stringify(cfg.message || 'Hello from automation!')};`,
-        `  const response = await client.chat.postMessage({ channel: "${cfg.channel || '#general'}", text: msgText });`,
-        `  return { ts: response.ts };`,
+      'Slack': { npm: 'node-fetch', imports: ['const fetch = require("node-fetch");'], code: (cfg) => [
+        `  // Docs: https://api.slack.com/messaging/webhooks`,
+        `  const webhookUrl = process.env.SLACK_WEBHOOK_URL;`,
+        `  if (!webhookUrl) throw new Error("Slack webhook requires SLACK_WEBHOOK_URL environment variable.");`,
+        `  const msgText = config.message || prev?.result || ${JSON.stringify(cfg.message || 'Hello from automation!')};`,
+        `  const response = await fetch(webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: msgText }) });`,
+        `  if (!response.ok) throw new Error(\`Slack webhook failed: \${response.status}\`);`,
+        `  return { status: "ok", statusCode: response.status };`,
       ]},
       'Stripe': { npm: 'stripe', imports: ['const Stripe = require("stripe");'], code: (cfg, ev) => [
         `  const stripe = new Stripe(${ev});`,
         `  const intent = await stripe.paymentIntents.create({ amount: ${cfg.amount || '1000'}, currency: "${cfg.currency || 'usd'}" });`,
         `  return { client_secret: intent.client_secret };`,
       ]},
-      'Twilio': { npm: 'twilio', imports: ['const twilio = require("twilio");'], code: (cfg, ev) => [
-        `  const client = twilio(${ev}, process.env.TWILIO_AUTH_TOKEN);`,
-        `  const bodyText = prev?.result ?? ${JSON.stringify(cfg.body || 'Hello from automation')};`,
-        `  const message = await client.messages.create({ body: bodyText, from: "${cfg.from_number || '+1234567890'}", to: "${cfg.to_number || '+0987654321'}" });`,
-        `  return { sid: message.sid };`,
+      'Twilio': { npm: 'twilio', imports: ['const twilio = require("twilio");'], code: (cfg) => [
+        `  // Docs: https://www.twilio.com/docs/messaging/api/message-resource#create-a-message-resource`,
+        `  const accountSid = process.env.TWILIO_ACCOUNT_SID;`,
+        `  const authToken = process.env.TWILIO_AUTH_TOKEN;`,
+        `  if (!accountSid || !authToken) throw new Error("Twilio requires TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.");`,
+        `  const client = twilio(accountSid, authToken);`,
+        `  const bodyText = config.message || prev?.result || ${JSON.stringify(cfg.message || 'Hello from automation')};`,
+        `  const message = await client.messages.create({ body: bodyText, from: "${cfg.from || '+1234567890'}", to: "${cfg.to || '+0987654321'}" });`,
+        `  return { sid: message.sid, status: message.status };`,
       ]},
       'GitHub': { npm: 'node-fetch', imports: ['const fetch = require("node-fetch");'], code: (cfg, ev) => [
         `  const res = await fetch(\`https://api.github.com/repos/${cfg.owner || 'owner'}/${cfg.repo || 'repo'}\`, { headers: { Authorization: \`Bearer \${${ev}}\`, Accept: "application/vnd.github+json" } });`,
@@ -1287,7 +1306,9 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       }
       if (sdkHint) npmPackages.add(sdkHint);
       if (b.auth === 'api_key') {
-        const ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+        let ev = `${b.label.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_API_KEY`;
+        if (b.label === 'Slack') ev = 'SLACK_WEBHOOK_URL';
+        if (b.label === 'Twilio') ev = 'TWILIO_ACCOUNT_SID';
         if (!needsAuth.find((a) => a.envVar === ev)) {
           const extras: string[] = [];
           if (b.label === 'Twilio') extras.push('TWILIO_AUTH_TOKEN');
