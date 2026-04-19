@@ -409,6 +409,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const [textTo3DOpen, setTextTo3DOpen] = useState(false);
   const [textPrompt, setTextPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const cancelledRef = useRef(false);
   const [genProgress, setGenProgress] = useState('');
   const [selected3DProvider, setSelected3DProvider] = useState<'meshy' | 'sloyd' | 'tripo' | 'modelslab' | 'fal' | 'neural4d'>('meshy');
@@ -460,11 +461,29 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
     setGlbGeometry(null);
   };
 
+  const extractInvokeError = async (error: any, data: any): Promise<string | null> => {
+    if (data?.error) return data.error;
+    if (!error) return null;
+    // FunctionsHttpError exposes the response on .context
+    try {
+      const ctx = (error as any).context;
+      if (ctx && typeof ctx.json === 'function') {
+        const body = await ctx.json();
+        if (body?.error) return body.error;
+      } else if (ctx && typeof ctx.text === 'function') {
+        const txt = await ctx.text();
+        if (txt) return txt;
+      }
+    } catch { /* ignore */ }
+    return error.message || 'Unknown error';
+  };
+
   const handleTextTo3D = async () => {
     if (!textPrompt.trim()) return;
     
     cancelledRef.current = false;
     setGenerating(true);
+    setGenError(null);
     setGenProgress('Starting generation...');
     
     try {
@@ -473,7 +492,10 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
       });
       
       if (cancelledRef.current) return;
-      if (error) throw new Error(error.message);
+      if (error || data?.status === 'FAILED' || (!data?.status && !data?.glbUrl && !data?.taskId)) {
+        const msg = await extractInvokeError(error, data);
+        throw new Error(msg || 'Generation failed');
+      }
       
       if (data?.status === 'polling') {
         setGenProgress('Generating 3D model...');
@@ -482,12 +504,10 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
         await loadGLBFromUrl(data.glbUrl);
         setTextTo3DOpen(false);
         setTextPrompt('');
-      } else {
-        throw new Error(data?.error || 'Generation failed');
       }
     } catch (err) {
       if (cancelledRef.current) return;
-      setError(err instanceof Error ? err.message : 'Text-to-3D failed');
+      setGenError(err instanceof Error ? err.message : 'Text-to-3D failed');
     } finally {
       setGenerating(false);
       setGenProgress('');
@@ -495,7 +515,6 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   };
 
   const pollForResult = async (taskId: string) => {
-    // Neural4D can take ~1000s (~17 min). Other providers usually finish in <5 min.
     const maxAttempts = selected3DProvider === 'neural4d' ? 240 : 60;
     const intervalMs = 5000;
     for (let i = 0; i < maxAttempts; i++) {
@@ -507,15 +526,16 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
       });
       
       if (cancelledRef.current) return;
-      if (error) throw new Error(error.message);
+      if (error || data?.status === 'FAILED') {
+        const msg = await extractInvokeError(error, data);
+        throw new Error(msg || '3D generation failed');
+      }
       
       if (data?.status === 'SUCCEEDED' && data?.glbUrl) {
         await loadGLBFromUrl(data.glbUrl);
         setTextTo3DOpen(false);
         setTextPrompt('');
         return;
-      } else if (data?.status === 'FAILED') {
-        throw new Error(data?.error || '3D generation failed');
       }
       
       setGenProgress(`Generating... ${Math.min(90, Math.round((i / maxAttempts) * 100))}%`);
@@ -934,7 +954,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
         </div>
 
         {/* Text to 3D Dialog */}
-        <Dialog open={textTo3DOpen} onOpenChange={(open) => { if (!open) { cancelledRef.current = true; setGenerating(false); setGenProgress(''); setError(null); } setTextTo3DOpen(open); }}>
+        <Dialog open={textTo3DOpen} onOpenChange={(open) => { if (!open) { cancelledRef.current = true; setGenerating(false); setGenProgress(''); setGenError(null); } setTextTo3DOpen(open); }}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -990,6 +1010,12 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   {genProgress}
+                </div>
+              )}
+
+              {genError && (
+                <div className="rounded-lg border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive whitespace-pre-wrap">
+                  {genError}
                 </div>
               )}
             </div>
