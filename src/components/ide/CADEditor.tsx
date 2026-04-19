@@ -409,6 +409,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const [textTo3DOpen, setTextTo3DOpen] = useState(false);
   const [textPrompt, setTextPrompt] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const cancelledRef = useRef(false);
   const [genProgress, setGenProgress] = useState('');
   const [selected3DProvider, setSelected3DProvider] = useState<'meshy' | 'sloyd' | 'tripo' | 'modelslab' | 'fal' | 'neural4d'>('meshy');
