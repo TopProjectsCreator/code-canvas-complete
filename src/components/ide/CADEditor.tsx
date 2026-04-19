@@ -463,6 +463,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const handleTextTo3D = async () => {
     if (!textPrompt.trim()) return;
     
+    cancelledRef.current = false;
     setGenerating(true);
     setGenProgress('Starting generation...');
     
@@ -471,10 +472,10 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
         body: { prompt: textPrompt.trim(), provider: selected3DProvider },
       });
       
+      if (cancelledRef.current) return;
       if (error) throw new Error(error.message);
       
       if (data?.status === 'polling') {
-        // Start polling for result
         setGenProgress('Generating 3D model...');
         await pollForResult(data.taskId);
       } else if (data?.glbUrl) {
@@ -485,6 +486,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
         throw new Error(data?.error || 'Generation failed');
       }
     } catch (err) {
+      if (cancelledRef.current) return;
       setError(err instanceof Error ? err.message : 'Text-to-3D failed');
     } finally {
       setGenerating(false);
@@ -494,15 +496,17 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
 
   const pollForResult = async (taskId: string) => {
     // Neural4D can take ~1000s (~17 min). Other providers usually finish in <5 min.
-    const maxAttempts = selected3DProvider === 'neural4d' ? 240 : 60; // up to 20 min for n4d, 5 min others
-    const intervalMs = selected3DProvider === 'neural4d' ? 5000 : 5000;
+    const maxAttempts = selected3DProvider === 'neural4d' ? 240 : 60;
+    const intervalMs = 5000;
     for (let i = 0; i < maxAttempts; i++) {
-      await new Promise(r => setTimeout(r, intervalMs)); // Poll every 5s
+      await new Promise(r => setTimeout(r, intervalMs));
+      if (cancelledRef.current) return;
       
       const { data, error } = await supabase.functions.invoke('generate-3d', {
         body: { taskId, provider: selected3DProvider },
       });
       
+      if (cancelledRef.current) return;
       if (error) throw new Error(error.message);
       
       if (data?.status === 'SUCCEEDED' && data?.glbUrl) {
@@ -511,7 +515,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
         setTextPrompt('');
         return;
       } else if (data?.status === 'FAILED') {
-        throw new Error('3D generation failed');
+        throw new Error(data?.error || '3D generation failed');
       }
       
       setGenProgress(`Generating... ${Math.min(90, Math.round((i / maxAttempts) * 100))}%`);
