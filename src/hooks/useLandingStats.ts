@@ -16,15 +16,15 @@ export function useLandingStats() {
 
     const fetchStats = async () => {
       try {
-        const [profilesRes, projectsRes] = await Promise.all([
+        const [profilesRes, canvasCountRes] = await Promise.all([
           supabase.from('profiles').select('id', { count: 'exact', head: true }),
-          supabase.from('projects').select('id', { count: 'exact', head: true }),
+          supabase.rpc('get_total_canvases_count'),
         ]);
 
         if (cancelled) return;
 
         const totalUsers = profilesRes.count ?? 0;
-        const totalCanvases = projectsRes.count ?? 0;
+        const totalCanvases = (canvasCountRes.data as number | null) ?? 0;
 
         // Track online presence via a channel
         const channel = supabase.channel('landing-presence', {
