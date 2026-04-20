@@ -1396,6 +1396,7 @@ export const AIChat = ({
         )}
         <div ref={messagesEndRef} />
       </div>
+      <CalmDownDialog open={showCalmDown} onOpenChange={setShowCalmDown} />
 
       {/* Input */}
       <div className="p-3 border-t border-border">
