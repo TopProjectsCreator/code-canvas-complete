@@ -1226,6 +1226,7 @@ export type Database = {
         Args: { ext_id: string }
         Returns: undefined
       }
+      get_total_canvases_count: { Args: never; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
