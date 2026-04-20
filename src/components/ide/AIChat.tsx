@@ -27,6 +27,8 @@ import { useAutonomyMode, type AutonomyPreset, type AutonomyConfig } from '@/hoo
 import { Switch } from '@/components/ui/switch';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { WhileYouWaitArcade } from './WhileYouWaitArcade';
+import { CalmDownDialog } from './CalmDownDialog';
+import { detectFrustration } from '@/lib/frustrationDetector';
 
 interface QuickAction {
   id: string;
@@ -714,6 +716,8 @@ export const AIChat = ({
 
   const { preset, setPreset, config: autonomyConfig, customConfig, updateCustomField } = useAutonomyMode();
   const [showAutonomyConfig, setShowAutonomyConfig] = useState(false);
+  const [showCalmDown, setShowCalmDown] = useState(false);
+  const lastCalmDownAtRef = useRef<number>(0);
 
   const { 
     messages, 
@@ -820,6 +824,17 @@ export const AIChat = ({
 
     if (!user) {
       return;
+    }
+
+    // Frustration check — open a calming dialog if signals trigger
+    const recentUserMsgs = messages.filter(m => m.role === 'user').slice(-5).map(m =>
+      typeof m.content === 'string' ? m.content : ''
+    );
+    const signal = detectFrustration(input, recentUserMsgs);
+    const sinceLast = Date.now() - lastCalmDownAtRef.current;
+    if (signal.isFrustrated && sinceLast > 2 * 60 * 1000) {
+      lastCalmDownAtRef.current = Date.now();
+      setShowCalmDown(true);
     }
 
     const multimodalContent = buildContentParts(input, attachments);
@@ -1381,6 +1396,7 @@ export const AIChat = ({
         )}
         <div ref={messagesEndRef} />
       </div>
+      <CalmDownDialog open={showCalmDown} onOpenChange={setShowCalmDown} />
 
       {/* Input */}
       <div className="p-3 border-t border-border">
