@@ -777,22 +777,45 @@ async function listMyProjects(supabase: any, userId: string, currentProjectId: s
   }
 }
 
+async function searchPublicProjects(supabase: any, query?: string, limit = 20): Promise<string> {
+  try {
+    let q = supabase
+      .from("projects")
+      .select("id, name, language, description, updated_at, user_id")
+      .eq("is_public", true)
+      .order("stars_count", { ascending: false })
+      .limit(Math.min(limit || 20, 50));
+    if (query) q = q.or(`name.ilike.%${query}%,description.ilike.%${query}%`);
+    const { data, error } = await q;
+    if (error) return JSON.stringify({ error: error.message });
+    return JSON.stringify({ projects: data || [] });
+  } catch (e: any) {
+    return JSON.stringify({ error: e?.message || "Failed to search public projects" });
+  }
+}
+
+function flattenProjectFiles(files: any): Array<{ path: string; content: string }> {
+  const flat: Array<{ path: string; content: string }> = [];
+  const walk = (nodes: any[], prefix = "") => {
+    for (const n of nodes || []) {
+      const p = prefix ? `${prefix}/${n.name}` : n.name;
+      if (n.type === "folder" && n.children) walk(n.children, p);
+      else if (n.type === "file") flat.push({ path: p, content: n.content || "" });
+    }
+  };
+  if (Array.isArray(files)) walk(files);
+  return flat;
+}
+
 async function readProjectFile(supabase: any, userId: string, projectId: string, filePath: string): Promise<string> {
   try {
-    const { data, error } = await supabase.from("projects").select("id, name, files, user_id").eq("id", projectId).maybeSingle();
+    const { data, error } = await supabase.from("projects").select("id, name, files, user_id, is_public").eq("id", projectId).maybeSingle();
     if (error) return JSON.stringify({ error: error.message });
     if (!data) return JSON.stringify({ error: "Project not found" });
-    if (data.user_id !== userId) return JSON.stringify({ error: "Access denied: project belongs to another user" });
-    const files: any = data.files || [];
-    const flat: Array<{ path: string; content: string }> = [];
-    const walk = (nodes: any[], prefix = "") => {
-      for (const n of nodes || []) {
-        const p = prefix ? `${prefix}/${n.name}` : n.name;
-        if (n.type === "folder" && n.children) walk(n.children, p);
-        else if (n.type === "file") flat.push({ path: p, content: n.content || "" });
-      }
-    };
-    if (Array.isArray(files)) walk(files);
+    if (data.user_id !== userId && !data.is_public) {
+      return JSON.stringify({ error: "Access denied: project is private and belongs to another user" });
+    }
+    const flat = flattenProjectFiles(data.files);
     const norm = filePath.replace(/^\/+/, "");
     const match = flat.find((f) => f.path === norm || f.path.endsWith("/" + norm) || f.path.split("/").pop() === norm);
     if (!match) return JSON.stringify({ error: `File '${filePath}' not found`, available_files: flat.map((f) => f.path).slice(0, 50) });
@@ -801,6 +824,28 @@ async function readProjectFile(supabase: any, userId: string, projectId: string,
   } catch (e: any) {
     return JSON.stringify({ error: e?.message || "Failed to read file" });
   }
+}
+
+async function listCurrentFiles(supabase: any, userId: string, projectId: string | null): Promise<string> {
+  if (!projectId) return JSON.stringify({ error: "No active project. The current canvas hasn't been saved yet." });
+  try {
+    const { data, error } = await supabase.from("projects").select("files, user_id, is_public").eq("id", projectId).maybeSingle();
+    if (error) return JSON.stringify({ error: error.message });
+    if (!data) return JSON.stringify({ error: "Project not found" });
+    if (data.user_id !== userId && !data.is_public) return JSON.stringify({ error: "Access denied" });
+    const flat = flattenProjectFiles(data.files);
+    return JSON.stringify({
+      files: flat.map((f) => ({ path: f.path, size: f.content.length, language: f.path.split(".").pop() || "" })),
+      total: flat.length,
+    });
+  } catch (e: any) {
+    return JSON.stringify({ error: e?.message || "Failed to list files" });
+  }
+}
+
+async function readCurrentFile(supabase: any, userId: string, projectId: string | null, filePath: string): Promise<string> {
+  if (!projectId) return JSON.stringify({ error: "No active project saved." });
+  return readProjectFile(supabase, userId, projectId, filePath);
 }
 
 function buildMCPTool(mcpServers: any[]): any {
