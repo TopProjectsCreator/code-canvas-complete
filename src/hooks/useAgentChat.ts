@@ -753,6 +753,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       multimodalContent?: any;
       template?: string;
       automationConfig?: string | null;
+      projectId?: string | null;
     } = {}
   ) => {
     if (!messageContent.trim() || isLoading) return;
@@ -794,6 +795,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
         template: context.template,
         automationConfig: context.automationConfig || null,
+        projectId: context.projectId || null,
       }, {
         accessToken: session.access_token,
         signal: abortControllerRef.current.signal,
@@ -998,6 +1000,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           model: selectedModel,
           byokProvider: aiProvider.allowsBYOK ? (byokProvider || undefined) : undefined,
           byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
+          projectId: context.projectId || null,
         }, {
           accessToken: session.access_token,
           signal: abortControllerRef.current?.signal,

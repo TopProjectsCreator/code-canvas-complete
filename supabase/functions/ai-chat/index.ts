@@ -677,16 +677,61 @@ const BASE_TOOLS = [
   {
     type: "function",
     function: {
-      name: "read_project_file",
+      name: "search_public_projects",
       description:
-        "Read a specific file from one of the user's other projects. Call list_my_projects first to get the project_id. Use this to copy patterns, components, or content from prior work.",
+        "Search PUBLIC canvases shared by other CodeCanvas users. Use when the user asks for community examples, references a public project by name, or wants you to copy/learn from someone else's published canvas. Returns id, name, language, description, owner display_name.",
       parameters: {
         type: "object",
         properties: {
-          project_id: { type: "string", description: "Project ID from list_my_projects" },
+          query: { type: "string", description: "Optional name/description filter" },
+          limit: { type: "number", description: "Max projects to return (default 20, max 50)" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_project_file",
+      description:
+        "Read a specific file from another project — either one of the user's own projects (from list_my_projects) or any PUBLIC project (from search_public_projects). Use this to copy patterns, components, or content.",
+      parameters: {
+        type: "object",
+        properties: {
+          project_id: { type: "string", description: "Project ID from list_my_projects or search_public_projects" },
           file_path: { type: "string", description: "Full file name/path to read (e.g. 'src/App.tsx')" },
         },
         required: ["project_id", "file_path"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_current_files",
+      description:
+        "List ALL files in the CURRENT canvas (the one the user is editing right now), with full paths. Use this BEFORE making changes that touch files outside the active tab — you are blind to other files until you call this. Returns an array of { path, language, size }.",
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_current_file",
+      description:
+        "Read the full contents of any file in the CURRENT canvas by path. Call list_current_files first to discover paths. Essential whenever the user references a file that isn't the active tab.",
+      parameters: {
+        type: "object",
+        properties: {
+          file_path: { type: "string", description: "Path from list_current_files (e.g. 'src/components/Foo.tsx')" },
+        },
+        required: ["file_path"],
         additionalProperties: false,
       },
     },
@@ -732,22 +777,45 @@ async function listMyProjects(supabase: any, userId: string, currentProjectId: s
   }
 }
 
+async function searchPublicProjects(supabase: any, query?: string, limit = 20): Promise<string> {
+  try {
+    let q = supabase
+      .from("projects")
+      .select("id, name, language, description, updated_at, user_id")
+      .eq("is_public", true)
+      .order("stars_count", { ascending: false })
+      .limit(Math.min(limit || 20, 50));
+    if (query) q = q.or(`name.ilike.%${query}%,description.ilike.%${query}%`);
+    const { data, error } = await q;
+    if (error) return JSON.stringify({ error: error.message });
+    return JSON.stringify({ projects: data || [] });
+  } catch (e: any) {
+    return JSON.stringify({ error: e?.message || "Failed to search public projects" });
+  }
+}
+
+function flattenProjectFiles(files: any): Array<{ path: string; content: string }> {
+  const flat: Array<{ path: string; content: string }> = [];
+  const walk = (nodes: any[], prefix = "") => {
+    for (const n of nodes || []) {
+      const p = prefix ? `${prefix}/${n.name}` : n.name;
+      if (n.type === "folder" && n.children) walk(n.children, p);
+      else if (n.type === "file") flat.push({ path: p, content: n.content || "" });
+    }
+  };
+  if (Array.isArray(files)) walk(files);
+  return flat;
+}
+
 async function readProjectFile(supabase: any, userId: string, projectId: string, filePath: string): Promise<string> {
   try {
-    const { data, error } = await supabase.from("projects").select("id, name, files, user_id").eq("id", projectId).maybeSingle();
+    const { data, error } = await supabase.from("projects").select("id, name, files, user_id, is_public").eq("id", projectId).maybeSingle();
     if (error) return JSON.stringify({ error: error.message });
     if (!data) return JSON.stringify({ error: "Project not found" });
-    if (data.user_id !== userId) return JSON.stringify({ error: "Access denied: project belongs to another user" });
-    const files: any = data.files || [];
-    const flat: Array<{ path: string; content: string }> = [];
-    const walk = (nodes: any[], prefix = "") => {
-      for (const n of nodes || []) {
-        const p = prefix ? `${prefix}/${n.name}` : n.name;
-        if (n.type === "folder" && n.children) walk(n.children, p);
-        else if (n.type === "file") flat.push({ path: p, content: n.content || "" });
-      }
-    };
-    if (Array.isArray(files)) walk(files);
+    if (data.user_id !== userId && !data.is_public) {
+      return JSON.stringify({ error: "Access denied: project is private and belongs to another user" });
+    }
+    const flat = flattenProjectFiles(data.files);
     const norm = filePath.replace(/^\/+/, "");
     const match = flat.find((f) => f.path === norm || f.path.endsWith("/" + norm) || f.path.split("/").pop() === norm);
     if (!match) return JSON.stringify({ error: `File '${filePath}' not found`, available_files: flat.map((f) => f.path).slice(0, 50) });
@@ -756,6 +824,28 @@ async function readProjectFile(supabase: any, userId: string, projectId: string,
   } catch (e: any) {
     return JSON.stringify({ error: e?.message || "Failed to read file" });
   }
+}
+
+async function listCurrentFiles(supabase: any, userId: string, projectId: string | null): Promise<string> {
+  if (!projectId) return JSON.stringify({ error: "No active project. The current canvas hasn't been saved yet." });
+  try {
+    const { data, error } = await supabase.from("projects").select("files, user_id, is_public").eq("id", projectId).maybeSingle();
+    if (error) return JSON.stringify({ error: error.message });
+    if (!data) return JSON.stringify({ error: "Project not found" });
+    if (data.user_id !== userId && !data.is_public) return JSON.stringify({ error: "Access denied" });
+    const flat = flattenProjectFiles(data.files);
+    return JSON.stringify({
+      files: flat.map((f) => ({ path: f.path, size: f.content.length, language: f.path.split(".").pop() || "" })),
+      total: flat.length,
+    });
+  } catch (e: any) {
+    return JSON.stringify({ error: e?.message || "Failed to list files" });
+  }
+}
+
+async function readCurrentFile(supabase: any, userId: string, projectId: string | null, filePath: string): Promise<string> {
+  if (!projectId) return JSON.stringify({ error: "No active project saved." });
+  return readProjectFile(supabase, userId, projectId, filePath);
 }
 
 function buildMCPTool(mcpServers: any[]): any {
@@ -1207,6 +1297,14 @@ serve(async (req) => {
           result = (args.project_id && args.file_path)
             ? await readProjectFile(serviceSupabaseForContext, userId, args.project_id, args.file_path)
             : JSON.stringify({ error: "project_id and file_path required" });
+        } else if (fnName === "search_public_projects") {
+          result = await searchPublicProjects(serviceSupabaseForContext, args.query, args.limit);
+        } else if (fnName === "list_current_files") {
+          result = await listCurrentFiles(serviceSupabaseForContext, userId, currentProjectId || null);
+        } else if (fnName === "read_current_file") {
+          result = args.file_path
+            ? await readCurrentFile(serviceSupabaseForContext, userId, currentProjectId || null, args.file_path)
+            : JSON.stringify({ error: "file_path required" });
         } else {
           result = `Unknown tool: ${fnName}`;
         }

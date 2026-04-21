@@ -78,6 +78,7 @@ interface AIChatProps {
   onAppendToFile?: (name: string, content: string) => void;
   currentTemplate?: string;
   automationConfig?: string | null;
+  currentProjectId?: string | null;
 }
 
 const quickActions: QuickAction[] = [
@@ -700,6 +701,7 @@ export const AIChat = ({
   onAppendToFile,
   currentTemplate,
   automationConfig,
+  currentProjectId,
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
@@ -810,6 +812,7 @@ export const AIChat = ({
       agentMode: true,
       template: currentTemplate,
       automationConfig,
+      projectId: currentProjectId,
     });
   };
 
@@ -850,6 +853,7 @@ export const AIChat = ({
       multimodalContent: attachments.length > 0 ? multimodalContent : undefined,
       template: currentTemplate,
       automationConfig,
+      projectId: currentProjectId,
     });
     
     setInput('');
@@ -869,6 +873,7 @@ export const AIChat = ({
       agentMode: true,
       template: currentTemplate,
       automationConfig,
+      projectId: currentProjectId,
     });
   };
 
@@ -1343,6 +1348,7 @@ export const AIChat = ({
                               agentMode: true,
                               template: currentTemplate,
                               automationConfig,
+                              projectId: currentProjectId,
                             });
                           }}
                         />
