@@ -327,10 +327,14 @@ export function useCollaboration(projectId: string | undefined) {
     }
 
     setInviteSearchLoading(true);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+    const orFilter = isUuid
+      ? `display_name.ilike.%${trimmed}%,user_id.eq.${trimmed}`
+      : `display_name.ilike.%${trimmed}%`;
     const { data, error } = await supabase
       .from('profiles')
       .select('user_id, display_name, avatar_url')
-      .or(`display_name.ilike.%${trimmed}%,user_id.eq.${trimmed}`)
+      .or(orFilter)
       .limit(6);
     setInviteSearchLoading(false);
 
