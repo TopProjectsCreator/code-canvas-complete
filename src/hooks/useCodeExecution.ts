@@ -1,12 +1,55 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWebContainer } from '@/hooks/useWebContainer';
+import { showOfflineDialog } from '@/components/ide/OfflineDialog';
 
 interface ExecutionResult {
   output: string[];
   error: string | null;
   executedAt: string;
   isPreview?: boolean; // True for files that should render in preview instead of execute
+}
+
+/**
+ * In-browser JavaScript fallback. Runs the snippet inside an async function
+ * with a captured `console` proxy. Used when WebContainer is unavailable
+ * and the user is offline (so the cloud executor isn't reachable either).
+ */
+async function runJavaScriptInBrowser(code: string): Promise<ExecutionResult> {
+  const output: string[] = [];
+  const capture = (level: 'log' | 'warn' | 'error') => (...args: unknown[]) => {
+    output.push(
+      args
+        .map((a) => {
+          if (typeof a === 'string') return a;
+          try { return JSON.stringify(a); } catch { return String(a); }
+        })
+        .join(' '),
+    );
+    if (level === 'error') {
+      // eslint-disable-next-line no-console
+      console.error(...args);
+    }
+  };
+  const sandboxConsole = {
+    log: capture('log'),
+    info: capture('log'),
+    warn: capture('warn'),
+    error: capture('error'),
+  };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
+    const fn = new Function('console', `return (async () => { ${code}\n})();`);
+    const result = await fn(sandboxConsole);
+    if (result !== undefined) output.push(String(result));
+    return { output, error: null, executedAt: new Date().toISOString() };
+  } catch (err) {
+    return {
+      output,
+      error: err instanceof Error ? err.message : String(err),
+      executedAt: new Date().toISOString(),
+    };
+  }
 }
 
 export const useCodeExecution = () => {
@@ -67,8 +110,14 @@ export const useCodeExecution = () => {
       // Languages that can run fully in the browser (WebContainer/JS engine).
       const clientSideLanguages = new Set(['javascript', 'typescript', 'shell', 'bash', 'html', 'css', 'json']);
 
-      // Offline guard: server-side execution requires internet
+      // Offline guard: server-side execution requires internet.
+      // Exception: JS/TS can fall back to an in-browser eval below.
+      const canFallbackToBrowserJs = ['javascript', 'typescript'].includes(normalizedLanguage);
       if (isOffline && !clientSideLanguages.has(normalizedLanguage)) {
+        showOfflineDialog({
+          title: "Can't run this language offline",
+          description: `${language} needs the cloud executor. Reconnect to your network to run it.`,
+        });
         return {
           output: [],
           error: '📡 You are offline. This language requires a server to execute. Please reconnect to the internet and try again.',
@@ -113,7 +162,25 @@ export const useCodeExecution = () => {
         }
       }
 
+      // In-browser JS/TS fallback when WebContainer fails or we're offline.
+      if (canFallbackToBrowserJs) {
+        const result = await runJavaScriptInBrowser(code);
+        return {
+          ...result,
+          output: [
+            isOffline
+              ? '⚡ Offline — running in browser sandbox (no Node APIs).'
+              : '⚡ WebContainer unavailable — running in browser sandbox (no Node APIs).',
+            ...result.output,
+          ],
+        };
+      }
+
       if (isOffline) {
+        showOfflineDialog({
+          title: "You're offline",
+          description: 'The in-browser runtime is unavailable for this command. Reconnect to use the cloud executor.',
+        });
         return {
           output: [],
           error: '📡 You are offline and the in-browser runtime is unavailable. Reconnect to use the cloud executor.',
