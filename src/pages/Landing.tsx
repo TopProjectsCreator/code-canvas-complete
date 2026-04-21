@@ -112,6 +112,40 @@ export default function Landing() {
     ...staticSignalReadout,
   ];
 
+  // Live pulse nodes from most-recently-updated public canvases
+  const [pulseNodes, setPulseNodes] = useState<Array<{ id: string; status: string }>>([
+    { id: "—", status: "Connecting" },
+    { id: "—", status: "Connecting" },
+    { id: "—", status: "Connecting" },
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("name, language, updated_at")
+        .eq("is_public", true)
+        .order("updated_at", { ascending: false })
+        .limit(3);
+      if (cancelled || !data) return;
+      const statuses = ["Synced", "Rendering", "Deploying", "Building", "Live"];
+      setPulseNodes(
+        data.map((p: any, i: number) => ({
+          id: (p.name || "Canvas").slice(0, 18),
+          status: statuses[i % statuses.length],
+        })),
+      );
+    };
+    load();
+    const interval = setInterval(load, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
       <div className="pointer-events-none fixed inset-0 z-0">
