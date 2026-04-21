@@ -753,6 +753,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       multimodalContent?: any;
       template?: string;
       automationConfig?: string | null;
+      projectId?: string | null;
     } = {}
   ) => {
     if (!messageContent.trim() || isLoading) return;
