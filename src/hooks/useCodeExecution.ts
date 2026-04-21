@@ -110,8 +110,14 @@ export const useCodeExecution = () => {
       // Languages that can run fully in the browser (WebContainer/JS engine).
       const clientSideLanguages = new Set(['javascript', 'typescript', 'shell', 'bash', 'html', 'css', 'json']);
 
-      // Offline guard: server-side execution requires internet
+      // Offline guard: server-side execution requires internet.
+      // Exception: JS/TS can fall back to an in-browser eval below.
+      const canFallbackToBrowserJs = ['javascript', 'typescript'].includes(normalizedLanguage);
       if (isOffline && !clientSideLanguages.has(normalizedLanguage)) {
+        showOfflineDialog({
+          title: "Can't run this language offline",
+          description: `${language} needs the cloud executor. Reconnect to your network to run it.`,
+        });
         return {
           output: [],
           error: '📡 You are offline. This language requires a server to execute. Please reconnect to the internet and try again.',
@@ -156,7 +162,25 @@ export const useCodeExecution = () => {
         }
       }
 
+      // In-browser JS/TS fallback when WebContainer fails or we're offline.
+      if (canFallbackToBrowserJs) {
+        const result = await runJavaScriptInBrowser(code);
+        return {
+          ...result,
+          output: [
+            isOffline
+              ? '⚡ Offline — running in browser sandbox (no Node APIs).'
+              : '⚡ WebContainer unavailable — running in browser sandbox (no Node APIs).',
+            ...result.output,
+          ],
+        };
+      }
+
       if (isOffline) {
+        showOfflineDialog({
+          title: "You're offline",
+          description: 'The in-browser runtime is unavailable for this command. Reconnect to use the cloud executor.',
+        });
         return {
           output: [],
           error: '📡 You are offline and the in-browser runtime is unavailable. Reconnect to use the cloud executor.',
