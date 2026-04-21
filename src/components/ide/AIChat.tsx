@@ -78,6 +78,7 @@ interface AIChatProps {
   onAppendToFile?: (name: string, content: string) => void;
   currentTemplate?: string;
   automationConfig?: string | null;
+  currentProjectId?: string | null;
 }
 
 const quickActions: QuickAction[] = [
