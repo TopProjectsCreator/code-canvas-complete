@@ -113,10 +113,10 @@ export default function Landing() {
   ];
 
   // Live pulse nodes from most-recently-updated public canvases
-  const [pulseNodes, setPulseNodes] = useState<Array<{ id: string; status: string }>>([
-    { id: "—", status: "Connecting" },
-    { id: "—", status: "Connecting" },
-    { id: "—", status: "Connecting" },
+  const [pulseNodes, setPulseNodes] = useState<Array<{ id: string; projectId: string | null; status: string }>>([
+    { id: "—", projectId: null, status: "Connecting" },
+    { id: "—", projectId: null, status: "Connecting" },
+    { id: "—", projectId: null, status: "Connecting" },
   ]);
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export default function Landing() {
     const load = async () => {
       const { data } = await supabase
         .from("projects")
-        .select("name, language, updated_at")
+        .select("id, name, language, updated_at")
         .eq("is_public", true)
         .order("updated_at", { ascending: false })
         .limit(3);
@@ -133,6 +133,7 @@ export default function Landing() {
       setPulseNodes(
         data.map((p: any, i: number) => ({
           id: (p.name || "Canvas").slice(0, 18),
+          projectId: p.id ?? null,
           status: statuses[i % statuses.length],
         })),
       );
@@ -265,15 +266,24 @@ export default function Landing() {
                   </div>
 
                   <div className="space-y-2">
-                    {pulseNodes.map((node, idx) => (
-                      <div key={node.id} className="relative overflow-hidden rounded-xl border border-primary/20 bg-card/45 px-3 py-2">
-                        <div className="absolute inset-y-0 left-0 w-14 bg-gradient-to-r from-primary/20 to-transparent motion-safe:animate-shimmer-line" style={{ animationDelay: `${idx * 0.4}s` }} />
-                        <div className="relative flex items-center justify-between text-xs">
-                          <span className="font-mono text-primary/90">{node.id}</span>
-                          <span className="text-muted-foreground">{node.status}</span>
-                        </div>
-                      </div>
-                    ))}
+                    {pulseNodes.map((node, idx) => {
+                      const clickable = !!node.projectId;
+                      return (
+                        <button
+                          key={`${node.id}-${idx}`}
+                          type="button"
+                          disabled={!clickable}
+                          onClick={() => node.projectId && navigate(`/project/${node.projectId}`)}
+                          className={`relative w-full overflow-hidden rounded-xl border border-primary/20 bg-card/45 px-3 py-2 text-left transition-colors ${clickable ? "hover:border-primary/50 hover:bg-card/70 cursor-pointer" : "cursor-default"}`}
+                        >
+                          <div className="absolute inset-y-0 left-0 w-14 bg-gradient-to-r from-primary/20 to-transparent motion-safe:animate-shimmer-line" style={{ animationDelay: `${idx * 0.4}s` }} />
+                          <div className="relative flex items-center justify-between text-xs">
+                            <span className="font-mono text-primary/90">{node.id}</span>
+                            <span className="text-muted-foreground">{node.status}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <div className="mt-4 grid grid-cols-3 gap-2 text-center">
