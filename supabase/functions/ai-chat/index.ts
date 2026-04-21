@@ -1297,6 +1297,14 @@ serve(async (req) => {
           result = (args.project_id && args.file_path)
             ? await readProjectFile(serviceSupabaseForContext, userId, args.project_id, args.file_path)
             : JSON.stringify({ error: "project_id and file_path required" });
+        } else if (fnName === "search_public_projects") {
+          result = await searchPublicProjects(serviceSupabaseForContext, args.query, args.limit);
+        } else if (fnName === "list_current_files") {
+          result = await listCurrentFiles(serviceSupabaseForContext, userId, currentProjectId || null);
+        } else if (fnName === "read_current_file") {
+          result = args.file_path
+            ? await readCurrentFile(serviceSupabaseForContext, userId, currentProjectId || null, args.file_path)
+            : JSON.stringify({ error: "file_path required" });
         } else {
           result = `Unknown tool: ${fnName}`;
         }
