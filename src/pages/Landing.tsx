@@ -278,16 +278,16 @@ export default function Landing() {
 
                   <div className="mt-4 grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-lg border border-primary/20 bg-primary/10 px-2 py-2">
-                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Threads</p>
-                      <p className="text-sm font-semibold">64</p>
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Online</p>
+                      <p className="text-sm font-semibold">{stats.onlineUsers.toLocaleString()}</p>
                     </div>
                     <div className="rounded-lg border border-primary/20 bg-primary/10 px-2 py-2">
                       <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Agents</p>
-                      <p className="text-sm font-semibold">12</p>
+                      <p className="text-sm font-semibold">{stats.activeAgents.toLocaleString()}</p>
                     </div>
                     <div className="rounded-lg border border-primary/20 bg-primary/10 px-2 py-2">
-                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Cycles</p>
-                      <p className="text-sm font-semibold">∞</p>
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Canvases</p>
+                      <p className="text-sm font-semibold">{stats.totalCanvases.toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
