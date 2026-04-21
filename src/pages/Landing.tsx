@@ -113,10 +113,10 @@ export default function Landing() {
   ];
 
   // Live pulse nodes from most-recently-updated public canvases
-  const [pulseNodes, setPulseNodes] = useState<Array<{ id: string; status: string }>>([
-    { id: "—", status: "Connecting" },
-    { id: "—", status: "Connecting" },
-    { id: "—", status: "Connecting" },
+  const [pulseNodes, setPulseNodes] = useState<Array<{ id: string; projectId: string | null; status: string }>>([
+    { id: "—", projectId: null, status: "Connecting" },
+    { id: "—", projectId: null, status: "Connecting" },
+    { id: "—", projectId: null, status: "Connecting" },
   ]);
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export default function Landing() {
     const load = async () => {
       const { data } = await supabase
         .from("projects")
-        .select("name, language, updated_at")
+        .select("id, name, language, updated_at")
         .eq("is_public", true)
         .order("updated_at", { ascending: false })
         .limit(3);
@@ -133,6 +133,7 @@ export default function Landing() {
       setPulseNodes(
         data.map((p: any, i: number) => ({
           id: (p.name || "Canvas").slice(0, 18),
+          projectId: p.id ?? null,
           status: statuses[i % statuses.length],
         })),
       );
