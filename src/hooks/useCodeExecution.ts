@@ -60,27 +60,29 @@ export const useCodeExecution = () => {
 
     setIsExecuting(true);
 
+    const normalizedLanguage = language.toLowerCase();
+    const isOffline = !navigator.onLine;
+
     try {
+      // Languages that can run fully in the browser (WebContainer/JS engine).
+      const clientSideLanguages = new Set(['javascript', 'typescript', 'shell', 'bash', 'html', 'css', 'json']);
+
       // Offline guard: server-side execution requires internet
-      if (!navigator.onLine) {
-        const normalizedLang = language.toLowerCase();
-        const clientSideLanguages = new Set(['javascript', 'typescript', 'shell', 'bash', 'html', 'css', 'json']);
-        if (!clientSideLanguages.has(normalizedLang)) {
-          return {
-            output: [],
-            error: '📡 You are offline. This language requires a server to execute. Please reconnect to the internet and try again.',
-            executedAt: new Date().toISOString(),
-          };
-        }
+      if (isOffline && !clientSideLanguages.has(normalizedLanguage)) {
+        return {
+          output: [],
+          error: '📡 You are offline. This language requires a server to execute. Please reconnect to the internet and try again.',
+          executedAt: new Date().toISOString(),
+        };
       }
 
-      const normalizedLanguage = language.toLowerCase();
       const shellExecutorMode = typeof window !== 'undefined'
         ? window.localStorage.getItem('ide.shellExecutorMode') || 'webcontainer'
         : 'webcontainer';
+      // When offline, force WebContainer for JS/shell regardless of saved preference (Wandbox needs network).
       const shouldUseWebContainer =
         ['shell', 'bash', 'javascript'].includes(normalizedLanguage) &&
-        shellExecutorMode !== 'wandbox' &&
+        (isOffline || shellExecutorMode !== 'wandbox') &&
         webContainerStatus !== 'error';
 
       if (shouldUseWebContainer && /\b(pip|pip3|uv)\b/.test(code)) {
@@ -109,6 +111,14 @@ export const useCodeExecution = () => {
         } catch (error) {
           console.warn('WebContainer execution failed, falling back to edge executor.', error);
         }
+      }
+
+      if (isOffline) {
+        return {
+          output: [],
+          error: '📡 You are offline and the in-browser runtime is unavailable. Reconnect to use the cloud executor.',
+          executedAt: new Date().toISOString(),
+        };
       }
 
       const sessionKey = normalizedLanguage === 'bash' ? 'shell' : normalizedLanguage;
