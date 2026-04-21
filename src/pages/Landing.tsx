@@ -93,11 +93,7 @@ const timeline = [
 ];
 
 const floatingBadges = ["Realtime AI Pairing", "All in one IDE", "Live Team Presence", "Edge-Speed Builds", "Built in Git", "Multiplayer Canvases", "Browser Native", "Instant Previews", "No Install Required", "Publish builtin", "Office (word/pptx/exel) support", "Live chat and video rooms", "Top-Noch Extentions pane", "Full terminal", "Copy Zapier with our amazing automations system", "Make workflows for easy deploys and actions."];
-const pulseNodes = [
-  { id: "NX-01", status: "Synced" },
-  { id: "NX-08", status: "Rendering" },
-  { id: "NX-15", status: "Deploying" },
-];
+// pulseNodes is now derived live from recent public projects (see component body)
 
 export default function Landing() {
   const navigate = useNavigate();
