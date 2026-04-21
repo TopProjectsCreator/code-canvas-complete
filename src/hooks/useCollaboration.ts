@@ -235,7 +235,7 @@ export function useCollaboration(projectId: string | undefined) {
   useEffect(() => {
     if (!projectId) return;
 
-    const channel = supabase.channel(`comments:${projectId}`)
+    const channel = supabase.channel(`comments:${projectId}:${sessionIdRef.current}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'code_comments', filter: `project_id=eq.${projectId}` }, (payload) => {
         if (payload.new && (payload.new as { user_id?: string }).user_id !== user?.id) {
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
