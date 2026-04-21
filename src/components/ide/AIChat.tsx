@@ -701,6 +701,7 @@ export const AIChat = ({
   onAppendToFile,
   currentTemplate,
   automationConfig,
+  currentProjectId,
 }: AIChatProps) => {
   const { user } = useAuth();
   const [input, setInput] = useState('');
