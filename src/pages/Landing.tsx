@@ -113,10 +113,18 @@ export default function Landing() {
   ];
 
   // Live pulse nodes from most-recently-updated public canvases
-  const [pulseNodes, setPulseNodes] = useState<Array<{ id: string; projectId: string | null; status: string }>>([
-    { id: "—", projectId: null, status: "Connecting" },
-    { id: "—", projectId: null, status: "Connecting" },
-    { id: "—", projectId: null, status: "Connecting" },
+  const [pulseNodes, setPulseNodes] = useState<Array<{
+    id: string;
+    projectId: string | null;
+    status: string;
+    language: string | null;
+    updatedAt: string | null;
+    avatarUrl: string | null;
+    authorName: string | null;
+  }>>([
+    { id: "—", projectId: null, status: "Connecting", language: null, updatedAt: null, avatarUrl: null, authorName: null },
+    { id: "—", projectId: null, status: "Connecting", language: null, updatedAt: null, avatarUrl: null, authorName: null },
+    { id: "—", projectId: null, status: "Connecting", language: null, updatedAt: null, avatarUrl: null, authorName: null },
   ]);
 
   useEffect(() => {
@@ -124,18 +132,30 @@ export default function Landing() {
     const load = async () => {
       const { data } = await supabase
         .from("projects")
-        .select("id, name, language, updated_at")
+        .select("id, name, language, updated_at, user_id")
         .eq("is_public", true)
         .order("updated_at", { ascending: false })
         .limit(3);
       if (cancelled || !data) return;
+      const userIds = [...new Set(data.map((p: any) => p.user_id).filter(Boolean))];
+      const { data: profiles } = userIds.length
+        ? await supabase.from("profiles").select("user_id, display_name, avatar_url").in("user_id", userIds as string[])
+        : { data: [] as any[] };
+      const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
       const statuses = ["Synced", "Rendering", "Deploying", "Building", "Live"];
       setPulseNodes(
-        data.map((p: any, i: number) => ({
-          id: (p.name || "Canvas").slice(0, 18),
-          projectId: p.id ?? null,
-          status: statuses[i % statuses.length],
-        })),
+        data.map((p: any, i: number) => {
+          const prof: any = profileMap.get(p.user_id);
+          return {
+            id: (p.name || "Canvas").slice(0, 18),
+            projectId: p.id ?? null,
+            status: statuses[i % statuses.length],
+            language: p.language ?? null,
+            updatedAt: p.updated_at ?? null,
+            avatarUrl: prof?.avatar_url ?? null,
+            authorName: prof?.display_name ?? null,
+          };
+        }),
       );
     };
     load();
@@ -145,6 +165,19 @@ export default function Landing() {
       clearInterval(interval);
     };
   }, []);
+
+  const formatRelativeTime = (iso: string | null) => {
+    if (!iso) return "—";
+    const diff = Date.now() - new Date(iso).getTime();
+    const s = Math.max(1, Math.floor(diff / 1000));
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    return `${d}d ago`;
+  };
 
 
   return (
@@ -268,18 +301,35 @@ export default function Landing() {
                   <div className="space-y-2">
                     {pulseNodes.map((node, idx) => {
                       const clickable = !!node.projectId;
+                      const tooltip = `${node.language || "unknown"} · updated ${formatRelativeTime(node.updatedAt)}${node.authorName ? ` · ${node.authorName}` : ""}`;
+                      const initial = (node.authorName || node.id || "?").charAt(0).toUpperCase();
                       return (
                         <button
                           key={`${node.id}-${idx}`}
                           type="button"
                           disabled={!clickable}
+                          title={clickable ? tooltip : undefined}
                           onClick={() => node.projectId && navigate(`/project/${node.projectId}`)}
-                          className={`relative w-full overflow-hidden rounded-xl border border-primary/20 bg-card/45 px-3 py-2 text-left transition-colors ${clickable ? "hover:border-primary/50 hover:bg-card/70 cursor-pointer" : "cursor-default"}`}
+                          className={`group relative w-full overflow-hidden rounded-xl border border-primary/20 bg-card/45 px-3 py-2 text-left transition-colors ${clickable ? "hover:border-primary/50 hover:bg-card/70 cursor-pointer" : "cursor-default"}`}
                         >
                           <div className="absolute inset-y-0 left-0 w-14 bg-gradient-to-r from-primary/20 to-transparent motion-safe:animate-shimmer-line" style={{ animationDelay: `${idx * 0.4}s` }} />
-                          <div className="relative flex items-center justify-between text-xs">
-                            <span className="font-mono text-primary/90">{node.id}</span>
-                            <span className="text-muted-foreground">{node.status}</span>
+                          <div className="relative flex items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {node.avatarUrl ? (
+                                <img
+                                  src={node.avatarUrl}
+                                  alt={node.authorName || "author"}
+                                  className="h-5 w-5 shrink-0 rounded-full border border-primary/30 object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/15 text-[9px] font-semibold text-primary">
+                                  {initial}
+                                </span>
+                              )}
+                              <span className="truncate font-mono text-primary/90">{node.id}</span>
+                            </div>
+                            <span className="shrink-0 text-muted-foreground">{node.status}</span>
                           </div>
                         </button>
                       );
