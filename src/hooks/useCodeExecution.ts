@@ -113,6 +113,14 @@ export const useCodeExecution = () => {
         }
       }
 
+      if (isOffline) {
+        return {
+          output: [],
+          error: '📡 You are offline and the in-browser runtime is unavailable. Reconnect to use the cloud executor.',
+          executedAt: new Date().toISOString(),
+        };
+      }
+
       const sessionKey = normalizedLanguage === 'bash' ? 'shell' : normalizedLanguage;
       const body: Record<string, string> = { code, language };
       if (stdin) body.stdin = stdin;
