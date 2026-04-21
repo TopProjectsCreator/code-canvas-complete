@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import Docs from "./pages/Docs";
 import ProfilePage from "./pages/Profile";
 import { isPublishedHost } from "./lib/publishing";
+import { OfflineDialog } from "@/components/ide/OfflineDialog";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
+          <OfflineDialog />
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<RootRoute />} />
