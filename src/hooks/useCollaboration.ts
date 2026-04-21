@@ -357,14 +357,35 @@ export function useCollaboration(projectId: string | undefined) {
     }
     if (!user) return false;
 
-    const { error } = await supabase.from('project_collaborators').insert({
-      project_id: projectId,
-      user_id: user.id,
-      invited_by: user.id,
-      role,
-      invited_email: email,
-      accepted: false,
-    });
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      showOfflineDialog({
+        description: `Can't send invitations while offline. Reconnect to Wi-Fi to invite ${email}.`,
+      });
+      return false;
+    }
+
+    let error: { code?: string; message: string } | null = null;
+    try {
+      const res = await supabase.from('project_collaborators').insert({
+        project_id: projectId,
+        user_id: user.id,
+        invited_by: user.id,
+        role,
+        invited_email: email,
+        accepted: false,
+      });
+      error = res.error;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/failed to fetch|networkerror|network request failed/i.test(msg)) {
+        showOfflineDialog({
+          description: `Couldn't reach the server to invite ${email}. Check your Wi-Fi connection and try again.`,
+        });
+        return false;
+      }
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
+      return false;
+    }
 
     if (error) {
       if (error.code === '23505') {
@@ -383,14 +404,35 @@ export function useCollaboration(projectId: string | undefined) {
   const inviteCollaboratorByUser = useCallback(async (candidate: UserSuggestion, role: CollabRole) => {
     if (!projectId || !user) return false;
 
-    const { error } = await supabase.from('project_collaborators').insert({
-      project_id: projectId,
-      user_id: candidate.userId,
-      invited_by: user.id,
-      role,
-      invited_email: null,
-      accepted: true,
-    });
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      showOfflineDialog({
+        description: `Can't add ${candidate.displayName} while offline. Reconnect to Wi-Fi and try again.`,
+      });
+      return false;
+    }
+
+    let error: { code?: string; message: string } | null = null;
+    try {
+      const res = await supabase.from('project_collaborators').insert({
+        project_id: projectId,
+        user_id: candidate.userId,
+        invited_by: user.id,
+        role,
+        invited_email: null,
+        accepted: true,
+      });
+      error = res.error;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/failed to fetch|networkerror|network request failed/i.test(msg)) {
+        showOfflineDialog({
+          description: `Couldn't reach the server to add ${candidate.displayName}. Check your Wi-Fi connection.`,
+        });
+        return false;
+      }
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
+      return false;
+    }
 
     if (error) {
       if (error.code === '23505') {
