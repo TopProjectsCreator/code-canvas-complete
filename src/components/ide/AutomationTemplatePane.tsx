@@ -965,6 +965,47 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     L.push('');
     L.push('');
 
+    // Shared helpers
+    L.push('class PipelineStepError(RuntimeError):');
+    L.push('    """Raised when a pipeline step fails with context."""');
+    L.push('');
+    L.push('def _safe_json_loads(raw, *, fallback=None, field_name="value"):');
+    L.push('    """Parse JSON when possible; raise a readable error on malformed input."""');
+    L.push('    if raw is None or raw == "":');
+    L.push('        return fallback');
+    L.push('    if isinstance(raw, (dict, list)):');
+    L.push('        return raw');
+    L.push('    if not isinstance(raw, str):');
+    L.push('        raise ValueError(f"{field_name} must be a JSON string, object, or array.")');
+    L.push('    try:');
+    L.push('        return json.loads(raw)');
+    L.push('    except json.JSONDecodeError as exc:');
+    L.push('        raise ValueError(f"Invalid JSON in {field_name}: {exc}") from exc');
+    L.push('');
+    L.push('def _build_headers(config, *, token=None):');
+    L.push('    headers = {"Content-Type": "application/json"}');
+    L.push('    custom_headers = _safe_json_loads(config.get("headers"), fallback=None, field_name="headers")');
+    L.push('    if isinstance(custom_headers, dict):');
+    L.push('        headers.update(custom_headers)');
+    L.push('    auth_header = config.get("auth_header") or "Authorization"');
+    L.push('    auth_prefix = (config.get("auth_prefix", "Bearer") or "").strip()');
+    L.push('    if auth_header and token and auth_header not in headers:');
+    L.push('        headers[auth_header] = f"{auth_prefix} {token}".strip() if auth_prefix else str(token)');
+    L.push('    return headers');
+    L.push('');
+    L.push('def _request_step(url, config, *, step_name, token=None):');
+    L.push('    if not url:');
+    L.push('        raise ValueError(f"No API URL configured for {step_name}. Set config.url to a valid endpoint.")');
+    L.push('    method = config.get("method", "POST")');
+    L.push('    query = _safe_json_loads(config.get("query"), fallback=None, field_name="query")');
+    L.push('    body = _safe_json_loads(config.get("body"), fallback=None, field_name="body")');
+    L.push('    response = requests.request(method, url, headers=_build_headers(config, token=token), params=query, json=body, timeout=30)');
+    L.push('    response.raise_for_status()');
+    L.push('    content_type = response.headers.get("Content-Type", "")');
+    L.push('    data = response.json() if "application/json" in content_type else {"text": response.text}');
+    L.push('    return data');
+    L.push('');
+
     // Credential variables (defined BEFORE step functions)
     if (needsAuth.length > 0) {
       L.push('# --- Credentials (loaded from environment) ---');
@@ -976,11 +1017,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       }
       L.push('');
       // Validation
-      const allEnvVars = needsAuth.flatMap(a => [a.envVar, ...(a.extraEnvVars || [])]);
-      L.push('# Validate required credentials');
-      L.push(`_missing = [k for k in [${allEnvVars.map(v => `"${v}"`).join(', ')}] if not os.getenv(k)]`);
-      L.push('if _missing:');
-      L.push('    raise EnvironmentError(f"Missing required env vars: {\\", \\".join(_missing)}")');
+      const allEnvVars = Array.from(new Set(needsAuth.flatMap(a => [a.envVar, ...(a.extraEnvVars || [])])));
+      L.push('def validate_environment():');
+      L.push('    """Return a list of missing environment variables required by this pipeline."""');
+      L.push(`    required = [${allEnvVars.map(v => `"${v}"`).join(', ')}]`);
+      L.push('    return [name for name in required if not os.getenv(name)]');
       L.push('');
       L.push('');
     }
@@ -1027,47 +1068,19 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
           L.push(`    # SDK available: pip install ${sdkHint}`);
           L.push(`    # Replace this generic request with the ${sdkHint} client for ${b.label}`);
         }
-        L.push(`    headers = {"Content-Type": "application/json"}`);
-        L.push(`    if config.get("headers"):`);
-        L.push(`        custom_headers = json.loads(config["headers"])`);
-        L.push(`        if isinstance(custom_headers, dict):`);
-        L.push(`            headers.update(custom_headers)`);
-        L.push(`    auth_header = config.get("auth_header") or "Authorization"`);
-        L.push(`    auth_prefix = config.get("auth_prefix", "Bearer").strip()`);
         L.push(`    token_val = ${ev}`);
-        L.push(`    if auth_header and token_val and auth_header not in headers:`);
-        L.push(`        headers[auth_header] = f"{auth_prefix} {token_val}".strip() if auth_prefix else token_val`);
-        L.push(`    url = config.get("url")`);
-        L.push(`    if url:`);
-        L.push(`        response = requests.request(config.get("method", "POST"), url, headers=headers, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
-        L.push(`        response.raise_for_status()`);
-        L.push(`        content_type = response.headers.get("Content-Type", "")`);
-        L.push(`        data = response.json() if "application/json" in content_type else {"text": response.text}`);
-        L.push(`        print(f"  ↳ ${b.label} called: {url}")`);
-        L.push(`        return {"status": "ok", "result": json.dumps(data), "response": data, **(prev or {})}`);
-        L.push(`    else:`);
-        L.push(`        raise ValueError("No API URL configured for ${b.label}. Set config.url to a valid endpoint.")`);
+        L.push(`    data = _request_step(config.get("url"), config, step_name=${JSON.stringify(b.label)}, token=token_val)`);
+        L.push(`    print(f"  ↳ ${b.label} called: {config.get('url')}")`);
+        L.push(`    return {"status": "ok", "result": json.dumps(data), "response": data, **(prev or {})}`);
       } else {
         const sdkHint = getPythonSdkHint(b.label);
         if (sdkHint) {
           L.push(`    # SDK available: pip install ${sdkHint}`);
           L.push(`    # A provider-specific SDK may be available for ${b.label}`);
         }
-        L.push(`    headers = {"Content-Type": "application/json"}`);
-        L.push(`    if config.get("headers"):`);
-        L.push(`        custom_headers = json.loads(config["headers"])`);
-        L.push(`        if isinstance(custom_headers, dict):`);
-        L.push(`            headers.update(custom_headers)`);
-        L.push(`    url = config.get("url")`);
-        L.push(`    if url:`);
-        L.push(`        response = requests.request(config.get("method", "POST"), url, headers=headers, params=json.loads(config["query"]) if config.get("query") else None, json=json.loads(config["body"]) if config.get("body") else None)`);
-        L.push(`        response.raise_for_status()`);
-        L.push(`        content_type = response.headers.get("Content-Type", "")`);
-        L.push(`        data = response.json() if "application/json" in content_type else {"text": response.text}`);
-        L.push(`        print(f"  ↳ ${b.label} executed against {url}")`);
-        L.push(`        return {"status": "ok", "result": json.dumps(data), "response": data, **(prev or {})}`);
-        L.push(`    else:`);
-        L.push(`        raise ValueError("No API URL configured for ${b.label}. Set config.url to a valid endpoint.")`);
+        L.push(`    data = _request_step(config.get("url"), config, step_name=${JSON.stringify(b.label)})`);
+        L.push(`    print(f"  ↳ ${b.label} executed against {config.get('url')}")`);
+        L.push(`    return {"status": "ok", "result": json.dumps(data), "response": data, **(prev or {})}`);
       }
       L.push('');
       L.push('');
@@ -1109,6 +1122,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push('');
       L.push('');
       L.push('if __name__ == "__main__":');
+      if (needsAuth.length > 0) {
+        L.push('    missing = validate_environment()');
+        L.push('    if missing:');
+        L.push('        raise EnvironmentError(f"Missing required env vars: {\', \'.join(missing)}")');
+      }
       L.push('    if os.getenv("RUN_ONCE", "0") == "1":');
       L.push('        run_pipeline()');
       L.push('    else:');
@@ -1116,6 +1134,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     } else {
       L.push('');
       L.push('if __name__ == "__main__":');
+      if (needsAuth.length > 0) {
+        L.push('    missing = validate_environment()');
+        L.push('    if missing:');
+        L.push('        raise EnvironmentError(f"Missing required env vars: {\', \'.join(missing)}")');
+      }
       L.push('    run_pipeline()');
     }
 
