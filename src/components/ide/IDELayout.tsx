@@ -2436,6 +2436,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               }
             }}
             currentFile={activeFileWithContent}
+            currentProjectId={currentProject?.id ?? null}
             consoleOutput={terminalHistory}
             onInsertCode={(code) => {
               if (activeFile) {
