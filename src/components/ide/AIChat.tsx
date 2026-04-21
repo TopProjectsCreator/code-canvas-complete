@@ -873,6 +873,7 @@ export const AIChat = ({
       agentMode: true,
       template: currentTemplate,
       automationConfig,
+      projectId: currentProjectId,
     });
   };
 
