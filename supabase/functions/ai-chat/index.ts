@@ -677,16 +677,61 @@ const BASE_TOOLS = [
   {
     type: "function",
     function: {
-      name: "read_project_file",
+      name: "search_public_projects",
       description:
-        "Read a specific file from one of the user's other projects. Call list_my_projects first to get the project_id. Use this to copy patterns, components, or content from prior work.",
+        "Search PUBLIC canvases shared by other CodeCanvas users. Use when the user asks for community examples, references a public project by name, or wants you to copy/learn from someone else's published canvas. Returns id, name, language, description, owner display_name.",
       parameters: {
         type: "object",
         properties: {
-          project_id: { type: "string", description: "Project ID from list_my_projects" },
+          query: { type: "string", description: "Optional name/description filter" },
+          limit: { type: "number", description: "Max projects to return (default 20, max 50)" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_project_file",
+      description:
+        "Read a specific file from another project — either one of the user's own projects (from list_my_projects) or any PUBLIC project (from search_public_projects). Use this to copy patterns, components, or content.",
+      parameters: {
+        type: "object",
+        properties: {
+          project_id: { type: "string", description: "Project ID from list_my_projects or search_public_projects" },
           file_path: { type: "string", description: "Full file name/path to read (e.g. 'src/App.tsx')" },
         },
         required: ["project_id", "file_path"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_current_files",
+      description:
+        "List ALL files in the CURRENT canvas (the one the user is editing right now), with full paths. Use this BEFORE making changes that touch files outside the active tab — you are blind to other files until you call this. Returns an array of { path, language, size }.",
+      parameters: {
+        type: "object",
+        properties: {},
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_current_file",
+      description:
+        "Read the full contents of any file in the CURRENT canvas by path. Call list_current_files first to discover paths. Essential whenever the user references a file that isn't the active tab.",
+      parameters: {
+        type: "object",
+        properties: {
+          file_path: { type: "string", description: "Path from list_current_files (e.g. 'src/components/Foo.tsx')" },
+        },
+        required: ["file_path"],
         additionalProperties: false,
       },
     },
