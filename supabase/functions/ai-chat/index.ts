@@ -1320,6 +1320,11 @@ serve(async (req) => {
     }
 
     // === BYOK path: call external provider with tool support ===
+    if (userApiKey && selectedProvider && !BYOK_PROVIDERS[selectedProvider]) {
+      console.warn(`BYOK provider "${selectedProvider}" not supported for chat. Falling back to Lovable AI.`);
+      selectedProvider = null;
+      userApiKey = null;
+    }
     if (userApiKey && selectedProvider) {
       const effectiveByokModel = byokModel || BYOK_DEFAULT_MODELS[selectedProvider] || "gpt-4o";
       console.log(`Using BYOK provider: ${selectedProvider}, model: ${effectiveByokModel}`);
