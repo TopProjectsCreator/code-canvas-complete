@@ -69,9 +69,7 @@ const matrixCards = [
   },
 ];
 
-const signalReadout = [
-  { label: "Latency", value: "12ms", icon: <Gauge className="h-4 w-4" /> },
-  { label: "AI Agents", value: "128", icon: <Bot className="h-4 w-4" /> },
+const staticSignalReadout = [
   { label: "Deploy Region", value: "Global", icon: <Radar className="h-4 w-4" /> },
   { label: "Build Status", value: "Realtime", icon: <Orbit className="h-4 w-4" /> },
 ];
@@ -104,6 +102,17 @@ const pulseNodes = [
 export default function Landing() {
   const navigate = useNavigate();
   const { stats } = useLandingStats();
+
+  const agentsLabel = stats.activeAgents > 0 ? "AI Agents Live" : "Total Prompts";
+  const agentsValue = stats.activeAgents > 0
+    ? stats.activeAgents.toLocaleString()
+    : stats.totalPrompts.toLocaleString();
+
+  const signalReadout = [
+    { label: "Latency", value: stats.latencyMs > 0 ? `${stats.latencyMs}ms` : "—", icon: <Gauge className="h-4 w-4" /> },
+    { label: agentsLabel, value: agentsValue, icon: <Bot className="h-4 w-4" /> },
+    ...staticSignalReadout,
+  ];
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
