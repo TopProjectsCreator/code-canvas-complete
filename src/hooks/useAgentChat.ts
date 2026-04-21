@@ -795,6 +795,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
         template: context.template,
         automationConfig: context.automationConfig || null,
+        projectId: context.projectId || null,
       }, {
         accessToken: session.access_token,
         signal: abortControllerRef.current.signal,
