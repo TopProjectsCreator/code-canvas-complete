@@ -853,6 +853,7 @@ export const AIChat = ({
       multimodalContent: attachments.length > 0 ? multimodalContent : undefined,
       template: currentTemplate,
       automationConfig,
+      projectId: currentProjectId,
     });
     
     setInput('');
