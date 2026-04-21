@@ -301,18 +301,35 @@ export default function Landing() {
                   <div className="space-y-2">
                     {pulseNodes.map((node, idx) => {
                       const clickable = !!node.projectId;
+                      const tooltip = `${node.language || "unknown"} · updated ${formatRelativeTime(node.updatedAt)}${node.authorName ? ` · ${node.authorName}` : ""}`;
+                      const initial = (node.authorName || node.id || "?").charAt(0).toUpperCase();
                       return (
                         <button
                           key={`${node.id}-${idx}`}
                           type="button"
                           disabled={!clickable}
+                          title={clickable ? tooltip : undefined}
                           onClick={() => node.projectId && navigate(`/project/${node.projectId}`)}
-                          className={`relative w-full overflow-hidden rounded-xl border border-primary/20 bg-card/45 px-3 py-2 text-left transition-colors ${clickable ? "hover:border-primary/50 hover:bg-card/70 cursor-pointer" : "cursor-default"}`}
+                          className={`group relative w-full overflow-hidden rounded-xl border border-primary/20 bg-card/45 px-3 py-2 text-left transition-colors ${clickable ? "hover:border-primary/50 hover:bg-card/70 cursor-pointer" : "cursor-default"}`}
                         >
                           <div className="absolute inset-y-0 left-0 w-14 bg-gradient-to-r from-primary/20 to-transparent motion-safe:animate-shimmer-line" style={{ animationDelay: `${idx * 0.4}s` }} />
-                          <div className="relative flex items-center justify-between text-xs">
-                            <span className="font-mono text-primary/90">{node.id}</span>
-                            <span className="text-muted-foreground">{node.status}</span>
+                          <div className="relative flex items-center justify-between gap-2 text-xs">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {node.avatarUrl ? (
+                                <img
+                                  src={node.avatarUrl}
+                                  alt={node.authorName || "author"}
+                                  className="h-5 w-5 shrink-0 rounded-full border border-primary/30 object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary/15 text-[9px] font-semibold text-primary">
+                                  {initial}
+                                </span>
+                              )}
+                              <span className="truncate font-mono text-primary/90">{node.id}</span>
+                            </div>
+                            <span className="shrink-0 text-muted-foreground">{node.status}</span>
                           </div>
                         </button>
                       );
