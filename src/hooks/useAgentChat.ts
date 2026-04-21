@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import type { AutonomyConfig } from '@/hooks/useAutonomyMode';
 import { supabase } from '@/integrations/supabase/client';
 import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion, QuestionOption, ChatWidget, ChatWidgetType } from '@/types/agent';
@@ -81,6 +81,23 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const executedActionsRef = useRef<Set<string>>(new Set());
   const shellSessionIdRef = useRef<string | null>(null);
   const aiProvider = useMemo(() => createAIProvider(), []);
+
+  // Broadcast active-agent presence while loading so the landing page can show live count
+  useEffect(() => {
+    if (!isLoading) return;
+    const key = 'agent-' + Math.random().toString(36).slice(2);
+    const channel = supabase.channel('active-ai-agents', {
+      config: { presence: { key } },
+    });
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({ started_at: new Date().toISOString() });
+      }
+    });
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [isLoading]);
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
 
