@@ -193,7 +193,7 @@ export function useCollaboration(projectId: string | undefined) {
     if (!projectId || !user || !profile) return;
 
     const colorIndex = user.id.charCodeAt(0) % PRESENCE_COLORS.length;
-    const channel = supabase.channel(`presence:${projectId}`, {
+    const channel = supabase.channel(`presence:${projectId}:${sessionIdRef.current}`, {
       config: { presence: { key: user.id } },
     });
     presenceChannelRef.current = channel;
