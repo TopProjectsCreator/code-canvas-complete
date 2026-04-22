@@ -1552,6 +1552,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [dataPrompt, setDataPrompt] = useState<{ type: 'variable' | 'list'; name: string } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState<LibraryMode | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ type: 'variable' | 'list'; id: string; oldName: string } | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState<{ text: string; answer: string } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const costumeInputRef = useRef<HTMLInputElement>(null);
   const soundInputRef = useRef<HTMLInputElement>(null);
@@ -1566,6 +1567,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const storageReadyRef = useRef(false);
   const projectLoadedRef = useRef(false);
   const isRunningRef = useRef(isRunning);
+  const latestQuestionBubbleRef = useRef('');
 
   // Keep archiveRef in sync for the storage adapter closure
   useEffect(() => {
@@ -1903,14 +1905,26 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           console.warn('[Scratch] Extension loading:', e);
         }
 
-        // Handle "ask and wait" blocks — VM emits QUESTION, waits for ANSWER
+        // Handle "ask and wait" blocks — visible sprites emit SAY(question) + QUESTION('')
         const rt = vm.runtime as any;
+        rt?.on?.('SAY', (_target: unknown, sayType: string, text: string | null) => {
+          if (sayType !== 'say') return;
+          latestQuestionBubbleRef.current = typeof text === 'string' ? text : '';
+        });
         rt?.on?.('QUESTION', (question: string) => {
           if (!isRunningRef.current) return;
-          const promptText = typeof question === 'string' ? question.trim() : '';
+          if (question === null) {
+            setPendingQuestion(null);
+            latestQuestionBubbleRef.current = '';
+            return;
+          }
+
+          const promptText = typeof question === 'string' && question.trim()
+            ? question.trim()
+            : latestQuestionBubbleRef.current.trim();
+
           if (!promptText) return;
-          const answer = window.prompt(promptText) || '';
-          rt?.emit?.('ANSWER', answer);
+          setPendingQuestion({ text: promptText, answer: '' });
         });
 
         setVmReady(true);
@@ -1966,6 +1980,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
+      setPendingQuestion(null);
+      latestQuestionBubbleRef.current = '';
       try {
         vmRef.current?.stopAll();
       } catch { /* noop */ }
@@ -1999,6 +2015,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           onStop();
           return;
         }
+        setPendingQuestion(null);
+        latestQuestionBubbleRef.current = '';
         vmRef.current.greenFlag();
         setTimeout(() => syncFromVm(), 120);
       } catch (error) {
@@ -2008,6 +2026,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     } else if (!isRunning && prevIsRunning.current) {
       // Parent triggered stop — stop VM
       try {
+        setPendingQuestion(null);
+        latestQuestionBubbleRef.current = '';
         vmRef.current.stopAll();
         syncFromVm();
       } catch { /* noop */ }
@@ -4229,6 +4249,46 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             <div className="flex justify-end gap-2 mt-4">
               <button onClick={() => setDataPrompt(null)} className="px-4 py-1.5 rounded-lg text-[13px] text-[#575e75] border border-[#d0d0d0] hover:bg-[#f0f0f0]">Cancel</button>
               <button onClick={handleDataPromptSubmit} className="px-4 py-1.5 rounded-lg text-[13px] text-white bg-[#855cd6] hover:bg-[#7248bf]">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingQuestion && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/40" onClick={() => setPendingQuestion(null)}>
+          <div className="w-[min(420px,92vw)] rounded-2xl bg-white p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-2 text-[15px] font-bold text-[#575e75]">Question</div>
+            <div className="mb-3 whitespace-pre-wrap text-[13px] text-[#575e75]">{pendingQuestion.text}</div>
+            <input
+              autoFocus
+              className="h-10 w-full rounded-lg border-2 border-[#855cd6] px-3 text-[14px] outline-none"
+              value={pendingQuestion.answer}
+              onChange={(e) => setPendingQuestion((current) => (current ? { ...current, answer: e.target.value } : current))}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setPendingQuestion(null);
+                  return;
+                }
+
+                if (e.key === 'Enter') {
+                  (vmRef.current?.runtime as any)?.emit?.('ANSWER', pendingQuestion.answer);
+                  latestQuestionBubbleRef.current = '';
+                  setPendingQuestion(null);
+                }
+              }}
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setPendingQuestion(null)} className="rounded-lg border border-[#d0d0d0] px-4 py-1.5 text-[13px] text-[#575e75] hover:bg-[#f0f0f0]">Cancel</button>
+              <button
+                onClick={() => {
+                  (vmRef.current?.runtime as any)?.emit?.('ANSWER', pendingQuestion.answer);
+                  latestQuestionBubbleRef.current = '';
+                  setPendingQuestion(null);
+                }}
+                className="rounded-lg bg-[#855cd6] px-4 py-1.5 text-[13px] text-white hover:bg-[#7248bf]"
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>
