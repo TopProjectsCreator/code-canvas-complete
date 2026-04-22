@@ -811,6 +811,37 @@ const getOrderedInputKeysForBlock = (block: ScratchBlockNode): string[] => {
   return [];
 };
 
+const getInlineBlockLabel = (block: ScratchBlockNode, blockLabels: Record<string, string>) => {
+  let label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
+
+  if (block.opcode === 'data_variable') {
+    const tuple = block.fields?.VARIABLE;
+    if (Array.isArray(tuple) && typeof tuple[0] === 'string') return tuple[0];
+  }
+
+  if (block.opcode === 'data_listcontents') {
+    const tuple = block.fields?.LIST;
+    if (Array.isArray(tuple) && typeof tuple[0] === 'string') return tuple[0];
+  }
+
+  if (block.opcode.startsWith('argument_reporter_')) {
+    const tuple = block.fields?.VALUE;
+    if (Array.isArray(tuple) && typeof tuple[0] === 'string') return tuple[0];
+  }
+
+  const inputs = block.inputs || {};
+  const orderedKeys = getOrderedInputKeysForBlock(block);
+  orderedKeys.forEach((inputKey) => {
+    const ref = inputs[inputKey] as unknown[] | undefined;
+    if (!Array.isArray(ref)) return;
+    const shadowTuple = (ref[0] === 1 ? ref[1] : ref[ref.length - 1]) as unknown;
+    if (!Array.isArray(shadowTuple) || typeof shadowTuple[1] !== 'string') return;
+    label = label.replace(/\[[^\]]*\]|<[^>]*>/, (match) => (match.startsWith('<') ? `<${shadowTuple[1]}>` : `[${shadowTuple[1]}]`));
+  });
+
+  return label;
+};
+
 // Registry of dropdown options for block menus, keyed by the parent opcode.
 // Each entry maps the INPUT key (on the parent block) to:
 //   { menuOpcode, fieldKey, options: [{ value, label }] }
