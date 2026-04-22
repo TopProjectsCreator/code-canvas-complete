@@ -4071,7 +4071,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             onChange={(e) => setProjectJsonDraft(e.target.value)}
             spellCheck={false}
           />
-          {jsonError && <div className="text-[11px] text-red-500 mt-0.5">{jsonError}</div>}
+          {jsonError && <div className="text-[11px] text-destructive mt-0.5">{jsonError}</div>}
         </div>
       )}
 
