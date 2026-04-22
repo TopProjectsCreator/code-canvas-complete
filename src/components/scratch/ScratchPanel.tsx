@@ -3891,9 +3891,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         const attachedBlock = blocksMap[attachedId];
                         if (!attachedBlock) return null;
 
-                        const attachedBaseLabel = blockLabels[attachedBlock.opcode] || attachedBlock.opcode.replace(/_/g, ' ');
+                        const attachedBaseLabel = getInlineBlockLabel(attachedBlock, blockLabels);
                         const attachedColor = getBlockColor(attachedBlock.opcode);
                         const attachedShape = getBlockShape(attachedBlock.opcode);
+                        const attachedWidth = Math.max(slot.width, attachedBaseLabel.length * 7 + (attachedShape === 'boolean' ? 28 : 24));
+                        const attachedHeight = slot.height;
 
                         return (
                           <div
@@ -3905,6 +3907,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                               label={attachedBaseLabel}
                               color={attachedColor}
                               shape={attachedShape}
+                              width={attachedWidth}
+                              height={attachedHeight}
                             />
                           </div>
                         );
