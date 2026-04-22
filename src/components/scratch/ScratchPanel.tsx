@@ -3819,6 +3819,83 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 label = label.replace(/\{[^}]+\}/, `{${mv.current}}`);
               });
               const isDragging = block.id === dragBlockId;
+              const anyDragging = dragBlockId !== null || isHtml5Dragging;
+              const registerSlots = (
+                targetBlockId: string,
+                slots: { type: 'reporter' | 'boolean' | 'dropdown'; index: number; x: number; y: number; width: number; height: number }[],
+              ) => {
+                const filtered = slots.filter((s) => s.type === 'reporter' || s.type === 'boolean') as { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[];
+                const prev = slotsRegistryRef.current.get(targetBlockId);
+                const same = prev && prev.length === filtered.length && prev.every((p, i) => p.x === filtered[i].x && p.y === filtered[i].y && p.width === filtered[i].width && p.height === filtered[i].height);
+                slotsRegistryRef.current.set(targetBlockId, filtered);
+                if (!same) setSlotsTick((t) => t + 1);
+              };
+              const renderSlotOverlays = (hostBlock: ScratchBlockNode, offsetX = 0, offsetY = 0, visited = new Set<string>()) => {
+                if (visited.has(hostBlock.id)) return [];
+                const nextVisited = new Set(visited);
+                nextVisited.add(hostBlock.id);
+                const slots = slotsRegistryRef.current.get(hostBlock.id) || [];
+                const orderedKeys = getOrderedInputKeysForBlock(hostBlock);
+
+                return slots.flatMap((slot) => {
+                  const inputKey = orderedKeys[slot.index];
+                  if (!inputKey) return [];
+                  const ref = (hostBlock.inputs || {})[inputKey] as unknown[] | undefined;
+                  if (!Array.isArray(ref)) return [];
+
+                  const left = offsetX + slot.x;
+                  const top = offsetY + slot.y;
+
+                  if (ref[0] === 3 && typeof ref[1] === 'string') {
+                    const attachedId = ref[1];
+                    const attachedBlock = blocksMap[attachedId];
+                    if (!attachedBlock) return [];
+
+                    const attachedBaseLabel = getInlineBlockLabel(attachedBlock, blockLabels, blocksMap);
+                    const attachedColor = getBlockColor(attachedBlock.opcode);
+                    const attachedShape = getBlockShape(attachedBlock.opcode);
+                    const attachedWidth = Math.max(slot.width, attachedBaseLabel.length * 7 + (attachedShape === 'boolean' ? 28 : 24));
+                    const attachedHeight = slot.height;
+
+                    return [
+                      <div
+                        key={`${hostBlock.id}-${inputKey}-attached-${attachedId}`}
+                        className="absolute z-10"
+                        style={{ left, top }}
+                      >
+                        <ScratchBlockShape
+                          label={attachedBaseLabel}
+                          color={attachedColor}
+                          shape={attachedShape}
+                          width={attachedWidth}
+                          height={attachedHeight}
+                          className="pointer-events-none"
+                          onSlots={(slots) => registerSlots(attachedBlock.id, slots)}
+                        />
+                      </div>,
+                      ...renderSlotOverlays(attachedBlock, left, top, nextVisited),
+                    ];
+                  }
+
+                  if (slot.type !== 'reporter') return [];
+                  const shadowTuple = (ref[0] === 1 ? ref[1] : ref[ref.length - 1]) as unknown;
+                  if (!Array.isArray(shadowTuple)) return [];
+                  const currentValue = String(shadowTuple[1] ?? '');
+
+                  return [
+                    <ShadowInput
+                      key={`${hostBlock.id}-${inputKey}`}
+                      value={currentValue}
+                      left={left}
+                      top={top}
+                      width={slot.width}
+                      height={slot.height}
+                      disablePointer={anyDragging}
+                      onCommit={(v) => updateShadowValue(hostBlock.id, inputKey, v)}
+                    />,
+                  ];
+                });
+              };
               return (
                 <div
                   key={block.id}
@@ -3883,72 +3960,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     label={label}
                     color={blockColor}
                     shape={shape}
-                    onSlots={(slots) => {
-                      const filtered = slots.filter((s) => s.type === 'reporter' || s.type === 'boolean') as { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[];
-                      const prev = slotsRegistryRef.current.get(block.id);
-                      const same = prev && prev.length === filtered.length && prev.every((p, i) => p.x === filtered[i].x && p.y === filtered[i].y && p.width === filtered[i].width && p.height === filtered[i].height);
-                      slotsRegistryRef.current.set(block.id, filtered);
-                      if (!same) setSlotsTick((t) => t + 1);
-                    }}
+                    onSlots={(slots) => registerSlots(block.id, slots)}
                   />
                   {/* Input slot overlays */}
-                  {(() => {
-                    void slotsTick;
-                    const slots = slotsRegistryRef.current.get(block.id) || [];
-                    const orderedKeys = getOrderedInputKeysForBlock(block);
-                    return slots.map((slot) => {
-                      const inputKey = orderedKeys[slot.index];
-                      if (!inputKey) return null;
-                      const ref = (block.inputs || {})[inputKey] as unknown[] | undefined;
-                      if (!Array.isArray(ref)) return null;
-
-                      if (ref[0] === 3 && typeof ref[1] === 'string') {
-                        const attachedId = ref[1];
-                        const attachedBlock = blocksMap[attachedId];
-                        if (!attachedBlock) return null;
-
-                        const attachedBaseLabel = getInlineBlockLabel(attachedBlock, blockLabels, blocksMap);
-                        const attachedColor = getBlockColor(attachedBlock.opcode);
-                        const attachedShape = getBlockShape(attachedBlock.opcode);
-                        const attachedWidth = Math.max(slot.width, attachedBaseLabel.length * 7 + (attachedShape === 'boolean' ? 28 : 24));
-                        const attachedHeight = slot.height;
-
-                        return (
-                          <div
-                            key={`${block.id}-${inputKey}-attached-${attachedId}`}
-                            className="absolute pointer-events-none z-10"
-                            style={{ left: slot.x, top: slot.y }}
-                          >
-                            <ScratchBlockShape
-                              label={attachedBaseLabel}
-                              color={attachedColor}
-                              shape={attachedShape}
-                              width={attachedWidth}
-                              height={attachedHeight}
-                            />
-                          </div>
-                        );
-                      }
-
-                      if (slot.type !== 'reporter') return null;
-                      const shadowTuple = (ref[0] === 1 ? ref[1] : ref[ref.length - 1]) as unknown;
-                      if (!Array.isArray(shadowTuple)) return null;
-                      const currentValue = String(shadowTuple[1] ?? '');
-                      const anyDragging = dragBlockId !== null || isHtml5Dragging;
-                      return (
-                        <ShadowInput
-                          key={`${block.id}-${inputKey}`}
-                          value={currentValue}
-                          left={slot.x}
-                          top={slot.y}
-                          width={slot.width}
-                          height={slot.height}
-                          disablePointer={anyDragging}
-                          onCommit={(v) => updateShadowValue(block.id, inputKey, v)}
-                        />
-                      );
-                    });
-                  })()}
+                  {void slotsTick}
+                  {renderSlotOverlays(block)}
                 </div>
               );
             })}
