@@ -4204,7 +4204,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         />
                         <button
                           onClick={() => removeArg(idx)}
-                          className="text-[#575e75] hover:text-red-500 text-[16px] leading-none px-1"
+                          className="text-[#575e75] hover:text-destructive text-[16px] leading-none px-1"
                           title="Remove"
                         >
                           ×
