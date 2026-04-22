@@ -91,7 +91,7 @@ export const CollabDialog = ({ open, onOpenChange, projectId, onRequireProjectSa
               <TeamTab collab={collab} />
             </TabsContent>
             <TabsContent value="invite" className="mt-0">
-              <InviteTab collab={collab} hasProject={hasProject} />
+              <InviteTab collab={collab} hasProject={hasProject} onRequireProjectSave={onRequireProjectSave} />
             </TabsContent>
             <TabsContent value="comments" className="mt-0">
               <CommentsTab collab={collab} userId={user.id} />
@@ -165,7 +165,7 @@ function TeamTab({ collab }: { collab: ReturnType<typeof useCollaboration> }) {
   );
 }
 
-function InviteTab({ collab, hasProject = true }: { collab: ReturnType<typeof useCollaboration>; hasProject?: boolean }) {
+function InviteTab({ collab, hasProject = true, onRequireProjectSave }: { collab: ReturnType<typeof useCollaboration>; hasProject?: boolean; onRequireProjectSave?: () => void }) {
   const [identifier, setIdentifier] = useState('');
   const [role, setRole] = useState<CollabRole>('editor');
   const [sending, setSending] = useState(false);
