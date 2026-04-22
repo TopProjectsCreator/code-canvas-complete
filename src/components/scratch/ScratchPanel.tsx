@@ -3516,7 +3516,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                             <div
                               key={`${p.type}-${p.name}`}
                               onPointerDown={(e) => startFlyoutDrag(def, color, e)}
-                              onClick={() => addBlock(def)}
+                              onClick={() => {
+                                if (suppressFlyoutClickRef.current) {
+                                  suppressFlyoutClickRef.current = false;
+                                  return;
+                                }
+                                addBlock(def);
+                              }}
                               className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all inline-block mr-1"
                             >
                               <ScratchBlockShape
@@ -3578,14 +3584,26 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                           <div key={proc.proccode} className="space-y-1">
                             <div
                               onPointerDown={(e) => startFlyoutDrag(defDef, color, e)}
-                              onClick={() => addBlock(defDef)}
+                              onClick={() => {
+                                if (suppressFlyoutClickRef.current) {
+                                  suppressFlyoutClickRef.current = false;
+                                  return;
+                                }
+                                addBlock(defDef);
+                              }}
                               className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                             >
                               <ScratchBlockShape label={defDef.label} color={color} shape={getBlockShape(defDef.opcode)} />
                             </div>
                             <div
                               onPointerDown={(e) => startFlyoutDrag(callDef, color, e)}
-                              onClick={() => addBlock(callDef)}
+                              onClick={() => {
+                                if (suppressFlyoutClickRef.current) {
+                                  suppressFlyoutClickRef.current = false;
+                                  return;
+                                }
+                                addBlock(callDef);
+                              }}
                               className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                             >
                               <ScratchBlockShape label={callDef.label} color={color} shape={getBlockShape(callDef.opcode)} />
@@ -3605,7 +3623,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     <div
                       key={blockDef.label}
                       onPointerDown={(e) => startFlyoutDrag(blockDef, color, e)}
-                      onClick={() => addBlock(blockDef)}
+                      onClick={() => {
+                        if (suppressFlyoutClickRef.current) {
+                          suppressFlyoutClickRef.current = false;
+                          return;
+                        }
+                        addBlock(blockDef);
+                      }}
                       className="cursor-grab active:cursor-grabbing hover:brightness-110 transition-all"
                     >
                       <ScratchBlockShape label={blockDef.label} color={color} shape={shape} />
