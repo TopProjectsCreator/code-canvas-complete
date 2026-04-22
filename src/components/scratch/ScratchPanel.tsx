@@ -3284,7 +3284,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }
   };
 
-  const handleVersionToggle = async (nextVersion: ScratchCompatibilityVersion) => {
+  const performVersionToggle = async (nextVersion: ScratchCompatibilityVersion) => {
     const semver = SCRATCH_VERSION_OPTIONS.find((option) => option.value === nextVersion)?.semver || '3.0.0';
     const current = safeParseProject(archive);
     const currentSemver = typeof current.meta?.semver === 'string' ? current.meta.semver : '';
@@ -3325,6 +3325,18 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setProjectJsonDraft(nextJson);
     setJsonError(null);
     await loadVmFromArchive(nextArchive, nextVersion);
+  };
+
+  const handleVersionToggle = async (nextVersion: ScratchCompatibilityVersion) => {
+    if (nextVersion === 'scratch2' || nextVersion === 'scratch14') {
+      setUnsupportedVersionPrompt({
+        version: nextVersion,
+        source: 'toggle',
+        onConfirm: () => performVersionToggle(nextVersion),
+      });
+      return;
+    }
+    await performVersionToggle(nextVersion);
   };
 
   const [showJson, setShowJson] = useState(false);
