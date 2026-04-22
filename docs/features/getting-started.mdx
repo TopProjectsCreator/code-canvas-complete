@@ -1,0 +1,116 @@
+---
+title: "Getting Started"
+description: "A practical first-hour setup guide for Code Canvas: workspace setup, project import, AI workflow, and first deploy."
+---
+
+## First-hour checklist
+
+If you're brand new to Code Canvas, this guide gets you productive quickly without guesswork.
+
+1. Create or sign in to your account
+2. Open a starter project (or import from Git)
+3. Configure your runtime and environment variables
+4. Run your app locally in the browser workspace
+5. Use AI to accelerate one real task
+6. Commit and deploy
+
+## 1) Create your workspace
+
+After sign-in, choose one of these starting points:
+
+- **Blank project** — best for custom setups
+- **Template** — best for React, API, and hardware starter flows
+- **Import from Git provider** — best for existing repositories
+
+<Note>
+If you're evaluating performance, start with a small-to-medium repo first. You can scale up once your team settings and workflows are dialed in.
+</Note>
+
+## 2) Import an existing repository
+
+1. Open the **Git / Import** action from the workspace landing view
+2. Select **GitHub**, **GitLab**, or **Bitbucket**
+3. Choose a repository and target branch
+4. Wait for the file tree to index
+5. Open `README` and the package manifest first (`package.json`, `pyproject.toml`, etc.)
+
+### Import best practices
+
+| Practice | Why it helps |
+|---|---|
+| Start from the default branch | Reduces merge surprises |
+| Open lockfiles early | Confirms package manager and dependency strategy |
+| Run tests before changes | Establishes a clean baseline |
+
+## 3) Configure runtime and secrets
+
+Open **Environment** and set variables in the right scope:
+
+- **Preview**: local workspace runs and experiments
+- **Shared**: defaults used across environments
+- **Production**: deploy-only values
+
+<Warning>
+Never hardcode secrets in source files. Put them in environment scopes so AI tools and teammates can use them safely.
+</Warning>
+
+## 4) Run and verify the app
+
+From the terminal:
+
+```bash
+npm install
+npm run dev
+```
+
+Then verify:
+
+- App preview opens correctly
+- Console has no startup errors
+- Hot reload works on file save
+- Basic lint/test checks run
+
+## 5) Use AI for one concrete task
+
+Use a scoped prompt instead of a broad one. Example:
+
+> “Add loading and error states to `src/components/UserList.tsx`, keep existing styling, and include tests.”
+
+Strong prompts include:
+
+- **File path(s)**
+- **Expected behavior**
+- **Constraints** (framework, style, test requirements)
+- **Definition of done**
+
+See [AI Assistant](/features/ai-assistant) and [MCP Servers & Agent Skills](/features/ai-mcp) for deeper setup.
+
+## 6) Commit, collaborate, deploy
+
+1. Review diffs in the Git panel
+2. Stage focused changes
+3. Commit with a clear message
+4. Push branch and open a PR
+5. Deploy from the **Deployment** panel
+
+## Suggested first workflows
+
+- **Daily quality check**: lint + tests + format
+- **Pre-merge guardrail**: validate changed files + summarize risk
+- **Release helper**: bump version + changelog + deploy
+
+To automate these, continue with [Workflows](/features/workflows) and [Deployment](/features/deployment).
+
+## Next steps
+
+<Columns cols={3}>
+  <Card title="IDE Workspace" icon="code" href="/features/ide">
+    Learn editor, terminal, package, and Git power features.
+  </Card>
+  <Card title="Keyboard Shortcuts" icon="keyboard" href="/features/ide/keyboard-shortcuts">
+    Speed up navigation and editing with the core keymap.
+  </Card>
+  <Card title="Troubleshooting" icon="triangle-alert" href="/features/troubleshooting">
+    Fix common setup, runtime, and deployment issues fast.
+  </Card>
+</Columns>
