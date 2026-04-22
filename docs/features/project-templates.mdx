@@ -1,0 +1,81 @@
+---
+title: "Project Templates & Accelerators"
+description: "Launch production-ready projects faster with curated templates, smart scaffolding, and AI-guided customization workflows."
+---
+
+![Template picker with starter options](easytemplatechanging.png)
+
+## Build faster with repeatable starters
+
+Templates in Code Canvas are more than boilerplate. They package opinionated folder structures, scripts, dependency sets, CI hints, and docs so teams can move from idea to first commit in minutes.
+
+Use templates when you need to:
+
+- Standardize project setup across a team
+- Reduce copy/paste setup errors
+- Enforce naming and structure conventions
+- Bootstrap demos, prototypes, and production apps quickly
+
+## Template categories
+
+| Category | Typical stack | Best for |
+|---|---|---|
+| **Web apps** | React/Vite, Next.js, SvelteKit | Dashboards, marketing sites, client portals |
+| **APIs & services** | Node/Express, Fastify, Python Flask | Internal tools, integrations, webhooks |
+| **Data & scripts** | Python notebooks, CLI utilities | ETL jobs, batch processing, reporting |
+| **Hardware** | Arduino AVR/ESP, FTC setup | Robotics, embedded experiments, classroom labs |
+| **Creative** | Scratch, media editor presets | Interactive demos, learning projects |
+
+## Recommended template workflow
+
+![Template workflow from selection to deployment](/assets/template-lifecycle.svg)
+
+1. **Choose a base template** aligned with your runtime and team practices.
+2. **Preview generated files** before confirming the scaffold.
+3. **Apply environment profile** (dev/shared/prod) for secret scopes.
+4. **Run first boot checks** (`install`, `lint`, `test`, `dev`).
+5. **Use AI customization prompts** to adapt naming, architecture, and branding.
+
+## AI-assisted customization prompts
+
+After creating a template, ask the assistant to safely tailor it:
+
+- **"Rename this starter to match my product naming and update imports."**
+- **"Convert this REST starter to a typed API client/server contract."**
+- **"Add CI checks and a conventional commit workflow."**
+- **"Generate a team README with setup + troubleshooting steps."**
+
+The AI can perform project-wide edits, then present a diff so you can review before committing.
+
+![Review code diffs before accepting template edits](codechanges.png)
+
+## Best practices for high-quality starters
+
+### Keep templates minimal but complete
+
+A good starter should run end-to-end immediately, but avoid including every optional integration by default.
+
+### Include smoke tests
+
+Every template should have at least one quick validation command to confirm install + runtime health.
+
+### Document override points
+
+Mark files intended for editing first (branding config, API base URL, env schema, deployment target).
+
+### Version your templates
+
+Track template changes with semantic versioning so teams can upgrade intentionally and avoid silent drift.
+
+## Offline and classroom-friendly onboarding
+
+For training sessions or travel workflows, combine templates with offline mode to keep setup predictable even with flaky networks.
+
+![Offline templates and saved projects](offline templates.png)
+
+## Related guides
+
+- [Getting Started](/features/getting-started)
+- [IDE Workspace](/features/ide)
+- [Environment](/features/environment)
+- [Offline Mode](/features/offline-mode)
