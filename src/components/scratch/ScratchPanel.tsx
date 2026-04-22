@@ -4346,6 +4346,56 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           </div>
         </>
       )}
+      {unsupportedVersionPrompt && (
+        <>
+          <div
+            className="fixed inset-0 z-[80] bg-black/60"
+            onClick={() => setUnsupportedVersionPrompt(null)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed left-1/2 top-1/2 z-[81] w-[min(440px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background text-foreground shadow-2xl"
+          >
+            <div className="p-5 space-y-3">
+              <h2 className="text-lg font-semibold">
+                {SCRATCH_VERSION_OPTIONS.find((o) => o.value === unsupportedVersionPrompt.version)?.label} is not fully supported
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {unsupportedVersionPrompt.source === 'import'
+                  ? `“${unsupportedVersionPrompt.fileName}” looks like a legacy Scratch project. `
+                  : ''}
+                {unsupportedVersionPrompt.version === 'scratch14'
+                  ? "Scratch 1.4 projects use a binary format the in-browser VM can't fully run. Many blocks, sprites, and sounds may be missing or behave incorrectly."
+                  : 'Scratch 2 support is experimental. The project will be auto-converted to the Scratch 3 VM, but some blocks, extensions, or assets may not work as expected.'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                For best results, open the project in the official Scratch app and re-export it as <code className="font-mono">.sb3</code>.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-md border border-border hover:bg-accent hover:text-accent-foreground transition-colors"
+                onClick={() => setUnsupportedVersionPrompt(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                onClick={() => {
+                  const prompt = unsupportedVersionPrompt;
+                  setUnsupportedVersionPrompt(null);
+                  void prompt.onConfirm();
+                }}
+              >
+                Continue anyway
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
