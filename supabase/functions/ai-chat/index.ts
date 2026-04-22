@@ -362,7 +362,7 @@ Do not ask more than 3 questions at a time unless it is needed to be able to suc
 | \`<json_viewer />\` | Pretty-print a JSON payload |
 | \`<regex_tester />\` | Test regex patterns live |
 
-Available templates: blank, html, javascript, typescript, python, java, cpp, c, go, rust, ruby, php, csharp, bash, react, lua, nodejs, d, groovy, pascal, swift, crystal, elixir, erlang, julia, ocaml, pony, scala, vim, lazyk, sqlite, arduino, scratch, word, powerpoint, excel, video, audio, rtf, cad, ftc
+Available templates: blank, html, javascript, typescript, python, java, cpp, c, go, rust, ruby, php, csharp, bash, react, lua, nodejs, d, groovy, pascal, swift, crystal, elixir, erlang, julia, ocaml, pony, scala, vim, lazyk, sqlite, database, arduino, scratch, word, powerpoint, excel, video, audio, rtf, cad, ftc
 
 ## OFFICE + MEDIA CREATION
 If users ask for deliverables like Word docs, PowerPoints, spreadsheets, videos, audio projects, or rich-text documents, you can create them directly in this IDE:

@@ -44,6 +44,7 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   secureops: "SecureOps Platform",
   automation: "Automation Canvas",
   sqlite: "SQLite",
+  database: "Database Designer",
   arduino: "Arduino",
   scratch: "Scratch Blocks",
   word: "Word Document",
@@ -139,6 +140,9 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case "sqlite":
       baseTemplate = sqliteTemplate;
+      break;
+    case "database":
+      baseTemplate = databaseDesignerTemplate;
       break;
     case "nim":
       baseTemplate = nimTemplate;
@@ -1507,6 +1511,157 @@ GROUP BY user_id;
 -- Subquery
 SELECT * FROM users 
 WHERE id IN (SELECT DISTINCT user_id FROM posts);`,
+      },
+    ],
+  },
+];
+
+const databaseDesignerTemplate: FileNode[] = [
+  {
+    id: "db-designer-root",
+    name: "database-designer",
+    type: "folder",
+    children: [
+      {
+        id: "erd-schema-json",
+        name: "erd.schema.json",
+        type: "file",
+        language: "json",
+        content: `{
+  "project": "SaaS Starter",
+  "dialect": "postgres",
+  "tables": [
+    {
+      "name": "organizations",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true, "default": "gen_random_uuid()" },
+        { "name": "name", "type": "text", "nullable": false },
+        { "name": "plan", "type": "text", "nullable": false, "default": "'free'" },
+        { "name": "created_at", "type": "timestamptz", "nullable": false, "default": "now()" }
+      ]
+    },
+    {
+      "name": "users",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true, "default": "gen_random_uuid()" },
+        { "name": "organization_id", "type": "uuid", "nullable": false, "ref": "organizations.id" },
+        { "name": "email", "type": "text", "nullable": false, "unique": true },
+        { "name": "display_name", "type": "text", "nullable": false },
+        { "name": "created_at", "type": "timestamptz", "nullable": false, "default": "now()" }
+      ]
+    },
+    {
+      "name": "projects",
+      "columns": [
+        { "name": "id", "type": "uuid", "pk": true, "default": "gen_random_uuid()" },
+        { "name": "organization_id", "type": "uuid", "nullable": false, "ref": "organizations.id" },
+        { "name": "owner_id", "type": "uuid", "nullable": false, "ref": "users.id" },
+        { "name": "name", "type": "text", "nullable": false },
+        { "name": "status", "type": "text", "nullable": false, "default": "'active'" },
+        { "name": "created_at", "type": "timestamptz", "nullable": false, "default": "now()" }
+      ]
+    }
+  ],
+  "relationships": [
+    { "from": "users.organization_id", "to": "organizations.id", "type": "many-to-one" },
+    { "from": "projects.organization_id", "to": "organizations.id", "type": "many-to-one" },
+    { "from": "projects.owner_id", "to": "users.id", "type": "many-to-one" }
+  ]
+}`,
+      },
+      {
+        id: "schema-export-sql",
+        name: "schema.export.sql",
+        type: "file",
+        language: "sql",
+        content: `-- Database Designer SQL Export (starter)
+-- Dialect: PostgreSQL
+
+CREATE TABLE organizations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  plan TEXT NOT NULL DEFAULT 'free',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id),
+  email TEXT NOT NULL UNIQUE,
+  display_name TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES organizations(id),
+  owner_id UUID NOT NULL REFERENCES users(id),
+  name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_users_org_id ON users(organization_id);
+CREATE INDEX idx_projects_org_id ON projects(organization_id);
+CREATE INDEX idx_projects_owner_id ON projects(owner_id);`,
+      },
+      {
+        id: "db-designer-readme",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
+        content: `# Database Designer — ERD-Style Planning + SQL Export
+
+## What you can do
+- Model entities and relationships visually.
+- Design schemas before writing migration code.
+- Export production-ready SQL from diagram-first planning.
+- Align app data modeling with team discussion.
+- Validate shape of data before implementation.
+- Document constraints and table intent clearly.
+
+## Schema planning features
+- ERD-like structure for tables and relations.
+- Relationship mapping for one-to-many and beyond.
+- Planning-friendly workflow for collaborative design.
+- SQL handoff ready for implementation phases.
+- Better visibility into evolving data models.
+- Reduced ambiguity across backend/frontend teams.
+
+## AI-assisted database workflows
+- “Generate initial schema for multi-tenant SaaS.”
+- “Review this model for normalization issues.”
+- “Suggest indexes for top query paths.”
+- “Explain tradeoffs between UUID and serial ids.”
+- “Create migration rollout checklist.”
+- “Draft seed data strategy for staging.”
+
+## Best for
+- New backend architecture.
+- Legacy schema modernization.
+- Data contract reviews.
+- Performance planning.
+`,
+      },
+      {
+        id: "db-designer-constraints",
+        name: "constraints.md",
+        type: "file",
+        language: "markdown",
+        content: `# Constraints & Design Notes
+
+## Global rules
+- All primary keys are immutable.
+- Use soft deletes where auditability matters.
+
+## Table-level constraints
+- organizations: plan must be one of free/pro/team.
+- users: email is unique and required.
+
+## Relationship rules
+- users.organization_id -> organizations.id (many-to-one)
+- projects.owner_id -> users.id (many-to-one)
+`,
       },
     ],
   },
