@@ -2765,7 +2765,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       setInputDropTarget(null);
       console.log('[flyout-drop] up', { moved, hasStash: !!stash, lastTarget });
       if (!stash) return;
-      if (!moved) return; // click-only; existing onClick handler handles add
+      if (!moved) {
+        window.setTimeout(() => {
+          suppressFlyoutClickRef.current = false;
+        }, 0);
+        return;
+      }
 
       const ws = workspaceRef.current;
       if (!ws) return;
