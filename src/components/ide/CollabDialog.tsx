@@ -23,6 +23,7 @@ interface CollabDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string | undefined;
+  onRequireProjectSave?: () => void;
 }
 
 const ROLE_ICONS: Record<string, React.ReactNode> = {
@@ -46,7 +47,7 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; label: string; colo
   closed: { icon: <XCircle className="h-3.5 w-3.5" />, label: 'Closed', color: 'bg-muted text-muted-foreground' },
 };
 
-export const CollabDialog = ({ open, onOpenChange, projectId }: CollabDialogProps) => {
+export const CollabDialog = ({ open, onOpenChange, projectId, onRequireProjectSave }: CollabDialogProps) => {
   const hasProject = !!projectId;
   const { user } = useAuth();
   const collab = useCollaboration(projectId);
