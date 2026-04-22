@@ -1533,6 +1533,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
   // Per-block input slot rects (in block-local SVG coords). Populated by ScratchBlockShape onSlots.
   const slotsRegistryRef = useRef<Map<string, { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]>>(new Map());
+  const blockRenderPositionRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const [slotsTick, setSlotsTick] = useState(0);
   const [inputDropTarget, setInputDropTarget] = useState<{ blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null>(null);
   // Mirror of inputDropTarget used inside pointer-up handlers to avoid stale-closure misses.
@@ -2621,8 +2622,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       if (excludeIds.has(blockId)) return;
       const block = blocks[blockId];
       if (!block) return;
-      const bx = block.x ?? 0;
-      const by = block.y ?? 0;
+      const renderPos = blockRenderPositionRef.current.get(blockId);
+      const bx = renderPos?.x ?? block.x ?? 0;
+      const by = renderPos?.y ?? block.y ?? 0;
       const orderedKeys = getOrderedInputKeysForBlock(block);
       slots.forEach((slot) => {
         if (slot.type !== sourceShape) return;
@@ -3834,6 +3836,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 if (visited.has(hostBlock.id)) return [];
                 const nextVisited = new Set(visited);
                 nextVisited.add(hostBlock.id);
+                blockRenderPositionRef.current.set(hostBlock.id, { x: offsetX, y: offsetY });
                 const slots = slotsRegistryRef.current.get(hostBlock.id) || [];
                 const orderedKeys = getOrderedInputKeysForBlock(hostBlock);
 
@@ -3954,6 +3957,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     left: block.x ?? 40,
                     top: block.y ?? 40,
                     transition: isDragging ? 'none' : 'left 0.08s ease-out, top 0.08s ease-out',
+                  }}
+                  ref={(node) => {
+                    if (node) {
+                      blockRenderPositionRef.current.set(block.id, { x: block.x ?? 40, y: block.y ?? 40 });
+                    } else {
+                      blockRenderPositionRef.current.delete(block.id);
+                    }
                   }}
                 >
                   <ScratchBlockShape
