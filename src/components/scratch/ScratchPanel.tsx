@@ -4061,7 +4061,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] font-semibold text-[#575e75]">project.json</span>
             <div className="flex items-center gap-2">
-              {vmError && <span className="text-[11px] text-red-500 max-w-[300px] truncate">⚠ {vmError}</span>}
+              {vmError && <span className="text-[11px] text-destructive max-w-[300px] truncate">⚠ {vmError}</span>}
               <button onClick={applyJsonDraft} className="text-[11px] px-2 py-0.5 rounded bg-[#855cd6] text-white">Apply</button>
             </div>
           </div>
