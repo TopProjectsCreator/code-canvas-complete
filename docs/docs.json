@@ -16,13 +16,15 @@
           {
             "group": "Overview",
             "pages": [
-              "features/index"
+              "features/index",
+              "features/getting-started"
             ]
           },
           {
             "group": "IDE Workspace",
             "pages": [
               "features/ide/index",
+              "features/ide/keyboard-shortcuts",
               "features/ide/extensions",
               "features/environment"
             ]
@@ -90,7 +92,8 @@
             "group": "Developer Reference",
             "pages": [
               "features/dev-reference",
-              "features/shell-safety-runbook"
+              "features/shell-safety-runbook",
+              "features/troubleshooting"
             ]
           }
         ]
