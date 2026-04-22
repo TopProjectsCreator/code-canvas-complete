@@ -24,11 +24,12 @@ interface NavGroup {
 type PageEntry = string | { path: string; label: string };
 
 const RAW_GROUPS: { group: string; pages: PageEntry[] }[] = [
-  { group: "Overview", pages: ["features/index"] },
+  { group: "Overview", pages: ["features/index", "features/getting-started"] },
   {
     group: "IDE Workspace",
     pages: [
       "features/ide/index",
+      "features/ide/keyboard-shortcuts",
       "features/ide/extensions",
       "features/environment",
     ],
@@ -71,14 +72,17 @@ const RAW_GROUPS: { group: string; pages: PageEntry[] }[] = [
     group: "Collaboration",
     pages: ["features/collaboration", "features/team-management"],
   },
-  { group: "Deployment", pages: ["features/deployment"] },
+  {
+    group: "Deployment",
+    pages: ["features/deployment", "features/project-templates", "features/release-operations"],
+  },
   {
     group: "Security & Access",
     pages: ["features/passkeys", "features/offline-mode"],
   },
   {
     group: "Developer Reference",
-    pages: ["features/dev-reference", "features/shell-safety-runbook"],
+    pages: ["features/dev-reference", "features/shell-safety-runbook", "features/troubleshooting"],
   },
 ];
 
