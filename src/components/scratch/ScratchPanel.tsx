@@ -2731,6 +2731,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       const dy = ev.clientY - (flyoutDragRef.current?.startY ?? ev.clientY);
       if (!moved && Math.hypot(dx, dy) < 4) return;
       moved = true;
+      suppressFlyoutClickRef.current = true;
       setFlyoutDrag((prev) => prev ? { ...prev, ghostX: ev.clientX, ghostY: ev.clientY } : prev);
 
       const ws = workspaceRef.current;
