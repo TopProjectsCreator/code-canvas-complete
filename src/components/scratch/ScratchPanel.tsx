@@ -4004,7 +4004,32 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                       onCommit={(v) => updateShadowValue(hostBlock.id, inputKey, v)}
                     />,
                   ];
-                });
+                }).concat(
+                  hostBlock.opcode === 'procedures_definition'
+                    ? getProcedureDefinitionArgs(hostBlock, blocksMap).flatMap((arg, index) => {
+                        const slot = slots[index];
+                        if (!slot) return [];
+                        const def: ScratchBlockDef = {
+                          label: arg.type === 'boolean' ? `<${arg.name}>` : `[${arg.name}]`,
+                          opcode: arg.type === 'boolean' ? 'argument_reporter_boolean' : 'argument_reporter_string_number',
+                          fields: { VALUE: [arg.name, null] },
+                          minVersion: 'scratch2',
+                        };
+                        const dragLeft = offsetX + slot.x;
+                        const dragTop = offsetY + slot.y;
+                        return [
+                          <div
+                            key={`${hostBlock.id}-proc-param-${index}`}
+                            className="absolute z-20 cursor-grab active:cursor-grabbing"
+                            style={{ left: dragLeft, top: dragTop, width: slot.width, height: slot.height }}
+                            onPointerDown={(e) => startFlyoutDrag(def, getBlockColor('procedures_definition'), e)}
+                            onClick={(e) => e.stopPropagation()}
+                            title={`Drag out ${arg.name}`}
+                          />,
+                        ];
+                      })
+                    : []
+                );
               };
               return (
                 <div
