@@ -1494,6 +1494,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [vmError, setVmError] = useState<string | null>(null);
   const [scratchVersion, setScratchVersion] = useState<ScratchCompatibilityVersion>('scratch3');
+  const [unsupportedVersionPrompt, setUnsupportedVersionPrompt] = useState<{
+    version: ScratchCompatibilityVersion;
+    source: 'toggle' | 'import';
+    fileName?: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
   const [dataPrompt, setDataPrompt] = useState<{ type: 'variable' | 'list'; name: string } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState<LibraryMode | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ type: 'variable' | 'list'; id: string; oldName: string } | null>(null);
