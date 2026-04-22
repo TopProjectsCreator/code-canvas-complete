@@ -44,6 +44,7 @@ export type LanguageTemplate =
   | "secureops"
   | "automation"
   | "sqlite"
+  | "database"
   | "arduino"
   | "scratch"
   | "word"
@@ -220,6 +221,12 @@ export const TEMPLATES: TemplateMeta[] = [
     aiDescription: "Zapier-style visual automation builder with triggers, AI, and delivery actions",
   },
   { id: "sqlite", name: "SQLite", description: "Embedded database with SQLite", aiDescription: "SQL database queries" },
+  {
+    id: "database",
+    name: "Database Designer",
+    description: "ERD-style schema planning with SQL export-ready starter files",
+    aiDescription: "Database schema designer with ERD-style planning and SQL export",
+  },
   {
     id: "arduino",
     name: "Arduino",
