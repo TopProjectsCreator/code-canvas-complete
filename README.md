@@ -36,14 +36,17 @@ Experience the next generation of coding with an AI assistant that doesn't just 
 
 - **Multi-Model Support:** Switch between OpenAI, Anthropic, Gemini, and more. Compare outputs side-by-side with the **AI Comparison Panel**.
 - **Agentic Actions:** The AI can autonomously analyze code, suggest fixes, apply changes, run tests, and manage your file system.
+- **Tool-Driven Workspace Control:** The assistant can run shell commands, create/move/open files, install packages, and trigger project workflows without leaving chat.
 - **Autonomy Modes:**
     - **Safe:** Manual-first, auto-runs only low-risk actions.
     - **Balanced:** Auto-applies common actions, gates risky operations.
     - **Fast:** Maximum autonomy for rapid iteration.
     - **Custom:** Granular control over file changes, shell commands, git actions, and more.
 - **AI Code Review:** Get per-line suggestions with severity ratings and one-click "Accept/Reject" controls.
+- **Multimodal Generation:** Ask the AI to generate images and music directly from prompts for mockups, assets, and creative experiments.
+- **Git & Sharing Actions from Chat:** The agent can initialize repositories, create branches, commit changes, generate project links, and help publish/share projects.
 - **Explain on Hover:** Hover over any symbol to get an AI-powered explanation of its purpose and implementation.
-- **Interactive Widgets:** The assistant renders specialized tools like **Color Picker**, **Coin Flip**, **Dice Roll**, **Calculator**, **Spinner**, **Stock Ticker**, **Template Changer**, **Pair Programming Timer**, **Docs Linker**, **Countdown**, **Password Generator**, **Unit Converter**, **Progress Tracker**, **JSON Viewer**, and **Regex Tester** directly in the chat.
+- **Interactive Widgets:** The assistant renders specialized tools like **Color Picker**, **Coin Flip**, **Dice Roll**, **Calculator**, **Spinner**, **Stock Ticker**, **Template Changer**, **Pair Programming Timer**, **Docs Linker**, **Countdown**, **Password Generator**, **Unit Converter**, **Progress Tracker**, **JSON Viewer**, **Regex Tester**, **Code Review**, **README Generator**, **Accessibility Audit**, **Dependency Visualizer**, and **Convert Anything** directly in the chat.
 </details>
 
 ### 🧩 MCP & Agent Skills
@@ -75,19 +78,414 @@ Agent Skills are custom "personas" or instruction sets that guide the AI's behav
 Code Canvas goes beyond code, offering a full suite of creative and technical editors.
 
 <details>
-<summary><b>View All Specialized Editors</b></summary>
+<summary><b>Arduino IDE — Board Setup, Coding, Sim, and Upload</b></summary>
 
-- **Arduino IDE:** Professional hardware development in the browser.
-    - **Supported Boards:** Uno, Nano, Mega, ESP32, ESP8266, Leonardo, Micro, Due, Zero, MKR WiFi 1010, Nano 33 IoT, Portenta H7, GIGA R1 WiFi.
-    - **Breadboard Visualizer:** Virtual prototyping with 100+ components including Actuators (LEDs, Servos, Motors), Sensors (Temp, Light, PIR, Ultrasonic, MQ Gas, etc.), and Modules (OLED, LCD, WiFi, Bluetooth, H-Bridge, etc.).
-- **Scratch Integration:** Visual programming with Scratch blocks, perfect for rapid prototyping and education.
-- **3D Editor:** A full 3D workspace with object manipulation and **Text-to-3D** asset generation.
-- **Media Suite:** Professional **Audio** and **Video** editors built into the IDE.
-- **Office Suite:** Edit **Word**, **Excel**, **PowerPoint**, and **Rich Text** documents natively.
-- **CAD Editor:** Design and visualize CAD models without leaving the workspace.
-- **Database Designer:** Design ERD-like schemas and export production-ready SQL.
-- **API Playground:** Built-in REST and GraphQL client for testing your project's endpoints.
-- **Workflows Panel:** Automate your build, test, and deployment pipelines with a visual workflow builder.
+### What you can do
+- Create `.ino` sketches with syntax highlighting, snippets, and live diagnostics.
+- Target AVR and ESP boards from a guided board selector.
+- Run compile checks before upload to catch errors earlier.
+- Flash firmware through USB, OTA, and supported wireless flows.
+- Prototype circuits in a virtual breadboard with components and wires.
+- Save and share hardware project templates across your team.
+
+### Board + upload capabilities
+- AVR tooling support with `avrdude` style workflows.
+- ESP upload flows powered by `esptool`/`espota` paths.
+- Board presets for common memory, clock, and upload profiles.
+- Auto-detection hints for ports and device-family compatibility.
+- Progress UI for compile and upload phases.
+- Failure diagnostics with next-step suggestions.
+
+### Breadboard visualizer features
+- Drag-and-drop component palette (sensors, LEDs, motors, displays, modules).
+- Wire mode with pin-to-pin snapping.
+- Delete/select interaction modes.
+- Grid-aligned placement for fast cleanup.
+- Sim-centric circuit composition for rapid idea testing.
+- Helpful empty/error states for beginners.
+
+### AI-assisted hardware workflows
+- “Generate starter sketch for ESP32 temperature logger.”
+- “Add debounce logic to my button handling.”
+- “Explain why compile fails on this board profile.”
+- “Refactor this sketch into modular helper functions.”
+- “Create a test matrix for sensors and expected values.”
+- “Walk me through OTA flashing safely.”
+
+### Best for
+- Rapid prototyping.
+- Education and workshops.
+- Embedded proof-of-concepts.
+- Sensor + actuator demos.
+
+</details>
+
+<details>
+<summary><b>Scratch Integration — Visual Logic + Project Prototyping</b></summary>
+
+### What you can do
+- Build with drag-and-drop visual programming blocks.
+- Prototype gameplay and interaction logic quickly.
+- Switch between block-first and code-adjacent ideation.
+- Use sprites and scenes to model user flows.
+- Iterate with beginner-friendly feedback loops.
+- Share visual concepts with non-technical stakeholders.
+
+### Key Scratch workflows
+- Event-driven logic blocks for input and state transitions.
+- Motion, looks, and control stacks for scene behavior.
+- Variables/lists for lightweight state management.
+- Sound-trigger interactions for richer demos.
+- Multi-sprite orchestration for game-like projects.
+- Fast concepting before production implementation.
+
+### AI-assisted ideas
+- “Convert this gameplay idea into block logic steps.”
+- “Design a beginner tutorial level mechanic.”
+- “Add scoring and win/loss conditions.”
+- “Explain this block script in plain language.”
+- “Suggest accessibility improvements for young learners.”
+- “Generate lesson prompts using this project.”
+
+### Best for
+- Education.
+- Interactive storytelling.
+- Product walkthrough mockups.
+- Early gameplay mechanics.
+
+</details>
+
+<details>
+<summary><b>3D Editor — Modeling Workspace + Text-to-3D</b></summary>
+
+### What you can do
+- Build and edit 3D scenes directly in the IDE.
+- Move, rotate, and scale objects with familiar controls.
+- Organize assets for game, web, or product visualization.
+- Generate 3D content from text prompts.
+- Iterate with AI-assisted scene composition.
+- Export assets for downstream use.
+
+### Scene editing features
+- Object selection and transform handles.
+- Basic hierarchy/scene organization patterns.
+- Camera/navigation controls for inspection.
+- Iterative layout for prototypes and demos.
+- Asset-first workflows for design + engineering teams.
+- Integrated environment with code and media tabs.
+
+### AI-assisted 3D workflows
+- “Generate a low-poly desk setup.”
+- “Create a sci-fi crate asset with clean silhouette.”
+- “Suggest better lighting composition for this scene.”
+- “List optimization ideas for real-time rendering.”
+- “Generate naming conventions for scene objects.”
+- “Plan LOD strategy for these models.”
+
+### Best for
+- Product mockups.
+- Game asset concepting.
+- Web 3D experiments.
+- Rapid visual prototyping.
+
+</details>
+
+<details>
+<summary><b>Media Suite — Audio + Video Editors in One Workspace</b></summary>
+
+### What you can do
+- Edit audio and video without leaving the project.
+- Keep media assets next to source code and docs.
+- Use timeline-based operations for quick cuts.
+- Prepare demos, tutorials, and social clips faster.
+- Align media output with product release workflows.
+- Combine AI prompt generation with manual edits.
+
+### Audio editor features
+- Track-level editing for common audio tasks.
+- Clip trimming and arrangement workflows.
+- Iterative content prep for podcasts/voiceovers.
+- Utility edits for product explainers.
+- Fast access from same IDE sidebar context.
+- Useful for devrel and documentation teams.
+
+### Video editor features
+- Clip sequencing and basic cut workflows.
+- Intro/outro + short-form assembly patterns.
+- Visual prep for release notes and changelogs.
+- Quick corrections to tutorial content.
+- Project-local asset iteration.
+- No tool-switch penalty for engineering teams.
+
+### AI-assisted media workflows
+- “Generate a storyboard for this feature demo.”
+- “Write a 30-second script for release notes video.”
+- “Draft chapter markers from this transcript.”
+- “Suggest pacing improvements for this timeline.”
+- “Create caption copy in concise style.”
+- “Turn this changelog into social post copy.”
+
+### Best for
+- Launch videos.
+- Internal demos.
+- Tutorial production.
+- Developer marketing.
+
+</details>
+
+<details>
+<summary><b>Office Suite — Word, Excel, PowerPoint, and Rich Text</b></summary>
+
+### What you can do
+- Open and edit document formats in the same workspace.
+- Build specs, planning docs, and status updates fast.
+- Maintain slide decks beside implementation tasks.
+- Use spreadsheet views for planning and lightweight analysis.
+- Keep technical docs versioned with project code.
+- Share office-style artifacts without app switching.
+
+### Word + rich text workflows
+- Draft PRDs, RFCs, runbooks, and onboarding docs.
+- Apply consistent formatting inside the IDE.
+- Capture architecture notes during implementation.
+- Convert rough notes into polished documentation.
+- Pair with AI summarization for speed.
+- Keep context tied to code changes.
+
+### Excel workflows
+- Manage feature matrices and test plans.
+- Track estimates, staffing, and milestones.
+- Compare options with tabular scorecards.
+- Build quick dashboards for project health.
+- Maintain structured data close to code.
+- Export/share as needed.
+
+### PowerPoint workflows
+- Create stakeholder updates and demos.
+- Build engineering architecture presentations.
+- Maintain release recap decks.
+- Turn changelogs into slides quickly.
+- Collaborate with teams in one place.
+- Reuse assets from project files.
+
+### AI-assisted office tasks
+- “Summarize this spec into an executive brief.”
+- “Generate a rollout timeline slide structure.”
+- “Create risk table from these tickets.”
+- “Rewrite this memo for non-technical audience.”
+- “Turn this sprint data into a narrative update.”
+- “Draft a troubleshooting appendix section.”
+
+### Best for
+- Product planning.
+- Team communication.
+- Executive reporting.
+- Training materials.
+
+</details>
+
+<details>
+<summary><b>CAD Editor — Parametric Thinking + Visual Design</b></summary>
+
+### What you can do
+- Build CAD-style models inside the same IDE session.
+- Iterate with quick tool switching and previews.
+- Explore concepts before formal manufacturing pipelines.
+- Keep design references near firmware/app code.
+- Prototype enclosure and mechanical ideas rapidly.
+- Review models collaboratively with team context.
+
+### CAD workflow highlights
+- Quick tool access for common geometry tasks.
+- View mode switching for design inspection.
+- Iterative loop between concept and refinement.
+- Local project integration for assets and notes.
+- Fast feedback cycles with AI explanation support.
+- Cross-discipline collaboration in one workspace.
+
+### AI-assisted CAD tasks
+- “Suggest tolerances checklist for this part.”
+- “Create a design review rubric.”
+- “Explain potential stress points in simple terms.”
+- “Generate naming standards for part versions.”
+- “Draft manufacturing handoff notes.”
+- “List test scenarios for fit validation.”
+
+### Best for
+- Hardware enclosures.
+- Mechanical ideation.
+- Design-review prep.
+- Cross-functional collaboration.
+
+</details>
+
+<details>
+<summary><b>Database Designer — ERD-Style Planning + SQL Export</b></summary>
+
+### What you can do
+- Model entities and relationships visually.
+- Design schemas before writing migration code.
+- Export production-ready SQL from diagram-first planning.
+- Align app data modeling with team discussion.
+- Validate shape of data before implementation.
+- Document constraints and table intent clearly.
+
+### Schema planning features
+- ERD-like structure for tables and relations.
+- Relationship mapping for one-to-many and beyond.
+- Planning-friendly workflow for collaborative design.
+- SQL handoff ready for implementation phases.
+- Better visibility into evolving data models.
+- Reduced ambiguity across backend/frontend teams.
+
+### AI-assisted database workflows
+- “Generate initial schema for multi-tenant SaaS.”
+- “Review this model for normalization issues.”
+- “Suggest indexes for top query paths.”
+- “Explain tradeoffs between UUID and serial ids.”
+- “Create migration rollout checklist.”
+- “Draft seed data strategy for staging.”
+
+### Best for
+- New backend architecture.
+- Legacy schema modernization.
+- Data contract reviews.
+- Performance planning.
+
+</details>
+
+<details>
+<summary><b>API Playground — REST + GraphQL Testing Hub</b></summary>
+
+### What you can do
+- Test REST and GraphQL endpoints from inside the IDE.
+- Iterate on API contracts while editing code.
+- Validate request/response shapes quickly.
+- Debug auth, headers, and payload structures.
+- Keep endpoint tests close to implementation.
+- Share repeatable API testing patterns.
+
+### Core API workflows
+- Compose and run HTTP requests.
+- Validate JSON output and error payloads.
+- Compare endpoint behavior across versions.
+- Reproduce bugs with saved request patterns.
+- Check schema behavior in GraphQL queries.
+- Shorten backend debugging loops.
+
+### AI-assisted API tasks
+- “Generate test cases for this endpoint.”
+- “Convert this cURL command into readable docs.”
+- “Explain why this response is 422.”
+- “Create GraphQL query variants for edge cases.”
+- “Draft contract test checklist.”
+- “Suggest pagination strategy improvements.”
+
+### Best for
+- Backend testing.
+- Integration debugging.
+- API documentation.
+- QA collaboration.
+
+</details>
+
+<details>
+<summary><b>Workflows Panel — Visual Build/Test/Deploy Automation</b></summary>
+
+### What you can do
+- Create project workflows with visual steps.
+- Automate repetitive build/test/deploy actions.
+- Re-run workflows as project state evolves.
+- Keep automation config in the same workspace.
+- Combine manual and scheduled patterns.
+- Improve consistency across contributors.
+
+### Workflow builder capabilities
+- Define named workflows with command steps.
+- Support run/build/test/deploy style stages.
+- Trigger via manual or contextual events.
+- Inspect run history for troubleshooting.
+- Iterate quickly with editor-side feedback.
+- Align with CI-style behavior locally.
+
+### AI-assisted automation tasks
+- “Create a lint + test + build pipeline.”
+- “Add rollback-safe deploy checklist steps.”
+- “Optimize this workflow for faster feedback.”
+- “Generate branch-based workflow strategy.”
+- “Draft environment variable audit steps.”
+- “Explain failed step and suggest fixes.”
+
+### Best for
+- Team standards.
+- Release safety.
+- Developer productivity.
+- CI/CD rehearsal.
+
+</details>
+
+<details>
+<summary><b>Extensions Panel — Build Widget, Command, and Chat-Tool Runtimes</b></summary>
+
+### What you can do
+- Create custom IDE extensions in-project.
+- Choose runtime style: widget, command, or chat-tool.
+- Build private helpers for your team.
+- Prototype utilities directly next to your app.
+- Package reusable workflows for repeated tasks.
+- Extend AI behavior with focused tool adapters.
+
+### Extension runtime options
+- **Widget runtime:** UI tools inside the IDE panel.
+- **Command runtime:** action-style commands for workflows.
+- **Chat-tool runtime:** assistant-callable tools with scoped behavior.
+- Runtime-aware development surfaces for faster iteration.
+- Built-in placement in project workflow.
+- Strong fit for internal platform teams.
+
+### AI-assisted extension tasks
+- “Scaffold a chat-tool for schema summaries.”
+- “Create a widget for environment validation.”
+- “Build command extension for release tagging.”
+- “Write docs for this extension manifest.”
+- “Generate test prompts for extension quality.”
+- “Refactor extension code for maintainability.”
+
+### Best for
+- Internal tooling.
+- Team accelerators.
+- Custom AI affordances.
+- Platform engineering.
+
+</details>
+
+<details>
+<summary><b>All Editors Together — Why This Matters</b></summary>
+
+### Unified environment advantages
+- Keep source code, docs, hardware, and media in one place.
+- Reduce context switching across disconnected tools.
+- Maintain a single AI assistant context across domains.
+- Collaborate with shared project artifacts and history.
+- Shorten time from idea to prototype to delivery.
+- Support education, startups, and enterprise teams alike.
+
+### AI + editor synergy
+- Ask for help in the exact domain tab you are using.
+- Generate artifacts (code/docs/media) and apply immediately.
+- Convert planning notes into implementation tasks.
+- Tie automation and testing into day-to-day editing.
+- Use model comparison before committing major changes.
+- Scale from solo prototyping to team governance.
+
+### Typical end-to-end flow
+1. Plan in docs/spreadsheets.
+2. Implement in code editor.
+3. Validate in API playground.
+4. Automate in workflows panel.
+5. Prepare demo assets in media tools.
+6. Ship with built-in Git and share actions.
+
 </details>
 
 ## 💻 Persistent Shell & Python API
