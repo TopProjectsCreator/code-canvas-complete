@@ -1494,6 +1494,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [vmError, setVmError] = useState<string | null>(null);
   const [scratchVersion, setScratchVersion] = useState<ScratchCompatibilityVersion>('scratch3');
+  const [unsupportedVersionPrompt, setUnsupportedVersionPrompt] = useState<{
+    version: ScratchCompatibilityVersion;
+    source: 'toggle' | 'import';
+    fileName?: string;
+    onConfirm: () => void | Promise<void>;
+  } | null>(null);
   const [dataPrompt, setDataPrompt] = useState<{ type: 'variable' | 'list'; name: string } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState<LibraryMode | null>(null);
   const [renameTarget, setRenameTarget] = useState<{ type: 'variable' | 'list'; id: string; oldName: string } | null>(null);
@@ -3162,14 +3168,15 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     await stageElement.requestFullscreen();
   };
 
-  const handleImport = async (file: File) => {
+  const performImport = async (file: File, forcedVersion?: ScratchCompatibilityVersion) => {
     try {
       const data = await file.arrayBuffer();
       const parsed = await importScratchArchive(data);
       const importedProject = safeParseProject(parsed.archive);
       const bySemver = semverToScratchVersion(importedProject.meta?.semver);
       const name = file.name.toLowerCase();
-      const inferredVersion = name.endsWith('.sb2') ? 'scratch2' : bySemver;
+      const inferredVersion = forcedVersion
+        ?? (name.endsWith('.sb2') ? 'scratch2' : name.endsWith('.sb') ? 'scratch14' : bySemver);
       const normalizedProject: ScratchProject = {
         ...importedProject,
         projectVersion: inferredVersion === 'scratch2' || inferredVersion === 'scratch14' ? 2 : 3,
@@ -3201,6 +3208,22 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         importInputRef.current.value = '';
       }
     }
+  };
+
+  const handleImport = async (file: File) => {
+    const lowerName = file.name.toLowerCase();
+    const isLegacy = lowerName.endsWith('.sb2') || lowerName.endsWith('.sb');
+    const legacyVersion: ScratchCompatibilityVersion = lowerName.endsWith('.sb') ? 'scratch14' : 'scratch2';
+    if (isLegacy) {
+      setUnsupportedVersionPrompt({
+        version: legacyVersion,
+        source: 'import',
+        fileName: file.name,
+        onConfirm: () => performImport(file, legacyVersion),
+      });
+      return;
+    }
+    await performImport(file);
   };
 
   const handleExport = async () => {
@@ -3261,7 +3284,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }
   };
 
-  const handleVersionToggle = async (nextVersion: ScratchCompatibilityVersion) => {
+  const performVersionToggle = async (nextVersion: ScratchCompatibilityVersion) => {
     const semver = SCRATCH_VERSION_OPTIONS.find((option) => option.value === nextVersion)?.semver || '3.0.0';
     const current = safeParseProject(archive);
     const currentSemver = typeof current.meta?.semver === 'string' ? current.meta.semver : '';
@@ -3302,6 +3325,18 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setProjectJsonDraft(nextJson);
     setJsonError(null);
     await loadVmFromArchive(nextArchive, nextVersion);
+  };
+
+  const handleVersionToggle = async (nextVersion: ScratchCompatibilityVersion) => {
+    if (nextVersion === 'scratch2' || nextVersion === 'scratch14') {
+      setUnsupportedVersionPrompt({
+        version: nextVersion,
+        source: 'toggle',
+        onConfirm: () => performVersionToggle(nextVersion),
+      });
+      return;
+    }
+    await performVersionToggle(nextVersion);
   };
 
   const [showJson, setShowJson] = useState(false);
@@ -4308,6 +4343,56 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             >
               Clean up Blocks
             </button>
+          </div>
+        </>
+      )}
+      {unsupportedVersionPrompt && (
+        <>
+          <div
+            className="fixed inset-0 z-[80] bg-black/60"
+            onClick={() => setUnsupportedVersionPrompt(null)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="fixed left-1/2 top-1/2 z-[81] w-[min(440px,92vw)] -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background text-foreground shadow-2xl"
+          >
+            <div className="p-5 space-y-3">
+              <h2 className="text-lg font-semibold">
+                {SCRATCH_VERSION_OPTIONS.find((o) => o.value === unsupportedVersionPrompt.version)?.label} is not fully supported
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {unsupportedVersionPrompt.source === 'import'
+                  ? `“${unsupportedVersionPrompt.fileName}” looks like a legacy Scratch project. `
+                  : ''}
+                {unsupportedVersionPrompt.version === 'scratch14'
+                  ? "Scratch 1.4 projects use a binary format the in-browser VM can't fully run. Many blocks, sprites, and sounds may be missing or behave incorrectly."
+                  : 'Scratch 2 support is experimental. The project will be auto-converted to the Scratch 3 VM, but some blocks, extensions, or assets may not work as expected.'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                For best results, open the project in the official Scratch app and re-export it as <code className="font-mono">.sb3</code>.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-md border border-border hover:bg-accent hover:text-accent-foreground transition-colors"
+                onClick={() => setUnsupportedVersionPrompt(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                onClick={() => {
+                  const prompt = unsupportedVersionPrompt;
+                  setUnsupportedVersionPrompt(null);
+                  void prompt.onConfirm();
+                }}
+              >
+                Continue anyway
+              </button>
+            </div>
           </div>
         </>
       )}
