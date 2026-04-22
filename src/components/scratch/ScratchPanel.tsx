@@ -1568,6 +1568,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const projectLoadedRef = useRef(false);
   const isRunningRef = useRef(isRunning);
   const latestQuestionBubbleRef = useRef('');
+  const micPrimedRef = useRef(false);
 
   // Keep archiveRef in sync for the storage adapter closure
   useEffect(() => {
@@ -2017,6 +2018,33 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         }
         setPendingQuestion(null);
         latestQuestionBubbleRef.current = '';
+        // Prime microphone for `loudness` and `when loudness >` blocks. The
+        // VM only requests mic on first read, which can race the hat block
+        // and silently fail inside iframes without a user gesture.
+        try {
+          const usesLoudness = (vmRef.current?.runtime as any)?.targets?.some((t: any) =>
+            Object.values(t?.blocks?._blocks || {}).some((b: any) =>
+              b?.opcode === 'sensing_loudness' ||
+              (b?.opcode === 'event_whengreaterthan' &&
+                String(b?.fields?.WHENGREATERTHANMENU?.value || '').toLowerCase() === 'loudness')
+            )
+          );
+          if (usesLoudness && !micPrimedRef.current && navigator.mediaDevices?.getUserMedia) {
+            micPrimedRef.current = true;
+            navigator.mediaDevices.getUserMedia({ audio: true })
+              .then(() => {
+                // Force the audio engine to wire its Loudness detector now.
+                try { (vmRef.current?.runtime as any)?.audioEngine?.getLoudness?.(); } catch { /* noop */ }
+              })
+              .catch((err) => {
+                micPrimedRef.current = false;
+                setVmError('Microphone access was blocked. "loudness" blocks will not work until you allow the mic.');
+                console.warn('[Scratch] mic permission denied:', err);
+              });
+          }
+        } catch (micErr) {
+          console.warn('[Scratch] mic prime failed:', micErr);
+        }
         vmRef.current.greenFlag();
         setTimeout(() => syncFromVm(), 120);
       } catch (error) {
