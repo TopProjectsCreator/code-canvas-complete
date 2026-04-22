@@ -3844,19 +3844,42 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                       if (!same) setSlotsTick((t) => t + 1);
                     }}
                   />
-                  {/* Editable shadow value overlays */}
+                  {/* Input slot overlays */}
                   {(() => {
                     void slotsTick;
                     const slots = slotsRegistryRef.current.get(block.id) || [];
                     const orderedKeys = getOrderedInputKeysForBlock(block);
                     return slots.map((slot) => {
-                      if (slot.type !== 'reporter') return null;
                       const inputKey = orderedKeys[slot.index];
                       if (!inputKey) return null;
                       const ref = (block.inputs || {})[inputKey] as unknown[] | undefined;
                       if (!Array.isArray(ref)) return null;
-                      // If a real reporter block is attached, don't show editable input
-                      if (ref[0] === 3 && typeof ref[1] === 'string') return null;
+
+                      if (ref[0] === 3 && typeof ref[1] === 'string') {
+                        const attachedId = ref[1];
+                        const attachedBlock = blocksMap[attachedId];
+                        if (!attachedBlock) return null;
+
+                        const attachedBaseLabel = blockLabels[attachedBlock.opcode] || attachedBlock.opcode.replace(/_/g, ' ');
+                        const attachedColor = getBlockColor(attachedBlock.opcode);
+                        const attachedShape = getBlockShape(attachedBlock.opcode);
+
+                        return (
+                          <div
+                            key={`${block.id}-${inputKey}-attached-${attachedId}`}
+                            className="absolute pointer-events-none z-10"
+                            style={{ left: slot.x, top: slot.y }}
+                          >
+                            <ScratchBlockShape
+                              label={attachedBaseLabel}
+                              color={attachedColor}
+                              shape={attachedShape}
+                            />
+                          </div>
+                        );
+                      }
+
+                      if (slot.type !== 'reporter') return null;
                       const shadowTuple = (ref[0] === 1 ? ref[1] : ref[ref.length - 1]) as unknown;
                       if (!Array.isArray(shadowTuple)) return null;
                       const currentValue = String(shadowTuple[1] ?? '');
