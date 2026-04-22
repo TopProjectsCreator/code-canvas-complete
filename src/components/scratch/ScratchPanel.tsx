@@ -3168,14 +3168,15 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     await stageElement.requestFullscreen();
   };
 
-  const handleImport = async (file: File) => {
+  const performImport = async (file: File, forcedVersion?: ScratchCompatibilityVersion) => {
     try {
       const data = await file.arrayBuffer();
       const parsed = await importScratchArchive(data);
       const importedProject = safeParseProject(parsed.archive);
       const bySemver = semverToScratchVersion(importedProject.meta?.semver);
       const name = file.name.toLowerCase();
-      const inferredVersion = name.endsWith('.sb2') ? 'scratch2' : bySemver;
+      const inferredVersion = forcedVersion
+        ?? (name.endsWith('.sb2') ? 'scratch2' : name.endsWith('.sb') ? 'scratch14' : bySemver);
       const normalizedProject: ScratchProject = {
         ...importedProject,
         projectVersion: inferredVersion === 'scratch2' || inferredVersion === 'scratch14' ? 2 : 3,
@@ -3207,6 +3208,22 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         importInputRef.current.value = '';
       }
     }
+  };
+
+  const handleImport = async (file: File) => {
+    const lowerName = file.name.toLowerCase();
+    const isLegacy = lowerName.endsWith('.sb2') || lowerName.endsWith('.sb');
+    const legacyVersion: ScratchCompatibilityVersion = lowerName.endsWith('.sb') ? 'scratch14' : 'scratch2';
+    if (isLegacy) {
+      setUnsupportedVersionPrompt({
+        version: legacyVersion,
+        source: 'import',
+        fileName: file.name,
+        onConfirm: () => performImport(file, legacyVersion),
+      });
+      return;
+    }
+    await performImport(file);
   };
 
   const handleExport = async () => {
