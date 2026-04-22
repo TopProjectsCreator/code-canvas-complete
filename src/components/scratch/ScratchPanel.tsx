@@ -3814,7 +3814,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 }
               });
               // Substitute the first {placeholder} with current menu label, and the second one (if any), in order.
-              let label = baseLabel;
+              let label = getInlineBlockLabel(block, blockLabels, blocksMap);
               menuValues.forEach((mv) => {
                 label = label.replace(/\{[^}]+\}/, `{${mv.current}}`);
               });
@@ -3907,7 +3907,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         const attachedBlock = blocksMap[attachedId];
                         if (!attachedBlock) return null;
 
-                        const attachedBaseLabel = getInlineBlockLabel(attachedBlock, blockLabels);
+                        const attachedBaseLabel = getInlineBlockLabel(attachedBlock, blockLabels, blocksMap);
                         const attachedColor = getBlockColor(attachedBlock.opcode);
                         const attachedShape = getBlockShape(attachedBlock.opcode);
                         const attachedWidth = Math.max(slot.width, attachedBaseLabel.length * 7 + (attachedShape === 'boolean' ? 28 : 24));
