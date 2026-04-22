@@ -1480,6 +1480,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     ghostY: number;
   } | null>(null);
   const flyoutDragRef = useRef<{ blockDef: ScratchBlockDef; color: string; startX: number; startY: number } | null>(null);
+  const suppressFlyoutClickRef = useRef(false);
   // Used to disable shadow input pointer-events so drops land on the slot, not the input overlay.
   const isHtml5Dragging = flyoutDrag !== null;
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
