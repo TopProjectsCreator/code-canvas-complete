@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -169,14 +169,17 @@ function InviteTab({ collab, hasProject = true }: { collab: ReturnType<typeof us
   const [role, setRole] = useState<CollabRole>('editor');
   const [sending, setSending] = useState(false);
 
+  const searchRef = useRef(collab.searchInviteCandidates);
+  searchRef.current = collab.searchInviteCandidates;
+
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       if (identifier.includes('@')) return;
-      void collab.searchInviteCandidates(identifier);
+      void searchRef.current(identifier);
     }, 180);
 
     return () => window.clearTimeout(timeout);
-  }, [collab, identifier]);
+  }, [identifier]);
 
   const handleInviteEmail = async () => {
     if (!identifier.trim()) return;
