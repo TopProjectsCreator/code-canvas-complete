@@ -811,6 +811,34 @@ const getOrderedInputKeysForBlock = (block: ScratchBlockNode): string[] => {
   return [];
 };
 
+const getProcedureDefinitionArgs = (
+  block: ScratchBlockNode,
+  blocksMap?: Record<string, ScratchBlockNode>,
+): Array<{ name: string; type: 'string_number' | 'boolean' }> => {
+  if (block.opcode !== 'procedures_definition' || !blocksMap) return [];
+  const customRef = block.inputs?.custom_block as unknown[] | undefined;
+  const protoId = Array.isArray(customRef) && typeof customRef[1] === 'string' ? customRef[1] : undefined;
+  const proto = protoId ? blocksMap[protoId] : undefined;
+  const proccode = typeof proto?.mutation?.proccode === 'string' ? proto.mutation.proccode : '';
+  if (!proccode) return [];
+
+  let names: string[] = [];
+  try { names = JSON.parse((proto?.mutation?.argumentnames as string) || '[]'); } catch { /* noop */ }
+
+  const tokens = proccode.split(/\s+/).filter(Boolean);
+  const args: Array<{ name: string; type: 'string_number' | 'boolean' }> = [];
+  let valueIdx = 0;
+  tokens.forEach((tok) => {
+    if (tok !== '%s' && tok !== '%b') return;
+    args.push({
+      name: names[valueIdx] || `arg${valueIdx + 1}`,
+      type: tok === '%b' ? 'boolean' : 'string_number',
+    });
+    valueIdx += 1;
+  });
+  return args;
+};
+
 const getInlineBlockLabel = (
   block: ScratchBlockNode,
   blockLabels: Record<string, string>,
