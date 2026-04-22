@@ -394,7 +394,7 @@ const TemplateChangeWidget = ({ widget, onChangeTemplate }: { widget: ChatWidget
     blank: 'Blank', html: 'HTML/CSS/JS', javascript: 'JavaScript', typescript: 'TypeScript',
     python: 'Python', java: 'Java', cpp: 'C++', c: 'C', go: 'Go', rust: 'Rust',
     ruby: 'Ruby', php: 'PHP', csharp: 'C#', bash: 'Bash', swift: 'Swift', crystal: 'Crystal', elixir: 'Elixir', erlang: 'Erlang', julia: 'Julia', ocaml: 'OCaml', pony: 'Pony', scala: 'Scala', vim: 'Vim Script', lazyk: 'Lazy K', react: 'React',
-    nodejs: 'Node.js', sqlite: 'SQLite', arduino: 'Arduino', scratch: 'Scratch',
+    nodejs: 'Node.js', sqlite: 'SQLite', database: 'Database Designer', arduino: 'Arduino', scratch: 'Scratch',
     word: 'Word Document', powerpoint: 'PowerPoint', excel: 'Excel Spreadsheet',
     video: 'Video Editor', audio: 'Audio Editor', rtf: 'Rich Text', cad: 'CAD', ftc: 'FTC Robotics',
   };

@@ -21,6 +21,7 @@ import {
   FileText,
   ShieldAlert,
   Workflow,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -93,6 +94,7 @@ const templateVisuals: Record<LanguageTemplate, { icon: React.ReactNode; color: 
   secureops: { icon: <ShieldAlert className="w-8 h-8" />, color: "from-rose-500 to-orange-600" },
   automation: { icon: <Workflow className="w-8 h-8" />, color: "from-indigo-500 to-violet-600" },
   sqlite: { icon: <Braces className="w-8 h-8" />, color: "from-blue-400 to-cyan-500" },
+  database: { icon: <Database className="w-8 h-8" />, color: "from-emerald-500 to-teal-600" },
   arduino: { icon: <Cpu className="w-8 h-8" />, color: "from-cyan-500 to-blue-600" },
   scratch: { icon: <Bot className="w-8 h-8" />, color: "from-orange-400 to-blue-500" },
   word: { icon: <FileText className="w-8 h-8" />, color: "from-blue-500 to-blue-700" },

@@ -37,6 +37,7 @@ import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
 import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/collabSyncEngine";
 import { useOfflineProject } from "@/hooks/useOfflineProject";
 import { AutomationTemplatePane, type AutomationBlockInstance, serializeAutomationConfig, parseAutomationConfig } from "@/components/ide/AutomationTemplatePane";
+import { DatabaseDesignerPane } from "@/components/ide/DatabaseDesignerPane";
 import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
 
 const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
@@ -2278,7 +2279,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             // Mobile: Single panel view with bottom nav switcher
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Editor Panel */}
-              {mobileActivePanel === "editor" && selectedTemplate !== "scratch" && selectedTemplate !== "automation" && (
+              {mobileActivePanel === "editor" && selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && (
                 <div className="h-full flex flex-col">
                   <EditorTabs
                     tabs={openTabs}
@@ -2315,6 +2316,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
                       <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} syncVersion={automationSyncVersion} />
                     </Suspense>
+                  ) : selectedTemplate === "database" ? (
+                    <DatabaseDesignerPane files={filesWithContent} onFileUpdate={handleContentChange} />
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
                       <ScratchPanel
@@ -2357,7 +2360,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             // Desktop: Resizable panels
             <ResizablePanelGroup direction="horizontal" className="flex-1">
               {/* Editor panel - hidden for scratch and automation templates */}
-              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && (
+              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && (
                 <>
                   <ResizablePanel defaultSize={54} minSize={34}>
                     <div className="h-full flex flex-col">
@@ -2386,7 +2389,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               )}
 
               {/* Preview panel or Arduino/Scratch/Automation panel */}
-              <ResizablePanel defaultSize={selectedTemplate === "scratch" || selectedTemplate === "automation" ? 100 : 46} minSize={24}>
+              <ResizablePanel defaultSize={selectedTemplate === "scratch" || selectedTemplate === "automation" || selectedTemplate === "database" ? 100 : 46} minSize={24}>
                 {selectedTemplate === "arduino" ? (
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
                     <ArduinoPanel
@@ -2407,6 +2410,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
                     <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} syncVersion={automationSyncVersion} />
                   </Suspense>
+                  ) : selectedTemplate === "database" ? (
+                    <DatabaseDesignerPane files={filesWithContent} onFileUpdate={handleContentChange} />
                   ) : selectedTemplate === "scratch" ? (
                     <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
                     <ScratchPanel
@@ -2835,7 +2840,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             activePanel={mobileActivePanel}
             onPanelChange={setMobileActivePanel}
             showPreview={selectedTemplate !== "typescript" && selectedTemplate !== "python"}
-            showTerminal={selectedTemplate !== "scratch" && selectedTemplate !== "automation"}
+            showTerminal={selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database"}
           />
         )}
       </div>
