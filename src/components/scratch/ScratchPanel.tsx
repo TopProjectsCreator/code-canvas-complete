@@ -1533,6 +1533,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [snapPreview, setSnapPreview] = useState<{ id: string; type: 'next' | 'substack'; x: number; y: number } | null>(null);
   // Per-block input slot rects (in block-local SVG coords). Populated by ScratchBlockShape onSlots.
   const slotsRegistryRef = useRef<Map<string, { type: 'reporter' | 'boolean'; index: number; x: number; y: number; width: number; height: number }[]>>(new Map());
+  const blockRenderPositionRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const [slotsTick, setSlotsTick] = useState(0);
   const [inputDropTarget, setInputDropTarget] = useState<{ blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null>(null);
   // Mirror of inputDropTarget used inside pointer-up handlers to avoid stale-closure misses.
@@ -2621,8 +2622,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       if (excludeIds.has(blockId)) return;
       const block = blocks[blockId];
       if (!block) return;
-      const bx = block.x ?? 0;
-      const by = block.y ?? 0;
+      const renderPos = blockRenderPositionRef.current.get(blockId);
+      const bx = renderPos?.x ?? block.x ?? 0;
+      const by = renderPos?.y ?? block.y ?? 0;
       const orderedKeys = getOrderedInputKeysForBlock(block);
       slots.forEach((slot) => {
         if (slot.type !== sourceShape) return;
