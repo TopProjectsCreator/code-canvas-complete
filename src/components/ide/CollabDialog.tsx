@@ -23,6 +23,7 @@ interface CollabDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string | undefined;
+  onRequireProjectSave?: () => void;
 }
 
 const ROLE_ICONS: Record<string, React.ReactNode> = {
@@ -46,7 +47,7 @@ const STATUS_CONFIG: Record<string, { icon: React.ReactNode; label: string; colo
   closed: { icon: <XCircle className="h-3.5 w-3.5" />, label: 'Closed', color: 'bg-muted text-muted-foreground' },
 };
 
-export const CollabDialog = ({ open, onOpenChange, projectId }: CollabDialogProps) => {
+export const CollabDialog = ({ open, onOpenChange, projectId, onRequireProjectSave }: CollabDialogProps) => {
   const hasProject = !!projectId;
   const { user } = useAuth();
   const collab = useCollaboration(projectId);
@@ -90,7 +91,7 @@ export const CollabDialog = ({ open, onOpenChange, projectId }: CollabDialogProp
               <TeamTab collab={collab} />
             </TabsContent>
             <TabsContent value="invite" className="mt-0">
-              <InviteTab collab={collab} hasProject={hasProject} />
+              <InviteTab collab={collab} hasProject={hasProject} onRequireProjectSave={onRequireProjectSave} />
             </TabsContent>
             <TabsContent value="comments" className="mt-0">
               <CommentsTab collab={collab} userId={user.id} />
@@ -164,7 +165,7 @@ function TeamTab({ collab }: { collab: ReturnType<typeof useCollaboration> }) {
   );
 }
 
-function InviteTab({ collab, hasProject = true }: { collab: ReturnType<typeof useCollaboration>; hasProject?: boolean }) {
+function InviteTab({ collab, hasProject = true, onRequireProjectSave }: { collab: ReturnType<typeof useCollaboration>; hasProject?: boolean; onRequireProjectSave?: () => void }) {
   const [identifier, setIdentifier] = useState('');
   const [role, setRole] = useState<CollabRole>('editor');
   const [sending, setSending] = useState(false);
@@ -197,9 +198,16 @@ function InviteTab({ collab, hasProject = true }: { collab: ReturnType<typeof us
   return (
     <div className="space-y-4">
       {!hasProject && (
-        <div className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>Save your project first before inviting collaborators.</span>
+        <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="space-y-2">
+              <p>Save your project first before inviting collaborators.</p>
+              <Button type="button" size="sm" variant="outline" onClick={() => onRequireProjectSave?.()} className="gap-2">
+                <UserPlus className="h-3.5 w-3.5" /> Save project to enable invites
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -212,10 +220,16 @@ function InviteTab({ collab, hasProject = true }: { collab: ReturnType<typeof us
         <div className="space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={identifier} onChange={(event) => setIdentifier(event.target.value)} placeholder="Search display name or paste email" className="pl-9" />
+            <Input
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
+              placeholder={hasProject ? 'Search display name or paste email' : 'Save project to search teammates'}
+              className="pl-9"
+              disabled={!hasProject}
+            />
           </div>
 
-          <Select value={role} onValueChange={(value) => setRole(value as CollabRole)}>
+          <Select value={role} onValueChange={(value) => setRole(value as CollabRole)} disabled={!hasProject}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -226,7 +240,7 @@ function InviteTab({ collab, hasProject = true }: { collab: ReturnType<typeof us
             </SelectContent>
           </Select>
 
-          {!identifier.includes('@') && (
+          {!identifier.includes('@') && hasProject && (
             <div className="rounded-lg border border-border/60 bg-background/70 p-2">
               <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <AtSign className="h-3.5 w-3.5" /> Suggested teammates
@@ -239,14 +253,14 @@ function InviteTab({ collab, hasProject = true }: { collab: ReturnType<typeof us
                     <button
                       key={candidate.userId}
                       type="button"
-                      disabled={!hasProject || sending}
+                      disabled={sending}
                       onClick={async () => {
                         setSending(true);
                         const ok = await collab.inviteCollaboratorByUser(candidate, role);
                         setSending(false);
                         if (ok) setIdentifier('');
                       }}
-                      className="flex w-full items-center gap-3 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-primary/30 hover:bg-primary/5"
+                      className="flex w-full items-center gap-3 rounded-lg border border-transparent px-2 py-2 text-left transition-colors hover:border-primary/30 hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={candidate.avatarUrl || undefined} />
