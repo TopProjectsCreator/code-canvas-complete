@@ -1,0 +1,129 @@
+---
+title: "Troubleshooting"
+description: "Diagnose and fix common issues in Code Canvas: startup failures, terminal/runtime problems, AI/tooling errors, collaboration, and deployment."
+---
+
+## Fast triage flow
+
+When something breaks, follow this order:
+
+1. **Identify scope**: one file, one feature, or the whole workspace
+2. **Check recent change**: last commit, dependency update, env edit, or config toggle
+3. **Reproduce in minimal steps**
+4. **Collect logs**: terminal output, browser console, workflow history
+5. **Apply one fix at a time** and re-test
+
+## Common startup issues
+
+### Workspace does not load
+
+**Symptoms**
+- Blank editor pane
+- Infinite loading state
+- File tree never populates
+
+**Checks**
+- Confirm network and authentication status
+- Reload the tab with hard refresh
+- Reopen project from dashboard
+- Check browser console for blocked assets or extension conflicts
+
+### Dependencies fail on install
+
+**Symptoms**
+- `npm install` exits with peer or lockfile errors
+
+**Fixes**
+- Use the package manager expected by the lockfile
+- Remove stale lockfiles only if your team agrees
+- Re-run install with clean cache if corrupted
+
+## Runtime and terminal issues
+
+### Dev server starts but preview is broken
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| 404 on app route | Wrong base path/router config | Verify route setup and `vite`/framework config |
+| API calls fail | Missing env var | Confirm variables in correct environment scope |
+| Hot reload not updating | File watcher or build error | Check terminal logs and rebuild |
+
+### Long-running command hangs
+
+- Interrupt with `Ctrl+C`
+- Re-run with verbose flags when available
+- Split command into smaller steps to isolate failure
+
+## AI assistant issues
+
+### AI responses are generic or miss context
+
+- Reference specific files and function names in your prompt
+- Attach error output directly
+- Add MCP sources if the issue depends on private schemas/docs
+- Enable relevant skill profiles for response format and coding conventions
+
+### AI proposes unsafe shell commands
+
+Use the shell safety flow in [Shell Safety Runbook](/features/shell-safety-runbook):
+
+- Validate command intent
+- Dry-run when possible
+- Avoid destructive flags unless explicitly needed
+
+## Collaboration issues
+
+### Teammate cannot edit files
+
+- Verify workspace role permissions
+- Confirm project is shared with the correct account
+- Check whether branch protections require PR-only changes
+
+### Live cursors or call session unstable
+
+- Check network quality on both ends
+- Rejoin the session room
+- Close duplicate tabs tied to the same session
+
+## Deployment issues
+
+### Build passes locally but fails in deployment
+
+**Checklist**
+- Are production env vars present?
+- Is Node/runtime version aligned?
+- Are optional dev dependencies accidentally required in prod code?
+- Is the output directory configured correctly?
+
+### Rollback strategy
+
+If a deploy is unhealthy:
+
+1. Roll back to last known good release
+2. Restore stable env values
+3. Compare build logs between good and bad versions
+4. Re-deploy only after test parity is restored
+
+## Evidence to collect before escalating
+
+Include these in your internal issue or support request:
+
+- Exact reproduction steps
+- Full terminal error output
+- Failing commit SHA / branch
+- Timestamp and timezone
+- Screenshots of relevant panel states
+
+## Preventive guardrails
+
+- Add a pre-merge workflow: lint + tests + typecheck
+- Keep runtime versions pinned in project config
+- Store env values by scope and document ownership
+- Review workflow history weekly for flaky automation
+
+## Related docs
+
+- [Getting Started](/features/getting-started)
+- [Workflows History](/features/workflows/history)
+- [Deployment](/features/deployment)
+- [Environment](/features/environment)
