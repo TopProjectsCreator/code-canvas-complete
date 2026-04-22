@@ -328,9 +328,16 @@ export function useCollaboration(projectId: string | undefined) {
 
     setInviteSearchLoading(true);
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+    // Sanitize: PostgREST `.or()` treats `,` `(` `)` as syntax — strip them from the search term
+    const safe = trimmed.replace(/[,()]/g, '').trim();
+    if (!safe) {
+      setInviteSearchLoading(false);
+      setInviteSuggestions([]);
+      return [];
+    }
     const orFilter = isUuid
-      ? `display_name.ilike.%${trimmed}%,user_id.eq.${trimmed}`
-      : `display_name.ilike.%${trimmed}%`;
+      ? `display_name.ilike.%${safe}%,user_id.eq.${trimmed}`
+      : `display_name.ilike.%${safe}%`;
     const { data, error } = await supabase
       .from('profiles')
       .select('user_id, display_name, avatar_url')
