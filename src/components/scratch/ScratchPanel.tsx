@@ -3065,8 +3065,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const drag = dragRef.current;
     if (!drag) return;
 
-    const slotDrop = inputDropTarget;
+    const slotDrop = inputDropTargetRef.current ?? inputDropTarget;
     const snap = snapPreview;
+    inputDropTargetRef.current = null;
 
     if (slotDrop) {
       // Attach this dragged reporter/boolean as an input on slotDrop.blockId/slotDrop.inputKey.
