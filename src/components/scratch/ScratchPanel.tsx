@@ -811,7 +811,16 @@ const getOrderedInputKeysForBlock = (block: ScratchBlockNode): string[] => {
   return [];
 };
 
-const getInlineBlockLabel = (block: ScratchBlockNode, blockLabels: Record<string, string>) => {
+const getInlineBlockLabel = (
+  block: ScratchBlockNode,
+  blockLabels: Record<string, string>,
+  blocksMap?: Record<string, ScratchBlockNode>,
+  visited = new Set<string>(),
+) => {
+  if (block.id && visited.has(block.id)) return blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
+  const nextVisited = new Set(visited);
+  if (block.id) nextVisited.add(block.id);
+
   let label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
 
   if (block.opcode === 'data_variable') {
@@ -834,6 +843,13 @@ const getInlineBlockLabel = (block: ScratchBlockNode, blockLabels: Record<string
   orderedKeys.forEach((inputKey) => {
     const ref = inputs[inputKey] as unknown[] | undefined;
     if (!Array.isArray(ref)) return;
+
+    if (ref[0] === 3 && typeof ref[1] === 'string' && blocksMap?.[ref[1]]) {
+      const nested = getInlineBlockLabel(blocksMap[ref[1]], blockLabels, blocksMap, nextVisited);
+      label = label.replace(/\[[^\]]*\]|<[^>]*>/, (match) => (match.startsWith('<') ? `<${nested}>` : `[${nested}]`));
+      return;
+    }
+
     const shadowTuple = (ref[0] === 1 ? ref[1] : ref[ref.length - 1]) as unknown;
     if (!Array.isArray(shadowTuple) || typeof shadowTuple[1] !== 'string') return;
     label = label.replace(/\[[^\]]*\]|<[^>]*>/, (match) => (match.startsWith('<') ? `<${shadowTuple[1]}>` : `[${shadowTuple[1]}]`));
@@ -3798,7 +3814,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 }
               });
               // Substitute the first {placeholder} with current menu label, and the second one (if any), in order.
-              let label = baseLabel;
+              let label = getInlineBlockLabel(block, blockLabels, blocksMap);
               menuValues.forEach((mv) => {
                 label = label.replace(/\{[^}]+\}/, `{${mv.current}}`);
               });
@@ -3891,7 +3907,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         const attachedBlock = blocksMap[attachedId];
                         if (!attachedBlock) return null;
 
-                        const attachedBaseLabel = getInlineBlockLabel(attachedBlock, blockLabels);
+                        const attachedBaseLabel = getInlineBlockLabel(attachedBlock, blockLabels, blocksMap);
                         const attachedColor = getBlockColor(attachedBlock.opcode);
                         const attachedShape = getBlockShape(attachedBlock.opcode);
                         const attachedWidth = Math.max(slot.width, attachedBaseLabel.length * 7 + (attachedShape === 'boolean' ? 28 : 24));
