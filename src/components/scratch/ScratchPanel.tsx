@@ -823,6 +823,37 @@ const getInlineBlockLabel = (
 
   let label = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
 
+  if (block.opcode === 'procedures_definition' && blocksMap) {
+    // Find linked prototype via custom_block input and build "define <name> [arg] <bool>..." label
+    const customRef = block.inputs?.custom_block as unknown[] | undefined;
+    const protoId = Array.isArray(customRef) ? (customRef[1] as string | undefined) : undefined;
+    const proto = protoId ? blocksMap[protoId] : undefined;
+    const proccode = proto?.mutation?.proccode as string | undefined;
+    if (proccode) {
+      let names: string[] = [];
+      try { names = JSON.parse((proto?.mutation?.argumentnames as string) || '[]'); } catch { /* noop */ }
+      const tokens = proccode.split(/\s+/).filter(Boolean);
+      let valueIdx = 0;
+      let nameOver = false;
+      const nameParts: string[] = [];
+      const tailParts: string[] = [];
+      tokens.forEach((tok) => {
+        if (tok === '%s' || tok === '%b') {
+          nameOver = true;
+          const nm = names[valueIdx] || `arg${valueIdx + 1}`;
+          tailParts.push(tok === '%b' ? `<${nm}>` : `[${nm}]`);
+          valueIdx++;
+        } else if (nameOver) {
+          tailParts.push(tok);
+        } else {
+          nameParts.push(tok);
+        }
+      });
+      return `define ${[nameParts.join(' '), tailParts.join(' ')].filter(Boolean).join(' ')}`;
+    }
+    return 'define';
+  }
+
   if (block.opcode === 'data_variable') {
     const tuple = block.fields?.VARIABLE;
     if (Array.isArray(tuple) && typeof tuple[0] === 'string') return tuple[0];
