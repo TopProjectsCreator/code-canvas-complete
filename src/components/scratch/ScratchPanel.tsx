@@ -3044,9 +3044,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     if (isReporterDrag) {
       const exclude = new Set([drag.blockId]);
       const slotTarget = findSlotDropTarget(blocks, x, y, draggedShape, exclude);
+      inputDropTargetRef.current = slotTarget;
       setInputDropTarget(slotTarget);
       setSnapPreview(null);
     } else {
+      inputDropTargetRef.current = null;
       setInputDropTarget(null);
       const snap = findSnapTarget(blocks, newX, newY, drag.blockId);
       if (snap && blocks[snap.id]) {
