@@ -3836,6 +3836,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 if (visited.has(hostBlock.id)) return [];
                 const nextVisited = new Set(visited);
                 nextVisited.add(hostBlock.id);
+                blockRenderPositionRef.current.set(hostBlock.id, { x: offsetX, y: offsetY });
                 const slots = slotsRegistryRef.current.get(hostBlock.id) || [];
                 const orderedKeys = getOrderedInputKeysForBlock(hostBlock);
 
@@ -3956,6 +3957,13 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     left: block.x ?? 40,
                     top: block.y ?? 40,
                     transition: isDragging ? 'none' : 'left 0.08s ease-out, top 0.08s ease-out',
+                  }}
+                  ref={(node) => {
+                    if (node) {
+                      blockRenderPositionRef.current.set(block.id, { x: block.x ?? 40, y: block.y ?? 40 });
+                    } else {
+                      blockRenderPositionRef.current.delete(block.id);
+                    }
                   }}
                 >
                   <ScratchBlockShape
