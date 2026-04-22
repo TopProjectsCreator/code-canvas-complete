@@ -20,3 +20,5 @@ Office suite,office-suite.png,"Word+Excel+PowerPoint tabs with collaborative com
 CAD & data,cad-data.png,"CAD viewport with ERD overlay and prompt note."
 execute-code API,execute-code.png,"Supabase execute-code request/response diagram with session lifecycle."
 Developer reference,dev-reference.png,"Architecture diagram, Supabase functions, and CLI commands for contributors."
+Project templates,template-lifecycle.svg,"Five-step template lifecycle: choose, preview, configure, validate, and customize with AI."
+Release operations,release-quality-gates.svg,"Release pipeline from planning to monitoring with quality gates and rollback lane."

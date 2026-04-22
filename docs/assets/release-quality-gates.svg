@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Release quality gates diagram</title>
+  <desc id="desc">Pipeline from plan to monitor with three quality gates and a rollback lane.</desc>
+  <rect width="1280" height="720" fill="#0f172a"/>
+  <text x="640" y="86" text-anchor="middle" fill="#f8fafc" font-size="40" font-family="Inter, Arial, sans-serif" font-weight="700">Release Pipeline with Quality Gates</text>
+
+  <g font-family="Inter, Arial, sans-serif" font-size="22" fill="#e2e8f0" text-anchor="middle">
+    <rect x="80" y="220" width="180" height="100" rx="14" fill="#1d4ed8"/>
+    <text x="170" y="278">Plan</text>
+
+    <rect x="300" y="220" width="180" height="100" rx="14" fill="#1d4ed8"/>
+    <text x="390" y="278">Build</text>
+
+    <rect x="520" y="220" width="180" height="100" rx="14" fill="#1d4ed8"/>
+    <text x="610" y="278">Verify</text>
+
+    <rect x="740" y="220" width="180" height="100" rx="14" fill="#1d4ed8"/>
+    <text x="830" y="278">Deploy</text>
+
+    <rect x="960" y="220" width="180" height="100" rx="14" fill="#1d4ed8"/>
+    <text x="1050" y="278">Monitor</text>
+  </g>
+
+  <g stroke="#93c5fd" stroke-width="4" fill="none" marker-end="url(#a)">
+    <defs>
+      <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="#93c5fd" />
+      </marker>
+    </defs>
+    <line x1="260" y1="270" x2="300" y2="270"/>
+    <line x1="480" y1="270" x2="520" y2="270"/>
+    <line x1="700" y1="270" x2="740" y2="270"/>
+    <line x1="920" y1="270" x2="960" y2="270"/>
+  </g>
+
+  <g font-family="Inter, Arial, sans-serif" font-size="20" text-anchor="middle">
+    <rect x="350" y="380" width="120" height="56" rx="10" fill="#166534"/>
+    <text x="410" y="415" fill="#dcfce7">Gate 1</text>
+
+    <rect x="570" y="380" width="120" height="56" rx="10" fill="#166534"/>
+    <text x="630" y="415" fill="#dcfce7">Gate 2</text>
+
+    <rect x="790" y="380" width="120" height="56" rx="10" fill="#166534"/>
+    <text x="850" y="415" fill="#dcfce7">Gate 3</text>
+  </g>
+
+  <path d="M980 520 C850 620, 430 620, 300 520" stroke="#fca5a5" stroke-width="5" fill="none" marker-end="url(#b)"/>
+  <defs>
+    <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#fca5a5" />
+    </marker>
+  </defs>
+  <text x="640" y="575" text-anchor="middle" fill="#fecaca" font-size="24" font-family="Inter, Arial, sans-serif">Rollback lane to previous stable release</text>
+</svg>

@@ -17,7 +17,8 @@
             "group": "Overview",
             "pages": [
               "features/index",
-              "features/getting-started"
+              "features/getting-started",
+              "features/project-templates"
             ]
           },
           {
@@ -78,7 +79,8 @@
           {
             "group": "Deployment",
             "pages": [
-              "features/deployment"
+              "features/deployment",
+              "features/release-operations"
             ]
           },
           {

@@ -1,0 +1,88 @@
+---
+title: "Release Operations & Quality Gates"
+description: "Ship confidently with repeatable release stages, quality checks, rollback plans, and post-release validation inside Code Canvas."
+---
+
+![Git initialized and ready](git-initalized.png)
+
+## From local changes to reliable releases
+
+Release operations in Code Canvas combine Git workflows, test automation, deployment targets, and observability checkpoints into one repeatable process.
+
+The goal: **faster releases with fewer regressions**.
+
+## Release pipeline at a glance
+
+![Release pipeline with quality gates and rollback points](/assets/release-quality-gates.svg)
+
+| Stage | Key checks | Output |
+|---|---|---|
+| **Plan** | Scope, risk level, migration impact | Release checklist + owner |
+| **Build** | Dependency install, compile, bundle | Versioned build artifacts |
+| **Verify** | Unit tests, lint, type checks, smoke tests | Go/No-go signal |
+| **Deploy** | Environment promotion, config validation | Running release |
+| **Monitor** | Error rates, latency, user flows | Stability confirmation |
+| **Learn** | Incident notes, follow-up tasks | Improved next release |
+
+## Pre-release checklist
+
+Before tagging a release, validate:
+
+- Branch is up to date with target base
+- Feature flags are configured for gradual rollout
+- Schema migrations are reversible where possible
+- Secrets and environment variables are present in target environment
+- Rollback command or version pin is documented
+
+## Quality gate recommendations
+
+### Gate 1 — Static confidence
+
+Run linting, formatting, and type checks to catch obvious issues early.
+
+### Gate 2 — Behavioral confidence
+
+Run focused tests for changed areas and one end-to-end smoke path.
+
+### Gate 3 — Operational readiness
+
+Confirm alerts, dashboards, and logs are visible before production traffic ramps.
+
+## Deploy and verify
+
+![Export and deployment flow](exporttopythonandnode.png)
+
+After deployment:
+
+1. Validate health endpoints and critical APIs.
+2. Exercise one top user journey manually.
+3. Watch error/latency metrics for the first 15–30 minutes.
+4. Keep rollback ready until stability criteria are met.
+
+## Rollback strategy
+
+Define rollback in advance for each release type:
+
+| Release type | Rollback approach |
+|---|---|
+| **Config-only** | Revert env/config value and restart services |
+| **App code** | Redeploy previous known-good image or commit |
+| **DB schema** | Run backward migration (or disable new writes + hotfix) |
+
+If rollback is required, log root cause and trigger a short postmortem.
+
+## Post-release review template
+
+Capture the following within 24 hours:
+
+- What shipped (linked PRs/commits)
+- Metrics before vs. after
+- Incidents or near misses
+- Follow-up actions with owners and due dates
+
+## Related guides
+
+- [Deployment](/features/deployment)
+- [Workflows](/features/workflows)
+- [Troubleshooting](/features/troubleshooting)
+- [Shell Safety Runbook](/features/shell-safety-runbook)
