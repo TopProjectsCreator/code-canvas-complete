@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowRight,
@@ -552,6 +552,19 @@ export default function Landing() {
           </div>
         </section>
       </main>
+      <footer className="relative z-10 border-t border-border/40 px-6 py-6">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-sm text-muted-foreground sm:flex-row">
+          <p>© {new Date().getFullYear()} CodeCanvas. All rights reserved.</p>
+          <div className="flex items-center gap-4">
+            <Link to="/privacy-policy" className="underline-offset-4 hover:text-foreground hover:underline">
+              Privacy Policy
+            </Link>
+            <Link to="/terms-of-use" className="underline-offset-4 hover:text-foreground hover:underline">
+              Terms of Use
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

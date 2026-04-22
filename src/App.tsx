@@ -10,6 +10,8 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Docs from "./pages/Docs";
 import ProfilePage from "./pages/Profile";
+import PrivacyPolicyPage from "./pages/PrivacyPolicy";
+import TermsOfUsePage from "./pages/TermsOfUse";
 import { isPublishedHost } from "./lib/publishing";
 import { OfflineDialog } from "@/components/ide/OfflineDialog";
 
@@ -35,6 +37,8 @@ const App = () => (
               <Route path="/docs" element={<Docs />} />
               <Route path="/docs/:slug" element={<Docs />} />
               <Route path="/profile/:userId" element={<ProfilePage />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+              <Route path="/terms-of-use" element={<TermsOfUsePage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
