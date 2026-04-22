@@ -2139,7 +2139,12 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         onProjectUpdated={setCurrentProject}
       />
 
-      <CollabDialog open={showCollabDialog} onOpenChange={setShowCollabDialog} projectId={currentProject?.id} />
+      <CollabDialog
+        open={showCollabDialog}
+        onOpenChange={setShowCollabDialog}
+        projectId={currentProject?.id}
+        onRequireProjectSave={() => setShowSaveDialog(true)}
+      />
 
       <PartsInventoryDialog
           open={showPartsInventory}
