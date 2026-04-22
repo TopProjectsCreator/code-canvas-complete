@@ -811,6 +811,34 @@ const getOrderedInputKeysForBlock = (block: ScratchBlockNode): string[] => {
   return [];
 };
 
+const getProcedureDefinitionArgs = (
+  block: ScratchBlockNode,
+  blocksMap?: Record<string, ScratchBlockNode>,
+): Array<{ name: string; type: 'string_number' | 'boolean' }> => {
+  if (block.opcode !== 'procedures_definition' || !blocksMap) return [];
+  const customRef = block.inputs?.custom_block as unknown[] | undefined;
+  const protoId = Array.isArray(customRef) && typeof customRef[1] === 'string' ? customRef[1] : undefined;
+  const proto = protoId ? blocksMap[protoId] : undefined;
+  const proccode = typeof proto?.mutation?.proccode === 'string' ? proto.mutation.proccode : '';
+  if (!proccode) return [];
+
+  let names: string[] = [];
+  try { names = JSON.parse((proto?.mutation?.argumentnames as string) || '[]'); } catch { /* noop */ }
+
+  const tokens = proccode.split(/\s+/).filter(Boolean);
+  const args: Array<{ name: string; type: 'string_number' | 'boolean' }> = [];
+  let valueIdx = 0;
+  tokens.forEach((tok) => {
+    if (tok !== '%s' && tok !== '%b') return;
+    args.push({
+      name: names[valueIdx] || `arg${valueIdx + 1}`,
+      type: tok === '%b' ? 'boolean' : 'string_number',
+    });
+    valueIdx += 1;
+  });
+  return args;
+};
+
 const getInlineBlockLabel = (
   block: ScratchBlockNode,
   blockLabels: Record<string, string>,
@@ -3976,7 +4004,32 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                       onCommit={(v) => updateShadowValue(hostBlock.id, inputKey, v)}
                     />,
                   ];
-                });
+                }).concat(
+                  hostBlock.opcode === 'procedures_definition'
+                    ? getProcedureDefinitionArgs(hostBlock, blocksMap).flatMap((arg, index) => {
+                        const slot = slots[index];
+                        if (!slot) return [];
+                        const def: ScratchBlockDef = {
+                          label: arg.type === 'boolean' ? `<${arg.name}>` : `[${arg.name}]`,
+                          opcode: arg.type === 'boolean' ? 'argument_reporter_boolean' : 'argument_reporter_string_number',
+                          fields: { VALUE: [arg.name, null] },
+                          minVersion: 'scratch2',
+                        };
+                        const dragLeft = offsetX + slot.x;
+                        const dragTop = offsetY + slot.y;
+                        return [
+                          <div
+                            key={`${hostBlock.id}-proc-param-${index}`}
+                            className="absolute z-20 cursor-grab active:cursor-grabbing"
+                            style={{ left: dragLeft, top: dragTop, width: slot.width, height: slot.height }}
+                            onPointerDown={(e) => startFlyoutDrag(def, getBlockColor('procedures_definition'), e)}
+                            onClick={(e) => e.stopPropagation()}
+                            title={`Drag out ${arg.name}`}
+                          />,
+                        ];
+                      })
+                    : []
+                );
               };
               return (
                 <div
