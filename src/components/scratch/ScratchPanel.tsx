@@ -903,11 +903,11 @@ const getInlineBlockLabel = (
     const ref = inputs[inputKey] as unknown[] | undefined;
     if (!Array.isArray(ref)) return;
 
-    if (ref[0] === 3 && typeof ref[1] === 'string' && blocksMap?.[ref[1]]) {
-      const nested = getInlineBlockLabel(blocksMap[ref[1]], blockLabels, blocksMap, nextVisited);
-      label = label.replace(/\[[^\]]*\]|<[^>]*>/, (match) => (match.startsWith('<') ? `<${nested}>` : `[${nested}]`));
-      return;
-    }
+    // Connected reporter/boolean blocks are rendered as actual nested blocks by
+    // renderSlotOverlays(). Keep the original slot placeholder here so the host
+    // block preserves the correct geometry and drop targets instead of flattening
+    // nested structure into text.
+    if (ref[0] === 3 && typeof ref[1] === 'string' && blocksMap?.[ref[1]]) return;
 
     const shadowTuple = (ref[0] === 1 ? ref[1] : ref[ref.length - 1]) as unknown;
     if (!Array.isArray(shadowTuple) || typeof shadowTuple[1] !== 'string') return;
