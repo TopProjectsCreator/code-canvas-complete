@@ -3943,14 +3943,16 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 hostBlock: ScratchBlockNode,
                 localOffsetX = 0,
                 localOffsetY = 0,
-                absoluteOffsetX = 0,
-                absoluteOffsetY = 0,
+                absoluteOffsetX?: number,
+                absoluteOffsetY?: number,
                 visited = new Set<string>(),
               ) => {
                 if (visited.has(hostBlock.id)) return [];
                 const nextVisited = new Set(visited);
                 nextVisited.add(hostBlock.id);
-                blockRenderPositionRef.current.set(hostBlock.id, { x: absoluteOffsetX, y: absoluteOffsetY });
+                const resolvedAbsoluteOffsetX = absoluteOffsetX ?? (hostBlock.x ?? 40);
+                const resolvedAbsoluteOffsetY = absoluteOffsetY ?? (hostBlock.y ?? 40);
+                blockRenderPositionRef.current.set(hostBlock.id, { x: resolvedAbsoluteOffsetX, y: resolvedAbsoluteOffsetY });
                 const slots = slotsRegistryRef.current.get(hostBlock.id) || [];
                 const orderedKeys = getOrderedInputKeysForBlock(hostBlock);
 
@@ -3962,8 +3964,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
                   const left = localOffsetX + slot.x;
                   const top = localOffsetY + slot.y;
-                  const absoluteLeft = absoluteOffsetX + slot.x;
-                  const absoluteTop = absoluteOffsetY + slot.y;
+                  const absoluteLeft = resolvedAbsoluteOffsetX + slot.x;
+                  const absoluteTop = resolvedAbsoluteOffsetY + slot.y;
 
                   if (ref[0] === 3 && typeof ref[1] === 'string') {
                     const attachedId = ref[1];
