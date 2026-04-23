@@ -3115,18 +3115,21 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const { x, y } = getWorkspaceCoords(e.clientX, e.clientY);
     const block = selectedTarget?.blocks?.[blockId];
     if (!block) return;
+    const renderPos = blockRenderPositionRef.current.get(blockId);
+    const baseX = renderPos?.x ?? block.x ?? 0;
+    const baseY = renderPos?.y ?? block.y ?? 0;
 
     dragRef.current = {
       blockId,
       startX: x,
       startY: y,
-      offsetX: x - (block.x ?? 0),
-      offsetY: y - (block.y ?? 0),
-      originalBlock: { ...block },
+      offsetX: x - baseX,
+      offsetY: y - baseY,
+      originalBlock: { ...block, x: baseX, y: baseY },
       detached: false,
     };
     setDragBlockId(blockId);
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   }, [getWorkspaceCoords, selectedTarget]);
 
   const handleWorkspacePointerMove = useCallback((e: React.PointerEvent) => {
@@ -3153,10 +3156,19 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               oldParent.next = null;
             }
             if (oldParent.inputs) {
-              const substackVal = oldParent.inputs.SUBSTACK as unknown[];
-              if (substackVal && substackVal[1] === drag.blockId) {
-                oldParent.inputs = { ...oldParent.inputs, SUBSTACK: [2, null] };
-              }
+              const detachedInputs = { ...oldParent.inputs };
+              Object.entries(detachedInputs).forEach(([inputKey, inputValue]) => {
+                if (!Array.isArray(inputValue)) return;
+                if (inputKey === 'SUBSTACK' && inputValue[1] === drag.blockId) {
+                  detachedInputs[inputKey] = [2, null];
+                  return;
+                }
+                if (inputValue[0] === 3 && inputValue[1] === drag.blockId) {
+                  const shadow = inputValue[2];
+                  detachedInputs[inputKey] = shadow ? [1, shadow] : [1, [10, '']];
+                }
+              });
+              oldParent.inputs = detachedInputs;
             }
             blocks[block.parent] = oldParent;
           }
@@ -3983,6 +3995,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         key={`${hostBlock.id}-${inputKey}-attached-${attachedId}`}
                         className="absolute z-10"
                         style={{ left, top: top + verticalShift }}
+                        onPointerDown={(e) => handleBlockPointerDown(attachedBlock.id, e)}
                       >
                         <ScratchBlockShape
                           label={attachedBaseLabel}
