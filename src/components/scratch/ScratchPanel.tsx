@@ -3984,7 +3984,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                           onSlots={(slots) => registerSlots(attachedBlock.id, slots)}
                         />
                       </div>,
-                      ...renderSlotOverlays(attachedBlock, left, top, nextVisited),
+                      ...renderSlotOverlays(attachedBlock, left, top + verticalShift, nextVisited),
                     ];
                   }
 
