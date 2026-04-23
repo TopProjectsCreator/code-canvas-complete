@@ -372,7 +372,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     };
 
     for (const [tag, type] of Object.entries(aliases)) {
-      const regex = new RegExp(`<${tag}(\\s+[^>]*)?\\s*\\/>`, 'g');
+      const regex = new RegExp(`<${tag}(\\s+[^>]*)?\\s*\\/?>`, 'g');
       let match;
       while ((match = regex.exec(content)) !== null) {
         const config: Record<string, unknown> = {};
