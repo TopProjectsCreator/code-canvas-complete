@@ -3939,11 +3939,18 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 slotsRegistryRef.current.set(targetBlockId, filtered);
                 if (!same) setSlotsTick((t) => t + 1);
               };
-              const renderSlotOverlays = (hostBlock: ScratchBlockNode, offsetX = 0, offsetY = 0, visited = new Set<string>()) => {
+              const renderSlotOverlays = (
+                hostBlock: ScratchBlockNode,
+                localOffsetX = 0,
+                localOffsetY = 0,
+                absoluteOffsetX = 0,
+                absoluteOffsetY = 0,
+                visited = new Set<string>(),
+              ) => {
                 if (visited.has(hostBlock.id)) return [];
                 const nextVisited = new Set(visited);
                 nextVisited.add(hostBlock.id);
-                blockRenderPositionRef.current.set(hostBlock.id, { x: offsetX, y: offsetY });
+                blockRenderPositionRef.current.set(hostBlock.id, { x: absoluteOffsetX, y: absoluteOffsetY });
                 const slots = slotsRegistryRef.current.get(hostBlock.id) || [];
                 const orderedKeys = getOrderedInputKeysForBlock(hostBlock);
 
@@ -3953,8 +3960,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   const ref = (hostBlock.inputs || {})[inputKey] as unknown[] | undefined;
                   if (!Array.isArray(ref)) return [];
 
-                  const left = offsetX + slot.x;
-                  const top = offsetY + slot.y;
+                  const left = localOffsetX + slot.x;
+                  const top = localOffsetY + slot.y;
+                  const absoluteLeft = absoluteOffsetX + slot.x;
+                  const absoluteTop = absoluteOffsetY + slot.y;
 
                   if (ref[0] === 3 && typeof ref[1] === 'string') {
                     const attachedId = ref[1];
@@ -3964,9 +3973,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     const attachedBaseLabel = getInlineBlockLabel(attachedBlock, blockLabels, blocksMap);
                     const attachedColor = getBlockColor(attachedBlock.opcode);
                     const attachedShape = getBlockShape(attachedBlock.opcode);
-                    // Let ScratchBlockShape auto-size based on its (possibly nested) content.
-                    // Forcing width/height to slot.* collapses inner slots and breaks nested drops.
-                    // Vertically center the attached block over the parent slot.
                     const intrinsicHeight = attachedShape === 'boolean' || attachedShape === 'reporter' ? 28 : 32;
                     const verticalShift = (slot.height - intrinsicHeight) / 2;
 
@@ -3984,7 +3990,14 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                           onSlots={(slots) => registerSlots(attachedBlock.id, slots)}
                         />
                       </div>,
-                      ...renderSlotOverlays(attachedBlock, left, top + verticalShift, nextVisited),
+                      ...renderSlotOverlays(
+                        attachedBlock,
+                        left,
+                        top + verticalShift,
+                        absoluteLeft,
+                        absoluteTop + verticalShift,
+                        nextVisited,
+                      ),
                     ];
                   }
 
