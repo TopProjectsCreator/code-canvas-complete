@@ -4029,8 +4029,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                           fields: { VALUE: [arg.name, null] },
                           minVersion: 'scratch2',
                         };
-                        const dragLeft = offsetX + slot.x;
-                        const dragTop = offsetY + slot.y;
+                        const dragLeft = localOffsetX + slot.x;
+                        const dragTop = localOffsetY + slot.y;
                         return [
                           <div
                             key={`${hostBlock.id}-proc-param-${index}`}
