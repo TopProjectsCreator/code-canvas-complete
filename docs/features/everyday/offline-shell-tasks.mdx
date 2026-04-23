@@ -1,0 +1,55 @@
+---
+title: "Offline Shell Tasks"
+description: "Use the terminal productively without internet: run local checks, prep commits, and queue follow-up actions for reconnect."
+---
+
+![Offline terminal panel](offline shell.png)
+![Dependency and setup context](dependencies.png)
+![Code change review context](codediffs.png)
+
+## Yes, terminal work still helps offline
+
+Even when you cannot reach external services, local commands are useful for quality and cleanup.
+
+## What you can usually do offline
+
+- Run formatting commands
+- Run many local tests
+- Build apps that do not need online services
+- Inspect and stage file changes
+- Write commit messages in advance
+
+## Suggested offline terminal routine
+
+1. Open terminal
+2. Run local checks (`npm test`, `npm run build`, etc.)
+3. Fix any obvious issues
+4. Stage files
+5. Commit locally
+6. Push later when online
+
+## Keep a reconnect checklist
+
+Create a simple note:
+
+- [ ] Push branch
+- [ ] Open PR
+- [ ] Request review
+- [ ] Share preview link
+
+That prevents missed steps after connection returns.
+
+## Beginner warning
+
+Commands that require downloading new packages usually fail offline. Prefer commands that use already-installed dependencies.
+
+## If command output is confusing
+
+- Copy the first meaningful error line
+- Ask AI assistant to explain in plain language
+- Fix one error at a time
+
+## Next steps
+
+- Prevent lost edits with [Offline Auto-Save & Recovery](/features/everyday/offline-auto-save)
+- Publish confidently with [Publish Your Project](/features/everyday/publish-your-project)
