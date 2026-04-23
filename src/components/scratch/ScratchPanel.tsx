@@ -3964,21 +3964,22 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     const attachedBaseLabel = getInlineBlockLabel(attachedBlock, blockLabels, blocksMap);
                     const attachedColor = getBlockColor(attachedBlock.opcode);
                     const attachedShape = getBlockShape(attachedBlock.opcode);
-                    const attachedWidth = Math.max(slot.width, attachedBaseLabel.length * 7 + (attachedShape === 'boolean' ? 28 : 24));
-                    const attachedHeight = slot.height;
+                    // Let ScratchBlockShape auto-size based on its (possibly nested) content.
+                    // Forcing width/height to slot.* collapses inner slots and breaks nested drops.
+                    // Vertically center the attached block over the parent slot.
+                    const intrinsicHeight = attachedShape === 'boolean' || attachedShape === 'reporter' ? 28 : 32;
+                    const verticalShift = (slot.height - intrinsicHeight) / 2;
 
                     return [
                       <div
                         key={`${hostBlock.id}-${inputKey}-attached-${attachedId}`}
                         className="absolute z-10"
-                        style={{ left, top }}
+                        style={{ left, top: top + verticalShift }}
                       >
                         <ScratchBlockShape
                           label={attachedBaseLabel}
                           color={attachedColor}
                           shape={attachedShape}
-                          width={attachedWidth}
-                          height={attachedHeight}
                           className="pointer-events-none"
                           onSlots={(slots) => registerSlots(attachedBlock.id, slots)}
                         />
