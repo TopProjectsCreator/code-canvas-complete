@@ -3995,6 +3995,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         key={`${hostBlock.id}-${inputKey}-attached-${attachedId}`}
                         className="absolute z-10"
                         style={{ left, top: top + verticalShift }}
+                        onPointerDown={(e) => handleBlockPointerDown(attachedBlock.id, e)}
                       >
                         <ScratchBlockShape
                           label={attachedBaseLabel}
