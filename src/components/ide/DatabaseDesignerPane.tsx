@@ -269,7 +269,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   };
 
   return (
-    <div className="h-full overflow-auto bg-background p-4 space-y-4">
+    <div className="h-full flex flex-col overflow-hidden bg-background p-4 space-y-4">
       <div className="rounded-xl border border-border p-4 bg-card flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -285,7 +285,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr] flex-1 min-h-0">
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <h3 className="font-medium">Visual schema canvas</h3>
@@ -304,10 +304,10 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
             Drag table headers to move • Click a column dot to start a connection, then click another column to link • Hover a table to delete
           </p>
 
-          <div className="relative h-[600px] rounded-lg border border-dashed border-border bg-muted/20 overflow-auto">
+          <div className="relative h-full min-h-[400px] rounded-lg border border-dashed border-border bg-muted/20 overflow-auto">
             <div
-              className="relative"
-              style={{ width: 2000, height: 1500 }}
+              className="relative w-full h-full"
+              style={{ minWidth: 1200, minHeight: 800 }}
               onMouseMove={(e) => {
                 const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                 onCanvasMove(e.clientX - rect.left, e.clientY - rect.top);
@@ -315,7 +315,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
               onMouseUp={() => setDrag(null)}
               onMouseLeave={() => setDrag(null)}
             >
-              <svg className="absolute inset-0 pointer-events-none" width={2000} height={1500} aria-hidden>
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden>
                 {model.relationships.map((rel, i) => {
                   const fromTable = rel.from.split(".")[0];
                   const toTable = rel.to.split(".")[0];
