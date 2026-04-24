@@ -144,10 +144,68 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   const restoredScrollRef = useRef(false);
   const pinchRef = useRef<{ initialDist: number; initialZoom: number } | null>(null);
 
+  // Undo / redo history. Each entry is a deep-cloned model snapshot.
+  const historyRef = useRef<{ past: DatabaseModel[]; future: DatabaseModel[]; suspend: boolean }>({
+    past: [],
+    future: [],
+    suspend: false,
+  });
+  const [, forceHistoryRender] = useState(0);
+  const cloneModel = (m: DatabaseModel): DatabaseModel => JSON.parse(JSON.stringify(m));
+  const pushHistory = (current: DatabaseModel) => {
+    if (historyRef.current.suspend) return;
+    historyRef.current.past.push(cloneModel(current));
+    if (historyRef.current.past.length > 100) historyRef.current.past.shift();
+    historyRef.current.future = [];
+    forceHistoryRender((x) => x + 1);
+  };
+  /** Mutate the model AND record the previous state for undo. */
+  const updateModel = (updater: (prev: DatabaseModel) => DatabaseModel) => {
+    setModel((prev) => {
+      pushHistory(prev);
+      return updater(prev);
+    });
+  };
+  const undo = () => {
+    const h = historyRef.current;
+    if (h.past.length === 0) return;
+    setModel((current) => {
+      const prev = h.past.pop()!;
+      h.future.push(cloneModel(current));
+      forceHistoryRender((x) => x + 1);
+      return prev;
+    });
+  };
+  const redo = () => {
+    const h = historyRef.current;
+    if (h.future.length === 0) return;
+    setModel((current) => {
+      const next = h.future.pop()!;
+      h.past.push(cloneModel(current));
+      forceHistoryRender((x) => x + 1);
+      return next;
+    });
+  };
+  // Doc linking dialog target: "table:foo" or "column:foo.bar"
+  const [docTarget, setDocTarget] = useState<string | null>(null);
+
   const clampZoom = (z: number) => Math.min(2, Math.max(0.4, z));
   const zoomIn = () => setZoom((z) => clampZoom(+(z + 0.1).toFixed(2)));
   const zoomOut = () => setZoom((z) => clampZoom(+(z - 0.1).toFixed(2)));
   const zoomReset = () => setZoom(1);
+  const fitToScreen = () => {
+    const el = scrollRef.current;
+    if (!el) { setZoom(1); return; }
+    // Compute bounding box of all tables in canvas coords
+    const positions = Object.values(model.layout || {});
+    if (positions.length === 0) { setZoom(1); return; }
+    const maxX = Math.max(...positions.map((p) => p.x)) + TABLE_WIDTH + 40;
+    const maxY = Math.max(...positions.map((p) => p.y)) + 240;
+    const fitX = el.clientWidth / Math.max(maxX, 600);
+    const fitY = el.clientHeight / Math.max(maxY, 400);
+    setZoom(clampZoom(+Math.min(fitX, fitY, 1).toFixed(2)));
+    requestAnimationFrame(() => { el.scrollLeft = 0; el.scrollTop = 0; });
+  };
 
   // Persist zoom
   useEffect(() => {
