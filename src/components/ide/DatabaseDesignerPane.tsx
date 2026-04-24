@@ -361,21 +361,80 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                       </div>
                     </div>
                     <div className="p-2 text-xs space-y-1">
-                      {table.columns.map((col) => {
+                      {table.columns.map((col, colIdx) => {
                         const key = `${table.name}.${col.name}`;
                         const isConnectFrom = connectFrom === key;
                         return (
-                          <div key={key} className="flex items-center justify-between gap-2">
+                          <div key={`${table.name}-col-${colIdx}`} className="flex items-center gap-1.5 group/col">
                             <button
-                              className={`h-2.5 w-2.5 rounded-full border ${isConnectFrom ? "bg-primary border-primary" : "bg-muted hover:bg-primary/50 border-border"}`}
+                              className={`shrink-0 h-2.5 w-2.5 rounded-full border ${isConnectFrom ? "bg-primary border-primary" : "bg-muted hover:bg-primary/50 border-border"}`}
                               onClick={(e) => { e.stopPropagation(); handlePinClick(key); }}
+                              onMouseDown={(e) => e.stopPropagation()}
                               title={connectFrom ? (isConnectFrom ? "Cancel" : `Connect ${connectFrom} → ${key}`) : "Start connection"}
                             />
-                            <span className="font-mono truncate flex-1">{col.name}</span>
-                            <span className="text-muted-foreground font-mono">{col.type}</span>
+                            <input
+                              value={col.name}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setModel((prev) => ({
+                                  ...prev,
+                                  tables: prev.tables.map((t) => t.name === table.name ? {
+                                    ...t,
+                                    columns: t.columns.map((c, i) => i === colIdx ? { ...c, name: v } : c),
+                                  } : t),
+                                }));
+                              }}
+                              onClick={(e) => { e.stopPropagation(); setSelectedTable(table.name); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              className="flex-1 min-w-0 bg-transparent font-mono outline-none focus:bg-muted/40 rounded px-1"
+                            />
+                            <input
+                              value={col.type}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setModel((prev) => ({
+                                  ...prev,
+                                  tables: prev.tables.map((t) => t.name === table.name ? {
+                                    ...t,
+                                    columns: t.columns.map((c, i) => i === colIdx ? { ...c, type: v } : c),
+                                  } : t),
+                                }));
+                              }}
+                              onClick={(e) => { e.stopPropagation(); setSelectedTable(table.name); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              className="w-20 shrink-0 bg-transparent text-muted-foreground font-mono outline-none focus:bg-muted/40 focus:text-foreground rounded px-1 text-right"
+                            />
+                            <button
+                              className="opacity-0 group-hover/col:opacity-100 text-destructive hover:opacity-100 shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTable(table.name);
+                                setTimeout(() => deleteColumn(colIdx), 0);
+                              }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              title="Delete column"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
                           </div>
                         );
                       })}
+                      <button
+                        className="w-full text-left text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded px-1 py-0.5 flex items-center gap-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTable(table.name);
+                          setModel((prev) => ({
+                            ...prev,
+                            tables: prev.tables.map((t) => t.name === table.name ? {
+                              ...t, columns: [...t.columns, { name: "new_column", type: "text" }],
+                            } : t),
+                          }));
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
+                        <Plus className="h-3 w-3" /> add column
+                      </button>
                     </div>
                   </div>
                 );
