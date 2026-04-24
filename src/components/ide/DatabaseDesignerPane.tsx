@@ -657,6 +657,19 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                               onMouseDown={(e) => e.stopPropagation()}
                               className="w-20 shrink-0 bg-transparent text-muted-foreground font-mono outline-none focus:bg-muted/40 focus:text-foreground rounded px-1 text-right"
                             />
+                            {(col.docs?.length || 0) > 0 && (
+                              <span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] text-muted-foreground" title={`${col.docs!.length} linked doc(s)`}>
+                                <Paperclip className="h-2.5 w-2.5" />{col.docs!.length}
+                              </span>
+                            )}
+                            <button
+                              className="opacity-0 group-hover/col:opacity-100 text-muted-foreground hover:text-foreground shrink-0"
+                              onClick={(e) => { e.stopPropagation(); setDocTarget(`column:${table.name}.${col.name}`); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              title="Link a document to this column"
+                            >
+                              <Paperclip className="h-3 w-3" />
+                            </button>
                             <button
                               className="opacity-0 group-hover/col:opacity-100 text-destructive hover:opacity-100 shrink-0"
                               onClick={(e) => {
