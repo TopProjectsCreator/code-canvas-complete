@@ -484,7 +484,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   }, []);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-background p-4 space-y-4">
+    <div className="h-full flex flex-col overflow-y-auto bg-background p-4 space-y-4">
       <div className="rounded-xl border border-border p-4 bg-card flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -500,7 +500,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr] flex-1 min-h-0">
+      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr] xl:flex-1 xl:min-h-0">
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <h3 className="font-medium">Visual schema canvas</h3>
@@ -531,7 +531,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
           <div
             ref={scrollRef}
-            className="relative h-full min-h-[300px] max-h-[60vh] xl:max-h-none rounded-lg border border-dashed border-border bg-muted/20 overflow-auto"
+            className="relative h-[55vh] xl:h-full min-h-[300px] rounded-lg border border-dashed border-border bg-muted/20 overflow-auto"
             style={{ touchAction: "pan-x pan-y" }}
           >
             <div
