@@ -546,8 +546,8 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                 const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                 onCanvasMove(e.clientX - rect.left, e.clientY - rect.top);
               }}
-              onMouseUp={() => setDrag(null)}
-              onMouseLeave={() => setDrag(null)}
+              onMouseUp={endDrag}
+              onMouseLeave={endDrag}
             >
               <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden>
                 {model.relationships.map((rel, i) => {
@@ -660,7 +660,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedTable(table.name);
-                          setModel((prev) => ({
+                          updateModel((prev) => ({
                             ...prev,
                             tables: prev.tables.map((t) => t.name === table.name ? {
                               ...t, columns: [...t.columns, { name: "new_column", type: "text" }],
