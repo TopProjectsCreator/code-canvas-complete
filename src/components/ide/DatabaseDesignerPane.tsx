@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Database, FileText, Plus, Save, Wand2 } from "lucide-react";
+import { ArrowRight, Database, FileText, Plus, Save, Trash2, Wand2, Link2, X } from "lucide-react";
 import type { FileNode } from "@/types/ide";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -122,7 +122,8 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   const [selectedTable, setSelectedTable] = useState<string>(DEFAULT_MODEL.tables[0]?.name || "");
   const [newRelFrom, setNewRelFrom] = useState("");
   const [newRelTo, setNewRelTo] = useState("");
-  const [drag, setDrag] = useState<{ name: string; dx: number; dy: number } | null>(null);
+  const [drag, setDrag] = useState<{ name: string; dx: number; dy: number; moved: boolean } | null>(null);
+  const [connectFrom, setConnectFrom] = useState<string | null>(null);
 
   useEffect(() => {
     if (!erdFile?.content) return;
@@ -203,7 +204,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
   const startDrag = (name: string, clientX: number, clientY: number) => {
     const pos = model.layout?.[name] || { x: 80, y: 80 };
-    setDrag({ name, dx: clientX - pos.x, dy: clientY - pos.y });
+    setDrag({ name, dx: clientX - pos.x, dy: clientY - pos.y, moved: false });
   };
 
   const onCanvasMove = (clientX: number, clientY: number) => {
@@ -215,15 +216,60 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
         [drag.name]: { x: Math.max(12, clientX - drag.dx), y: Math.max(12, clientY - drag.dy) },
       },
     }));
+    if (!drag.moved) setDrag({ ...drag, moved: true });
+  };
+
+  const deleteTable = (name: string) => {
+    setModel((prev) => {
+      const layout = { ...(prev.layout || {}) };
+      delete layout[name];
+      return {
+        ...prev,
+        tables: prev.tables.filter((t) => t.name !== name),
+        relationships: prev.relationships.filter((r) => r.from.split(".")[0] !== name && r.to.split(".")[0] !== name),
+        layout,
+      };
+    });
+    if (selectedTable === name) setSelectedTable("");
+    if (connectFrom?.startsWith(`${name}.`)) setConnectFrom(null);
+  };
+
+  const deleteRelationship = (idx: number) => {
+    setModel((prev) => ({ ...prev, relationships: prev.relationships.filter((_, i) => i !== idx) }));
+  };
+
+  const deleteColumn = (colIdx: number) => {
+    if (!selected) return;
+    const colName = selected.columns[colIdx]?.name;
+    updateSelectedTable((table) => ({ ...table, columns: table.columns.filter((_, i) => i !== colIdx) }));
+    if (colName) {
+      setModel((prev) => ({
+        ...prev,
+        relationships: prev.relationships.filter(
+          (r) => r.from !== `${selected.name}.${colName}` && r.to !== `${selected.name}.${colName}`,
+        ),
+      }));
+    }
+  };
+
+  const handlePinClick = (key: string) => {
+    if (!connectFrom) {
+      setConnectFrom(key);
+      return;
+    }
+    if (connectFrom === key) {
+      setConnectFrom(null);
+      return;
+    }
+    setModel((prev) => ({
+      ...prev,
+      relationships: [...prev.relationships, { from: connectFrom, to: key, type: "many-to-one" }],
+    }));
+    setConnectFrom(null);
   };
 
   return (
-    <div
-      className="h-full overflow-auto bg-background p-4 space-y-4"
-      onMouseMove={(e) => onCanvasMove(e.clientX, e.clientY)}
-      onMouseUp={() => setDrag(null)}
-      onMouseLeave={() => setDrag(null)}
-    >
+    <div className="h-full overflow-auto bg-background p-4 space-y-4">
       <div className="rounded-xl border border-border p-4 bg-card flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -241,61 +287,100 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
       <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
         <div className="rounded-xl border border-border bg-card p-3">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <h3 className="font-medium">Visual schema canvas</h3>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center flex-wrap">
+              {connectFrom && (
+                <Badge variant="default" className="gap-1">
+                  <Link2 className="h-3 w-3" />Connecting from {connectFrom}
+                  <button onClick={() => setConnectFrom(null)} className="ml-1 hover:opacity-70"><X className="h-3 w-3" /></button>
+                </Badge>
+              )}
               <Badge variant="outline">ERD</Badge>
-              <Badge variant="outline">Flowchart</Badge>
               <Button size="sm" variant="outline" onClick={addTable}><Plus className="h-3.5 w-3.5 mr-1" />Add table</Button>
             </div>
           </div>
+          <p className="text-xs text-muted-foreground mb-2">
+            Drag table headers to move • Click a column dot to start a connection, then click another column to link • Hover a table to delete
+          </p>
 
-          <div className="relative min-h-[560px] rounded-lg border border-dashed border-border bg-muted/20 overflow-hidden">
-            <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden>
-              {model.relationships.map((rel, i) => {
-                const fromTable = rel.from.split(".")[0];
-                const toTable = rel.to.split(".")[0];
-                const from = model.layout?.[fromTable];
-                const to = model.layout?.[toTable];
-                if (!from || !to) return null;
-                const x1 = from.x + TABLE_WIDTH;
-                const y1 = from.y + 48;
-                const x2 = to.x;
-                const y2 = to.y + 48;
+          <div className="relative h-[600px] rounded-lg border border-dashed border-border bg-muted/20 overflow-auto">
+            <div
+              className="relative"
+              style={{ width: 2000, height: 1500 }}
+              onMouseMove={(e) => {
+                const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                onCanvasMove(e.clientX - rect.left, e.clientY - rect.top);
+              }}
+              onMouseUp={() => setDrag(null)}
+              onMouseLeave={() => setDrag(null)}
+            >
+              <svg className="absolute inset-0 pointer-events-none" width={2000} height={1500} aria-hidden>
+                {model.relationships.map((rel, i) => {
+                  const fromTable = rel.from.split(".")[0];
+                  const toTable = rel.to.split(".")[0];
+                  const from = model.layout?.[fromTable];
+                  const to = model.layout?.[toTable];
+                  if (!from || !to) return null;
+                  const x1 = from.x + TABLE_WIDTH;
+                  const y1 = from.y + 48;
+                  const x2 = to.x;
+                  const y2 = to.y + 48;
+                  return (
+                    <g key={`${rel.from}-${rel.to}-${i}`}>
+                      <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" />
+                      <circle cx={x2} cy={y2} r="4" fill="hsl(var(--primary))" />
+                    </g>
+                  );
+                })}
+              </svg>
+
+              {model.tables.map((table) => {
+                const pos = model.layout?.[table.name] || { x: 40, y: 40 };
                 return (
-                  <g key={`${rel.from}-${rel.to}-${i}`}>
-                    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="hsl(var(--primary))" strokeWidth="2" />
-                    <circle cx={x2} cy={y2} r="4" fill="hsl(var(--primary))" />
-                  </g>
+                  <div
+                    key={table.name}
+                    className={`group absolute rounded-lg border bg-background shadow-sm ${selectedTable === table.name ? "ring-2 ring-primary" : ""}`}
+                    style={{ left: pos.x, top: pos.y, width: TABLE_WIDTH }}
+                    onClick={() => setSelectedTable(table.name)}
+                  >
+                    <div
+                      className="px-3 py-2 border-b bg-muted/50 cursor-move flex items-center justify-between"
+                      onMouseDown={(e) => { e.preventDefault(); startDrag(table.name, e.clientX - (e.currentTarget.parentElement?.parentElement?.getBoundingClientRect().left ?? 0), e.clientY - (e.currentTarget.parentElement?.parentElement?.getBoundingClientRect().top ?? 0)); }}
+                    >
+                      <strong className="text-sm">{table.name}</strong>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="secondary">{table.columns.length}</Badge>
+                        <button
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/20 text-destructive"
+                          onClick={(e) => { e.stopPropagation(); if (confirm(`Delete table "${table.name}"?`)) deleteTable(table.name); }}
+                          title="Delete table"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-2 text-xs space-y-1">
+                      {table.columns.map((col) => {
+                        const key = `${table.name}.${col.name}`;
+                        const isConnectFrom = connectFrom === key;
+                        return (
+                          <div key={key} className="flex items-center justify-between gap-2">
+                            <button
+                              className={`h-2.5 w-2.5 rounded-full border ${isConnectFrom ? "bg-primary border-primary" : "bg-muted hover:bg-primary/50 border-border"}`}
+                              onClick={(e) => { e.stopPropagation(); handlePinClick(key); }}
+                              title={connectFrom ? (isConnectFrom ? "Cancel" : `Connect ${connectFrom} → ${key}`) : "Start connection"}
+                            />
+                            <span className="font-mono truncate flex-1">{col.name}</span>
+                            <span className="text-muted-foreground font-mono">{col.type}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 );
               })}
-            </svg>
-
-            {model.tables.map((table) => {
-              const pos = model.layout?.[table.name] || { x: 40, y: 40 };
-              return (
-                <div
-                  key={table.name}
-                  className={`absolute max-w-[260px] rounded-lg border bg-background shadow-sm ${selectedTable === table.name ? "ring-2 ring-primary" : ""}`}
-                  style={{ left: pos.x, top: pos.y, width: TABLE_WIDTH }}
-                  onMouseDown={(e) => startDrag(table.name, e.clientX, e.clientY)}
-                  onClick={() => setSelectedTable(table.name)}
-                >
-                  <div className="px-3 py-2 border-b bg-muted/50 cursor-move flex items-center justify-between">
-                    <strong className="text-sm">{table.name}</strong>
-                    <Badge variant="secondary">{table.columns.length} cols</Badge>
-                  </div>
-                  <div className="p-2 text-xs space-y-1">
-                    {table.columns.map((col) => (
-                      <div key={`${table.name}-${col.name}`} className="flex items-center justify-between gap-2">
-                        <span className="font-mono truncate">{col.name}</span>
-                        <span className="text-muted-foreground font-mono">{col.type}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+            </div>
           </div>
         </div>
 
@@ -310,8 +395,14 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
             {selected && (
               <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Editing <code>{selected.name}</code></span>
+                  <Button size="sm" variant="ghost" className="text-destructive h-7" onClick={() => { if (confirm(`Delete table "${selected.name}"?`)) deleteTable(selected.name); }}>
+                    <Trash2 className="h-3.5 w-3.5 mr-1" />Delete table
+                  </Button>
+                </div>
                 {selected.columns.map((col, idx) => (
-                  <div key={`${selected.name}-${idx}`} className="grid grid-cols-2 gap-2">
+                  <div key={`${selected.name}-${idx}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
                     <Input
                       value={col.name}
                       onChange={(e) =>
@@ -332,6 +423,9 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                       }
                       placeholder="type"
                     />
+                    <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive" onClick={() => deleteColumn(idx)} title="Delete column">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 ))}
                 <Button
@@ -351,7 +445,8 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
           </div>
 
           <div className="rounded-xl border border-border bg-card p-3 space-y-3">
-            <h3 className="font-medium">Relationship flowchart mapping</h3>
+            <h3 className="font-medium">Relationships</h3>
+            <p className="text-xs text-muted-foreground">Tip: click column dots on the canvas to draw a connection visually.</p>
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
               <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={newRelFrom} onChange={(e) => setNewRelFrom(e.target.value)}>
                 <option value="">From…</option>
@@ -364,10 +459,16 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
               </select>
             </div>
             <Button size="sm" variant="outline" onClick={addRelationship} disabled={!newRelFrom || !newRelTo}>Add relationship</Button>
-            <div className="max-h-28 overflow-auto text-xs space-y-1">
+            <div className="max-h-40 overflow-auto text-xs space-y-1">
               {model.relationships.map((rel, i) => (
-                <div key={`${rel.from}-${rel.to}-${i}`} className="rounded border border-border px-2 py-1">{rel.type}: {rel.from} → {rel.to}</div>
+                <div key={`${rel.from}-${rel.to}-${i}`} className="rounded border border-border px-2 py-1 flex items-center justify-between gap-2">
+                  <span className="truncate">{rel.type}: {rel.from} → {rel.to}</span>
+                  <button onClick={() => deleteRelationship(i)} className="text-destructive hover:opacity-70 shrink-0" title="Delete relationship">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               ))}
+              {model.relationships.length === 0 && <p className="text-muted-foreground italic">No relationships yet.</p>}
             </div>
           </div>
 
