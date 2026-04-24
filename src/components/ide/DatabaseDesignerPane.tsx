@@ -285,7 +285,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr] flex-1 min-h-0">
         <div className="rounded-xl border border-border bg-card p-3">
           <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
             <h3 className="font-medium">Visual schema canvas</h3>
