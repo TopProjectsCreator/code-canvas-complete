@@ -545,6 +545,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                 );
               })}
             </div>
+            </div>
           </div>
         </div>
 
