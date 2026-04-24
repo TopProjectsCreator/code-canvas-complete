@@ -122,7 +122,8 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   const [selectedTable, setSelectedTable] = useState<string>(DEFAULT_MODEL.tables[0]?.name || "");
   const [newRelFrom, setNewRelFrom] = useState("");
   const [newRelTo, setNewRelTo] = useState("");
-  const [drag, setDrag] = useState<{ name: string; dx: number; dy: number } | null>(null);
+  const [drag, setDrag] = useState<{ name: string; dx: number; dy: number; moved: boolean } | null>(null);
+  const [connectFrom, setConnectFrom] = useState<string | null>(null);
 
   useEffect(() => {
     if (!erdFile?.content) return;
