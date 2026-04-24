@@ -810,6 +810,18 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
           </div>
         </div>
       </div>
+
+      {docTarget && (
+        <DocLinkDialog
+          target={docTarget}
+          model={model}
+          flatFiles={flatFiles}
+          onClose={() => setDocTarget(null)}
+          onAddTableLink={addDocLinkToTable}
+          onAddColumnLink={addDocLinkToColumn}
+          onRemove={removeDocLink}
+        />
+      )}
     </div>
   );
 };
