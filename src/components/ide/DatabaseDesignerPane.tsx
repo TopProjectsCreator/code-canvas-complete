@@ -484,7 +484,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   }, []);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-background p-4 space-y-4">
+    <div className="h-full flex flex-col overflow-y-auto bg-background p-4 space-y-4">
       <div className="rounded-xl border border-border p-4 bg-card flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
