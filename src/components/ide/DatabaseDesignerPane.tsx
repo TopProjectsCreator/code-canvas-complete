@@ -531,7 +531,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
           <div
             ref={scrollRef}
-            className="relative h-full min-h-[300px] max-h-[60vh] xl:max-h-none rounded-lg border border-dashed border-border bg-muted/20 overflow-auto"
+            className="relative h-[55vh] xl:h-full min-h-[300px] rounded-lg border border-dashed border-border bg-muted/20 overflow-auto"
             style={{ touchAction: "pan-x pan-y" }}
           >
             <div
