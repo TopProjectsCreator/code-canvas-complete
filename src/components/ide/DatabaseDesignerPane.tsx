@@ -293,11 +293,12 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
   const onCanvasMove = (clientX: number, clientY: number) => {
     if (!drag) return;
+    const z = zoom || 1;
     setModel((prev) => ({
       ...prev,
       layout: {
         ...(prev.layout || {}),
-        [drag.name]: { x: Math.max(12, clientX - drag.dx), y: Math.max(12, clientY - drag.dy) },
+        [drag.name]: { x: Math.max(12, clientX / z - drag.dx), y: Math.max(12, clientY / z - drag.dy) },
       },
     }));
     if (!drag.moved) setDrag({ ...drag, moved: true });
