@@ -415,7 +415,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
               style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: 1200, height: 800 }}
               onMouseMove={(e) => {
                 const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                onCanvasMove((e.clientX - rect.left) / zoom * zoom, (e.clientY - rect.top) / zoom * zoom);
+                onCanvasMove(e.clientX - rect.left, e.clientY - rect.top);
               }}
               onMouseUp={() => setDrag(null)}
               onMouseLeave={() => setDrag(null)}
