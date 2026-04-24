@@ -288,7 +288,8 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
   const startDrag = (name: string, clientX: number, clientY: number) => {
     const pos = model.layout?.[name] || { x: 80, y: 80 };
-    setDrag({ name, dx: clientX - pos.x, dy: clientY - pos.y, moved: false });
+    const z = zoom || 1;
+    setDrag({ name, dx: clientX / z - pos.x, dy: clientY / z - pos.y, moved: false });
   };
 
   const onCanvasMove = (clientX: number, clientY: number) => {
