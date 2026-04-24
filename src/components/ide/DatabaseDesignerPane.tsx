@@ -204,7 +204,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
   const startDrag = (name: string, clientX: number, clientY: number) => {
     const pos = model.layout?.[name] || { x: 80, y: 80 };
-    setDrag({ name, dx: clientX - pos.x, dy: clientY - pos.y });
+    setDrag({ name, dx: clientX - pos.x, dy: clientY - pos.y, moved: false });
   };
 
   const onCanvasMove = (clientX: number, clientY: number) => {
@@ -216,6 +216,56 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
         [drag.name]: { x: Math.max(12, clientX - drag.dx), y: Math.max(12, clientY - drag.dy) },
       },
     }));
+    if (!drag.moved) setDrag({ ...drag, moved: true });
+  };
+
+  const deleteTable = (name: string) => {
+    setModel((prev) => {
+      const layout = { ...(prev.layout || {}) };
+      delete layout[name];
+      return {
+        ...prev,
+        tables: prev.tables.filter((t) => t.name !== name),
+        relationships: prev.relationships.filter((r) => r.from.split(".")[0] !== name && r.to.split(".")[0] !== name),
+        layout,
+      };
+    });
+    if (selectedTable === name) setSelectedTable("");
+    if (connectFrom?.startsWith(`${name}.`)) setConnectFrom(null);
+  };
+
+  const deleteRelationship = (idx: number) => {
+    setModel((prev) => ({ ...prev, relationships: prev.relationships.filter((_, i) => i !== idx) }));
+  };
+
+  const deleteColumn = (colIdx: number) => {
+    if (!selected) return;
+    const colName = selected.columns[colIdx]?.name;
+    updateSelectedTable((table) => ({ ...table, columns: table.columns.filter((_, i) => i !== colIdx) }));
+    if (colName) {
+      setModel((prev) => ({
+        ...prev,
+        relationships: prev.relationships.filter(
+          (r) => r.from !== `${selected.name}.${colName}` && r.to !== `${selected.name}.${colName}`,
+        ),
+      }));
+    }
+  };
+
+  const handlePinClick = (key: string) => {
+    if (!connectFrom) {
+      setConnectFrom(key);
+      return;
+    }
+    if (connectFrom === key) {
+      setConnectFrom(null);
+      return;
+    }
+    setModel((prev) => ({
+      ...prev,
+      relationships: [...prev.relationships, { from: connectFrom, to: key, type: "many-to-one" }],
+    }));
+    setConnectFrom(null);
   };
 
   return (
