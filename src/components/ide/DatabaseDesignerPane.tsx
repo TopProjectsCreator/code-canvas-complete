@@ -608,6 +608,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                             />
                             <input
                               value={col.name}
+                              onFocus={() => pushHistory(model)}
                               onChange={(e) => {
                                 const v = e.target.value;
                                 setModel((prev) => ({
@@ -624,6 +625,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                             />
                             <input
                               value={col.type}
+                              onFocus={() => pushHistory(model)}
                               onChange={(e) => {
                                 const v = e.target.value;
                                 setModel((prev) => ({
