@@ -594,6 +594,60 @@ The file must conform to this structure:
 - Make sure \`next\`/\`parent\` links form valid chains.
 `;
 
+const DATABASE_SECTION = `
+## DATABASE DESIGNER (ERD + SQL EXPORT)
+When the user is working with the Database template, they have a visual ERD canvas + SQL exporter. You can **edit \`erd.schema.json\` directly** to add/remove tables, columns, relationships, and update the canvas layout. The visual canvas, SQL preview, and constraints doc all sync from this single source of truth.
+
+### erd.schema.json Schema
+\`\`\`json
+{
+  "project": "string — display name",
+  "dialect": "postgres | mysql | sqlite",
+  "tables": [
+    {
+      "name": "snake_case_table_name",
+      "columns": [
+        {
+          "name": "snake_case_column",
+          "type": "uuid | text | int | bigint | boolean | timestamptz | jsonb | numeric(10,2) | ...",
+          "pk": true,                  // optional — primary key
+          "nullable": false,           // optional — defaults to true; set false for NOT NULL
+          "unique": true,              // optional
+          "default": "gen_random_uuid()" | "'free'" | "now()",  // raw SQL expression as string
+          "ref": "other_table.id"      // optional — foreign key reference (auto-creates a relationship)
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    { "from": "users.organization_id", "to": "organizations.id", "type": "many-to-one" }
+  ],
+  "layout": {
+    "table_name": { "x": 80, "y": 80 }   // pixel coords on the 2000×1500 canvas
+  }
+}
+\`\`\`
+
+### Rules & conventions
+- Use **snake_case** for table and column names.
+- Every table SHOULD have an \`id\` column with \`type: "uuid"\`, \`pk: true\`, \`default: "gen_random_uuid()"\`.
+- For Postgres timestamps use \`timestamptz\` with \`default: "now()"\`.
+- Foreign keys: set the column's \`ref\` (e.g. \`"ref": "users.id"\`) AND add a matching entry in \`relationships\` so the canvas draws the line.
+- Relationship \`type\` is one of: \`"one-to-one"\`, \`"one-to-many"\`, \`"many-to-one"\`, \`"many-to-many"\`.
+- Keep \`layout\` entries for every table — space them ~320px horizontally and ~220px vertically so they don't overlap. New tables should pick free space (e.g. start at x:80, then 400, 720…).
+- Quote string defaults inside the JSON string (\`"default": "'free'"\` becomes \`DEFAULT 'free'\` in SQL).
+- Don't write SQL into \`schema.export.sql\` manually — the user clicks "Generate SQL" or "Save All" to regenerate it from the JSON. You may still edit \`constraints.md\` for human-readable constraint docs (CHECKs, partial indexes, business rules).
+- Validate JSON before returning — invalid JSON shows a parse error and the canvas stops syncing.
+
+### Typical edits
+- "Add a posts table" → append a new table object with \`id\` + sensible columns + a \`layout\` entry, and (if it references users) add a relationship.
+- "Add a created_at to every table" → add the column to each table's \`columns\` array.
+- "Make email unique" → set \`"unique": true\` on the email column.
+- "Connect orders to users" → add \`"ref": "users.id"\` on \`orders.user_id\` and push a \`many-to-one\` relationship.
+
+Always edit the FULL \`erd.schema.json\` file with a code change so the visual canvas, SQL export, and table editor all refresh together.
+`;
+
 function buildSystemPrompt(template?: string): string {
   let prompt = AGENT_SYSTEM_PROMPT_BASE;
   if (template === 'arduino') {
@@ -604,6 +658,9 @@ function buildSystemPrompt(template?: string): string {
   }
   if (template === 'scratch') {
     prompt = prompt.replace('## CODE CHANGES', SCRATCH_SECTION + '\n## CODE CHANGES');
+  }
+  if (template === 'database') {
+    prompt = prompt.replace('## CODE CHANGES', DATABASE_SECTION + '\n## CODE CHANGES');
   }
   return prompt;
 }
