@@ -610,12 +610,19 @@ When the user is working with the Database template, they have a visual ERD canv
         {
           "name": "snake_case_column",
           "type": "uuid | text | int | bigint | boolean | timestamptz | jsonb | numeric(10,2) | ...",
-          "pk": true,                  // optional — primary key
-          "nullable": false,           // optional — defaults to true; set false for NOT NULL
-          "unique": true,              // optional
-          "default": "gen_random_uuid()" | "'free'" | "now()",  // raw SQL expression as string
-          "ref": "other_table.id"      // optional — foreign key reference (auto-creates a relationship)
+          "pk": true,
+          "nullable": false,
+          "unique": true,
+          "default": "gen_random_uuid()",
+          "ref": "other_table.id",
+          "docs": [
+            { "label": "Pricing rules", "href": "pricing.md", "kind": "file" },
+            { "label": "Stripe API", "href": "https://stripe.com/docs/api", "kind": "external" }
+          ]
         }
+      ],
+      "docs": [
+        { "label": "Auth spec", "href": "auth-spec.docx", "kind": "file" }
       ]
     }
   ],
@@ -623,7 +630,7 @@ When the user is working with the Database template, they have a visual ERD canv
     { "from": "users.organization_id", "to": "organizations.id", "type": "many-to-one" }
   ],
   "layout": {
-    "table_name": { "x": 80, "y": 80 }   // pixel coords on the 2000×1500 canvas
+    "table_name": { "x": 80, "y": 80 }
   }
 }
 \`\`\`
@@ -634,8 +641,9 @@ When the user is working with the Database template, they have a visual ERD canv
 - For Postgres timestamps use \`timestamptz\` with \`default: "now()"\`.
 - Foreign keys: set the column's \`ref\` (e.g. \`"ref": "users.id"\`) AND add a matching entry in \`relationships\` so the canvas draws the line.
 - Relationship \`type\` is one of: \`"one-to-one"\`, \`"one-to-many"\`, \`"many-to-one"\`, \`"many-to-many"\`.
-- Keep \`layout\` entries for every table — space them ~320px horizontally and ~220px vertically so they don't overlap. New tables should pick free space (e.g. start at x:80, then 400, 720…).
+- Keep \`layout\` entries for every table — space them ~320px horizontally and ~220px vertically so they don't overlap. **Preserve existing layout coordinates** unless the user asks you to rearrange — they have manual undo/redo and persisted scroll/zoom, so keeping positions stable matters.
 - Quote string defaults inside the JSON string (\`"default": "'free'"\` becomes \`DEFAULT 'free'\` in SQL).
+- \`docs\` arrays attach references (Office docs, specs, external URLs) to a table or column. \`kind: "file"\` means \`href\` is a path to a file in the user's project (e.g. \`auth-spec.docx\`); \`kind: "external"\` means \`href\` is a URL or data URL. The user can also attach docs via the paperclip UI on each table/column.
 - Don't write SQL into \`schema.export.sql\` manually — the user clicks "Generate SQL" or "Save All" to regenerate it from the JSON. You may still edit \`constraints.md\` for human-readable constraint docs (CHECKs, partial indexes, business rules).
 - Validate JSON before returning — invalid JSON shows a parse error and the canvas stops syncing.
 
@@ -644,6 +652,7 @@ When the user is working with the Database template, they have a visual ERD canv
 - "Add a created_at to every table" → add the column to each table's \`columns\` array.
 - "Make email unique" → set \`"unique": true\` on the email column.
 - "Connect orders to users" → add \`"ref": "users.id"\` on \`orders.user_id\` and push a \`many-to-one\` relationship.
+- "Link the auth spec to the users table" → add an entry to \`users.docs\` (e.g. \`{ "label": "Auth spec", "href": "auth-spec.docx", "kind": "file" }\`).
 
 Always edit the FULL \`erd.schema.json\` file with a code change so the visual canvas, SQL export, and table editor all refresh together.
 `;
