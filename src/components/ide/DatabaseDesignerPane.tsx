@@ -588,7 +588,20 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                     >
                       <strong className="text-sm">{table.name}</strong>
                       <div className="flex items-center gap-1">
+                        {(table.docs?.length || 0) > 0 && (
+                          <Badge variant="outline" className="gap-1 px-1 py-0 h-4">
+                            <Paperclip className="h-2.5 w-2.5" />{table.docs!.length}
+                          </Badge>
+                        )}
                         <Badge variant="secondary">{table.columns.length}</Badge>
+                        <button
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-accent"
+                          onClick={(e) => { e.stopPropagation(); setDocTarget(`table:${table.name}`); }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          title="Link a document"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                        </button>
                         <button
                           className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/20 text-destructive"
                           onClick={(e) => { e.stopPropagation(); if (confirm(`Delete table "${table.name}"?`)) deleteTable(table.name); }}
