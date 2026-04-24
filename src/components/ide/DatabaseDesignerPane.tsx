@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, Database, FileText, Plus, Save, Wand2 } from "lucide-react";
+import { ArrowRight, Database, FileText, Plus, Save, Trash2, Wand2, Link2, X } from "lucide-react";
 import type { FileNode } from "@/types/ide";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
