@@ -308,7 +308,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
   const updateSelectedTable = (updater: (table: TableModel) => TableModel) => {
     if (!selected) return;
-    setModel((prev) => ({
+    updateModel((prev) => ({
       ...prev,
       tables: prev.tables.map((t) => (t.name === selected.name ? updater(t) : t)),
     }));
@@ -321,7 +321,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
     while (model.tables.some((t) => t.name === name)) {
       name = `${base}_${i++}`;
     }
-    setModel((prev) => {
+    updateModel((prev) => {
       const next = ensureLayout({
         ...prev,
         tables: [...prev.tables, { name, columns: [{ name: "id", type: "uuid", pk: true }] }],
@@ -337,7 +337,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
   const addRelationship = () => {
     if (!newRelFrom || !newRelTo) return;
-    setModel((prev) => ({
+    updateModel((prev) => ({
       ...prev,
       relationships: [...prev.relationships, { from: newRelFrom, to: newRelTo, type: "many-to-one" }],
     }));
