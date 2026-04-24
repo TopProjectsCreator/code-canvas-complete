@@ -396,13 +396,26 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
             Drag table headers to move • Click a column dot to start a connection, then click another column to link • Hover a table to delete
           </p>
 
-          <div className="relative h-full min-h-[400px] rounded-lg border border-dashed border-border bg-muted/20 overflow-auto">
+          <div
+            ref={scrollRef}
+            className="relative h-full min-h-[400px] rounded-lg border border-dashed border-border bg-muted/20 overflow-auto"
+            style={{ touchAction: "pan-x pan-y" }}
+          >
             <div
-              className="relative w-full h-full"
-              style={{ minWidth: 1200, minHeight: 800 }}
+              className="relative"
+              style={{
+                width: 1200 * zoom,
+                height: 800 * zoom,
+                minWidth: 1200 * zoom,
+                minHeight: 800 * zoom,
+              }}
+            >
+            <div
+              className="relative w-full h-full origin-top-left"
+              style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: 1200, height: 800 }}
               onMouseMove={(e) => {
                 const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
-                onCanvasMove(e.clientX - rect.left, e.clientY - rect.top);
+                onCanvasMove((e.clientX - rect.left) / zoom * zoom, (e.clientY - rect.top) / zoom * zoom);
               }}
               onMouseUp={() => setDrag(null)}
               onMouseLeave={() => setDrag(null)}
