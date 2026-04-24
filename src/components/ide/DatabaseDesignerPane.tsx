@@ -358,6 +358,8 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   const startDrag = (name: string, clientX: number, clientY: number) => {
     const pos = model.layout?.[name] || { x: 80, y: 80 };
     const z = zoom || 1;
+    // Snapshot before the drag begins so the entire move is one undo step
+    pushHistory(model);
     setDrag({ name, dx: clientX / z - pos.x, dy: clientY / z - pos.y, moved: false });
   };
 
@@ -374,8 +376,17 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
     if (!drag.moved) setDrag({ ...drag, moved: true });
   };
 
+  const endDrag = () => {
+    // If the user clicked without moving, drop the snapshot we pushed in startDrag
+    if (drag && !drag.moved) {
+      historyRef.current.past.pop();
+      forceHistoryRender((x) => x + 1);
+    }
+    setDrag(null);
+  };
+
   const deleteTable = (name: string) => {
-    setModel((prev) => {
+    updateModel((prev) => {
       const layout = { ...(prev.layout || {}) };
       delete layout[name];
       return {
@@ -390,7 +401,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   };
 
   const deleteRelationship = (idx: number) => {
-    setModel((prev) => ({ ...prev, relationships: prev.relationships.filter((_, i) => i !== idx) }));
+    updateModel((prev) => ({ ...prev, relationships: prev.relationships.filter((_, i) => i !== idx) }));
   };
 
   const deleteColumn = (colIdx: number) => {
@@ -416,12 +427,61 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
       setConnectFrom(null);
       return;
     }
-    setModel((prev) => ({
+    updateModel((prev) => ({
       ...prev,
       relationships: [...prev.relationships, { from: connectFrom, to: key, type: "many-to-one" }],
     }));
     setConnectFrom(null);
   };
+
+  // Doc-link helpers
+  const addDocLinkToTable = (tableName: string, link: DocLink) => {
+    updateModel((prev) => ({
+      ...prev,
+      tables: prev.tables.map((t) => t.name === tableName ? { ...t, docs: [...(t.docs || []), link] } : t),
+    }));
+  };
+  const addDocLinkToColumn = (tableName: string, colName: string, link: DocLink) => {
+    updateModel((prev) => ({
+      ...prev,
+      tables: prev.tables.map((t) => t.name === tableName ? {
+        ...t,
+        columns: t.columns.map((c) => c.name === colName ? { ...c, docs: [...(c.docs || []), link] } : c),
+      } : t),
+    }));
+  };
+  const removeDocLink = (target: string, idx: number) => {
+    updateModel((prev) => {
+      if (target.startsWith("table:")) {
+        const tn = target.slice(6);
+        return { ...prev, tables: prev.tables.map((t) => t.name === tn ? { ...t, docs: (t.docs || []).filter((_, i) => i !== idx) } : t) };
+      }
+      if (target.startsWith("column:")) {
+        const [tn, cn] = target.slice(7).split(".");
+        return { ...prev, tables: prev.tables.map((t) => t.name === tn ? {
+          ...t, columns: t.columns.map((c) => c.name === cn ? { ...c, docs: (c.docs || []).filter((_, i) => i !== idx) } : c),
+        } : t) };
+      }
+      return prev;
+    });
+  };
+
+  // Keyboard shortcuts: Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z or Ctrl+Y redo
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      // Skip when typing in editable inputs/textareas
+      const tag = target?.tagName?.toLowerCase();
+      const isEditable = tag === "input" || tag === "textarea" || target?.isContentEditable;
+      if (isEditable) return;
+      const meta = e.ctrlKey || e.metaKey;
+      if (!meta) return;
+      if (e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if ((e.key.toLowerCase() === "z" && e.shiftKey) || e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-background p-4 space-y-4">
