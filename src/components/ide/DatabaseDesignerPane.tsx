@@ -383,6 +383,12 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                 </Badge>
               )}
               <Badge variant="outline">ERD</Badge>
+              <div className="flex items-center gap-0.5 border border-border rounded-md">
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={zoomOut} title="Zoom out"><ZoomOut className="h-3.5 w-3.5" /></Button>
+                <button onClick={zoomReset} className="text-xs font-mono w-12 text-center hover:bg-muted rounded py-1" title="Reset to 100%">{Math.round(zoom * 100)}%</button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={zoomIn} title="Zoom in"><ZoomIn className="h-3.5 w-3.5" /></Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={zoomReset} title="Fit"><Maximize2 className="h-3.5 w-3.5" /></Button>
+              </div>
               <Button size="sm" variant="outline" onClick={addTable}><Plus className="h-3.5 w-3.5 mr-1" />Add table</Button>
             </div>
           </div>
