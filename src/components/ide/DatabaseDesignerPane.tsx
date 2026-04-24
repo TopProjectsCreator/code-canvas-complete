@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Database, FileText, Plus, Save, Trash2, Wand2, Link2, X, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { ArrowRight, Database, FileText, Plus, Save, Trash2, Wand2, Link2, X, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, Paperclip, Upload } from "lucide-react";
 import type { FileNode } from "@/types/ide";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,15 @@ interface DatabaseDesignerPaneProps {
   onFileUpdate: (fileId: string, content: string) => void;
 }
 
+interface DocLink {
+  /** Display label, e.g. "Spec.docx" or "Pricing rules" */
+  label: string;
+  /** Either a path to a file in the project (e.g. "docs/spec.docx") or an external URL */
+  href: string;
+  /** "file" = lives in the canvas/workspace, "external" = URL/upload */
+  kind?: "file" | "external";
+}
+
 interface ColumnModel {
   name: string;
   type: string;
@@ -19,11 +28,13 @@ interface ColumnModel {
   unique?: boolean;
   default?: string;
   ref?: string;
+  docs?: DocLink[];
 }
 
 interface TableModel {
   name: string;
   columns: ColumnModel[];
+  docs?: DocLink[];
 }
 
 interface RelationshipModel {
