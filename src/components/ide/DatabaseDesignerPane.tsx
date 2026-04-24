@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, Database, FileText, Plus, Save, Trash2, Wand2, Link2, X, ZoomIn, ZoomOut, Maximize2 } from "lucide-react";
+import { ArrowRight, Database, FileText, Plus, Save, Trash2, Wand2, Link2, X, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, Paperclip, Upload } from "lucide-react";
 import type { FileNode } from "@/types/ide";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,15 @@ interface DatabaseDesignerPaneProps {
   onFileUpdate: (fileId: string, content: string) => void;
 }
 
+interface DocLink {
+  /** Display label, e.g. "Spec.docx" or "Pricing rules" */
+  label: string;
+  /** Either a path to a file in the project (e.g. "docs/spec.docx") or an external URL */
+  href: string;
+  /** "file" = lives in the canvas/workspace, "external" = URL/upload */
+  kind?: "file" | "external";
+}
+
 interface ColumnModel {
   name: string;
   type: string;
@@ -19,11 +28,13 @@ interface ColumnModel {
   unique?: boolean;
   default?: string;
   ref?: string;
+  docs?: DocLink[];
 }
 
 interface TableModel {
   name: string;
   columns: ColumnModel[];
+  docs?: DocLink[];
 }
 
 interface RelationshipModel {
@@ -133,10 +144,68 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   const restoredScrollRef = useRef(false);
   const pinchRef = useRef<{ initialDist: number; initialZoom: number } | null>(null);
 
+  // Undo / redo history. Each entry is a deep-cloned model snapshot.
+  const historyRef = useRef<{ past: DatabaseModel[]; future: DatabaseModel[]; suspend: boolean }>({
+    past: [],
+    future: [],
+    suspend: false,
+  });
+  const [, forceHistoryRender] = useState(0);
+  const cloneModel = (m: DatabaseModel): DatabaseModel => JSON.parse(JSON.stringify(m));
+  const pushHistory = (current: DatabaseModel) => {
+    if (historyRef.current.suspend) return;
+    historyRef.current.past.push(cloneModel(current));
+    if (historyRef.current.past.length > 100) historyRef.current.past.shift();
+    historyRef.current.future = [];
+    forceHistoryRender((x) => x + 1);
+  };
+  /** Mutate the model AND record the previous state for undo. */
+  const updateModel = (updater: (prev: DatabaseModel) => DatabaseModel) => {
+    setModel((prev) => {
+      pushHistory(prev);
+      return updater(prev);
+    });
+  };
+  const undo = () => {
+    const h = historyRef.current;
+    if (h.past.length === 0) return;
+    setModel((current) => {
+      const prev = h.past.pop()!;
+      h.future.push(cloneModel(current));
+      forceHistoryRender((x) => x + 1);
+      return prev;
+    });
+  };
+  const redo = () => {
+    const h = historyRef.current;
+    if (h.future.length === 0) return;
+    setModel((current) => {
+      const next = h.future.pop()!;
+      h.past.push(cloneModel(current));
+      forceHistoryRender((x) => x + 1);
+      return next;
+    });
+  };
+  // Doc linking dialog target: "table:foo" or "column:foo.bar"
+  const [docTarget, setDocTarget] = useState<string | null>(null);
+
   const clampZoom = (z: number) => Math.min(2, Math.max(0.4, z));
   const zoomIn = () => setZoom((z) => clampZoom(+(z + 0.1).toFixed(2)));
   const zoomOut = () => setZoom((z) => clampZoom(+(z - 0.1).toFixed(2)));
   const zoomReset = () => setZoom(1);
+  const fitToScreen = () => {
+    const el = scrollRef.current;
+    if (!el) { setZoom(1); return; }
+    // Compute bounding box of all tables in canvas coords
+    const positions = Object.values(model.layout || {});
+    if (positions.length === 0) { setZoom(1); return; }
+    const maxX = Math.max(...positions.map((p) => p.x)) + TABLE_WIDTH + 40;
+    const maxY = Math.max(...positions.map((p) => p.y)) + 240;
+    const fitX = el.clientWidth / Math.max(maxX, 600);
+    const fitY = el.clientHeight / Math.max(maxY, 400);
+    setZoom(clampZoom(+Math.min(fitX, fitY, 1).toFixed(2)));
+    requestAnimationFrame(() => { el.scrollLeft = 0; el.scrollTop = 0; });
+  };
 
   // Persist zoom
   useEffect(() => {
@@ -239,7 +308,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
   const updateSelectedTable = (updater: (table: TableModel) => TableModel) => {
     if (!selected) return;
-    setModel((prev) => ({
+    updateModel((prev) => ({
       ...prev,
       tables: prev.tables.map((t) => (t.name === selected.name ? updater(t) : t)),
     }));
@@ -252,7 +321,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
     while (model.tables.some((t) => t.name === name)) {
       name = `${base}_${i++}`;
     }
-    setModel((prev) => {
+    updateModel((prev) => {
       const next = ensureLayout({
         ...prev,
         tables: [...prev.tables, { name, columns: [{ name: "id", type: "uuid", pk: true }] }],
@@ -268,7 +337,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
   const addRelationship = () => {
     if (!newRelFrom || !newRelTo) return;
-    setModel((prev) => ({
+    updateModel((prev) => ({
       ...prev,
       relationships: [...prev.relationships, { from: newRelFrom, to: newRelTo, type: "many-to-one" }],
     }));
@@ -289,6 +358,8 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   const startDrag = (name: string, clientX: number, clientY: number) => {
     const pos = model.layout?.[name] || { x: 80, y: 80 };
     const z = zoom || 1;
+    // Snapshot before the drag begins so the entire move is one undo step
+    pushHistory(model);
     setDrag({ name, dx: clientX / z - pos.x, dy: clientY / z - pos.y, moved: false });
   };
 
@@ -305,8 +376,17 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
     if (!drag.moved) setDrag({ ...drag, moved: true });
   };
 
+  const endDrag = () => {
+    // If the user clicked without moving, drop the snapshot we pushed in startDrag
+    if (drag && !drag.moved) {
+      historyRef.current.past.pop();
+      forceHistoryRender((x) => x + 1);
+    }
+    setDrag(null);
+  };
+
   const deleteTable = (name: string) => {
-    setModel((prev) => {
+    updateModel((prev) => {
       const layout = { ...(prev.layout || {}) };
       delete layout[name];
       return {
@@ -321,7 +401,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   };
 
   const deleteRelationship = (idx: number) => {
-    setModel((prev) => ({ ...prev, relationships: prev.relationships.filter((_, i) => i !== idx) }));
+    updateModel((prev) => ({ ...prev, relationships: prev.relationships.filter((_, i) => i !== idx) }));
   };
 
   const deleteColumn = (colIdx: number) => {
@@ -347,12 +427,61 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
       setConnectFrom(null);
       return;
     }
-    setModel((prev) => ({
+    updateModel((prev) => ({
       ...prev,
       relationships: [...prev.relationships, { from: connectFrom, to: key, type: "many-to-one" }],
     }));
     setConnectFrom(null);
   };
+
+  // Doc-link helpers
+  const addDocLinkToTable = (tableName: string, link: DocLink) => {
+    updateModel((prev) => ({
+      ...prev,
+      tables: prev.tables.map((t) => t.name === tableName ? { ...t, docs: [...(t.docs || []), link] } : t),
+    }));
+  };
+  const addDocLinkToColumn = (tableName: string, colName: string, link: DocLink) => {
+    updateModel((prev) => ({
+      ...prev,
+      tables: prev.tables.map((t) => t.name === tableName ? {
+        ...t,
+        columns: t.columns.map((c) => c.name === colName ? { ...c, docs: [...(c.docs || []), link] } : c),
+      } : t),
+    }));
+  };
+  const removeDocLink = (target: string, idx: number) => {
+    updateModel((prev) => {
+      if (target.startsWith("table:")) {
+        const tn = target.slice(6);
+        return { ...prev, tables: prev.tables.map((t) => t.name === tn ? { ...t, docs: (t.docs || []).filter((_, i) => i !== idx) } : t) };
+      }
+      if (target.startsWith("column:")) {
+        const [tn, cn] = target.slice(7).split(".");
+        return { ...prev, tables: prev.tables.map((t) => t.name === tn ? {
+          ...t, columns: t.columns.map((c) => c.name === cn ? { ...c, docs: (c.docs || []).filter((_, i) => i !== idx) } : c),
+        } : t) };
+      }
+      return prev;
+    });
+  };
+
+  // Keyboard shortcuts: Ctrl/Cmd+Z undo, Ctrl/Cmd+Shift+Z or Ctrl+Y redo
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      // Skip when typing in editable inputs/textareas
+      const tag = target?.tagName?.toLowerCase();
+      const isEditable = tag === "input" || tag === "textarea" || target?.isContentEditable;
+      if (isEditable) return;
+      const meta = e.ctrlKey || e.metaKey;
+      if (!meta) return;
+      if (e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if ((e.key.toLowerCase() === "z" && e.shiftKey) || e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-background p-4 space-y-4">
@@ -384,10 +513,14 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
               )}
               <Badge variant="outline">ERD</Badge>
               <div className="flex items-center gap-0.5 border border-border rounded-md">
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={undo} disabled={historyRef.current.past.length === 0} title="Undo (Ctrl/Cmd+Z)"><Undo2 className="h-3.5 w-3.5" /></Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={redo} disabled={historyRef.current.future.length === 0} title="Redo (Ctrl/Cmd+Shift+Z)"><Redo2 className="h-3.5 w-3.5" /></Button>
+              </div>
+              <div className="flex items-center gap-0.5 border border-border rounded-md">
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={zoomOut} title="Zoom out"><ZoomOut className="h-3.5 w-3.5" /></Button>
                 <button onClick={zoomReset} className="text-xs font-mono w-12 text-center hover:bg-muted rounded py-1" title="Reset to 100%">{Math.round(zoom * 100)}%</button>
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={zoomIn} title="Zoom in"><ZoomIn className="h-3.5 w-3.5" /></Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={zoomReset} title="Fit"><Maximize2 className="h-3.5 w-3.5" /></Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={fitToScreen} title="Fit all tables in view"><Maximize2 className="h-3.5 w-3.5" /></Button>
               </div>
               <Button size="sm" variant="outline" onClick={addTable}><Plus className="h-3.5 w-3.5 mr-1" />Add table</Button>
             </div>
@@ -398,7 +531,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
           <div
             ref={scrollRef}
-            className="relative h-full min-h-[400px] rounded-lg border border-dashed border-border bg-muted/20 overflow-auto"
+            className="relative h-full min-h-[300px] max-h-[60vh] xl:max-h-none rounded-lg border border-dashed border-border bg-muted/20 overflow-auto"
             style={{ touchAction: "pan-x pan-y" }}
           >
             <div
@@ -417,8 +550,8 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                 const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
                 onCanvasMove(e.clientX - rect.left, e.clientY - rect.top);
               }}
-              onMouseUp={() => setDrag(null)}
-              onMouseLeave={() => setDrag(null)}
+              onMouseUp={endDrag}
+              onMouseLeave={endDrag}
             >
               <svg className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden>
                 {model.relationships.map((rel, i) => {
@@ -455,7 +588,20 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                     >
                       <strong className="text-sm">{table.name}</strong>
                       <div className="flex items-center gap-1">
+                        {(table.docs?.length || 0) > 0 && (
+                          <Badge variant="outline" className="gap-1 px-1 py-0 h-4">
+                            <Paperclip className="h-2.5 w-2.5" />{table.docs!.length}
+                          </Badge>
+                        )}
                         <Badge variant="secondary">{table.columns.length}</Badge>
+                        <button
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-accent"
+                          onClick={(e) => { e.stopPropagation(); setDocTarget(`table:${table.name}`); }}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          title="Link a document"
+                        >
+                          <Paperclip className="h-3.5 w-3.5" />
+                        </button>
                         <button
                           className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/20 text-destructive"
                           onClick={(e) => { e.stopPropagation(); if (confirm(`Delete table "${table.name}"?`)) deleteTable(table.name); }}
@@ -479,6 +625,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                             />
                             <input
                               value={col.name}
+                              onFocus={() => pushHistory(model)}
                               onChange={(e) => {
                                 const v = e.target.value;
                                 setModel((prev) => ({
@@ -495,6 +642,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                             />
                             <input
                               value={col.type}
+                              onFocus={() => pushHistory(model)}
                               onChange={(e) => {
                                 const v = e.target.value;
                                 setModel((prev) => ({
@@ -509,6 +657,19 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                               onMouseDown={(e) => e.stopPropagation()}
                               className="w-20 shrink-0 bg-transparent text-muted-foreground font-mono outline-none focus:bg-muted/40 focus:text-foreground rounded px-1 text-right"
                             />
+                            {(col.docs?.length || 0) > 0 && (
+                              <span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] text-muted-foreground" title={`${col.docs!.length} linked doc(s)`}>
+                                <Paperclip className="h-2.5 w-2.5" />{col.docs!.length}
+                              </span>
+                            )}
+                            <button
+                              className="opacity-0 group-hover/col:opacity-100 text-muted-foreground hover:text-foreground shrink-0"
+                              onClick={(e) => { e.stopPropagation(); setDocTarget(`column:${table.name}.${col.name}`); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              title="Link a document to this column"
+                            >
+                              <Paperclip className="h-3 w-3" />
+                            </button>
                             <button
                               className="opacity-0 group-hover/col:opacity-100 text-destructive hover:opacity-100 shrink-0"
                               onClick={(e) => {
@@ -529,7 +690,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedTable(table.name);
-                          setModel((prev) => ({
+                          updateModel((prev) => ({
                             ...prev,
                             tables: prev.tables.map((t) => t.name === table.name ? {
                               ...t, columns: [...t.columns, { name: "new_column", type: "text" }],
@@ -646,6 +807,191 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
           <div className="rounded-xl border border-border bg-card p-3 space-y-2">
             <h3 className="font-medium">SQL export</h3>
             <Textarea value={sqlPreview} onChange={(e) => setSqlPreview(e.target.value)} className="min-h-[180px] font-mono text-xs" />
+          </div>
+        </div>
+      </div>
+
+      {docTarget && (
+        <DocLinkDialog
+          target={docTarget}
+          model={model}
+          flatFiles={flatFiles}
+          onClose={() => setDocTarget(null)}
+          onAddTableLink={addDocLinkToTable}
+          onAddColumnLink={addDocLinkToColumn}
+          onRemove={removeDocLink}
+        />
+      )}
+    </div>
+  );
+};
+
+// ─── Doc Link Dialog ────────────────────────────────────────────────────────
+const OFFICE_EXTENSIONS = ["docx", "xlsx", "pptx", "doc", "xls", "ppt", "pdf", "md", "txt", "rtf", "odt", "ods", "odp"];
+
+const isOfficeLikeFile = (name: string) => {
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  return OFFICE_EXTENSIONS.includes(ext);
+};
+
+interface DocLinkDialogProps {
+  target: string;
+  model: DatabaseModel;
+  flatFiles: FileNode[];
+  onClose: () => void;
+  onAddTableLink: (tableName: string, link: DocLink) => void;
+  onAddColumnLink: (tableName: string, colName: string, link: DocLink) => void;
+  onRemove: (target: string, idx: number) => void;
+}
+
+const DocLinkDialog = ({ target, model, flatFiles, onClose, onAddTableLink, onAddColumnLink, onRemove }: DocLinkDialogProps) => {
+  const [mode, setMode] = useState<"existing" | "url" | "upload">("existing");
+  const [selectedFileId, setSelectedFileId] = useState<string>("");
+  const [urlInput, setUrlInput] = useState("");
+  const [labelInput, setLabelInput] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const isTable = target.startsWith("table:");
+  const tableName = isTable ? target.slice(6) : target.slice(7).split(".")[0];
+  const colName = isTable ? null : target.slice(7).split(".")[1];
+
+  const existingDocs: DocLink[] = (() => {
+    const t = model.tables.find((t) => t.name === tableName);
+    if (!t) return [];
+    if (isTable) return t.docs || [];
+    const c = t.columns.find((c) => c.name === colName);
+    return c?.docs || [];
+  })();
+
+  const officeFiles = flatFiles.filter((f) => f.type === "file" && isOfficeLikeFile(f.name));
+
+  const addLink = (link: DocLink) => {
+    if (isTable) onAddTableLink(tableName, link);
+    else if (colName) onAddColumnLink(tableName, colName, link);
+  };
+
+  const submit = () => {
+    if (mode === "existing" && selectedFileId) {
+      const f = flatFiles.find((x) => x.id === selectedFileId);
+      if (!f) return;
+      addLink({ label: labelInput || f.name, href: f.name, kind: "file" });
+    } else if (mode === "url" && urlInput.trim()) {
+      addLink({ label: labelInput || urlInput, href: urlInput.trim(), kind: "external" });
+    }
+    setSelectedFileId("");
+    setUrlInput("");
+    setLabelInput("");
+  };
+
+  const onUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      addLink({ label: labelInput || file.name, href: dataUrl, kind: "external" });
+      setLabelInput("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card border border-border rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div>
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <Paperclip className="h-4 w-4" />
+              Link document to {isTable ? <code className="text-xs">{tableName}</code> : <code className="text-xs">{tableName}.{colName}</code>}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Attach an Office doc, spec, or external reference.</p>
+          </div>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose}><X className="h-4 w-4" /></Button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {existingDocs.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Linked documents</p>
+              {existingDocs.map((d, i) => (
+                <div key={i} className="flex items-center gap-2 rounded border border-border px-2 py-1 text-xs">
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate flex-1">{d.label}</span>
+                  <Badge variant="outline" className="text-[10px]">{d.kind || "external"}</Badge>
+                  <button onClick={() => onRemove(target, i)} className="text-destructive hover:opacity-70" title="Remove link">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-1 border border-border rounded-md p-0.5 text-xs">
+            <button onClick={() => setMode("existing")} className={`flex-1 px-2 py-1 rounded ${mode === "existing" ? "bg-accent" : "hover:bg-muted"}`}>From canvas</button>
+            <button onClick={() => setMode("upload")} className={`flex-1 px-2 py-1 rounded ${mode === "upload" ? "bg-accent" : "hover:bg-muted"}`}><Upload className="h-3 w-3 inline mr-1" />Upload</button>
+            <button onClick={() => setMode("url")} className={`flex-1 px-2 py-1 rounded ${mode === "url" ? "bg-accent" : "hover:bg-muted"}`}>URL</button>
+          </div>
+
+          <div className="space-y-2">
+            <Input placeholder="Label (optional)" value={labelInput} onChange={(e) => setLabelInput(e.target.value)} />
+
+            {mode === "existing" && (
+              <>
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                  value={selectedFileId}
+                  onChange={(e) => setSelectedFileId(e.target.value)}
+                >
+                  <option value="">Select a file from your project…</option>
+                  {officeFiles.map((f) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+                {officeFiles.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No documents in this project yet — upload a .docx, .xlsx, .pdf, or .md file via the Files panel, then come back here.
+                  </p>
+                )}
+                <Button size="sm" onClick={submit} disabled={!selectedFileId} className="w-full">
+                  <Link2 className="h-3.5 w-3.5 mr-1" />Link selected file
+                </Button>
+              </>
+            )}
+
+            {mode === "upload" && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".docx,.xlsx,.pptx,.doc,.xls,.ppt,.pdf,.md,.txt,.rtf,.odt,.ods,.odp"
+                  onChange={onUpload}
+                  className="block w-full text-xs file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-primary file:text-primary-foreground hover:file:opacity-80"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Uploads are embedded as data URLs in <code>erd.schema.json</code>. Best for small specs (under ~1 MB).
+                </p>
+              </>
+            )}
+
+            {mode === "url" && (
+              <>
+                <Input
+                  placeholder="https://docs.google.com/… or https://notion.so/…"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                />
+                <Button size="sm" onClick={submit} disabled={!urlInput.trim()} className="w-full">
+                  <Link2 className="h-3.5 w-3.5 mr-1" />Link URL
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
