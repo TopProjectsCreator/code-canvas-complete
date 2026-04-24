@@ -800,8 +800,70 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
 
           <div className="rounded-xl border border-border bg-card p-3 space-y-2">
             <h3 className="font-medium flex items-center gap-2"><FileText className="h-4 w-4" />Constraint documentation</h3>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border bg-muted/40 hover:bg-muted cursor-pointer">
+                <Upload className="h-3.5 w-3.5" />
+                Upload PDF / Word / MD
+                <input
+                  type="file"
+                  accept=".md,.markdown,.txt,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown,text/plain"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const ext = file.name.split(".").pop()?.toLowerCase();
+                    if (ext === "md" || ext === "markdown" || ext === "txt") {
+                      const text = await file.text();
+                      setConstraintsDoc((prev) => `${prev.trim()}\n\n## From ${file.name}\n\n${text}\n`);
+                    } else {
+                      const dataUrl = await new Promise<string>((resolve, reject) => {
+                        const r = new FileReader();
+                        r.onload = () => resolve(r.result as string);
+                        r.onerror = () => reject(r.error);
+                        r.readAsDataURL(file);
+                      });
+                      setConstraintsDoc((prev) => `${prev.trim()}\n\n- 📎 [${file.name}](${dataUrl})\n`);
+                    }
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              <select
+                className="text-xs px-2 py-1 rounded border border-border bg-background"
+                defaultValue=""
+                onChange={(e) => {
+                  const path = e.target.value;
+                  if (!path) return;
+                  const f = flatFiles.find((x) => x.name === path || x.id === path);
+                  const label = f?.name || path;
+                  setConstraintsDoc((prev) => `${prev.trim()}\n\n- 🔗 [${label}](${path})\n`);
+                  e.target.value = "";
+                }}
+              >
+                <option value="">Link a canvas file…</option>
+                {flatFiles
+                  .filter((f) => /\.(md|markdown|txt|pdf|docx?|xlsx?|pptx?)$/i.test(f.name))
+                  .map((f) => (
+                    <option key={f.id} value={f.name}>{f.name}</option>
+                  ))}
+              </select>
+              <input
+                type="url"
+                placeholder="Paste external URL and press Enter"
+                className="text-xs px-2 py-1 rounded border border-border bg-background flex-1 min-w-[180px]"
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  const url = (e.currentTarget.value || "").trim();
+                  if (!url) return;
+                  let label = url;
+                  try { label = new URL(url).hostname + new URL(url).pathname; } catch { /* keep raw */ }
+                  setConstraintsDoc((prev) => `${prev.trim()}\n\n- 🌐 [${label}](${url})\n`);
+                  e.currentTarget.value = "";
+                }}
+              />
+            </div>
             <Textarea value={constraintsDoc} onChange={(e) => setConstraintsDoc(e.target.value)} className="min-h-[150px] text-xs" />
-            <p className="text-xs text-muted-foreground">Saved to <code>constraints.md</code>.</p>
+            <p className="text-xs text-muted-foreground">Saved to <code>constraints.md</code>. Uploads are embedded as data URLs; canvas links reference workspace files.</p>
           </div>
 
           <div className="rounded-xl border border-border bg-card p-3 space-y-2">
