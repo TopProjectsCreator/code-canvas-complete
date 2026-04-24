@@ -825,3 +825,176 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
     </div>
   );
 };
+
+// ─── Doc Link Dialog ────────────────────────────────────────────────────────
+const OFFICE_EXTENSIONS = ["docx", "xlsx", "pptx", "doc", "xls", "ppt", "pdf", "md", "txt", "rtf", "odt", "ods", "odp"];
+
+const isOfficeLikeFile = (name: string) => {
+  const ext = name.split(".").pop()?.toLowerCase() || "";
+  return OFFICE_EXTENSIONS.includes(ext);
+};
+
+interface DocLinkDialogProps {
+  target: string;
+  model: DatabaseModel;
+  flatFiles: FileNode[];
+  onClose: () => void;
+  onAddTableLink: (tableName: string, link: DocLink) => void;
+  onAddColumnLink: (tableName: string, colName: string, link: DocLink) => void;
+  onRemove: (target: string, idx: number) => void;
+}
+
+const DocLinkDialog = ({ target, model, flatFiles, onClose, onAddTableLink, onAddColumnLink, onRemove }: DocLinkDialogProps) => {
+  const [mode, setMode] = useState<"existing" | "url" | "upload">("existing");
+  const [selectedFileId, setSelectedFileId] = useState<string>("");
+  const [urlInput, setUrlInput] = useState("");
+  const [labelInput, setLabelInput] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const isTable = target.startsWith("table:");
+  const tableName = isTable ? target.slice(6) : target.slice(7).split(".")[0];
+  const colName = isTable ? null : target.slice(7).split(".")[1];
+
+  const existingDocs: DocLink[] = (() => {
+    const t = model.tables.find((t) => t.name === tableName);
+    if (!t) return [];
+    if (isTable) return t.docs || [];
+    const c = t.columns.find((c) => c.name === colName);
+    return c?.docs || [];
+  })();
+
+  const officeFiles = flatFiles.filter((f) => f.type === "file" && isOfficeLikeFile(f.name));
+
+  const addLink = (link: DocLink) => {
+    if (isTable) onAddTableLink(tableName, link);
+    else if (colName) onAddColumnLink(tableName, colName, link);
+  };
+
+  const submit = () => {
+    if (mode === "existing" && selectedFileId) {
+      const f = flatFiles.find((x) => x.id === selectedFileId);
+      if (!f) return;
+      addLink({ label: labelInput || f.name, href: f.name, kind: "file" });
+    } else if (mode === "url" && urlInput.trim()) {
+      addLink({ label: labelInput || urlInput, href: urlInput.trim(), kind: "external" });
+    }
+    setSelectedFileId("");
+    setUrlInput("");
+    setLabelInput("");
+  };
+
+  const onUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || "");
+      addLink({ label: labelInput || file.name, href: dataUrl, kind: "external" });
+      setLabelInput("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-card border border-border rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] overflow-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div>
+            <h3 className="font-semibold text-sm flex items-center gap-2">
+              <Paperclip className="h-4 w-4" />
+              Link document to {isTable ? <code className="text-xs">{tableName}</code> : <code className="text-xs">{tableName}.{colName}</code>}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Attach an Office doc, spec, or external reference.</p>
+          </div>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose}><X className="h-4 w-4" /></Button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {existingDocs.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Linked documents</p>
+              {existingDocs.map((d, i) => (
+                <div key={i} className="flex items-center gap-2 rounded border border-border px-2 py-1 text-xs">
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate flex-1">{d.label}</span>
+                  <Badge variant="outline" className="text-[10px]">{d.kind || "external"}</Badge>
+                  <button onClick={() => onRemove(target, i)} className="text-destructive hover:opacity-70" title="Remove link">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-1 border border-border rounded-md p-0.5 text-xs">
+            <button onClick={() => setMode("existing")} className={`flex-1 px-2 py-1 rounded ${mode === "existing" ? "bg-accent" : "hover:bg-muted"}`}>From canvas</button>
+            <button onClick={() => setMode("upload")} className={`flex-1 px-2 py-1 rounded ${mode === "upload" ? "bg-accent" : "hover:bg-muted"}`}><Upload className="h-3 w-3 inline mr-1" />Upload</button>
+            <button onClick={() => setMode("url")} className={`flex-1 px-2 py-1 rounded ${mode === "url" ? "bg-accent" : "hover:bg-muted"}`}>URL</button>
+          </div>
+
+          <div className="space-y-2">
+            <Input placeholder="Label (optional)" value={labelInput} onChange={(e) => setLabelInput(e.target.value)} />
+
+            {mode === "existing" && (
+              <>
+                <select
+                  className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                  value={selectedFileId}
+                  onChange={(e) => setSelectedFileId(e.target.value)}
+                >
+                  <option value="">Select a file from your project…</option>
+                  {officeFiles.map((f) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+                {officeFiles.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No documents in this project yet — upload a .docx, .xlsx, .pdf, or .md file via the Files panel, then come back here.
+                  </p>
+                )}
+                <Button size="sm" onClick={submit} disabled={!selectedFileId} className="w-full">
+                  <Link2 className="h-3.5 w-3.5 mr-1" />Link selected file
+                </Button>
+              </>
+            )}
+
+            {mode === "upload" && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".docx,.xlsx,.pptx,.doc,.xls,.ppt,.pdf,.md,.txt,.rtf,.odt,.ods,.odp"
+                  onChange={onUpload}
+                  className="block w-full text-xs file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-primary file:text-primary-foreground hover:file:opacity-80"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Uploads are embedded as data URLs in <code>erd.schema.json</code>. Best for small specs (under ~1 MB).
+                </p>
+              </>
+            )}
+
+            {mode === "url" && (
+              <>
+                <Input
+                  placeholder="https://docs.google.com/… or https://notion.so/…"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                />
+                <Button size="sm" onClick={submit} disabled={!urlInput.trim()} className="w-full">
+                  <Link2 className="h-3.5 w-3.5 mr-1" />Link URL
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
