@@ -124,6 +124,90 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
   const [newRelTo, setNewRelTo] = useState("");
   const [drag, setDrag] = useState<{ name: string; dx: number; dy: number; moved: boolean } | null>(null);
   const [connectFrom, setConnectFrom] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<number>(() => {
+    if (typeof window === "undefined") return 1;
+    const v = parseFloat(localStorage.getItem("dbDesigner.zoom") || "1");
+    return isNaN(v) ? 1 : Math.min(2, Math.max(0.4, v));
+  });
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const restoredScrollRef = useRef(false);
+  const pinchRef = useRef<{ initialDist: number; initialZoom: number } | null>(null);
+
+  const clampZoom = (z: number) => Math.min(2, Math.max(0.4, z));
+  const zoomIn = () => setZoom((z) => clampZoom(+(z + 0.1).toFixed(2)));
+  const zoomOut = () => setZoom((z) => clampZoom(+(z - 0.1).toFixed(2)));
+  const zoomReset = () => setZoom(1);
+
+  // Persist zoom
+  useEffect(() => {
+    localStorage.setItem("dbDesigner.zoom", String(zoom));
+  }, [zoom]);
+
+  // Restore scroll position once on mount
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || restoredScrollRef.current) return;
+    const sx = parseInt(localStorage.getItem("dbDesigner.scrollX") || "0", 10);
+    const sy = parseInt(localStorage.getItem("dbDesigner.scrollY") || "0", 10);
+    requestAnimationFrame(() => {
+      el.scrollLeft = sx;
+      el.scrollTop = sy;
+      restoredScrollRef.current = true;
+    });
+  }, []);
+
+  // Persist scroll position (throttled via rAF)
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        localStorage.setItem("dbDesigner.scrollX", String(el.scrollLeft));
+        localStorage.setItem("dbDesigner.scrollY", String(el.scrollTop));
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  // Touch pinch-to-zoom + two-finger pan
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const dist = (a: Touch, b: Touch) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        pinchRef.current = { initialDist: dist(e.touches[0], e.touches[1]), initialZoom: zoom };
+      }
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchRef.current) {
+        e.preventDefault();
+        const d = dist(e.touches[0], e.touches[1]);
+        const ratio = d / pinchRef.current.initialDist;
+        setZoom(clampZoom(+(pinchRef.current.initialZoom * ratio).toFixed(2)));
+      }
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinchRef.current = null;
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: false });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [zoom]);
+
 
   useEffect(() => {
     if (!erdFile?.content) return;
