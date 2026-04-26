@@ -864,6 +864,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
             </div>
             <Textarea value={constraintsDoc} onChange={(e) => setConstraintsDoc(e.target.value)} className="min-h-[150px] text-xs" />
             <p className="text-xs text-muted-foreground">Saved to <code>constraints.md</code>. Uploads are embedded as data URLs; canvas links reference workspace files.</p>
+            <ConstraintAttachmentsPreview doc={constraintsDoc} flatFiles={flatFiles} />
           </div>
 
           <div className="rounded-xl border border-border bg-card p-3 space-y-2">
