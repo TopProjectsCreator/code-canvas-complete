@@ -1204,17 +1204,35 @@ const AttachmentCard = ({
     }
   };
 
+  const canToggle = isPdf || isWord || isMd;
+  const [plainText, setPlainText] = useState(false);
+
   return (
     <div className="rounded-lg border border-border bg-background overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40 border-b border-border text-xs">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40 border-b border-border text-xs gap-2">
         <span className="truncate font-medium">{att.label}</span>
-        <button
-          type="button"
-          onClick={handleOpen}
-          className="text-primary hover:underline ml-2 shrink-0"
-        >
-          Open
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {canToggle && (
+            <button
+              type="button"
+              onClick={() => setPlainText((v) => !v)}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                plainText
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {plainText ? "Plain text" : "Formatted"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleOpen}
+            className="text-primary hover:underline shrink-0"
+          >
+            Open
+          </button>
+        </div>
       </div>
       <div className="h-64 bg-editor overflow-hidden">
         <AttachmentBody
@@ -1226,6 +1244,7 @@ const AttachmentCard = ({
           isMd={isMd}
           workspaceFile={workspaceFile}
           renderSrc={renderSrc}
+          plainText={plainText}
         />
       </div>
     </div>
@@ -1241,6 +1260,7 @@ const AttachmentBody = ({
   isMd,
   workspaceFile,
   renderSrc,
+  plainText,
 }: {
   att: ParsedAttachment;
   ext: string;
@@ -1250,11 +1270,47 @@ const AttachmentBody = ({
   isMd: boolean;
   workspaceFile: FileNode | undefined;
   renderSrc: string;
+  plainText: boolean;
 }) => {
   const [mdText, setMdText] = useState<string | null>(null);
   const [wordHtml, setWordHtml] = useState<string | null>(null);
+  const [wordPlain, setWordPlain] = useState<string | null>(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfPlainText, setPdfPlainText] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // For PDFs: convert data URL to blob URL for iframe rendering
+  useEffect(() => {
+    if (!isPdf) return;
+    if (!renderSrc) return;
+    if (!renderSrc.startsWith("data:")) {
+      setPdfBlobUrl(renderSrc);
+      return;
+    }
+    try {
+      const [meta, b64] = renderSrc.split(",");
+      const mime = meta.match(/data:([^;]+)/)?.[1] || "application/pdf";
+      const isBase64 = /;base64/i.test(meta);
+      const binary = isBase64 ? atob(b64) : decodeURIComponent(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mime });
+      const url = URL.createObjectURL(blob);
+      setPdfBlobUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } catch {
+      setPdfBlobUrl(renderSrc);
+    }
+  }, [isPdf, renderSrc]);
+
+  // Extract plain text from PDF when toggled
+  useEffect(() => {
+    if (!isPdf || !plainText || pdfPlainText !== null) return;
+    // We can't easily extract text from PDF in browser without a library,
+    // so show a helpful message and let the user use the formatted view
+    setPdfPlainText("(PDF plain text extraction requires opening the document.\nUse the 'Open' button to view in a new tab, or switch back to Formatted view.)");
+  }, [isPdf, plainText, pdfPlainText]);
 
   // Resolve markdown text
   useEffect(() => {
@@ -1288,7 +1344,7 @@ const AttachmentBody = ({
     return () => { cancelled = true; };
   }, [isMd, att.href, workspaceFile?.content]);
 
-  // Resolve Word doc → HTML via mammoth
+  // Resolve Word doc → HTML + plain text via mammoth
   useEffect(() => {
     if (!isWord) return;
     let cancelled = false;
@@ -1309,8 +1365,14 @@ const AttachmentBody = ({
           return;
         }
         const mammoth = await import("mammoth/mammoth.browser");
-        const result = await mammoth.convertToHtml({ arrayBuffer });
-        if (!cancelled) setWordHtml(result.value);
+        const [htmlResult, textResult] = await Promise.all([
+          mammoth.convertToHtml({ arrayBuffer }),
+          mammoth.extractRawText({ arrayBuffer }),
+        ]);
+        if (!cancelled) {
+          setWordHtml(htmlResult.value);
+          setWordPlain(textResult.value);
+        }
       } catch (e) {
         if (!cancelled) setError("Failed to render Word document");
       } finally {
@@ -1321,6 +1383,7 @@ const AttachmentBody = ({
     return () => { cancelled = true; };
   }, [isWord, att.href, att.source, workspaceFile?.content]);
 
+  // --- Image (no toggle) ---
   if (isImage && renderSrc) {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -1329,13 +1392,32 @@ const AttachmentBody = ({
     );
   }
 
-  if (isPdf && renderSrc) {
-    return <iframe src={renderSrc} title={att.label} className="w-full h-full border-0" />;
+  // --- PDF ---
+  if (isPdf) {
+    if (plainText) {
+      return (
+        <div className="w-full h-full overflow-auto p-3 text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+          {pdfPlainText || "Extracting text…"}
+        </div>
+      );
+    }
+    if (pdfBlobUrl) {
+      return <iframe src={pdfBlobUrl} title={att.label} className="w-full h-full border-0" />;
+    }
+    return <div className="p-3 text-xs text-muted-foreground">Loading PDF…</div>;
   }
 
+  // --- Markdown ---
   if (isMd) {
     if (loading) return <div className="p-3 text-xs text-muted-foreground">Loading…</div>;
     if (error) return <div className="p-3 text-xs text-destructive">{error}</div>;
+    if (plainText) {
+      return (
+        <div className="w-full h-full overflow-auto p-3 text-xs whitespace-pre-wrap font-mono text-foreground">
+          {mdText || "(empty)"}
+        </div>
+      );
+    }
     return (
       <div className="w-full h-full overflow-auto p-3 prose prose-sm prose-invert max-w-none text-xs">
         <ReactMarkdown>{mdText || "(empty)"}</ReactMarkdown>
@@ -1343,17 +1425,25 @@ const AttachmentBody = ({
     );
   }
 
+  // --- Word ---
   if (isWord) {
     if (loading) return <div className="p-3 text-xs text-muted-foreground">Rendering document…</div>;
+    if (error) return <div className="p-3 text-xs text-destructive">{error}</div>;
+    if (plainText && wordPlain !== null) {
+      return (
+        <div className="w-full h-full overflow-auto p-3 text-xs whitespace-pre-wrap font-mono text-foreground">
+          {wordPlain || "(empty)"}
+        </div>
+      );
+    }
     if (wordHtml) {
       return (
         <div
-          className="w-full h-full overflow-auto p-3 prose prose-sm prose-invert max-w-none text-xs"
+          className="w-full h-full overflow-auto p-4 prose prose-sm prose-invert max-w-none"
           dangerouslySetInnerHTML={{ __html: wordHtml }}
         />
       );
     }
-    if (error) return <div className="p-3 text-xs text-destructive">{error}</div>;
     return <div className="p-3 text-xs text-muted-foreground">Preparing preview…</div>;
   }
 
