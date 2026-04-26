@@ -1086,6 +1086,23 @@ const parseAttachments = (doc: string): ParsedAttachment[] => {
 };
 
 const extOf = (s: string) => {
+  // For data URLs, derive extension from the MIME type
+  if (s.startsWith("data:")) {
+    const mime = s.match(/^data:([^;,]+)/)?.[1]?.toLowerCase() || "";
+    if (mime.includes("pdf")) return "pdf";
+    if (mime.includes("wordprocessingml") || mime.includes("msword")) return "docx";
+    if (mime.includes("spreadsheetml") || mime.includes("ms-excel")) return "xlsx";
+    if (mime.includes("presentationml") || mime.includes("ms-powerpoint")) return "pptx";
+    if (mime.startsWith("image/png")) return "png";
+    if (mime.startsWith("image/jpeg")) return "jpg";
+    if (mime.startsWith("image/gif")) return "gif";
+    if (mime.startsWith("image/webp")) return "webp";
+    if (mime.startsWith("image/svg")) return "svg";
+    if (mime.startsWith("image/")) return mime.split("/")[1] || "img";
+    if (mime.includes("markdown")) return "md";
+    if (mime.startsWith("text/plain")) return "txt";
+    return mime.split("/").pop() || "";
+  }
   const clean = s.split("?")[0].split("#")[0];
   return clean.split(".").pop()?.toLowerCase() || "";
 };
@@ -1121,10 +1138,11 @@ const AttachmentCard = ({
   att: ParsedAttachment;
   flatFiles: FileNode[];
 }) => {
-  const ext = extOf(att.source === "workspace" ? att.label : att.href);
+  // Always derive ext from the label first (has the real filename), fall back to href
+  const ext = extOf(att.label) || extOf(att.href);
   const isPdf = ext === "pdf" || att.href.startsWith("data:application/pdf");
-  const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext) || att.href.startsWith("data:image/");
-  const isWord = ["doc", "docx"].includes(ext);
+  const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg", "img"].includes(ext) || att.href.startsWith("data:image/");
+  const isWord = ["doc", "docx"].includes(ext) || /data:application\/vnd\.openxmlformats-officedocument\.wordprocessingml|data:application\/msword/i.test(att.href);
   const isMd = ["md", "markdown", "txt"].includes(ext);
 
   // Resolve workspace file content (data url or text)
