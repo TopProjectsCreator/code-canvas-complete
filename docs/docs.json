@@ -22,6 +22,21 @@
             ]
           },
           {
+            "group": "Everyday Guides",
+            "pages": [
+              "features/everyday/themes-and-appearance",
+              "features/everyday/import-projects",
+              "features/everyday/offline-auto-save",
+              "features/everyday/offline-shell-tasks",
+              "features/everyday/gamehub-beginner-workflow",
+              "features/everyday/customize-game-levels",
+              "features/everyday/add-sound-and-effects",
+              "features/everyday/test-and-share",
+              "features/everyday/publish-your-project",
+              "features/everyday/remix-region-explorer"
+            ]
+          },
+          {
             "group": "IDE Workspace",
             "pages": [
               "features/ide/index",
