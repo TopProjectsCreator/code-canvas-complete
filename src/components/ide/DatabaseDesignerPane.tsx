@@ -1061,3 +1061,127 @@ const DocLinkDialog = ({ target, model, flatFiles, onClose, onAddTableLink, onAd
     </div>
   );
 };
+
+// ---- Constraint attachment preview ---------------------------------------
+
+interface ParsedAttachment {
+  label: string;
+  href: string;
+  source: "upload" | "workspace" | "external";
+}
+
+const parseAttachments = (doc: string): ParsedAttachment[] => {
+  const out: ParsedAttachment[] = [];
+  const re = /-\s*(?:📎|🔗|🌐)?\s*\[([^\]]+)\]\(([^)]+)\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(doc))) {
+    const [, label, href] = m;
+    let source: ParsedAttachment["source"] = "external";
+    if (href.startsWith("data:")) source = "upload";
+    else if (!/^https?:\/\//i.test(href)) source = "workspace";
+    out.push({ label, href, source });
+  }
+  return out;
+};
+
+const extOf = (s: string) => {
+  const clean = s.split("?")[0].split("#")[0];
+  return clean.split(".").pop()?.toLowerCase() || "";
+};
+
+const ConstraintAttachmentsPreview = ({
+  doc,
+  flatFiles,
+}: {
+  doc: string;
+  flatFiles: FileNode[];
+}) => {
+  const items = useMemo(() => parseAttachments(doc), [doc]);
+  if (items.length === 0) return null;
+
+  return (
+    <div className="space-y-3 pt-2">
+      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        Attachments preview ({items.length})
+      </h4>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {items.map((att, i) => (
+          <AttachmentCard key={`${att.href}-${i}`} att={att} flatFiles={flatFiles} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const AttachmentCard = ({
+  att,
+  flatFiles,
+}: {
+  att: ParsedAttachment;
+  flatFiles: FileNode[];
+}) => {
+  const ext = extOf(att.source === "workspace" ? att.label : att.href);
+  const isPdf = ext === "pdf" || att.href.startsWith("data:application/pdf");
+  const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext) || att.href.startsWith("data:image/");
+  const isWord = ["doc", "docx"].includes(ext);
+  const isMd = ["md", "markdown", "txt"].includes(ext);
+
+  // Resolve workspace file content (data url or text)
+  const workspaceFile = att.source === "workspace"
+    ? flatFiles.find((f) => f.name === att.label || f.name === att.href || f.id === att.href)
+    : undefined;
+
+  const renderSrc = att.source === "workspace"
+    ? (workspaceFile?.content || "")
+    : att.href;
+
+  return (
+    <div className="rounded-lg border border-border bg-background overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40 border-b border-border text-xs">
+        <span className="truncate font-medium">{att.label}</span>
+        <a
+          href={att.href}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="text-primary hover:underline ml-2 shrink-0"
+        >
+          Open
+        </a>
+      </div>
+      <div className="h-64 bg-editor flex items-center justify-center">
+        {isImage && renderSrc && (
+          <img src={renderSrc} alt={att.label} className="max-h-full max-w-full object-contain" />
+        )}
+        {isPdf && renderSrc && (
+          <iframe src={renderSrc} title={att.label} className="w-full h-full border-0" />
+        )}
+        {isWord && att.source === "external" && /^https?:\/\//i.test(att.href) && (
+          <iframe
+            src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(att.href)}`}
+            title={att.label}
+            className="w-full h-full border-0"
+          />
+        )}
+        {isWord && att.source !== "external" && (
+          <div className="text-xs text-muted-foreground p-3 text-center">
+            Word documents render inline only when hosted on a public URL.
+            <br />
+            <a href={renderSrc} download={att.label} className="text-primary hover:underline">Download {att.label}</a>
+          </div>
+        )}
+        {isMd && (
+          <div className="w-full h-full overflow-auto p-3 text-xs whitespace-pre-wrap">
+            {workspaceFile?.content || "(linked markdown – open to view)"}
+          </div>
+        )}
+        {!isImage && !isPdf && !isWord && !isMd && (
+          <div className="text-xs text-muted-foreground p-3 text-center">
+            No inline preview for .{ext || "file"}.
+            <br />
+            <a href={att.href} target="_blank" rel="noreferrer noopener" className="text-primary hover:underline">Open attachment</a>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
