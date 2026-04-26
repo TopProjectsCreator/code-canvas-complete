@@ -1198,39 +1198,153 @@ const AttachmentCard = ({
           Open
         </button>
       </div>
-      <div className="h-64 bg-editor flex items-center justify-center">
-        {isImage && renderSrc && (
-          <img src={renderSrc} alt={att.label} className="max-h-full max-w-full object-contain" />
-        )}
-        {isPdf && renderSrc && (
-          <iframe src={renderSrc} title={att.label} className="w-full h-full border-0" />
-        )}
-        {isWord && att.source === "external" && /^https?:\/\//i.test(att.href) && (
-          <iframe
-            src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(att.href)}`}
-            title={att.label}
-            className="w-full h-full border-0"
-          />
-        )}
-        {isWord && att.source !== "external" && (
-          <div className="text-xs text-muted-foreground p-3 text-center">
-            Word documents render inline only when hosted on a public URL.
-            <br />
-            <a href={renderSrc} download={att.label} className="text-primary hover:underline">Download {att.label}</a>
-          </div>
-        )}
-        {isMd && (
-          <div className="w-full h-full overflow-auto p-3 text-xs whitespace-pre-wrap">
-            {workspaceFile?.content || "(linked markdown – open to view)"}
-          </div>
-        )}
-        {!isImage && !isPdf && !isWord && !isMd && (
-          <div className="text-xs text-muted-foreground p-3 text-center">
-            No inline preview for .{ext || "file"}.
-            <br />
-            <a href={att.href} target="_blank" rel="noreferrer noopener" className="text-primary hover:underline">Open attachment</a>
-          </div>
-        )}
+      <div className="h-64 bg-editor overflow-hidden">
+        <AttachmentBody
+          att={att}
+          ext={ext}
+          isPdf={isPdf}
+          isImage={isImage}
+          isWord={isWord}
+          isMd={isMd}
+          workspaceFile={workspaceFile}
+          renderSrc={renderSrc}
+        />
+      </div>
+    </div>
+  );
+};
+
+const AttachmentBody = ({
+  att,
+  ext,
+  isPdf,
+  isImage,
+  isWord,
+  isMd,
+  workspaceFile,
+  renderSrc,
+}: {
+  att: ParsedAttachment;
+  ext: string;
+  isPdf: boolean;
+  isImage: boolean;
+  isWord: boolean;
+  isMd: boolean;
+  workspaceFile: FileNode | undefined;
+  renderSrc: string;
+}) => {
+  const [mdText, setMdText] = useState<string | null>(null);
+  const [wordHtml, setWordHtml] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Resolve markdown text
+  useEffect(() => {
+    if (!isMd) return;
+    let cancelled = false;
+    const run = async () => {
+      try {
+        if (workspaceFile?.content) {
+          setMdText(workspaceFile.content);
+          return;
+        }
+        if (att.href.startsWith("data:")) {
+          const res = await fetch(att.href);
+          const text = await res.text();
+          if (!cancelled) setMdText(text);
+          return;
+        }
+        if (/^https?:\/\//i.test(att.href)) {
+          setLoading(true);
+          const res = await fetch(att.href);
+          const text = await res.text();
+          if (!cancelled) setMdText(text);
+        }
+      } catch (e) {
+        if (!cancelled) setError("Failed to load markdown");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [isMd, att.href, workspaceFile?.content]);
+
+  // Resolve Word doc → HTML via mammoth
+  useEffect(() => {
+    if (!isWord) return;
+    let cancelled = false;
+    const run = async () => {
+      try {
+        setLoading(true);
+        let arrayBuffer: ArrayBuffer | null = null;
+        const source = att.source === "workspace"
+          ? (workspaceFile?.content || "")
+          : att.href;
+        if (!source) return;
+        if (source.startsWith("data:") || /^https?:\/\//i.test(source) || source.startsWith("blob:")) {
+          const res = await fetch(source);
+          arrayBuffer = await res.arrayBuffer();
+        }
+        if (!arrayBuffer) {
+          if (!cancelled) setError("Word file not embedded – open to view");
+          return;
+        }
+        const mammoth = await import("mammoth/mammoth.browser");
+        const result = await mammoth.convertToHtml({ arrayBuffer });
+        if (!cancelled) setWordHtml(result.value);
+      } catch (e) {
+        if (!cancelled) setError("Failed to render Word document");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [isWord, att.href, att.source, workspaceFile?.content]);
+
+  if (isImage && renderSrc) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <img src={renderSrc} alt={att.label} className="max-h-full max-w-full object-contain" />
+      </div>
+    );
+  }
+
+  if (isPdf && renderSrc) {
+    return <iframe src={renderSrc} title={att.label} className="w-full h-full border-0" />;
+  }
+
+  if (isMd) {
+    if (loading) return <div className="p-3 text-xs text-muted-foreground">Loading…</div>;
+    if (error) return <div className="p-3 text-xs text-destructive">{error}</div>;
+    return (
+      <div className="w-full h-full overflow-auto p-3 prose prose-sm prose-invert max-w-none text-xs">
+        <ReactMarkdown>{mdText || "(empty)"}</ReactMarkdown>
+      </div>
+    );
+  }
+
+  if (isWord) {
+    if (loading) return <div className="p-3 text-xs text-muted-foreground">Rendering document…</div>;
+    if (wordHtml) {
+      return (
+        <div
+          className="w-full h-full overflow-auto p-3 prose prose-sm prose-invert max-w-none text-xs"
+          dangerouslySetInnerHTML={{ __html: wordHtml }}
+        />
+      );
+    }
+    if (error) return <div className="p-3 text-xs text-destructive">{error}</div>;
+    return <div className="p-3 text-xs text-muted-foreground">Preparing preview…</div>;
+  }
+
+  return (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="text-xs text-muted-foreground p-3 text-center">
+        No inline preview for .{ext || "file"}.
+        <br />
+        <a href={att.href} target="_blank" rel="noreferrer noopener" className="text-primary hover:underline">Open attachment</a>
       </div>
     </div>
   );
