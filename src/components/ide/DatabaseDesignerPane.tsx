@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
 import { ArrowRight, Database, FileText, Plus, Save, Trash2, Wand2, Link2, X, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, Paperclip, Upload } from "lucide-react";
 import type { FileNode } from "@/types/ide";
 import { Button } from "@/components/ui/button";
