@@ -1135,18 +1135,67 @@ const AttachmentCard = ({
     ? (workspaceFile?.content || "")
     : att.href;
 
+  const handleOpen = () => {
+    try {
+      // External http(s) link – open directly
+      if (/^https?:\/\//i.test(att.href)) {
+        window.open(att.href, "_blank", "noopener,noreferrer");
+        return;
+      }
+      // Data URL – convert to blob and open in new tab (browsers block direct data: navigation)
+      if (att.href.startsWith("data:")) {
+        const [meta, b64] = att.href.split(",");
+        const mime = meta.match(/data:([^;]+)/)?.[1] || "application/octet-stream";
+        const isBase64 = /;base64/i.test(meta);
+        const binary = isBase64 ? atob(b64) : decodeURIComponent(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const win = window.open(url, "_blank", "noopener,noreferrer");
+        if (!win) {
+          // Popup blocked – fall back to download
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = att.label;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        return;
+      }
+      // Workspace file – open inline content (if any) in a new tab
+      if (workspaceFile?.content) {
+        const content = workspaceFile.content;
+        if (content.startsWith("data:")) {
+          window.open(content, "_blank", "noopener,noreferrer");
+          return;
+        }
+        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        return;
+      }
+      window.open(att.href, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Failed to open attachment", err);
+      window.open(att.href, "_blank", "noopener,noreferrer");
+    }
+  };
+
   return (
     <div className="rounded-lg border border-border bg-background overflow-hidden">
       <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40 border-b border-border text-xs">
         <span className="truncate font-medium">{att.label}</span>
-        <a
-          href={att.href}
-          target="_blank"
-          rel="noreferrer noopener"
+        <button
+          type="button"
+          onClick={handleOpen}
           className="text-primary hover:underline ml-2 shrink-0"
         >
           Open
-        </a>
+        </button>
       </div>
       <div className="h-64 bg-editor flex items-center justify-center">
         {isImage && renderSrc && (
