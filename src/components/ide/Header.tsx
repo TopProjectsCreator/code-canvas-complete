@@ -80,7 +80,29 @@ export const Header = ({
   onChangeTemplate
 }: HeaderProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [showInbox, setShowInbox] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) { setUnreadCount(0); return; }
+    let cancelled = false;
+    const refresh = async () => {
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', user.id)
+        .is('read_at', null);
+      if (!cancelled) setUnreadCount(count ?? 0);
+    };
+    refresh();
+    const channel = supabase
+      .channel('header-inbox-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` }, refresh)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [user, showInbox]);
 
   return (
     <header className="flex items-center justify-between h-12 px-2 sm:px-3 bg-background">
