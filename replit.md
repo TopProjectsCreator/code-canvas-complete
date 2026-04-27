@@ -109,7 +109,14 @@ Docs sections:
 - Fixed Scratch VM audio crash: music extension gated behind `audioReady` flag in `ScratchPanel.tsx`
 - Custom theme UI fully wired into Settings dialog (ThemeCreator, ThemeLibrary, ThemeImportDialog)
 - Added missing routes `/landing` and `/home` to `src/App.tsx`
-- Custom 404 page with terminal aesthetic and navigation buttons at `src/pages/NotFound.tsx`
+- Custom 404 page redesigned as a 2D "AI control room" dashboard at `src/pages/NotFound.tsx` (animated grid, gradient hero, live ticker stats, typewriter terminal, vector index meter, quick-jump search with keyboard-enter to top result, prominent action buttons)
+
+## Notifications
+- `src/hooks/useNotifications.ts` — desktop + email + SMS preferences (localStorage-backed) plus `notifyInboxMessage` and `notifyCollabEvent` helpers. Per-event toggles `notifyInbox` and `notifyCollab` gate everything.
+- `src/components/ide/NotificationSettings.tsx` — settings UI: event toggles, desktop permission, email provider (Resend/Mailgun/Postmark/SendGrid), SMS provider (Twilio/Vonage/MessageBird) with "Send test SMS".
+- `supabase/functions/send-collab-notification/` — bring-your-own-key email proxy.
+- `supabase/functions/send-sms-notification/` — bring-your-own-key SMS proxy supporting Twilio (Basic auth with Account SID + Auth Token), Vonage (api_key/api_secret form-encoded), MessageBird (AccessKey header).
+- `src/components/ide/InboxNotifier.tsx` — invisible component mounted in `App.tsx` (inside `AuthProvider`) that subscribes to Supabase realtime `messages` INSERTs filtered by `recipient_id=eq.<me>` and dispatches notifications. Uses a `seen` Set persisted to localStorage to avoid duplicate notifications across realtime + reconnects.
 
 ## Inbox
 - `src/components/ide/InboxDialog.tsx` is the main inbox UI (inbox, sent, compose, thread, rules views).
