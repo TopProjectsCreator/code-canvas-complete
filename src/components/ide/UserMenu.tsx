@@ -147,6 +147,8 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
 
       <SettingsDialog open={showSettings} onOpenChange={setShowSettings} defaultTab={settingsTab} />
       <TeamAdminDialog open={showTeamAdmin} onOpenChange={setShowTeamAdmin} />
+      <InboxDialog open={showInbox} onOpenChange={setShowInbox} />
+      <FeedbackDialog open={showFeedback} onOpenChange={setShowFeedback} />
     </>
   );
 };
