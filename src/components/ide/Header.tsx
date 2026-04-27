@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { 
   Play, 
   Square, 
@@ -12,12 +12,7 @@ import {
   Loader2,
   GitBranch,
   Users,
-  Inbox,
-  MessageSquare,
 } from 'lucide-react';
-import { InboxDialog } from './InboxDialog';
-import { FeedbackDialog } from './FeedbackDialog';
-import { supabase } from '@/integrations/supabase/client';
 import { PresenceAvatars } from './CollabDialog';
 import { OfflineIndicator } from './OfflineIndicator';
 import type { PresenceState } from '@/hooks/useCollaboration';
