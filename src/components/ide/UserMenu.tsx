@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,43 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AuthDialog } from '@/components/auth/AuthDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { TeamAdminDialog } from './team/TeamAdminDialog';
-import { User, LogOut, Settings, FolderOpen, Key, Users } from 'lucide-react';
+import { InboxDialog } from './InboxDialog';
+import { FeedbackDialog } from './FeedbackDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { User, LogOut, Settings, FolderOpen, Key, Users, Inbox, MessageSquare } from 'lucide-react';
+
+interface UserMenuProps {
+  onOpenProjects: () => void;
+}
+
+export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
+  const { user, profile, signOut, loading } = useAuth();
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showTeamAdmin, setShowTeamAdmin] = useState(false);
+  const [showInbox, setShowInbox] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [settingsTab, setSettingsTab] = useState('profile');
+
+  useEffect(() => {
+    if (!user) { setUnreadCount(0); return; }
+    let cancelled = false;
+    const refresh = async () => {
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', user.id)
+        .is('read_at', null);
+      if (!cancelled) setUnreadCount(count ?? 0);
+    };
+    refresh();
+    const channel = supabase
+      .channel('usermenu-inbox-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` }, refresh)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [user, showInbox]);
 
 interface UserMenuProps {
   onOpenProjects: () => void;
