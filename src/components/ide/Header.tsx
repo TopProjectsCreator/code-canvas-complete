@@ -323,6 +323,9 @@ export const Header = ({
 
         <UserMenu onOpenProjects={onOpenProjects} />
       </div>
+
+      <InboxDialog open={showInbox} onOpenChange={setShowInbox} />
+      <FeedbackDialog open={showFeedback} onOpenChange={setShowFeedback} />
     </header>
   );
 };
