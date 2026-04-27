@@ -109,7 +109,7 @@ Docs sections:
 - Fixed Scratch VM audio crash: music extension gated behind `audioReady` flag in `ScratchPanel.tsx`
 - Custom theme UI fully wired into Settings dialog (ThemeCreator, ThemeLibrary, ThemeImportDialog)
 - Added missing routes `/landing` and `/home` to `src/App.tsx`
-- Custom 404 page redesigned as a 2D "AI control room" dashboard at `src/pages/NotFound.tsx` (animated grid, gradient hero, live ticker stats, typewriter terminal, vector index meter, quick-jump search with keyboard-enter to top result, prominent action buttons)
+- Custom 404 page rebuilt as an immersive 3D "AI control room" at `src/pages/NotFound.tsx` using `@react-three/fiber` + `@react-three/drei`. WASD + mouse-look first-person navigation (PointerLockControls + custom keyboard controller, AABB-clamped to room bounds). Five wall-mounted screens (drei `<Html transform>`): anomaly hero with current path, most-used canvases (clickable, navigates to `/project/:id`, sourced from `useProjects`), live telemetry, router activity feed, and a quick-nav pillar with big gradient buttons. Center pedestal hologram of "404" with rotating drei `<Text>`. Decorative server racks, particle field, and `<Stars>` skybox. Wrapped in an inline `CanvasErrorBoundary` so a WebGL failure falls back to a 2D engage overlay with link buttons.
 
 ## Notifications
 - `src/hooks/useNotifications.ts` — desktop + email + SMS preferences (localStorage-backed) plus `notifyInboxMessage` and `notifyCollabEvent` helpers. Per-event toggles `notifyInbox` and `notifyCollab` gate everything.
