@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   Play, 
   Square, 
@@ -11,8 +11,13 @@ import {
   Save,
   Loader2,
   GitBranch,
-  Users
+  Users,
+  Inbox,
+  MessageSquare,
 } from 'lucide-react';
+import { InboxDialog } from './InboxDialog';
+import { FeedbackDialog } from './FeedbackDialog';
+import { supabase } from '@/integrations/supabase/client';
 import { PresenceAvatars } from './CollabDialog';
 import { OfflineIndicator } from './OfflineIndicator';
 import type { PresenceState } from '@/hooks/useCollaboration';
@@ -75,7 +80,29 @@ export const Header = ({
   onChangeTemplate
 }: HeaderProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [showInbox, setShowInbox] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) { setUnreadCount(0); return; }
+    let cancelled = false;
+    const refresh = async () => {
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', user.id)
+        .is('read_at', null);
+      if (!cancelled) setUnreadCount(count ?? 0);
+    };
+    refresh();
+    const channel = supabase
+      .channel('header-inbox-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` }, refresh)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [user, showInbox]);
 
   return (
     <header className="flex items-center justify-between h-12 px-2 sm:px-3 bg-background">
@@ -240,6 +267,33 @@ export const Header = ({
           {starsCount > 0 && <span>{starsCount}</span>}
         </button>
 
+        {/* Inbox */}
+        {user && (
+          <button
+            onClick={() => setShowInbox(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground relative"
+            title="Inbox"
+          >
+            <Inbox className="w-4 h-4" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center font-bold">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+        )}
+
+        {/* Feedback */}
+        {user && (
+          <button
+            onClick={() => setShowFeedback(true)}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
+            title="Send feedback"
+          >
+            <MessageSquare className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Presence avatars */}
         <PresenceAvatars presence={presence} />
 
@@ -269,6 +323,9 @@ export const Header = ({
 
         <UserMenu onOpenProjects={onOpenProjects} />
       </div>
+
+      <InboxDialog open={showInbox} onOpenChange={setShowInbox} />
+      <FeedbackDialog open={showFeedback} onOpenChange={setShowFeedback} />
     </header>
   );
 };
