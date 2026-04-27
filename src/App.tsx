@@ -14,6 +14,7 @@ import PrivacyPolicyPage from "./pages/PrivacyPolicy";
 import TermsOfUsePage from "./pages/TermsOfUse";
 import { isPublishedHost } from "./lib/publishing";
 import { OfflineDialog } from "@/components/ide/OfflineDialog";
+import { InboxNotifier } from "@/components/ide/InboxNotifier";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <OfflineDialog />
+          <InboxNotifier />
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<RootRoute />} />
