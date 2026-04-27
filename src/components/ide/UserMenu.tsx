@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +13,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AuthDialog } from '@/components/auth/AuthDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { TeamAdminDialog } from './team/TeamAdminDialog';
-import { User, LogOut, Settings, FolderOpen, Key, Users } from 'lucide-react';
+import { InboxDialog } from './InboxDialog';
+import { FeedbackDialog } from './FeedbackDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { User, LogOut, Settings, FolderOpen, Key, Users, Inbox, MessageSquare } from 'lucide-react';
+
+interface UserMenuProps {
+  onOpenProjects: () => void;
+}
 
 interface UserMenuProps {
   onOpenProjects: () => void;
@@ -24,7 +31,29 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTeamAdmin, setShowTeamAdmin] = useState(false);
+  const [showInbox, setShowInbox] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [settingsTab, setSettingsTab] = useState('profile');
+
+  useEffect(() => {
+    if (!user) { setUnreadCount(0); return; }
+    let cancelled = false;
+    const refresh = async () => {
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('recipient_id', user.id)
+        .is('read_at', null);
+      if (!cancelled) setUnreadCount(count ?? 0);
+    };
+    refresh();
+    const channel = supabase
+      .channel('usermenu-inbox-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` }, refresh)
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(channel); };
+  }, [user, showInbox]);
 
   if (loading) {
     return (
@@ -83,6 +112,19 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
             <FolderOpen className="w-4 h-4 mr-2" />
             My Projects
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowInbox(true)}>
+            <Inbox className="w-4 h-4 mr-2" />
+            Inbox
+            {unreadCount > 0 && (
+              <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center font-bold">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowFeedback(true)}>
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Send Feedback
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => openSettings('profile')}>
             <Settings className="w-4 h-4 mr-2" />
             Settings
@@ -105,6 +147,8 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
 
       <SettingsDialog open={showSettings} onOpenChange={setShowSettings} defaultTab={settingsTab} />
       <TeamAdminDialog open={showTeamAdmin} onOpenChange={setShowTeamAdmin} />
+      <InboxDialog open={showInbox} onOpenChange={setShowInbox} />
+      <FeedbackDialog open={showFeedback} onOpenChange={setShowFeedback} />
     </>
   );
 };
