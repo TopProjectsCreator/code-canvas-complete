@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, PointerLockControls, Stars, Text } from '@react-three/drei';
 import type { PointerLockControls as PointerLockControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, type NavigateFunction } from 'react-router-dom';
 import {
   ArrowRight, BookOpen, FolderGit2, Gauge, Home, Sparkles, Star, Terminal, Zap,
 } from 'lucide-react';
@@ -344,8 +344,7 @@ const HeroScreen = ({ path }: { path: string }) => (
   </ScreenChrome>
 );
 
-const NavScreen = () => {
-  const navigate = useNavigate();
+const NavScreen = ({ navigate }: { navigate: NavigateFunction }) => {
   const items = [
     { label: 'Back to landing', icon: Home, path: '/landing', accent: 'from-cyan-500 to-fuchsia-500' },
     { label: 'Open the editor', icon: Terminal, path: '/editor', accent: 'from-emerald-500 to-cyan-500' },
@@ -382,8 +381,7 @@ const NavScreen = () => {
   );
 };
 
-const ProjectsScreen = ({ projects, loading, isAuthed }: { projects: Project[]; loading: boolean; isAuthed: boolean }) => {
-  const navigate = useNavigate();
+const ProjectsScreen = ({ projects, loading, isAuthed, navigate }: { projects: Project[]; loading: boolean; isAuthed: boolean; navigate: NavigateFunction }) => {
   const top = useMemo(() => {
     const sorted = [...projects].sort((a, b) =>
       (b.stars_count || 0) - (a.stars_count || 0) ||
@@ -560,6 +558,7 @@ class CanvasErrorBoundary extends Component<{ children: ReactNode }, { failed: b
 
 const NotFound = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { projects, loading, fetchProjects } = useProjects();
   const tick = useTicker(800);
@@ -646,7 +645,7 @@ const NotFound = () => {
             height={3.4}
             glow="#34d399"
           >
-            <ProjectsScreen projects={projects} loading={loading} isAuthed={!!user} />
+            <ProjectsScreen projects={projects} loading={loading} isAuthed={!!user} navigate={navigate} />
           </Screen>
 
           {/* Left wall — Activity (further along the wall) */}
@@ -679,7 +678,7 @@ const NotFound = () => {
             height={3.4}
             glow="#22d3ee"
           >
-            <NavScreen />
+            <NavScreen navigate={navigate} />
           </Screen>
 
           <FirstPersonController
