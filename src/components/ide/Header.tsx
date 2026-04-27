@@ -240,33 +240,6 @@ export const Header = ({
           {starsCount > 0 && <span>{starsCount}</span>}
         </button>
 
-        {/* Inbox */}
-        {user && (
-          <button
-            onClick={() => setShowInbox(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground relative"
-            title="Inbox"
-          >
-            <Inbox className="w-4 h-4" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center font-bold">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
-        )}
-
-        {/* Feedback */}
-        {user && (
-          <button
-            onClick={() => setShowFeedback(true)}
-            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
-            title="Send feedback"
-          >
-            <MessageSquare className="w-4 h-4" />
-          </button>
-        )}
-
         {/* Presence avatars */}
         <PresenceAvatars presence={presence} />
 
