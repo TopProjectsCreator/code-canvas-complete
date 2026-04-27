@@ -22,6 +22,10 @@ interface UserMenuProps {
   onOpenProjects: () => void;
 }
 
+interface UserMenuProps {
+  onOpenProjects: () => void;
+}
+
 export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
   const { user, profile, signOut, loading } = useAuth();
   const [showAuthDialog, setShowAuthDialog] = useState(false);
@@ -50,17 +54,6 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(channel); };
   }, [user, showInbox]);
-
-interface UserMenuProps {
-  onOpenProjects: () => void;
-}
-
-export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
-  const { user, profile, signOut, loading } = useAuth();
-  const [showAuthDialog, setShowAuthDialog] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showTeamAdmin, setShowTeamAdmin] = useState(false);
-  const [settingsTab, setSettingsTab] = useState('profile');
 
   if (loading) {
     return (
