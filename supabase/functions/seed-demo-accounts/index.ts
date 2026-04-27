@@ -14,13 +14,41 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
     });
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data: isAdmin, error: roleErr } = await supabaseAdmin.rpc("has_role", {
+      _user_id: userData.user.id,
+      _role: "admin",
+    });
+    if (roleErr || !isAdmin) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: admin role required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const demoAccounts = [
       { email: "demo1@demos.com", password: "Demo1!", displayName: "Demo1" },
@@ -36,49 +64,38 @@ serve(async (req) => {
     const results = [];
 
     for (const account of demoAccounts) {
-      // Check if user already exists by trying to get them
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-      const existingUser = existingUsers?.users?.find(u => u.email === account.email);
-      
+      const existingUser = existingUsers?.users?.find((u) => u.email === account.email);
+
       if (existingUser) {
         results.push({ email: account.email, status: "already exists" });
         continue;
       }
 
-      // Create the user
-      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
+      const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
         email: account.email,
         password: account.password,
-        email_confirm: true, // Auto-confirm email for demo accounts
-        user_metadata: {
-          display_name: account.displayName,
-        },
+        email_confirm: true,
+        user_metadata: { display_name: account.displayName },
       });
 
-      if (userError) {
-        results.push({ email: account.email, status: "error", error: userError.message });
+      if (createErr) {
+        results.push({ email: account.email, status: "error", error: createErr.message });
       } else {
-        results.push({ email: account.email, status: "created", userId: userData.user?.id });
+        results.push({ email: account.email, status: "created", userId: created.user?.id });
       }
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Demo accounts processed",
-        results 
-      }),
+      JSON.stringify({ success: true, message: "Demo accounts processed", results }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Error creating demo accounts:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
-    );
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
