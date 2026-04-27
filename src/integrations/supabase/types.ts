@@ -525,6 +525,39 @@ export type Database = {
         }
         Relationships: []
       }
+      messages: {
+        Row: {
+          body_html: string
+          created_at: string
+          id: string
+          kind: string
+          read_at: string | null
+          recipient_id: string
+          sender_id: string
+          subject: string
+        }
+        Insert: {
+          body_html?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          read_at?: string | null
+          recipient_id: string
+          sender_id: string
+          subject?: string
+        }
+        Update: {
+          body_html?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       parts_inventory: {
         Row: {
           ai_details: Json | null
