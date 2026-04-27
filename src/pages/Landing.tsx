@@ -129,29 +129,33 @@ export default function Landing() {
 
   useEffect(() => {
     let cancelled = false;
+    // Featured canvases pinned to the Neural Grid (in display order)
+    const featuredNames = ["Hello World clicker", "RefreshingActivities", "TurboRacer"];
     const load = async () => {
+      const orFilter = featuredNames.map((n) => `name.ilike.${n}`).join(",");
       const { data } = await supabase
         .from("projects")
         .select("id, name, language, updated_at, user_id")
         .eq("is_public", true)
-        .order("updated_at", { ascending: false })
-        .limit(3);
-      if (cancelled || !data) return;
-      const userIds = [...new Set(data.map((p: any) => p.user_id).filter(Boolean))];
+        .or(orFilter);
+      if (cancelled) return;
+      const rows = data || [];
+      const userIds = [...new Set(rows.map((p: any) => p.user_id).filter(Boolean))];
       const { data: profiles } = userIds.length
         ? await supabase.from("profiles").select("user_id, display_name, avatar_url").in("user_id", userIds as string[])
         : { data: [] as any[] };
       const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
-      const statuses = ["Synced", "Rendering", "Deploying", "Building", "Live"];
+      const statuses = ["Live", "Rendering", "Deploying"];
       setPulseNodes(
-        data.map((p: any, i: number) => {
-          const prof: any = profileMap.get(p.user_id);
+        featuredNames.map((name, i) => {
+          const p: any = rows.find((r: any) => (r.name || "").toLowerCase() === name.toLowerCase());
+          const prof: any = p ? profileMap.get(p.user_id) : null;
           return {
-            id: (p.name || "Canvas").slice(0, 18),
-            projectId: p.id ?? null,
-            status: statuses[i % statuses.length],
-            language: p.language ?? null,
-            updatedAt: p.updated_at ?? null,
+            id: name,
+            projectId: p?.id ?? null,
+            status: p ? statuses[i % statuses.length] : "Coming soon",
+            language: p?.language ?? null,
+            updatedAt: p?.updated_at ?? null,
             avatarUrl: prof?.avatar_url ?? null,
             authorName: prof?.display_name ?? null,
           };
