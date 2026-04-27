@@ -110,3 +110,14 @@ Docs sections:
 - Custom theme UI fully wired into Settings dialog (ThemeCreator, ThemeLibrary, ThemeImportDialog)
 - Added missing routes `/landing` and `/home` to `src/App.tsx`
 - Custom 404 page with terminal aesthetic and navigation buttons at `src/pages/NotFound.tsx`
+
+## Inbox
+- `src/components/ide/InboxDialog.tsx` is the main inbox UI (inbox, sent, compose, thread, rules views).
+- `src/components/ide/inbox/InboxRulesManager.tsx` is the rules editor.
+- `src/lib/inboxEvents.ts` is a tiny window-event bus used so the unread badge in `UserMenu` updates instantly when InboxDialog marks a message read/unread/deleted.
+- `src/lib/inboxRules.ts` defines rule types and the client-side rule evaluator that runs against newly-arrived messages.
+- Migration `supabase/migrations/20260427230000_inbox_attachments_labels_rules.sql` adds:
+  - `messages.labels text[]` and `messages.attachments jsonb`
+  - `inbox_rules` table (RLS: per-user)
+  - private `inbox-attachments` storage bucket with per-sender + per-participant read policies
+  - This migration must be applied to the Supabase project before label/attachment/rule features will work end-to-end.

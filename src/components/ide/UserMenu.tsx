@@ -16,6 +16,7 @@ import { TeamAdminDialog } from './team/TeamAdminDialog';
 import { InboxDialog } from './InboxDialog';
 import { FeedbackDialog } from './FeedbackDialog';
 import { supabase } from '@/integrations/supabase/client';
+import { inboxEvents } from '@/lib/inboxEvents';
 import { User, LogOut, Settings, FolderOpen, Key, Users, Inbox, MessageSquare } from 'lucide-react';
 
 interface UserMenuProps {
@@ -52,8 +53,13 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
       .channel('usermenu-inbox-count')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` }, refresh)
       .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(channel); };
-  }, [user, showInbox]);
+    const offRead = inboxEvents.on('inbox:read-changed', refresh);
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+      offRead();
+    };
+  }, [user]);
 
   if (loading) {
     return (
