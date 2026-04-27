@@ -112,6 +112,19 @@ export const UserMenu = ({ onOpenProjects }: UserMenuProps) => {
             <FolderOpen className="w-4 h-4 mr-2" />
             My Projects
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowInbox(true)}>
+            <Inbox className="w-4 h-4 mr-2" />
+            Inbox
+            {unreadCount > 0 && (
+              <span className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-[10px] text-primary-foreground flex items-center justify-center font-bold">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowFeedback(true)}>
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Send Feedback
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => openSettings('profile')}>
             <Settings className="w-4 h-4 mr-2" />
             Settings
