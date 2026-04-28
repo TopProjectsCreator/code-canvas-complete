@@ -110,11 +110,23 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
     return saved === 'wandbox' ? 'wandbox' : 'webcontainer';
   });
 
+  const [pythonExecutorMode, setPythonExecutorMode] = useState<'auto' | 'pyodide' | 'container'>(() => {
+    if (typeof window === 'undefined') return 'auto';
+    const saved = window.localStorage.getItem('ide.pythonExecutorMode');
+    return saved === 'pyodide' || saved === 'container' ? saved : 'auto';
+  });
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem('ide.shellExecutorMode', shellExecutorMode);
     window.dispatchEvent(new Event('ide-shell-executor-mode-changed'));
   }, [shellExecutorMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('ide.pythonExecutorMode', pythonExecutorMode);
+    window.dispatchEvent(new Event('ide-python-executor-mode-changed'));
+  }, [pythonExecutorMode]);
 
   // Refresh API keys when dialog opens
   useEffect(() => {
@@ -708,6 +720,23 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                   </div>
                   <p className="text-xs text-muted-foreground">
                     Use WebContainer for native Node.js shell commands in browser, or switch back to Wandbox routing.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-muted-foreground">Python executor</span>
+                    <select
+                      value={pythonExecutorMode}
+                      onChange={(e) => setPythonExecutorMode(e.target.value as 'auto' | 'pyodide' | 'container')}
+                      className="bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                    >
+                      <option value="auto">Auto (Pyodide → Container)</option>
+                      <option value="pyodide">Pyodide (browser Python)</option>
+                      <option value="container">Container (pip/uv, system)</option>
+                    </select>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Auto runs simple scripts in-browser via Pyodide and falls back to the cloud container for pip/uv or system imports.
                   </p>
                 </div>
               </div>
