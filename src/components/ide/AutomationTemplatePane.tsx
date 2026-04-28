@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useCodeExecution } from '@/hooks/useCodeExecution';
 import {
   ALL_AUTOMATION_BLOCKS,
   AUTOMATION_BLOCK_COUNT,
@@ -298,6 +299,8 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   const skipNextBlocksEmitRef = useRef(false);
   const hasMountedRef = useRef(false);
   blocksChangeRef.current = onBlocksChange;
+  const { executeCode } = useCodeExecution();
+  const generateNodeCodeImplRef = useRef<(() => string | undefined) | null>(null);
 
   // Sync with initialBlocks from external changes (file edits)
   // Only react to syncVersion bumps (external file changes), NOT to internal block state
@@ -485,30 +488,57 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     if (invalidTriggerStart) { toast.error('The first block must be a trigger block.'); return; }
     setIsTestRunning(true);
     setTestRunLogs([]);
-    setPythonCode(null);
     const now = () => new Date().toLocaleTimeString('en-US', { hour12: false });
-    for (let i = 0; i < blocks.length; i++) {
-      const block = blocks[i];
-      await new Promise((r) => setTimeout(r, 400 + Math.random() * 600));
-      if (i === 0) {
-        setTestRunLogs((p) => [...p, { icon: 'check' as const, time: now(), text: `Trigger fired: ${block.label}` }]);
-      } else {
-        if (block.auth === 'api_key') {
-          setTestRunLogs((p) => [...p, { icon: 'key' as const, time: now(), text: `Credentials resolved for ${block.label}` }]);
-          await new Promise((r) => setTimeout(r, 300));
-        }
-        const hasEmpty = Object.values(block.config).some((v) => v === '' || v === 'configure-action');
-        if (hasEmpty) {
-          setTestRunLogs((p) => [...p, { icon: 'error' as const, time: now(), text: `⚠ ${block.label}: missing config — skipped` }]);
-        } else {
-          setTestRunLogs((p) => [...p, { icon: 'dot' as const, time: now(), text: `Step ${i}: ${block.label} executed` }]);
-        }
-      }
+    const push = (icon: 'check' | 'dot' | 'key' | 'error', text: string) =>
+      setTestRunLogs((p) => [...p, { icon, time: now(), text }]);
+
+    push('check', 'Generating Node.js code…');
+    const code = generateNodeCodeImplRef.current?.();
+    if (!code) { setIsTestRunning(false); return; }
+
+    // Force one-shot execution and bypass long-running listeners so the test completes.
+    const testHarness = [
+      'process.env.RUN_ONCE = "1";',
+      'process.env.AUTOMATION_TEST_MODE = "1";',
+      // Polyfill require for the WebContainer/sandbox shim — uses dynamic import for node-fetch etc.
+      '',
+    ].join('\n');
+
+    push('dot', 'Executing pipeline in sandbox…');
+    let result;
+    try {
+      result = await executeCode(testHarness + code, 'javascript');
+    } catch (err) {
+      push('error', `Executor failed: ${err instanceof Error ? err.message : String(err)}`);
+      setIsTestRunning(false);
+      return;
     }
-    await new Promise((r) => setTimeout(r, 300));
-    setTestRunLogs((p) => [...p, { icon: 'check' as const, time: now(), text: 'Flow completed' }]);
+
+    const output = result.output || [];
+    let stepIdx = 0;
+    for (const raw of output) {
+      const line = String(raw);
+      // Skip sandbox banners.
+      if (line.startsWith('⚡') || line.startsWith('🐍')) continue;
+      if (line.includes('🚀 Starting pipeline')) { push('check', 'Pipeline started'); continue; }
+      if (line.includes('✅ Pipeline complete')) { push('check', 'Pipeline complete'); continue; }
+      if (line.includes('❌ Pipeline failed')) { push('error', line.replace(/^.*❌\s*/, '')); continue; }
+      const stepMatch = line.match(/▶\s*\[(TRIGGER|STEP\s*\d+)\]\s*(.+?)\.\.\.$/);
+      if (stepMatch) {
+        const isTrigger = stepMatch[1] === 'TRIGGER';
+        push(isTrigger ? 'check' : 'dot', `${isTrigger ? 'Trigger fired' : `Step ${++stepIdx}`}: ${stepMatch[2]}`);
+        continue;
+      }
+      if (line.includes('↳')) { push('dot', line.replace(/^\s*↳\s*/, '↳ ')); continue; }
+      if (/Missing required env vars/i.test(line)) { push('key', line); continue; }
+      if (/^\s*(Error|TypeError|ReferenceError):/.test(line)) { push('error', line); continue; }
+      // Anything else (user prints, warnings) — keep visible as a generic dot.
+      if (line.trim()) push('dot', line);
+    }
+    if (result.error) push('error', result.error);
+    if (output.length === 0 && !result.error) push('error', 'No output captured. Check console for details.');
     setIsTestRunning(false);
-  }, [blocks, invalidTriggerStart]);
+  }, [blocks, invalidTriggerStart, executeCode]);
 
   const generateCode = useCallback((lang: 'python' | 'nodejs') => {
     if (blocks.length === 0) { toast.error('Add blocks first.'); return; }
@@ -810,13 +840,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
           `    return {"triggered": True, "schedule": "${schedule}"}`,
         ];
       },
-      'Webhook (Catch)': () => [
-        `    # For production: use Flask or FastAPI`,
-        `    # pip install flask`,
-        `    # @app.route("/webhook", methods=["POST"])`,
-        `    # def webhook(): return run_pipeline()`,
-        `    print(f"🪝 Webhook endpoint ready at {config.get('url', '/webhook')}")`,
-        `    return {"triggered": True}`,
+      'Webhook (Catch)': (cfg) => [
+        `    # Single-shot mode: pop the next pending payload from the in-process queue.`,
+        `    # The Flask server (started in __main__) feeds payloads into _WEBHOOK_QUEUE.`,
+        `    payload = _WEBHOOK_QUEUE.get(timeout=float(os.getenv("WEBHOOK_WAIT_SECS", "30")))`,
+        `    print(f"🪝 Webhook received at ${cfg.path || '/webhook'}: {len(str(payload))} bytes")`,
+        `    return {"triggered": True, "payload": payload, **(payload if isinstance(payload, dict) else {})}`,
       ],
       'RSS Monitor': (cfg) => [
         `    import feedparser  # pip install feedparser`,
@@ -828,48 +857,110 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         `    print(f"📡 RSS: found {len(entries)} matching entries")`,
         `    return {"triggered": True, "entries": [{"title": e.title, "link": e.link} for e in entries], "count": len(entries)}`,
       ],
-      'New Email': () => [
-        `    # For production: use imaplib or an email API (Gmail, Outlook, etc.)`,
-        `    mailbox = config.get("mailbox", "INBOX")`,
-        `    from_filter = config.get("from_filter", "")`,
-        `    subject_filter = config.get("subject_contains", "")`,
-        `    print(f"📧 Watching {mailbox} for new emails" + (f" from {from_filter}" if from_filter else "") + (f" with subject containing '{subject_filter}'" if subject_filter else ""))`,
-        `    return {"triggered": True, "mailbox": mailbox, "filters": {"from": from_filter, "subject": subject_filter}}`,
+      'New Email': (cfg) => [
+        `    import imaplib, email as _email`,
+        `    from email.header import decode_header`,
+        `    host = os.environ["IMAP_HOST"]`,
+        `    user = os.environ["IMAP_USER"]`,
+        `    pw   = os.environ["IMAP_PASSWORD"]`,
+        `    mailbox = config.get("mailbox", "${cfg.mailbox || 'INBOX'}")`,
+        `    from_filter = config.get("from_filter", "${cfg.from_filter || ''}")`,
+        `    subject_filter = config.get("subject_contains", "${cfg.subject_contains || ''}")`,
+        `    M = imaplib.IMAP4_SSL(host)`,
+        `    M.login(user, pw)`,
+        `    M.select(mailbox)`,
+        `    criteria = ['UNSEEN']`,
+        `    if from_filter: criteria += ['FROM', from_filter]`,
+        `    if subject_filter: criteria += ['SUBJECT', subject_filter]`,
+        `    typ, data = M.search(None, *criteria)`,
+        `    ids = data[0].split()`,
+        `    messages = []`,
+        `    for mid in ids[:10]:`,
+        `        _, msg_data = M.fetch(mid, '(RFC822)')`,
+        `        msg = _email.message_from_bytes(msg_data[0][1])`,
+        `        subj_raw, enc = decode_header(msg.get('Subject', ''))[0]`,
+        `        subj = subj_raw.decode(enc or 'utf-8') if isinstance(subj_raw, bytes) else subj_raw`,
+        `        messages.append({"from": msg.get("From"), "subject": subj, "date": msg.get("Date")})`,
+        `    M.logout()`,
+        `    print(f"📧 IMAP: {len(messages)} new message(s) in {mailbox}")`,
+        `    if not messages: return None`,
+        `    return {"triggered": True, "mailbox": mailbox, "messages": messages, "count": len(messages)}`,
       ],
       'FTP Monitor': (cfg) => [
-        `    # For production: use ftplib`,
-        `    host = config.get("host", "${cfg.host || 'ftp.example.com'}")`,
+        `    from ftplib import FTP`,
+        `    import time as _time`,
+        `    host = os.environ.get("FTP_HOST", "${cfg.host || 'ftp.example.com'}")`,
+        `    user = os.environ.get("FTP_USER", "anonymous")`,
+        `    pw   = os.environ.get("FTP_PASSWORD", "")`,
         `    watch_path = config.get("watch_path", "${cfg.watch_path || '/'}")`,
-        `    print(f"📂 FTP: watching {host}{watch_path}")`,
-        `    return {"triggered": True, "host": host, "path": watch_path}`,
+        `    ftp = FTP(host); ftp.login(user, pw); ftp.cwd(watch_path)`,
+        `    files = []`,
+        `    ftp.retrlines('LIST', files.append)`,
+        `    ftp.quit()`,
+        `    print(f"📂 FTP: {len(files)} entries at {host}{watch_path}")`,
+        `    return {"triggered": True, "host": host, "path": watch_path, "files": files}`,
       ],
       'File Watcher': (cfg) => [
-        `    # For production: use watchdog — pip install watchdog`,
-        `    watch_path = config.get("watch_path", "${cfg.watch_path || '/data/'}")`,
+        `    # Single-shot mode: list current matching files. The watchdog observer (in __main__)`,
+        `    # invokes run_pipeline per filesystem event in production.`,
+        `    import glob as _glob`,
+        `    watch_path = config.get("watch_path", "${cfg.watch_path || './data'}")`,
         `    pattern = config.get("pattern", "${cfg.pattern || '*'}")`,
-        `    event_type = config.get("events", "${cfg.events || 'created'}")`,
-        `    print(f"👁️  Watching {watch_path} for {event_type} files matching {pattern}")`,
-        `    return {"triggered": True, "path": watch_path, "pattern": pattern, "event": event_type}`,
+        `    matches = _glob.glob(os.path.join(watch_path, pattern))`,
+        `    print(f"👁️  Watching {watch_path} for {config.get('events', 'created')} files matching {pattern} ({len(matches)} present)")`,
+        `    return {"triggered": True, "path": watch_path, "pattern": pattern, "files": matches}`,
       ],
       'Database Change': (cfg) => [
+        `    # Single-shot mode: read latest row from the configured table.`,
+        `    # The pg_notify listener (in __main__) calls run_pipeline per real event in production.`,
+        `    import psycopg2  # pip install psycopg2-binary`,
         `    table = config.get("table", "${cfg.table || 'orders'}")`,
         `    event = config.get("event", "${cfg.event || 'INSERT'}")`,
-        `    print(f"🗄️  Listening for {event} on table '{table}'")`,
-        `    # For production: use database triggers, Supabase Realtime, or pg_notify`,
-        `    return {"triggered": True, "table": table, "event": event}`,
+        `    dsn = os.environ["DATABASE_URL"]`,
+        `    with psycopg2.connect(dsn) as _conn, _conn.cursor() as _cur:`,
+        `        _cur.execute(f"SELECT row_to_json(t) FROM {table} t ORDER BY 1 DESC LIMIT 1")`,
+        `        row = _cur.fetchone()`,
+        `    print(f"🗄️  DB: latest row from {table} ({event}) — {row[0] if row else 'no rows'}")`,
+        `    return {"triggered": True, "table": table, "event": event, "row": row[0] if row else None}`,
       ],
       'Queue Consumer': (cfg) => [
         `    queue = config.get("queue_name", "${cfg.queue_name || 'my-queue'}")`,
-        `    provider = config.get("provider", "${cfg.provider || 'redis'}")`,
+        `    provider = config.get("provider", "${cfg.provider || 'redis'}").lower()`,
         `    batch_size = int(config.get("batch_size", "${cfg.batch_size || '1'}"))`,
-        `    print(f"📬 Consuming from {provider} queue '{queue}' (batch={batch_size})")`,
-        `    # For production: use the appropriate SDK (redis/pika/boto3/google-cloud-pubsub)`,
-        `    return {"triggered": True, "queue": queue, "provider": provider}`,
+        `    if provider == "redis":`,
+        `        import redis as _redis  # pip install redis`,
+        `        r = _redis.from_url(os.environ.get("REDIS_URL", "redis://localhost:6379/0"))`,
+        `        items = []`,
+        `        for _ in range(batch_size):`,
+        `            v = r.lpop(queue)`,
+        `            if v is None: break`,
+        `            items.append(v.decode("utf-8", errors="replace"))`,
+        `    elif provider == "sqs":`,
+        `        import boto3  # pip install boto3`,
+        `        sqs = boto3.client("sqs")`,
+        `        resp = sqs.receive_message(QueueUrl=queue, MaxNumberOfMessages=min(batch_size, 10), WaitTimeSeconds=5)`,
+        `        items = [m["Body"] for m in resp.get("Messages", [])]`,
+        `        for m in resp.get("Messages", []): sqs.delete_message(QueueUrl=queue, ReceiptHandle=m["ReceiptHandle"])`,
+        `    elif provider == "rabbitmq":`,
+        `        import pika  # pip install pika`,
+        `        params = pika.URLParameters(os.environ.get("AMQP_URL", "amqp://guest:guest@localhost/"))`,
+        `        conn = pika.BlockingConnection(params); ch = conn.channel(); ch.queue_declare(queue=queue, durable=True)`,
+        `        items = []`,
+        `        for _ in range(batch_size):`,
+        `            method, _props, body = ch.basic_get(queue=queue, auto_ack=True)`,
+        `            if method is None: break`,
+        `            items.append(body.decode("utf-8", errors="replace"))`,
+        `        conn.close()`,
+        `    else:`,
+        `        raise ValueError(f"Unsupported queue provider: {provider}")`,
+        `    print(f"📬 {provider}/{queue}: pulled {len(items)} message(s)")`,
+        `    if not items: return None`,
+        `    return {"triggered": True, "queue": queue, "provider": provider, "messages": items, "count": len(items)}`,
       ],
       'Manual Trigger': (cfg) => [
         `    label = config.get("label", "${cfg.label || 'Run Pipeline'}")`,
         `    print(f"🖱️  Manual trigger: {label}")`,
-        `    return {"triggered": True, "manual": True}`,
+        `    return {"triggered": True, "manual": True, "label": label, "args": sys.argv[1:]}`,
       ],
       'Filter': () => [
         `    if not prev:`,
@@ -952,6 +1043,35 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       allImports.add('from apscheduler.triggers.cron import CronTrigger');
     }
 
+    // Detect trigger type for the listener entrypoint.
+    const triggerBlock = blocks[0];
+    const triggerLabel = triggerBlock?.label;
+    if (triggerLabel === 'Webhook (Catch)') {
+      pipPackages.add('flask');
+      allImports.add('from flask import Flask, request, jsonify');
+      allImports.add('from queue import Queue, Empty');
+    }
+    if (triggerLabel === 'File Watcher') {
+      pipPackages.add('watchdog');
+      allImports.add('from watchdog.observers import Observer');
+      allImports.add('from watchdog.events import FileSystemEventHandler');
+      allImports.add('import fnmatch');
+    }
+    if (triggerLabel === 'New Email') pipPackages.add('');  // imaplib is stdlib
+    if (triggerLabel === 'Database Change') {
+      pipPackages.add('psycopg2-binary');
+      allImports.add('import select');
+    }
+    if (triggerLabel === 'Queue Consumer') {
+      const provider = (triggerBlock?.config.provider || 'redis').toLowerCase();
+      if (provider === 'redis') pipPackages.add('redis');
+      else if (provider === 'sqs') pipPackages.add('boto3');
+      else if (provider === 'rabbitmq') pipPackages.add('pika');
+    }
+    if (triggerLabel === 'RSS Monitor') pipPackages.add('feedparser');
+    // Always import sys for Manual Trigger argv handling.
+    allImports.add('import sys');
+
     const L: string[] = [];
     L.push('#!/usr/bin/env python3');
     L.push(`"""Auto-generated automation pipeline — ${blocks.length} block${blocks.length > 1 ? 's' : ''}.`);
@@ -979,6 +1099,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     // Imports
     L.push([...allImports].join('\n'));
     L.push('');
+    if (triggerLabel === 'Webhook (Catch)') {
+      L.push('# Cross-thread payload queue between Flask handler and run_pipeline().');
+      L.push('_WEBHOOK_QUEUE: "Queue[object]" = Queue()');
+      L.push('');
+    }
     L.push('');
 
     // Shared helpers
@@ -1121,45 +1246,135 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     L.push('    print("✅ Pipeline complete!")');
     L.push('    return result');
     L.push('');
+    // ---- Listener entrypoint (real, production-ready per trigger) ----
+    const envCheck = needsAuth.length > 0
+      ? [
+          '    missing = validate_environment()',
+          '    if missing:',
+          '        raise EnvironmentError(f"Missing required env vars: {\', \'.join(missing)}")',
+        ]
+      : [];
+
     if (scheduleBlock) {
       const schedule = scheduleBlock.config.schedule === 'custom'
         ? (scheduleBlock.config.cron || '0 9 * * *')
         : (scheduleBlock.config.schedule || '0 9 * * *');
       const timezone = scheduleBlock.config.timezone || 'UTC';
-      L.push('def start_scheduler():');
+      L.push('def start_listener():');
       L.push('    """Run the pipeline repeatedly using APScheduler."""');
       L.push(`    cron_expr = os.getenv("PIPELINE_CRON", "${schedule}")`);
       L.push(`    timezone = os.getenv("PIPELINE_TIMEZONE", "${timezone}")`);
       L.push('    scheduler = BlockingScheduler(timezone=timezone)');
       L.push('    scheduler.add_job(run_pipeline, CronTrigger.from_crontab(cron_expr, timezone=timezone))');
       L.push('    print(f"🕒 Scheduler started: cron={cron_expr}, timezone={timezone}")');
-      L.push('    run_pipeline()  # Optional immediate run on startup');
+      L.push('    run_pipeline()  # immediate run on startup');
       L.push('    scheduler.start()');
-      L.push('');
-      L.push('');
-      L.push('if __name__ == "__main__":');
-      if (needsAuth.length > 0) {
-        L.push('    missing = validate_environment()');
-        L.push('    if missing:');
-        L.push('        raise EnvironmentError(f"Missing required env vars: {\', \'.join(missing)}")');
-      }
-      L.push('    if os.getenv("RUN_ONCE", "0") == "1":');
-      L.push('        run_pipeline()');
-      L.push('    else:');
-      L.push('        start_scheduler()');
+    } else if (triggerLabel === 'Webhook (Catch)') {
+      const path = (triggerBlock?.config.path || triggerBlock?.config.url || '/webhook').toString();
+      const method = (triggerBlock?.config.method || 'POST').toString().toUpperCase();
+      L.push('def start_listener():');
+      L.push('    """Start a Flask webhook server that runs the pipeline per request."""');
+      L.push('    app = Flask(__name__)');
+      L.push(`    @app.route(${JSON.stringify(path)}, methods=[${JSON.stringify(method)}])`);
+      L.push('    def _handle():');
+      L.push('        payload = request.get_json(silent=True) or request.form.to_dict() or {}');
+      L.push('        _WEBHOOK_QUEUE.put(payload)');
+      L.push('        try:');
+      L.push('            result = run_pipeline()');
+      L.push('            return jsonify({"ok": True, "result": result}), 200');
+      L.push('        except Exception as e:');
+      L.push('            return jsonify({"ok": False, "error": str(e)}), 500');
+      L.push('    host = os.getenv("HOST", "0.0.0.0")');
+      L.push('    port = int(os.getenv("PORT", "8000"))');
+      L.push(`    print(f"🪝 Webhook listening on http://{host}:{port}${path}")`);
+      L.push('    app.run(host=host, port=port)');
+    } else if (triggerLabel === 'File Watcher') {
+      const watchPath = triggerBlock?.config.watch_path || './data';
+      const pattern = triggerBlock?.config.pattern || '*';
+      const events = (triggerBlock?.config.events || 'created').toString();
+      L.push('def start_listener():');
+      L.push('    """Watch a directory and run the pipeline on each matching event."""');
+      L.push(`    watch_path = os.getenv("WATCH_PATH", ${JSON.stringify(watchPath)})`);
+      L.push(`    pattern = os.getenv("WATCH_PATTERN", ${JSON.stringify(pattern)})`);
+      L.push('    class _Handler(FileSystemEventHandler):');
+      L.push('        def _maybe_run(self, kind, path):');
+      L.push(`            if not fnmatch.fnmatch(os.path.basename(path), pattern): return`);
+      L.push('            print(f"👁️  {kind}: {path}")');
+      L.push('            try: run_pipeline()');
+      L.push('            except Exception as e: print(f"❌ pipeline error: {e}")');
+      if (events.includes('created') || events === 'all') L.push('        def on_created(self, event): self._maybe_run("created", event.src_path)');
+      if (events.includes('modified') || events === 'all') L.push('        def on_modified(self, event): self._maybe_run("modified", event.src_path)');
+      if (events.includes('deleted') || events === 'all') L.push('        def on_deleted(self, event): self._maybe_run("deleted", event.src_path)');
+      L.push('    obs = Observer(); obs.schedule(_Handler(), watch_path, recursive=True); obs.start()');
+      L.push(`    print(f"👁️  Watching {watch_path} for {pattern}")`);
+      L.push('    try:');
+      L.push('        while True: time.sleep(1)');
+      L.push('    except KeyboardInterrupt:');
+      L.push('        obs.stop()');
+      L.push('    obs.join()');
+      // ensure `time` is importable
+      allImports.add('import time');
+    } else if (triggerLabel === 'Database Change') {
+      const channel = triggerBlock?.config.channel || `${(triggerBlock?.config.table || 'orders')}_changes`;
+      L.push('def start_listener():');
+      L.push('    """Listen for Postgres NOTIFY messages on a channel and run the pipeline per event."""');
+      L.push('    import psycopg2  # pip install psycopg2-binary');
+      L.push('    import psycopg2.extensions');
+      L.push('    dsn = os.environ["DATABASE_URL"]');
+      L.push(`    channel = os.getenv("PG_NOTIFY_CHANNEL", ${JSON.stringify(channel)})`);
+      L.push('    conn = psycopg2.connect(dsn)');
+      L.push('    conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)');
+      L.push('    cur = conn.cursor(); cur.execute(f"LISTEN {channel}")');
+      L.push('    print(f"🗄️  Listening on Postgres channel \\"{channel}\\"")');
+      L.push('    while True:');
+      L.push('        if select.select([conn], [], [], 60) == ([], [], []): continue');
+      L.push('        conn.poll()');
+      L.push('        while conn.notifies:');
+      L.push('            n = conn.notifies.pop(0)');
+      L.push('            print(f"  ↳ NOTIFY {n.channel}: {n.payload}")');
+      L.push('            try: run_pipeline()');
+      L.push('            except Exception as e: print(f"❌ pipeline error: {e}")');
+    } else if (triggerLabel === 'Queue Consumer') {
+      L.push('def start_listener():');
+      L.push('    """Continuously consume from the queue and run the pipeline per message."""');
+      L.push('    import time as _time');
+      L.push('    while True:');
+      L.push('        try:');
+      L.push('            r = run_pipeline()');
+      L.push('            if r is None: _time.sleep(2)');
+      L.push('        except Exception as e:');
+      L.push('            print(f"❌ pipeline error: {e}"); _time.sleep(5)');
+    } else if (triggerLabel === 'New Email' || triggerLabel === 'FTP Monitor' || triggerLabel === 'RSS Monitor') {
+      const intervalSec = triggerLabel === 'RSS Monitor' ? 300 : 60;
+      L.push('def start_listener():');
+      L.push(`    """Poll the ${triggerLabel} trigger every POLL_INTERVAL seconds."""`);
+      L.push('    import time as _time');
+      L.push(`    interval = int(os.getenv("POLL_INTERVAL", "${intervalSec}"))`);
+      L.push(`    print(f"🔁 Polling ${triggerLabel} every {interval}s")`);
+      L.push('    while True:');
+      L.push('        try: run_pipeline()');
+      L.push('        except Exception as e: print(f"❌ pipeline error: {e}")');
+      L.push('        _time.sleep(interval)');
     } else {
-      L.push('');
-      L.push('if __name__ == "__main__":');
-      if (needsAuth.length > 0) {
-        L.push('    missing = validate_environment()');
-        L.push('    if missing:');
-        L.push('        raise EnvironmentError(f"Missing required env vars: {\', \'.join(missing)}")');
-      }
+      // Manual Trigger or no specialised listener — just run once.
+      L.push('def start_listener():');
+      L.push('    """No long-running listener for this trigger; running pipeline once."""');
       L.push('    run_pipeline()');
     }
 
-    setPythonCode(L.join('\n') + '\n');
+    L.push('');
+    L.push('');
+    L.push('if __name__ == "__main__":');
+    for (const line of envCheck) L.push(line);
+    L.push('    if os.getenv("RUN_ONCE", "0") == "1":');
+    L.push('        run_pipeline()');
+    L.push('    else:');
+    L.push('        start_listener()');
+
+    const code = L.join('\n') + '\n';
+    setPythonCode(code);
     toast.success('Python code generated!');
+    return code;
   }, [blocks]);
 
   // ---- Node.js code generation ----
@@ -1300,19 +1515,116 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
 
     const internalSnippets: Record<string, (cfg: Record<string,string>) => string[]> = {
       'Schedule (Cron)': (cfg) => [
-        `  // For production: use node-cron or deploy as a scheduled function`,
-        `  // npm install node-cron`,
-        `  // const cron = require("node-cron");`,
-        `  // cron.schedule("${cfg.cron || '0 9 * * *'}", () => runPipeline());`,
-        `  console.log(\`⏰ Scheduled: cron=\${config.cron || "0 9 * * *"}\`);`,
-        `  return { triggered: true, schedule: config.cron || "0 9 * * *" };`,
+        `  // Single-shot execution. Recurring runs are wired up in startListener() at the bottom.`,
+        `  console.log(\`⏰ Scheduled trigger fired (cron=${cfg.cron || cfg.schedule || '0 9 * * *'})\`);`,
+        `  return { triggered: true, schedule: ${JSON.stringify(cfg.cron || cfg.schedule || '0 9 * * *')} };`,
       ],
-      'Webhook (Catch)': () => [
-        `  // For production: use Express or Fastify`,
-        `  // npm install express`,
-        `  // app.post("/webhook", (req, res) => { runPipeline(); res.json({ ok: true }); });`,
-        `  console.log(\`🪝 Webhook endpoint ready at \${config.url || "/webhook"}\`);`,
-        `  return { triggered: true };`,
+      'Webhook (Catch)': (cfg) => [
+        `  // Single-shot mode: take the next payload pushed by the Express handler.`,
+        `  const payload = await _webhookQueue.next(parseInt(process.env.WEBHOOK_WAIT_SECS || "30", 10) * 1000);`,
+        `  console.log(\`🪝 Webhook payload received (\${JSON.stringify(payload).length} bytes)\`);`,
+        `  return { triggered: true, payload, ...(payload && typeof payload === "object" ? payload : {}) };`,
+        `  // Path: ${cfg.path || cfg.url || '/webhook'}`,
+      ],
+      'RSS Monitor': (cfg) => [
+        `  const Parser = require("rss-parser"); // npm install rss-parser`,
+        `  const parser = new Parser();`,
+        `  const feed = await parser.parseURL(${JSON.stringify(cfg.feed_url || 'https://example.com/feed.xml')});`,
+        `  const keyword = (config.keyword_filter || "").toLowerCase();`,
+        `  let entries = (feed.items || []).slice(0, 10);`,
+        `  if (keyword) entries = entries.filter(e => (e.title || "").toLowerCase().includes(keyword));`,
+        `  console.log(\`📡 RSS: \${entries.length} matching entries\`);`,
+        `  return { triggered: true, entries: entries.map(e => ({ title: e.title, link: e.link })), count: entries.length };`,
+      ],
+      'New Email': (cfg) => [
+        `  const { ImapFlow } = require("imapflow"); // npm install imapflow`,
+        `  const client = new ImapFlow({`,
+        `    host: process.env.IMAP_HOST,`,
+        `    port: parseInt(process.env.IMAP_PORT || "993", 10),`,
+        `    secure: true,`,
+        `    auth: { user: process.env.IMAP_USER, pass: process.env.IMAP_PASSWORD },`,
+        `    logger: false,`,
+        `  });`,
+        `  await client.connect();`,
+        `  const lock = await client.getMailboxLock(${JSON.stringify(cfg.mailbox || 'INBOX')});`,
+        `  const messages = [];`,
+        `  try {`,
+        `    const search = { seen: false };`,
+        `    if (config.from_filter) search.from = config.from_filter;`,
+        `    if (config.subject_contains) search.subject = config.subject_contains;`,
+        `    for await (const msg of client.fetch(search, { envelope: true })) {`,
+        `      messages.push({ from: msg.envelope?.from?.[0]?.address, subject: msg.envelope?.subject, date: msg.envelope?.date });`,
+        `      if (messages.length >= 10) break;`,
+        `    }`,
+        `  } finally { lock.release(); await client.logout(); }`,
+        `  console.log(\`📧 IMAP: \${messages.length} new message(s)\`);`,
+        `  if (!messages.length) return null;`,
+        `  return { triggered: true, messages, count: messages.length };`,
+      ],
+      'FTP Monitor': (cfg) => [
+        `  const ftp = require("basic-ftp"); // npm install basic-ftp`,
+        `  const client = new ftp.Client();`,
+        `  await client.access({`,
+        `    host: process.env.FTP_HOST || ${JSON.stringify(cfg.host || 'ftp.example.com')},`,
+        `    user: process.env.FTP_USER || "anonymous",`,
+        `    password: process.env.FTP_PASSWORD || "",`,
+        `  });`,
+        `  const list = await client.list(${JSON.stringify(cfg.watch_path || '/')});`,
+        `  client.close();`,
+        `  console.log(\`📂 FTP: \${list.length} entries\`);`,
+        `  return { triggered: true, files: list.map(f => ({ name: f.name, size: f.size, modified: f.modifiedAt })) };`,
+      ],
+      'File Watcher': (cfg) => [
+        `  // Single-shot mode: list current matching files. The chokidar watcher (in startListener)`,
+        `  // calls runPipeline per filesystem event in production.`,
+        `  const fs = require("fs"), path = require("path");`,
+        `  const watchPath = config.watch_path || ${JSON.stringify(cfg.watch_path || './data')};`,
+        `  const pattern = new RegExp("^" + (config.pattern || ${JSON.stringify(cfg.pattern || '*')}).replace(/[.+?^$\{\}()|[\\]\\\\]/g, "\\\\$&").replace(/\\*/g, ".*") + "$");`,
+        `  const files = fs.existsSync(watchPath) ? fs.readdirSync(watchPath).filter(f => pattern.test(f)).map(f => path.join(watchPath, f)) : [];`,
+        `  console.log(\`👁️  Watching \${watchPath} (\${files.length} files match)\`);`,
+        `  return { triggered: true, path: watchPath, files };`,
+      ],
+      'Database Change': (cfg) => [
+        `  // Single-shot mode: read latest row. The pg LISTEN/NOTIFY listener handles real events.`,
+        `  const { Client } = require("pg"); // npm install pg`,
+        `  const client = new Client({ connectionString: process.env.DATABASE_URL });`,
+        `  await client.connect();`,
+        `  const table = config.table || ${JSON.stringify(cfg.table || 'orders')};`,
+        `  const { rows } = await client.query(\`SELECT row_to_json(t) AS row FROM \${table} t ORDER BY 1 DESC LIMIT 1\`);`,
+        `  await client.end();`,
+        `  console.log(\`🗄️  DB: latest row from \${table}\`);`,
+        `  return { triggered: true, table, event: config.event || ${JSON.stringify(cfg.event || 'INSERT')}, row: rows[0]?.row || null };`,
+      ],
+      'Queue Consumer': (cfg) => [
+        `  const queue = config.queue_name || ${JSON.stringify(cfg.queue_name || 'my-queue')};`,
+        `  const provider = (config.provider || ${JSON.stringify(cfg.provider || 'redis')}).toLowerCase();`,
+        `  const batchSize = parseInt(config.batch_size || ${JSON.stringify(cfg.batch_size || '1')}, 10);`,
+        `  let items = [];`,
+        `  if (provider === "redis") {`,
+        `    const Redis = require("ioredis"); // npm install ioredis`,
+        `    const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379/0");`,
+        `    for (let i = 0; i < batchSize; i++) { const v = await redis.lpop(queue); if (v == null) break; items.push(v); }`,
+        `    redis.disconnect();`,
+        `  } else if (provider === "sqs") {`,
+        `    const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } = require("@aws-sdk/client-sqs"); // npm install @aws-sdk/client-sqs`,
+        `    const sqs = new SQSClient({});`,
+        `    const resp = await sqs.send(new ReceiveMessageCommand({ QueueUrl: queue, MaxNumberOfMessages: Math.min(batchSize, 10), WaitTimeSeconds: 5 }));`,
+        `    for (const m of (resp.Messages || [])) { items.push(m.Body); await sqs.send(new DeleteMessageCommand({ QueueUrl: queue, ReceiptHandle: m.ReceiptHandle })); }`,
+        `  } else if (provider === "rabbitmq") {`,
+        `    const amqp = require("amqplib"); // npm install amqplib`,
+        `    const conn = await amqp.connect(process.env.AMQP_URL || "amqp://guest:guest@localhost"); const ch = await conn.createChannel();`,
+        `    await ch.assertQueue(queue, { durable: true });`,
+        `    for (let i = 0; i < batchSize; i++) { const msg = await ch.get(queue, { noAck: true }); if (!msg) break; items.push(msg.content.toString()); }`,
+        `    await conn.close();`,
+        `  } else { throw new Error("Unsupported queue provider: " + provider); }`,
+        `  console.log(\`📬 \${provider}/\${queue}: \${items.length} message(s)\`);`,
+        `  if (!items.length) return null;`,
+        `  return { triggered: true, queue, provider, messages: items, count: items.length };`,
+      ],
+      'Manual Trigger': (cfg) => [
+        `  const label = config.label || ${JSON.stringify(cfg.label || 'Run Pipeline')};`,
+        `  console.log(\`🖱️  Manual trigger: \${label}\`);`,
+        `  return { triggered: true, manual: true, label, args: process.argv.slice(2) };`,
       ],
       'Filter': () => [
         `  if (!prev) { console.log("⚠️ Filter: no input data"); return null; }`,
@@ -1372,6 +1684,23 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       allImports.add('const fetch = require("node-fetch");');
     }
 
+    // Trigger-specific npm packages for the listener entrypoint.
+    const triggerBlock = blocks[0];
+    const triggerLabel = triggerBlock?.label;
+    if (triggerLabel === 'Schedule (Cron)') npmPackages.add('node-cron');
+    if (triggerLabel === 'Webhook (Catch)') npmPackages.add('express');
+    if (triggerLabel === 'File Watcher') npmPackages.add('chokidar');
+    if (triggerLabel === 'New Email') npmPackages.add('imapflow');
+    if (triggerLabel === 'FTP Monitor') npmPackages.add('basic-ftp');
+    if (triggerLabel === 'RSS Monitor') npmPackages.add('rss-parser');
+    if (triggerLabel === 'Database Change') npmPackages.add('pg');
+    if (triggerLabel === 'Queue Consumer') {
+      const provider = (triggerBlock?.config.provider || 'redis').toLowerCase();
+      if (provider === 'redis') npmPackages.add('ioredis');
+      else if (provider === 'sqs') npmPackages.add('@aws-sdk/client-sqs');
+      else if (provider === 'rabbitmq') npmPackages.add('amqplib');
+    }
+
     const L: string[] = [];
     L.push('#!/usr/bin/env node');
     L.push(`/**`);
@@ -1406,6 +1735,25 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push('// Validate required credentials');
       L.push(`const _missing = [${allEnvVars.map(v => `"${v}"`).join(', ')}].filter(k => !process.env[k]);`);
       L.push('if (_missing.length) throw new Error(`Missing required env vars: ${_missing.join(", ")}`);');
+      L.push('');
+    }
+
+    // Webhook queue helper (only if needed by trigger).
+    if (triggerLabel === 'Webhook (Catch)') {
+      L.push('// Cross-async payload queue between Express handler and runPipeline().');
+      L.push('const _webhookQueue = (() => {');
+      L.push('  const q = []; const waiters = [];');
+      L.push('  return {');
+      L.push('    push(p) { if (waiters.length) waiters.shift().resolve(p); else q.push(p); },');
+      L.push('    next(timeoutMs = 30000) {');
+      L.push('      if (q.length) return Promise.resolve(q.shift());');
+      L.push('      return new Promise((resolve, reject) => {');
+      L.push('        const t = setTimeout(() => { const i = waiters.indexOf(w); if (i >= 0) waiters.splice(i, 1); reject(new Error("webhook wait timeout")); }, timeoutMs);');
+      L.push('        const w = { resolve: (p) => { clearTimeout(t); resolve(p); } }; waiters.push(w);');
+      L.push('      });');
+      L.push('    },');
+      L.push('  };');
+      L.push('})();');
       L.push('');
     }
 
@@ -1491,11 +1839,77 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     L.push('  return result;');
     L.push('}');
     L.push('');
-    L.push('runPipeline().catch(console.error);');
+    // ---- Listener entrypoint (real, production-ready per trigger) ----
+    L.push('async function startListener() {');
+    if (triggerLabel === 'Schedule (Cron)') {
+      const cronExpr = (triggerBlock?.config.cron || triggerBlock?.config.schedule || '0 9 * * *');
+      L.push('  const cron = require("node-cron");');
+      L.push(`  const expr = process.env.PIPELINE_CRON || ${JSON.stringify(cronExpr)};`);
+      L.push('  cron.schedule(expr, () => runPipeline().catch(e => console.error("❌", e.message)));');
+      L.push('  console.log(`🕒 Scheduler started: cron=${expr}`);');
+      L.push('  await runPipeline().catch(e => console.error("❌", e.message));');
+    } else if (triggerLabel === 'Webhook (Catch)') {
+      const path = (triggerBlock?.config.path || triggerBlock?.config.url || '/webhook').toString();
+      const method = (triggerBlock?.config.method || 'POST').toString().toLowerCase();
+      L.push('  const express = require("express");');
+      L.push('  const app = express(); app.use(express.json()); app.use(express.urlencoded({ extended: true }));');
+      L.push(`  app.${method}(${JSON.stringify(path)}, async (req, res) => {`);
+      L.push('    _webhookQueue.push(req.body || {});');
+      L.push('    try { const r = await runPipeline(); res.json({ ok: true, result: r }); }');
+      L.push('    catch (e) { res.status(500).json({ ok: false, error: e.message }); }');
+      L.push('  });');
+      L.push('  const port = parseInt(process.env.PORT || "8000", 10);');
+      L.push(`  app.listen(port, () => console.log(\`🪝 Webhook listening on http://localhost:\${port}${path}\`));`);
+    } else if (triggerLabel === 'File Watcher') {
+      const watchPath = triggerBlock?.config.watch_path || './data';
+      const pattern = triggerBlock?.config.pattern || '*';
+      const events = (triggerBlock?.config.events || 'created').toString();
+      L.push('  const chokidar = require("chokidar");');
+      L.push(`  const watchPath = process.env.WATCH_PATH || ${JSON.stringify(watchPath)};`);
+      L.push(`  const watcher = chokidar.watch(watchPath + "/" + ${JSON.stringify(pattern)}, { ignoreInitial: true });`);
+      const evMap: Record<string, string> = { created: 'add', modified: 'change', deleted: 'unlink' };
+      const evs = events === 'all' ? ['add', 'change', 'unlink'] : [evMap[events] || 'add'];
+      for (const ev of evs) {
+        L.push(`  watcher.on(${JSON.stringify(ev)}, p => { console.log(\`👁️  ${ev}: \${p}\`); runPipeline().catch(e => console.error("❌", e.message)); });`);
+      }
+      L.push(`  console.log(\`👁️  Watching \${watchPath}\`);`);
+    } else if (triggerLabel === 'Database Change') {
+      const channel = triggerBlock?.config.channel || `${(triggerBlock?.config.table || 'orders')}_changes`;
+      L.push('  const { Client } = require("pg");');
+      L.push('  const client = new Client({ connectionString: process.env.DATABASE_URL });');
+      L.push('  await client.connect();');
+      L.push(`  const channel = process.env.PG_NOTIFY_CHANNEL || ${JSON.stringify(channel)};`);
+      L.push('  await client.query(`LISTEN ${channel}`);');
+      L.push('  client.on("notification", msg => { console.log(`  ↳ NOTIFY ${msg.channel}: ${msg.payload}`); runPipeline().catch(e => console.error("❌", e.message)); });');
+      L.push('  console.log(`🗄️  Listening on Postgres channel "${channel}"`);');
+    } else if (triggerLabel === 'Queue Consumer' || triggerLabel === 'New Email' || triggerLabel === 'FTP Monitor' || triggerLabel === 'RSS Monitor') {
+      const interval = triggerLabel === 'RSS Monitor' ? 300 : triggerLabel === 'Queue Consumer' ? 2 : 60;
+      L.push(`  const interval = parseInt(process.env.POLL_INTERVAL || "${interval}", 10) * 1000;`);
+      L.push(`  console.log(\`🔁 Polling ${triggerLabel} every \${interval / 1000}s\`);`);
+      L.push('  while (true) {');
+      L.push('    try { await runPipeline(); } catch (e) { console.error("❌", e.message); }');
+      L.push('    await new Promise(r => setTimeout(r, interval));');
+      L.push('  }');
+    } else {
+      L.push('  // Manual or unspecialised trigger — run once.');
+      L.push('  await runPipeline();');
+    }
+    L.push('}');
+    L.push('');
+    L.push('if (process.env.RUN_ONCE === "1" || process.env.AUTOMATION_TEST_MODE === "1") {');
+    L.push('  runPipeline().catch(e => { console.error("❌", e.message); process.exit(1); });');
+    L.push('} else {');
+    L.push('  startListener().catch(e => { console.error("❌", e.message); process.exit(1); });');
+    L.push('}');
 
-    setNodeCode(L.join('\n') + '\n');
+    const code = L.join('\n') + '\n';
+    setNodeCode(code);
     toast.success('Node.js code generated!');
+    return code;
   }, [blocks]);
+
+  // Bridge for handleTestRun (declared earlier) to call the latest generator.
+  generateNodeCodeImplRef.current = generateNodeCodeImpl;
 
   const copyGeneratedCode = useCallback(() => {
     if (generatedCode) { navigator.clipboard.writeText(generatedCode); toast.success('Copied to clipboard!'); }
@@ -1762,7 +2176,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
             </div>
             <div className="space-y-1 text-[11px] text-muted-foreground">
               {testRunLogs.length === 0 ? (
-                <p className="italic">No test runs yet. Click "Test Run" to simulate.</p>
+                <p className="italic">No test runs yet. Click "Test Run" to execute the generated pipeline in the sandbox.</p>
               ) : (
                 testRunLogs.map((log, i) => {
                   const Icon = log.icon === 'check' ? Check : log.icon === 'dot' ? CircleDot : log.icon === 'key' ? KeyRound : MinusCircle;
