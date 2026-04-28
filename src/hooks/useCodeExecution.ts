@@ -108,8 +108,52 @@ export const useCodeExecution = () => {
     const isOffline = !navigator.onLine;
 
     try {
-      // Languages that can run fully in the browser (WebContainer/JS engine).
-      const clientSideLanguages = new Set(['javascript', 'typescript', 'shell', 'bash', 'html', 'css', 'json']);
+      // Languages that can run fully in the browser (WebContainer/JS engine, or Pyodide for python).
+      const clientSideLanguages = new Set(['javascript', 'typescript', 'shell', 'bash', 'html', 'css', 'json', 'python']);
+
+      // Python hybrid routing: prefer Pyodide for simple scripts; fall back to container for pip/uv/system code.
+      if (normalizedLanguage === 'python' || normalizedLanguage === 'py') {
+        const pythonExecutorMode = typeof window !== 'undefined'
+          ? window.localStorage.getItem('ide.pythonExecutorMode') || 'auto'
+          : 'auto';
+        const unsupported = detectUnsupportedPyodideUsage(code);
+        const preferPyodide =
+          pythonExecutorMode === 'pyodide' ||
+          (pythonExecutorMode === 'auto' && !unsupported);
+
+        if (preferPyodide || isOffline) {
+          if (isOffline && unsupported) {
+            return {
+              output: [],
+              error: `📡 Offline. This Python script uses "${unsupported}" which needs the cloud container. Reconnect to run it.`,
+              executedAt: new Date().toISOString(),
+            };
+          }
+          try {
+            const result = await runPyodide(code, stdin);
+            const banner = isOffline
+              ? '🐍 Offline — running in Pyodide (browser Python).'
+              : `🐍 Pyodide (browser Python).${unsupported ? '' : ''}`;
+            return {
+              output: [banner, ...result.stdout, ...result.stderr],
+              error: result.exitCode === 0 ? null : 'Python execution failed',
+              executedAt: new Date().toISOString(),
+            };
+          } catch (err) {
+            if (isOffline) {
+              return {
+                output: [],
+                error: `📡 Offline and Pyodide failed to load: ${err instanceof Error ? err.message : String(err)}`,
+                executedAt: new Date().toISOString(),
+              };
+            }
+            console.warn('Pyodide failed, falling back to container executor.', err);
+            // fall through to container executor below
+          }
+        }
+        // else: fall through to container path
+      }
+
 
       // Offline guard: server-side execution requires internet.
       // Exception: JS/TS can fall back to an in-browser eval below.
