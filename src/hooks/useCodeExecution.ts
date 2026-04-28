@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWebContainer } from '@/hooks/useWebContainer';
+import { usePyodide, detectUnsupportedPyodideUsage } from '@/hooks/usePyodide';
 import { showOfflineDialog } from '@/components/ide/OfflineDialog';
 
 interface ExecutionResult {
@@ -56,7 +57,7 @@ export const useCodeExecution = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [executorSessions, setExecutorSessions] = useState<Record<string, string>>({});
   const { status: webContainerStatus, boot, spawn } = useWebContainer();
-
+  const { runPython: runPyodide } = usePyodide();
   const executeCode = useCallback(async (code: string, language: string = 'javascript', stdin?: string): Promise<ExecutionResult> => {
     // Handle preview-based languages (HTML, CSS, Markdown render in preview)
     const PREVIEW_LANGUAGES = new Set(['html', 'css', 'md', 'markdown', 'svg']);
