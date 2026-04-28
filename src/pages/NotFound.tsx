@@ -48,6 +48,8 @@ const ROOM_HALF_Z = 11;
 const EYE_HEIGHT = 1.65;
 const SPEED = 4.5; // units / sec
 const RUN_MULT = 1.8;
+const JUMP_VELOCITY = 6.2; // units / sec — peak ~1.1m at GRAVITY below
+const GRAVITY = 18; // units / sec² — snappier than realistic gravity
 
 interface ControllerProps {
   enabled: boolean;
@@ -59,14 +61,23 @@ const FirstPersonController = ({ enabled, onLock, onUnlock }: ControllerProps) =
   const { camera, gl } = useThree();
   const lockRef = useRef<PointerLockControlsImpl | null>(null);
   const keys = useRef<Record<string, boolean>>({});
+  const velY = useRef(0);
+  const grounded = useRef(true);
   const dir = useMemo(() => new THREE.Vector3(), []);
   const fwd = useMemo(() => new THREE.Vector3(), []);
   const right = useMemo(() => new THREE.Vector3(), []);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
+      // Prevent the page from scrolling when Space is pressed in-game.
+      if (e.code === 'Space' && lockRef.current?.isLocked) e.preventDefault();
       keys.current[e.code] = true;
       if (e.code === 'Escape' && lockRef.current?.isLocked) lockRef.current.unlock();
+      // Trigger jump on key-down so a single tap = single jump (no auto-bounce).
+      if (e.code === 'Space' && lockRef.current?.isLocked && grounded.current) {
+        velY.current = JUMP_VELOCITY;
+        grounded.current = false;
+      }
     };
     const up = (e: KeyboardEvent) => { keys.current[e.code] = false; };
     window.addEventListener('keydown', down);
@@ -89,6 +100,10 @@ const FirstPersonController = ({ enabled, onLock, onUnlock }: ControllerProps) =
   useFrame((_, delta) => {
     const locked = lockRef.current?.isLocked;
     if (!locked) return;
+    // Clamp delta so big tab-switch pauses don't fling the camera through the ceiling.
+    const dt = Math.min(delta, 0.05);
+
+    // Horizontal movement.
     camera.getWorldDirection(fwd);
     fwd.y = 0;
     fwd.normalize();
@@ -98,12 +113,21 @@ const FirstPersonController = ({ enabled, onLock, onUnlock }: ControllerProps) =
     if (keys.current['KeyS'] || keys.current['ArrowDown']) dir.sub(fwd);
     if (keys.current['KeyD'] || keys.current['ArrowRight']) dir.add(right);
     if (keys.current['KeyA'] || keys.current['ArrowLeft']) dir.sub(right);
-    if (dir.lengthSq() === 0) return;
-    dir.normalize();
-    const speed = SPEED * (keys.current['ShiftLeft'] || keys.current['ShiftRight'] ? RUN_MULT : 1) * delta;
-    camera.position.x = THREE.MathUtils.clamp(camera.position.x + dir.x * speed, -ROOM_HALF_X + 0.6, ROOM_HALF_X - 0.6);
-    camera.position.z = THREE.MathUtils.clamp(camera.position.z + dir.z * speed, -ROOM_HALF_Z + 0.6, ROOM_HALF_Z - 0.6);
-    camera.position.y = EYE_HEIGHT;
+    if (dir.lengthSq() > 0) {
+      dir.normalize();
+      const speed = SPEED * (keys.current['ShiftLeft'] || keys.current['ShiftRight'] ? RUN_MULT : 1) * dt;
+      camera.position.x = THREE.MathUtils.clamp(camera.position.x + dir.x * speed, -ROOM_HALF_X + 0.6, ROOM_HALF_X - 0.6);
+      camera.position.z = THREE.MathUtils.clamp(camera.position.z + dir.z * speed, -ROOM_HALF_Z + 0.6, ROOM_HALF_Z - 0.6);
+    }
+
+    // Vertical movement (jump + gravity). Always integrate so we land cleanly.
+    velY.current -= GRAVITY * dt;
+    camera.position.y += velY.current * dt;
+    if (camera.position.y <= EYE_HEIGHT) {
+      camera.position.y = EYE_HEIGHT;
+      velY.current = 0;
+      grounded.current = true;
+    }
   });
 
   return (
@@ -338,6 +362,9 @@ const HeroScreen = ({ path }: { path: string }) => (
         </span>
         <span className="px-2 py-1 rounded border border-cyan-400/40 bg-cyan-500/10 text-cyan-200 font-mono text-xs">
           WASD + mouse to roam
+        </span>
+        <span className="px-2 py-1 rounded border border-emerald-400/40 bg-emerald-500/10 text-emerald-200 font-mono text-xs">
+          SPACE to jump
         </span>
       </div>
     </div>
