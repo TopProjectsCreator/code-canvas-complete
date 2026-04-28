@@ -1799,7 +1799,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
             </div>
             <div className="space-y-1 text-[11px] text-muted-foreground">
               {testRunLogs.length === 0 ? (
-                <p className="italic">No test runs yet. Click "Test Run" to simulate.</p>
+                <p className="italic">No test runs yet. Click "Test Run" to execute the generated pipeline in the sandbox.</p>
               ) : (
                 testRunLogs.map((log, i) => {
                   const Icon = log.icon === 'check' ? Check : log.icon === 'dot' ? CircleDot : log.icon === 'key' ? KeyRound : MinusCircle;
