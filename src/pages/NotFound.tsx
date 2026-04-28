@@ -1,8 +1,7 @@
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, PointerLockControls, Stars, Text } from '@react-three/drei';
-// PointerLockControls type is provided indirectly via @react-three/drei
-type PointerLockControlsImpl = { unlock: () => void; lock: () => void; isLocked?: boolean };
+import type { PointerLockControls as PointerLockControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import { Link, useLocation, useNavigate, type NavigateFunction } from 'react-router-dom';
 import {
