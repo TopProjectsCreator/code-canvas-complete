@@ -1043,6 +1043,35 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       allImports.add('from apscheduler.triggers.cron import CronTrigger');
     }
 
+    // Detect trigger type for the listener entrypoint.
+    const triggerBlock = blocks[0];
+    const triggerLabel = triggerBlock?.label;
+    if (triggerLabel === 'Webhook (Catch)') {
+      pipPackages.add('flask');
+      allImports.add('from flask import Flask, request, jsonify');
+      allImports.add('from queue import Queue, Empty');
+    }
+    if (triggerLabel === 'File Watcher') {
+      pipPackages.add('watchdog');
+      allImports.add('from watchdog.observers import Observer');
+      allImports.add('from watchdog.events import FileSystemEventHandler');
+      allImports.add('import fnmatch');
+    }
+    if (triggerLabel === 'New Email') pipPackages.add('');  // imaplib is stdlib
+    if (triggerLabel === 'Database Change') {
+      pipPackages.add('psycopg2-binary');
+      allImports.add('import select');
+    }
+    if (triggerLabel === 'Queue Consumer') {
+      const provider = (triggerBlock?.config.provider || 'redis').toLowerCase();
+      if (provider === 'redis') pipPackages.add('redis');
+      else if (provider === 'sqs') pipPackages.add('boto3');
+      else if (provider === 'rabbitmq') pipPackages.add('pika');
+    }
+    if (triggerLabel === 'RSS Monitor') pipPackages.add('feedparser');
+    // Always import sys for Manual Trigger argv handling.
+    allImports.add('import sys');
+
     const L: string[] = [];
     L.push('#!/usr/bin/env python3');
     L.push(`"""Auto-generated automation pipeline — ${blocks.length} block${blocks.length > 1 ? 's' : ''}.`);
