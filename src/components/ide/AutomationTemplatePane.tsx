@@ -1839,7 +1839,68 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     L.push('  return result;');
     L.push('}');
     L.push('');
-    L.push('runPipeline().catch(console.error);');
+    // ---- Listener entrypoint (real, production-ready per trigger) ----
+    L.push('async function startListener() {');
+    if (triggerLabel === 'Schedule (Cron)') {
+      const cronExpr = (triggerBlock?.config.cron || triggerBlock?.config.schedule || '0 9 * * *');
+      L.push('  const cron = require("node-cron");');
+      L.push(`  const expr = process.env.PIPELINE_CRON || ${JSON.stringify(cronExpr)};`);
+      L.push('  cron.schedule(expr, () => runPipeline().catch(e => console.error("❌", e.message)));');
+      L.push('  console.log(`🕒 Scheduler started: cron=${expr}`);');
+      L.push('  await runPipeline().catch(e => console.error("❌", e.message));');
+    } else if (triggerLabel === 'Webhook (Catch)') {
+      const path = (triggerBlock?.config.path || triggerBlock?.config.url || '/webhook').toString();
+      const method = (triggerBlock?.config.method || 'POST').toString().toLowerCase();
+      L.push('  const express = require("express");');
+      L.push('  const app = express(); app.use(express.json()); app.use(express.urlencoded({ extended: true }));');
+      L.push(`  app.${method}(${JSON.stringify(path)}, async (req, res) => {`);
+      L.push('    _webhookQueue.push(req.body || {});');
+      L.push('    try { const r = await runPipeline(); res.json({ ok: true, result: r }); }');
+      L.push('    catch (e) { res.status(500).json({ ok: false, error: e.message }); }');
+      L.push('  });');
+      L.push('  const port = parseInt(process.env.PORT || "8000", 10);');
+      L.push(`  app.listen(port, () => console.log(\`🪝 Webhook listening on http://localhost:\${port}${path}\`));`);
+    } else if (triggerLabel === 'File Watcher') {
+      const watchPath = triggerBlock?.config.watch_path || './data';
+      const pattern = triggerBlock?.config.pattern || '*';
+      const events = (triggerBlock?.config.events || 'created').toString();
+      L.push('  const chokidar = require("chokidar");');
+      L.push(`  const watchPath = process.env.WATCH_PATH || ${JSON.stringify(watchPath)};`);
+      L.push(`  const watcher = chokidar.watch(watchPath + "/" + ${JSON.stringify(pattern)}, { ignoreInitial: true });`);
+      const evMap: Record<string, string> = { created: 'add', modified: 'change', deleted: 'unlink' };
+      const evs = events === 'all' ? ['add', 'change', 'unlink'] : [evMap[events] || 'add'];
+      for (const ev of evs) {
+        L.push(`  watcher.on(${JSON.stringify(ev)}, p => { console.log(\`👁️  ${ev}: \${p}\`); runPipeline().catch(e => console.error("❌", e.message)); });`);
+      }
+      L.push(`  console.log(\`👁️  Watching \${watchPath}\`);`);
+    } else if (triggerLabel === 'Database Change') {
+      const channel = triggerBlock?.config.channel || `${(triggerBlock?.config.table || 'orders')}_changes`;
+      L.push('  const { Client } = require("pg");');
+      L.push('  const client = new Client({ connectionString: process.env.DATABASE_URL });');
+      L.push('  await client.connect();');
+      L.push(`  const channel = process.env.PG_NOTIFY_CHANNEL || ${JSON.stringify(channel)};`);
+      L.push('  await client.query(`LISTEN ${channel}`);');
+      L.push('  client.on("notification", msg => { console.log(`  ↳ NOTIFY ${msg.channel}: ${msg.payload}`); runPipeline().catch(e => console.error("❌", e.message)); });');
+      L.push('  console.log(`🗄️  Listening on Postgres channel "${channel}"`);');
+    } else if (triggerLabel === 'Queue Consumer' || triggerLabel === 'New Email' || triggerLabel === 'FTP Monitor' || triggerLabel === 'RSS Monitor') {
+      const interval = triggerLabel === 'RSS Monitor' ? 300 : triggerLabel === 'Queue Consumer' ? 2 : 60;
+      L.push(`  const interval = parseInt(process.env.POLL_INTERVAL || "${interval}", 10) * 1000;`);
+      L.push(`  console.log(\`🔁 Polling ${triggerLabel} every \${interval / 1000}s\`);`);
+      L.push('  while (true) {');
+      L.push('    try { await runPipeline(); } catch (e) { console.error("❌", e.message); }');
+      L.push('    await new Promise(r => setTimeout(r, interval));');
+      L.push('  }');
+    } else {
+      L.push('  // Manual or unspecialised trigger — run once.');
+      L.push('  await runPipeline();');
+    }
+    L.push('}');
+    L.push('');
+    L.push('if (process.env.RUN_ONCE === "1" || process.env.AUTOMATION_TEST_MODE === "1") {');
+    L.push('  runPipeline().catch(e => { console.error("❌", e.message); process.exit(1); });');
+    L.push('} else {');
+    L.push('  startListener().catch(e => { console.error("❌", e.message); process.exit(1); });');
+    L.push('}');
 
     const code = L.join('\n') + '\n';
     setNodeCode(code);
