@@ -1246,42 +1246,130 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     L.push('    print("✅ Pipeline complete!")');
     L.push('    return result');
     L.push('');
+    // ---- Listener entrypoint (real, production-ready per trigger) ----
+    const envCheck = needsAuth.length > 0
+      ? [
+          '    missing = validate_environment()',
+          '    if missing:',
+          '        raise EnvironmentError(f"Missing required env vars: {\', \'.join(missing)}")',
+        ]
+      : [];
+
     if (scheduleBlock) {
       const schedule = scheduleBlock.config.schedule === 'custom'
         ? (scheduleBlock.config.cron || '0 9 * * *')
         : (scheduleBlock.config.schedule || '0 9 * * *');
       const timezone = scheduleBlock.config.timezone || 'UTC';
-      L.push('def start_scheduler():');
+      L.push('def start_listener():');
       L.push('    """Run the pipeline repeatedly using APScheduler."""');
       L.push(`    cron_expr = os.getenv("PIPELINE_CRON", "${schedule}")`);
       L.push(`    timezone = os.getenv("PIPELINE_TIMEZONE", "${timezone}")`);
       L.push('    scheduler = BlockingScheduler(timezone=timezone)');
       L.push('    scheduler.add_job(run_pipeline, CronTrigger.from_crontab(cron_expr, timezone=timezone))');
       L.push('    print(f"🕒 Scheduler started: cron={cron_expr}, timezone={timezone}")');
-      L.push('    run_pipeline()  # Optional immediate run on startup');
+      L.push('    run_pipeline()  # immediate run on startup');
       L.push('    scheduler.start()');
-      L.push('');
-      L.push('');
-      L.push('if __name__ == "__main__":');
-      if (needsAuth.length > 0) {
-        L.push('    missing = validate_environment()');
-        L.push('    if missing:');
-        L.push('        raise EnvironmentError(f"Missing required env vars: {\', \'.join(missing)}")');
-      }
-      L.push('    if os.getenv("RUN_ONCE", "0") == "1":');
-      L.push('        run_pipeline()');
-      L.push('    else:');
-      L.push('        start_scheduler()');
+    } else if (triggerLabel === 'Webhook (Catch)') {
+      const path = (triggerBlock?.config.path || triggerBlock?.config.url || '/webhook').toString();
+      const method = (triggerBlock?.config.method || 'POST').toString().toUpperCase();
+      L.push('def start_listener():');
+      L.push('    """Start a Flask webhook server that runs the pipeline per request."""');
+      L.push('    app = Flask(__name__)');
+      L.push(`    @app.route(${JSON.stringify(path)}, methods=[${JSON.stringify(method)}])`);
+      L.push('    def _handle():');
+      L.push('        payload = request.get_json(silent=True) or request.form.to_dict() or {}');
+      L.push('        _WEBHOOK_QUEUE.put(payload)');
+      L.push('        try:');
+      L.push('            result = run_pipeline()');
+      L.push('            return jsonify({"ok": True, "result": result}), 200');
+      L.push('        except Exception as e:');
+      L.push('            return jsonify({"ok": False, "error": str(e)}), 500');
+      L.push('    host = os.getenv("HOST", "0.0.0.0")');
+      L.push('    port = int(os.getenv("PORT", "8000"))');
+      L.push(`    print(f"🪝 Webhook listening on http://{host}:{port}${path}")`);
+      L.push('    app.run(host=host, port=port)');
+    } else if (triggerLabel === 'File Watcher') {
+      const watchPath = triggerBlock?.config.watch_path || './data';
+      const pattern = triggerBlock?.config.pattern || '*';
+      const events = (triggerBlock?.config.events || 'created').toString();
+      L.push('def start_listener():');
+      L.push('    """Watch a directory and run the pipeline on each matching event."""');
+      L.push(`    watch_path = os.getenv("WATCH_PATH", ${JSON.stringify(watchPath)})`);
+      L.push(`    pattern = os.getenv("WATCH_PATTERN", ${JSON.stringify(pattern)})`);
+      L.push('    class _Handler(FileSystemEventHandler):');
+      L.push('        def _maybe_run(self, kind, path):');
+      L.push(`            if not fnmatch.fnmatch(os.path.basename(path), pattern): return`);
+      L.push('            print(f"👁️  {kind}: {path}")');
+      L.push('            try: run_pipeline()');
+      L.push('            except Exception as e: print(f"❌ pipeline error: {e}")');
+      if (events.includes('created') || events === 'all') L.push('        def on_created(self, event): self._maybe_run("created", event.src_path)');
+      if (events.includes('modified') || events === 'all') L.push('        def on_modified(self, event): self._maybe_run("modified", event.src_path)');
+      if (events.includes('deleted') || events === 'all') L.push('        def on_deleted(self, event): self._maybe_run("deleted", event.src_path)');
+      L.push('    obs = Observer(); obs.schedule(_Handler(), watch_path, recursive=True); obs.start()');
+      L.push(`    print(f"👁️  Watching {watch_path} for {pattern}")`);
+      L.push('    try:');
+      L.push('        while True: time.sleep(1)');
+      L.push('    except KeyboardInterrupt:');
+      L.push('        obs.stop()');
+      L.push('    obs.join()');
+      // ensure `time` is importable
+      allImports.add('import time');
+    } else if (triggerLabel === 'Database Change') {
+      const channel = triggerBlock?.config.channel || `${(triggerBlock?.config.table || 'orders')}_changes`;
+      L.push('def start_listener():');
+      L.push('    """Listen for Postgres NOTIFY messages on a channel and run the pipeline per event."""');
+      L.push('    import psycopg2  # pip install psycopg2-binary');
+      L.push('    import psycopg2.extensions');
+      L.push('    dsn = os.environ["DATABASE_URL"]');
+      L.push(`    channel = os.getenv("PG_NOTIFY_CHANNEL", ${JSON.stringify(channel)})`);
+      L.push('    conn = psycopg2.connect(dsn)');
+      L.push('    conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)');
+      L.push('    cur = conn.cursor(); cur.execute(f"LISTEN {channel}")');
+      L.push('    print(f"🗄️  Listening on Postgres channel \\"{channel}\\"")');
+      L.push('    while True:');
+      L.push('        if select.select([conn], [], [], 60) == ([], [], []): continue');
+      L.push('        conn.poll()');
+      L.push('        while conn.notifies:');
+      L.push('            n = conn.notifies.pop(0)');
+      L.push('            print(f"  ↳ NOTIFY {n.channel}: {n.payload}")');
+      L.push('            try: run_pipeline()');
+      L.push('            except Exception as e: print(f"❌ pipeline error: {e}")');
+    } else if (triggerLabel === 'Queue Consumer') {
+      L.push('def start_listener():');
+      L.push('    """Continuously consume from the queue and run the pipeline per message."""');
+      L.push('    import time as _time');
+      L.push('    while True:');
+      L.push('        try:');
+      L.push('            r = run_pipeline()');
+      L.push('            if r is None: _time.sleep(2)');
+      L.push('        except Exception as e:');
+      L.push('            print(f"❌ pipeline error: {e}"); _time.sleep(5)');
+    } else if (triggerLabel === 'New Email' || triggerLabel === 'FTP Monitor' || triggerLabel === 'RSS Monitor') {
+      const intervalSec = triggerLabel === 'RSS Monitor' ? 300 : 60;
+      L.push('def start_listener():');
+      L.push(`    """Poll the ${triggerLabel} trigger every POLL_INTERVAL seconds."""`);
+      L.push('    import time as _time');
+      L.push(`    interval = int(os.getenv("POLL_INTERVAL", "${intervalSec}"))`);
+      L.push(`    print(f"🔁 Polling ${triggerLabel} every {interval}s")`);
+      L.push('    while True:');
+      L.push('        try: run_pipeline()');
+      L.push('        except Exception as e: print(f"❌ pipeline error: {e}")');
+      L.push('        _time.sleep(interval)');
     } else {
-      L.push('');
-      L.push('if __name__ == "__main__":');
-      if (needsAuth.length > 0) {
-        L.push('    missing = validate_environment()');
-        L.push('    if missing:');
-        L.push('        raise EnvironmentError(f"Missing required env vars: {\', \'.join(missing)}")');
-      }
+      // Manual Trigger or no specialised listener — just run once.
+      L.push('def start_listener():');
+      L.push('    """No long-running listener for this trigger; running pipeline once."""');
       L.push('    run_pipeline()');
     }
+
+    L.push('');
+    L.push('');
+    L.push('if __name__ == "__main__":');
+    for (const line of envCheck) L.push(line);
+    L.push('    if os.getenv("RUN_ONCE", "0") == "1":');
+    L.push('        run_pipeline()');
+    L.push('    else:');
+    L.push('        start_listener()');
 
     const code = L.join('\n') + '\n';
     setPythonCode(code);
