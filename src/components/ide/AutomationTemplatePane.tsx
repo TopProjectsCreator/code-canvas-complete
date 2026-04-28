@@ -299,6 +299,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   const skipNextBlocksEmitRef = useRef(false);
   const hasMountedRef = useRef(false);
   blocksChangeRef.current = onBlocksChange;
+  const { executeCode } = useCodeExecution();
 
   // Sync with initialBlocks from external changes (file edits)
   // Only react to syncVersion bumps (external file changes), NOT to internal block state
