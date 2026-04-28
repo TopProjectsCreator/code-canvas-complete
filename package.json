@@ -67,6 +67,7 @@
     "next-themes": "^0.3.0",
     "pdfjs-dist": "^5.5.207",
     "pptxgenjs": "^4.0.1",
+    "pyodide": "^0.29.3",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
@@ -84,6 +85,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.170",
+    "three-stdlib": "^2.36.1",
     "vaul": "^0.9.9",
     "vite-plugin-pwa": "^1.2.0",
     "zod": "^3.25.76"

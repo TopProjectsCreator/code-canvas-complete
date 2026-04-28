@@ -460,6 +460,45 @@ export type Database = {
         }
         Relationships: []
       }
+      inbox_rules: {
+        Row: {
+          actions: Json
+          conditions: Json
+          created_at: string
+          enabled: boolean
+          id: string
+          match: string
+          name: string
+          position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          actions?: Json
+          conditions?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          match?: string
+          name?: string
+          position?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          actions?: Json
+          conditions?: Json
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          match?: string
+          name?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       installed_extensions: {
         Row: {
           extension_id: string
@@ -527,30 +566,36 @@ export type Database = {
       }
       messages: {
         Row: {
+          attachments: Json
           body_html: string
           created_at: string
           id: string
           kind: string
+          labels: string[]
           read_at: string | null
           recipient_id: string
           sender_id: string
           subject: string
         }
         Insert: {
+          attachments?: Json
           body_html?: string
           created_at?: string
           id?: string
           kind?: string
+          labels?: string[]
           read_at?: string | null
           recipient_id: string
           sender_id: string
           subject?: string
         }
         Update: {
+          attachments?: Json
           body_html?: string
           created_at?: string
           id?: string
           kind?: string
+          labels?: string[]
           read_at?: string | null
           recipient_id?: string
           sender_id?: string
