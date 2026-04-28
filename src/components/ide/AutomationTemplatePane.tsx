@@ -1738,6 +1738,25 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push('');
     }
 
+    // Webhook queue helper (only if needed by trigger).
+    if (triggerLabel === 'Webhook (Catch)') {
+      L.push('// Cross-async payload queue between Express handler and runPipeline().');
+      L.push('const _webhookQueue = (() => {');
+      L.push('  const q = []; const waiters = [];');
+      L.push('  return {');
+      L.push('    push(p) { if (waiters.length) waiters.shift().resolve(p); else q.push(p); },');
+      L.push('    next(timeoutMs = 30000) {');
+      L.push('      if (q.length) return Promise.resolve(q.shift());');
+      L.push('      return new Promise((resolve, reject) => {');
+      L.push('        const t = setTimeout(() => { const i = waiters.indexOf(w); if (i >= 0) waiters.splice(i, 1); reject(new Error("webhook wait timeout")); }, timeoutMs);');
+      L.push('        const w = { resolve: (p) => { clearTimeout(t); resolve(p); } }; waiters.push(w);');
+      L.push('      });');
+      L.push('    },');
+      L.push('  };');
+      L.push('})();');
+      L.push('');
+    }
+
     // Step functions
     for (let i = 0; i < blocks.length; i++) {
       const b = blocks[i];
