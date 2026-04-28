@@ -1684,6 +1684,23 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       allImports.add('const fetch = require("node-fetch");');
     }
 
+    // Trigger-specific npm packages for the listener entrypoint.
+    const triggerBlock = blocks[0];
+    const triggerLabel = triggerBlock?.label;
+    if (triggerLabel === 'Schedule (Cron)') npmPackages.add('node-cron');
+    if (triggerLabel === 'Webhook (Catch)') npmPackages.add('express');
+    if (triggerLabel === 'File Watcher') npmPackages.add('chokidar');
+    if (triggerLabel === 'New Email') npmPackages.add('imapflow');
+    if (triggerLabel === 'FTP Monitor') npmPackages.add('basic-ftp');
+    if (triggerLabel === 'RSS Monitor') npmPackages.add('rss-parser');
+    if (triggerLabel === 'Database Change') npmPackages.add('pg');
+    if (triggerLabel === 'Queue Consumer') {
+      const provider = (triggerBlock?.config.provider || 'redis').toLowerCase();
+      if (provider === 'redis') npmPackages.add('ioredis');
+      else if (provider === 'sqs') npmPackages.add('@aws-sdk/client-sqs');
+      else if (provider === 'rabbitmq') npmPackages.add('amqplib');
+    }
+
     const L: string[] = [];
     L.push('#!/usr/bin/env node');
     L.push(`/**`);
