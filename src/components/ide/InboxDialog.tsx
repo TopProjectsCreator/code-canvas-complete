@@ -121,7 +121,7 @@ export const InboxDialog = ({ open, onOpenChange }: InboxDialogProps) => {
       toast({ title: 'Failed to load messages', description: error.message, variant: 'destructive' });
       return;
     }
-    const rows = (data || []) as MessageRow[];
+    const rows = (data || []) as unknown as MessageRow[];
     setMessages(rows);
     const ids = Array.from(new Set(rows.flatMap((m) => [m.sender_id, m.recipient_id]).filter(Boolean)));
     loadProfiles(ids);
