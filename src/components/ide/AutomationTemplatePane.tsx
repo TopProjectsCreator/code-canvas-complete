@@ -1099,6 +1099,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     // Imports
     L.push([...allImports].join('\n'));
     L.push('');
+    if (triggerLabel === 'Webhook (Catch)') {
+      L.push('# Cross-thread payload queue between Flask handler and run_pipeline().');
+      L.push('_WEBHOOK_QUEUE: "Queue[object]" = Queue()');
+      L.push('');
+    }
     L.push('');
 
     // Shared helpers
