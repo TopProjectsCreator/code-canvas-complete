@@ -37,6 +37,7 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
   const { executeShellCommand, executeCode, isExecuting } = useCodeExecution();
   const { status: webContainerStatus } = useWebContainer();
   const isOnline = useOnlineStatus();
+  const pythonExecutorMode = usePythonExecutorMode();
 
   useEffect(() => {
     if (scrollRef.current) {
