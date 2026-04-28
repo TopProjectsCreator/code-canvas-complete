@@ -493,7 +493,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       setTestRunLogs((p) => [...p, { icon, time: now(), text }]);
 
     push('check', 'Generating Node.js code…');
-    const code = generateNodeCodeImpl();
+    const code = generateNodeCodeImplRef.current?.();
     if (!code) { setIsTestRunning(false); return; }
 
     // Force one-shot execution and bypass long-running listeners so the test completes.
@@ -538,7 +538,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     if (result.error) push('error', result.error);
     if (output.length === 0 && !result.error) push('error', 'No output captured. Check console for details.');
     setIsTestRunning(false);
-  }, [blocks, invalidTriggerStart, executeCode, generateNodeCodeImpl]);
+  }, [blocks, invalidTriggerStart, executeCode]);
 
   const generateCode = useCallback((lang: 'python' | 'nodejs') => {
     if (blocks.length === 0) { toast.error('Add blocks first.'); return; }
