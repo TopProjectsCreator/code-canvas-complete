@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2, Sparkles, WifiOff } from 'lucide-react';
+import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2, Sparkles, WifiOff, AlertTriangle } from 'lucide-react';
 import { TerminalLine } from '@/types/ide';
 import { cn } from '@/lib/utils';
 import { useCodeExecution } from '@/hooks/useCodeExecution';
 import { useWebContainer } from '@/hooks/useWebContainer';
+import { usePythonExecutorMode } from '@/hooks/usePythonExecutorMode';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,7 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
   const { executeShellCommand, executeCode, isExecuting } = useCodeExecution();
   const { status: webContainerStatus } = useWebContainer();
   const isOnline = useOnlineStatus();
+  const pythonExecutorMode = usePythonExecutorMode();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -250,6 +252,24 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
           className="flex-1 overflow-auto ide-scrollbar p-3 font-mono text-sm"
           onClick={() => inputRef.current?.focus()}
         >
+          {pythonExecutorMode === 'pyodide' && (
+            <div className="mb-2 flex items-start gap-2 rounded border border-yellow-500/40 bg-yellow-500/10 px-2.5 py-1.5 text-xs text-yellow-200 font-sans">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-yellow-400" />
+              <div className="leading-snug">
+                <span className="font-semibold">Pyodide (browser Python) is forced.</span>{' '}
+                These will fail: <code className="font-mono">pip</code>/<code className="font-mono">uv</code>,{' '}
+                <code className="font-mono">subprocess</code>, <code className="font-mono">os.system</code>,{' '}
+                <code className="font-mono">socket</code>, <code className="font-mono">requests</code>,{' '}
+                <code className="font-mono">urllib3</code>, DB drivers (<code className="font-mono">psycopg2</code>,{' '}
+                <code className="font-mono">pyodbc</code>), GUI (<code className="font-mono">tkinter</code>,{' '}
+                <code className="font-mono">turtle</code>, <code className="font-mono">pygame</code>),{' '}
+                <code className="font-mono">cv2</code>, <code className="font-mono">torch</code>,{' '}
+                <code className="font-mono">tensorflow</code>, multiprocessing, and any package without a WASM build.
+                Switch to <span className="font-semibold">Auto</span> or{' '}
+                <span className="font-semibold">Container</span> in Settings to use those.
+              </div>
+            </div>
+          )}
           {history.map((line) => (
             <div key={line.id} className={cn('leading-relaxed', getLineColor(line.type))}>
               {line.type === 'input' && <span className="text-primary mr-2">$</span>}
