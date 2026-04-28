@@ -302,7 +302,7 @@ export const useCodeExecution = () => {
     } finally {
       setIsExecuting(false);
     }
-  }, [boot, executorSessions, spawn, webContainerStatus]);
+  }, [boot, executorSessions, spawn, webContainerStatus, runPyodide]);
 
   const executeShellCommand = useCallback(async (command: string): Promise<ExecutionResult> => {
     return executeCode(command, 'shell');
