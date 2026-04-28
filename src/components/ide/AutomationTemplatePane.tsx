@@ -1160,8 +1160,10 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push('    run_pipeline()');
     }
 
-    setPythonCode(L.join('\n') + '\n');
+    const code = L.join('\n') + '\n';
+    setPythonCode(code);
     toast.success('Python code generated!');
+    return code;
   }, [blocks]);
 
   // ---- Node.js code generation ----
@@ -1495,8 +1497,10 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     L.push('');
     L.push('runPipeline().catch(console.error);');
 
-    setNodeCode(L.join('\n') + '\n');
+    const code = L.join('\n') + '\n';
+    setNodeCode(code);
     toast.success('Node.js code generated!');
+    return code;
   }, [blocks]);
 
   const copyGeneratedCode = useCallback(() => {
