@@ -487,30 +487,57 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     if (invalidTriggerStart) { toast.error('The first block must be a trigger block.'); return; }
     setIsTestRunning(true);
     setTestRunLogs([]);
-    setPythonCode(null);
     const now = () => new Date().toLocaleTimeString('en-US', { hour12: false });
-    for (let i = 0; i < blocks.length; i++) {
-      const block = blocks[i];
-      await new Promise((r) => setTimeout(r, 400 + Math.random() * 600));
-      if (i === 0) {
-        setTestRunLogs((p) => [...p, { icon: 'check' as const, time: now(), text: `Trigger fired: ${block.label}` }]);
-      } else {
-        if (block.auth === 'api_key') {
-          setTestRunLogs((p) => [...p, { icon: 'key' as const, time: now(), text: `Credentials resolved for ${block.label}` }]);
-          await new Promise((r) => setTimeout(r, 300));
-        }
-        const hasEmpty = Object.values(block.config).some((v) => v === '' || v === 'configure-action');
-        if (hasEmpty) {
-          setTestRunLogs((p) => [...p, { icon: 'error' as const, time: now(), text: `⚠ ${block.label}: missing config — skipped` }]);
-        } else {
-          setTestRunLogs((p) => [...p, { icon: 'dot' as const, time: now(), text: `Step ${i}: ${block.label} executed` }]);
-        }
-      }
+    const push = (icon: 'check' | 'dot' | 'key' | 'error', text: string) =>
+      setTestRunLogs((p) => [...p, { icon, time: now(), text }]);
+
+    push('check', 'Generating Node.js code…');
+    const code = generateNodeCodeImpl();
+    if (!code) { setIsTestRunning(false); return; }
+
+    // Force one-shot execution and bypass long-running listeners so the test completes.
+    const testHarness = [
+      'process.env.RUN_ONCE = "1";',
+      'process.env.AUTOMATION_TEST_MODE = "1";',
+      // Polyfill require for the WebContainer/sandbox shim — uses dynamic import for node-fetch etc.
+      '',
+    ].join('\n');
+
+    push('dot', 'Executing pipeline in sandbox…');
+    let result;
+    try {
+      result = await executeCode(testHarness + code, 'javascript');
+    } catch (err) {
+      push('error', `Executor failed: ${err instanceof Error ? err.message : String(err)}`);
+      setIsTestRunning(false);
+      return;
     }
-    await new Promise((r) => setTimeout(r, 300));
-    setTestRunLogs((p) => [...p, { icon: 'check' as const, time: now(), text: 'Flow completed' }]);
+
+    const output = result.output || [];
+    let stepIdx = 0;
+    for (const raw of output) {
+      const line = String(raw);
+      // Skip sandbox banners.
+      if (line.startsWith('⚡') || line.startsWith('🐍')) continue;
+      if (line.includes('🚀 Starting pipeline')) { push('check', 'Pipeline started'); continue; }
+      if (line.includes('✅ Pipeline complete')) { push('check', 'Pipeline complete'); continue; }
+      if (line.includes('❌ Pipeline failed')) { push('error', line.replace(/^.*❌\s*/, '')); continue; }
+      const stepMatch = line.match(/▶\s*\[(TRIGGER|STEP\s*\d+)\]\s*(.+?)\.\.\.$/);
+      if (stepMatch) {
+        const isTrigger = stepMatch[1] === 'TRIGGER';
+        push(isTrigger ? 'check' : 'dot', `${isTrigger ? 'Trigger fired' : `Step ${++stepIdx}`}: ${stepMatch[2]}`);
+        continue;
+      }
+      if (line.includes('↳')) { push('dot', line.replace(/^\s*↳\s*/, '↳ ')); continue; }
+      if (/Missing required env vars/i.test(line)) { push('key', line); continue; }
+      if (/^\s*(Error|TypeError|ReferenceError):/.test(line)) { push('error', line); continue; }
+      // Anything else (user prints, warnings) — keep visible as a generic dot.
+      if (line.trim()) push('dot', line);
+    }
+    if (result.error) push('error', result.error);
+    if (output.length === 0 && !result.error) push('error', 'No output captured. Check console for details.');
     setIsTestRunning(false);
-  }, [blocks, invalidTriggerStart]);
+  }, [blocks, invalidTriggerStart, executeCode, generateNodeCodeImpl]);
 
   const generateCode = useCallback((lang: 'python' | 'nodejs') => {
     if (blocks.length === 0) { toast.error('Add blocks first.'); return; }
