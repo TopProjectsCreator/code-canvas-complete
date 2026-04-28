@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useCodeExecution } from '@/hooks/useCodeExecution';
 import {
   ALL_AUTOMATION_BLOCKS,
   AUTOMATION_BLOCK_COUNT,
