@@ -1531,7 +1531,10 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     return code;
   }, [blocks]);
 
-  const copyGeneratedCode = useCallback(() => {
+  // Bridge for handleTestRun (declared earlier) to call the latest generator.
+  generateNodeCodeImplRef.current = generateNodeCodeImpl;
+
+
     if (generatedCode) { navigator.clipboard.writeText(generatedCode); toast.success('Copied to clipboard!'); }
   }, [generatedCode]);
 
