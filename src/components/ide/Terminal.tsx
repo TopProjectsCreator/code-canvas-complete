@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2, Sparkles, WifiOff } from 'lucide-react';
+import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2, Sparkles, WifiOff, AlertTriangle } from 'lucide-react';
 import { TerminalLine } from '@/types/ide';
 import { cn } from '@/lib/utils';
 import { useCodeExecution } from '@/hooks/useCodeExecution';
 import { useWebContainer } from '@/hooks/useWebContainer';
+import { usePythonExecutorMode } from '@/hooks/usePythonExecutorMode';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { Input } from '@/components/ui/input';
