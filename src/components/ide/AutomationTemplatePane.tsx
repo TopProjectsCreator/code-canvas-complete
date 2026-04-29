@@ -2015,8 +2015,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push('  const express = require("express");');
       L.push('  const app = express(); app.use(express.json()); app.use(express.urlencoded({ extended: true }));');
       L.push(`  app.${method}(${JSON.stringify(path)}, async (req, res) => {`);
-      L.push('    _webhookQueue.push(req.body || {});');
-      L.push('    try { const r = await runPipeline(); res.json({ ok: true, result: r }); }');
+      L.push('    const payload = req.body || {};');
+      L.push('    // Honor common idempotency header conventions (Stripe/Shopify/custom).');
+      L.push('    const idempotencyKey = req.get("Idempotency-Key") || req.get("X-Idempotency-Key") || req.get("X-Request-Id") || null;');
+      L.push('    _webhookQueue.push(payload);');
+      L.push('    try { const r = await runPipeline({ payload, idempotencyKey }); res.json({ ok: true, result: r }); }');
       L.push('    catch (e) { res.status(500).json({ ok: false, error: e.message }); }');
       L.push('  });');
       L.push('  const port = parseInt(process.env.PORT || "8000", 10);');
