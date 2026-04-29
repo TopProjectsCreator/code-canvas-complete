@@ -1,18 +1,26 @@
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlertTriangle,
   Check,
   CircleDot,
   ClipboardCopy,
   Code2,
+  FileText,
+  History,
   KeyRound,
   Loader2,
   Logs,
   MinusCircle,
+  Paperclip,
   Play,
   Plus,
   Search,
+  ShieldCheck,
+  Terminal as TerminalIcon,
   Trash2,
+  Upload,
   Workflow,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
