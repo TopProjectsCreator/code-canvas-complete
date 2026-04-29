@@ -2051,7 +2051,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push(`  const interval = parseInt(process.env.POLL_INTERVAL || "${interval}", 10) * 1000;`);
       L.push(`  console.log(\`🔁 Polling ${triggerLabel} every \${interval / 1000}s\`);`);
       L.push('  while (true) {');
-      L.push('    try { await runPipeline(); } catch (e) { console.error("❌", e.message); }');
+      if (needsIdempotency) {
+        L.push('    try { await runPipeline({ payload: { polledAt: Date.now() } }); } catch (e) { console.error("❌", e.message); }');
+      } else {
+        L.push('    try { await runPipeline(); } catch (e) { console.error("❌", e.message); }');
+      }
       L.push('    await new Promise(r => setTimeout(r, interval));');
       L.push('  }');
     } else {
