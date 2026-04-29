@@ -85,6 +85,128 @@ interface AutomationTemplatePaneProps {
   syncVersion?: number;
 }
 
+// ============= Step artifacts & event history =============
+export interface StepArtifact {
+  stepIndex: number;
+  stepLabel: string;
+  /** 'inline' = produced by pipeline (JSON/text); 'upload' = file uploaded by user */
+  source: 'inline' | 'upload';
+  name: string;
+  mimeType: string;
+  /** Pretty-printed text representation (JSON, file head, etc.) */
+  preview: string;
+  sizeBytes: number;
+  capturedAt: string;
+}
+
+export interface AutomationRunRecord {
+  id: string;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  triggerLabel: string;
+  status: 'success' | 'failed' | 'halted';
+  stepCount: number;
+  artifactsCount: number;
+  finalOutputPreview: string;
+  errorMessage?: string;
+  logs: { icon: string; time: string; text: string }[];
+  artifacts: StepArtifact[];
+  preflight: { missing: string[]; checkedAt: string };
+}
+
+const RUN_HISTORY_KEY = 'automation.runHistory.v1';
+const MAX_RUN_HISTORY = 25;
+
+const loadRunHistory = (): AutomationRunRecord[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(RUN_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(0, MAX_RUN_HISTORY) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveRunHistory = (records: AutomationRunRecord[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(RUN_HISTORY_KEY, JSON.stringify(records.slice(0, MAX_RUN_HISTORY)));
+  } catch {
+    /* localStorage full or disabled */
+  }
+};
+
+// ============= Preflight env var detection =============
+/** Scan generated code for `process.env.X` and `os.environ[...]` references. */
+const scanRequiredEnvVars = (code: string): string[] => {
+  const found = new Set<string>();
+  const jsRe = /process\.env\.([A-Z][A-Z0-9_]*)/g;
+  const pyRe = /os\.environ(?:\.get)?\[?["']([A-Z][A-Z0-9_]*)["']\]?/g;
+  let m: RegExpExecArray | null;
+  while ((m = jsRe.exec(code))) found.add(m[1]);
+  while ((m = pyRe.exec(code))) found.add(m[1]);
+  // Strip vars that are typically auto-set or optional infra defaults.
+  ['PORT', 'NODE_ENV', 'PYTHONUNBUFFERED', 'RUN_ONCE', 'AUTOMATION_TEST_MODE',
+    'PIPELINE_CRON', 'WATCH_PATH', 'POLL_INTERVAL', 'WEBHOOK_WAIT_SECS',
+    'PG_NOTIFY_CHANNEL'].forEach((v) => found.delete(v));
+  return Array.from(found).sort();
+};
+
+/** Build CLI/Docker/Procfile/systemd snippets for a generated pipeline. */
+const buildDeploymentSnippets = (
+  language: 'python' | 'nodejs',
+  triggerLabel: string | undefined,
+  envVars: string[],
+  npmPackages: string[],
+) => {
+  const isPy = language === 'python';
+  const runCmd = isPy ? 'python automation.py' : 'node automation.js';
+  const oneShotCmd = isPy ? 'RUN_ONCE=1 python automation.py' : 'RUN_ONCE=1 node automation.js';
+  const installCmd = isPy
+    ? 'pip install -r requirements.txt'
+    : `npm install ${['dotenv', ...npmPackages].join(' ')}`;
+  const baseImage = isPy ? 'python:3.12-slim' : 'node:20-slim';
+  const copyCmd = isPy
+    ? 'COPY requirements.txt ./\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY automation.py ./'
+    : 'COPY package*.json ./\nRUN npm ci --omit=dev\nCOPY automation.js ./';
+
+  const exposeLine = triggerLabel === 'Webhook (Catch)' ? 'EXPOSE 8000\n' : '';
+  const dockerfile = `# Dockerfile\nFROM ${baseImage}\nWORKDIR /app\n${copyCmd}\n${exposeLine}ENV NODE_ENV=production PYTHONUNBUFFERED=1\nCMD ["${isPy ? 'python' : 'node'}", "automation.${isPy ? 'py' : 'js'}"]\n`;
+
+  const composeEnv = envVars.length
+    ? '    environment:\n' + envVars.map((v) => `      ${v}: \${${v}}`).join('\n') + '\n'
+    : '';
+  const composePort = triggerLabel === 'Webhook (Catch)' ? '    ports:\n      - "8000:8000"\n' : '';
+  const dockerCompose = `# docker-compose.yml\nservices:\n  automation:\n    build: .\n    restart: unless-stopped\n${composePort}${composeEnv}`;
+
+  const procfile = triggerLabel === 'Webhook (Catch)'
+    ? `web: ${runCmd}\n`
+    : `worker: ${runCmd}\n`;
+
+  const systemd = `# /etc/systemd/system/automation.service\n[Unit]\nDescription=Automation pipeline\nAfter=network.target\n\n[Service]\nType=simple\nWorkingDirectory=/opt/automation\nEnvironmentFile=/opt/automation/.env\nExecStart=/usr/bin/${isPy ? 'python3' : 'node'} automation.${isPy ? 'py' : 'js'}\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n`;
+
+  const cliQuickstart = [
+    '# 1. Install deps',
+    installCmd,
+    '',
+    '# 2. Set env vars (or put them in a .env file)',
+    ...envVars.map((v) => `export ${v}=...`),
+    '',
+    '# 3. Test once (no listener)',
+    oneShotCmd,
+    '',
+    '# 4. Run as long-lived listener',
+    runCmd,
+  ].join('\n');
+
+  return { cliQuickstart, dockerfile, dockerCompose, procfile, systemd };
+};
+
+
+
 const createId = () => Math.random().toString(36).slice(2, 9);
 
 const getBlockDefinition = (type: string) => {
