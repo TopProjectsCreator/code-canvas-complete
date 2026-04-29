@@ -425,6 +425,18 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   const [nodeCode, setNodeCode] = useState<string | null>(null);
   const [codeLanguage, setCodeLanguage] = useState<'python' | 'nodejs'>('python');
   const generatedCode = codeLanguage === 'nodejs' ? nodeCode : pythonCode;
+
+  // ---- New: artifacts, run history, preflight, deployment snippets ----
+  const [stepArtifacts, setStepArtifacts] = useState<StepArtifact[]>([]);
+  const [runHistory, setRunHistory] = useState<AutomationRunRecord[]>(() => loadRunHistory());
+  const [preflight, setPreflight] = useState<{ required: string[]; missing: string[]; checkedAt: string } | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showSnippets, setShowSnippets] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const artifactInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { saveRunHistory(runHistory); }, [runHistory]);
+
   const blocksChangeRef = useRef(onBlocksChange);
   const skipNextBlocksEmitRef = useRef(false);
   const hasMountedRef = useRef(false);
