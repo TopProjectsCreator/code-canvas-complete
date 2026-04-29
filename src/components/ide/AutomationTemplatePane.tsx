@@ -1887,6 +1887,28 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push('');
     }
 
+    // Idempotency dedupe — prevents duplicate runs from repeated webhook/queue/email events.
+    const needsIdempotency = ['Webhook (Catch)', 'Queue Consumer', 'New Email'].includes(triggerLabel || '');
+    if (needsIdempotency) {
+      L.push('// Idempotency: track recently-processed event keys (in-memory; swap for Redis in prod).');
+      L.push('const _crypto = require("crypto");');
+      L.push('const _idempotencySeen = new Map(); // key -> expiresAt(ms)');
+      L.push('const _IDEMPOTENCY_TTL_MS = parseInt(process.env.IDEMPOTENCY_TTL_SECONDS || "3600", 10) * 1000;');
+      L.push('function _computeIdempotencyKey(payload, explicitKey) {');
+      L.push('  if (explicitKey) return String(explicitKey);');
+      L.push('  const body = typeof payload === "string" ? payload : JSON.stringify(payload || {});');
+      L.push('  return _crypto.createHash("sha256").update(body).digest("hex").slice(0, 32);');
+      L.push('}');
+      L.push('function _shouldSkipIdempotent(key) {');
+      L.push('  const now = Date.now();');
+      L.push('  for (const [k, exp] of _idempotencySeen) if (exp < now) _idempotencySeen.delete(k);');
+      L.push('  if (_idempotencySeen.has(key)) return true;');
+      L.push('  _idempotencySeen.set(key, now + _IDEMPOTENCY_TTL_MS);');
+      L.push('  return false;');
+      L.push('}');
+      L.push('');
+    }
+
     // Step functions
     for (let i = 0; i < blocks.length; i++) {
       const b = blocks[i];
