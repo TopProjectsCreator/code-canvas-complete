@@ -571,6 +571,7 @@ The file must conform to this structure:
 | \`control_if\` | Control | c-block | If condition (inputs: CONDITION, SUBSTACK) |
 | \`motion_movesteps\` | Motion | stack | Move N steps (inputs: STEPS) |
 | \`motion_turnright\` | Motion | stack | Turn right N degrees (inputs: DEGREES) |
+| \`motion_goto\` | Motion | stack | Go to target (field/input: TO; use `\_mouse_\` for mouse-pointer, `\_random_\` for random position) |
 | \`motion_gotoxy\` | Motion | stack | Go to x,y (inputs: X, Y) |
 | \`looks_sayforsecs\` | Looks | stack | Say text for N seconds (inputs: MESSAGE, SECS) |
 | \`looks_show\` | Looks | stack | Show sprite |
