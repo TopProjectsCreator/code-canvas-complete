@@ -1973,8 +1973,15 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push('');
     }
 
-    // Pipeline runner
-    L.push('async function runPipeline() {');
+    // Pipeline runner — accepts optional triggerEvent {payload, idempotencyKey} for dedupe.
+    L.push('async function runPipeline(triggerEvent = null) {');
+    if (needsIdempotency) {
+      L.push('  if (triggerEvent) {');
+      L.push('    const _idemKey = _computeIdempotencyKey(triggerEvent.payload, triggerEvent.idempotencyKey);');
+      L.push('    if (_shouldSkipIdempotent(_idemKey)) { console.log(`⏭️  Skipping duplicate event (idempotency-key=${_idemKey})`); return { skipped: true, idempotencyKey: _idemKey }; }');
+      L.push('    console.log(`🔑 idempotency-key=${_idemKey}`);');
+      L.push('  }');
+    }
     L.push('  console.log("🚀 Starting pipeline...");');
     L.push('  let result = null;');
     L.push('  try {');
@@ -1982,6 +1989,8 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       const fn = `step${i}_${blocks[i].label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
       L.push(`    result = await ${fn}(result);`);
       L.push(`    if (result === null) { console.log("⚠️ Pipeline halted at step ${i}"); return null; }`);
+      // Emit step artifact marker for the test runner to capture.
+      L.push(`    try { console.log("__ARTIFACT__" + JSON.stringify({ stepIndex: ${i}, stepLabel: ${JSON.stringify(blocks[i].label)}, output: result })); } catch (_) { /* non-serializable */ }`);
     }
     L.push('  } catch (err) {');
     L.push('    console.error("❌ Pipeline failed:", err.message);');
