@@ -625,24 +625,49 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     }
   };
 
+  const runPreflight = useCallback((code: string) => {
+    const required = scanRequiredEnvVars(code);
+    const missing = required.filter((v) => {
+      const fromBrowser = typeof window !== 'undefined' ? window.localStorage.getItem(`env.${v}`) : null;
+      return !fromBrowser;
+    });
+    const result = { required, missing, checkedAt: new Date().toISOString() };
+    setPreflight(result);
+    return result;
+  }, []);
+
   const handleTestRun = useCallback(async () => {
     if (blocks.length === 0) { toast.error('Add at least one block to test.'); return; }
     if (invalidTriggerStart) { toast.error('The first block must be a trigger block.'); return; }
     setIsTestRunning(true);
     setTestRunLogs([]);
+    setStepArtifacts((prev) => prev.filter((a) => a.source === 'upload')); // keep uploads, drop previous inline artifacts
+    const startedAtIso = new Date().toISOString();
+    const startedAt = Date.now();
     const now = () => new Date().toLocaleTimeString('en-US', { hour12: false });
-    const push = (icon: 'check' | 'dot' | 'key' | 'error', text: string) =>
-      setTestRunLogs((p) => [...p, { icon, time: now(), text }]);
+    const collected: { icon: 'check' | 'dot' | 'key' | 'error'; time: string; text: string }[] = [];
+    const push = (icon: 'check' | 'dot' | 'key' | 'error', text: string) => {
+      const entry = { icon, time: now(), text };
+      collected.push(entry);
+      setTestRunLogs((p) => [...p, entry]);
+    };
 
     push('check', 'Generating Node.js code…');
     const code = generateNodeCodeImplRef.current?.();
     if (!code) { setIsTestRunning(false); return; }
 
-    // Force one-shot execution and bypass long-running listeners so the test completes.
+    // Preflight: env var check before executing.
+    const pf = runPreflight(code);
+    if (pf.missing.length) {
+      push('key', `⚠ Preflight: missing ${pf.missing.length} env var${pf.missing.length > 1 ? 's' : ''}: ${pf.missing.join(', ')}`);
+      push('dot', 'Continuing test in sandbox — production runs will fail until these are set.');
+    } else if (pf.required.length) {
+      push('check', `Preflight OK — ${pf.required.length} required env var${pf.required.length > 1 ? 's' : ''} present.`);
+    }
+
     const testHarness = [
       'process.env.RUN_ONCE = "1";',
       'process.env.AUTOMATION_TEST_MODE = "1";',
-      // Polyfill require for the WebContainer/sandbox shim — uses dynamic import for node-fetch etc.
       '',
     ].join('\n');
 
@@ -657,13 +682,39 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     }
 
     const output = result.output || [];
+    const inlineArtifacts: StepArtifact[] = [];
     let stepIdx = 0;
+    let finalPreview = '';
+    let status: 'success' | 'failed' | 'halted' = 'failed';
     for (const raw of output) {
       const line = String(raw);
-      // Skip sandbox banners.
       if (line.startsWith('⚡') || line.startsWith('🐍')) continue;
+      // Capture step artifacts emitted by runPipeline.
+      const artMatch = line.match(/^__ARTIFACT__(.+)$/);
+      if (artMatch) {
+        try {
+          const parsed = JSON.parse(artMatch[1]);
+          const pretty = JSON.stringify(parsed.output, null, 2);
+          const art: StepArtifact = {
+            stepIndex: parsed.stepIndex,
+            stepLabel: parsed.stepLabel,
+            source: 'inline',
+            name: `step-${parsed.stepIndex}-${String(parsed.stepLabel).replace(/[^a-z0-9]/gi, '_')}.json`,
+            mimeType: 'application/json',
+            preview: pretty.slice(0, 8000),
+            sizeBytes: pretty.length,
+            capturedAt: new Date().toISOString(),
+          };
+          inlineArtifacts.push(art);
+          finalPreview = pretty.slice(0, 4000);
+        } catch { /* ignore */ }
+        continue;
+      }
       if (line.includes('🚀 Starting pipeline')) { push('check', 'Pipeline started'); continue; }
-      if (line.includes('✅ Pipeline complete')) { push('check', 'Pipeline complete'); continue; }
+      if (line.includes('✅ Pipeline complete')) { push('check', 'Pipeline complete'); status = 'success'; continue; }
+      if (line.includes('⚠️ Pipeline halted')) { push('dot', line); status = 'halted'; continue; }
+      if (line.includes('🔑 idempotency-key=')) { push('key', line); continue; }
+      if (line.includes('⏭️') && /idempotency/i.test(line)) { push('key', line); status = 'halted'; continue; }
       if (line.includes('❌ Pipeline failed')) { push('error', line.replace(/^.*❌\s*/, '')); continue; }
       const stepMatch = line.match(/▶\s*\[(TRIGGER|STEP\s*\d+)\]\s*(.+?)\.\.\.$/);
       if (stepMatch) {
@@ -674,13 +725,38 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       if (line.includes('↳')) { push('dot', line.replace(/^\s*↳\s*/, '↳ ')); continue; }
       if (/Missing required env vars/i.test(line)) { push('key', line); continue; }
       if (/^\s*(Error|TypeError|ReferenceError):/.test(line)) { push('error', line); continue; }
-      // Anything else (user prints, warnings) — keep visible as a generic dot.
       if (line.trim()) push('dot', line);
     }
-    if (result.error) push('error', result.error);
+    if (result.error) { push('error', result.error); status = 'failed'; }
     if (output.length === 0 && !result.error) push('error', 'No output captured. Check console for details.');
+
+    if (inlineArtifacts.length) {
+      setStepArtifacts((prev) => [...prev, ...inlineArtifacts]);
+      push('check', `Captured ${inlineArtifacts.length} step artifact${inlineArtifacts.length > 1 ? 's' : ''}.`);
+    }
+
+    // Persist run history record.
+    const finishedAt = Date.now();
+    const triggerLabel = blocks[0]?.label ?? 'Manual';
+    const record: AutomationRunRecord = {
+      id: createId() + Date.now().toString(36),
+      startedAt: startedAtIso,
+      finishedAt: new Date(finishedAt).toISOString(),
+      durationMs: finishedAt - startedAt,
+      triggerLabel,
+      status,
+      stepCount: blocks.length,
+      artifactsCount: inlineArtifacts.length,
+      finalOutputPreview: finalPreview,
+      errorMessage: result.error || undefined,
+      logs: collected,
+      artifacts: inlineArtifacts,
+      preflight: { missing: pf.missing, checkedAt: pf.checkedAt },
+    };
+    setRunHistory((prev) => [record, ...prev].slice(0, MAX_RUN_HISTORY));
+
     setIsTestRunning(false);
-  }, [blocks, invalidTriggerStart, executeCode]);
+  }, [blocks, invalidTriggerStart, executeCode, runPreflight]);
 
   const generateCode = useCallback((lang: 'python' | 'nodejs') => {
     if (blocks.length === 0) { toast.error('Add blocks first.'); return; }
