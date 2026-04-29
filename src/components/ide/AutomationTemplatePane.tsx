@@ -2495,7 +2495,143 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
             </div>
           )}
 
+          {/* ===== Preflight env-var check ===== */}
+          {preflight && preflight.required.length > 0 && (
+            <div className={cn('mt-4 rounded-md border p-3', preflight.missing.length ? 'border-amber-500/40 bg-amber-500/5' : 'border-emerald-500/40 bg-emerald-500/5')}>
+              <div className="mb-2 flex items-center gap-2">
+                <ShieldCheck className={cn('h-3.5 w-3.5', preflight.missing.length ? 'text-amber-400' : 'text-emerald-400')} />
+                <p className="text-xs font-medium">Preflight{preflight.missing.length > 0 ? ` — ${preflight.missing.length} missing` : ' — all set'}</p>
+              </div>
+              {preflight.missing.length > 0 ? (
+                <div className="space-y-1">
+                  {preflight.missing.map((v) => (
+                    <div key={v} className="flex items-center justify-between rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1">
+                      <code className="text-[11px] font-mono text-amber-200">{v}</code>
+                      <button onClick={() => { const val = window.prompt(`Set ${v}:`); if (val !== null) { window.localStorage.setItem(`env.${v}`, val); if (generatedCode) runPreflight(generatedCode); } }} className="rounded border border-amber-500/40 px-1.5 py-0.5 text-[10px] hover:bg-amber-500/10">Set</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-emerald-300/90">{preflight.required.length} required env var{preflight.required.length > 1 ? 's' : ''} present.</p>
+              )}
+            </div>
+          )}
 
+          {/* ===== Step artifacts ===== */}
+          <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                <p className="text-xs font-medium">Step artifacts ({stepArtifacts.length})</p>
+              </div>
+              <button onClick={() => artifactInputRef.current?.click()} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-accent">
+                <Upload className="h-3 w-3" /> Upload
+              </button>
+              <input ref={artifactInputRef} type="file" multiple className="hidden" onChange={(e) => { handleArtifactUpload(e.target.files); e.target.value = ''; }} />
+            </div>
+            {stepArtifacts.length === 0 ? (
+              <p className="text-[11px] italic text-muted-foreground">No artifacts. Run a test to capture step outputs, or upload files attached to a selected step.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {stepArtifacts.map((art, i) => (
+                  <details key={i} className="rounded border border-border bg-background/60">
+                    <summary className="flex cursor-pointer items-center justify-between px-2 py-1 text-[11px] hover:bg-accent/50">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span className="truncate font-medium">{art.stepIndex >= 0 ? `Step ${art.stepIndex}` : 'Detached'} · {art.name}</span>
+                        <span className={cn('rounded border px-1 text-[9px]', art.source === 'inline' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' : 'border-violet-500/40 bg-violet-500/10 text-violet-300')}>{art.source}</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <button onClick={(e) => { e.preventDefault(); downloadArtifact(art); }} className="rounded p-0.5 hover:bg-accent"><Upload className="h-3 w-3 rotate-180 text-muted-foreground" /></button>
+                        <button onClick={(e) => { e.preventDefault(); removeArtifact(i); }} className="rounded p-0.5 hover:bg-accent hover:text-destructive"><X className="h-3 w-3" /></button>
+                      </span>
+                    </summary>
+                    <pre className="max-h-48 overflow-auto border-t border-border bg-background p-2 text-[10px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{art.preview || '(empty)'}</pre>
+                    <p className="px-2 py-1 text-[9px] text-muted-foreground border-t border-border">{art.mimeType} · {art.sizeBytes} bytes</p>
+                  </details>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ===== Production deployment snippets ===== */}
+          {deploymentSnippets && (
+            <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
+              <button onClick={() => setShowSnippets((s) => !s)} className="flex w-full items-center justify-between">
+                <div className="flex items-center gap-2"><TerminalIcon className="h-3.5 w-3.5 text-muted-foreground" /><p className="text-xs font-medium">Production deployment snippets</p></div>
+                <span className="text-[10px] text-muted-foreground">{showSnippets ? '−' : '+'}</span>
+              </button>
+              {showSnippets && (
+                <div className="mt-2 space-y-2">
+                  {([['CLI quickstart', deploymentSnippets.cliQuickstart], ['Dockerfile', deploymentSnippets.dockerfile], ['docker-compose.yml', deploymentSnippets.dockerCompose], ['Procfile', deploymentSnippets.procfile], ['systemd unit', deploymentSnippets.systemd]] as const).map(([title, body]) => (
+                    <details key={title} className="rounded border border-border bg-background/60">
+                      <summary className="flex cursor-pointer items-center justify-between px-2 py-1 text-[11px] hover:bg-accent/50">
+                        <span className="font-medium">{title}</span>
+                        <button onClick={(e) => { e.preventDefault(); navigator.clipboard.writeText(body); toast.success(`${title} copied`); }} className="rounded p-0.5 hover:bg-accent"><ClipboardCopy className="h-3 w-3 text-muted-foreground" /></button>
+                      </summary>
+                      <pre className="max-h-56 overflow-auto border-t border-border bg-background p-2 text-[10px] font-mono text-foreground ide-scrollbar whitespace-pre">{body}</pre>
+                    </details>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== Run history ===== */}
+          <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
+            <button onClick={() => setShowHistory((s) => !s)} className="flex w-full items-center justify-between">
+              <div className="flex items-center gap-2"><History className="h-3.5 w-3.5 text-muted-foreground" /><p className="text-xs font-medium">Event history ({runHistory.length})</p></div>
+              <span className="text-[10px] text-muted-foreground">{showHistory ? '−' : '+'}</span>
+            </button>
+            {showHistory && (
+              <div className="mt-2 space-y-1.5">
+                {runHistory.length === 0 ? (
+                  <p className="text-[11px] italic text-muted-foreground">No trigger firings recorded yet.</p>
+                ) : (
+                  <>
+                    <button onClick={clearRunHistory} className="w-full rounded border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-destructive">Clear history</button>
+                    {runHistory.map((run) => {
+                      const isOpen = selectedRunId === run.id;
+                      const sc = run.status === 'success' ? 'border-emerald-500/40 bg-emerald-500/5 text-emerald-300' : run.status === 'halted' ? 'border-amber-500/40 bg-amber-500/5 text-amber-300' : 'border-destructive/40 bg-destructive/5 text-destructive';
+                      return (
+                        <div key={run.id} className="rounded border border-border bg-background/60">
+                          <button onClick={() => setSelectedRunId(isOpen ? null : run.id)} className="flex w-full items-center justify-between px-2 py-1 text-left hover:bg-accent/50">
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <span className={cn('rounded border px-1 text-[9px] font-medium', sc)}>{run.status}</span>
+                              <span className="truncate text-[11px] font-medium">{run.triggerLabel}</span>
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">{run.durationMs}ms · {new Date(run.startedAt).toLocaleTimeString()}</span>
+                          </button>
+                          {isOpen && (
+                            <div className="border-t border-border p-2 space-y-2">
+                              <div className="grid grid-cols-2 gap-1 text-[10px] text-muted-foreground">
+                                <div>Steps: <span className="text-foreground">{run.stepCount}</span></div>
+                                <div>Artifacts: <span className="text-foreground">{run.artifactsCount}</span></div>
+                              </div>
+                              {run.preflight.missing.length > 0 && (
+                                <div className="rounded border border-amber-500/30 bg-amber-500/5 p-1.5 text-[10px] text-amber-300"><AlertTriangle className="inline h-3 w-3 mr-1" />Preflight missing: {run.preflight.missing.join(', ')}</div>
+                              )}
+                              {run.errorMessage && <div className="rounded border border-destructive/40 bg-destructive/5 p-1.5 text-[10px] text-destructive font-mono">{run.errorMessage}</div>}
+                              {run.finalOutputPreview && (
+                                <details><summary className="cursor-pointer text-[10px] font-medium text-muted-foreground">Final output</summary><pre className="mt-1 max-h-40 overflow-auto rounded border border-border bg-background p-1.5 text-[10px] font-mono whitespace-pre-wrap">{run.finalOutputPreview}</pre></details>
+                              )}
+                              <details><summary className="cursor-pointer text-[10px] font-medium text-muted-foreground">Logs ({run.logs.length})</summary>
+                                <div className="mt-1 max-h-40 overflow-auto space-y-0.5 rounded border border-border bg-background p-1.5">
+                                  {run.logs.map((log, i) => (<p key={i} className="text-[10px] font-mono text-muted-foreground">[{log.time}] {log.text}</p>))}
+                                </div>
+                              </details>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ===== Run logs (live) ===== */}
           <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
             <div className="mb-2 flex items-center gap-2">
               <Logs className="h-3.5 w-3.5 text-muted-foreground" />
@@ -2509,15 +2645,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                 testRunLogs.map((log, i) => {
                   const Icon = log.icon === 'check' ? Check : log.icon === 'dot' ? CircleDot : log.icon === 'key' ? KeyRound : MinusCircle;
                   const color = log.icon === 'check' ? 'text-emerald-400' : log.icon === 'dot' ? 'text-blue-400' : log.icon === 'key' ? 'text-amber-400' : 'text-destructive';
-                  return (
-                    <p key={i} className="flex items-center gap-1">
-                      <Icon className={cn('h-3 w-3', color)} /> {log.time} {log.text}
-                    </p>
-                  );
+                  return (<p key={i} className="flex items-center gap-1"><Icon className={cn('h-3 w-3', color)} /> {log.time} {log.text}</p>);
                 })
               )}
             </div>
           </div>
+
         </div>
       </aside>
     </div>
