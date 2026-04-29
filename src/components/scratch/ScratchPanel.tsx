@@ -974,6 +974,17 @@ const DROPDOWN_REGISTRY: Record<string, MenuFieldDef[]> = {
   ].map((v) => ({ value: v, label: v })) }],
 };
 
+
+const normalizeScratchMenuValue = (value: string, fallback: string) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return fallback;
+  if (normalized === 'mouse-pointer' || normalized === 'mouse pointer' || normalized === '_mouse_') return '_mouse_';
+  if (normalized === 'random position' || normalized === 'random-position' || normalized === '_random_') return '_random_';
+  if (normalized === 'myself' || normalized === '_myself_') return '_myself_';
+  if (normalized === 'stage' || normalized === '_stage_') return '_stage_';
+  return value;
+};
+
 const createVmCompatibleBlockShape = (
   blockId: string,
   blockDef: ScratchBlockDef,
@@ -1106,9 +1117,9 @@ const createVmCompatibleBlockShape = (
   }
 
   // Motion menus
-  if (op === 'motion_goto') createShadow('TO', 'motion_goto_menu', 'TO', getFieldOption(blockDef.fields, 'TO', '_random_'));
-  if (op === 'motion_glideto') createShadow('TO', 'motion_glideto_menu', 'TO', getFieldOption(blockDef.fields, 'TO', '_random_'));
-  if (op === 'motion_pointtowards') createShadow('TOWARDS', 'motion_pointtowards_menu', 'TOWARDS', getFieldOption(blockDef.fields, 'TOWARDS', '_mouse_'));
+  if (op === 'motion_goto') createShadow('TO', 'motion_goto_menu', 'TO', normalizeScratchMenuValue(getFieldOption(blockDef.fields, 'TO', '_random_'), '_random_'));
+  if (op === 'motion_glideto') createShadow('TO', 'motion_glideto_menu', 'TO', normalizeScratchMenuValue(getFieldOption(blockDef.fields, 'TO', '_random_'), '_random_'));
+  if (op === 'motion_pointtowards') createShadow('TOWARDS', 'motion_pointtowards_menu', 'TOWARDS', normalizeScratchMenuValue(getFieldOption(blockDef.fields, 'TOWARDS', '_mouse_'), '_mouse_'));
 
   // Looks menus
   if (op === 'looks_switchcostumeto') createShadow('COSTUME', 'looks_costume', 'COSTUME', getFieldOption(blockDef.fields, 'COSTUME', 'costume1'));
