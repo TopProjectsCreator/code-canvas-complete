@@ -2171,6 +2171,78 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     if (generatedCode) { navigator.clipboard.writeText(generatedCode); toast.success('Copied to clipboard!'); }
   }, [generatedCode]);
 
+  // Deployment snippets derived from the latest generated code.
+  const deploymentSnippets = useMemo(() => {
+    if (!generatedCode) return null;
+    const required = scanRequiredEnvVars(generatedCode);
+    // Extract npm package list from the comment header.
+    const npmMatch = generatedCode.match(/npm install\s+([^\n*]+)/);
+    const npmPackages = npmMatch
+      ? npmMatch[1].trim().split(/\s+/).filter((p) => p && p !== 'dotenv')
+      : [];
+    const triggerLabel = blocks[0]?.label;
+    return buildDeploymentSnippets(codeLanguage, triggerLabel, required, npmPackages);
+  }, [generatedCode, codeLanguage, blocks]);
+
+  // Run preflight automatically whenever generated code changes.
+  useEffect(() => {
+    if (generatedCode) runPreflight(generatedCode);
+  }, [generatedCode, runPreflight]);
+
+  // Step artifact upload handler.
+  const handleArtifactUpload = useCallback(async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    const stepIdx = selectedBlock ? blocks.findIndex((b) => b.id === selectedBlock.id) : -1;
+    const stepLabel = selectedBlock?.label ?? 'unattached';
+    const newArts: StepArtifact[] = [];
+    for (const file of Array.from(files)) {
+      if (file.size > 1024 * 1024 * 5) {
+        toast.error(`${file.name} exceeds 5 MB limit`);
+        continue;
+      }
+      const text = await file.text().catch(() => '[binary file]');
+      newArts.push({
+        stepIndex: stepIdx,
+        stepLabel,
+        source: 'upload',
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        preview: text.slice(0, 8000),
+        sizeBytes: file.size,
+        capturedAt: new Date().toISOString(),
+      });
+    }
+    if (newArts.length) {
+      setStepArtifacts((prev) => [...prev, ...newArts]);
+      toast.success(`Uploaded ${newArts.length} artifact${newArts.length > 1 ? 's' : ''}`);
+    }
+  }, [selectedBlock, blocks]);
+
+  const removeArtifact = useCallback((idx: number) => {
+    setStepArtifacts((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const downloadArtifact = useCallback((art: StepArtifact) => {
+    const blob = new Blob([art.preview], { type: art.mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = art.name;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const clearRunHistory = useCallback(() => {
+    setRunHistory([]);
+    setSelectedRunId(null);
+    toast.success('Run history cleared');
+  }, []);
+
+  const selectedRun = useMemo(
+    () => runHistory.find((r) => r.id === selectedRunId) ?? null,
+    [runHistory, selectedRunId],
+  );
+
   return (
     <div className="grid h-full grid-cols-[290px_1fr_300px] overflow-hidden">
       <aside className="border-r border-border bg-background/70 flex flex-col overflow-hidden">
