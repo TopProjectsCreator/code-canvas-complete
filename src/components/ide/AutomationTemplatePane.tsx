@@ -1,18 +1,26 @@
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AlertTriangle,
   Check,
   CircleDot,
   ClipboardCopy,
   Code2,
+  FileText,
+  History,
   KeyRound,
   Loader2,
   Logs,
   MinusCircle,
+  Paperclip,
   Play,
   Plus,
   Search,
+  ShieldCheck,
+  Terminal as TerminalIcon,
   Trash2,
+  Upload,
   Workflow,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -76,6 +84,128 @@ interface AutomationTemplatePaneProps {
   onBlocksChange?: (blocks: AutomationBlockInstance[]) => void;
   syncVersion?: number;
 }
+
+// ============= Step artifacts & event history =============
+export interface StepArtifact {
+  stepIndex: number;
+  stepLabel: string;
+  /** 'inline' = produced by pipeline (JSON/text); 'upload' = file uploaded by user */
+  source: 'inline' | 'upload';
+  name: string;
+  mimeType: string;
+  /** Pretty-printed text representation (JSON, file head, etc.) */
+  preview: string;
+  sizeBytes: number;
+  capturedAt: string;
+}
+
+export interface AutomationRunRecord {
+  id: string;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  triggerLabel: string;
+  status: 'success' | 'failed' | 'halted';
+  stepCount: number;
+  artifactsCount: number;
+  finalOutputPreview: string;
+  errorMessage?: string;
+  logs: { icon: string; time: string; text: string }[];
+  artifacts: StepArtifact[];
+  preflight: { missing: string[]; checkedAt: string };
+}
+
+const RUN_HISTORY_KEY = 'automation.runHistory.v1';
+const MAX_RUN_HISTORY = 25;
+
+const loadRunHistory = (): AutomationRunRecord[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(RUN_HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(0, MAX_RUN_HISTORY) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveRunHistory = (records: AutomationRunRecord[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(RUN_HISTORY_KEY, JSON.stringify(records.slice(0, MAX_RUN_HISTORY)));
+  } catch {
+    /* localStorage full or disabled */
+  }
+};
+
+// ============= Preflight env var detection =============
+/** Scan generated code for `process.env.X` and `os.environ[...]` references. */
+const scanRequiredEnvVars = (code: string): string[] => {
+  const found = new Set<string>();
+  const jsRe = /process\.env\.([A-Z][A-Z0-9_]*)/g;
+  const pyRe = /os\.environ(?:\.get)?\[?["']([A-Z][A-Z0-9_]*)["']\]?/g;
+  let m: RegExpExecArray | null;
+  while ((m = jsRe.exec(code))) found.add(m[1]);
+  while ((m = pyRe.exec(code))) found.add(m[1]);
+  // Strip vars that are typically auto-set or optional infra defaults.
+  ['PORT', 'NODE_ENV', 'PYTHONUNBUFFERED', 'RUN_ONCE', 'AUTOMATION_TEST_MODE',
+    'PIPELINE_CRON', 'WATCH_PATH', 'POLL_INTERVAL', 'WEBHOOK_WAIT_SECS',
+    'PG_NOTIFY_CHANNEL'].forEach((v) => found.delete(v));
+  return Array.from(found).sort();
+};
+
+/** Build CLI/Docker/Procfile/systemd snippets for a generated pipeline. */
+const buildDeploymentSnippets = (
+  language: 'python' | 'nodejs',
+  triggerLabel: string | undefined,
+  envVars: string[],
+  npmPackages: string[],
+) => {
+  const isPy = language === 'python';
+  const runCmd = isPy ? 'python automation.py' : 'node automation.js';
+  const oneShotCmd = isPy ? 'RUN_ONCE=1 python automation.py' : 'RUN_ONCE=1 node automation.js';
+  const installCmd = isPy
+    ? 'pip install -r requirements.txt'
+    : `npm install ${['dotenv', ...npmPackages].join(' ')}`;
+  const baseImage = isPy ? 'python:3.12-slim' : 'node:20-slim';
+  const copyCmd = isPy
+    ? 'COPY requirements.txt ./\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY automation.py ./'
+    : 'COPY package*.json ./\nRUN npm ci --omit=dev\nCOPY automation.js ./';
+
+  const exposeLine = triggerLabel === 'Webhook (Catch)' ? 'EXPOSE 8000\n' : '';
+  const dockerfile = `# Dockerfile\nFROM ${baseImage}\nWORKDIR /app\n${copyCmd}\n${exposeLine}ENV NODE_ENV=production PYTHONUNBUFFERED=1\nCMD ["${isPy ? 'python' : 'node'}", "automation.${isPy ? 'py' : 'js'}"]\n`;
+
+  const composeEnv = envVars.length
+    ? '    environment:\n' + envVars.map((v) => `      ${v}: \${${v}}`).join('\n') + '\n'
+    : '';
+  const composePort = triggerLabel === 'Webhook (Catch)' ? '    ports:\n      - "8000:8000"\n' : '';
+  const dockerCompose = `# docker-compose.yml\nservices:\n  automation:\n    build: .\n    restart: unless-stopped\n${composePort}${composeEnv}`;
+
+  const procfile = triggerLabel === 'Webhook (Catch)'
+    ? `web: ${runCmd}\n`
+    : `worker: ${runCmd}\n`;
+
+  const systemd = `# /etc/systemd/system/automation.service\n[Unit]\nDescription=Automation pipeline\nAfter=network.target\n\n[Service]\nType=simple\nWorkingDirectory=/opt/automation\nEnvironmentFile=/opt/automation/.env\nExecStart=/usr/bin/${isPy ? 'python3' : 'node'} automation.${isPy ? 'py' : 'js'}\nRestart=on-failure\nRestartSec=5\n\n[Install]\nWantedBy=multi-user.target\n`;
+
+  const cliQuickstart = [
+    '# 1. Install deps',
+    installCmd,
+    '',
+    '# 2. Set env vars (or put them in a .env file)',
+    ...envVars.map((v) => `export ${v}=...`),
+    '',
+    '# 3. Test once (no listener)',
+    oneShotCmd,
+    '',
+    '# 4. Run as long-lived listener',
+    runCmd,
+  ].join('\n');
+
+  return { cliQuickstart, dockerfile, dockerCompose, procfile, systemd };
+};
+
+
 
 const createId = () => Math.random().toString(36).slice(2, 9);
 
@@ -295,6 +425,18 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   const [nodeCode, setNodeCode] = useState<string | null>(null);
   const [codeLanguage, setCodeLanguage] = useState<'python' | 'nodejs'>('python');
   const generatedCode = codeLanguage === 'nodejs' ? nodeCode : pythonCode;
+
+  // ---- New: artifacts, run history, preflight, deployment snippets ----
+  const [stepArtifacts, setStepArtifacts] = useState<StepArtifact[]>([]);
+  const [runHistory, setRunHistory] = useState<AutomationRunRecord[]>(() => loadRunHistory());
+  const [preflight, setPreflight] = useState<{ required: string[]; missing: string[]; checkedAt: string } | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showSnippets, setShowSnippets] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const artifactInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { saveRunHistory(runHistory); }, [runHistory]);
+
   const blocksChangeRef = useRef(onBlocksChange);
   const skipNextBlocksEmitRef = useRef(false);
   const hasMountedRef = useRef(false);
@@ -483,24 +625,49 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     }
   };
 
+  const runPreflight = useCallback((code: string) => {
+    const required = scanRequiredEnvVars(code);
+    const missing = required.filter((v) => {
+      const fromBrowser = typeof window !== 'undefined' ? window.localStorage.getItem(`env.${v}`) : null;
+      return !fromBrowser;
+    });
+    const result = { required, missing, checkedAt: new Date().toISOString() };
+    setPreflight(result);
+    return result;
+  }, []);
+
   const handleTestRun = useCallback(async () => {
     if (blocks.length === 0) { toast.error('Add at least one block to test.'); return; }
     if (invalidTriggerStart) { toast.error('The first block must be a trigger block.'); return; }
     setIsTestRunning(true);
     setTestRunLogs([]);
+    setStepArtifacts((prev) => prev.filter((a) => a.source === 'upload')); // keep uploads, drop previous inline artifacts
+    const startedAtIso = new Date().toISOString();
+    const startedAt = Date.now();
     const now = () => new Date().toLocaleTimeString('en-US', { hour12: false });
-    const push = (icon: 'check' | 'dot' | 'key' | 'error', text: string) =>
-      setTestRunLogs((p) => [...p, { icon, time: now(), text }]);
+    const collected: { icon: 'check' | 'dot' | 'key' | 'error'; time: string; text: string }[] = [];
+    const push = (icon: 'check' | 'dot' | 'key' | 'error', text: string) => {
+      const entry = { icon, time: now(), text };
+      collected.push(entry);
+      setTestRunLogs((p) => [...p, entry]);
+    };
 
     push('check', 'Generating Node.js code…');
     const code = generateNodeCodeImplRef.current?.();
     if (!code) { setIsTestRunning(false); return; }
 
-    // Force one-shot execution and bypass long-running listeners so the test completes.
+    // Preflight: env var check before executing.
+    const pf = runPreflight(code);
+    if (pf.missing.length) {
+      push('key', `⚠ Preflight: missing ${pf.missing.length} env var${pf.missing.length > 1 ? 's' : ''}: ${pf.missing.join(', ')}`);
+      push('dot', 'Continuing test in sandbox — production runs will fail until these are set.');
+    } else if (pf.required.length) {
+      push('check', `Preflight OK — ${pf.required.length} required env var${pf.required.length > 1 ? 's' : ''} present.`);
+    }
+
     const testHarness = [
       'process.env.RUN_ONCE = "1";',
       'process.env.AUTOMATION_TEST_MODE = "1";',
-      // Polyfill require for the WebContainer/sandbox shim — uses dynamic import for node-fetch etc.
       '',
     ].join('\n');
 
@@ -515,13 +682,39 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     }
 
     const output = result.output || [];
+    const inlineArtifacts: StepArtifact[] = [];
     let stepIdx = 0;
+    let finalPreview = '';
+    let status: 'success' | 'failed' | 'halted' = 'failed';
     for (const raw of output) {
       const line = String(raw);
-      // Skip sandbox banners.
       if (line.startsWith('⚡') || line.startsWith('🐍')) continue;
+      // Capture step artifacts emitted by runPipeline.
+      const artMatch = line.match(/^__ARTIFACT__(.+)$/);
+      if (artMatch) {
+        try {
+          const parsed = JSON.parse(artMatch[1]);
+          const pretty = JSON.stringify(parsed.output, null, 2);
+          const art: StepArtifact = {
+            stepIndex: parsed.stepIndex,
+            stepLabel: parsed.stepLabel,
+            source: 'inline',
+            name: `step-${parsed.stepIndex}-${String(parsed.stepLabel).replace(/[^a-z0-9]/gi, '_')}.json`,
+            mimeType: 'application/json',
+            preview: pretty.slice(0, 8000),
+            sizeBytes: pretty.length,
+            capturedAt: new Date().toISOString(),
+          };
+          inlineArtifacts.push(art);
+          finalPreview = pretty.slice(0, 4000);
+        } catch { /* ignore */ }
+        continue;
+      }
       if (line.includes('🚀 Starting pipeline')) { push('check', 'Pipeline started'); continue; }
-      if (line.includes('✅ Pipeline complete')) { push('check', 'Pipeline complete'); continue; }
+      if (line.includes('✅ Pipeline complete')) { push('check', 'Pipeline complete'); status = 'success'; continue; }
+      if (line.includes('⚠️ Pipeline halted')) { push('dot', line); status = 'halted'; continue; }
+      if (line.includes('🔑 idempotency-key=')) { push('key', line); continue; }
+      if (line.includes('⏭️') && /idempotency/i.test(line)) { push('key', line); status = 'halted'; continue; }
       if (line.includes('❌ Pipeline failed')) { push('error', line.replace(/^.*❌\s*/, '')); continue; }
       const stepMatch = line.match(/▶\s*\[(TRIGGER|STEP\s*\d+)\]\s*(.+?)\.\.\.$/);
       if (stepMatch) {
@@ -532,13 +725,38 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       if (line.includes('↳')) { push('dot', line.replace(/^\s*↳\s*/, '↳ ')); continue; }
       if (/Missing required env vars/i.test(line)) { push('key', line); continue; }
       if (/^\s*(Error|TypeError|ReferenceError):/.test(line)) { push('error', line); continue; }
-      // Anything else (user prints, warnings) — keep visible as a generic dot.
       if (line.trim()) push('dot', line);
     }
-    if (result.error) push('error', result.error);
+    if (result.error) { push('error', result.error); status = 'failed'; }
     if (output.length === 0 && !result.error) push('error', 'No output captured. Check console for details.');
+
+    if (inlineArtifacts.length) {
+      setStepArtifacts((prev) => [...prev, ...inlineArtifacts]);
+      push('check', `Captured ${inlineArtifacts.length} step artifact${inlineArtifacts.length > 1 ? 's' : ''}.`);
+    }
+
+    // Persist run history record.
+    const finishedAt = Date.now();
+    const triggerLabel = blocks[0]?.label ?? 'Manual';
+    const record: AutomationRunRecord = {
+      id: createId() + Date.now().toString(36),
+      startedAt: startedAtIso,
+      finishedAt: new Date(finishedAt).toISOString(),
+      durationMs: finishedAt - startedAt,
+      triggerLabel,
+      status,
+      stepCount: blocks.length,
+      artifactsCount: inlineArtifacts.length,
+      finalOutputPreview: finalPreview,
+      errorMessage: result.error || undefined,
+      logs: collected,
+      artifacts: inlineArtifacts,
+      preflight: { missing: pf.missing, checkedAt: pf.checkedAt },
+    };
+    setRunHistory((prev) => [record, ...prev].slice(0, MAX_RUN_HISTORY));
+
     setIsTestRunning(false);
-  }, [blocks, invalidTriggerStart, executeCode]);
+  }, [blocks, invalidTriggerStart, executeCode, runPreflight]);
 
   const generateCode = useCallback((lang: 'python' | 'nodejs') => {
     if (blocks.length === 0) { toast.error('Add blocks first.'); return; }
@@ -1757,6 +1975,28 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push('');
     }
 
+    // Idempotency dedupe — prevents duplicate runs from repeated webhook/queue/email events.
+    const needsIdempotency = ['Webhook (Catch)', 'Queue Consumer', 'New Email'].includes(triggerLabel || '');
+    if (needsIdempotency) {
+      L.push('// Idempotency: track recently-processed event keys (in-memory; swap for Redis in prod).');
+      L.push('const _crypto = require("crypto");');
+      L.push('const _idempotencySeen = new Map(); // key -> expiresAt(ms)');
+      L.push('const _IDEMPOTENCY_TTL_MS = parseInt(process.env.IDEMPOTENCY_TTL_SECONDS || "3600", 10) * 1000;');
+      L.push('function _computeIdempotencyKey(payload, explicitKey) {');
+      L.push('  if (explicitKey) return String(explicitKey);');
+      L.push('  const body = typeof payload === "string" ? payload : JSON.stringify(payload || {});');
+      L.push('  return _crypto.createHash("sha256").update(body).digest("hex").slice(0, 32);');
+      L.push('}');
+      L.push('function _shouldSkipIdempotent(key) {');
+      L.push('  const now = Date.now();');
+      L.push('  for (const [k, exp] of _idempotencySeen) if (exp < now) _idempotencySeen.delete(k);');
+      L.push('  if (_idempotencySeen.has(key)) return true;');
+      L.push('  _idempotencySeen.set(key, now + _IDEMPOTENCY_TTL_MS);');
+      L.push('  return false;');
+      L.push('}');
+      L.push('');
+    }
+
     // Step functions
     for (let i = 0; i < blocks.length; i++) {
       const b = blocks[i];
@@ -1821,8 +2061,15 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push('');
     }
 
-    // Pipeline runner
-    L.push('async function runPipeline() {');
+    // Pipeline runner — accepts optional triggerEvent {payload, idempotencyKey} for dedupe.
+    L.push('async function runPipeline(triggerEvent = null) {');
+    if (needsIdempotency) {
+      L.push('  if (triggerEvent) {');
+      L.push('    const _idemKey = _computeIdempotencyKey(triggerEvent.payload, triggerEvent.idempotencyKey);');
+      L.push('    if (_shouldSkipIdempotent(_idemKey)) { console.log(`⏭️  Skipping duplicate event (idempotency-key=${_idemKey})`); return { skipped: true, idempotencyKey: _idemKey }; }');
+      L.push('    console.log(`🔑 idempotency-key=${_idemKey}`);');
+      L.push('  }');
+    }
     L.push('  console.log("🚀 Starting pipeline...");');
     L.push('  let result = null;');
     L.push('  try {');
@@ -1830,6 +2077,8 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       const fn = `step${i}_${blocks[i].label.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
       L.push(`    result = await ${fn}(result);`);
       L.push(`    if (result === null) { console.log("⚠️ Pipeline halted at step ${i}"); return null; }`);
+      // Emit step artifact marker for the test runner to capture.
+      L.push(`    try { console.log("__ARTIFACT__" + JSON.stringify({ stepIndex: ${i}, stepLabel: ${JSON.stringify(blocks[i].label)}, output: result })); } catch (_) { /* non-serializable */ }`);
     }
     L.push('  } catch (err) {');
     L.push('    console.error("❌ Pipeline failed:", err.message);');
@@ -1854,8 +2103,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push('  const express = require("express");');
       L.push('  const app = express(); app.use(express.json()); app.use(express.urlencoded({ extended: true }));');
       L.push(`  app.${method}(${JSON.stringify(path)}, async (req, res) => {`);
-      L.push('    _webhookQueue.push(req.body || {});');
-      L.push('    try { const r = await runPipeline(); res.json({ ok: true, result: r }); }');
+      L.push('    const payload = req.body || {};');
+      L.push('    // Honor common idempotency header conventions (Stripe/Shopify/custom).');
+      L.push('    const idempotencyKey = req.get("Idempotency-Key") || req.get("X-Idempotency-Key") || req.get("X-Request-Id") || null;');
+      L.push('    _webhookQueue.push(payload);');
+      L.push('    try { const r = await runPipeline({ payload, idempotencyKey }); res.json({ ok: true, result: r }); }');
       L.push('    catch (e) { res.status(500).json({ ok: false, error: e.message }); }');
       L.push('  });');
       L.push('  const port = parseInt(process.env.PORT || "8000", 10);');
@@ -1887,7 +2139,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       L.push(`  const interval = parseInt(process.env.POLL_INTERVAL || "${interval}", 10) * 1000;`);
       L.push(`  console.log(\`🔁 Polling ${triggerLabel} every \${interval / 1000}s\`);`);
       L.push('  while (true) {');
-      L.push('    try { await runPipeline(); } catch (e) { console.error("❌", e.message); }');
+      if (needsIdempotency) {
+        L.push('    try { await runPipeline({ payload: { polledAt: Date.now() } }); } catch (e) { console.error("❌", e.message); }');
+      } else {
+        L.push('    try { await runPipeline(); } catch (e) { console.error("❌", e.message); }');
+      }
       L.push('    await new Promise(r => setTimeout(r, interval));');
       L.push('  }');
     } else {
@@ -1914,6 +2170,78 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   const copyGeneratedCode = useCallback(() => {
     if (generatedCode) { navigator.clipboard.writeText(generatedCode); toast.success('Copied to clipboard!'); }
   }, [generatedCode]);
+
+  // Deployment snippets derived from the latest generated code.
+  const deploymentSnippets = useMemo(() => {
+    if (!generatedCode) return null;
+    const required = scanRequiredEnvVars(generatedCode);
+    // Extract npm package list from the comment header.
+    const npmMatch = generatedCode.match(/npm install\s+([^\n*]+)/);
+    const npmPackages = npmMatch
+      ? npmMatch[1].trim().split(/\s+/).filter((p) => p && p !== 'dotenv')
+      : [];
+    const triggerLabel = blocks[0]?.label;
+    return buildDeploymentSnippets(codeLanguage, triggerLabel, required, npmPackages);
+  }, [generatedCode, codeLanguage, blocks]);
+
+  // Run preflight automatically whenever generated code changes.
+  useEffect(() => {
+    if (generatedCode) runPreflight(generatedCode);
+  }, [generatedCode, runPreflight]);
+
+  // Step artifact upload handler.
+  const handleArtifactUpload = useCallback(async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    const stepIdx = selectedBlock ? blocks.findIndex((b) => b.id === selectedBlock.id) : -1;
+    const stepLabel = selectedBlock?.label ?? 'unattached';
+    const newArts: StepArtifact[] = [];
+    for (const file of Array.from(files)) {
+      if (file.size > 1024 * 1024 * 5) {
+        toast.error(`${file.name} exceeds 5 MB limit`);
+        continue;
+      }
+      const text = await file.text().catch(() => '[binary file]');
+      newArts.push({
+        stepIndex: stepIdx,
+        stepLabel,
+        source: 'upload',
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        preview: text.slice(0, 8000),
+        sizeBytes: file.size,
+        capturedAt: new Date().toISOString(),
+      });
+    }
+    if (newArts.length) {
+      setStepArtifacts((prev) => [...prev, ...newArts]);
+      toast.success(`Uploaded ${newArts.length} artifact${newArts.length > 1 ? 's' : ''}`);
+    }
+  }, [selectedBlock, blocks]);
+
+  const removeArtifact = useCallback((idx: number) => {
+    setStepArtifacts((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const downloadArtifact = useCallback((art: StepArtifact) => {
+    const blob = new Blob([art.preview], { type: art.mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = art.name;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const clearRunHistory = useCallback(() => {
+    setRunHistory([]);
+    setSelectedRunId(null);
+    toast.success('Run history cleared');
+  }, []);
+
+  const selectedRun = useMemo(
+    () => runHistory.find((r) => r.id === selectedRunId) ?? null,
+    [runHistory, selectedRunId],
+  );
 
   return (
     <div className="grid h-full grid-cols-[290px_1fr_300px] overflow-hidden">
@@ -2167,7 +2495,143 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
             </div>
           )}
 
+          {/* ===== Preflight env-var check ===== */}
+          {preflight && preflight.required.length > 0 && (
+            <div className={cn('mt-4 rounded-md border p-3', preflight.missing.length ? 'border-amber-500/40 bg-amber-500/5' : 'border-emerald-500/40 bg-emerald-500/5')}>
+              <div className="mb-2 flex items-center gap-2">
+                <ShieldCheck className={cn('h-3.5 w-3.5', preflight.missing.length ? 'text-amber-400' : 'text-emerald-400')} />
+                <p className="text-xs font-medium">Preflight{preflight.missing.length > 0 ? ` — ${preflight.missing.length} missing` : ' — all set'}</p>
+              </div>
+              {preflight.missing.length > 0 ? (
+                <div className="space-y-1">
+                  {preflight.missing.map((v) => (
+                    <div key={v} className="flex items-center justify-between rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1">
+                      <code className="text-[11px] font-mono text-amber-200">{v}</code>
+                      <button onClick={() => { const val = window.prompt(`Set ${v}:`); if (val !== null) { window.localStorage.setItem(`env.${v}`, val); if (generatedCode) runPreflight(generatedCode); } }} className="rounded border border-amber-500/40 px-1.5 py-0.5 text-[10px] hover:bg-amber-500/10">Set</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-emerald-300/90">{preflight.required.length} required env var{preflight.required.length > 1 ? 's' : ''} present.</p>
+              )}
+            </div>
+          )}
 
+          {/* ===== Step artifacts ===== */}
+          <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                <p className="text-xs font-medium">Step artifacts ({stepArtifacts.length})</p>
+              </div>
+              <button onClick={() => artifactInputRef.current?.click()} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-accent">
+                <Upload className="h-3 w-3" /> Upload
+              </button>
+              <input ref={artifactInputRef} type="file" multiple className="hidden" onChange={(e) => { handleArtifactUpload(e.target.files); e.target.value = ''; }} />
+            </div>
+            {stepArtifacts.length === 0 ? (
+              <p className="text-[11px] italic text-muted-foreground">No artifacts. Run a test to capture step outputs, or upload files attached to a selected step.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {stepArtifacts.map((art, i) => (
+                  <details key={i} className="rounded border border-border bg-background/60">
+                    <summary className="flex cursor-pointer items-center justify-between px-2 py-1 text-[11px] hover:bg-accent/50">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span className="truncate font-medium">{art.stepIndex >= 0 ? `Step ${art.stepIndex}` : 'Detached'} · {art.name}</span>
+                        <span className={cn('rounded border px-1 text-[9px]', art.source === 'inline' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' : 'border-violet-500/40 bg-violet-500/10 text-violet-300')}>{art.source}</span>
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <button onClick={(e) => { e.preventDefault(); downloadArtifact(art); }} className="rounded p-0.5 hover:bg-accent"><Upload className="h-3 w-3 rotate-180 text-muted-foreground" /></button>
+                        <button onClick={(e) => { e.preventDefault(); removeArtifact(i); }} className="rounded p-0.5 hover:bg-accent hover:text-destructive"><X className="h-3 w-3" /></button>
+                      </span>
+                    </summary>
+                    <pre className="max-h-48 overflow-auto border-t border-border bg-background p-2 text-[10px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{art.preview || '(empty)'}</pre>
+                    <p className="px-2 py-1 text-[9px] text-muted-foreground border-t border-border">{art.mimeType} · {art.sizeBytes} bytes</p>
+                  </details>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ===== Production deployment snippets ===== */}
+          {deploymentSnippets && (
+            <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
+              <button onClick={() => setShowSnippets((s) => !s)} className="flex w-full items-center justify-between">
+                <div className="flex items-center gap-2"><TerminalIcon className="h-3.5 w-3.5 text-muted-foreground" /><p className="text-xs font-medium">Production deployment snippets</p></div>
+                <span className="text-[10px] text-muted-foreground">{showSnippets ? '−' : '+'}</span>
+              </button>
+              {showSnippets && (
+                <div className="mt-2 space-y-2">
+                  {([['CLI quickstart', deploymentSnippets.cliQuickstart], ['Dockerfile', deploymentSnippets.dockerfile], ['docker-compose.yml', deploymentSnippets.dockerCompose], ['Procfile', deploymentSnippets.procfile], ['systemd unit', deploymentSnippets.systemd]] as const).map(([title, body]) => (
+                    <details key={title} className="rounded border border-border bg-background/60">
+                      <summary className="flex cursor-pointer items-center justify-between px-2 py-1 text-[11px] hover:bg-accent/50">
+                        <span className="font-medium">{title}</span>
+                        <button onClick={(e) => { e.preventDefault(); navigator.clipboard.writeText(body); toast.success(`${title} copied`); }} className="rounded p-0.5 hover:bg-accent"><ClipboardCopy className="h-3 w-3 text-muted-foreground" /></button>
+                      </summary>
+                      <pre className="max-h-56 overflow-auto border-t border-border bg-background p-2 text-[10px] font-mono text-foreground ide-scrollbar whitespace-pre">{body}</pre>
+                    </details>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ===== Run history ===== */}
+          <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
+            <button onClick={() => setShowHistory((s) => !s)} className="flex w-full items-center justify-between">
+              <div className="flex items-center gap-2"><History className="h-3.5 w-3.5 text-muted-foreground" /><p className="text-xs font-medium">Event history ({runHistory.length})</p></div>
+              <span className="text-[10px] text-muted-foreground">{showHistory ? '−' : '+'}</span>
+            </button>
+            {showHistory && (
+              <div className="mt-2 space-y-1.5">
+                {runHistory.length === 0 ? (
+                  <p className="text-[11px] italic text-muted-foreground">No trigger firings recorded yet.</p>
+                ) : (
+                  <>
+                    <button onClick={clearRunHistory} className="w-full rounded border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-destructive">Clear history</button>
+                    {runHistory.map((run) => {
+                      const isOpen = selectedRunId === run.id;
+                      const sc = run.status === 'success' ? 'border-emerald-500/40 bg-emerald-500/5 text-emerald-300' : run.status === 'halted' ? 'border-amber-500/40 bg-amber-500/5 text-amber-300' : 'border-destructive/40 bg-destructive/5 text-destructive';
+                      return (
+                        <div key={run.id} className="rounded border border-border bg-background/60">
+                          <button onClick={() => setSelectedRunId(isOpen ? null : run.id)} className="flex w-full items-center justify-between px-2 py-1 text-left hover:bg-accent/50">
+                            <span className="flex min-w-0 items-center gap-1.5">
+                              <span className={cn('rounded border px-1 text-[9px] font-medium', sc)}>{run.status}</span>
+                              <span className="truncate text-[11px] font-medium">{run.triggerLabel}</span>
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">{run.durationMs}ms · {new Date(run.startedAt).toLocaleTimeString()}</span>
+                          </button>
+                          {isOpen && (
+                            <div className="border-t border-border p-2 space-y-2">
+                              <div className="grid grid-cols-2 gap-1 text-[10px] text-muted-foreground">
+                                <div>Steps: <span className="text-foreground">{run.stepCount}</span></div>
+                                <div>Artifacts: <span className="text-foreground">{run.artifactsCount}</span></div>
+                              </div>
+                              {run.preflight.missing.length > 0 && (
+                                <div className="rounded border border-amber-500/30 bg-amber-500/5 p-1.5 text-[10px] text-amber-300"><AlertTriangle className="inline h-3 w-3 mr-1" />Preflight missing: {run.preflight.missing.join(', ')}</div>
+                              )}
+                              {run.errorMessage && <div className="rounded border border-destructive/40 bg-destructive/5 p-1.5 text-[10px] text-destructive font-mono">{run.errorMessage}</div>}
+                              {run.finalOutputPreview && (
+                                <details><summary className="cursor-pointer text-[10px] font-medium text-muted-foreground">Final output</summary><pre className="mt-1 max-h-40 overflow-auto rounded border border-border bg-background p-1.5 text-[10px] font-mono whitespace-pre-wrap">{run.finalOutputPreview}</pre></details>
+                              )}
+                              <details><summary className="cursor-pointer text-[10px] font-medium text-muted-foreground">Logs ({run.logs.length})</summary>
+                                <div className="mt-1 max-h-40 overflow-auto space-y-0.5 rounded border border-border bg-background p-1.5">
+                                  {run.logs.map((log, i) => (<p key={i} className="text-[10px] font-mono text-muted-foreground">[{log.time}] {log.text}</p>))}
+                                </div>
+                              </details>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ===== Run logs (live) ===== */}
           <div className="mt-4 rounded-md border border-border bg-card/60 p-3">
             <div className="mb-2 flex items-center gap-2">
               <Logs className="h-3.5 w-3.5 text-muted-foreground" />
@@ -2181,15 +2645,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                 testRunLogs.map((log, i) => {
                   const Icon = log.icon === 'check' ? Check : log.icon === 'dot' ? CircleDot : log.icon === 'key' ? KeyRound : MinusCircle;
                   const color = log.icon === 'check' ? 'text-emerald-400' : log.icon === 'dot' ? 'text-blue-400' : log.icon === 'key' ? 'text-amber-400' : 'text-destructive';
-                  return (
-                    <p key={i} className="flex items-center gap-1">
-                      <Icon className={cn('h-3 w-3', color)} /> {log.time} {log.text}
-                    </p>
-                  );
+                  return (<p key={i} className="flex items-center gap-1"><Icon className={cn('h-3 w-3', color)} /> {log.time} {log.text}</p>);
                 })
               )}
             </div>
           </div>
+
         </div>
       </aside>
     </div>
