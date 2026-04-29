@@ -36,6 +36,7 @@ interface SlideElement {
 
 interface SlideData {
   elements: SlideElement[];
+  transition?: 'none' | 'fade' | 'push';
 }
 
 interface PowerPointEditorProps {
@@ -81,6 +82,10 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const [transitionType, setTransitionType] = useState<'none' | 'fade' | 'push'>('none');
   const [animationType, setAnimationType] = useState<'none' | 'appear' | 'fly'>('none');
   const [previewMode, setPreviewMode] = useState(false);
+  const [presenting, setPresenting] = useState(false);
+  const [presentSlideIndex, setPresentSlideIndex] = useState(0);
+  const [presentAnimating, setPresentAnimating] = useState(false);
+  const lastSavedBytesRef = useRef<Uint8Array | null>(null);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -91,8 +96,10 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
         let bytes = decodeDataUrl(file.content || '');
         if (!bytes) {
           bytes = await buildNewPptx();
-          onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.presentationml.presentation', bytes));
+          lastSavedBytesRef.current = bytes;
+      onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.presentationml.presentation', bytes));
         }
+        lastSavedBytesRef.current = bytes;
         const zip = await JSZip.loadAsync(bytes);
         const slideFiles = Object.keys(zip.files)
           .filter(name => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
@@ -130,10 +137,11 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               { id: newId(), type: 'text', x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400, color: '#1A1A1A' },
             );
           }
-          parsed.push({ elements });
+          parsed.push({ elements, transition: 'none' });
         }
         if (parsed.length === 0) {
           parsed.push({
+            transition: 'none',
             elements: [
               { id: newId(), type: 'text', x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700, color: '#1A1A1A' },
               { id: newId(), type: 'text', x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400, color: '#1A1A1A' },
@@ -204,6 +212,13 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
       slides.forEach((slideData) => {
         const slide = pptx.addSlide();
         slide.background = { color: themeTone === 'dark' ? '1F2937' : 'FFFFFF' };
+        const transition = slideData.transition || 'none';
+        if (transition !== 'none') {
+          (slide as unknown as { transition?: { type: string; duration: number } }).transition = {
+            type: transition,
+            duration: 1,
+          };
+        }
 
         slideData.elements.forEach((el) => {
           const x = toSlideX(el.x);
@@ -287,6 +302,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
       } else {
         bytes = new TextEncoder().encode(String(out));
       }
+      lastSavedBytesRef.current = bytes;
       onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.presentationml.presentation', bytes));
       setError(null);
     } catch (e) {
@@ -336,6 +352,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     let nextIndex = 0;
     commitSlides(prev => {
       const next = [...prev, {
+        transition: 'none' as const,
         elements: [
           { id: newId(), type: 'text' as const, x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700, color: '#1A1A1A' },
           { id: newId(), type: 'text' as const, x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400, color: '#1A1A1A' },
@@ -482,6 +499,62 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     setSelectedElement(el.id);
   };
 
+
+
+  const setActiveSlideTransition = (value: 'none' | 'fade' | 'push') => {
+    setTransitionType(value);
+    commitSlides(prev => prev.map((slide, idx) => idx === activeSlide ? { ...slide, transition: value } : slide));
+  };
+
+  const exportPresentation = async () => {
+    await save();
+    const bytes = lastSavedBytesRef.current || decodeDataUrl(file.content || '');
+    if (!bytes) return;
+    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name.toLowerCase().endsWith('.pptx') ? file.name : `${file.name}.pptx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  useEffect(() => {
+    setTransitionType(slides[activeSlide]?.transition || 'none');
+  }, [activeSlide, slides]);
+
+  useEffect(() => {
+    if (!presenting) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPresenting(false);
+        return;
+      }
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+        e.preventDefault();
+        setPresentSlideIndex((idx) => Math.min(slides.length - 1, idx + 1));
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        setPresentSlideIndex((idx) => Math.max(0, idx - 1));
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [presenting, slides.length]);
+
+  useEffect(() => {
+    if (!presenting) return;
+    setPresentAnimating(true);
+    const timer = setTimeout(() => setPresentAnimating(false), 360);
+    return () => clearTimeout(timer);
+  }, [presenting, presentSlideIndex]);
+
+  const startPresenting = (fromBeginning = false) => {
+    setPresentSlideIndex(fromBeginning ? 0 : activeSlide);
+    setPresenting(true);
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground gap-2">
@@ -509,7 +582,10 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               <Presentation className="w-5 h-5 text-orange-500" />
               <span className="text-sm font-semibold">{file.name}</span>
             </div>
-            <Button size="sm" variant="ghost" onClick={save}><Save className="w-4 h-4 mr-1" /> Save</Button>
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="ghost" onClick={save}><Save className="w-4 h-4 mr-1" /> Save</Button>
+              <Button size="sm" variant="outline" onClick={exportPresentation}>Export .pptx</Button>
+            </div>
           </div>
 
           <div className="flex items-center gap-1 px-2 py-0.5 text-xs border-b border-border/50">
@@ -590,9 +666,9 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             {ribbonTab === 'transitions' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setTransitionType('none')}><RotateCcw className="w-3.5 h-3.5" /> None</Button></TooltipTrigger><TooltipContent>No Transition</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setTransitionType('fade')}><Wand2 className="w-3.5 h-3.5" /> Fade</Button></TooltipTrigger><TooltipContent>Fade</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setTransitionType('push')}><Zap className="w-3.5 h-3.5" /> Push</Button></TooltipTrigger><TooltipContent>Push</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setActiveSlideTransition('none')}><RotateCcw className="w-3.5 h-3.5" /> None</Button></TooltipTrigger><TooltipContent>No Transition</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setActiveSlideTransition('fade')}><Wand2 className="w-3.5 h-3.5" /> Fade</Button></TooltipTrigger><TooltipContent>Fade</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setActiveSlideTransition('push')}><Zap className="w-3.5 h-3.5" /> Push</Button></TooltipTrigger><TooltipContent>Push</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">Duration:</span>
@@ -615,8 +691,8 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             {ribbonTab === 'slideshow' && (
               <>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setActiveSlide(0)}><Play className="w-3.5 h-3.5" /> From Beginning</Button></TooltipTrigger><TooltipContent>Start from Beginning</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setPreviewMode(true)}><Play className="w-3.5 h-3.5" /> From Current</Button></TooltipTrigger><TooltipContent>Start from Current Slide</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => startPresenting(true)}><Play className="w-3.5 h-3.5" /> From Beginning</Button></TooltipTrigger><TooltipContent>Start from Beginning</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => startPresenting(false)}><Play className="w-3.5 h-3.5" /> From Current</Button></TooltipTrigger><TooltipContent>Start from Current Slide</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5">
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setPreviewMode(true)}><Timer className="w-3.5 h-3.5" /> Rehearse</Button></TooltipTrigger><TooltipContent>Rehearse Timings</TooltipContent></Tooltip>
@@ -792,6 +868,56 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
           <span>{file.name} · {transitionType} / {animationType}{previewMode ? ' · preview' : ''}</span>
         </div>
       </div>
+      {presenting && (
+        <div className="fixed inset-0 z-[100] bg-black text-white">
+          <div
+            className={cn(
+              "w-full h-full flex items-center justify-center transition-all duration-300",
+              presentAnimating && "opacity-0 scale-[0.985]"
+            )}
+          >
+            <div
+              className="relative bg-white text-black shadow-2xl overflow-hidden"
+              style={{ width: 'min(92vw, 1280px)', aspectRatio: '16/9' }}
+            >
+              {(slides[presentSlideIndex]?.elements || []).map((el) => (
+                <div
+                  key={el.id}
+                  className="absolute"
+                  style={{
+                    left: `${(el.x / CANVAS_W) * 100}%`,
+                    top: `${(el.y / CANVAS_H) * 100}%`,
+                    width: `${(el.width / CANVAS_W) * 100}%`,
+                    height: `${(el.height / CANVAS_H) * 100}%`,
+                    fontSize: `${(el.fontSize || 16) * (100 / 720)}vw`,
+                    fontWeight: el.fontWeight,
+                    fontStyle: el.fontStyle || 'normal',
+                    textDecoration: el.textDecoration || 'none',
+                    textAlign: el.textAlign || 'left',
+                    color: el.color || '#1A1A1A',
+                    whiteSpace: 'pre-wrap',
+                  }}
+                >
+                  {el.type === 'image' ? (
+                    <img src={el.content} alt="" className="w-full h-full object-contain" />
+                  ) : (
+                    el.content
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/85 bg-black/50 px-3 py-1.5 rounded">
+            {presentSlideIndex + 1} / {slides.length} · Esc to exit · ←/→ to navigate
+          </div>
+          <button
+            className="absolute top-4 right-4 text-sm bg-white/15 hover:bg-white/25 px-3 py-1 rounded"
+            onClick={() => setPresenting(false)}
+          >
+            Exit
+          </button>
+        </div>
+      )}
     </TooltipProvider>
   );
 };
