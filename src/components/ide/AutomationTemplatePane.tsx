@@ -148,7 +148,112 @@ const saveRunHistory = (records: AutomationRunRecord[]) => {
   }
 };
 
-// ============= Preflight env var detection =============
+// ============= Artifact viewer card with tabbed inspector =============
+type ArtifactTab = 'pretty' | 'raw' | 'meta';
+
+const ArtifactCard = ({
+  art,
+  onDownload,
+  onRemove,
+}: {
+  art: StepArtifact;
+  onDownload: () => void;
+  onRemove: () => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const kind: 'json' | 'text' | 'binary' =
+    art.kind ?? (art.mimeType === 'application/json' ? 'json' : art.isBinary ? 'binary' : 'text');
+  const defaultTab: ArtifactTab = kind === 'binary' ? 'raw' : 'pretty';
+  const [tab, setTab] = useState<ArtifactTab>(defaultTab);
+
+  const prettyContent = useMemo(() => {
+    if (kind !== 'json') return art.preview;
+    try { return JSON.stringify(JSON.parse(art.preview), null, 2); }
+    catch { return art.preview; }
+  }, [art.preview, kind]);
+
+  const tabs: { id: ArtifactTab; label: string; icon: typeof FileText }[] = kind === 'json'
+    ? [{ id: 'pretty', label: 'JSON', icon: FileJson }, { id: 'raw', label: 'Raw', icon: Code2 }, { id: 'meta', label: 'Meta', icon: AlertTriangle }]
+    : kind === 'binary'
+      ? [{ id: 'raw', label: 'Hex preview', icon: Binary }, { id: 'meta', label: 'Metadata', icon: AlertTriangle }]
+      : [{ id: 'pretty', label: 'Text', icon: FileText }, { id: 'raw', label: 'Raw', icon: Code2 }, { id: 'meta', label: 'Meta', icon: AlertTriangle }];
+
+  const formatBytes = (n: number): string => {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    return `${(n / 1024 / 1024).toFixed(2)} MB`;
+  };
+
+  const body = tab === 'meta'
+    ? (
+      <div className="space-y-1 p-2 text-[10px] text-muted-foreground">
+        <div><span className="text-foreground font-medium">Name:</span> {art.name}</div>
+        <div><span className="text-foreground font-medium">Step:</span> {art.stepIndex >= 0 ? `${art.stepIndex} — ${art.stepLabel}` : 'Detached / unattached'}</div>
+        <div><span className="text-foreground font-medium">Source:</span> {art.source}</div>
+        <div><span className="text-foreground font-medium">MIME:</span> {art.mimeType || 'application/octet-stream'}</div>
+        <div><span className="text-foreground font-medium">Kind:</span> {kind}{art.isBinary ? ' (binary)' : ''}</div>
+        <div><span className="text-foreground font-medium">Size:</span> {formatBytes(art.sizeBytes)} ({art.sizeBytes} bytes)</div>
+        <div><span className="text-foreground font-medium">Captured:</span> {new Date(art.capturedAt).toLocaleString()}</div>
+        {art.binaryBase64 && <div className="text-[10px]"><span className="text-foreground font-medium">Encoded:</span> base64 ({art.binaryBase64.length} chars)</div>}
+      </div>
+    )
+    : (
+      <pre className={cn(
+        'max-h-56 overflow-auto bg-background p-2 text-[10px] font-mono text-foreground ide-scrollbar',
+        kind === 'binary' ? 'whitespace-pre' : 'whitespace-pre-wrap',
+      )}>
+        {tab === 'pretty' ? (prettyContent || '(empty)') : (art.preview || '(empty)')}
+      </pre>
+    );
+
+  return (
+    <div className="rounded border border-border bg-background/60">
+      <div className="flex items-center justify-between px-2 py-1 text-[11px] hover:bg-accent/50">
+        <button onClick={() => setOpen((o) => !o)} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+          <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+          <span className="truncate font-medium">{art.stepIndex >= 0 ? `Step ${art.stepIndex}` : 'Detached'} · {art.name}</span>
+          <span className={cn('rounded border px-1 text-[9px]', art.source === 'inline' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' : 'border-violet-500/40 bg-violet-500/10 text-violet-300')}>{art.source}</span>
+          <span className="rounded border border-border bg-muted/30 px-1 text-[9px] text-muted-foreground">{kind}</span>
+        </button>
+        <span className="flex items-center gap-1">
+          <button
+            onClick={onDownload}
+            title="Download artifact"
+            className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-accent hover:text-foreground"
+          >
+            <Download className="h-3 w-3" /> Download
+          </button>
+          <button onClick={onRemove} title="Remove" className="rounded p-0.5 hover:bg-accent hover:text-destructive"><X className="h-3 w-3" /></button>
+        </span>
+      </div>
+      {open && (
+        <div className="border-t border-border">
+          <div className="flex items-center gap-1 border-b border-border bg-muted/20 px-1 py-1">
+            {tabs.map((t) => {
+              const Icon = t.icon;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] transition-colors',
+                    tab === t.id ? 'bg-background text-foreground border border-border' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-3 w-3" /> {t.label}
+                </button>
+              );
+            })}
+            <span className="ml-auto text-[9px] text-muted-foreground">{art.mimeType || 'application/octet-stream'} · {formatBytes(art.sizeBytes)}</span>
+          </div>
+          {body}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 /** Scan generated code for `process.env.X` and `os.environ[...]` references. */
 const scanRequiredEnvVars = (code: string): string[] => {
   const found = new Set<string>();
