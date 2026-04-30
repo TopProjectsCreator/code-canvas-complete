@@ -705,7 +705,7 @@ const lineParams: APIParameter[] = [
   { name: 'notification_disabled', displayName: 'Disable Notification', type: 'boolean' },
 ];
 
-const wechatParams: APIParameter[] = [
+const wediscordBotApiParams: APIParameter[] = [
   { name: 'open_id', displayName: 'OpenID', type: 'string', required: true },
   { name: 'template_id', displayName: 'Template ID', type: 'string', placeholder: 'wx1234567890abcdef' },
   { name: 'data', displayName: 'Template Data (JSON)', type: 'textarea', required: true, placeholder: '{"first": {"value": "Hello"}}' },
@@ -723,7 +723,7 @@ const mattermostParams: APIParameter[] = [
   { name: 'props', displayName: 'Attachments/Props (JSON)', type: 'textarea' },
 ];
 
-const rocketchatParams: APIParameter[] = [
+const rocketdiscordBotApiParams: APIParameter[] = [
   { name: 'channel', displayName: 'Channel', type: 'string', required: true },
   { name: 'text', displayName: 'Message', type: 'textarea', required: true },
   { name: 'alias', displayName: 'Alias', type: 'string' },
@@ -2899,8 +2899,153 @@ const expandedApiCatalog: Array<[string, AutomationAuthType, string, APIParamete
 ];
 
 
+const calendlyParams: APIParameter[] = [
+  { name: 'organization_uri', displayName: 'Organization URI', type: 'string', required: true, placeholder: 'https://api.calendly.com/organizations/...' },
+  { name: 'operation', displayName: 'Operation', type: 'select', default: 'list_events', options: [{ label: 'List Scheduled Events', value: 'list_events' }, { label: 'List Event Invitees', value: 'list_invitees' }] },
+  { name: 'min_start_time', displayName: 'Min Start Time (RFC3339)', type: 'string' },
+];
+const outlookCalendarParams: APIParameter[] = [
+  { name: 'user_id', displayName: 'User ID', type: 'string', default: 'me' },
+  { name: 'calendar_id', displayName: 'Calendar ID', type: 'string', default: 'primary' },
+  { name: 'operation', displayName: 'Operation', type: 'select', default: 'list_events', options: [{ label: 'List Events', value: 'list_events' }, { label: 'Create Event', value: 'create_event' }] },
+];
+const asanaTasksApiParams: APIParameter[] = [{ name:'workspace_gid',displayName:'Workspace GID',type:'string',required:true },{ name:'project_gid',displayName:'Project GID',type:'string' },{ name:'operation',displayName:'Operation',type:'select',default:'tasks.search',options:[{label:'Search Tasks',value:'tasks.search'},{label:'Create Task',value:'tasks.create'}]}];
+const linearGraphqlParams: APIParameter[] = [{ name:'team_id',displayName:'Team ID',type:'string'},{ name:'query',displayName:'GraphQL Query',type:'textarea',required:true},{ name:'variables',displayName:'Variables (JSON)',type:'textarea'}];
+const clickupV2Params: APIParameter[] = [{ name:'list_id',displayName:'List ID',type:'string',required:true},{ name:'operation',displayName:'Operation',type:'select',default:'get_tasks',options:[{label:'Get Tasks',value:'get_tasks'},{label:'Create Task',value:'create_task'}]},{ name:'task_name',displayName:'Task Name',type:'string'}];
+const trelloCardsApiParams: APIParameter[] = [{ name:'board_id',displayName:'Board ID',type:'string',required:true},{ name:'list_id',displayName:'List ID',type:'string'},{ name:'operation',displayName:'Operation',type:'select',default:'list_cards',options:[{label:'List Cards',value:'list_cards'},{label:'Create Card',value:'create_card'}]}];
+const discordBotApiParams: APIParameter[] = [{ name:'channel_id',displayName:'Channel ID',type:'string',required:true},{ name:'content',displayName:'Message Content',type:'textarea',required:true},{ name:'tts',displayName:'Text To Speech',type:'boolean',default:false}];
+const msTeamsGraphParams: APIParameter[] = [{ name:'team_id',displayName:'Team ID',type:'string',required:true},{ name:'channel_id',displayName:'Channel ID',type:'string',required:true},{ name:'message',displayName:'Message',type:'textarea',required:true}];
 
-export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
+const sendgridMailSendParams: APIParameter[] = [{ name:'from_email',displayName:'From Email',type:'email',required:true},{ name:'to_email',displayName:'To Email',type:'email',required:true},{ name:'subject',displayName:'Subject',type:'string',required:true},{ name:'html_content',displayName:'HTML Content',type:'textarea'}];
+const mailgunMessagesParams: APIParameter[] = [{ name:'domain',displayName:'Domain',type:'string',required:true},{ name:'to',displayName:'To',type:'email',required:true},{ name:'subject',displayName:'Subject',type:'string',required:true},{ name:'text',displayName:'Text Body',type:'textarea'}];
+const postmarkServerParams: APIParameter[] = [{ name:'from',displayName:'From',type:'email',required:true},{ name:'to',displayName:'To',type:'email',required:true},{ name:'subject',displayName:'Subject',type:'string',required:true},{ name:'html_body',displayName:'HTML Body',type:'textarea'}];
+const resendEmailsParams: APIParameter[] = [{ name:'from',displayName:'From',type:'email',required:true},{ name:'to',displayName:'To (comma)',type:'string',required:true},{ name:'subject',displayName:'Subject',type:'string',required:true},{ name:'react_or_html',displayName:'Body',type:'textarea'}];
+const brevoTransactionalParams: APIParameter[] = [{ name:'sender_email',displayName:'Sender Email',type:'email',required:true},{ name:'recipient_email',displayName:'Recipient Email',type:'email',required:true},{ name:'template_id',displayName:'Template ID',type:'number'},{ name:'params_json',displayName:'Params (JSON)',type:'textarea'}];
+const amazonSesV2Params: APIParameter[] = [{ name:'from_email',displayName:'From',type:'email',required:true},{ name:'destination_to',displayName:'To',type:'string',required:true},{ name:'subject',displayName:'Subject',type:'string',required:true},{ name:'body_text',displayName:'Body Text',type:'textarea'}];
+const codeRepoParams: APIParameter[] = [{ name:'workspace',displayName:'Workspace/Project',type:'string'},{ name:'repo_slug',displayName:'Repository Slug',type:'string',required:true},{ name:'operation',displayName:'Operation',type:'select',default:'list_repos',options:[{label:'List Repositories',value:'list_repos'},{label:'List Pipelines',value:'list_pipelines'}]}];
+const cicdParams: APIParameter[] = [{ name:'project_slug',displayName:'Project Slug',type:'string',required:true},{ name:'branch',displayName:'Branch',type:'string',default:'main'},{ name:'operation',displayName:'Operation',type:'select',default:'trigger_pipeline',options:[{label:'Trigger Pipeline',value:'trigger_pipeline'},{label:'Get Pipeline Status',value:'pipeline_status'}]}];
+const llmGenericParams: APIParameter[] = [{ name:'model',displayName:'Model ID',type:'string',required:true},{ name:'messages_json',displayName:'Messages (JSON)',type:'textarea',required:true},{ name:'max_tokens',displayName:'Max Tokens',type:'number',default:1024}];
+const mediaGenParams: APIParameter[] = [{ name:'prompt',displayName:'Prompt',type:'textarea',required:true},{ name:'aspect_ratio',displayName:'Aspect Ratio',type:'select',default:'1:1',options:[{label:'1:1',value:'1:1'},{label:'16:9',value:'16:9'}]},{ name:'num_outputs',displayName:'Number of Outputs',type:'number',default:1}];
+const audioParams: APIParameter[] = [{ name:'input_audio_url',displayName:'Input Audio URL',type:'url'},{ name:'text',displayName:'Text Input',type:'textarea'},{ name:'language',displayName:'Language',type:'string',default:'en'},{ name:'output_format',displayName:'Output Format',type:'select',default:'mp3',options:[{label:'MP3',value:'mp3'},{label:'WAV',value:'wav'}]}];
+const meetingParams: APIParameter[] = [{ name:'agenda',displayName:'Agenda/Topic',type:'string',required:true},{ name:'start_time',displayName:'Start Time (ISO8601)',type:'string',required:true},{ name:'duration_minutes',displayName:'Duration Minutes',type:'number',default:30},{ name:'timezone',displayName:'Timezone',type:'string',default:'UTC'}];
+const driveParams: APIParameter[] = [{ name:'folder_id',displayName:'Folder ID',type:'string'},{ name:'operation',displayName:'Operation',type:'select',default:'list_files',options:[{label:'List Files',value:'list_files'},{label:'Upload by URL',value:'upload_by_url'},{label:'Share Link',value:'create_share_link'}]},{ name:'file_id',displayName:'File ID',type:'string'},{ name:'source_url',displayName:'Source File URL',type:'url'}];
+const expandedApiCatalogV2: Array<[string, AutomationAuthType, string, APIParameter[]]> = [
+  ['Airtable Metadata', 'api_key', 'Airtable Metadata API for bases/tables schema discovery.', analyticsParams],
+  ['Calendly Scheduling', 'api_key', 'Calendly Scheduling API for events and invitees.', calendlyParams],
+  ['HubSpot CRM v3', 'api_key', 'HubSpot CRM v3 objects/search endpoints.', hubspotParams],
+  ['Salesforce REST', 'api_key', 'Salesforce REST API for sObjects/query.', salesforceParams],
+  ['Notion Search', 'free', 'Notion API search/pages/databases.', notionParams],
+  ['Asana Tasks API', 'free', 'Asana tasks and projects endpoints.', asanaTasksApiParams],
+  ['Linear GraphQL', 'api_key', 'Linear GraphQL API for issues/projects.', linearGraphqlParams],
+  ['Jira Cloud v3', 'api_key', 'Jira Cloud REST API v3 for issues/workflows.', jiraParams],
+  ['ClickUp v2', 'api_key', 'ClickUp v2 API for tasks/lists.', clickupV2Params],
+  ['Monday Work OS', 'api_key', 'monday.com GraphQL API for boards/items.', mondayComParams],
+  ['Trello Cards API', 'free', 'Trello API for cards/lists/boards.', trelloCardsApiParams],
+  ['Todoist REST v2', 'free', 'Todoist REST API v2 for tasks/projects.', todoistParams],
+  ['Slack Web API', 'api_key', 'Slack Web API chat.postMessage and conversations.list.', slackParams],
+  ['Discord Bot API', 'api_key', 'Discord bot API for channels/messages.', discordBotApiParams],
+  ['Microsoft Teams Graph', 'api_key', 'Microsoft Graph API for Teams messages/chats.', msTeamsGraphParams],
+  ['Twilio Conversations', 'api_key', 'Twilio Conversations API for SMS/chat threads.', twilioParams],
+  ['Vonage Messages API', 'api_key', 'Vonage Messages API for omnichannel messaging.', twilioParams],
+  ['SendGrid Mail Send', 'api_key', 'Twilio SendGrid Mail Send API.', sendgridMailSendParams],
+  ['Mailgun Messages', 'api_key', 'Mailgun Messages API for transactional email.', mailgunMessagesParams],
+  ['Postmark Server API', 'api_key', 'Postmark email send/templates API.', postmarkServerParams],
+  ['Resend Emails API', 'api_key', 'Resend API for send/broadcast emails.', resendEmailsParams],
+  ['Brevo Transactional', 'api_key', 'Brevo SMTP/API transactional endpoints.', brevoTransactionalParams],
+  ['Amazon SES v2', 'api_key', 'Amazon SES v2 email sending endpoints.', amazonSesV2Params],
+  ['Stripe PaymentIntents', 'api_key', 'Stripe PaymentIntents API create/confirm/capture.', stripeParams],
+  ['PayPal Orders v2', 'api_key', 'PayPal Orders v2 capture/authorize flows.', paypalParams],
+  ['Square Payments', 'api_key', 'Square Payments API create/list refunds.', squareParams],
+  ['Adyen Checkout', 'api_key', 'Adyen Checkout API payments/sessions.', paymentGatewayParams],
+  ['Braintree Transactions', 'api_key', 'Braintree transaction and customer APIs.', paymentGatewayParams],
+  ['Paddle Billing', 'api_key', 'Paddle subscriptions/pricing API.', paymentGatewayParams],
+  ['Razorpay Orders', 'api_key', 'Razorpay orders/payments/refunds APIs.', paymentGatewayParams],
+  ['Shopify Admin', 'api_key', 'Shopify Admin REST/GraphQL APIs.', shopifyParams],
+  ['WooCommerce REST', 'free', 'WooCommerce REST API products/orders.', woocommerceParams],
+  ['BigCommerce V3', 'api_key', 'BigCommerce v3 catalog/orders APIs.', storefrontParams],
+  ['Etsy Open API', 'api_key', 'Etsy API for listings/shops/orders.', storefrontParams],
+  ['Gumroad API', 'free', 'Gumroad API for products/sales.', storefrontParams],
+  ['Printful API', 'api_key', 'Printful API orders/shipping endpoints.', storefrontParams],
+  ['Shippo API', 'api_key', 'Shippo labels/tracking/rates APIs.', logisticsParams],
+  ['EasyPost API', 'api_key', 'EasyPost shipments/trackers APIs.', logisticsParams],
+  ['AfterShip Tracking', 'api_key', 'AfterShip tracking and webhook APIs.', logisticsParams],
+  ['FedEx Track API', 'api_key', 'FedEx tracking/rate APIs.', logisticsParams],
+  ['UPS Shipping API', 'api_key', 'UPS shipping/rates/tracking API.', logisticsParams],
+  ['USPS Web Tools', 'free', 'USPS tracking/address APIs.', logisticsParams],
+  ['Google Maps Platform', 'api_key', 'Maps Geocoding/Places/Directions APIs.', weatherParams],
+  ['Mapbox APIs', 'free', 'Mapbox geocoding/directions/static APIs.', weatherParams],
+  ['OpenWeather One Call', 'free', 'OpenWeather One Call API forecasts/alerts.', weatherParams],
+  ['Tomorrow.io Weather', 'free', 'Tomorrow.io timelines and realtime APIs.', weatherParams],
+  ['AccuWeather API', 'api_key', 'AccuWeather forecasts/current conditions APIs.', weatherParams],
+  ['AirVisual API', 'api_key', 'IQAir AirVisual air quality APIs.', weatherParams],
+  ['Algolia Search', 'api_key', 'Algolia search/indexing API.', searchParams],
+  ['Meilisearch API', 'free', 'Meilisearch indexes/documents/search endpoints.', searchParams],
+  ['Elasticsearch API', 'free', 'Elasticsearch query/index APIs.', searchParams],
+  ['Typesense API', 'free', 'Typesense collections/search APIs.', searchParams],
+  ['Pinecone Vector API', 'api_key', 'Pinecone vectors/upsert/query APIs.', searchParams],
+  ['Weaviate API', 'free', 'Weaviate objects/graphql search APIs.', searchParams],
+  ['Qdrant API', 'free', 'Qdrant points/collections/search APIs.', searchParams],
+  ['Chroma API', 'free', 'Chroma collections/query APIs.', searchParams],
+  ['Google Analytics Data', 'api_key', 'Google Analytics Data API runReport.', analyticsParams],
+  ['Plausible Stats API', 'free', 'Plausible stats/timeseries endpoints.', analyticsParams],
+  ['PostHog API', 'free', 'PostHog events/insights APIs.', analyticsParams],
+  ['Looker API', 'api_key', 'Looker API for queries/dashboards.', analyticsParams],
+  ['Tableau REST API', 'api_key', 'Tableau REST API for sites/workbooks.', analyticsParams],
+  ['Metabase API', 'free', 'Metabase cards/dashboards/query APIs.', analyticsParams],
+  ['Grafana HTTP API', 'free', 'Grafana dashboards/alerts APIs.', analyticsParams],
+  ['Sentry Issues API', 'free', 'Sentry issues/events API.', sentryParams],
+  ['Datadog Metrics API', 'api_key', 'Datadog metrics/events APIs.', datadogParams],
+  ['New Relic NerdGraph', 'api_key', 'New Relic NerdGraph for entities/query.', monitoringParams],
+  ['Honeycomb API', 'free', 'Honeycomb datasets/queries APIs.', monitoringParams],
+  ['Pingdom API', 'api_key', 'Pingdom checks/results APIs.', monitoringParams],
+  ['UptimeRobot API', 'free', 'UptimeRobot monitors/alerts API.', uptimeRobotParams],
+  ['Vercel API', 'free', 'Vercel deployments/projects APIs.', vercelParams],
+  ['Netlify API', 'free', 'Netlify sites/deploys/functions API.', netlifyParams],
+  ['Cloudflare API', 'free', 'Cloudflare zones/dns/workers APIs.', securityParams],
+  ['GitHub REST v3', 'api_key', 'GitHub REST v3 repos/issues/pulls endpoints.', githubParams],
+  ['GitLab API v4', 'api_key', 'GitLab projects/merge_requests API.', gitlabParams],
+  ['Bitbucket API 2.0', 'api_key', 'Bitbucket repositories/pipelines API.', codeRepoParams],
+  ['CircleCI API v2', 'api_key', 'CircleCI pipelines/workflows APIs.', cicdParams],
+  ['Jenkins API', 'api_key', 'Jenkins build/job REST endpoints.', cicdParams],
+  ['Docker Hub API', 'free', 'Docker Hub repos/tags APIs.', dockerhubParams],
+  ['OpenAI Responses API', 'api_key', 'OpenAI Responses API text/tools calls.', openaiParams],
+  ['Anthropic Messages', 'api_key', 'Anthropic Messages API for Claude models.', llmGenericParams],
+  ['Cohere Generate', 'api_key', 'Cohere Generate/Embed APIs.', llmGenericParams],
+  ['Mistral API', 'api_key', 'Mistral chat/embeddings APIs.', llmGenericParams],
+  ['Perplexity API', 'api_key', 'Perplexity chat completions API.', llmGenericParams],
+  ['Replicate API', 'api_key', 'Replicate predictions/models API.', mediaGenParams],
+  ['Stability AI API', 'api_key', 'Stability text-to-image APIs.', mediaGenParams],
+  ['Runway API', 'api_key', 'Runway media generation APIs.', mediaGenParams],
+  ['ElevenLabs API', 'api_key', 'ElevenLabs text-to-speech/voices APIs.', audioParams],
+  ['AssemblyAI API', 'api_key', 'AssemblyAI transcription/summarization APIs.', audioParams],
+  ['Deepgram API', 'api_key', 'Deepgram speech-to-text APIs.', audioParams],
+  ['Zoom API', 'api_key', 'Zoom meetings/webinars APIs.', meetingParams],
+  ['Google Meet API', 'api_key', 'Google Meet spaces/conference APIs.', meetingParams],
+  ['Microsoft Graph Mail', 'api_key', 'Microsoft Graph mail/send APIs.', outlookParams],
+  ['Outlook Calendar Graph', 'api_key', 'Microsoft Graph calendar events APIs.', outlookCalendarParams],
+  ['Dropbox API v2', 'api_key', 'Dropbox files/list/upload APIs.', driveParams],
+  ['Google Drive API v3', 'free', 'Google Drive files/permissions APIs.', driveParams],
+  ['OneDrive Graph API', 'api_key', 'OneDrive file APIs via Microsoft Graph.', driveParams],
+  ['Box API', 'api_key', 'Box files/folders/collab APIs.', driveParams],
+  ['Airtable Records API', 'api_key', 'Airtable records list/create/update APIs.', spreadsheetParams],
+  ['Smartsheet API', 'api_key', 'Smartsheet sheets/rows APIs.', spreadsheetParams],
+  ['Coda API', 'api_key', 'Coda docs/tables/rows APIs.', spreadsheetParams],
+  ['QuickBooks Online API', 'api_key', 'QuickBooks accounting entities APIs.', financeParams],
+  ['Xero Accounting API', 'api_key', 'Xero invoices/contacts APIs.', financeParams],
+  ['Plaid API', 'api_key', 'Plaid link/accounts/transactions APIs.', financeParams],
+  ['Wise API', 'api_key', 'Wise quotes/transfers APIs.', financeParams],
+  ['DocuSign eSignature', 'api_key', 'DocuSign envelopes/recipients APIs.', eSignParams],
+  ['Dropbox Sign API', 'api_key', 'Dropbox Sign signature request APIs.', eSignParams],
+  ['PandaDoc API', 'api_key', 'PandaDoc documents/templates APIs.', eSignParams],
+  ['Twilio Verify API', 'api_key', 'Twilio Verify OTP verification API.', identityParams],
+  ['Auth0 Management API', 'free', 'Auth0 users/roles/client APIs.', identityParams],
+  ['Okta API', 'api_key', 'Okta users/groups/apps APIs.', identityParams],
+  ['VirusTotal API', 'free', 'VirusTotal file/url intelligence API.', securityParams],
+  ['Shodan API', 'api_key', 'Shodan host/search APIs.', securityParams],
+  ['HaveIBeenPwned API', 'api_key', 'HIBP breached account/password APIs.', securityParams],
+];
+
+const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
   {
     id: 'comm',
     title: 'Communication & Messaging',
@@ -2930,10 +3075,10 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Telegram', 'free', undefined, telegramParams, telegramCredentials],
         ['WhatsApp Business', 'api_key', undefined, whatsappParams, whatsappCredentials],
         ['Line', 'free', undefined, lineParams],
-        ['WeChat', 'api_key', undefined, wechatParams],
+        ['WeChat', 'api_key', undefined, wediscordBotApiParams],
         ['Zulip', 'free', undefined, zulipParams],
         ['Mattermost', 'free', undefined, mattermostParams],
-        ['Rocket.Chat', 'free', undefined, rocketchatParams],
+        ['Rocket.Chat', 'free', undefined, rocketdiscordBotApiParams],
         ['Google Chat', 'free', undefined, googleChatParams],
         ['Twist', 'free', undefined, twistParams],
       ]),
@@ -3344,6 +3489,7 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Apache Superset', 'free', undefined, analyticsParams], ['Grafana', 'free', undefined, analyticsParams],
       ]),
       withBlocks('expanded-api-catalog', 'Expanded API Catalog (100)', expandedApiCatalog),
+      withBlocks('expanded-api-catalog-v2', 'Expanded API Catalog (100 New)', expandedApiCatalogV2),
     ],
   },
 ];
