@@ -2644,6 +2644,82 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     [runHistory, selectedRunId],
   );
 
+  // ===== Artifacts: search, filter, log-link, diff-vs-previous-run =====
+  const [artifactSearch, setArtifactSearch] = useState('');
+  const [artifactKindFilter, setArtifactKindFilter] = useState<Set<'json' | 'text' | 'binary'>>(new Set());
+  /** Increments to force-open a card; keyed by `${stepIndex}:${name}`. */
+  const [artifactOpenTicks, setArtifactOpenTicks] = useState<Record<string, number>>({});
+  /** 1-indexed line to highlight in a card. */
+  const [artifactHighlight, setArtifactHighlight] = useState<Record<string, number | undefined>>({});
+  const artifactNodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  /** Most recent prior run (excluding the currently-displayed in-progress one). */
+  const previousRun = useMemo(() => runHistory[1] ?? null, [runHistory]);
+  const previousArtifactsByStep = useMemo(() => {
+    const map = new Map<number, StepArtifact>();
+    if (!previousRun) return map;
+    for (const a of previousRun.artifacts) map.set(a.stepIndex, a);
+    return map;
+  }, [previousRun]);
+
+  const artifactKey = (a: StepArtifact) => `${a.stepIndex}:${a.name}`;
+
+  /** Filter + search the artifact list. */
+  const filteredArtifactIndices = useMemo(() => {
+    const q = artifactSearch.trim().toLowerCase();
+    return stepArtifacts
+      .map((a, i) => ({ a, i }))
+      .filter(({ a }) => {
+        const k = a.kind ?? (a.mimeType === 'application/json' ? 'json' : a.isBinary ? 'binary' : 'text');
+        if (artifactKindFilter.size && !artifactKindFilter.has(k)) return false;
+        if (!q) return true;
+        return (
+          a.name.toLowerCase().includes(q) ||
+          a.stepLabel.toLowerCase().includes(q) ||
+          (a.preview && a.preview.toLowerCase().includes(q))
+        );
+      })
+      .map(({ i }) => i);
+  }, [stepArtifacts, artifactSearch, artifactKindFilter]);
+
+  const toggleKindFilter = useCallback((k: 'json' | 'text' | 'binary') => {
+    setArtifactKindFilter((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k); else next.add(k);
+      return next;
+    });
+  }, []);
+
+  /**
+   * Jump from a log entry to its associated artifact: find by stepIndex,
+   * scroll the card into view, force-open it, and (for error logs) highlight
+   * the line of the JSON parse error if any.
+   */
+  const jumpFromLogToArtifact = useCallback((stepIndex: number | undefined, log: { icon: string; text: string }) => {
+    if (stepIndex === undefined) {
+      toast.info('This log line is not associated with a specific step.');
+      return;
+    }
+    const art = stepArtifacts.find((a) => a.stepIndex === stepIndex);
+    if (!art) {
+      toast.info(`No artifact captured for step ${stepIndex} yet.`);
+      return;
+    }
+    const key = artifactKey(art);
+    setArtifactOpenTicks((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
+    // For error logs on JSON artifacts, jump to the validation error line.
+    let line: number | undefined;
+    if (log.icon === 'error' && art.kind === 'json') {
+      const v = art.validation ?? validateJsonString(art.preview);
+      line = v.errorLine;
+    }
+    setArtifactHighlight((prev) => ({ ...prev, [key]: line }));
+    // Scroll to the card on next tick.
+    requestAnimationFrame(() => {
+      artifactNodeRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [stepArtifacts]);
+
   return (
     <div className="grid h-full grid-cols-[290px_1fr_300px] overflow-hidden">
       <aside className="border-r border-border bg-background/70 flex flex-col overflow-hidden">
