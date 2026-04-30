@@ -510,7 +510,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     await save();
     const bytes = lastSavedBytesRef.current || decodeDataUrl(file.content || '');
     if (!bytes) return;
-    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+    const blob = new Blob([new Uint8Array(bytes).slice().buffer as ArrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
