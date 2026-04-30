@@ -5,7 +5,10 @@ import {
   CircleDot,
   ClipboardCopy,
   Code2,
+  Download,
   FileText,
+  FileJson,
+  Binary,
   History,
   KeyRound,
   Loader2,
@@ -97,6 +100,12 @@ export interface StepArtifact {
   preview: string;
   sizeBytes: number;
   capturedAt: string;
+  /** Whether the underlying file is binary (non-UTF8) */
+  isBinary?: boolean;
+  /** Base64-encoded raw bytes for binary uploads (used for download). */
+  binaryBase64?: string;
+  /** Detected/classified kind for tab-viewer routing. */
+  kind?: 'json' | 'text' | 'binary';
 }
 
 export interface AutomationRunRecord {
@@ -139,7 +148,112 @@ const saveRunHistory = (records: AutomationRunRecord[]) => {
   }
 };
 
-// ============= Preflight env var detection =============
+// ============= Artifact viewer card with tabbed inspector =============
+type ArtifactTab = 'pretty' | 'raw' | 'meta';
+
+const ArtifactCard = ({
+  art,
+  onDownload,
+  onRemove,
+}: {
+  art: StepArtifact;
+  onDownload: () => void;
+  onRemove: () => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const kind: 'json' | 'text' | 'binary' =
+    art.kind ?? (art.mimeType === 'application/json' ? 'json' : art.isBinary ? 'binary' : 'text');
+  const defaultTab: ArtifactTab = kind === 'binary' ? 'raw' : 'pretty';
+  const [tab, setTab] = useState<ArtifactTab>(defaultTab);
+
+  const prettyContent = useMemo(() => {
+    if (kind !== 'json') return art.preview;
+    try { return JSON.stringify(JSON.parse(art.preview), null, 2); }
+    catch { return art.preview; }
+  }, [art.preview, kind]);
+
+  const tabs: { id: ArtifactTab; label: string; icon: typeof FileText }[] = kind === 'json'
+    ? [{ id: 'pretty', label: 'JSON', icon: FileJson }, { id: 'raw', label: 'Raw', icon: Code2 }, { id: 'meta', label: 'Meta', icon: AlertTriangle }]
+    : kind === 'binary'
+      ? [{ id: 'raw', label: 'Hex preview', icon: Binary }, { id: 'meta', label: 'Metadata', icon: AlertTriangle }]
+      : [{ id: 'pretty', label: 'Text', icon: FileText }, { id: 'raw', label: 'Raw', icon: Code2 }, { id: 'meta', label: 'Meta', icon: AlertTriangle }];
+
+  const formatBytes = (n: number): string => {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    return `${(n / 1024 / 1024).toFixed(2)} MB`;
+  };
+
+  const body = tab === 'meta'
+    ? (
+      <div className="space-y-1 p-2 text-[10px] text-muted-foreground">
+        <div><span className="text-foreground font-medium">Name:</span> {art.name}</div>
+        <div><span className="text-foreground font-medium">Step:</span> {art.stepIndex >= 0 ? `${art.stepIndex} — ${art.stepLabel}` : 'Detached / unattached'}</div>
+        <div><span className="text-foreground font-medium">Source:</span> {art.source}</div>
+        <div><span className="text-foreground font-medium">MIME:</span> {art.mimeType || 'application/octet-stream'}</div>
+        <div><span className="text-foreground font-medium">Kind:</span> {kind}{art.isBinary ? ' (binary)' : ''}</div>
+        <div><span className="text-foreground font-medium">Size:</span> {formatBytes(art.sizeBytes)} ({art.sizeBytes} bytes)</div>
+        <div><span className="text-foreground font-medium">Captured:</span> {new Date(art.capturedAt).toLocaleString()}</div>
+        {art.binaryBase64 && <div className="text-[10px]"><span className="text-foreground font-medium">Encoded:</span> base64 ({art.binaryBase64.length} chars)</div>}
+      </div>
+    )
+    : (
+      <pre className={cn(
+        'max-h-56 overflow-auto bg-background p-2 text-[10px] font-mono text-foreground ide-scrollbar',
+        kind === 'binary' ? 'whitespace-pre' : 'whitespace-pre-wrap',
+      )}>
+        {tab === 'pretty' ? (prettyContent || '(empty)') : (art.preview || '(empty)')}
+      </pre>
+    );
+
+  return (
+    <div className="rounded border border-border bg-background/60">
+      <div className="flex items-center justify-between px-2 py-1 text-[11px] hover:bg-accent/50">
+        <button onClick={() => setOpen((o) => !o)} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+          <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
+          <span className="truncate font-medium">{art.stepIndex >= 0 ? `Step ${art.stepIndex}` : 'Detached'} · {art.name}</span>
+          <span className={cn('rounded border px-1 text-[9px]', art.source === 'inline' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' : 'border-violet-500/40 bg-violet-500/10 text-violet-300')}>{art.source}</span>
+          <span className="rounded border border-border bg-muted/30 px-1 text-[9px] text-muted-foreground">{kind}</span>
+        </button>
+        <span className="flex items-center gap-1">
+          <button
+            onClick={onDownload}
+            title="Download artifact"
+            className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-accent hover:text-foreground"
+          >
+            <Download className="h-3 w-3" /> Download
+          </button>
+          <button onClick={onRemove} title="Remove" className="rounded p-0.5 hover:bg-accent hover:text-destructive"><X className="h-3 w-3" /></button>
+        </span>
+      </div>
+      {open && (
+        <div className="border-t border-border">
+          <div className="flex items-center gap-1 border-b border-border bg-muted/20 px-1 py-1">
+            {tabs.map((t) => {
+              const Icon = t.icon;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] transition-colors',
+                    tab === t.id ? 'bg-background text-foreground border border-border' : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-3 w-3" /> {t.label}
+                </button>
+              );
+            })}
+            <span className="ml-auto text-[9px] text-muted-foreground">{art.mimeType || 'application/octet-stream'} · {formatBytes(art.sizeBytes)}</span>
+          </div>
+          {body}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 /** Scan generated code for `process.env.X` and `os.environ[...]` references. */
 const scanRequiredEnvVars = (code: string): string[] => {
   const found = new Set<string>();
@@ -704,6 +818,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
             preview: pretty.slice(0, 8000),
             sizeBytes: pretty.length,
             capturedAt: new Date().toISOString(),
+            kind: 'json',
           };
           inlineArtifacts.push(art);
           finalPreview = pretty.slice(0, 4000);
@@ -2200,16 +2315,56 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         toast.error(`${file.name} exceeds 5 MB limit`);
         continue;
       }
-      const text = await file.text().catch(() => '[binary file]');
+      const buf = await file.arrayBuffer().catch(() => null);
+      const bytes = buf ? new Uint8Array(buf) : new Uint8Array();
+      // Heuristic: a NUL byte in first 4KB → binary
+      let isBinary = false;
+      const sample = bytes.slice(0, 4096);
+      for (let i = 0; i < sample.length; i++) { if (sample[i] === 0) { isBinary = true; break; } }
+      let preview = '';
+      let kind: 'json' | 'text' | 'binary' = 'text';
+      let binaryBase64: string | undefined;
+      if (isBinary) {
+        kind = 'binary';
+        // Build hex+ascii preview of first 512 bytes
+        const head = bytes.slice(0, 512);
+        const lines: string[] = [];
+        for (let i = 0; i < head.length; i += 16) {
+          const slice = head.slice(i, i + 16);
+          const hex = Array.from(slice).map((b) => b.toString(16).padStart(2, '0')).join(' ').padEnd(48, ' ');
+          const ascii = Array.from(slice).map((b) => (b >= 32 && b < 127 ? String.fromCharCode(b) : '.')).join('');
+          lines.push(`${i.toString(16).padStart(8, '0')}  ${hex}  ${ascii}`);
+        }
+        preview = lines.join('\n');
+        // Encode as base64 in chunks to avoid call-stack overflow
+        let bin = '';
+        const CHUNK = 0x8000;
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+          bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)) as unknown as number[]);
+        }
+        binaryBase64 = btoa(bin);
+      } else {
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+        const trimmed = text.trim();
+        if ((trimmed.startsWith('{') || trimmed.startsWith('[')) && (file.type.includes('json') || /\.json$/i.test(file.name))) {
+          try { preview = JSON.stringify(JSON.parse(trimmed), null, 2).slice(0, 8000); kind = 'json'; }
+          catch { preview = text.slice(0, 8000); kind = 'text'; }
+        } else {
+          preview = text.slice(0, 8000);
+        }
+      }
       newArts.push({
         stepIndex: stepIdx,
         stepLabel,
         source: 'upload',
         name: file.name,
         mimeType: file.type || 'application/octet-stream',
-        preview: text.slice(0, 8000),
+        preview,
         sizeBytes: file.size,
         capturedAt: new Date().toISOString(),
+        isBinary,
+        binaryBase64,
+        kind,
       });
     }
     if (newArts.length) {
@@ -2223,13 +2378,22 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   }, []);
 
   const downloadArtifact = useCallback((art: StepArtifact) => {
-    const blob = new Blob([art.preview], { type: art.mimeType });
+    let blob: Blob;
+    if (art.binaryBase64) {
+      const bin = atob(art.binaryBase64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      blob = new Blob([bytes], { type: art.mimeType || 'application/octet-stream' });
+    } else {
+      blob = new Blob([art.preview], { type: art.mimeType || 'text/plain' });
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = art.name;
     a.click();
     URL.revokeObjectURL(url);
+    toast.success(`Downloaded ${art.name}`);
   }, []);
 
   const clearRunHistory = useCallback(() => {
@@ -2534,21 +2698,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
             ) : (
               <div className="space-y-1.5">
                 {stepArtifacts.map((art, i) => (
-                  <details key={i} className="rounded border border-border bg-background/60">
-                    <summary className="flex cursor-pointer items-center justify-between px-2 py-1 text-[11px] hover:bg-accent/50">
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
-                        <span className="truncate font-medium">{art.stepIndex >= 0 ? `Step ${art.stepIndex}` : 'Detached'} · {art.name}</span>
-                        <span className={cn('rounded border px-1 text-[9px]', art.source === 'inline' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' : 'border-violet-500/40 bg-violet-500/10 text-violet-300')}>{art.source}</span>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <button onClick={(e) => { e.preventDefault(); downloadArtifact(art); }} className="rounded p-0.5 hover:bg-accent"><Upload className="h-3 w-3 rotate-180 text-muted-foreground" /></button>
-                        <button onClick={(e) => { e.preventDefault(); removeArtifact(i); }} className="rounded p-0.5 hover:bg-accent hover:text-destructive"><X className="h-3 w-3" /></button>
-                      </span>
-                    </summary>
-                    <pre className="max-h-48 overflow-auto border-t border-border bg-background p-2 text-[10px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{art.preview || '(empty)'}</pre>
-                    <p className="px-2 py-1 text-[9px] text-muted-foreground border-t border-border">{art.mimeType} · {art.sizeBytes} bytes</p>
-                  </details>
+                  <ArtifactCard
+                    key={i}
+                    art={art}
+                    onDownload={() => downloadArtifact(art)}
+                    onRemove={() => removeArtifact(i)}
+                  />
                 ))}
               </div>
             )}
