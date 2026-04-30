@@ -317,7 +317,7 @@ const ArtifactCard = ({
           const isError = errorLine === lineNum;
           const isHighlight = highlightLine === lineNum;
           // Inline search highlight (case-insensitive)
-          let content: React.ReactNode = ln || '\u00A0';
+          let content: ReactNode = ln || '\u00A0';
           if (term && ln.toLowerCase().includes(term.toLowerCase())) {
             const parts = ln.split(new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig'));
             content = parts.map((p, k) => p.toLowerCase() === term.toLowerCase()
@@ -343,7 +343,7 @@ const ArtifactCard = ({
     );
   };
 
-  let body: React.ReactNode;
+  let body: ReactNode;
   if (tab === 'meta') {
     body = (
       <div className="space-y-1 p-2 text-[10px] text-muted-foreground">
