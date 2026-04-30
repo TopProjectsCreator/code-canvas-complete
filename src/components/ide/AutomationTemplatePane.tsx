@@ -2210,16 +2210,56 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         toast.error(`${file.name} exceeds 5 MB limit`);
         continue;
       }
-      const text = await file.text().catch(() => '[binary file]');
+      const buf = await file.arrayBuffer().catch(() => null);
+      const bytes = buf ? new Uint8Array(buf) : new Uint8Array();
+      // Heuristic: a NUL byte in first 4KB → binary
+      let isBinary = false;
+      const sample = bytes.slice(0, 4096);
+      for (let i = 0; i < sample.length; i++) { if (sample[i] === 0) { isBinary = true; break; } }
+      let preview = '';
+      let kind: 'json' | 'text' | 'binary' = 'text';
+      let binaryBase64: string | undefined;
+      if (isBinary) {
+        kind = 'binary';
+        // Build hex+ascii preview of first 512 bytes
+        const head = bytes.slice(0, 512);
+        const lines: string[] = [];
+        for (let i = 0; i < head.length; i += 16) {
+          const slice = head.slice(i, i + 16);
+          const hex = Array.from(slice).map((b) => b.toString(16).padStart(2, '0')).join(' ').padEnd(48, ' ');
+          const ascii = Array.from(slice).map((b) => (b >= 32 && b < 127 ? String.fromCharCode(b) : '.')).join('');
+          lines.push(`${i.toString(16).padStart(8, '0')}  ${hex}  ${ascii}`);
+        }
+        preview = lines.join('\n');
+        // Encode as base64 in chunks to avoid call-stack overflow
+        let bin = '';
+        const CHUNK = 0x8000;
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+          bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)) as unknown as number[]);
+        }
+        binaryBase64 = btoa(bin);
+      } else {
+        const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+        const trimmed = text.trim();
+        if ((trimmed.startsWith('{') || trimmed.startsWith('[')) && (file.type.includes('json') || /\.json$/i.test(file.name))) {
+          try { preview = JSON.stringify(JSON.parse(trimmed), null, 2).slice(0, 8000); kind = 'json'; }
+          catch { preview = text.slice(0, 8000); kind = 'text'; }
+        } else {
+          preview = text.slice(0, 8000);
+        }
+      }
       newArts.push({
         stepIndex: stepIdx,
         stepLabel,
         source: 'upload',
         name: file.name,
         mimeType: file.type || 'application/octet-stream',
-        preview: text.slice(0, 8000),
+        preview,
         sizeBytes: file.size,
         capturedAt: new Date().toISOString(),
+        isBinary,
+        binaryBase64,
+        kind,
       });
     }
     if (newArts.length) {
@@ -2233,13 +2273,22 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   }, []);
 
   const downloadArtifact = useCallback((art: StepArtifact) => {
-    const blob = new Blob([art.preview], { type: art.mimeType });
+    let blob: Blob;
+    if (art.binaryBase64) {
+      const bin = atob(art.binaryBase64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      blob = new Blob([bytes], { type: art.mimeType || 'application/octet-stream' });
+    } else {
+      blob = new Blob([art.preview], { type: art.mimeType || 'text/plain' });
+    }
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = art.name;
     a.click();
     URL.revokeObjectURL(url);
+    toast.success(`Downloaded ${art.name}`);
   }, []);
 
   const clearRunHistory = useCallback(() => {
