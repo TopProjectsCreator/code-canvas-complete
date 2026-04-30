@@ -216,22 +216,45 @@ const saveRunHistory = (records: AutomationRunRecord[]) => {
 };
 
 // ============= Artifact viewer card with tabbed inspector =============
-type ArtifactTab = 'pretty' | 'raw' | 'meta';
+type ArtifactTab = 'pretty' | 'raw' | 'meta' | 'diff';
 
 const ArtifactCard = ({
   art,
+  previousArt,
   onDownload,
   onRemove,
+  forceOpen,
+  highlightLine,
+  searchTerm,
+  onMounted,
 }: {
   art: StepArtifact;
+  /** Same step's artifact from the prior run (for the Diff tab). */
+  previousArt?: StepArtifact | null;
   onDownload: () => void;
   onRemove: () => void;
+  /** Imperatively open the card (e.g. after clicking a log line). */
+  forceOpen?: number;
+  /** Optional 1-indexed line to scroll to & highlight inside the Pretty tab. */
+  highlightLine?: number;
+  /** Optional search term to highlight matches inside the body. */
+  searchTerm?: string;
+  /** Called once with the root <div> so the parent can scroll to this card. */
+  onMounted?: (el: HTMLDivElement | null) => void;
 }) => {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const kind: 'json' | 'text' | 'binary' =
     art.kind ?? (art.mimeType === 'application/json' ? 'json' : art.isBinary ? 'binary' : 'text');
   const defaultTab: ArtifactTab = kind === 'binary' ? 'raw' : 'pretty';
   const [tab, setTab] = useState<ArtifactTab>(defaultTab);
+
+  // Imperatively open when parent requests via forceOpen tick.
+  useEffect(() => {
+    if (forceOpen !== undefined && forceOpen > 0) setOpen(true);
+  }, [forceOpen]);
+
+  useEffect(() => { onMounted?.(rootRef.current); }, [onMounted]);
 
   const prettyContent = useMemo(() => {
     if (kind !== 'json') return art.preview;
@@ -239,11 +262,41 @@ const ArtifactCard = ({
     catch { return art.preview; }
   }, [art.preview, kind]);
 
-  const tabs: { id: ArtifactTab; label: string; icon: typeof FileText }[] = kind === 'json'
-    ? [{ id: 'pretty', label: 'JSON', icon: FileJson }, { id: 'raw', label: 'Raw', icon: Code2 }, { id: 'meta', label: 'Meta', icon: AlertTriangle }]
-    : kind === 'binary'
-      ? [{ id: 'raw', label: 'Hex preview', icon: Binary }, { id: 'meta', label: 'Metadata', icon: AlertTriangle }]
-      : [{ id: 'pretty', label: 'Text', icon: FileText }, { id: 'raw', label: 'Raw', icon: Code2 }, { id: 'meta', label: 'Meta', icon: AlertTriangle }];
+  // Re-validate from the live preview text so manual edits/uploads are honored.
+  const validation = useMemo(() => {
+    if (kind !== 'json') return undefined;
+    return art.validation ?? validateJsonString(art.preview);
+  }, [art.validation, art.preview, kind]);
+
+  const hasDiff = kind !== 'binary' && !!previousArt && previousArt.preview !== art.preview;
+  const diffLines = useMemo(() => {
+    if (!hasDiff || !previousArt) return [];
+    const oldText = kind === 'json'
+      ? (() => { try { return JSON.stringify(JSON.parse(previousArt.preview), null, 2); } catch { return previousArt.preview; } })()
+      : previousArt.preview;
+    return computeLineDiff(oldText, prettyContent);
+  }, [hasDiff, previousArt, kind, prettyContent]);
+
+  const diffStats = useMemo(() => {
+    let added = 0, removed = 0;
+    for (const l of diffLines) { if (l.type === 'add') added++; else if (l.type === 'remove') removed++; }
+    return { added, removed };
+  }, [diffLines]);
+
+  const tabs: { id: ArtifactTab; label: string; icon: typeof FileText }[] = (() => {
+    const base: { id: ArtifactTab; label: string; icon: typeof FileText }[] = kind === 'json'
+      ? [{ id: 'pretty', label: 'JSON', icon: FileJson }, { id: 'raw', label: 'Raw', icon: Code2 }, { id: 'meta', label: 'Meta', icon: AlertTriangle }]
+      : kind === 'binary'
+        ? [{ id: 'raw', label: 'Hex preview', icon: Binary }, { id: 'meta', label: 'Metadata', icon: AlertTriangle }]
+        : [{ id: 'pretty', label: 'Text', icon: FileText }, { id: 'raw', label: 'Raw', icon: Code2 }, { id: 'meta', label: 'Meta', icon: AlertTriangle }];
+    if (hasDiff) base.splice(base.length - 1, 0, { id: 'diff', label: 'Diff', icon: GitCompare });
+    return base;
+  })();
+
+  // If the requested tab is no longer available (e.g. diff disappeared), reset.
+  useEffect(() => {
+    if (!tabs.some((t) => t.id === tab)) setTab(defaultTab);
+  }, [tabs, tab, defaultTab]);
 
   const formatBytes = (n: number): string => {
     if (n < 1024) return `${n} B`;
@@ -251,8 +304,46 @@ const ArtifactCard = ({
     return `${(n / 1024 / 1024).toFixed(2)} MB`;
   };
 
-  const body = tab === 'meta'
-    ? (
+  // Render text body with line numbers + optional highlight + search match.
+  const renderLinedText = (text: string, errorLine?: number) => {
+    const lines = (text || '').split('\n');
+    const term = searchTerm?.trim() ?? '';
+    return (
+      <div className="max-h-56 overflow-auto bg-background text-[10px] font-mono ide-scrollbar">
+        {lines.map((ln, i) => {
+          const lineNum = i + 1;
+          const isError = errorLine === lineNum;
+          const isHighlight = highlightLine === lineNum;
+          // Inline search highlight (case-insensitive)
+          let content: React.ReactNode = ln || '\u00A0';
+          if (term && ln.toLowerCase().includes(term.toLowerCase())) {
+            const parts = ln.split(new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig'));
+            content = parts.map((p, k) => p.toLowerCase() === term.toLowerCase()
+              ? <mark key={k} className="bg-amber-400/40 text-foreground rounded-sm px-0.5">{p}</mark>
+              : <span key={k}>{p}</span>);
+          }
+          return (
+            <div
+              key={i}
+              data-artifact-line={lineNum}
+              className={cn(
+                'flex items-start gap-2 px-2 leading-[1.45] whitespace-pre-wrap',
+                isError && 'bg-destructive/15',
+                isHighlight && 'bg-amber-400/15 ring-1 ring-amber-400/40',
+              )}
+            >
+              <span className={cn('select-none w-7 shrink-0 text-right', isError ? 'text-destructive font-semibold' : 'text-muted-foreground/60')}>{lineNum}</span>
+              <span className="flex-1 text-foreground">{content}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  let body: React.ReactNode;
+  if (tab === 'meta') {
+    body = (
       <div className="space-y-1 p-2 text-[10px] text-muted-foreground">
         <div><span className="text-foreground font-medium">Name:</span> {art.name}</div>
         <div><span className="text-foreground font-medium">Step:</span> {art.stepIndex >= 0 ? `${art.stepIndex} — ${art.stepLabel}` : 'Detached / unattached'}</div>
@@ -261,26 +352,68 @@ const ArtifactCard = ({
         <div><span className="text-foreground font-medium">Kind:</span> {kind}{art.isBinary ? ' (binary)' : ''}</div>
         <div><span className="text-foreground font-medium">Size:</span> {formatBytes(art.sizeBytes)} ({art.sizeBytes} bytes)</div>
         <div><span className="text-foreground font-medium">Captured:</span> {new Date(art.capturedAt).toLocaleString()}</div>
+        {validation && (
+          <div><span className="text-foreground font-medium">Validation:</span> {validation.valid ? 'valid JSON ✓' : `invalid — ${validation.error ?? 'parse failed'}`}</div>
+        )}
         {art.binaryBase64 && <div className="text-[10px]"><span className="text-foreground font-medium">Encoded:</span> base64 ({art.binaryBase64.length} chars)</div>}
       </div>
-    )
-    : (
-      <pre className={cn(
-        'max-h-56 overflow-auto bg-background p-2 text-[10px] font-mono text-foreground ide-scrollbar',
-        kind === 'binary' ? 'whitespace-pre' : 'whitespace-pre-wrap',
-      )}>
-        {tab === 'pretty' ? (prettyContent || '(empty)') : (art.preview || '(empty)')}
-      </pre>
     );
+  } else if (tab === 'diff') {
+    body = (
+      <div className="max-h-56 overflow-auto bg-background text-[10px] font-mono ide-scrollbar">
+        {diffLines.length === 0 ? (
+          <p className="p-2 text-muted-foreground italic">No differences vs. previous run.</p>
+        ) : diffLines.map((l, i) => {
+          const cls = l.type === 'add'
+            ? 'bg-emerald-500/10 text-emerald-300 border-l-2 border-emerald-500/60'
+            : l.type === 'remove'
+              ? 'bg-destructive/10 text-destructive border-l-2 border-destructive/60'
+              : 'text-muted-foreground border-l-2 border-transparent';
+          const sigil = l.type === 'add' ? '+' : l.type === 'remove' ? '-' : ' ';
+          return (
+            <div key={i} className={cn('flex items-start gap-2 px-2 leading-[1.45] whitespace-pre-wrap', cls)}>
+              <span className="select-none w-4 shrink-0 text-right opacity-70">{sigil}</span>
+              <span className="select-none w-7 shrink-0 text-right opacity-50">{l.newLine ?? l.oldLine ?? ''}</span>
+              <span className="flex-1">{l.text || '\u00A0'}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  } else if (tab === 'pretty') {
+    body = renderLinedText(prettyContent, validation && !validation.valid ? validation.errorLine : undefined);
+  } else {
+    // raw
+    body = kind === 'binary' ? (
+      <pre className="max-h-56 overflow-auto bg-background p-2 text-[10px] font-mono text-foreground ide-scrollbar whitespace-pre">{art.preview || '(empty)'}</pre>
+    ) : renderLinedText(art.preview || '');
+  }
+
+  // Scroll to highlighted line when the card is open.
+  useEffect(() => {
+    if (!open || !highlightLine) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const el = root.querySelector(`[data-artifact-line="${highlightLine}"]`) as HTMLElement | null;
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [open, highlightLine, tab]);
 
   return (
-    <div className="rounded border border-border bg-background/60">
+    <div ref={rootRef} className="rounded border border-border bg-background/60">
       <div className="flex items-center justify-between px-2 py-1 text-[11px] hover:bg-accent/50">
         <button onClick={() => setOpen((o) => !o)} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
           <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
           <span className="truncate font-medium">{art.stepIndex >= 0 ? `Step ${art.stepIndex}` : 'Detached'} · {art.name}</span>
           <span className={cn('rounded border px-1 text-[9px]', art.source === 'inline' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' : 'border-violet-500/40 bg-violet-500/10 text-violet-300')}>{art.source}</span>
           <span className="rounded border border-border bg-muted/30 px-1 text-[9px] text-muted-foreground">{kind}</span>
+          {validation && !validation.valid && (
+            <span className="rounded border border-destructive/40 bg-destructive/10 px-1 text-[9px] text-destructive" title={validation.error}>invalid JSON</span>
+          )}
+          {hasDiff && (
+            <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1 text-[9px] text-amber-300" title="Differs from previous run">
+              Δ +{diffStats.added}/-{diffStats.removed}
+            </span>
+          )}
         </button>
         <span className="flex items-center gap-1">
           <button
@@ -295,6 +428,16 @@ const ArtifactCard = ({
       </div>
       {open && (
         <div className="border-t border-border">
+          {validation && !validation.valid && (
+            <div className="flex items-start gap-1.5 border-b border-destructive/30 bg-destructive/10 px-2 py-1 text-[10px] text-destructive">
+              <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+              <span className="flex-1">
+                <span className="font-medium">Invalid JSON</span>
+                {validation.errorLine ? <> at line <span className="font-mono">{validation.errorLine}</span>{validation.errorCol ? <>, col <span className="font-mono">{validation.errorCol}</span></> : null}</> : null}
+                : {validation.error}
+              </span>
+            </div>
+          )}
           <div className="flex items-center gap-1 border-b border-border bg-muted/20 px-1 py-1">
             {tabs.map((t) => {
               const Icon = t.icon;
