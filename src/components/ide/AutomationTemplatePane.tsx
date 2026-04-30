@@ -971,9 +971,9 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     const startedAtIso = new Date().toISOString();
     const startedAt = Date.now();
     const now = () => new Date().toLocaleTimeString('en-US', { hour12: false });
-    const collected: { icon: 'check' | 'dot' | 'key' | 'error'; time: string; text: string }[] = [];
-    const push = (icon: 'check' | 'dot' | 'key' | 'error', text: string) => {
-      const entry = { icon, time: now(), text };
+    const collected: { icon: 'check' | 'dot' | 'key' | 'error'; time: string; text: string; stepIndex?: number }[] = [];
+    const push = (icon: 'check' | 'dot' | 'key' | 'error', text: string, stepIndex?: number) => {
+      const entry = { icon, time: now(), text, stepIndex };
       collected.push(entry);
       setTestRunLogs((p) => [...p, entry]);
     };
@@ -1010,6 +1010,9 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     const output = result.output || [];
     const inlineArtifacts: StepArtifact[] = [];
     let stepIdx = 0;
+    /** Step index of the most recently announced step — used to attach
+     *  follow-up "↳" log lines and errors to the right artifact. */
+    let currentStepIdx: number | undefined = undefined;
     let finalPreview = '';
     let status: 'success' | 'failed' | 'halted' = 'failed';
     for (const raw of output) {
@@ -1021,6 +1024,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         try {
           const parsed = JSON.parse(artMatch[1]);
           const pretty = JSON.stringify(parsed.output, null, 2);
+          const validation = validateJsonString(pretty);
           const art: StepArtifact = {
             stepIndex: parsed.stepIndex,
             stepLabel: parsed.stepLabel,
@@ -1031,6 +1035,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
             sizeBytes: pretty.length,
             capturedAt: new Date().toISOString(),
             kind: 'json',
+            validation,
           };
           inlineArtifacts.push(art);
           finalPreview = pretty.slice(0, 4000);
@@ -1042,19 +1047,28 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       if (line.includes('⚠️ Pipeline halted')) { push('dot', line); status = 'halted'; continue; }
       if (line.includes('🔑 idempotency-key=')) { push('key', line); continue; }
       if (line.includes('⏭️') && /idempotency/i.test(line)) { push('key', line); status = 'halted'; continue; }
-      if (line.includes('❌ Pipeline failed')) { push('error', line.replace(/^.*❌\s*/, '')); continue; }
+      if (line.includes('❌ Pipeline failed')) { push('error', line.replace(/^.*❌\s*/, ''), currentStepIdx); continue; }
       const stepMatch = line.match(/▶\s*\[(TRIGGER|STEP\s*\d+)\]\s*(.+?)\.\.\.$/);
       if (stepMatch) {
         const isTrigger = stepMatch[1] === 'TRIGGER';
-        push(isTrigger ? 'check' : 'dot', `${isTrigger ? 'Trigger fired' : `Step ${++stepIdx}`}: ${stepMatch[2]}`);
+        if (isTrigger) {
+          currentStepIdx = 0;
+          push('check', `Trigger fired: ${stepMatch[2]}`, 0);
+        } else {
+          stepIdx += 1;
+          // Try to parse the explicit "STEP N" number; otherwise fall back to the running counter.
+          const numMatch = stepMatch[1].match(/STEP\s*(\d+)/);
+          currentStepIdx = numMatch ? parseInt(numMatch[1], 10) : stepIdx;
+          push('dot', `Step ${stepIdx}: ${stepMatch[2]}`, currentStepIdx);
+        }
         continue;
       }
-      if (line.includes('↳')) { push('dot', line.replace(/^\s*↳\s*/, '↳ ')); continue; }
+      if (line.includes('↳')) { push('dot', line.replace(/^\s*↳\s*/, '↳ '), currentStepIdx); continue; }
       if (/Missing required env vars/i.test(line)) { push('key', line); continue; }
-      if (/^\s*(Error|TypeError|ReferenceError):/.test(line)) { push('error', line); continue; }
-      if (line.trim()) push('dot', line);
+      if (/^\s*(Error|TypeError|ReferenceError):/.test(line)) { push('error', line, currentStepIdx); continue; }
+      if (line.trim()) push('dot', line, currentStepIdx);
     }
-    if (result.error) { push('error', result.error); status = 'failed'; }
+    if (result.error) { push('error', result.error, currentStepIdx); status = 'failed'; }
     if (output.length === 0 && !result.error) push('error', 'No output captured. Check console for details.');
 
     if (inlineArtifacts.length) {
