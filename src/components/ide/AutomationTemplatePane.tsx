@@ -2593,21 +2593,12 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
             ) : (
               <div className="space-y-1.5">
                 {stepArtifacts.map((art, i) => (
-                  <details key={i} className="rounded border border-border bg-background/60">
-                    <summary className="flex cursor-pointer items-center justify-between px-2 py-1 text-[11px] hover:bg-accent/50">
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
-                        <span className="truncate font-medium">{art.stepIndex >= 0 ? `Step ${art.stepIndex}` : 'Detached'} · {art.name}</span>
-                        <span className={cn('rounded border px-1 text-[9px]', art.source === 'inline' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' : 'border-violet-500/40 bg-violet-500/10 text-violet-300')}>{art.source}</span>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <button onClick={(e) => { e.preventDefault(); downloadArtifact(art); }} className="rounded p-0.5 hover:bg-accent"><Upload className="h-3 w-3 rotate-180 text-muted-foreground" /></button>
-                        <button onClick={(e) => { e.preventDefault(); removeArtifact(i); }} className="rounded p-0.5 hover:bg-accent hover:text-destructive"><X className="h-3 w-3" /></button>
-                      </span>
-                    </summary>
-                    <pre className="max-h-48 overflow-auto border-t border-border bg-background p-2 text-[10px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{art.preview || '(empty)'}</pre>
-                    <p className="px-2 py-1 text-[9px] text-muted-foreground border-t border-border">{art.mimeType} · {art.sizeBytes} bytes</p>
-                  </details>
+                  <ArtifactCard
+                    key={i}
+                    art={art}
+                    onDownload={() => downloadArtifact(art)}
+                    onRemove={() => removeArtifact(i)}
+                  />
                 ))}
               </div>
             )}
