@@ -100,6 +100,12 @@ export interface StepArtifact {
   preview: string;
   sizeBytes: number;
   capturedAt: string;
+  /** Whether the underlying file is binary (non-UTF8) */
+  isBinary?: boolean;
+  /** Base64-encoded raw bytes for binary uploads (used for download). */
+  binaryBase64?: string;
+  /** Detected/classified kind for tab-viewer routing. */
+  kind?: 'json' | 'text' | 'binary';
 }
 
 export interface AutomationRunRecord {
