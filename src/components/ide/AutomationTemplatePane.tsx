@@ -713,6 +713,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
             preview: pretty.slice(0, 8000),
             sizeBytes: pretty.length,
             capturedAt: new Date().toISOString(),
+            kind: 'json',
           };
           inlineArtifacts.push(art);
           finalPreview = pretty.slice(0, 4000);
