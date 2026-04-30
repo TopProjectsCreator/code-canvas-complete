@@ -2999,25 +2999,86 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                <p className="text-xs font-medium">Step artifacts ({stepArtifacts.length})</p>
+                <p className="text-xs font-medium">Step artifacts ({filteredArtifactIndices.length}/{stepArtifacts.length})</p>
               </div>
               <button onClick={() => artifactInputRef.current?.click()} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-accent">
                 <Upload className="h-3 w-3" /> Upload
               </button>
               <input ref={artifactInputRef} type="file" multiple className="hidden" onChange={(e) => { handleArtifactUpload(e.target.files); e.target.value = ''; }} />
             </div>
+
+            {/* Search & type filter — visible only when at least one artifact exists */}
+            {stepArtifacts.length > 0 && (
+              <div className="mb-2 space-y-1.5">
+                <div className="flex items-center gap-1.5 rounded border border-border bg-background px-2 py-1">
+                  <Search className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <input
+                    value={artifactSearch}
+                    onChange={(e) => setArtifactSearch(e.target.value)}
+                    placeholder="Search name, step, or content…"
+                    className="w-full bg-transparent text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  />
+                  {artifactSearch && (
+                    <button onClick={() => setArtifactSearch('')} className="rounded p-0.5 hover:bg-accent" title="Clear search">
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Filter className="h-3 w-3 text-muted-foreground shrink-0" />
+                  {(['json', 'text', 'binary'] as const).map((k) => {
+                    const active = artifactKindFilter.has(k);
+                    const Icon = k === 'json' ? FileJson : k === 'binary' ? Binary : FileText;
+                    return (
+                      <button
+                        key={k}
+                        onClick={() => toggleKindFilter(k)}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] transition-colors',
+                          active
+                            ? 'border-primary/60 bg-primary/15 text-foreground'
+                            : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+                        )}
+                      >
+                        <Icon className="h-3 w-3" /> {k}
+                      </button>
+                    );
+                  })}
+                  {(artifactKindFilter.size > 0 || artifactSearch) && (
+                    <button
+                      onClick={() => { setArtifactKindFilter(new Set()); setArtifactSearch(''); }}
+                      className="ml-auto rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {stepArtifacts.length === 0 ? (
               <p className="text-[11px] italic text-muted-foreground">No artifacts. Run a test to capture step outputs, or upload files attached to a selected step.</p>
+            ) : filteredArtifactIndices.length === 0 ? (
+              <p className="text-[11px] italic text-muted-foreground">No artifacts match the current search/filter.</p>
             ) : (
               <div className="space-y-1.5">
-                {stepArtifacts.map((art, i) => (
-                  <ArtifactCard
-                    key={i}
-                    art={art}
-                    onDownload={() => downloadArtifact(art)}
-                    onRemove={() => removeArtifact(i)}
-                  />
-                ))}
+                {filteredArtifactIndices.map((i) => {
+                  const art = stepArtifacts[i];
+                  const key = artifactKey(art);
+                  return (
+                    <ArtifactCard
+                      key={`${key}-${i}`}
+                      art={art}
+                      previousArt={previousArtifactsByStep.get(art.stepIndex) ?? null}
+                      onDownload={() => downloadArtifact(art)}
+                      onRemove={() => removeArtifact(i)}
+                      forceOpen={artifactOpenTicks[key]}
+                      highlightLine={artifactHighlight[key]}
+                      searchTerm={artifactSearch}
+                      onMounted={(el) => { artifactNodeRefs.current[key] = el; }}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
