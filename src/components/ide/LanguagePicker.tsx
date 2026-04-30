@@ -117,6 +117,7 @@ const languages: LanguageOption[] = TEMPLATES.map((t) => ({
 
 // AI Template Assistant component
 const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate) => void }) => {
+  const isOnline = useOnlineStatus();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -155,6 +156,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
   };
 
   const send = async () => {
+    if (!isOnline) return;
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
     const userMsg: ChatMessage = { role: "user", content: input.trim() };
     const allMessages = [...messages, userMsg];
@@ -269,6 +271,20 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
         </button>
       </div>
 
+      {!isOnline ? (
+        <div className="flex-1 flex items-center justify-center px-6 text-center">
+          <div className="space-y-3">
+            <div className="mx-auto w-11 h-11 rounded-full bg-muted flex items-center justify-center">
+              <WifiOff className="w-5 h-5 text-muted-foreground" />
+            </div>
+            <h4 className="text-sm font-semibold text-foreground">No Wi-Fi connection</h4>
+            <p className="text-xs text-muted-foreground">
+              Template Assistant needs internet access. Reconnect to ask for template recommendations.
+            </p>
+          </div>
+        </div>
+      ) : (
+      <>
       {/* Messages */}
       <div className="flex-1 overflow-auto p-3 space-y-3 ide-scrollbar">
         {messages.length === 0 && (
@@ -432,6 +448,8 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
           </button>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };
