@@ -3174,7 +3174,29 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                 testRunLogs.map((log, i) => {
                   const Icon = log.icon === 'check' ? Check : log.icon === 'dot' ? CircleDot : log.icon === 'key' ? KeyRound : MinusCircle;
                   const color = log.icon === 'check' ? 'text-emerald-400' : log.icon === 'dot' ? 'text-blue-400' : log.icon === 'key' ? 'text-amber-400' : 'text-destructive';
-                  return (<p key={i} className="flex items-center gap-1"><Icon className={cn('h-3 w-3', color)} /> {log.time} {log.text}</p>);
+                  const linkable = log.stepIndex !== undefined && stepArtifacts.some((a) => a.stepIndex === log.stepIndex);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => linkable && jumpFromLogToArtifact(log.stepIndex, log)}
+                      disabled={!linkable}
+                      title={linkable ? `Jump to step ${log.stepIndex} artifact` : undefined}
+                      className={cn(
+                        'flex w-full items-center gap-1 rounded px-1 text-left transition-colors',
+                        linkable ? 'cursor-pointer hover:bg-accent/50 hover:text-foreground' : 'cursor-default',
+                      )}
+                    >
+                      <Icon className={cn('h-3 w-3 shrink-0', color)} />
+                      <span className="text-muted-foreground">{log.time}</span>
+                      <span className="flex-1 truncate">{log.text}</span>
+                      {linkable && (
+                        <span className="rounded border border-border bg-muted/30 px-1 text-[9px] text-muted-foreground">
+                          step {log.stepIndex} →
+                        </span>
+                      )}
+                    </button>
+                  );
                 })
               )}
             </div>
