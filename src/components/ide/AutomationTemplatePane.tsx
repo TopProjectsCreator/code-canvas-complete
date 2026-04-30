@@ -2571,14 +2571,24 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         binaryBase64 = btoa(bin);
       } else {
         const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+        const looksJson = file.type.includes('json') || /\.json$/i.test(file.name);
         const trimmed = text.trim();
-        if ((trimmed.startsWith('{') || trimmed.startsWith('[')) && (file.type.includes('json') || /\.json$/i.test(file.name))) {
+        if (looksJson) {
+          kind = 'json';
+          try {
+            preview = JSON.stringify(JSON.parse(trimmed), null, 2).slice(0, 8000);
+          } catch {
+            // Keep raw text so the validation banner can highlight the bad line.
+            preview = text.slice(0, 8000);
+          }
+        } else if ((trimmed.startsWith('{') || trimmed.startsWith('['))) {
           try { preview = JSON.stringify(JSON.parse(trimmed), null, 2).slice(0, 8000); kind = 'json'; }
           catch { preview = text.slice(0, 8000); kind = 'text'; }
         } else {
           preview = text.slice(0, 8000);
         }
       }
+      const validation = kind === 'json' ? validateJsonString(preview) : undefined;
       newArts.push({
         stepIndex: stepIdx,
         stepLabel,
@@ -2591,6 +2601,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
         isBinary,
         binaryBase64,
         kind,
+        validation,
       });
     }
     if (newArts.length) {
