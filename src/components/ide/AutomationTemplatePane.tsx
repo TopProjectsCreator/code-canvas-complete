@@ -106,7 +106,74 @@ export interface StepArtifact {
   binaryBase64?: string;
   /** Detected/classified kind for tab-viewer routing. */
   kind?: 'json' | 'text' | 'binary';
+  /** JSON validation result — populated for kind === 'json'. */
+  validation?: {
+    valid: boolean;
+    error?: string;
+    /** 1-indexed line number where the parse error occurred (best-effort). */
+    errorLine?: number;
+    /** 1-indexed column where the parse error occurred (best-effort). */
+    errorCol?: number;
+  };
 }
+
+/**
+ * Validate a JSON string and extract a best-effort line/column from the
+ * native parse error message ("at position N").
+ */
+const validateJsonString = (raw: string): NonNullable<StepArtifact['validation']> => {
+  try {
+    JSON.parse(raw);
+    return { valid: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    let errorLine: number | undefined;
+    let errorCol: number | undefined;
+    const posMatch = message.match(/position\s+(\d+)/i);
+    const lineMatch = message.match(/line\s+(\d+)\s+column\s+(\d+)/i);
+    if (lineMatch) {
+      errorLine = parseInt(lineMatch[1], 10);
+      errorCol = parseInt(lineMatch[2], 10);
+    } else if (posMatch) {
+      const pos = parseInt(posMatch[1], 10);
+      const upTo = raw.slice(0, Math.max(0, pos));
+      const lines = upTo.split('\n');
+      errorLine = lines.length;
+      errorCol = (lines[lines.length - 1]?.length ?? 0) + 1;
+    }
+    return { valid: false, error: message, errorLine, errorCol };
+  }
+};
+
+/**
+ * Compute a simple per-line diff (LCS-based) between two text blobs.
+ * Returns an ordered array of {type, text, oldLine?, newLine?} entries
+ * suitable for rendering a unified diff.
+ */
+type DiffLine = { type: 'context' | 'add' | 'remove'; text: string; oldLine?: number; newLine?: number };
+const computeLineDiff = (oldText: string, newText: string): DiffLine[] => {
+  const a = oldText.split('\n');
+  const b = newText.split('\n');
+  const n = a.length;
+  const m = b.length;
+  // LCS DP table
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  const out: DiffLine[] = [];
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) { out.push({ type: 'context', text: a[i], oldLine: i + 1, newLine: j + 1 }); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { out.push({ type: 'remove', text: a[i], oldLine: i + 1 }); i++; }
+    else { out.push({ type: 'add', text: b[j], newLine: j + 1 }); j++; }
+  }
+  while (i < n) { out.push({ type: 'remove', text: a[i], oldLine: i + 1 }); i++; }
+  while (j < m) { out.push({ type: 'add', text: b[j], newLine: j + 1 }); j++; }
+  return out;
+};
 
 export interface AutomationRunRecord {
   id: string;
