@@ -501,6 +501,77 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
 
 
 
+  const moveSelectedElementLayer = (direction: 'forward' | 'backward') => {
+    if (!selectedElement) return;
+    commitSlides(prev => prev.map((slide, idx) => {
+      if (idx !== activeSlide) return slide;
+      const elements = [...slide.elements];
+      const currentIndex = elements.findIndex((entry) => entry.id === selectedElement);
+      if (currentIndex < 0) return slide;
+      const targetIndex = direction === 'forward'
+        ? Math.min(elements.length - 1, currentIndex + 1)
+        : Math.max(0, currentIndex - 1);
+      if (targetIndex === currentIndex) return slide;
+      const [entry] = elements.splice(currentIndex, 1);
+      elements.splice(targetIndex, 0, entry);
+      return { ...slide, elements };
+    }));
+  };
+
+  const updateTableCell = (elId: string, rowIndex: number, colIndex: number, value: string) => {
+    commitSlides(prev => prev.map((slide, idx) => (
+      idx === activeSlide
+        ? {
+          ...slide,
+          elements: slide.elements.map((el) => {
+            if (el.id !== elId) return el;
+            const tableRows = (el.tableRows && el.tableRows.length ? el.tableRows : [['']]).map((row) => [...row]);
+            while (tableRows.length <= rowIndex) tableRows.push(new Array(tableRows[0]?.length || 1).fill(''));
+            while ((tableRows[rowIndex]?.length || 0) <= colIndex) {
+              tableRows.forEach((row) => row.push(''));
+            }
+            tableRows[rowIndex][colIndex] = value;
+            return { ...el, tableRows };
+          }),
+        }
+        : slide
+    )));
+  };
+
+  const appendTableRow = (elId: string) => {
+    commitSlides(prev => prev.map((slide, idx) => (
+      idx === activeSlide
+        ? {
+          ...slide,
+          elements: slide.elements.map((el) => {
+            if (el.id !== elId) return el;
+            const existing = (el.tableRows && el.tableRows.length ? el.tableRows : [['']]).map((row) => [...row]);
+            const width = Math.max(1, ...existing.map((row) => row.length));
+            existing.push(new Array(width).fill(''));
+            return { ...el, tableRows: existing };
+          }),
+        }
+        : slide
+    )));
+  };
+
+  const appendTableColumn = (elId: string) => {
+    commitSlides(prev => prev.map((slide, idx) => (
+      idx === activeSlide
+        ? {
+          ...slide,
+          elements: slide.elements.map((el) => {
+            if (el.id !== elId) return el;
+            const existing = (el.tableRows && el.tableRows.length ? el.tableRows : [['']]).map((row) => [...row]);
+            existing.forEach((row) => row.push(''));
+            return { ...el, tableRows: existing };
+          }),
+        }
+        : slide
+    )));
+  };
+
+
   const setActiveSlideTransition = (value: 'none' | 'fade' | 'push') => {
     setTransitionType(value);
     commitSlides(prev => prev.map((slide, idx) => idx === activeSlide ? { ...slide, transition: value } : slide));
@@ -852,10 +923,54 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                   <span className="text-muted-foreground">Y: {Math.round(el.y)}</span>
                   <span className="text-muted-foreground">W: {Math.round(el.width)}</span>
                   <span className="text-muted-foreground">H: {Math.round(el.height)}</span>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => moveSelectedElementLayer('backward')}>
+                      Send Back
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => moveSelectedElementLayer('forward')}>
+                      Bring Front
+                    </Button>
+                  </div>
                   <div className="flex-1" />
                   <Button size="sm" variant="ghost" className="h-6 text-xs text-destructive" onClick={() => deleteElement(selectedElement)}>
                     <Trash2 className="w-3 h-3 mr-1" /> Delete
                   </Button>
+                </div>
+              );
+            })()}
+
+            {selectedElement && (() => {
+              const el = currentSlide?.elements.find(e => e.id === selectedElement);
+              if (!el || el.placeholderType !== 'table') return null;
+              const tableRows = el.tableRows && el.tableRows.length ? el.tableRows : [['']];
+              return (
+                <div className="px-3 py-2 border-t border-border bg-background/95 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[11px] text-muted-foreground">Table editor</p>
+                    <div className="flex items-center gap-1">
+                      <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => appendTableColumn(el.id)}>+ Column</Button>
+                      <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => appendTableRow(el.id)}>+ Row</Button>
+                    </div>
+                  </div>
+                  <div className="overflow-auto">
+                    <table className="w-full border-collapse text-xs">
+                      <tbody>
+                        {tableRows.map((row, rowIndex) => (
+                          <tr key={rowIndex}>
+                            {row.map((cell, colIndex) => (
+                              <td key={`${rowIndex}-${colIndex}`} className="border border-border p-0">
+                                <input
+                                  className="w-full bg-background px-2 py-1 outline-none"
+                                  value={cell}
+                                  onChange={(e) => updateTableCell(el.id, rowIndex, colIndex, e.target.value)}
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               );
             })()}
