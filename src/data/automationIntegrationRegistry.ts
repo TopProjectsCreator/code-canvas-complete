@@ -3045,7 +3045,7 @@ const expandedApiCatalogV2: Array<[string, AutomationAuthType, string, APIParame
   ['HaveIBeenPwned API', 'api_key', 'HIBP breached account/password APIs.', securityParams],
 ];
 
-const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
+export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
   {
     id: 'comm',
     title: 'Communication & Messaging',
