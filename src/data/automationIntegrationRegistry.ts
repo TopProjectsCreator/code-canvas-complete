@@ -625,6 +625,141 @@ const manualTriggerParams: APIParameter[] = [
   { name: 'input_fields', displayName: 'Input Fields (JSON)', type: 'textarea', placeholder: '[{"name": "email", "type": "string"}]', help: 'Optional: define input fields that will be prompted when the pipeline is triggered manually' },
 ];
 
+// ===== Additional Trigger Param Schemas =====
+const httpPollingTriggerParams: APIParameter[] = [
+  { name: 'url', displayName: 'Endpoint URL', type: 'url', required: true, placeholder: 'https://api.example.com/status' },
+  { name: 'method', displayName: 'Method', type: 'select', default: 'GET', options: [{label:'GET',value:'GET'},{label:'POST',value:'POST'}] },
+  { name: 'interval_seconds', displayName: 'Poll Interval (seconds)', type: 'number', default: 60, required: true },
+  { name: 'change_field', displayName: 'Change Detection Field', type: 'string', placeholder: 'data.updated_at', help: 'JSON path to field; trigger fires when value changes' },
+  { name: 'headers', displayName: 'Headers (JSON)', type: 'textarea', placeholder: '{"Authorization":"Bearer ..."}' },
+];
+
+const githubEventTriggerParams: APIParameter[] = [
+  { name: 'repo', displayName: 'Repository (owner/name)', type: 'string', required: true, placeholder: 'octocat/hello-world' },
+  { name: 'event', displayName: 'Event Type', type: 'select', required: true, default: 'push', options: [
+    {label:'Push',value:'push'},{label:'Pull Request',value:'pull_request'},{label:'Issue',value:'issues'},
+    {label:'Release',value:'release'},{label:'Workflow Run',value:'workflow_run'},{label:'Star',value:'star'},
+  ] },
+  { name: 'branch', displayName: 'Branch Filter', type: 'string', placeholder: 'main' },
+  { name: 'secret', displayName: 'Webhook Secret', type: 'password', help: 'Validates incoming GitHub webhook signature' },
+];
+
+const stripeEventTriggerParams: APIParameter[] = [
+  { name: 'event', displayName: 'Stripe Event', type: 'select', required: true, default: 'payment_intent.succeeded', options: [
+    {label:'Payment Succeeded',value:'payment_intent.succeeded'},
+    {label:'Payment Failed',value:'payment_intent.payment_failed'},
+    {label:'Subscription Created',value:'customer.subscription.created'},
+    {label:'Subscription Cancelled',value:'customer.subscription.deleted'},
+    {label:'Invoice Paid',value:'invoice.paid'},
+    {label:'Charge Refunded',value:'charge.refunded'},
+  ] },
+  { name: 'webhook_secret', displayName: 'Webhook Signing Secret', type: 'password', required: true, placeholder: 'whsec_...' },
+  { name: 'livemode', displayName: 'Live Mode Only', type: 'boolean', default: false },
+];
+
+const slackEventTriggerParams: APIParameter[] = [
+  { name: 'event_type', displayName: 'Event Type', type: 'select', required: true, default: 'message', options: [
+    {label:'Message',value:'message'},{label:'Mention',value:'app_mention'},
+    {label:'Reaction Added',value:'reaction_added'},{label:'File Shared',value:'file_shared'},
+    {label:'Channel Created',value:'channel_created'},
+  ] },
+  { name: 'channel', displayName: 'Channel Filter', type: 'string', placeholder: '#general' },
+  { name: 'signing_secret', displayName: 'Signing Secret', type: 'password', required: true },
+];
+
+const formSubmissionTriggerParams: APIParameter[] = [
+  { name: 'form_id', displayName: 'Form ID', type: 'string', required: true, placeholder: 'contact-form' },
+  { name: 'provider', displayName: 'Form Provider', type: 'select', default: 'typeform', options: [
+    {label:'Typeform',value:'typeform'},{label:'Google Forms',value:'google_forms'},
+    {label:'Tally',value:'tally'},{label:'Jotform',value:'jotform'},{label:'Custom Webhook',value:'custom'},
+  ] },
+  { name: 'secret', displayName: 'Verification Secret', type: 'password' },
+];
+
+const calendarEventTriggerParams: APIParameter[] = [
+  { name: 'calendar_id', displayName: 'Calendar ID', type: 'string', required: true, placeholder: 'primary' },
+  { name: 'event_type', displayName: 'Event Type', type: 'select', default: 'created', options: [
+    {label:'Event Created',value:'created'},{label:'Event Updated',value:'updated'},
+    {label:'Event Cancelled',value:'cancelled'},{label:'Event Starting Soon',value:'starting_soon'},
+  ] },
+  { name: 'lead_minutes', displayName: 'Lead Minutes (for "starting soon")', type: 'number', default: 15 },
+];
+
+const sensorTriggerParams: APIParameter[] = [
+  { name: 'sensor_id', displayName: 'Sensor / Device ID', type: 'string', required: true },
+  { name: 'condition', displayName: 'Condition', type: 'select', default: 'gt', options: [
+    {label:'Greater Than',value:'gt'},{label:'Less Than',value:'lt'},
+    {label:'Equals',value:'eq'},{label:'Changes',value:'changes'},
+  ] },
+  { name: 'threshold', displayName: 'Threshold', type: 'number', placeholder: '25' },
+  { name: 'cooldown_seconds', displayName: 'Cooldown (seconds)', type: 'number', default: 300 },
+];
+
+const mqttTriggerParams: APIParameter[] = [
+  { name: 'broker_url', displayName: 'Broker URL', type: 'url', required: true, placeholder: 'mqtt://broker.hivemq.com:1883' },
+  { name: 'topic', displayName: 'Topic Pattern', type: 'string', required: true, placeholder: 'sensors/+/temperature' },
+  { name: 'qos', displayName: 'QoS', type: 'select', default: '0', options: [{label:'0 - At most once',value:'0'},{label:'1 - At least once',value:'1'},{label:'2 - Exactly once',value:'2'}] },
+  { name: 'username', displayName: 'Username', type: 'string' },
+  { name: 'password', displayName: 'Password', type: 'password' },
+];
+
+const kafkaTriggerParams: APIParameter[] = [
+  { name: 'bootstrap_servers', displayName: 'Bootstrap Servers', type: 'string', required: true, placeholder: 'kafka1:9092,kafka2:9092' },
+  { name: 'topic', displayName: 'Topic', type: 'string', required: true },
+  { name: 'consumer_group', displayName: 'Consumer Group', type: 'string', required: true },
+  { name: 'auto_offset_reset', displayName: 'Auto Offset Reset', type: 'select', default: 'latest', options: [{label:'Latest',value:'latest'},{label:'Earliest',value:'earliest'}] },
+];
+
+const s3EventTriggerParams: APIParameter[] = [
+  { name: 'bucket', displayName: 'Bucket Name', type: 'string', required: true },
+  { name: 'prefix', displayName: 'Key Prefix', type: 'string', placeholder: 'uploads/' },
+  { name: 'event', displayName: 'Event', type: 'select', default: 's3:ObjectCreated:*', options: [
+    {label:'Object Created',value:'s3:ObjectCreated:*'},
+    {label:'Object Removed',value:'s3:ObjectRemoved:*'},
+    {label:'Object Restore',value:'s3:ObjectRestore:*'},
+  ] },
+];
+
+const errorTriggerParams: APIParameter[] = [
+  { name: 'source_pipeline', displayName: 'Watch Pipeline', type: 'string', placeholder: '* = all pipelines' },
+  { name: 'min_severity', displayName: 'Min Severity', type: 'select', default: 'error', options: [
+    {label:'Warning',value:'warning'},{label:'Error',value:'error'},{label:'Critical',value:'critical'},
+  ] },
+];
+
+const chatCommandTriggerParams: APIParameter[] = [
+  { name: 'command', displayName: 'Command Phrase', type: 'string', required: true, placeholder: 'run weekly report' },
+  { name: 'fuzzy_match', displayName: 'Fuzzy Match', type: 'boolean', default: true },
+  { name: 'require_confirmation', displayName: 'Require Confirmation', type: 'boolean', default: true },
+];
+
+const sseTriggerParams: APIParameter[] = [
+  { name: 'url', displayName: 'SSE Endpoint URL', type: 'url', required: true },
+  { name: 'event_filter', displayName: 'Event Name Filter', type: 'string', placeholder: 'message' },
+  { name: 'reconnect_seconds', displayName: 'Reconnect Delay (s)', type: 'number', default: 5 },
+];
+
+const websocketTriggerParams: APIParameter[] = [
+  { name: 'url', displayName: 'WebSocket URL', type: 'url', required: true, placeholder: 'wss://example.com/ws' },
+  { name: 'subscribe_message', displayName: 'Subscribe Message (JSON)', type: 'textarea' },
+  { name: 'message_filter', displayName: 'Message Filter (JSON path)', type: 'string' },
+];
+
+const geofenceTriggerParams: APIParameter[] = [
+  { name: 'device_id', displayName: 'Device / Tracker ID', type: 'string', required: true },
+  { name: 'latitude', displayName: 'Center Latitude', type: 'number', required: true },
+  { name: 'longitude', displayName: 'Center Longitude', type: 'number', required: true },
+  { name: 'radius_meters', displayName: 'Radius (meters)', type: 'number', default: 100 },
+  { name: 'trigger_on', displayName: 'Trigger On', type: 'select', default: 'enter', options: [{label:'Enter',value:'enter'},{label:'Exit',value:'exit'},{label:'Both',value:'both'}] },
+];
+
+const priceAlertTriggerParams: APIParameter[] = [
+  { name: 'symbol', displayName: 'Symbol/Ticker', type: 'string', required: true, placeholder: 'AAPL or BTC-USD' },
+  { name: 'condition', displayName: 'Condition', type: 'select', default: 'above', options: [{label:'Above',value:'above'},{label:'Below',value:'below'},{label:'% Change',value:'pct_change'}] },
+  { name: 'threshold', displayName: 'Threshold', type: 'number', required: true },
+  { name: 'check_interval_seconds', displayName: 'Check Interval (s)', type: 'number', default: 60 },
+];
+
 const discordParams: APIParameter[] = [
   { name: 'webhook_url', displayName: 'Webhook URL', type: 'url', description: 'Discord Webhook URL', required: true, placeholder: 'https://discord.com/api/webhooks/...' },
   { name: 'content', displayName: 'Message', type: 'textarea', description: 'Message text (max 2000 chars)', required: true, placeholder: 'Your message...' },
