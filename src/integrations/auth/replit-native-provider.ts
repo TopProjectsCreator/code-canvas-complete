@@ -158,13 +158,13 @@ export const replitNativeProvider: AuthProvider = {
   },
 
   onAuthStateChange(callback) {
-    listeners.push(callback as AuthStateCallback);
+    listeners.push(callback as unknown as AuthStateCallback);
     init().then((session) => {
       callback('INITIAL_SESSION', session as never);
     });
     return {
       unsubscribe: () => {
-        const idx = listeners.indexOf(callback as AuthStateCallback);
+        const idx = listeners.indexOf(callback as unknown as AuthStateCallback);
         if (idx !== -1) listeners.splice(idx, 1);
       },
     };
