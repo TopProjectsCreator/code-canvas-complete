@@ -188,6 +188,10 @@ httpServer.on('upgrade', (request, socket, head) => {
 wss.on('connection', (ws) => {
   let ptyProcess = null;
 
+  // Per-connection fallback ID — guarantees the shell never starts in the
+  // workspace root even if the client sends no projectId.
+  const connSessionId = `conn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
   ws.on('message', (msg) => {
     const str = msg.toString();
 
@@ -199,26 +203,25 @@ wss.on('connection', (ws) => {
 
         const { projectId, files = [], cols = 80, rows = 24 } = parsed;
 
-        // Write canvas project files to a dedicated temp directory so the shell
-        // starts inside the user's project rather than the IDE source tree.
-        let cwd = process.cwd();
-        if (projectId) {
-          const projectDir = path.join(tmpdir(), `canvas-${projectId}`);
-          try {
-            fs.mkdirSync(projectDir, { recursive: true });
-            for (const { path: filePath, content } of files) {
-              if (!filePath || typeof content !== 'string') continue;
-              // Sanitise path — strip leading slashes / traversals
-              const safe = filePath.replace(/^[./\\]+/, '').replace(/\.\.\//g, '');
-              if (!safe) continue;
-              const fullPath = path.join(projectDir, safe);
-              fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-              fs.writeFileSync(fullPath, content, 'utf8');
-            }
-            cwd = projectDir;
-          } catch (e) {
-            console.error('Failed to write project files:', e.message);
+        // Always use a temp dir — never the workspace root.
+        // Use the client-supplied projectId if present, else fall back to
+        // a per-connection session ID so git clone / ls can't touch IDE source.
+        const resolvedId = projectId || connSessionId;
+        const projectDir = path.join(tmpdir(), `canvas-${resolvedId}`);
+        let cwd = projectDir;
+        try {
+          fs.mkdirSync(projectDir, { recursive: true });
+          for (const { path: filePath, content } of files) {
+            if (!filePath || typeof content !== 'string') continue;
+            // Sanitise path — strip leading slashes / traversals
+            const safe = filePath.replace(/^[./\\]+/, '').replace(/\.\.\//g, '');
+            if (!safe) continue;
+            const fullPath = path.join(projectDir, safe);
+            fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+            fs.writeFileSync(fullPath, content, 'utf8');
           }
+        } catch (e) {
+          console.error('Failed to write project files:', e.message);
         }
 
         ptyProcess = pty.spawn('bash', [], {
