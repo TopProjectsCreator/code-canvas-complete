@@ -910,21 +910,7 @@ wss.on('connection', (ws) => {
         const resolvedId = projectId || connSessionId;
         const projectDir = path.join(tmpdir(), `canvas-${resolvedId}`);
 
-        // Detect the common root directory shared by all project files.
-        // e.g. if every file starts with "my-canvas/", the shell should open
-        // directly inside "my-canvas/" rather than the bare temp dir.
-        const getCommonRoot = (filePaths) => {
-          const roots = filePaths
-            .map(p => (p || '').replace(/^[./\\]+/, '').replace(/\.\.\//g, ''))
-            .filter(Boolean)
-            .map(p => { const parts = p.split('/'); return parts.length > 1 ? parts[0] : ''; });
-          if (!roots.length) return '';
-          const first = roots[0];
-          return (first && roots.every(r => r === first)) ? first : '';
-        };
-        const commonRoot = getCommonRoot(files.map(f => f.path || ''));
-        const startDir = commonRoot ? path.join(projectDir, commonRoot) : projectDir;
-        cwd = startDir;
+        cwd = projectDir; // default; refined below after writing files
 
         try {
           fs.mkdirSync(projectDir, { recursive: true });
@@ -937,8 +923,19 @@ wss.on('connection', (ws) => {
             fs.mkdirSync(path.dirname(fullPath), { recursive: true });
             fs.writeFileSync(fullPath, content, 'utf8');
           }
-          // Ensure the start dir exists even if no files were in it
-          fs.mkdirSync(startDir, { recursive: true });
+
+          // After writing, detect the project root by looking at the real filesystem.
+          // If projectDir contains exactly ONE subdirectory (ignoring hidden files like
+          // .bashrc) and no top-level files, the shell should start inside that subdir.
+          // This handles the common layout where all files live under a "my-canvas/" root.
+          const topEntries = fs.readdirSync(projectDir, { withFileTypes: true })
+            .filter(e => !e.name.startsWith('.'));
+          const topDirs  = topEntries.filter(e => e.isDirectory());
+          const topFiles = topEntries.filter(e => e.isFile());
+          if (topDirs.length === 1 && topFiles.length === 0) {
+            cwd = path.join(projectDir, topDirs[0].name);
+          }
+          console.log(`[PTY] projectDir=${projectDir}  startCwd=${cwd}`);
 
           // Sanitise the project name for safe embedding in a bash variable.
           const safeProjectName = (projectName || 'project')
@@ -992,14 +989,14 @@ wss.on('connection', (ws) => {
           name: 'xterm-256color',
           cols: Math.max(1, cols),
           rows: Math.max(1, rows),
-          cwd: startDir,
+          cwd,
           env: {
             ...process.env,
             TERM: 'xterm-256color',
             COLORTERM: 'truecolor',
             PYTHONUNBUFFERED: '1',
-            // HOME = startDir so \w / PROMPT_COMMAND shows project-relative paths
-            HOME: startDir,
+            // HOME = cwd so PROMPT_COMMAND shows project-relative paths
+            HOME: cwd,
           },
         });
 
