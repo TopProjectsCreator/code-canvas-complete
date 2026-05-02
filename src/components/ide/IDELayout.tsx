@@ -308,7 +308,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   >([]);
   const editedFilesRef = useRef<Set<string>>(new Set());
   const collabEngineRef = useRef<CollaborationSyncEngine>(new CollaborationSyncEngine());
-  const { executeCode, executeShellCommand, isExecuting } = useCodeExecution();
+  const { executeCode, executeShellCommand, isExecuting, resetReplitShell } = useCodeExecution();
   const collab = useCollaboration(currentProject?.id);
   const { importRepository: gitImportRepo } = useGitHubImport();
   const { importRepository: gitProviderImport } = useGitProviderImport();
@@ -2350,6 +2350,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     onToggleMinimize={() => {}}
                     stdinPrompt={stdinPrompt}
                     onStdinSubmit={handleStdinSubmit}
+                    onNewShell={resetReplitShell}
                   />
                 </div>
               )}
@@ -2379,6 +2380,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                           onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
                           stdinPrompt={stdinPrompt}
                           onStdinSubmit={handleStdinSubmit}
+                          onNewShell={resetReplitShell}
                         />
                       </div>
                     </div>
