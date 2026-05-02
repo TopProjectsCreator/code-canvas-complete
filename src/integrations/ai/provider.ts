@@ -72,7 +72,7 @@ const createSupabaseAIProvider = (): AIProvider => {
 const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => {
   const envBase =
     platform === 'replit'
-      ? import.meta.env.VITE_REPLIT_AI_BASE_URL
+      ? (import.meta.env.VITE_REPLIT_AI_BASE_URL || '/api/replit/ai')
       : import.meta.env.VITE_LOVABLE_AI_BASE_URL;
 
   const fallback = createSupabaseAIProvider();

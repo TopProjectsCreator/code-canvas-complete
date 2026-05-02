@@ -18,7 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = parseInt(process.env.REPLIT_SERVER_PORT || '3001', 10);
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '8mb' }));
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -59,6 +59,90 @@ app.get('/api/replit/auth', (req, res) => {
 });
 
 app.get('/api/replit/signout', (req, res) => res.json({ ok: true }));
+
+// ---------------------------------------------------------------------------
+// AI proxy — forwards chat/image/music requests to Supabase edge functions
+// using a per-user anonymous Supabase session so the edge functions receive
+// a valid JWT even though auth on Replit goes through the native provider.
+// ---------------------------------------------------------------------------
+
+const SUPABASE_URL  = process.env.VITE_SUPABASE_URL        || '';
+const SUPABASE_ANON = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+
+// In-memory cache: replitUserId → { accessToken, expiresAt }
+const _anonSessions = new Map();
+const _pendingAnon   = new Map();
+
+async function getSupabaseToken(replitUserId) {
+  const cached = _anonSessions.get(replitUserId);
+  if (cached && cached.expiresAt > Date.now() + 60_000) return cached.accessToken;
+
+  // Deduplicate concurrent requests for the same user
+  if (_pendingAnon.has(replitUserId)) return _pendingAnon.get(replitUserId);
+
+  const promise = (async () => {
+    try {
+      if (!SUPABASE_URL || !SUPABASE_ANON) return null;
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON },
+        body: '{}',
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data.access_token) return null;
+      const expiresAt = Date.now() + (data.expires_in || 3600) * 1000;
+      _anonSessions.set(replitUserId, { accessToken: data.access_token, expiresAt });
+      return data.access_token;
+    } catch {
+      return null;
+    } finally {
+      _pendingAnon.delete(replitUserId);
+    }
+  })();
+  _pendingAnon.set(replitUserId, promise);
+  return promise;
+}
+
+async function proxyToEdge(edgeName, req, res) {
+  const replitUserId = req.headers['x-replit-user-id'];
+  if (!replitUserId) return res.status(401).json({ error: 'Not authenticated with Replit' });
+
+  const accessToken = await getSupabaseToken(replitUserId);
+  if (!accessToken) {
+    return res.status(401).json({
+      error: 'Could not establish a Supabase session. Enable anonymous sign-ins in your Supabase project (Authentication → Settings → Allow anonymous sign-ins).',
+    });
+  }
+
+  let upstream;
+  try {
+    upstream = await fetch(`${SUPABASE_URL}/functions/v1/${edgeName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(req.body),
+    });
+  } catch (err) {
+    return res.status(502).json({ error: `Upstream fetch failed: ${err.message}` });
+  }
+
+  res.status(upstream.status);
+  upstream.headers.forEach((v, k) => {
+    if (!['transfer-encoding', 'connection'].includes(k.toLowerCase())) res.setHeader(k, v);
+  });
+
+  if (!upstream.body) return res.end();
+  const { Readable } = await import('stream');
+  Readable.fromWeb(upstream.body).pipe(res);
+}
+
+app.post('/api/replit/ai/chat',  (req, res) => proxyToEdge('ai-chat',          req, res));
+app.post('/api/replit/ai/image', (req, res) => proxyToEdge('generate-image',    req, res));
+app.post('/api/replit/ai/music', (req, res) => proxyToEdge('generate-music',    req, res));
+app.post('/api/replit/ai/cmd',   (req, res) => proxyToEdge('generate-command',  req, res));
 
 // ---------------------------------------------------------------------------
 // One-shot code execution  (Run button — fresh process per run, stdin piped)
