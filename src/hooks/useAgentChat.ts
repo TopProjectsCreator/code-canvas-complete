@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import type { AutonomyConfig } from '@/hooks/useAutonomyMode';
 import { supabase } from '@/integrations/supabase/client';
+import { createAuthProvider } from '@/integrations/auth/provider';
 import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion, QuestionOption, ChatWidget, ChatWidgetType } from '@/types/agent';
 import { Workflow } from '@/types/ide';
 import { CustomThemeColors } from '@/contexts/ThemeContext';
@@ -776,7 +777,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     if (!messageContent.trim() || isLoading) return;
     executedActionsRef.current.clear();
 
-    const { data: { session } } = await supabase.auth.getSession();
+    const { session } = await createAuthProvider().getSession();
     
     if (!session?.access_token) {
       setMessages(prev => [...prev, { id: generateId(), role: 'assistant', content: '🔒 **Authentication Required**\n\nPlease sign in to use the AI assistant.' }]);
