@@ -14,6 +14,12 @@ import { detectDeploymentPlatform } from '@/lib/platform';
 import { XTerminal, ProjectFile } from './XTerminal';
 
 const platform = detectDeploymentPlatform();
+const genId = () => Math.random().toString(36).slice(2, 9);
+
+interface ShellInstance {
+  id: string;
+  label: string;
+}
 
 interface TerminalProps {
   history: TerminalLine[];
@@ -27,20 +33,29 @@ interface TerminalProps {
   projectId?: string;
 }
 
-const generateId = () => Math.random().toString(36).substring(2, 9);
-
-export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, stdinPrompt, onStdinSubmit, onNewShell, projectFiles, projectId }: TerminalProps) => {
+export const Terminal = ({
+  history, onCommand, isMinimized, onToggleMinimize,
+  stdinPrompt, onStdinSubmit, onNewShell,
+  projectFiles, projectId,
+}: TerminalProps) => {
   const [input, setInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  const [activeTab, setActiveTab] = useState<'shell' | 'console'>('shell');
+
+  // 'console' or a shell instance id
+  const [activePane, setActivePane] = useState<string>('shell-default');
+
+  // Shell instances (each gets its own PTY session)
+  const [shells, setShells] = useState<ShellInstance[]>([
+    { id: 'shell-default', label: '1' },
+  ]);
+
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiPopoverOpen, setAiPopoverOpen] = useState(false);
   const [stdinInputs, setStdinInputs] = useState<string[]>([]);
   const [currentStdinIndex, setCurrentStdinIndex] = useState(0);
-  // shellKey causes XTerminal to remount (new PTY session) when incremented
-  const [shellKey, setShellKey] = useState(0);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { executeShellCommand, executeCode, isExecuting } = useCodeExecution();
@@ -48,8 +63,7 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
   const isOnline = useOnlineStatus();
   const pythonExecutorMode = usePythonExecutorMode();
 
-  // On Replit the shell tab uses xterm.js — switch to console for non-shell work
-  const isReplitShell = platform === 'replit' && activeTab === 'shell';
+  const isReplitShellActive = platform === 'replit' && activePane !== 'console';
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -57,7 +71,6 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
     }
   }, [history]);
 
-  // Reset stdin state when a new prompt arrives
   useEffect(() => {
     if (stdinPrompt) {
       setStdinInputs([]);
@@ -67,100 +80,89 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
     }
   }, [stdinPrompt]);
 
+  const addShell = () => {
+    const id = `shell-${genId()}`;
+    const label = String(shells.length + 1);
+    setShells(prev => [...prev, { id, label }]);
+    setActivePane(id);
+  };
+
+  const closeShell = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (shells.length <= 1) return; // keep at least one
+    const idx = shells.findIndex(s => s.id === id);
+    const next = shells[idx === 0 ? 1 : idx - 1];
+    setShells(prev => prev.filter(s => s.id !== id));
+    if (activePane === id) setActivePane(next.id);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isExecuting) return;
-
     const value = input.trim();
     setInput('');
 
-    // Handle stdin input mode
     if (stdinPrompt && onStdinSubmit) {
       const newInputs = [...stdinInputs, value];
       setStdinInputs(newInputs);
-      
-      // Show the entered value in terminal
       onCommand(`> ${value}`, [], false);
-
       if (newInputs.length >= stdinPrompt.prompts.length) {
-        // All inputs collected, submit
-        const stdinValue = newInputs.join('\n');
-        onStdinSubmit(stdinValue);
+        onStdinSubmit(newInputs.join('\n'));
       } else {
         setCurrentStdinIndex(newInputs.length);
       }
       return;
     }
-
     if (!value) return;
 
-    const command = value;
-    setCommandHistory((prev) => [...prev, command]);
+    setCommandHistory(prev => [...prev, value]);
     setHistoryIndex(-1);
 
-    // Check if it's a special local command
-    if (command === 'clear') {
-      onCommand(command, ['\x1Bc'], false);
-      return;
-    }
+    if (value === 'clear') { onCommand(value, ['\x1Bc'], false); return; }
 
-    // Check if it's a JavaScript expression (starts with js: or node -e)
     let result;
-    if (command.startsWith('js:')) {
-      const jsCode = command.slice(3).trim();
-      result = await executeCode(jsCode, 'javascript');
-    } else if (command.startsWith('node -e ')) {
-      const jsCode = command.slice(8).replace(/^["']|["']$/g, '');
-      result = await executeCode(jsCode, 'javascript');
+    if (value.startsWith('js:')) {
+      result = await executeCode(value.slice(3).trim(), 'javascript');
+    } else if (value.startsWith('node -e ')) {
+      result = await executeCode(value.slice(8).replace(/^["']|["']$/g, ''), 'javascript');
     } else {
-      result = await executeShellCommand(command);
+      result = await executeShellCommand(value);
     }
-
-    const output = result.error 
-      ? [result.error] 
-      : result.output;
-    
-    onCommand(command, output, !!result.error);
+    onCommand(value, result.error ? [result.error] : result.output, !!result.error);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowUp') {
       e.preventDefault();
       if (historyIndex < commandHistory.length - 1) {
-        const newIndex = historyIndex + 1;
-        setHistoryIndex(newIndex);
-        setInput(commandHistory[commandHistory.length - 1 - newIndex]);
+        const i = historyIndex + 1;
+        setHistoryIndex(i);
+        setInput(commandHistory[commandHistory.length - 1 - i]);
       }
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (historyIndex > 0) {
-        const newIndex = historyIndex - 1;
-        setHistoryIndex(newIndex);
-        setInput(commandHistory[commandHistory.length - 1 - newIndex]);
+        const i = historyIndex - 1;
+        setHistoryIndex(i);
+        setInput(commandHistory[commandHistory.length - 1 - i]);
       } else {
         setHistoryIndex(-1);
         setInput('');
       }
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      // Simple tab completion for common commands
-      const commands = ['help', 'clear', 'ls', 'pwd', 'echo', 'node', 'npm', 'date', 'whoami', 'env', 'exit'];
-      const match = commands.find(cmd => cmd.startsWith(input));
+      const match = ['help','clear','ls','pwd','echo','node','npm','date','whoami','env','exit']
+        .find(cmd => cmd.startsWith(input));
       if (match) setInput(match);
     }
   };
 
   const generateCommand = async () => {
     if (!aiPrompt.trim() || isGenerating) return;
-    
     setIsGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-command', {
-        body: { prompt: aiPrompt }
-      })
-      
+      const { data, error } = await supabase.functions.invoke('generate-command', { body: { prompt: aiPrompt } });
       if (error) throw error;
-      
       if (data?.command) {
         setInput(data.command);
         setAiPopoverOpen(false);
@@ -176,23 +178,10 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
 
   const getLineColor = (type: TerminalLine['type']) => {
     switch (type) {
-      case 'error':
-        return 'text-destructive';
-      case 'info':
-        return 'text-info';
-      case 'input':
-        return 'text-foreground';
-      default:
-        return 'text-terminal-text';
-    }
-  };
-
-  const handleNewShell = () => {
-    if (platform === 'replit') {
-      // Remount XTerminal — creates a fresh PTY session
-      setShellKey((k) => k + 1);
-    } else {
-      onNewShell?.();
+      case 'error': return 'text-destructive';
+      case 'info': return 'text-info';
+      case 'input': return 'text-foreground';
+      default: return 'text-terminal-text';
     }
   };
 
@@ -201,34 +190,91 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
       'flex flex-col bg-terminal transition-all duration-200',
       isMinimized ? 'h-9' : platform === 'replit' ? 'h-64' : 'h-48'
     )}>
-      {/* Header */}
-      <div className="flex items-center justify-between h-9 px-2 bg-card border-t border-border shrink-0">
-        <div className="flex items-center gap-1">
-          <button 
-            onClick={() => setActiveTab('shell')}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors",
-              activeTab === 'shell' 
-                ? 'text-foreground bg-background' 
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <TerminalIcon className="w-3.5 h-3.5" />
-            Shell
-          </button>
-          <button 
-            onClick={() => setActiveTab('console')}
-            className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors",
-              activeTab === 'console' 
-                ? 'text-foreground bg-background' 
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            Console
-          </button>
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between h-9 px-2 bg-card border-t border-border shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-0.5 min-w-0 flex-1">
+
+          {platform === 'replit' ? (
+            <>
+              {/* Numbered shell tabs */}
+              {shells.map(shell => (
+                <button
+                  key={shell.id}
+                  onClick={() => setActivePane(shell.id)}
+                  className={cn(
+                    'flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors shrink-0 group',
+                    activePane === shell.id
+                      ? 'text-foreground bg-background'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <TerminalIcon className="w-3 h-3" />
+                  <span>{shell.label}</span>
+                  {shells.length > 1 && (
+                    <span
+                      role="button"
+                      onClick={(e) => closeShell(shell.id, e)}
+                      className="ml-0.5 opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity rounded"
+                      title="Close"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </span>
+                  )}
+                </button>
+              ))}
+
+              {/* Add new shell */}
+              <button
+                onClick={addShell}
+                className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                title="New terminal"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Separator */}
+              <div className="w-px h-4 bg-border mx-1 shrink-0" />
+
+              {/* Console tab */}
+              <button
+                onClick={() => setActivePane('console')}
+                className={cn(
+                  'px-2.5 py-1 text-xs font-medium rounded transition-colors shrink-0',
+                  activePane === 'console'
+                    ? 'text-foreground bg-background'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Console
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setActivePane('shell-default')}
+                className={cn(
+                  'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded transition-colors',
+                  activePane !== 'console' ? 'text-foreground bg-background' : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <TerminalIcon className="w-3.5 h-3.5" />
+                Shell
+              </button>
+              <button
+                onClick={() => setActivePane('console')}
+                className={cn(
+                  'px-2.5 py-1 text-xs font-medium rounded transition-colors',
+                  activePane === 'console' ? 'text-foreground bg-background' : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Console
+              </button>
+            </>
+          )}
         </div>
-        <div className="flex items-center gap-0.5">
+
+        {/* Right-side controls */}
+        <div className="flex items-center gap-0.5 shrink-0 ml-1">
           {!isOnline && (
             <div className="flex items-center gap-1.5 px-2 text-xs text-destructive">
               <WifiOff className="w-3 h-3" />
@@ -244,63 +290,68 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
           {webContainerStatus === 'booting' && (
             <div className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground">
               <Loader2 className="w-3 h-3 animate-spin text-primary" />
-              <span>Booting shell...</span>
+              <span>Booting...</span>
             </div>
           )}
-          <button 
+          <button
             onClick={onToggleMinimize}
             className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
           >
             {isMinimized ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
-          {!isReplitShell && (
-            <button 
+          {!isReplitShellActive && (
+            <button
               onClick={() => onCommand('clear', ['\x1Bc'], false)}
               className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-              title="Clear terminal"
+              title="Clear"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           )}
-          <button
-            onClick={handleNewShell}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-            title={platform === 'replit' ? 'New shell session' : 'New shell session'}
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
         </div>
       </div>
 
-      {/* Terminal content */}
+      {/* ── Content ── */}
       {!isMinimized && (
-        isReplitShell ? (
-          // Real interactive PTY terminal via xterm.js (Replit shell tab only)
-          <div className="flex-1 overflow-hidden bg-[#0d1117]">
-            <XTerminal key={shellKey} projectFiles={projectFiles} projectId={projectId} />
-          </div>
-        ) : (
-          // Classic log-based view: console tab on all platforms, shell tab on non-Replit
-          <div 
+        <>
+          {/* Shell panes (all mounted simultaneously so PTY sessions stay alive) */}
+          {platform === 'replit' && (
+            <div className={cn('relative flex-1 overflow-hidden bg-[#0d1117]', activePane === 'console' && 'hidden')}>
+              {shells.map(shell => (
+                <div
+                  key={shell.id}
+                  className="absolute inset-0"
+                  style={{ visibility: activePane === shell.id ? 'visible' : 'hidden' }}
+                >
+                  <XTerminal
+                    projectFiles={projectFiles}
+                    projectId={projectId}
+                    isActive={activePane === shell.id}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Console / non-Replit shell log view */}
+          <div
+            className={cn(
+              'flex-1 overflow-auto ide-scrollbar p-3 font-mono text-sm',
+              // Show when: console tab active, OR not on Replit
+              (activePane !== 'console' && platform === 'replit') && 'hidden'
+            )}
             ref={scrollRef}
-            className="flex-1 overflow-auto ide-scrollbar p-3 font-mono text-sm"
             onClick={() => inputRef.current?.focus()}
           >
-            {pythonExecutorMode === 'pyodide' && activeTab === 'shell' && (
+            {pythonExecutorMode === 'pyodide' && activePane !== 'console' && (
               <div className="mb-2 flex items-start gap-2 rounded border border-yellow-500/40 bg-yellow-500/10 px-2.5 py-1.5 text-xs text-yellow-200 font-sans">
                 <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-yellow-400" />
                 <div className="leading-snug">
                   <span className="font-semibold">Pyodide (browser Python) is forced.</span>{' '}
                   These will fail: <code className="font-mono">pip</code>/<code className="font-mono">uv</code>,{' '}
-                  <code className="font-mono">subprocess</code>, <code className="font-mono">os.system</code>,{' '}
-                  <code className="font-mono">socket</code>, <code className="font-mono">requests</code>,{' '}
-                  <code className="font-mono">urllib3</code>, DB drivers (<code className="font-mono">psycopg2</code>,{' '}
-                  <code className="font-mono">pyodbc</code>), GUI (<code className="font-mono">tkinter</code>,{' '}
-                  <code className="font-mono">turtle</code>, <code className="font-mono">pygame</code>),{' '}
-                  <code className="font-mono">cv2</code>, <code className="font-mono">torch</code>,{' '}
-                  <code className="font-mono">tensorflow</code>, multiprocessing, and any package without a WASM build.
-                  Switch to <span className="font-semibold">Auto</span> or{' '}
-                  <span className="font-semibold">Container</span> in Settings to use those.
+                  <code className="font-mono">subprocess</code>, <code className="font-mono">socket</code>,{' '}
+                  <code className="font-mono">requests</code>, DB drivers, GUI toolkits, and packages without a WASM build.
+                  Switch to <span className="font-semibold">Auto</span> or <span className="font-semibold">Container</span> in Settings.
                 </div>
               </div>
             )}
@@ -310,15 +361,13 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
                 <span className="whitespace-pre-wrap">{line.content}</span>
               </div>
             ))}
-            
-            {/* Stdin prompt display */}
+
             {stdinPrompt && currentStdinIndex < stdinPrompt.prompts.length && (
               <div className="leading-relaxed text-yellow-400">
                 <span>📝 {stdinPrompt.prompts[currentStdinIndex]}</span>
               </div>
             )}
-            
-            {/* Input line */}
+
             <form onSubmit={handleSubmit} className="flex items-center gap-2">
               <span className="text-primary">{stdinPrompt ? '>' : '$'}</span>
               <input
@@ -333,15 +382,13 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
                 autoFocus
               />
               {!isExecuting && <span className="w-2 h-5 bg-primary animate-cursor-blink" />}
-              
-              {/* AI Command Generator */}
+
               <Popover open={aiPopoverOpen} onOpenChange={setAiPopoverOpen}>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
                     className={cn(
-                      "p-1.5 rounded-md transition-colors",
-                      "hover:bg-accent text-muted-foreground hover:text-primary",
+                      "p-1.5 rounded-md transition-colors hover:bg-accent text-muted-foreground hover:text-primary",
                       aiPopoverOpen && "bg-accent text-primary"
                     )}
                     title="Generate command with AI"
@@ -349,40 +396,21 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
                     <Sparkles className="w-4 h-4" />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent 
-                  align="end" 
-                  className="w-80 p-3"
-                  onOpenAutoFocus={(e) => e.preventDefault()}
-                >
+                <PopoverContent align="end" className="w-80 p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
                   <div className="space-y-3">
                     <p className="text-sm font-medium">Generate a command</p>
-                    <p className="text-xs text-muted-foreground">
-                      Describe what you want to do in plain English
-                    </p>
+                    <p className="text-xs text-muted-foreground">Describe what you want to do in plain English</p>
                     <div className="flex gap-2">
                       <Input
                         value={aiPrompt}
                         onChange={(e) => setAiPrompt(e.target.value)}
                         placeholder="e.g., list all .ts files"
                         className="flex-1 text-sm"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            generateCommand();
-                          }
-                        }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); generateCommand(); } }}
                         autoFocus
                       />
-                      <Button
-                        size="sm"
-                        onClick={generateCommand}
-                        disabled={isGenerating || !aiPrompt.trim()}
-                      >
-                        {isGenerating ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          'Go'
-                        )}
+                      <Button size="sm" onClick={generateCommand} disabled={isGenerating || !aiPrompt.trim()}>
+                        {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Go'}
                       </Button>
                     </div>
                   </div>
@@ -390,7 +418,7 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
               </Popover>
             </form>
           </div>
-        )
+        </>
       )}
     </div>
   );
