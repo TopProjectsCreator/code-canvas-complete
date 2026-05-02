@@ -20,32 +20,13 @@ export const XTerminal = ({ projectFiles, projectId, isActive = true }: XTermina
   const termRef = useRef<Terminal | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Keep latest prop values accessible inside async callbacks without stale closures
+  // Always-current view of props, readable inside async callbacks
   const projectIdRef = useRef(projectId);
   const projectFilesRef = useRef(projectFiles);
-  // True when ws is open but we're still waiting for projectId
-  const pendingInitRef = useRef(false);
-
   useEffect(() => { projectIdRef.current = projectId; }, [projectId]);
   useEffect(() => { projectFilesRef.current = projectFiles; }, [projectFiles]);
 
-  // If projectId arrives after the ws is already open, send init now
-  useEffect(() => {
-    if (!projectId || !pendingInitRef.current) return;
-    const ws = wsRef.current;
-    const term = termRef.current;
-    if (ws?.readyState !== WebSocket.OPEN || !term) return;
-    pendingInitRef.current = false;
-    ws.send(JSON.stringify({
-      type: 'init',
-      projectId,
-      files: projectFilesRef.current ?? [],
-      cols: term.cols,
-      rows: term.rows,
-    }));
-  }, [projectId]);
-
-  // Refit + refocus when this terminal's tab becomes active
+  // Refit + refocus when this tab becomes active
   useEffect(() => {
     if (!isActive) return;
     requestAnimationFrame(() => {
@@ -109,36 +90,17 @@ export const XTerminal = ({ projectFiles, projectId, isActive = true }: XTermina
 
     ws.onopen = () => {
       fitAddon.fit();
-      const pid = projectIdRef.current;
-      if (pid) {
-        // Project already loaded — send init immediately
-        ws.send(JSON.stringify({
-          type: 'init',
-          projectId: pid,
-          files: projectFilesRef.current ?? [],
-          cols: term.cols,
-          rows: term.rows,
-        }));
-      } else {
-        // Project still loading — the projectId useEffect above will send init
-        // once projectId becomes available.
-        pendingInitRef.current = true;
-        // Fallback: send init without a projectId after 5 s so the shell isn't
-        // stuck forever if we're in a no-project context (plain editor).
-        setTimeout(() => {
-          if (!pendingInitRef.current) return;
-          pendingInitRef.current = false;
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-              type: 'init',
-              projectId: projectIdRef.current ?? null,
-              files: projectFilesRef.current ?? [],
-              cols: term.cols,
-              rows: term.rows,
-            }));
-          }
-        }, 5000);
-      }
+      // Send init with whatever projectId we have right now.
+      // The server always uses a safe /tmp dir — if projectId is null the
+      // server falls back to a per-connection session ID, so we never land
+      // in the workspace root.
+      ws.send(JSON.stringify({
+        type: 'init',
+        projectId: projectIdRef.current ?? null,
+        files: projectFilesRef.current ?? [],
+        cols: term.cols,
+        rows: term.rows,
+      }));
     };
 
     ws.onmessage = (event) => {
@@ -174,7 +136,6 @@ export const XTerminal = ({ projectFiles, projectId, isActive = true }: XTermina
       fitAddonRef.current = null;
       termRef.current = null;
       wsRef.current = null;
-      pendingInitRef.current = false;
     };
   }, []);
 
