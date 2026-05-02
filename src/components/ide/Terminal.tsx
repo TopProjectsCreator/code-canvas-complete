@@ -10,6 +10,10 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { detectDeploymentPlatform } from '@/lib/platform';
+import { XTerminal } from './XTerminal';
+
+const platform = detectDeploymentPlatform();
 
 interface TerminalProps {
   history: TerminalLine[];
@@ -33,12 +37,17 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
   const [aiPopoverOpen, setAiPopoverOpen] = useState(false);
   const [stdinInputs, setStdinInputs] = useState<string[]>([]);
   const [currentStdinIndex, setCurrentStdinIndex] = useState(0);
+  // shellKey causes XTerminal to remount (new PTY session) when incremented
+  const [shellKey, setShellKey] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { executeShellCommand, executeCode, isExecuting } = useCodeExecution();
   const { status: webContainerStatus } = useWebContainer();
   const isOnline = useOnlineStatus();
   const pythonExecutorMode = usePythonExecutorMode();
+
+  // On Replit the shell tab uses xterm.js — switch to console for non-shell work
+  const isReplitShell = platform === 'replit' && activeTab === 'shell';
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -146,7 +155,7 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
     try {
       const { data, error } = await supabase.functions.invoke('generate-command', {
         body: { prompt: aiPrompt }
-      });
+      })
       
       if (error) throw error;
       
@@ -176,13 +185,22 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
     }
   };
 
+  const handleNewShell = () => {
+    if (platform === 'replit') {
+      // Remount XTerminal — creates a fresh PTY session
+      setShellKey((k) => k + 1);
+    } else {
+      onNewShell?.();
+    }
+  };
+
   return (
     <div className={cn(
       'flex flex-col bg-terminal transition-all duration-200',
-      isMinimized ? 'h-9' : 'h-48'
+      isMinimized ? 'h-9' : platform === 'replit' ? 'h-64' : 'h-48'
     )}>
-      {/* Header - Replit style */}
-      <div className="flex items-center justify-between h-9 px-2 bg-card border-t border-border">
+      {/* Header */}
+      <div className="flex items-center justify-between h-9 px-2 bg-card border-t border-border shrink-0">
         <div className="flex items-center gap-1">
           <button 
             onClick={() => setActiveTab('shell')}
@@ -233,20 +251,19 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
           >
             {isMinimized ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
-          <button 
-            onClick={() => onCommand('clear', ['\x1Bc'], false)}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-            title="Clear terminal"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+          {!isReplitShell && (
+            <button 
+              onClick={() => onCommand('clear', ['\x1Bc'], false)}
+              className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              title="Clear terminal"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
-            onClick={() => {
-              onCommand('clear', ['\x1Bc'], false);
-              onNewShell?.();
-            }}
+            onClick={handleNewShell}
             className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-            title="New shell session"
+            title={platform === 'replit' ? 'New shell session' : 'New shell session'}
           >
             <Plus className="w-3.5 h-3.5" />
           </button>
@@ -255,115 +272,123 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
 
       {/* Terminal content */}
       {!isMinimized && (
-        <div 
-          ref={scrollRef}
-          className="flex-1 overflow-auto ide-scrollbar p-3 font-mono text-sm"
-          onClick={() => inputRef.current?.focus()}
-        >
-          {pythonExecutorMode === 'pyodide' && (
-            <div className="mb-2 flex items-start gap-2 rounded border border-yellow-500/40 bg-yellow-500/10 px-2.5 py-1.5 text-xs text-yellow-200 font-sans">
-              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-yellow-400" />
-              <div className="leading-snug">
-                <span className="font-semibold">Pyodide (browser Python) is forced.</span>{' '}
-                These will fail: <code className="font-mono">pip</code>/<code className="font-mono">uv</code>,{' '}
-                <code className="font-mono">subprocess</code>, <code className="font-mono">os.system</code>,{' '}
-                <code className="font-mono">socket</code>, <code className="font-mono">requests</code>,{' '}
-                <code className="font-mono">urllib3</code>, DB drivers (<code className="font-mono">psycopg2</code>,{' '}
-                <code className="font-mono">pyodbc</code>), GUI (<code className="font-mono">tkinter</code>,{' '}
-                <code className="font-mono">turtle</code>, <code className="font-mono">pygame</code>),{' '}
-                <code className="font-mono">cv2</code>, <code className="font-mono">torch</code>,{' '}
-                <code className="font-mono">tensorflow</code>, multiprocessing, and any package without a WASM build.
-                Switch to <span className="font-semibold">Auto</span> or{' '}
-                <span className="font-semibold">Container</span> in Settings to use those.
-              </div>
-            </div>
-          )}
-          {history.map((line) => (
-            <div key={line.id} className={cn('leading-relaxed', getLineColor(line.type))}>
-              {line.type === 'input' && <span className="text-primary mr-2">$</span>}
-              <span className="whitespace-pre-wrap">{line.content}</span>
-            </div>
-          ))}
-          
-          {/* Stdin prompt display */}
-          {stdinPrompt && currentStdinIndex < stdinPrompt.prompts.length && (
-            <div className="leading-relaxed text-yellow-400">
-              <span>📝 {stdinPrompt.prompts[currentStdinIndex]}</span>
-            </div>
-          )}
-          
-          {/* Input line */}
-          <form onSubmit={handleSubmit} className="flex items-center gap-2">
-            <span className="text-primary">{stdinPrompt ? '>' : '$'}</span>
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="flex-1 bg-transparent outline-none text-foreground caret-primary"
-              disabled={isExecuting}
-              placeholder={stdinPrompt ? 'Type your input and press Enter...' : (isExecuting ? 'Executing...' : '')}
-              autoFocus
-            />
-            {!isExecuting && <span className="w-2 h-5 bg-primary animate-cursor-blink" />}
-            
-            {/* AI Command Generator */}
-            <Popover open={aiPopoverOpen} onOpenChange={setAiPopoverOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "p-1.5 rounded-md transition-colors",
-                    "hover:bg-accent text-muted-foreground hover:text-primary",
-                    aiPopoverOpen && "bg-accent text-primary"
-                  )}
-                  title="Generate command with AI"
-                >
-                  <Sparkles className="w-4 h-4" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent 
-                align="end" 
-                className="w-80 p-3"
-                onOpenAutoFocus={(e) => e.preventDefault()}
-              >
-                <div className="space-y-3">
-                  <p className="text-sm font-medium">Generate a command</p>
-                  <p className="text-xs text-muted-foreground">
-                    Describe what you want to do in plain English
-                  </p>
-                  <div className="flex gap-2">
-                    <Input
-                      value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
-                      placeholder="e.g., list all .ts files"
-                      className="flex-1 text-sm"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          generateCommand();
-                        }
-                      }}
-                      autoFocus
-                    />
-                    <Button
-                      size="sm"
-                      onClick={generateCommand}
-                      disabled={isGenerating || !aiPrompt.trim()}
-                    >
-                      {isGenerating ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        'Go'
-                      )}
-                    </Button>
-                  </div>
+        isReplitShell ? (
+          // Real interactive PTY terminal via xterm.js (Replit shell tab only)
+          <div className="flex-1 overflow-hidden bg-[#0d1117]">
+            <XTerminal key={shellKey} />
+          </div>
+        ) : (
+          // Classic log-based view: console tab on all platforms, shell tab on non-Replit
+          <div 
+            ref={scrollRef}
+            className="flex-1 overflow-auto ide-scrollbar p-3 font-mono text-sm"
+            onClick={() => inputRef.current?.focus()}
+          >
+            {pythonExecutorMode === 'pyodide' && activeTab === 'shell' && (
+              <div className="mb-2 flex items-start gap-2 rounded border border-yellow-500/40 bg-yellow-500/10 px-2.5 py-1.5 text-xs text-yellow-200 font-sans">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-yellow-400" />
+                <div className="leading-snug">
+                  <span className="font-semibold">Pyodide (browser Python) is forced.</span>{' '}
+                  These will fail: <code className="font-mono">pip</code>/<code className="font-mono">uv</code>,{' '}
+                  <code className="font-mono">subprocess</code>, <code className="font-mono">os.system</code>,{' '}
+                  <code className="font-mono">socket</code>, <code className="font-mono">requests</code>,{' '}
+                  <code className="font-mono">urllib3</code>, DB drivers (<code className="font-mono">psycopg2</code>,{' '}
+                  <code className="font-mono">pyodbc</code>), GUI (<code className="font-mono">tkinter</code>,{' '}
+                  <code className="font-mono">turtle</code>, <code className="font-mono">pygame</code>),{' '}
+                  <code className="font-mono">cv2</code>, <code className="font-mono">torch</code>,{' '}
+                  <code className="font-mono">tensorflow</code>, multiprocessing, and any package without a WASM build.
+                  Switch to <span className="font-semibold">Auto</span> or{' '}
+                  <span className="font-semibold">Container</span> in Settings to use those.
                 </div>
-              </PopoverContent>
-            </Popover>
-          </form>
-        </div>
+              </div>
+            )}
+            {history.map((line) => (
+              <div key={line.id} className={cn('leading-relaxed', getLineColor(line.type))}>
+                {line.type === 'input' && <span className="text-primary mr-2">$</span>}
+                <span className="whitespace-pre-wrap">{line.content}</span>
+              </div>
+            ))}
+            
+            {/* Stdin prompt display */}
+            {stdinPrompt && currentStdinIndex < stdinPrompt.prompts.length && (
+              <div className="leading-relaxed text-yellow-400">
+                <span>📝 {stdinPrompt.prompts[currentStdinIndex]}</span>
+              </div>
+            )}
+            
+            {/* Input line */}
+            <form onSubmit={handleSubmit} className="flex items-center gap-2">
+              <span className="text-primary">{stdinPrompt ? '>' : '$'}</span>
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="flex-1 bg-transparent outline-none text-foreground caret-primary"
+                disabled={isExecuting}
+                placeholder={stdinPrompt ? 'Type your input and press Enter...' : (isExecuting ? 'Executing...' : '')}
+                autoFocus
+              />
+              {!isExecuting && <span className="w-2 h-5 bg-primary animate-cursor-blink" />}
+              
+              {/* AI Command Generator */}
+              <Popover open={aiPopoverOpen} onOpenChange={setAiPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      "p-1.5 rounded-md transition-colors",
+                      "hover:bg-accent text-muted-foreground hover:text-primary",
+                      aiPopoverOpen && "bg-accent text-primary"
+                    )}
+                    title="Generate command with AI"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent 
+                  align="end" 
+                  className="w-80 p-3"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">Generate a command</p>
+                    <p className="text-xs text-muted-foreground">
+                      Describe what you want to do in plain English
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        placeholder="e.g., list all .ts files"
+                        className="flex-1 text-sm"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            generateCommand();
+                          }
+                        }}
+                        autoFocus
+                      />
+                      <Button
+                        size="sm"
+                        onClick={generateCommand}
+                        disabled={isGenerating || !aiPrompt.trim()}
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          'Go'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </form>
+          </div>
+        )
       )}
     </div>
   );

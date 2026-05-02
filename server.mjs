@@ -6,6 +6,13 @@ import { spawn } from 'child_process';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, rmSync } from 'fs';
 import { randomUUID } from 'crypto';
+import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
+import { createRequire } from 'module';
+
+// node-pty ships as CJS; use createRequire for ESM compatibility
+const require = createRequire(import.meta.url);
+const pty = require('node-pty');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -146,173 +153,6 @@ app.post('/api/replit/execute', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Persistent shell sessions  (Terminal — bash process that keeps state)
-// ---------------------------------------------------------------------------
-
-const shellSessions = new Map();
-const SESSION_IDLE_MS = 5 * 60 * 1000; // 5 minutes
-
-// Purge idle sessions every minute
-setInterval(() => {
-  const now = Date.now();
-  for (const [id, session] of shellSessions) {
-    if (now - session.lastActive > SESSION_IDLE_MS) {
-      try { session.proc.kill(); } catch {}
-      shellSessions.delete(id);
-    }
-  }
-}, 60_000).unref();
-
-function createBashSession() {
-  const proc = spawn('bash', ['--norc', '--noprofile'], {
-    env: {
-      ...process.env,
-      TERM: 'dumb',
-      PYTHONUNBUFFERED: '1',
-    },
-    cwd: process.cwd(),
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-
-  let outputBuf = '';
-  let currentResolve = null;
-  let currentSentinel = null;
-  let currentTimer = null;
-
-  // Only watch stdout; stderr from user commands is merged via 2>&1 below.
-  // Bash internal errors go to proc.stderr but we don't surface them separately.
-  proc.stdout.on('data', (chunk) => {
-    outputBuf += chunk.toString();
-    checkSentinel();
-  });
-
-  // Append bash's own stderr (e.g. syntax errors) into the same buffer
-  proc.stderr.on('data', (chunk) => {
-    outputBuf += chunk.toString();
-    checkSentinel();
-  });
-
-  function checkSentinel() {
-    if (!currentResolve || !currentSentinel) return;
-    const idx = outputBuf.indexOf(currentSentinel);
-    if (idx === -1) return;
-
-    const output = outputBuf.slice(0, idx);
-    outputBuf = outputBuf.slice(idx + currentSentinel.length);
-
-    const resolve = currentResolve;
-    currentResolve = null;
-    currentSentinel = null;
-    if (currentTimer) { clearTimeout(currentTimer); currentTimer = null; }
-
-    resolve({ output: output.replace(/\n$/, '') });
-  }
-
-  function runCommand(cmd) {
-    return new Promise((resolve, reject) => {
-      const sentinel = `__CC_${randomUUID().replace(/-/g, '')}__`;
-      currentResolve = resolve;
-      currentSentinel = sentinel;
-
-      currentTimer = setTimeout(() => {
-        currentResolve = null;
-        currentSentinel = null;
-        currentTimer = null;
-        try { proc.stdin.write('\x03'); } catch {} // Ctrl-C
-        reject(new Error('⏱️ Command timed out (30 second limit). Press Ctrl+C to cancel.'));
-      }, 30000);
-
-      // Run command; merge its stderr into stdout with 2>&1.
-      // printf the sentinel to stdout after (not affected by 2>&1).
-      proc.stdin.write(`{ ${cmd}; } 2>&1; printf '${sentinel}'\n`);
-    });
-  }
-
-  // Suppress the default PS1 prompt so it doesn't pollute output
-  proc.stdin.write("unset PS1 PS2 PS3 PS4\n");
-
-  proc.on('exit', () => {
-    // Reject any pending command if bash dies
-    if (currentResolve) {
-      if (currentTimer) clearTimeout(currentTimer);
-      const reject = currentResolve;
-      currentResolve = null;
-      currentSentinel = null;
-      reject({ output: '', _dead: true });
-    }
-  });
-
-  return { proc, runCommand, lastActive: Date.now() };
-}
-
-// POST /api/replit/shell/start  — create (or reuse) a shell session
-app.post('/api/replit/shell/start', (req, res) => {
-  const sessionId = randomUUID();
-  const session = createBashSession();
-  shellSessions.set(sessionId, session);
-  res.json({ sessionId });
-});
-
-// POST /api/replit/shell/run  — run one command in a persistent session
-app.post('/api/replit/shell/run', async (req, res) => {
-  const { sessionId, command } = req.body;
-
-  if (!sessionId || !shellSessions.has(sessionId)) {
-    return res.status(404).json({
-      error: 'Shell session not found or expired. A new session will be created automatically.',
-      output: [],
-      executedAt: new Date().toISOString(),
-    });
-  }
-
-  if (!command || !command.trim()) {
-    return res.json({ output: [], error: null, executedAt: new Date().toISOString() });
-  }
-
-  const session = shellSessions.get(sessionId);
-  session.lastActive = Date.now();
-
-  try {
-    const { output } = await session.runCommand(command.trim());
-    const lines = output.split('\n');
-
-    res.json({
-      output: lines.length > 0 && lines[0] !== '' ? lines : (output ? [output] : ['(no output)']),
-      error: null,
-      executedAt: new Date().toISOString(),
-    });
-  } catch (err) {
-    res.json({
-      output: [],
-      error: err instanceof Error ? err.message : String(err),
-      executedAt: new Date().toISOString(),
-    });
-  }
-});
-
-// DELETE /api/replit/shell/session/:id  — kill a session (e.g. on unmount)
-app.delete('/api/replit/shell/session/:id', (req, res) => {
-  const session = shellSessions.get(req.params.id);
-  if (session) {
-    try { session.proc.kill(); } catch {}
-    shellSessions.delete(req.params.id);
-  }
-  res.json({ ok: true });
-});
-
-// POST /api/replit/shell/reset  — kill old session and create a fresh one
-app.post('/api/replit/shell/reset', (req, res) => {
-  const { sessionId } = req.body;
-  if (sessionId) {
-    const old = shellSessions.get(sessionId);
-    if (old) { try { old.proc.kill(); } catch {} shellSessions.delete(sessionId); }
-  }
-  const newId = randomUUID();
-  shellSessions.set(newId, createBashSession());
-  res.json({ sessionId: newId });
-});
-
-// ---------------------------------------------------------------------------
 // Static file serving (production build)
 // ---------------------------------------------------------------------------
 
@@ -326,6 +166,70 @@ if (fs.existsSync(distPath)) {
   });
 }
 
-app.listen(PORT, '0.0.0.0', () => {
+// ---------------------------------------------------------------------------
+// HTTP server + WebSocket server (PTY interactive terminal)
+// ---------------------------------------------------------------------------
+
+const httpServer = createServer(app);
+
+const wss = new WebSocketServer({ noServer: true });
+
+httpServer.on('upgrade', (request, socket, head) => {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+  if (url.pathname === '/api/replit/pty') {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
+wss.on('connection', (ws) => {
+  const ptyProcess = pty.spawn('bash', [], {
+    name: 'xterm-256color',
+    cols: 80,
+    rows: 24,
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+      PYTHONUNBUFFERED: '1',
+    },
+  });
+
+  ptyProcess.onData((data) => {
+    try {
+      if (ws.readyState === ws.OPEN) ws.send(data);
+    } catch {}
+  });
+
+  ws.on('message', (msg) => {
+    const str = msg.toString();
+    try {
+      const parsed = JSON.parse(str);
+      if (parsed.type === 'resize' && parsed.cols && parsed.rows) {
+        ptyProcess.resize(Math.max(1, parsed.cols), Math.max(1, parsed.rows));
+        return;
+      }
+    } catch {}
+    try { ptyProcess.write(str); } catch {}
+  });
+
+  ws.on('close', () => {
+    try { ptyProcess.kill(); } catch {}
+  });
+
+  ws.on('error', () => {
+    try { ptyProcess.kill(); } catch {}
+  });
+
+  ptyProcess.onExit(() => {
+    try { if (ws.readyState === ws.OPEN) ws.close(); } catch {}
+  });
+});
+
+httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Replit server running on port ${PORT}`);
 });
