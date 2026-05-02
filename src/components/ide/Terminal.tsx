@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2, Sparkles, WifiOff, AlertTriangle } from 'lucide-react';
+import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2, Sparkles, WifiOff, AlertTriangle, Pencil } from 'lucide-react';
 import { TerminalLine } from '@/types/ide';
 import { cn } from '@/lib/utils';
 import { useCodeExecution } from '@/hooks/useCodeExecution';
@@ -49,6 +49,32 @@ export const Terminal = ({
   const [shells, setShells] = useState<ShellInstance[]>([
     { id: 'shell-default', label: '1' },
   ]);
+
+  // Inline tab renaming
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  const startRename = (shell: ShellInstance, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRenamingId(shell.id);
+    setRenameValue(shell.label);
+  };
+
+  const commitRename = () => {
+    if (!renamingId) return;
+    const trimmed = renameValue.trim();
+    setShells(prev => prev.map(s =>
+      s.id === renamingId ? { ...s, label: trimmed || s.label } : s
+    ));
+    setRenamingId(null);
+  };
+
+  const cancelRename = () => setRenamingId(null);
+
+  useEffect(() => {
+    if (renamingId) renameInputRef.current?.select();
+  }, [renamingId]);
 
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -198,29 +224,66 @@ export const Terminal = ({
             <>
               {/* Numbered shell tabs */}
               {shells.map(shell => (
-                <button
+                <div
                   key={shell.id}
-                  onClick={() => setActivePane(shell.id)}
+                  onClick={() => { if (renamingId !== shell.id) setActivePane(shell.id); }}
                   className={cn(
-                    'flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors shrink-0 group',
+                    'flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors shrink-0 group cursor-pointer',
                     activePane === shell.id
                       ? 'text-foreground bg-background'
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  <TerminalIcon className="w-3 h-3" />
-                  <span>{shell.label}</span>
-                  {shells.length > 1 && (
+                  <TerminalIcon className="w-3 h-3 shrink-0" />
+
+                  {renamingId === shell.id ? (
+                    /* Inline rename input */
+                    <input
+                      ref={renameInputRef}
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onBlur={commitRename}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') { e.preventDefault(); commitRename(); }
+                        if (e.key === 'Escape') { e.preventDefault(); cancelRename(); }
+                        e.stopPropagation();
+                      }}
+                      onClick={e => e.stopPropagation()}
+                      className="w-16 bg-transparent outline-none border-b border-primary text-foreground text-xs"
+                      maxLength={20}
+                    />
+                  ) : (
+                    <span
+                      onDoubleClick={e => startRename(shell, e)}
+                      title="Double-click to rename"
+                    >
+                      {shell.label}
+                    </span>
+                  )}
+
+                  {/* Rename pencil — visible on hover when not already renaming */}
+                  {renamingId !== shell.id && (
+                    <span
+                      role="button"
+                      onClick={e => startRename(shell, e)}
+                      className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity rounded"
+                      title="Rename terminal"
+                    >
+                      <Pencil className="w-2.5 h-2.5" />
+                    </span>
+                  )}
+
+                  {shells.length > 1 && renamingId !== shell.id && (
                     <span
                       role="button"
                       onClick={(e) => closeShell(shell.id, e)}
-                      className="ml-0.5 opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity rounded"
+                      className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity rounded"
                       title="Close"
                     >
                       <X className="w-2.5 h-2.5" />
                     </span>
                   )}
-                </button>
+                </div>
               ))}
 
               {/* Add new shell */}
