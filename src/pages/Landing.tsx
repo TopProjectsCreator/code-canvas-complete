@@ -224,6 +224,7 @@ export default function Landing() {
             <span className="font-mono text-lg font-semibold tracking-tight">CodeCanvas</span>
           </div>
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/compare")}>Compare</Button>
             <Button variant="ghost" size="sm" onClick={() => navigate("/editor")}>Sign In</Button>
             <Button size="sm" onClick={() => navigate("/editor")} className="gap-1.5 shadow-lg shadow-primary/30">
               Enter Grid <ArrowRight className="h-3.5 w-3.5" />
