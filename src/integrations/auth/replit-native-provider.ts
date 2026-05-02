@@ -4,6 +4,7 @@ interface ReplitUser {
   id: string;
   name: string;
   roles: string[];
+  profileImage?: string;
 }
 
 type AuthStateCallback = (event: string, session: SyntheticSession | null) => void;
@@ -30,7 +31,10 @@ function makeSession(replitUser: ReplitUser): SyntheticSession {
   const user: SyntheticUser = {
     id: replitUser.id,
     email: `${replitUser.name}@replit.user`,
-    user_metadata: { display_name: replitUser.name },
+    user_metadata: {
+      display_name: replitUser.name,
+      avatar_url: replitUser.profileImage,
+    },
     app_metadata: { provider: 'replit', roles: replitUser.roles },
     aud: 'authenticated',
     created_at: new Date().toISOString(),
@@ -54,11 +58,69 @@ async function fetchReplitUser(): Promise<ReplitUser | null> {
   }
 }
 
+/**
+ * Decode the JWT payload sent by Replit's auth_with_repl_site callback.
+ * We read user info directly from the token — no signature verification
+ * needed client-side; the server validates the x-replit-user-* headers.
+ */
+function decodeReplitToken(token: string): ReplitUser | null {
+  try {
+    const payloadB64 = token.split('.')[1];
+    if (!payloadB64) return null;
+    const json = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(json);
+    if (!payload.sub || !payload.name) return null;
+    return {
+      id: String(payload.sub),
+      name: String(payload.name),
+      roles: payload.roles ? String(payload.roles).split(',').filter(Boolean) : [],
+      profileImage: payload.profile_image ?? undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * If the page loaded on the /__replauth callback path, extract the token,
+ * store the session, and redirect to the app root so the user lands on a
+ * real page after sign-in.
+ */
+function handleAuthCallbackIfNeeded(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (window.location.pathname !== '/__replauth') return false;
+
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+
+  if (token) {
+    const replitUser = decodeReplitToken(token);
+    if (replitUser) {
+      const session = makeSession(replitUser);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+      cachedSession = session;
+      initialized = true;
+      notifyListeners('SIGNED_IN', session);
+    }
+  }
+
+  // Redirect to app root regardless — don't leave the user on /__replauth
+  window.location.replace('/');
+  return true;
+}
+
 let cachedSession: SyntheticSession | null = null;
 let initialized = false;
 
 async function init() {
   if (initialized) return cachedSession;
+
+  // Handle the /__replauth callback first (full-page redirect flow)
+  if (handleAuthCallbackIfNeeded()) {
+    // Page is about to redirect; return whatever we have
+    return cachedSession;
+  }
+
   initialized = true;
 
   const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
