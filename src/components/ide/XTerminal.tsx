@@ -12,6 +12,7 @@ export interface ProjectFile {
 interface XTerminalProps {
   projectFiles?: ProjectFile[];
   projectId?: string;
+  projectName?: string;
   isActive?: boolean;
 }
 
@@ -32,7 +33,7 @@ function remapToPublic(url: string): string {
   );
 }
 
-export const XTerminal = ({ projectFiles, projectId, isActive = true }: XTerminalProps) => {
+export const XTerminal = ({ projectFiles, projectId, projectName, isActive = true }: XTerminalProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -40,8 +41,10 @@ export const XTerminal = ({ projectFiles, projectId, isActive = true }: XTermina
 
   // Always-current view of props, readable inside async callbacks
   const projectIdRef = useRef(projectId);
+  const projectNameRef = useRef(projectName);
   const projectFilesRef = useRef(projectFiles);
   useEffect(() => { projectIdRef.current = projectId; }, [projectId]);
+  useEffect(() => { projectNameRef.current = projectName; }, [projectName]);
   useEffect(() => { projectFilesRef.current = projectFiles; }, [projectFiles]);
 
   // True after the first init message has been sent to the server.
@@ -131,6 +134,7 @@ export const XTerminal = ({ projectFiles, projectId, isActive = true }: XTermina
       ws.send(JSON.stringify({
         type: 'init',
         projectId: projectIdRef.current ?? null,
+        projectName: projectNameRef.current ?? null,
         files: projectFilesRef.current ?? [],
         cols: term.cols,
         rows: term.rows,

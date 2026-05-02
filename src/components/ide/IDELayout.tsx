@@ -2373,6 +2373,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     onNewShell={resetReplitShell}
                     projectFiles={flattenedProjectFiles}
                     projectId={currentProject?.id}
+                    projectName={currentProject?.name}
                   />
                 </div>
               )}
@@ -2405,6 +2406,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                           onNewShell={resetReplitShell}
                           projectFiles={flattenedProjectFiles}
                           projectId={currentProject?.id}
+                          projectName={currentProject?.name}
                         />
                       </div>
                     </div>

@@ -904,7 +904,7 @@ wss.on('connection', (ws) => {
         const parsed = JSON.parse(str);
         if (parsed.type !== 'init') return; // drop anything until init
 
-        const { projectId, files = [], cols = 80, rows = 24 } = parsed;
+        const { projectId, projectName, files = [], cols = 80, rows = 24 } = parsed;
 
         // Always use a temp dir — never the workspace root.
         // Use the client-supplied projectId if present, else fall back to
@@ -924,14 +924,25 @@ wss.on('connection', (ws) => {
             fs.writeFileSync(fullPath, content, 'utf8');
           }
 
+          // Sanitise the project name for safe embedding in a bash variable.
+          const safeProjectName = (projectName || 'project')
+            .toString()
+            .replace(/['"\\`$\x00-\x1f]/g, '_')
+            .slice(0, 64) || 'project';
+
           // Write a .bashrc so bash picks up our prompt when it sources HOME/.bashrc.
-          // System /etc/bash.bashrc would override an env-level PS1, so we write
-          // it as a file instead. \w expands to ~ when cwd==HOME, ~/sub otherwise.
+          // PROMPT_COMMAND updates PS1 before each prompt so cd is reflected.
+          // HOME is set to the project dir so ${PWD/#$HOME/...} shows a friendly path.
           // Also installs runtime safety: ulimit caps + kill() override.
           const bashrc = [
             '# CodeCanvas shell',
             '[ -f /etc/bash.bashrc ] && source /etc/bash.bashrc',
-            "PS1='\\[\\033[01;36m\\]\\w\\[\\033[00m\\]\\[\\033[01m\\]\\$\\[\\033[00m\\] '",
+            `CANVAS_PROJECT='${safeProjectName}'`,
+            '__canvas_prompt() {',
+            '  local p="${PWD/#$HOME/$CANVAS_PROJECT}"',
+            '  PS1="\\[\\033[01;36m\\]${p}\\[\\033[00m\\]\\[\\033[01m\\]\\$\\[\\033[00m\\] "',
+            '}',
+            "PROMPT_COMMAND='__canvas_prompt'",
             '# Resource limits — defence against fork bombs and runaway writes',
             'ulimit -u 2048    # max 2048 user processes (fork bomb protection)',
             'ulimit -f 204800  # max 200 MB per file write',
