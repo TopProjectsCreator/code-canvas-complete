@@ -558,6 +558,24 @@ app.post('/api/replit/github-proxy', async (req, res) => {
       const r = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`);
       return res.json({ content: await r.text() });
     }
+    if (action === 'replit-metadata') {
+      const r = await fetch(`https://replit.com/data/oembed?url=${encodeURIComponent(`https://replit.com/@${owner}/${repo}`)}`);
+      if (!r.ok) return res.json({ exists: false });
+      const d = await r.json();
+      return res.json({
+        exists: true,
+        title: typeof d?.title === 'string' ? d.title : repo,
+        description: typeof d?.author_name === 'string' ? `By ${d.author_name}` : null,
+        githubOwner: null,
+        githubRepo: null,
+      });
+    }
+    if (action === 'replit-download-zip') {
+      const r = await fetch(`https://replit.com/@${owner}/${repo}.zip`);
+      if (!r.ok) return res.status(404).json({ error: 'Replit zip not available' });
+      const buf = await r.arrayBuffer();
+      return res.json({ zipBase64: Buffer.from(buf).toString('base64') });
+    }
     return res.status(400).json({ error: 'Unknown action' });
   } catch (err) {
     res.status(500).json({ error: err.message });
