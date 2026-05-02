@@ -63,16 +63,72 @@ app.get('/api/replit/signout', (req, res) => res.json({ ok: true }));
 // ---------------------------------------------------------------------------
 // One-shot code execution  (Run button — fresh process per run, stdin piped)
 // ---------------------------------------------------------------------------
+//
+// Execution strategies:
+//   interpret — write code to a file, invoke interpreter directly
+//   cargo     — scaffold a Cargo project, `cargo run --quiet`
+//   compile   — compile with gcc/g++, then run the resulting binary
 
 const LANG_CONFIG = {
-  python:     { cmd: 'python3', ext: 'py' },
-  py:         { cmd: 'python3', ext: 'py' },
-  javascript: { cmd: 'node',    ext: 'js' },
-  js:         { cmd: 'node',    ext: 'js' },
-  bash:       { cmd: 'bash',    ext: 'sh' },
-  shell:      { cmd: 'bash',    ext: 'sh' },
-  sh:         { cmd: 'bash',    ext: 'sh' },
+  // Interpreted
+  python:     { type: 'interpret', cmd: 'python3', ext: 'py' },
+  py:         { type: 'interpret', cmd: 'python3', ext: 'py' },
+  javascript: { type: 'interpret', cmd: 'node',    ext: 'js' },
+  js:         { type: 'interpret', cmd: 'node',    ext: 'js' },
+  bash:       { type: 'interpret', cmd: 'bash',    ext: 'sh' },
+  shell:      { type: 'interpret', cmd: 'bash',    ext: 'sh' },
+  sh:         { type: 'interpret', cmd: 'bash',    ext: 'sh' },
+  // Rust via Cargo
+  rust:       { type: 'cargo',                              ext: 'rs' },
+  rs:         { type: 'cargo',                              ext: 'rs' },
+  // C / C++ via GCC
+  c:          { type: 'compile', compiler: 'gcc', ext: 'c',   compileFlags: ['-lm'] },
+  cpp:        { type: 'compile', compiler: 'g++', ext: 'cpp', compileFlags: ['-lm', '-std=c++17'] },
+  'c++':      { type: 'compile', compiler: 'g++', ext: 'cpp', compileFlags: ['-lm', '-std=c++17'] },
 };
+
+// Shared finish-and-respond helper used by all strategies.
+function finishExec(proc, tmpDir, stdin, res, timeoutMs = 30000) {
+  let stdoutBuf = '';
+  let stderrBuf = '';
+  let timedOut  = false;
+
+  const timer = setTimeout(() => {
+    timedOut = true;
+    proc.kill('SIGTERM');
+    setTimeout(() => { try { proc.kill('SIGKILL'); } catch {} }, 3000);
+  }, timeoutMs);
+
+  if (stdin) proc.stdin.write(stdin);
+  proc.stdin.end();
+
+  proc.stdout.on('data', (d) => { stdoutBuf += d.toString(); });
+  proc.stderr.on('data', (d) => { stderrBuf += d.toString(); });
+
+  proc.on('close', (exitCode) => {
+    clearTimeout(timer);
+    try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+
+    const lines = stdoutBuf.split('\n');
+    if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+
+    if (timedOut) {
+      return res.json({ output: lines, error: '⏱️ Execution timed out.', executedAt: new Date().toISOString() });
+    }
+    if (exitCode !== 0) {
+      const escapedTmp = tmpDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const cleanErr = stderrBuf.replace(new RegExp(escapedTmp + '\\/', 'g'), '').trim();
+      return res.json({ output: lines, error: cleanErr || `Process exited with code ${exitCode}`, executedAt: new Date().toISOString() });
+    }
+    return res.json({ output: lines.length > 0 ? lines : ['(no output)'], error: null, executedAt: new Date().toISOString() });
+  });
+
+  proc.on('error', (err) => {
+    clearTimeout(timer);
+    try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+    return res.json({ output: [], error: err.message, executedAt: new Date().toISOString() });
+  });
+}
 
 app.post('/api/replit/execute', (req, res) => {
   const { code, language = 'python', stdin } = req.body;
@@ -86,7 +142,7 @@ app.post('/api/replit/execute', (req, res) => {
 
   if (!config) {
     return res.status(400).json({
-      error: `Language '${language}' is not supported by the Replit native runner. Supported: python, javascript, bash.`,
+      error: `Language '${language}' is not supported. Supported: python, javascript, bash, rust, c, cpp.`,
       output: [],
       executedAt: new Date().toISOString(),
     });
@@ -94,64 +150,67 @@ app.post('/api/replit/execute', (req, res) => {
 
   let tmpDir;
   try {
-    tmpDir = mkdtempSync(path.join(tmpdir(), 'replit-exec-'));
+    tmpDir = mkdtempSync(path.join(tmpdir(), 'cc-exec-'));
+
+    // ── Cargo (Rust) ─────────────────────────────────────────────────────────
+    if (config.type === 'cargo') {
+      const srcDir = path.join(tmpDir, 'src');
+      fs.mkdirSync(srcDir);
+      writeFileSync(path.join(tmpDir, 'Cargo.toml'), [
+        '[package]',
+        'name = "canvas-run"',
+        'version = "0.1.0"',
+        'edition = "2021"',
+      ].join('\n') + '\n', 'utf8');
+      writeFileSync(path.join(srcDir, 'main.rs'), code, 'utf8');
+
+      const proc = spawn('cargo', ['run', '--quiet'], {
+        cwd: tmpDir,
+        env: { ...process.env, CARGO_TERM_COLOR: 'never' },
+      });
+      return finishExec(proc, tmpDir, stdin, res, 90000); // compile + run
+    }
+
+    // ── Compile then run (C / C++) ────────────────────────────────────────────
+    if (config.type === 'compile') {
+      const codeFile = path.join(tmpDir, `main.${config.ext}`);
+      const binFile  = path.join(tmpDir, 'main');
+      writeFileSync(codeFile, code, 'utf8');
+
+      const compile = spawn(
+        config.compiler,
+        [codeFile, '-o', binFile, ...(config.compileFlags || [])],
+        { cwd: tmpDir, env: process.env },
+      );
+      let compileErr = '';
+      compile.stderr.on('data', (d) => { compileErr += d.toString(); });
+      compile.stdout.on('data', () => {}); // drain
+
+      compile.on('close', (exitCode) => {
+        if (exitCode !== 0) {
+          try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+          const cleanErr = compileErr.replace(new RegExp(tmpDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\/', 'g'), '').trim();
+          return res.json({ output: [], error: cleanErr || `Compilation failed (exit ${exitCode})`, executedAt: new Date().toISOString() });
+        }
+        const proc = spawn(binFile, [], { cwd: tmpDir, env: process.env });
+        finishExec(proc, tmpDir, stdin, res);
+      });
+
+      compile.on('error', (err) => {
+        try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+        return res.json({ output: [], error: `Compiler error: ${err.message}`, executedAt: new Date().toISOString() });
+      });
+      return;
+    }
+
+    // ── Interpret (python / node / bash) ─────────────────────────────────────
     const codeFile = path.join(tmpDir, `main.${config.ext}`);
     writeFileSync(codeFile, code, 'utf8');
-
-    let stdoutBuf = '';
-    let stderrBuf = '';
-    let timedOut = false;
-
     const proc = spawn(config.cmd, [codeFile], {
       cwd: tmpDir,
       env: { ...process.env, PYTHONUNBUFFERED: '1' },
     });
-
-    const timer = setTimeout(() => {
-      timedOut = true;
-      proc.kill('SIGTERM');
-    }, 30000);
-
-    // Pipe stdin so that input() / readline work
-    if (stdin) proc.stdin.write(stdin);
-    proc.stdin.end();
-
-    proc.stdout.on('data', (d) => { stdoutBuf += d.toString(); });
-    proc.stderr.on('data', (d) => { stderrBuf += d.toString(); });
-
-    proc.on('close', (exitCode) => {
-      clearTimeout(timer);
-      try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
-
-      const lines = stdoutBuf.split('\n');
-      if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
-
-      if (timedOut) {
-        return res.json({ output: lines, error: '⏱️ Execution timed out (30 second limit).', executedAt: new Date().toISOString() });
-      }
-
-      if (exitCode !== 0) {
-        const escapedTmp = tmpDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const cleanErr = stderrBuf.replace(new RegExp(escapedTmp + '\\/', 'g'), '').trim();
-        return res.json({
-          output: lines,
-          error: cleanErr || `Process exited with code ${exitCode}`,
-          executedAt: new Date().toISOString(),
-        });
-      }
-
-      return res.json({
-        output: lines.length > 0 ? lines : ['(no output)'],
-        error: null,
-        executedAt: new Date().toISOString(),
-      });
-    });
-
-    proc.on('error', (err) => {
-      clearTimeout(timer);
-      try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
-      return res.json({ output: [], error: `Failed to start '${config.cmd}': ${err.message}`, executedAt: new Date().toISOString() });
-    });
+    finishExec(proc, tmpDir, stdin, res);
 
   } catch (err) {
     if (tmpDir) try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
