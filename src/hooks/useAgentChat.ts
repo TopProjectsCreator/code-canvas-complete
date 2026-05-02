@@ -1,12 +1,15 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import type { AutonomyConfig } from '@/hooks/useAutonomyMode';
 import { supabase } from '@/integrations/supabase/client';
+import { detectDeploymentPlatform } from '@/lib/platform';
 import { createAuthProvider } from '@/integrations/auth/provider';
 import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion, QuestionOption, ChatWidget, ChatWidgetType } from '@/types/agent';
 import { Workflow } from '@/types/ide';
 import { CustomThemeColors } from '@/contexts/ThemeContext';
 import { createAIProvider } from '@/integrations/ai/provider';
 import { isPotentiallyDestructiveShellCommand } from '@/lib/agentSafety';
+
+const _agentChatPlatform = detectDeploymentPlatform();
 
 interface CustomThemeAction {
   name: string;
@@ -963,14 +966,26 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           }));
 
           try {
-            const { data, error } = await supabase.functions.invoke('execute-code', {
-              body: { code: cmd, language: 'shell', sessionId: shellSessionIdRef.current || undefined }
-            });
-            if (data?.sessionId) shellSessionIdRef.current = data.sessionId;
-
-            const output = error ? `Error: ${error.message}` : 
-              (data?.error ? `Error: ${data.error}` : (data?.output?.join('\n') || '(no output)'));
-            const success = !error && !data?.error;
+            let output: string;
+            let success: boolean;
+            if (_agentChatPlatform === 'replit') {
+              const res = await fetch('/api/replit/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: cmd, language: 'shell' }),
+              });
+              const data = await res.json().catch(() => ({}));
+              output = data?.error ? `Error: ${data.error}` : (data?.output?.join?.('\n') ?? data?.output ?? '(no output)');
+              success = res.ok && !data?.error;
+            } else {
+              const { data, error } = await supabase.functions.invoke('execute-code', {
+                body: { code: cmd, language: 'shell', sessionId: shellSessionIdRef.current || undefined }
+              });
+              if (data?.sessionId) shellSessionIdRef.current = data.sessionId;
+              output = error ? `Error: ${error.message}` :
+                (data?.error ? `Error: ${data.error}` : (data?.output?.join('\n') || '(no output)'));
+              success = !error && !data?.error;
+            }
             shellExecutionSummaries.push({ command: cmd, output, success });
 
             setMessages(prev => prev.map(m => {

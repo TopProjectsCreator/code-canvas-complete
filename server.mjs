@@ -426,6 +426,47 @@ app.get('/api/replit/ai/skills/fetch-content', async (req, res) => {
   }
 });
 
+// Generate a shell command from a natural language prompt (for Terminal AI button)
+app.post('/api/replit/ai/generate-command', async (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { prompt } = req.body || {};
+  if (!prompt) return res.status(400).json({ error: 'prompt required' });
+  const keys = _aiKeys[uid] || {};
+  const provider = keys.openai ? 'openai' : keys.anthropic ? 'anthropic' : keys.google ? 'google' : null;
+  const apiKey = provider ? keys[provider] : null;
+  if (!apiKey) return res.status(400).json({ error: 'No AI API key configured. Add a key in Settings → AI Keys.' });
+  const system = 'You are a shell command generator. Given a description, output ONLY the shell command — no explanation, no markdown, no backticks. One line only.';
+  try {
+    let command = null;
+    if (provider === 'openai') {
+      const r = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }], max_tokens: 120 }),
+      });
+      const d = await r.json(); command = d.choices?.[0]?.message?.content?.trim();
+    } else if (provider === 'anthropic') {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-haiku-20240307', system, messages: [{ role: 'user', content: prompt }], max_tokens: 120 }),
+      });
+      const d = await r.json(); command = d.content?.[0]?.text?.trim();
+    } else if (provider === 'google') {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: `${system}\n\n${prompt}` }] }], generationConfig: { maxOutputTokens: 120 } }),
+      });
+      const d = await r.json(); command = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    }
+    if (!command) return res.status(500).json({ error: 'No command generated' });
+    // Strip any accidental markdown fences
+    command = command.replace(/^```(?:bash|sh|shell)?\n?/i, '').replace(/\n?```$/, '').trim();
+    res.json({ command });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // MCP tool helpers + agentic tool-calling loop
 // ---------------------------------------------------------------------------

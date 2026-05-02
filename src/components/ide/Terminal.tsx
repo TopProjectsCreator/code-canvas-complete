@@ -188,8 +188,20 @@ export const Terminal = ({
     if (!aiPrompt.trim() || isGenerating) return;
     setIsGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-command', { body: { prompt: aiPrompt } });
-      if (error) throw error;
+      let data: { command?: string } | null = null;
+      if (platform === 'replit') {
+        const res = await fetch('/api/replit/ai/generate-command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: aiPrompt }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        data = await res.json();
+      } else {
+        const { data: d, error } = await supabase.functions.invoke('generate-command', { body: { prompt: aiPrompt } });
+        if (error) throw error;
+        data = d;
+      }
       if (data?.command) {
         setInput(data.command);
         setAiPopoverOpen(false);
