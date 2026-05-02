@@ -186,27 +186,69 @@ httpServer.on('upgrade', (request, socket, head) => {
 });
 
 wss.on('connection', (ws) => {
-  const ptyProcess = pty.spawn('bash', [], {
-    name: 'xterm-256color',
-    cols: 80,
-    rows: 24,
-    cwd: process.cwd(),
-    env: {
-      ...process.env,
-      TERM: 'xterm-256color',
-      COLORTERM: 'truecolor',
-      PYTHONUNBUFFERED: '1',
-    },
-  });
-
-  ptyProcess.onData((data) => {
-    try {
-      if (ws.readyState === ws.OPEN) ws.send(data);
-    } catch {}
-  });
+  let ptyProcess = null;
 
   ws.on('message', (msg) => {
     const str = msg.toString();
+
+    // First message must be {type:'init'} — write project files and spawn PTY
+    if (ptyProcess === null) {
+      try {
+        const parsed = JSON.parse(str);
+        if (parsed.type !== 'init') return; // drop anything until init
+
+        const { projectId, files = [], cols = 80, rows = 24 } = parsed;
+
+        // Write canvas project files to a dedicated temp directory so the shell
+        // starts inside the user's project rather than the IDE source tree.
+        let cwd = process.cwd();
+        if (projectId && files.length > 0) {
+          const projectDir = path.join(tmpdir(), `canvas-${projectId}`);
+          try {
+            fs.mkdirSync(projectDir, { recursive: true });
+            for (const { path: filePath, content } of files) {
+              if (!filePath || typeof content !== 'string') continue;
+              // Sanitise path — strip leading slashes / traversals
+              const safe = filePath.replace(/^[./\\]+/, '').replace(/\.\.\//g, '');
+              if (!safe) continue;
+              const fullPath = path.join(projectDir, safe);
+              fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+              fs.writeFileSync(fullPath, content, 'utf8');
+            }
+            cwd = projectDir;
+          } catch (e) {
+            console.error('Failed to write project files:', e.message);
+          }
+        }
+
+        ptyProcess = pty.spawn('bash', [], {
+          name: 'xterm-256color',
+          cols: Math.max(1, cols),
+          rows: Math.max(1, rows),
+          cwd,
+          env: {
+            ...process.env,
+            TERM: 'xterm-256color',
+            COLORTERM: 'truecolor',
+            PYTHONUNBUFFERED: '1',
+          },
+        });
+
+        ptyProcess.onData((data) => {
+          try { if (ws.readyState === ws.OPEN) ws.send(data); } catch {}
+        });
+
+        ptyProcess.onExit(() => {
+          try { if (ws.readyState === ws.OPEN) ws.close(); } catch {}
+        });
+
+      } catch (e) {
+        console.error('PTY init error:', e.message);
+      }
+      return;
+    }
+
+    // PTY is running — handle resize or forward raw input
     try {
       const parsed = JSON.parse(str);
       if (parsed.type === 'resize' && parsed.cols && parsed.rows) {
@@ -218,15 +260,11 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    try { ptyProcess.kill(); } catch {}
+    try { ptyProcess?.kill(); } catch {}
   });
 
   ws.on('error', () => {
-    try { ptyProcess.kill(); } catch {}
-  });
-
-  ptyProcess.onExit(() => {
-    try { if (ws.readyState === ws.OPEN) ws.close(); } catch {}
+    try { ptyProcess?.kill(); } catch {}
   });
 });
 

@@ -3,7 +3,17 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 
-export const XTerminal = () => {
+export interface ProjectFile {
+  path: string;
+  content: string;
+}
+
+interface XTerminalProps {
+  projectFiles?: ProjectFile[];
+  projectId?: string;
+}
+
+export const XTerminal = ({ projectFiles, projectId }: XTerminalProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,16 +55,22 @@ export const XTerminal = () => {
     term.loadAddon(fitAddon);
     term.open(container);
 
-    // Give DOM time to measure
     requestAnimationFrame(() => fitAddon.fit());
 
-    // Connect WebSocket
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${wsProtocol}//${window.location.host}/api/replit/pty`);
 
     ws.onopen = () => {
       fitAddon.fit();
-      ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+      // Send init message — server writes project files to disk and spawns the
+      // PTY with cwd set to the project directory before sending any output.
+      ws.send(JSON.stringify({
+        type: 'init',
+        projectId: projectId ?? null,
+        files: projectFiles ?? [],
+        cols: term.cols,
+        rows: term.rows,
+      }));
     };
 
     ws.onmessage = (event) => {
@@ -73,7 +89,6 @@ export const XTerminal = () => {
       if (ws.readyState === WebSocket.OPEN) ws.send(data);
     });
 
-    // Resize observer — refit whenever the container changes size
     const ro = new ResizeObserver(() => {
       try {
         fitAddon.fit();
