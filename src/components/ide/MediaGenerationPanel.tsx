@@ -3,6 +3,7 @@ import { WandSparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
+import { detectDeploymentPlatform } from '@/lib/platform';
 
 type MediaMode = 'image' | 'video';
 type ProviderId = 'openrouter' | 'openai' | 'gemini' | 'stability' | 'ideogram' | 'replicate' | 'runway' | 'kling' | 'higgsfield' | 'luma' | 'pika';
@@ -98,20 +99,26 @@ export const MediaGenerationPanel = ({ mode, onGenerated }: MediaGenerationPanel
     setError(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('generate-media-byok', {
-        body: {
-          mode,
-          prompt: prompt.trim(),
-          provider,
-          model,
-        },
-      });
+      let mediaUrl: string;
 
-      if (error || !data?.mediaUrl) {
-        throw new Error(error?.message || data?.error || 'Generation failed');
+      if (detectDeploymentPlatform() === 'replit') {
+        const r = await fetch('/api/replit/ai/media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode, prompt: prompt.trim(), provider, model }),
+        });
+        const data = await r.json();
+        if (!r.ok || !data?.mediaUrl) throw new Error(data?.error || 'Generation failed');
+        mediaUrl = data.mediaUrl;
+      } else {
+        const { data, error } = await supabase.functions.invoke('generate-media-byok', {
+          body: { mode, prompt: prompt.trim(), provider, model },
+        });
+        if (error || !data?.mediaUrl) throw new Error(error?.message || data?.error || 'Generation failed');
+        mediaUrl = data.mediaUrl;
       }
 
-      onGenerated(data.mediaUrl as string);
+      onGenerated(mediaUrl);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Generation failed');
     } finally {

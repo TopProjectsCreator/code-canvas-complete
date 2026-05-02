@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useApiKeys } from '@/hooks/useApiKeys';
+import { detectDeploymentPlatform } from '@/lib/platform';
 
 interface CADEditorProps {
   file: FileNode;
@@ -464,7 +465,6 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   const extractInvokeError = async (error: any, data: any): Promise<string | null> => {
     if (data?.error) return data.error;
     if (!error) return null;
-    // FunctionsHttpError exposes the response on .context
     try {
       const ctx = (error as any).context;
       if (ctx && typeof ctx.json === 'function') {
@@ -478,6 +478,24 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
     return error.message || 'Unknown error';
   };
 
+  const invoke3D = async (body: Record<string, unknown>): Promise<{ data: any; error: any }> => {
+    if (detectDeploymentPlatform() === 'replit') {
+      try {
+        const r = await fetch('/api/replit/ai/3d', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await r.json();
+        if (!r.ok) return { data: null, error: { message: data?.error || '3D generation failed' } };
+        return { data, error: null };
+      } catch (e: any) {
+        return { data: null, error: { message: e.message || '3D generation failed' } };
+      }
+    }
+    return supabase.functions.invoke('generate-3d', { body });
+  };
+
   const handleTextTo3D = async () => {
     if (!textPrompt.trim()) return;
     
@@ -487,9 +505,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
     setGenProgress('Starting generation...');
     
     try {
-      const { data, error } = await supabase.functions.invoke('generate-3d', {
-        body: { prompt: textPrompt.trim(), provider: selected3DProvider },
-      });
+      const { data, error } = await invoke3D({ prompt: textPrompt.trim(), provider: selected3DProvider });
       
       if (cancelledRef.current) return;
       if (error || data?.status === 'FAILED' || (!data?.status && !data?.glbUrl && !data?.taskId)) {
@@ -521,9 +537,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
       await new Promise(r => setTimeout(r, intervalMs));
       if (cancelledRef.current) return;
       
-      const { data, error } = await supabase.functions.invoke('generate-3d', {
-        body: { taskId, provider: selected3DProvider },
-      });
+      const { data, error } = await invoke3D({ taskId, provider: selected3DProvider });
       
       if (cancelledRef.current) return;
       if (error || data?.status === 'FAILED') {

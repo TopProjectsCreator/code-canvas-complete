@@ -289,6 +289,378 @@ app.post('/api/replit/ai/music', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Media generation proxy (image + video) — all BYOK providers
+// ---------------------------------------------------------------------------
+
+function bufferToDataUrl(buffer, mimeType = 'image/png') {
+  return `data:${mimeType};base64,${Buffer.from(buffer).toString('base64')}`;
+}
+
+function extractMediaUrl(payload) {
+  return (
+    payload?.mediaUrl ||
+    payload?.output?.[0] ||
+    payload?.data?.[0]?.url ||
+    payload?.data?.[0]?.image_url ||
+    payload?.data?.[0]?.video_url ||
+    payload?.result?.url ||
+    payload?.result?.video?.url ||
+    payload?.output?.video ||
+    payload?.choices?.[0]?.message?.images?.[0]?.image_url?.url ||
+    payload?.choices?.[0]?.message?.videos?.[0]?.video_url?.url ||
+    null
+  );
+}
+
+async function mediaCallOpenRouter(apiKey, mode, prompt, model) {
+  const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: `${mode === 'video' ? 'Generate a short video' : 'Generate an image'}: ${prompt}` }],
+      modalities: [mode, 'text'],
+    }),
+  });
+  const data = await r.json();
+  const mediaUrl = extractMediaUrl(data);
+  if (!r.ok || !mediaUrl) throw new Error(data?.error?.message || 'OpenRouter generation failed');
+  return mediaUrl;
+}
+
+async function mediaCallOpenAI(apiKey, prompt, model) {
+  const r = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, prompt, size: '1024x1024' }),
+  });
+  const data = await r.json();
+  const mediaUrl = extractMediaUrl(data);
+  if (!r.ok || !mediaUrl) throw new Error(data?.error?.message || 'OpenAI image generation failed');
+  return mediaUrl;
+}
+
+async function mediaCallGemini(apiKey, prompt, model) {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: 'POST',
+    headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+    }),
+  });
+  const data = await r.json();
+  const part = data?.candidates?.[0]?.content?.parts?.find(p => p?.inlineData?.data);
+  if (!r.ok || !part?.inlineData?.data) throw new Error(data?.error?.message || 'Gemini image generation failed');
+  return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+}
+
+async function mediaCallStability(apiKey, prompt, model) {
+  const endpoint = model === 'stable-image-ultra' ? 'ultra' : 'core';
+  const r = await fetch(`https://api.stability.ai/v2beta/stable-image/generate/${endpoint}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, output_format: 'png' }),
+  });
+  if (!r.ok) { const txt = await r.text(); throw new Error(txt || 'Stability generation failed'); }
+  const ct = r.headers.get('content-type') || '';
+  if (ct.includes('application/json')) {
+    const data = await r.json();
+    if (data?.image) return `data:image/png;base64,${data.image}`;
+    const url = extractMediaUrl(data);
+    if (!url) throw new Error('Stability returned no image');
+    return url;
+  }
+  const buf = await r.arrayBuffer();
+  return bufferToDataUrl(buf, 'image/png');
+}
+
+async function mediaCallIdeogram(apiKey, prompt, model) {
+  const r = await fetch('https://api.ideogram.ai/generate', {
+    method: 'POST',
+    headers: { 'Api-Key': apiKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image_request: { prompt, model, aspect_ratio: '1:1' } }),
+  });
+  const data = await r.json();
+  const mediaUrl = data?.data?.[0]?.url || extractMediaUrl(data);
+  if (!r.ok || !mediaUrl) throw new Error(data?.error?.message || 'Ideogram generation failed');
+  return mediaUrl;
+}
+
+async function mediaCallReplicate(apiKey, prompt, model) {
+  const create = await fetch('https://api.replicate.com/v1/predictions', {
+    method: 'POST',
+    headers: { Authorization: `Token ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, input: { prompt } }),
+  });
+  const createData = await create.json();
+  if (!create.ok) throw new Error(createData?.detail || 'Replicate request failed');
+  const predictionUrl = createData?.urls?.get;
+  let status = createData;
+  for (let i = 0; i < 30 && predictionUrl; i++) {
+    if (['succeeded', 'failed', 'canceled'].includes(status?.status)) break;
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    const poll = await fetch(predictionUrl, { headers: { Authorization: `Token ${apiKey}` } });
+    status = await poll.json();
+  }
+  const output = status?.output;
+  const mediaUrl = Array.isArray(output) ? output[0] : output || extractMediaUrl(status);
+  if (!mediaUrl) throw new Error(status?.error || 'Replicate returned no media');
+  return mediaUrl;
+}
+
+async function mediaCallRunway(apiKey, prompt, model) {
+  const create = await fetch('https://api.dev.runwayml.com/v1/text_to_video', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'X-Runway-Version': '2024-11-06' },
+    body: JSON.stringify({ model, promptText: prompt }),
+  });
+  const createData = await create.json();
+  if (!create.ok) throw new Error(createData?.error || 'Runway request failed');
+  const taskId = createData?.id;
+  if (!taskId) throw new Error('Runway task id missing');
+  for (let i = 0; i < 30; i++) {
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    const poll = await fetch(`https://api.dev.runwayml.com/v1/tasks/${taskId}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, 'X-Runway-Version': '2024-11-06' },
+    });
+    const data = await poll.json();
+    const mediaUrl = extractMediaUrl(data);
+    if (mediaUrl) return mediaUrl;
+    if (data?.status === 'FAILED' || data?.status === 'CANCELLED') throw new Error(data?.error || 'Runway generation failed');
+  }
+  throw new Error('Runway generation timed out');
+}
+
+async function mediaCallFalVideo(apiKey, prompt, endpoint) {
+  const r = await fetch(endpoint, {
+    method: 'POST',
+    headers: { Authorization: `Key ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt }),
+  });
+  const data = await r.json();
+  const mediaUrl = extractMediaUrl(data);
+  if (!r.ok || !mediaUrl) throw new Error(data?.detail || data?.error || 'Video generation failed');
+  return mediaUrl;
+}
+
+app.post('/api/replit/ai/media', async (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated with Replit' });
+  const { mode, prompt, provider, model } = req.body || {};
+  if (!mode || !prompt || !provider || !model) return res.status(400).json({ error: 'Missing required fields' });
+
+  const userKeys = _aiKeys[uid] || {};
+  const apiKey = userKeys[provider];
+  if (!apiKey) return res.status(400).json({ error: `No ${provider} API key configured. Add one in the API Keys settings.` });
+
+  try {
+    let mediaUrl;
+    if (provider === 'openrouter') {
+      mediaUrl = await mediaCallOpenRouter(apiKey, mode, prompt, model);
+    } else if (provider === 'openai') {
+      if (mode !== 'image') return res.status(400).json({ error: 'OpenAI direct provider supports image mode only' });
+      mediaUrl = await mediaCallOpenAI(apiKey, prompt, model);
+    } else if (provider === 'gemini') {
+      if (mode !== 'image') return res.status(400).json({ error: 'Gemini direct provider supports image mode only' });
+      mediaUrl = await mediaCallGemini(apiKey, prompt, model);
+    } else if (provider === 'stability') {
+      if (mode !== 'image') return res.status(400).json({ error: 'Stability supports image generation only' });
+      mediaUrl = await mediaCallStability(apiKey, prompt, model);
+    } else if (provider === 'ideogram') {
+      if (mode !== 'image') return res.status(400).json({ error: 'Ideogram supports image generation only' });
+      mediaUrl = await mediaCallIdeogram(apiKey, prompt, model);
+    } else if (provider === 'replicate') {
+      mediaUrl = await mediaCallReplicate(apiKey, prompt, model);
+    } else if (provider === 'runway') {
+      if (mode !== 'video') return res.status(400).json({ error: 'Runway supports video generation only' });
+      mediaUrl = await mediaCallRunway(apiKey, prompt, model);
+    } else if (provider === 'kling') {
+      if (mode !== 'video') return res.status(400).json({ error: 'Kling supports video generation only' });
+      mediaUrl = await mediaCallFalVideo(apiKey, prompt, 'https://fal.run/fal-ai/kling-video/v2.1/master/text-to-video');
+    } else if (provider === 'higgsfield') {
+      if (mode !== 'video') return res.status(400).json({ error: 'Higgsfield supports video generation only' });
+      mediaUrl = await mediaCallFalVideo(apiKey, prompt, 'https://fal.run/fal-ai/higgsfield/text-to-video');
+    } else if (provider === 'luma') {
+      if (mode !== 'video') return res.status(400).json({ error: 'Luma supports video generation only' });
+      mediaUrl = await mediaCallFalVideo(apiKey, prompt, 'https://fal.run/fal-ai/luma-dream-machine');
+    } else if (provider === 'pika') {
+      if (mode !== 'video') return res.status(400).json({ error: 'Pika supports video generation only' });
+      mediaUrl = await mediaCallFalVideo(apiKey, prompt, 'https://fal.run/fal-ai/pika/v2.2/text-to-video');
+    } else {
+      return res.status(400).json({ error: `Unsupported provider: ${provider}` });
+    }
+    res.json({ mediaUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 3D generation proxy — all BYOK providers (Meshy, Sloyd, Tripo, ModelsLab, Fal.ai, Neural4D)
+// ---------------------------------------------------------------------------
+
+async function gen3DMeshy(apiKey, prompt, taskId) {
+  if (taskId) {
+    const r = await fetch(`https://api.meshy.ai/openapi/v1/text-to-3d/${taskId}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    const d = await r.json();
+    if (d.status === 'SUCCEEDED') return { status: 'SUCCEEDED', glbUrl: d.model_urls?.glb || d.model_url };
+    if (d.status === 'FAILED') return { status: 'FAILED', error: d.message || 'Generation failed' };
+    return { status: d.status || 'PENDING' };
+  }
+  const r = await fetch('https://api.meshy.ai/openapi/v1/text-to-3d', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'preview', prompt, art_style: 'realistic', negative_prompt: 'low quality, blurry, distorted' }),
+  });
+  const d = await r.json();
+  if (!r.ok) return { error: d.message || 'Failed to start generation' };
+  return { status: 'polling', taskId: d.result || d.id };
+}
+
+async function gen3DSloyd(apiKey, prompt) {
+  const r = await fetch('https://api.sloyd.ai/v1/generate', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, output_format: 'glb' }),
+  });
+  const d = await r.json();
+  if (!r.ok) return { error: d.error || d.message || 'Sloyd generation failed' };
+  return { status: 'SUCCEEDED', glbUrl: d.model_url || d.url };
+}
+
+async function gen3DTripo(apiKey, prompt, taskId) {
+  if (taskId) {
+    const r = await fetch(`https://api.tripo3d.ai/v2/openapi/task/${taskId}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    const d = await r.json();
+    const s = d.data?.status;
+    if (s === 'success') return { status: 'SUCCEEDED', glbUrl: d.data?.output?.model };
+    if (s === 'failed') return { status: 'FAILED', error: 'Tripo generation failed' };
+    return { status: 'PENDING' };
+  }
+  const r = await fetch('https://api.tripo3d.ai/v2/openapi/task', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'text_to_model', prompt }),
+  });
+  const d = await r.json();
+  if (!r.ok) {
+    const errMsg = d.message || d.error || 'Tripo generation failed';
+    const isBilling = /credit|balance|payment|subscribe/i.test(String(errMsg));
+    return { status: 'FAILED', error: isBilling ? 'Your Tripo account is out of credits. Top up at tripo3d.ai or switch providers.' : errMsg, billing: isBilling };
+  }
+  return { status: 'polling', taskId: d.data?.task_id };
+}
+
+async function gen3DModelsLab(apiKey, prompt, taskId) {
+  if (taskId) {
+    const r = await fetch('https://modelslab.com/api/v6/3d/fetch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: apiKey, request_id: taskId }),
+    });
+    const d = await r.json();
+    if (d.status === 'success') return { status: 'SUCCEEDED', glbUrl: d.output?.[0] };
+    if (d.status === 'error') return { status: 'FAILED', error: d.message || 'ModelsLab failed' };
+    return { status: 'PENDING' };
+  }
+  const r = await fetch('https://modelslab.com/api/v6/3d/text_to_3d', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: apiKey, prompt, negative_prompt: 'low quality', guidance_scale: 15, num_inference_steps: 64 }),
+  });
+  const d = await r.json();
+  if (d.status === 'error' || !r.ok) {
+    const errMsg = d.message || d.messege || 'ModelsLab failed';
+    const isBilling = /out of credits|subscribe|fund your wallet|exhausted/i.test(String(errMsg));
+    return { status: 'FAILED', error: isBilling ? 'Your ModelsLab account is out of credits. Top up at modelslab.com or switch providers.' : errMsg, billing: isBilling };
+  }
+  if (d.status === 'success' && d.output?.[0]) return { status: 'SUCCEEDED', glbUrl: d.output[0] };
+  return { status: 'polling', taskId: d.id || d.request_id };
+}
+
+async function gen3DFal(apiKey, prompt) {
+  const r = await fetch('https://fal.run/fal-ai/hyper3d/rodin', {
+    method: 'POST',
+    headers: { Authorization: `Key ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, geometry_file_format: 'glb' }),
+  });
+  const d = await r.json();
+  if (!r.ok) {
+    const errMsg = d.detail || d.message || d.error || 'Fal.ai generation failed';
+    const isBilling = /exhausted balance|user is locked|top up/i.test(String(errMsg));
+    return { status: 'FAILED', error: isBilling ? 'Your Fal.ai account is out of credits. Top up at fal.ai/dashboard/billing or switch providers.' : errMsg, billing: isBilling };
+  }
+  return { status: 'SUCCEEDED', glbUrl: d.model_mesh?.url || d.output?.url };
+}
+
+async function gen3DNeural4D(apiKey, prompt, taskId) {
+  const BASE = 'https://alb.neural4d.com:3000/api';
+  const headers = { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
+  const tryFetch = async (url, body) => {
+    try {
+      const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
+      let data = {};
+      try { data = await r.json(); } catch {}
+      return { ok: true, data, status: r.status };
+    } catch (e) {
+      return { ok: false, error: `Neural4D temporarily unreachable (${e.message}). Please retry, or switch to Meshy / Tripo / Sloyd.` };
+    }
+  };
+  if (taskId) {
+    const result = await tryFetch(`${BASE}/retrieveModel`, { uuid: taskId });
+    if (!result.ok) return { status: 'FAILED', error: result.error, unreachable: true };
+    if (result.status >= 400) return { status: 'FAILED', error: result.data.error || result.data.message || `Neural4D status check failed (${result.status})` };
+    const codeStatus = result.data.codeStatus;
+    if (codeStatus === 0 && result.data.modelUrl) return { status: 'SUCCEEDED', glbUrl: result.data.modelUrl };
+    if (codeStatus < 0) return { status: 'FAILED', error: result.data.message || 'Neural4D generation failed' };
+    return { status: 'PENDING' };
+  }
+  const result = await tryFetch(`${BASE}/generateModelWithText`, { prompt, modelCount: 1, disablePbr: 0 });
+  if (!result.ok) return { status: 'FAILED', error: result.error, unreachable: true };
+  if (result.status >= 400) {
+    const errMsg = result.data.error || result.data.message || `Neural4D returned ${result.status}`;
+    const isAuth = result.status === 401 || /unauthor/i.test(String(errMsg));
+    const isBilling = /credit|balance|insufficient|points|quota/i.test(String(errMsg));
+    return { status: 'FAILED', error: isAuth ? 'Neural4D API key is invalid. Get one at neural4d.com/api and re-add it.' : isBilling ? 'Your Neural4D account is out of credits. Top up at neural4d.com or switch providers.' : errMsg, billing: isBilling };
+  }
+  const firstUuid = Array.isArray(result.data.uuids) ? result.data.uuids[0] : null;
+  if (!firstUuid) return { status: 'FAILED', error: result.data.message || 'Neural4D did not return a model id' };
+  return { status: 'polling', taskId: firstUuid };
+}
+
+app.post('/api/replit/ai/3d', async (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated with Replit' });
+  const { prompt, taskId, provider = 'meshy' } = req.body || {};
+  if (!taskId && !prompt) return res.status(400).json({ error: 'prompt required' });
+
+  const userKeys = _aiKeys[uid] || {};
+  const apiKey = userKeys[provider];
+  if (!apiKey) return res.status(400).json({ error: `No ${provider} API key configured. Add one in the API Keys settings.` });
+
+  try {
+    let result;
+    switch (provider) {
+      case 'meshy':     result = await gen3DMeshy(apiKey, prompt, taskId || null); break;
+      case 'sloyd':     result = await gen3DSloyd(apiKey, prompt); break;
+      case 'tripo':     result = await gen3DTripo(apiKey, prompt, taskId || null); break;
+      case 'modelslab': result = await gen3DModelsLab(apiKey, prompt, taskId || null); break;
+      case 'fal':       result = await gen3DFal(apiKey, prompt); break;
+      case 'neural4d':  result = await gen3DNeural4D(apiKey, prompt, taskId || null); break;
+      default: return res.status(400).json({ error: `Unknown 3D provider: ${provider}` });
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // One-shot code execution  (Run button — fresh process per run, stdin piped)
 // ---------------------------------------------------------------------------
 //
