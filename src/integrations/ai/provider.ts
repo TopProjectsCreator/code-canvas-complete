@@ -77,12 +77,7 @@ const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => 
 
   const fallback = createSupabaseAIProvider();
   if (!envBase) {
-    return {
-      ...fallback,
-      platform,
-      supportsManagedAI: false,
-      allowsBYOK: true,
-    };
+    return { ...fallback, platform };
   }
 
   return {

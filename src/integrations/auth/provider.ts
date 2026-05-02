@@ -96,11 +96,13 @@ const lovableProvider: AuthProvider = {
 const replitProvider: AuthProvider = {
   platform: 'replit',
   ...common,
-  availableOAuthProviders: ['replit', 'google'],
+  availableOAuthProviders: ['google'],
   async signInWithOAuth(provider) {
-    const resolvedProvider = provider === 'replit' ? 'replit' : 'google';
+    if (provider !== 'google') {
+      return { error: new Error(`OAuth provider "${provider}" is not supported on Replit. Use Google or email/password.`) };
+    }
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: resolvedProvider as 'google',
+      provider: 'google',
       options: { redirectTo: window.location.origin },
     });
     return { error };
