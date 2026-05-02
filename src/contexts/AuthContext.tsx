@@ -47,12 +47,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const isReplitPlatform = authProvider.platform === 'replit';
+
   useEffect(() => {
     const subscription = authProvider.onAuthStateChange(async (_event, nextSession) => {
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
 
-      if (nextSession?.user) {
+      if (nextSession?.user && !isReplitPlatform) {
         setTimeout(async () => {
           const { data: profileData } = await supabase
             .from('profiles')
@@ -61,6 +63,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .single();
           setProfile(profileData);
         }, 0);
+      } else if (nextSession?.user && isReplitPlatform) {
+        setProfile({
+          id: nextSession.user.id,
+          user_id: nextSession.user.id,
+          display_name: nextSession.user.user_metadata?.display_name ?? null,
+          avatar_url: nextSession.user.user_metadata?.avatar_url ?? null,
+          created_at: nextSession.user.created_at,
+          updated_at: nextSession.user.created_at,
+        });
       } else {
         setProfile(null);
       }
@@ -72,7 +83,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
 
-      if (initialSession?.user) {
+      if (initialSession?.user && !isReplitPlatform) {
         supabase
           .from('profiles')
           .select('*')
@@ -82,13 +93,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             setProfile(profileData);
             setLoading(false);
           });
+      } else if (initialSession?.user && isReplitPlatform) {
+        setProfile({
+          id: initialSession.user.id,
+          user_id: initialSession.user.id,
+          display_name: initialSession.user.user_metadata?.display_name ?? null,
+          avatar_url: initialSession.user.user_metadata?.avatar_url ?? null,
+          created_at: initialSession.user.created_at,
+          updated_at: initialSession.user.created_at,
+        });
+        setLoading(false);
       } else {
         setLoading(false);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [authProvider]);
+  }, [authProvider, isReplitPlatform]);
 
   const signOut = async () => {
     await authProvider.signOut();

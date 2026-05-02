@@ -17,6 +17,12 @@ export default defineConfig(({ mode }) => ({
       'Cross-Origin-Embedder-Policy': 'credentialless',
       'Cross-Origin-Opener-Policy': 'same-origin',
     },
+    proxy: {
+      '/api/replit': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [
     react(),
