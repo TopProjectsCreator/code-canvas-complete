@@ -250,63 +250,74 @@ app.delete('/api/replit/ai/skills/:id', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Skills library — scrapes awesome-chatgpt-prompts (public GitHub, no API key)
+// Skills library — VoltAgent/awesome-agent-skills (public GitHub, no API key)
 // ---------------------------------------------------------------------------
 
-const PROMPTS_CSV_URL = 'https://raw.githubusercontent.com/f/awesome-chatgpt-prompts/main/prompts.csv';
+const AGENT_SKILLS_README_URL = 'https://raw.githubusercontent.com/VoltAgent/awesome-agent-skills/main/README.md';
 
-const SKILL_CATEGORIES = {
-  'Programming':   ['code', 'program', 'developer', 'software', 'python', 'javascript', 'typescript', 'java', 'debug', 'compiler', 'terminal', 'linux', 'bash', 'shell', 'git', 'api', 'regex', 'algorithm', 'fullstack', 'backend', 'frontend'],
-  'Writing':       ['write', 'essay', 'author', 'story', 'novel', 'poem', 'poet', 'copywriter', 'editor', 'proofreader', 'journalist', 'blogger', 'grammar', 'script', 'screenwriter'],
-  'Data & AI':     ['data', 'sql', 'database', 'machine learning', 'statistics', 'analyst', 'excel', 'spreadsheet', 'math', 'calculator', 'ai', 'neural', 'model'],
-  'Business':      ['business', 'ceo', 'manager', 'marketing', 'sales', 'product', 'entrepreneur', 'finance', 'accountant', 'recruiter', 'hr', 'startup', 'strategy', 'executive'],
-  'Creative':      ['design', 'ux', 'ui', 'artist', 'creative', 'brainstorm', 'idea', 'game', 'music', 'chef', 'recipe', 'draw', 'illustrat', 'visual'],
-  'Education':     ['teacher', 'tutor', 'explain', 'learn', 'course', 'student', 'lecture', 'quiz', 'vocabulary', 'language', 'translator', 'teach', 'mentor'],
-  'Research':      ['research', 'scientist', 'academic', 'paper', 'journal', 'fact', 'expert', 'analyze', 'study', 'hypothesis'],
-  'Healthcare':    ['doctor', 'health', 'medical', 'nurse', 'mental', 'therapist', 'fitness', 'diet', 'nutrition', 'psycholog', 'wellness'],
-  'Legal':         ['lawyer', 'legal', 'law', 'attorney', 'contract', 'policy', 'legislat', 'court'],
-  'Communication': ['debate', 'speak', 'present', 'interview', 'negotiat', 'argument', 'rhetoric', 'public'],
-};
-
-function categorizeSkill(name, instruction) {
-  const text = (name + ' ' + instruction.slice(0, 200)).toLowerCase();
-  for (const [cat, keywords] of Object.entries(SKILL_CATEGORIES)) {
-    if (keywords.some(kw => text.includes(kw))) return cat;
-  }
-  return 'General';
+// Strip common prefix from section headers to get a clean author/category name
+function cleanCategoryHeader(raw) {
+  return raw
+    .replace(/<[^>]+>/g, '') // remove HTML tags
+    .replace(/^(Official\s+|Skills\s+by\s+|Skill\s+by\s+|Security\s+Skills\s+by\s+|Marketing\s+Skills\s+by\s+|Product\s+Manager\s+Skills\s+by\s+|Product\s+Management\s+Skills\s+by\s+|Advertising\s+Skills\s+by\s+)/i, '')
+    .replace(/\s+Team$/i, '')
+    .replace(/\s*❤️.*$/, '')
+    .trim();
 }
 
-function parsePromptCSV(csv) {
+// Extract the org/author from a skill id like "anthropics/docx" → "Anthropic"
+function parseAgentSkillsReadme(md) {
   const skills = [];
-  let i = 0;
-  // Skip header line
-  while (i < csv.length && csv[i] !== '\n') i++;
-  i++;
-  while (i < csv.length) {
-    // Each row: "name","instruction"
-    if (csv[i] !== '"') { while (i < csv.length && csv[i] !== '\n') i++; i++; continue; }
-    i++; // skip opening quote of name
-    let nameEnd = csv.indexOf('","', i);
-    if (nameEnd === -1) break;
-    const name = csv.slice(i, nameEnd).replace(/""/g, '"').trim();
-    i = nameEnd + 3; // skip '","'
-    // Read instruction until closing unescaped quote
-    let instrStart = i;
-    while (i < csv.length) {
-      if (csv[i] === '"') {
-        if (csv[i + 1] === '"') { i += 2; continue; }
-        break;
+  const lines = md.split('\n');
+
+  // Sections to skip entirely
+  const SKIP_SECTIONS = new Set([
+    'table of contents', 'sponsors', 'official skills by',
+    'skill quality standards', 'contributing', 'community skills',
+    'awesome agent skills',
+  ]);
+
+  let currentCategory = 'Community';
+
+  for (const line of lines) {
+    // <summary><h3>Official Claude Skills</h3></summary>  OR  ### Skills by VoltAgent
+    const headerMatch =
+      line.match(/^\s*#{2,4}\s+(.+)/) ||
+      line.match(/<summary[^>]*><h[0-9][^>]*>([^<]+)<\/h[0-9]><\/summary>/i);
+    if (headerMatch) {
+      const raw = cleanCategoryHeader(headerMatch[1]);
+      if (raw && !SKIP_SECTIONS.has(raw.toLowerCase())) {
+        currentCategory = raw;
       }
-      i++;
+      continue;
     }
-    const instruction = csv.slice(instrStart, i).replace(/""/g, '"').trim();
-    i++; // skip closing quote
-    while (i < csv.length && (csv[i] === '\r' || csv[i] === '\n')) i++;
-    if (name && instruction && name !== 'act') {
-      const description = instruction.slice(0, 150).replace(/\n/g, ' ') + (instruction.length > 150 ? '…' : '');
-      skills.push({ name, description, instruction, category: categorizeSkill(name, instruction), stars: 0, author: 'awesome-chatgpt-prompts' });
+
+    // Skill entry: - **[org/name](url)** - Description
+    const skillMatch = line.match(/^\s*[-*]\s+\*\*\[([^\]]+)\]\(([^)]+)\)\*\*\s*(?:\\?[-–]|[-–])\s*(.+)/);
+    if (skillMatch) {
+      const id = skillMatch[1].trim();       // e.g. "anthropics/docx"
+      const url = skillMatch[2].trim();
+      const description = skillMatch[3].replace(/\\$/, '').trim();
+      // Derive human-readable name: "anthropics/docx" → "docx" (keep id for uniqueness)
+      const nameParts = id.split('/');
+      const shortName = nameParts[nameParts.length - 1]
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+      const author = currentCategory;
+      skills.push({
+        id,
+        name: shortName,
+        fullName: id,
+        description,
+        url,
+        category: currentCategory,
+        author,
+        stars: 0,
+        instruction: null,
+      });
     }
   }
+
   return skills;
 }
 
@@ -316,12 +327,43 @@ const LIB_CACHE_TTL = 3600000; // 1 hour
 
 async function fetchSkillsLibrary() {
   if (_libCache && (Date.now() - _libCacheTime) < LIB_CACHE_TTL) return _libCache;
-  const resp = await fetch(PROMPTS_CSV_URL, { headers: { 'User-Agent': 'CodeCanvas-IDE/1.0' } });
+  const resp = await fetch(AGENT_SKILLS_README_URL, { headers: { 'User-Agent': 'CodeCanvas-IDE/1.0' } });
   if (!resp.ok) throw new Error(`GitHub fetch failed: ${resp.status}`);
-  const csv = await resp.text();
-  _libCache = parsePromptCSV(csv);
+  const md = await resp.text();
+  _libCache = parseAgentSkillsReadme(md);
   _libCacheTime = Date.now();
   return _libCache;
+}
+
+// Try to fetch the actual skill instruction from officialskills.sh (SSR page)
+// or directly from a GitHub raw URL if the link points to GitHub.
+async function fetchSkillContent(url, description) {
+  try {
+    // If the URL is a direct GitHub link, try to find the raw skill file
+    if (url.includes('github.com') && !url.includes('officialskills.sh')) {
+      // e.g. https://github.com/angular/skills  — just use description fallback
+      return null;
+    }
+
+    // For officialskills.sh URLs, try fetching the page (Next.js SSR)
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; CodeCanvas-IDE/1.0)' },
+      signal: AbortSignal.timeout(6000),
+    });
+    if (!resp.ok) return null;
+    const html = await resp.text();
+
+    // Try to find skill content in code blocks or <pre> tags
+    const codeBlock = html.match(/<pre[^>]*><code[^>]*>([\s\S]{80,}?)<\/code><\/pre>/i);
+    if (codeBlock) {
+      return codeBlock[1]
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"')
+        .trim();
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 app.get('/api/replit/ai/skills/library', async (req, res) => {
@@ -341,12 +383,14 @@ app.get('/api/replit/ai/skills/library', async (req, res) => {
     }
 
     if (mode === 'top') {
+      // Return the first 40 (ordered as they appear in the README = by prestige)
       return res.json({ skills: allSkills.slice(0, 40) });
     }
 
     if (mode === 'category' && category) {
+      const slug = String(category).toLowerCase();
       const filtered = allSkills.filter(s =>
-        s.category.toLowerCase().replace(/[^a-z0-9]+/g, '-') === String(category).toLowerCase()
+        s.category.toLowerCase().replace(/[^a-z0-9]+/g, '-') === slug
       );
       return res.json({ skills: filtered });
     }
@@ -355,15 +399,30 @@ app.get('/api/replit/ai/skills/library', async (req, res) => {
       const q = String(search).toLowerCase();
       const filtered = allSkills.filter(s =>
         s.name.toLowerCase().includes(q) ||
+        s.fullName.toLowerCase().includes(q) ||
         s.description.toLowerCase().includes(q) ||
-        s.instruction.toLowerCase().includes(q)
+        s.author.toLowerCase().includes(q)
       );
-      return res.json({ skills: filtered.slice(0, 40) });
+      return res.json({ skills: filtered.slice(0, 50) });
     }
 
     res.json({ skills: [], categories: [] });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch actual skill instruction content (best-effort, falls back to null)
+app.get('/api/replit/ai/skills/fetch-content', async (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { url, description } = req.query;
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try {
+    const content = await fetchSkillContent(String(url), String(description || ''));
+    res.json({ content });
+  } catch (err) {
+    res.json({ content: null });
   }
 });
 
