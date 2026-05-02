@@ -26,6 +26,20 @@ export const XTerminal = ({ projectFiles, projectId, isActive = true }: XTermina
   useEffect(() => { projectIdRef.current = projectId; }, [projectId]);
   useEffect(() => { projectFilesRef.current = projectFiles; }, [projectFiles]);
 
+  // True after the first init message has been sent to the server.
+  // Used to skip the on-mount firing of the sync effect below.
+  const initSentRef = useRef(false);
+
+  // Whenever the IDE file tree changes after init (e.g. after a git clone),
+  // push the updated files into the live shell directory via sync-files.
+  useEffect(() => {
+    if (!initSentRef.current) return;            // skip the initial mount fire
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (!projectFiles?.length) return;
+    ws.send(JSON.stringify({ type: 'sync-files', files: projectFiles }));
+  }, [projectFiles]);
+
   // Refit + refocus when this tab becomes active
   useEffect(() => {
     if (!isActive) return;
@@ -101,6 +115,8 @@ export const XTerminal = ({ projectFiles, projectId, isActive = true }: XTermina
         cols: term.cols,
         rows: term.rows,
       }));
+      // Mark init as sent so subsequent projectFiles changes trigger sync-files.
+      initSentRef.current = true;
     };
 
     ws.onmessage = (event) => {
