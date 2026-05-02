@@ -31,12 +31,13 @@ interface TerminalProps {
   onNewShell?: () => void;
   projectFiles?: ProjectFile[];
   projectId?: string;
+  projectName?: string;
 }
 
 export const Terminal = ({
   history, onCommand, isMinimized, onToggleMinimize,
   stdinPrompt, onStdinSubmit, onNewShell,
-  projectFiles, projectId,
+  projectFiles, projectId, projectName,
 }: TerminalProps) => {
   const [input, setInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
@@ -389,6 +390,7 @@ export const Terminal = ({
                   <XTerminal
                     projectFiles={projectFiles}
                     projectId={projectId}
+                    projectName={projectName}
                     isActive={activePane === shell.id}
                   />
                 </div>
