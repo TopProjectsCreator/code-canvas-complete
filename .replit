@@ -32,6 +32,10 @@ args = "Lint"
 task = "workflow.run"
 args = "Fund "
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Replit Backend"
+
 [[workflows.workflow]]
 name = "Start application"
 author = "agent"
@@ -66,9 +70,21 @@ args = "npm fund"
 [workflows.workflow.metadata]
 isValidation = true
 
+[[workflows.workflow]]
+name = "Replit Backend"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run server:replit"
+waitForPort = 3001
+
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[ports]]
-localPort = 5000
-externalPort = 80
+localPort = 3001
+externalPort = 3001
 
 [[ports]]
 localPort = 5001

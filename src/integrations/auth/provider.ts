@@ -2,6 +2,7 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
 import { DeploymentPlatform, detectDeploymentPlatform } from '@/lib/platform';
+import { replitNativeProvider } from './replit-native-provider';
 
 export type OAuthProvider = 'google' | 'replit';
 
@@ -93,27 +94,11 @@ const lovableProvider: AuthProvider = {
   },
 };
 
-const replitProvider: AuthProvider = {
-  platform: 'replit',
-  ...common,
-  availableOAuthProviders: ['google'],
-  async signInWithOAuth(provider) {
-    if (provider !== 'google') {
-      return { error: new Error(`OAuth provider "${provider}" is not supported on Replit. Use Google or email/password.`) };
-    }
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin },
-    });
-    return { error };
-  },
-};
-
 export const createAuthProvider = (): AuthProvider => {
   const platform = detectDeploymentPlatform();
 
   if (platform === 'lovable') return lovableProvider;
-  if (platform === 'replit') return replitProvider;
+  if (platform === 'replit') return replitNativeProvider;
 
   return supabaseProvider;
 };
