@@ -43,6 +43,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { detectDeploymentPlatform } from "@/lib/platform";
 
 interface Part {
   id: string;
@@ -191,6 +192,7 @@ export const PartsInventoryDialog = ({
   const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
   const [fraSyncing, setFraSyncing] = useState(false);
   const [fraCatalogParts, setFraCatalogParts] = useState<VendorCatalogPart[]>([]);
+  const isReplit = detectDeploymentPlatform() === "replit";
 
   // Lazy-load state for catalog
   const [catalogDisplayCount, setCatalogDisplayCount] = useState(CATALOG_PAGE_SIZE);
@@ -313,22 +315,31 @@ export const PartsInventoryDialog = ({
         }
       }
 
-      const { data, error } = await supabase.functions.invoke("identify-part", {
-        body: { partName: newName, platform: newPlatform, vendorUrl, imageBase64: partImageBase64 },
-      });
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      const result = isReplit
+        ? await fetch("/api/replit/ai/identify-part", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ partName: newName, platform: newPlatform, vendorUrl, imageBase64: partImageBase64 }),
+          }).then(async (r) => {
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(data?.error || "AI identification failed");
+            return data;
+          })
+        : (await supabase.functions.invoke("identify-part", {
+            body: { partName: newName, platform: newPlatform, vendorUrl, imageBase64: partImageBase64 },
+          })).data;
+      if (result?.error) throw new Error(result.error);
 
-      setAiDetails(data);
-      setAiDescription(data.description || "");
-      setAiManufacturer(data.manufacturer || "");
-      setAiPartNumber(data.partNumber || "");
-      setAiSpecs(data.specifications || {});
-      setAiCompatible(data.compatibleWith || []);
-      if (data.category) setNewCategory(data.category);
+      setAiDetails(result);
+      setAiDescription(result.description || "");
+      setAiManufacturer(result.manufacturer || "");
+      setAiPartNumber(result.partNumber || "");
+      setAiSpecs(result.specifications || {});
+      setAiCompatible(result.compatibleWith || []);
+      if (result.category) setNewCategory(result.category);
       const cachedAfter = localStorage.getItem(aiCacheKey);
       const cacheData = cachedAfter ? JSON.parse(cachedAfter) : {};
-      cacheData[newName.trim().toLowerCase()] = data;
+      cacheData[newName.trim().toLowerCase()] = result;
       localStorage.setItem(aiCacheKey, JSON.stringify(cacheData));
       toast({ title: "Part identified!", description: "AI filled in details for you." });
     } catch (e: any) {
@@ -406,15 +417,21 @@ export const PartsInventoryDialog = ({
         let specifications: Record<string, any> = {};
 
         if (!description || !manufacturer || category === "other") {
-          const ai = await supabase.functions.invoke("identify-part", {
-            body: { partName: name, platform: activePlatform },
-          });
-          if (!ai.error && ai.data && !ai.data.error) {
-            description = description || ai.data.description || null;
-            category = category === "other" ? ai.data.category || "other" : category;
-            manufacturer = manufacturer || ai.data.manufacturer || null;
-            partNumber = partNumber || ai.data.partNumber || null;
-            specifications = ai.data.specifications || {};
+          const ai = isReplit
+            ? await fetch("/api/replit/ai/identify-part", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ partName: name, platform: activePlatform }),
+              }).then(async (r) => (r.ok ? r.json() : null))
+            : (await supabase.functions.invoke("identify-part", {
+                body: { partName: name, platform: activePlatform },
+              })).data;
+          if (ai && !ai.error) {
+            description = description || ai.description || null;
+            category = category === "other" ? ai.category || "other" : category;
+            manufacturer = manufacturer || ai.manufacturer || null;
+            partNumber = partNumber || ai.partNumber || null;
+            specifications = ai.specifications || {};
             aiEnhanced += 1;
           }
         }

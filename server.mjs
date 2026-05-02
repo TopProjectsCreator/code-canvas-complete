@@ -467,6 +467,125 @@ app.post('/api/replit/ai/generate-command', async (req, res) => {
   }
 });
 
+function firstSavedProvider(uid) {
+  const keys = _aiKeys[uid] || {};
+  return keys.openai ? 'openai' : keys.anthropic ? 'anthropic' : keys.google ? 'google' : null;
+}
+
+app.post('/api/replit/send-collab-notification', async (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { provider, apiKey, from, to, subject, html } = req.body || {};
+  if (!provider || !apiKey || !to || !subject || !html) return res.status(400).json({ error: 'Missing required fields' });
+  try {
+    if (provider === 'twilio') {
+      const body = new URLSearchParams({ From: from || '', To: to, Body: subject });
+      const auth = Buffer.from(`${provider}:${apiKey}`).toString('base64');
+      const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${from}/Messages.json`, {
+        method: 'POST',
+        headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+      });
+      if (!r.ok) throw new Error(await r.text());
+    } else if (provider === 'resend') {
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to, subject, html }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+    } else if (provider === 'postmark') {
+      const r = await fetch('https://api.postmarkapp.com/email', {
+        method: 'POST',
+        headers: { 'X-Postmark-Server-Token': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ From: from, To: to, Subject: subject, HtmlBody: html }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+    } else if (provider === 'mailgun') {
+      const r = await fetch(`https://api.mailgun.net/v3/${from.split('@')[1]}/messages`, {
+        method: 'POST',
+        headers: { Authorization: `Basic ${Buffer.from(`api:${apiKey}`).toString('base64')}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ from, to, subject, html }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/replit/send-sms-notification', async (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { provider, accountSid, authToken, from, to, body } = req.body || {};
+  if (!provider || !authToken || !from || !to || !body) return res.status(400).json({ error: 'Missing required fields' });
+  try {
+    if (provider === 'twilio') {
+      const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+        method: 'POST',
+        headers: { Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ From: from, To: to, Body: body }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/replit/compile-ftc', (req, res) => {
+  res.status(503).json({ status: 'error', message: 'FTC cloud compilation is not available on Replit.', errors: ['Supabase-only FTC compile flow is not implemented locally.'] });
+});
+
+app.post('/api/replit/github-proxy', async (req, res) => {
+  const { action, owner, repo, path: filePath, branch, query } = req.body || {};
+  try {
+    if (action === 'repo-info') {
+      const r = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+      return res.json(await r.json());
+    }
+    if (action === 'search') {
+      const r = await fetch(`https://api.github.com/search/repositories?q=${encodeURIComponent(query)}`);
+      return res.json(await r.json());
+    }
+    if (action === 'tree') {
+      const r = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`);
+      return res.json(await r.json());
+    }
+    if (action === 'file-content') {
+      const r = await fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`);
+      return res.json({ content: await r.text() });
+    }
+    return res.status(400).json({ error: 'Unknown action' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/replit/ai/identify-part', async (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { partName, platform, vendorUrl } = req.body || {};
+  const provider = firstSavedProvider(uid);
+  const apiKey = provider ? _aiKeys[uid][provider] : null;
+  if (!apiKey) return res.status(400).json({ error: 'No AI API key configured' });
+  const prompt = `Identify this part for ${platform || 'general'} use.\nName: ${partName}\nVendor URL: ${vendorUrl || 'n/a'}\nReturn JSON with fields description, manufacturer, partNumber, category, specifications, compatibleWith, tips.`;
+  try {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'Return only JSON.' }, { role: 'user', content: prompt }], max_tokens: 500 }),
+    });
+    const d = await r.json();
+    const text = d.choices?.[0]?.message?.content || '{}';
+    res.json(JSON.parse(text.replace(/```json|```/g, '').trim() || '{}'));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // MCP tool helpers + agentic tool-calling loop
 // ---------------------------------------------------------------------------
