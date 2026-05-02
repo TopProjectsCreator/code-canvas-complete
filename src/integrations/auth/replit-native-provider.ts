@@ -37,7 +37,7 @@ function makeSession(replitUser: ReplitUser): Session {
   };
 }
 
-function notifyListeners(event: string, session: SyntheticSession | null) {
+function notifyListeners(event: string, session: Session | null) {
   for (const cb of listeners) cb(event, session);
 }
 
