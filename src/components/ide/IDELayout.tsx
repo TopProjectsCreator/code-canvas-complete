@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, lazy, Suspense, useMemo } from "react";
+import { detectDeploymentPlatform } from "@/lib/platform";
 import { applyDiff } from "@/lib/diffUtils";
 import { useNavigate } from "react-router-dom";
 import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from "@/types/ide";
@@ -39,6 +40,8 @@ import { useOfflineProject } from "@/hooks/useOfflineProject";
 import { AutomationTemplatePane, type AutomationBlockInstance, serializeAutomationConfig, parseAutomationConfig } from "@/components/ide/AutomationTemplatePane";
 import { DatabaseDesignerPane } from "@/components/ide/DatabaseDesignerPane";
 import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
+
+const platform = detectDeploymentPlatform();
 
 const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
   ftc: "https://github.com/FIRST-Tech-Challenge/FtcRobotController",
@@ -2351,7 +2354,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       htmlContent={htmlContent}
                       cssContent={cssContent}
                       jsContent={jsContent}
-                      isRunning={isRunning}
+                      isRunning={platform === 'replit' ? (isRunning && !!htmlContent) : isRunning}
                     />
                   )}
                 </div>
@@ -2451,7 +2454,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     htmlContent={htmlContent}
                     cssContent={cssContent}
                     jsContent={jsContent}
-                    isRunning={isRunning}
+                    isRunning={platform === 'replit' ? (isRunning && !!htmlContent) : isRunning}
                   />
                 )}
               </ResizablePanel>
