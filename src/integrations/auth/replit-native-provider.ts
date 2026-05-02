@@ -1,3 +1,4 @@
+import type { Session, User } from '@supabase/supabase-js';
 import type { AuthProvider } from './provider';
 
 interface ReplitUser {
@@ -7,28 +8,14 @@ interface ReplitUser {
   profileImage?: string;
 }
 
-type AuthStateCallback = (event: string, session: SyntheticSession | null) => void;
-
-interface SyntheticSession {
-  user: SyntheticUser;
-  access_token: string;
-}
-
-interface SyntheticUser {
-  id: string;
-  email: string;
-  user_metadata: { display_name: string; avatar_url?: string };
-  app_metadata: Record<string, unknown>;
-  aud: string;
-  created_at: string;
-  role: string;
-}
+type AuthStateCallback = (event: string, session: Session | null) => void;
 
 const STORAGE_KEY = 'replit_auth_user';
 const listeners: AuthStateCallback[] = [];
 
-function makeSession(replitUser: ReplitUser): SyntheticSession {
-  const user: SyntheticUser = {
+function makeSession(replitUser: ReplitUser): Session {
+  const now = Math.floor(Date.now() / 1000);
+  const user: User = {
     id: replitUser.id,
     email: `${replitUser.name}@replit.user`,
     user_metadata: {
@@ -40,10 +27,17 @@ function makeSession(replitUser: ReplitUser): SyntheticSession {
     created_at: new Date().toISOString(),
     role: 'authenticated',
   };
-  return { user, access_token: `replit-${replitUser.id}` };
+  return {
+    user,
+    access_token: `replit-${replitUser.id}`,
+    refresh_token: `replit-refresh-${replitUser.id}`,
+    expires_in: 60 * 60 * 24,
+    expires_at: now + 60 * 60 * 24,
+    token_type: 'bearer',
+  };
 }
 
-function notifyListeners(event: string, session: SyntheticSession | null) {
+function notifyListeners(event: string, session: Session | null) {
   for (const cb of listeners) cb(event, session);
 }
 
@@ -109,7 +103,7 @@ function handleAuthCallbackIfNeeded(): boolean {
   return true;
 }
 
-let cachedSession: SyntheticSession | null = null;
+let cachedSession: Session | null = null;
 let initialized = false;
 
 async function init() {
@@ -154,17 +148,17 @@ export const replitNativeProvider: AuthProvider = {
 
   async getSession() {
     const session = await init();
-    return { session: session as never, error: null };
+    return { session, error: null };
   },
 
   onAuthStateChange(callback) {
-    listeners.push(callback as unknown as AuthStateCallback);
+    listeners.push(callback);
     init().then((session) => {
-      (callback as unknown as AuthStateCallback)('INITIAL_SESSION', session);
+      callback('INITIAL_SESSION', session);
     });
     return {
       unsubscribe: () => {
-        const idx = listeners.indexOf(callback as unknown as AuthStateCallback);
+        const idx = listeners.indexOf(callback);
         if (idx !== -1) listeners.splice(idx, 1);
       },
     };
@@ -194,7 +188,7 @@ export const replitNativeProvider: AuthProvider = {
 
   async getCurrentUser() {
     const session = await init();
-    return { user: session?.user as never ?? null, error: null };
+    return { user: session?.user ?? null, error: null };
   },
 
   availableOAuthProviders: ['replit'],

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/hooks/useNotifications';
 
 interface IncomingMessage {
@@ -39,8 +39,9 @@ const persistSeen = (set: Set<string>) => {
  * desktop / email / SMS notifications via the user's configured providers.
  */
 export const InboxNotifier = () => {
-  const { user } = useAuth();
+  const auth = useOptionalAuth();
   const { notifyInboxMessage, settings } = useNotifications();
+  const user = auth?.user ?? null;
   const seenRef = useRef<Set<string>>(loadSeen());
   // Stash the latest notify fn in a ref so the realtime channel doesn't
   // resubscribe every time settings change.

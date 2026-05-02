@@ -39,6 +39,8 @@ export const useAuth = () => {
   return context;
 };
 
+export const useOptionalAuth = () => useContext(AuthContext);
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const authProvider = useMemo(() => createAuthProvider(), []);
 
