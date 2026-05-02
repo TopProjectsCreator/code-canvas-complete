@@ -202,7 +202,7 @@ wss.on('connection', (ws) => {
         // Write canvas project files to a dedicated temp directory so the shell
         // starts inside the user's project rather than the IDE source tree.
         let cwd = process.cwd();
-        if (projectId && files.length > 0) {
+        if (projectId) {
           const projectDir = path.join(tmpdir(), `canvas-${projectId}`);
           try {
             fs.mkdirSync(projectDir, { recursive: true });
