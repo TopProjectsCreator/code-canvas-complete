@@ -92,6 +92,18 @@ function saveMcpServers() {
   try { fs.writeFileSync(MCP_FILE, JSON.stringify(_mcpServers)); } catch {}
 }
 
+// Agent skills local storage — persists custom AI instructions per user.
+// { [userId]: AgentSkill[] }
+const SKILLS_FILE = path.join(__dirname, 'agentskills.json');
+let _agentSkills = {};
+try {
+  if (fs.existsSync(SKILLS_FILE)) _agentSkills = JSON.parse(fs.readFileSync(SKILLS_FILE, 'utf8'));
+} catch { _agentSkills = {}; }
+
+function saveAgentSkills() {
+  try { fs.writeFileSync(SKILLS_FILE, JSON.stringify(_agentSkills)); } catch {}
+}
+
 function getReplitUserId(req) {
   return req.headers['x-replit-user-id'] || null;
 }
@@ -189,6 +201,51 @@ app.delete('/api/replit/ai/mcp-servers/:id', (req, res) => {
   const { id } = req.params;
   if (_mcpServers[uid]) _mcpServers[uid] = _mcpServers[uid].filter(s => s.id !== id);
   saveMcpServers();
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Agent skills CRUD endpoints
+// ---------------------------------------------------------------------------
+
+app.get('/api/replit/ai/skills', (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  res.json(_agentSkills[uid] || []);
+});
+
+app.post('/api/replit/ai/skills', (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { name, instruction, description, icon } = req.body || {};
+  if (!name || !instruction) return res.status(400).json({ error: 'name and instruction required' });
+  if (!_agentSkills[uid]) _agentSkills[uid] = [];
+  const now = new Date().toISOString();
+  const skill = { id: randomUUID(), name, instruction, description: description || null, icon: icon || 'sparkles', is_enabled: true, created_at: now, updated_at: now };
+  _agentSkills[uid].unshift(skill);
+  saveAgentSkills();
+  res.json(skill);
+});
+
+app.patch('/api/replit/ai/skills/:id', (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { id } = req.params;
+  const updates = req.body || {};
+  if (!_agentSkills[uid]) return res.status(404).json({ error: 'Not found' });
+  _agentSkills[uid] = _agentSkills[uid].map(s =>
+    s.id === id ? { ...s, ...updates, id, updated_at: new Date().toISOString() } : s
+  );
+  saveAgentSkills();
+  res.json({ ok: true });
+});
+
+app.delete('/api/replit/ai/skills/:id', (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { id } = req.params;
+  if (_agentSkills[uid]) _agentSkills[uid] = _agentSkills[uid].filter(s => s.id !== id);
+  saveAgentSkills();
   res.json({ ok: true });
 });
 
@@ -310,7 +367,7 @@ async function runChatWithTools(provider, cfg, apiKey, model, messages, tools, m
 }
 
 // Build a simple system prompt for the AI
-function buildSimpleSystemPrompt(currentFile, consoleErrors, workflows, mcpServers = []) {
+function buildSimpleSystemPrompt(currentFile, consoleErrors, workflows, mcpServers = [], agentSkills = []) {
   let ctx = 'You are a helpful AI coding assistant in Code Canvas IDE.\n\n';
   if (currentFile) {
     ctx += `### Active File: \`${currentFile.name}\`\n**Language**: ${currentFile.language || 'unknown'}\n\n\`\`\`${currentFile.language || ''}\n${currentFile.content || ''}\n\`\`\`\n`;
@@ -323,6 +380,9 @@ function buildSimpleSystemPrompt(currentFile, consoleErrors, workflows, mcpServe
   }
   if (mcpServers.length > 0) {
     ctx += `\n### Connected MCP Servers\nUse the mcp_call tool to interact with these servers. Start with tools/list to discover available tools.\n${mcpServers.map(s => `- **${s.name}**: ${s.url}${s.description ? ` — ${s.description}` : ''}`).join('\n')}\n`;
+  }
+  if (agentSkills.length > 0) {
+    ctx += `\n### Active Agent Skills\nFollow these custom instructions provided by the user:\n${agentSkills.map(s => `#### ${s.name}${s.description ? ` (${s.description})` : ''}\n${s.instruction}`).join('\n\n')}\n`;
   }
   return ctx;
 }
@@ -371,13 +431,14 @@ app.post('/api/replit/ai/chat', async (req, res) => {
 
   const effectiveModel = byokModel || BYOK_DEFAULT_MODELS[provider] || 'gpt-4o';
 
-  // Load user's enabled MCP servers for tool calling
+  // Load user's enabled MCP servers and agent skills
   const enabledMCPServers = enableMCP !== false
     ? ((_mcpServers[uid] || []).filter(s => s.is_enabled))
     : [];
+  const enabledSkills = (_agentSkills[uid] || []).filter(s => s.is_enabled);
 
   const tools = enabledMCPServers.length > 0 ? [buildMCPTool(enabledMCPServers)] : [];
-  const systemPrompt = buildSimpleSystemPrompt(currentFile, consoleErrors, workflows, enabledMCPServers);
+  const systemPrompt = buildSimpleSystemPrompt(currentFile, consoleErrors, workflows, enabledMCPServers, enabledSkills);
   const aiMessages = [{ role: 'system', content: systemPrompt }, ...(messages || [])];
 
   try {
