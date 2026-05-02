@@ -170,7 +170,7 @@ function createBashSession() {
       TERM: 'dumb',
       PYTHONUNBUFFERED: '1',
     },
-    cwd: process.env.HOME || process.cwd(),
+    cwd: process.cwd(),
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
