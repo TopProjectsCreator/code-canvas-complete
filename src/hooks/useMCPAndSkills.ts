@@ -52,10 +52,12 @@ export function useMCPAndSkills() {
     setLoading(true);
     try {
       if (isReplit()) {
-        const servers = await replitFetch('/api/replit/ai/mcp-servers');
+        const [servers, sk] = await Promise.all([
+          replitFetch('/api/replit/ai/mcp-servers'),
+          replitFetch('/api/replit/ai/skills'),
+        ]);
         setMcpServers((servers as MCPServer[]) || []);
-        // Agent skills are not yet supported on Replit local storage; show empty list
-        setSkills([]);
+        setSkills((sk as AgentSkill[]) || []);
       } else {
         const [{ data: servers }, { data: sk }] = await Promise.all([
           supabase.from('mcp_servers').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
@@ -124,26 +126,53 @@ export function useMCPAndSkills() {
 
   const addSkill = async (skill: { name: string; instruction: string; description?: string; icon?: string }) => {
     if (!user) return false;
-    const { error } = await supabase.from('agent_skills').insert({ ...skill, user_id: user.id });
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
-    toast({ title: 'Skill added' });
-    fetchAll();
-    return true;
+    try {
+      if (isReplit()) {
+        await replitFetch('/api/replit/ai/skills', { method: 'POST', body: JSON.stringify(skill) });
+      } else {
+        const { error } = await supabase.from('agent_skills').insert({ ...skill, user_id: user.id });
+        if (error) throw new Error(error.message);
+      }
+      toast({ title: 'Skill added' });
+      fetchAll();
+      return true;
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to add skill', variant: 'destructive' });
+      return false;
+    }
   };
 
   const updateSkill = async (id: string, updates: Partial<AgentSkill>) => {
-    const { error } = await supabase.from('agent_skills').update(updates).eq('id', id);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
-    fetchAll();
-    return true;
+    try {
+      if (isReplit()) {
+        await replitFetch(`/api/replit/ai/skills/${id}`, { method: 'PATCH', body: JSON.stringify(updates) });
+      } else {
+        const { error } = await supabase.from('agent_skills').update(updates).eq('id', id);
+        if (error) throw new Error(error.message);
+      }
+      fetchAll();
+      return true;
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to update skill', variant: 'destructive' });
+      return false;
+    }
   };
 
   const deleteSkill = async (id: string) => {
-    const { error } = await supabase.from('agent_skills').delete().eq('id', id);
-    if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return false; }
-    toast({ title: 'Skill removed' });
-    fetchAll();
-    return true;
+    try {
+      if (isReplit()) {
+        await replitFetch(`/api/replit/ai/skills/${id}`, { method: 'DELETE' });
+      } else {
+        const { error } = await supabase.from('agent_skills').delete().eq('id', id);
+        if (error) throw new Error(error.message);
+      }
+      toast({ title: 'Skill removed' });
+      fetchAll();
+      return true;
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: err instanceof Error ? err.message : 'Failed to remove skill', variant: 'destructive' });
+      return false;
+    }
   };
 
   return { mcpServers, skills, loading, fetchAll, addMCPServer, updateMCPServer, deleteMCPServer, addSkill, updateSkill, deleteSkill };
