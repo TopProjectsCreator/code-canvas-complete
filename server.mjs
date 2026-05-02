@@ -23,7 +23,7 @@ app.use(express.json({ limit: '8mb' }));
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
 });
@@ -78,6 +78,18 @@ try {
 
 function saveAiKeys() {
   try { fs.writeFileSync(AI_KEYS_FILE, JSON.stringify(_aiKeys)); } catch {}
+}
+
+// MCP server local storage — mirrors aikeys approach so no Supabase needed.
+// { [userId]: MCPServer[] }
+const MCP_FILE = path.join(__dirname, 'mcpservers.json');
+let _mcpServers = {};
+try {
+  if (fs.existsSync(MCP_FILE)) _mcpServers = JSON.parse(fs.readFileSync(MCP_FILE, 'utf8'));
+} catch { _mcpServers = {}; }
+
+function saveMcpServers() {
+  try { fs.writeFileSync(MCP_FILE, JSON.stringify(_mcpServers)); } catch {}
 }
 
 function getReplitUserId(req) {
@@ -135,8 +147,170 @@ app.delete('/api/replit/ai/keys', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---------------------------------------------------------------------------
+// MCP server CRUD endpoints
+// ---------------------------------------------------------------------------
+
+app.get('/api/replit/ai/mcp-servers', (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  res.json(_mcpServers[uid] || []);
+});
+
+app.post('/api/replit/ai/mcp-servers', (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { name, url, description, api_key } = req.body || {};
+  if (!name || !url) return res.status(400).json({ error: 'name and url required' });
+  if (!_mcpServers[uid]) _mcpServers[uid] = [];
+  const now = new Date().toISOString();
+  const server = { id: randomUUID(), name, url, description: description || null, api_key: api_key || null, is_enabled: true, created_at: now, updated_at: now };
+  _mcpServers[uid].unshift(server);
+  saveMcpServers();
+  res.json(server);
+});
+
+app.patch('/api/replit/ai/mcp-servers/:id', (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { id } = req.params;
+  const updates = req.body || {};
+  if (!_mcpServers[uid]) return res.status(404).json({ error: 'Not found' });
+  _mcpServers[uid] = _mcpServers[uid].map(s =>
+    s.id === id ? { ...s, ...updates, id, updated_at: new Date().toISOString() } : s
+  );
+  saveMcpServers();
+  res.json({ ok: true });
+});
+
+app.delete('/api/replit/ai/mcp-servers/:id', (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { id } = req.params;
+  if (_mcpServers[uid]) _mcpServers[uid] = _mcpServers[uid].filter(s => s.id !== id);
+  saveMcpServers();
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// MCP tool helpers + agentic tool-calling loop
+// ---------------------------------------------------------------------------
+
+function buildMCPTool(servers) {
+  const list = servers.map(s => s.name).join(', ');
+  return {
+    type: 'function',
+    function: {
+      name: 'mcp_call',
+      description: `Call a configured MCP (Model Context Protocol) server. Available servers: ${list}. Start with tools/list to discover capabilities, then tools/call to invoke them.`,
+      parameters: {
+        type: 'object',
+        properties: {
+          server_name: { type: 'string', description: `Name of the MCP server. One of: ${list}` },
+          method: { type: 'string', description: "JSON-RPC method, e.g. 'tools/list', 'tools/call', 'resources/list', 'resources/read'" },
+          params: { type: 'object', description: 'Parameters for the method call' },
+        },
+        required: ['server_name', 'method'],
+      },
+    },
+  };
+}
+
+async function executeMCPCall(serverName, method, params, servers) {
+  const server = servers.find(s => s.name.toLowerCase() === serverName.toLowerCase());
+  if (!server) {
+    return JSON.stringify({ error: `MCP server "${serverName}" not found. Available: ${servers.map(s => s.name).join(', ')}` });
+  }
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (server.api_key) headers['Authorization'] = `Bearer ${server.api_key}`;
+    const body = { jsonrpc: '2.0', id: randomUUID(), method, params: params || {} };
+    const resp = await fetch(server.url, { method: 'POST', headers, body: JSON.stringify(body) });
+    if (!resp.ok) {
+      const txt = await resp.text();
+      return JSON.stringify({ error: `MCP server returned ${resp.status}: ${txt.slice(0, 300)}` });
+    }
+    const data = await resp.json();
+    return JSON.stringify(data);
+  } catch (err) {
+    return JSON.stringify({ error: `Failed to call MCP server "${serverName}": ${err.message}` });
+  }
+}
+
+// Agentic loop: keeps calling the provider until no more tool calls are needed.
+// Handles both OpenAI-compatible and Anthropic formats.
+async function runChatWithTools(provider, cfg, apiKey, model, messages, tools, mcpServers) {
+  const MAX_LOOPS = 8;
+  let msgs = [...messages];
+
+  for (let loop = 0; loop < MAX_LOOPS; loop++) {
+    if (provider === 'anthropic') {
+      const sysMsg = msgs.find(m => m.role === 'system');
+      const chatMsgs = msgs.filter(m => m.role !== 'system');
+      const body = {
+        model, max_tokens: 8192,
+        messages: chatMsgs,
+        ...(sysMsg ? { system: sysMsg.content } : {}),
+      };
+      if (tools.length > 0) {
+        body.tools = tools.map(t => ({
+          name: t.function.name,
+          description: t.function.description,
+          input_schema: t.function.parameters,
+        }));
+      }
+      const res = await fetch(cfg.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { const e = await res.text(); throw new Error(`Anthropic ${res.status}: ${e.slice(0, 300)}`); }
+      const data = await res.json();
+      const toolUseBlocks = (data.content || []).filter(b => b.type === 'tool_use');
+      const textBlock = (data.content || []).find(b => b.type === 'text');
+      if (!toolUseBlocks.length || data.stop_reason !== 'tool_use') return textBlock?.text || '';
+      // Execute tool calls
+      msgs.push({ role: 'assistant', content: data.content });
+      const results = await Promise.all(toolUseBlocks.map(async block => {
+        const result = block.name === 'mcp_call'
+          ? await executeMCPCall(block.input.server_name, block.input.method, block.input.params, mcpServers)
+          : `Unknown tool: ${block.name}`;
+        return { type: 'tool_result', tool_use_id: block.id, content: result };
+      }));
+      msgs.push({ role: 'user', content: results });
+
+    } else {
+      // OpenAI-compatible
+      const body = { model, messages: msgs };
+      if (tools.length > 0) { body.tools = tools; body.tool_choice = 'auto'; }
+      const res = await fetch(cfg.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) { const e = await res.text(); throw new Error(`${provider} ${res.status}: ${e.slice(0, 300)}`); }
+      const data = await res.json();
+      const choice = data.choices?.[0];
+      const toolCalls = choice?.message?.tool_calls;
+      if (!toolCalls || !toolCalls.length) return choice?.message?.content || '';
+      // Execute tool calls
+      msgs.push(choice.message);
+      const results = await Promise.all(toolCalls.map(async call => {
+        let args = {};
+        try { args = JSON.parse(call.function.arguments || '{}'); } catch {}
+        const result = call.function.name === 'mcp_call'
+          ? await executeMCPCall(args.server_name, args.method, args.params, mcpServers)
+          : `Unknown tool: ${call.function.name}`;
+        return { role: 'tool', tool_call_id: call.id, name: call.function.name, content: result };
+      }));
+      msgs.push(...results);
+    }
+  }
+  return 'Reached the maximum number of tool calls without a final answer.';
+}
+
 // Build a simple system prompt for the AI
-function buildSimpleSystemPrompt(currentFile, consoleErrors, workflows) {
+function buildSimpleSystemPrompt(currentFile, consoleErrors, workflows, mcpServers = []) {
   let ctx = 'You are a helpful AI coding assistant in Code Canvas IDE.\n\n';
   if (currentFile) {
     ctx += `### Active File: \`${currentFile.name}\`\n**Language**: ${currentFile.language || 'unknown'}\n\n\`\`\`${currentFile.language || ''}\n${currentFile.content || ''}\n\`\`\`\n`;
@@ -146,6 +320,9 @@ function buildSimpleSystemPrompt(currentFile, consoleErrors, workflows) {
   if (consoleErrors) ctx += `\n### Console Errors\n\`\`\`\n${consoleErrors}\n\`\`\`\n`;
   if (workflows && workflows.length > 0) {
     ctx += `\n### Workflows\n${workflows.map(w => `- **${w.name}**: \`${w.command}\``).join('\n')}\n`;
+  }
+  if (mcpServers.length > 0) {
+    ctx += `\n### Connected MCP Servers\nUse the mcp_call tool to interact with these servers. Start with tools/list to discover available tools.\n${mcpServers.map(s => `- **${s.name}**: ${s.url}${s.description ? ` — ${s.description}` : ''}`).join('\n')}\n`;
   }
   return ctx;
 }
@@ -164,12 +341,12 @@ function sseError(res, status, message) {
   res.status(status).json({ error: message });
 }
 
-// Main chat handler
+// Main chat handler — supports MCP tool calling
 app.post('/api/replit/ai/chat', async (req, res) => {
   const uid = getReplitUserId(req);
   if (!uid) return sseError(res, 401, 'Not authenticated with Replit');
 
-  const { messages, currentFile, consoleErrors, workflows, model, byokProvider, byokModel } = req.body || {};
+  const { messages, currentFile, consoleErrors, workflows, model, byokProvider, byokModel, enableMCP } = req.body || {};
 
   // Determine which API key and provider to use
   const userKeys = _aiKeys[uid] || {};
@@ -193,61 +370,19 @@ app.post('/api/replit/ai/chat', async (req, res) => {
   if (!cfg) return sseError(res, 400, `Unsupported provider: ${provider}`);
 
   const effectiveModel = byokModel || BYOK_DEFAULT_MODELS[provider] || 'gpt-4o';
-  const systemPrompt = buildSimpleSystemPrompt(currentFile, consoleErrors, workflows);
 
-  const aiMessages = [
-    { role: 'system', content: systemPrompt },
-    ...(messages || []),
-  ];
+  // Load user's enabled MCP servers for tool calling
+  const enabledMCPServers = enableMCP !== false
+    ? ((_mcpServers[uid] || []).filter(s => s.is_enabled))
+    : [];
+
+  const tools = enabledMCPServers.length > 0 ? [buildMCPTool(enabledMCPServers)] : [];
+  const systemPrompt = buildSimpleSystemPrompt(currentFile, consoleErrors, workflows, enabledMCPServers);
+  const aiMessages = [{ role: 'system', content: systemPrompt }, ...(messages || [])];
 
   try {
-    let upstreamRes;
-    if (provider === 'anthropic') {
-      // Anthropic uses a different format
-      const textMessages = aiMessages.filter(m => m.role !== 'system');
-      upstreamRes = await fetch(cfg.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: effectiveModel,
-          max_tokens: 8192,
-          system: systemPrompt,
-          messages: textMessages,
-        }),
-      });
-      if (!upstreamRes.ok) {
-        const err = await upstreamRes.text();
-        return sseError(res, 502, `Anthropic error (${upstreamRes.status}): ${err.slice(0, 300)}`);
-      }
-      const data = await upstreamRes.json();
-      const text = data.content?.filter(b => b.type === 'text').map(b => b.text).join('') || '';
-      return sseResponse(res, text);
-    }
-
-    // OpenAI-compatible providers
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    };
-    upstreamRes = await fetch(cfg.url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ model: effectiveModel, messages: aiMessages, stream: false }),
-    });
-
-    if (!upstreamRes.ok) {
-      const err = await upstreamRes.text();
-      return sseError(res, 502, `${provider} error (${upstreamRes.status}): ${err.slice(0, 300)}`);
-    }
-
-    const data = await upstreamRes.json();
-    const content = data.choices?.[0]?.message?.content || '';
+    const content = await runChatWithTools(provider, cfg, apiKey, effectiveModel, aiMessages, tools, enabledMCPServers);
     return sseResponse(res, content);
-
   } catch (err) {
     return sseError(res, 500, `AI request failed: ${err.message}`);
   }
