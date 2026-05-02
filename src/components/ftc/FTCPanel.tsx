@@ -77,7 +77,11 @@ function collectOpModes(nodes: FileNode[], includeSamples: boolean, prefix = '')
     if (node.type !== 'file' || !node.name.endsWith('.java')) continue;
 
     const normalizedPath = path.toLowerCase();
-    const isTeamCodeJava = normalizedPath.includes('/teamcode/src/main/java/');
+    const isTeamCodeJava =
+      normalizedPath.includes('/teamcode/src/main/java/') ||
+      normalizedPath.includes('/teamcode/scr/main/java/') ||
+      normalizedPath.includes('teamcode/src/main/java/') ||
+      normalizedPath.includes('teamcode/scr/main/java/');
     if (!isTeamCodeJava) continue;
 
     const isSampleFile = normalizedPath.includes('/samples/');
