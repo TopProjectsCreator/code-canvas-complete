@@ -192,12 +192,46 @@ httpServer.on('upgrade', (request, socket, head) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Command safety filter
+// Checks a fully-typed shell line (before the user hits Enter) against a list
+// of patterns that could damage the host environment or other sessions.
+// ---------------------------------------------------------------------------
+function isBlockedCommand(line) {
+  const cmd = line.trim().replace(/\s+/g, ' ');
+  if (!cmd) return false;
+
+  const BLOCKED = [
+    // kill -9 -1 / kill -KILL -1 / kill -- -1  (kill ALL processes)
+    /\bkill\b\s+(?:-[-a-zA-Z0-9]+\s+)*-1(\s|$)/,
+    // kill without explicit signal: just `kill -1`
+    /\bkill\b\s+-1(\s|$)/,
+    // rm -rf /  or  rm -fr /  or  rm --recursive --force /
+    /\brm\b\s+(?:-[a-zA-Z]*[rR][a-zA-Z]*\s+|--recursive\s+|--force\s+){1,4}\s*\/[* ]*/,
+    /\brm\b\s+(?:-[a-zA-Z]*[fF][a-zA-Z]*\s+|--force\s+){1,4}(?:-[a-zA-Z]*[rR][a-zA-Z]*\s+|--recursive\s+)+\s*\/[* ]*/,
+    // fork bomb  :(){ :|:& };:
+    /:\s*\(\s*\)\s*\{/,
+    // dd writing to a block device
+    /\bdd\b.*\bof=\/dev\/(sd|hd|vd|nvme|xvd)/,
+    // mkfs — reformats a filesystem
+    /\bmkfs\b/,
+    // direct redirect to a block device
+    />\s*\/dev\/(sd[a-z]|hd[a-z]|vd[a-z]|nvme|xvd)/,
+  ];
+
+  return BLOCKED.some((re) => re.test(cmd));
+}
+
 wss.on('connection', (ws) => {
   let ptyProcess = null;
 
   // Per-connection fallback ID — guarantees the shell never starts in the
   // workspace root even if the client sends no projectId.
   const connSessionId = `conn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  // Tracks characters typed on the current line so we can inspect the full
+  // command before forwarding the Enter key to bash.
+  let lineBuffer = '';
 
   ws.on('message', (msg) => {
     const str = msg.toString();
@@ -231,10 +265,24 @@ wss.on('connection', (ws) => {
           // Write a .bashrc so bash picks up our prompt when it sources HOME/.bashrc.
           // System /etc/bash.bashrc would override an env-level PS1, so we write
           // it as a file instead. \w expands to ~ when cwd==HOME, ~/sub otherwise.
+          // Also installs runtime safety: ulimit caps + kill() override.
           const bashrc = [
-            '# CodeCanvas shell — sourced automatically because HOME is set here',
+            '# CodeCanvas shell',
             '[ -f /etc/bash.bashrc ] && source /etc/bash.bashrc',
             "PS1='\\[\\033[01;36m\\]\\w\\[\\033[00m\\]\\[\\033[01m\\]\\$\\[\\033[00m\\] '",
+            '# Resource limits — defence against fork bombs and runaway writes',
+            'ulimit -u 200     # max 200 user processes',
+            'ulimit -f 204800  # max 200 MB per file write',
+            '# Shell-level kill guard (server-side filter is the primary block)',
+            'kill() {',
+            '  for _arg in "$@"; do',
+            '    if [[ "$_arg" == "-1" ]]; then',
+            '      echo -e "\\033[31m\u26d4  Blocked: kill -1 (kill all processes) is not permitted.\\033[0m" >&2',
+            '      return 1',
+            '    fi',
+            '  done',
+            '  command kill "$@"',
+            '}',
           ].join('\n') + '\n';
           fs.writeFileSync(path.join(projectDir, '.bashrc'), bashrc, 'utf8');
         } catch (e) {
@@ -278,7 +326,42 @@ wss.on('connection', (ws) => {
         return;
       }
     } catch {}
-    try { ptyProcess.write(str); } catch {}
+
+    // Feed each character through the safety filter.
+    // We buffer the current line so that when Enter arrives we can inspect the
+    // full command before deciding whether to forward the keystroke to bash.
+    let toWrite = '';
+    for (const ch of str) {
+      if (ch === '\r' || ch === '\n') {
+        if (isBlockedCommand(lineBuffer)) {
+          // Flush safe chars typed so far, then cancel the line with Ctrl-C.
+          if (toWrite) { try { ptyProcess.write(toWrite); } catch {} toWrite = ''; }
+          try { ptyProcess.write('\x03'); } catch {} // ^C clears bash readline
+          const cmdName = lineBuffer.trim().split(/\s+/)[0] || 'command';
+          setTimeout(() => {
+            try {
+              ws.send(`\r\n\x1b[31m\u26d4  Blocked: '${cmdName}' is not permitted in this environment.\x1b[0m\r\n`);
+            } catch {}
+          }, 40);
+          lineBuffer = '';
+          continue; // do NOT forward the Enter key
+        }
+        lineBuffer = '';
+        toWrite += ch;
+      } else if (ch === '\x7f' || ch === '\x08') {
+        // Backspace — keep buffer in sync
+        lineBuffer = lineBuffer.slice(0, -1);
+        toWrite += ch;
+      } else if (ch === '\x03') {
+        // Ctrl-C — user cancelled the line themselves
+        lineBuffer = '';
+        toWrite += ch;
+      } else {
+        lineBuffer += ch;
+        toWrite += ch;
+      }
+    }
+    if (toWrite) { try { ptyProcess.write(toWrite); } catch {} }
   });
 
   ws.on('close', () => {
