@@ -18,11 +18,12 @@ interface TerminalProps {
   onToggleMinimize: () => void;
   stdinPrompt?: { prompts: string[]; code: string; language: string } | null;
   onStdinSubmit?: (stdinValue: string) => void;
+  onNewShell?: () => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
-export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, stdinPrompt, onStdinSubmit }: TerminalProps) => {
+export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, stdinPrompt, onStdinSubmit, onNewShell }: TerminalProps) => {
   const [input, setInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -239,7 +240,14 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
           >
             <X className="w-3.5 h-3.5" />
           </button>
-          <button className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+          <button
+            onClick={() => {
+              onCommand('clear', ['\x1Bc'], false);
+              onNewShell?.();
+            }}
+            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="New shell session"
+          >
             <Plus className="w-3.5 h-3.5" />
           </button>
         </div>

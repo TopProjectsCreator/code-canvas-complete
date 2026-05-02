@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWebContainer } from '@/hooks/useWebContainer';
 import { usePyodide, detectUnsupportedPyodideUsage } from '@/hooks/usePyodide';
@@ -9,13 +9,12 @@ interface ExecutionResult {
   output: string[];
   error: string | null;
   executedAt: string;
-  isPreview?: boolean; // True for files that should render in preview instead of execute
+  isPreview?: boolean;
 }
 
 /**
- * In-browser JavaScript fallback. Runs the snippet inside an async function
- * with a captured `console` proxy. Used when WebContainer is unavailable
- * and the user is offline (so the cloud executor isn't reachable either).
+ * In-browser JavaScript fallback. Used when WebContainer is unavailable and
+ * the user is offline (so the cloud executor isn't reachable either).
  */
 async function runJavaScriptInBrowser(code: string): Promise<ExecutionResult> {
   const output: string[] = [];
@@ -54,15 +53,96 @@ async function runJavaScriptInBrowser(code: string): Promise<ExecutionResult> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Replit-native execution helpers (call server.mjs directly)
+// ---------------------------------------------------------------------------
+
+async function replitExecute(
+  code: string,
+  language: string,
+  stdin?: string,
+): Promise<ExecutionResult> {
+  try {
+    const res = await fetch('/api/replit/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, language, stdin }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { output: [], error: data.error || `HTTP ${res.status}`, executedAt: new Date().toISOString() };
+    }
+    return data as ExecutionResult;
+  } catch (err) {
+    return {
+      output: [],
+      error: `Replit backend error: ${err instanceof Error ? err.message : String(err)}`,
+      executedAt: new Date().toISOString(),
+    };
+  }
+}
+
+async function replitShellRun(
+  command: string,
+  sessionId: string,
+): Promise<{ result: ExecutionResult; sessionId: string }> {
+  try {
+    const res = await fetch('/api/replit/shell/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId, command }),
+    });
+
+    if (res.status === 404) {
+      // Session expired — caller should start a new one and retry
+      return {
+        result: { output: [], error: '__SESSION_EXPIRED__', executedAt: new Date().toISOString() },
+        sessionId,
+      };
+    }
+
+    const data = await res.json();
+    return { result: data as ExecutionResult, sessionId };
+  } catch (err) {
+    return {
+      result: {
+        output: [],
+        error: `Replit shell error: ${err instanceof Error ? err.message : String(err)}`,
+        executedAt: new Date().toISOString(),
+      },
+      sessionId,
+    };
+  }
+}
+
+async function replitShellStart(): Promise<string> {
+  const res = await fetch('/api/replit/shell/start', { method: 'POST' });
+  const data = await res.json();
+  return data.sessionId as string;
+}
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+
+const platform = detectDeploymentPlatform();
+
 export const useCodeExecution = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [executorSessions, setExecutorSessions] = useState<Record<string, string>>({});
   const { status: webContainerStatus, boot, spawn } = useWebContainer();
   const { runPython: runPyodide } = usePyodide();
-  const executeCode = useCallback(async (code: string, language: string = 'javascript', stdin?: string): Promise<ExecutionResult> => {
-    // Handle preview-based languages (HTML, CSS, Markdown render in preview)
-    const PREVIEW_LANGUAGES = new Set(['html', 'css', 'md', 'markdown', 'svg']);
 
+  // Replit persistent shell session — held in a ref to avoid stale closures
+  const replitShellSessionRef = useRef<string | null>(null);
+
+  const executeCode = useCallback(async (
+    code: string,
+    language: string = 'javascript',
+    stdin?: string,
+  ): Promise<ExecutionResult> => {
+    // Preview-based languages render in the preview pane, not executed
+    const PREVIEW_LANGUAGES = new Set(['html', 'css', 'md', 'markdown', 'svg']);
     if (PREVIEW_LANGUAGES.has(language.toLowerCase())) {
       return {
         output: [`🖼️ Rendering ${language.toUpperCase()} in preview...`],
@@ -72,20 +152,14 @@ export const useCodeExecution = () => {
       };
     }
 
-    // Handle data/config formats with validation or formatting
+    // Data/config formats — validate or display inline
     const DATA_LANGUAGES = new Set(['json', 'xml', 'yaml', 'yml', 'toml', 'txt']);
-
     if (DATA_LANGUAGES.has(language.toLowerCase())) {
-      // Try to validate/format the data
       if (language.toLowerCase() === 'json') {
         try {
           const parsed = JSON.parse(code);
           const formatted = JSON.stringify(parsed, null, 2);
-          return {
-            output: ['✓ Valid JSON', '', formatted],
-            error: null,
-            executedAt: new Date().toISOString(),
-          };
+          return { output: ['✓ Valid JSON', '', formatted], error: null, executedAt: new Date().toISOString() };
         } catch (e) {
           return {
             output: [],
@@ -94,25 +168,56 @@ export const useCodeExecution = () => {
           };
         }
       }
-
-      // For other data formats, just display them
-      return {
-        output: [`📄 ${language.toUpperCase()} content:`, '', code],
-        error: null,
-        executedAt: new Date().toISOString(),
-      };
+      return { output: [`📄 ${language.toUpperCase()} content:`, '', code], error: null, executedAt: new Date().toISOString() };
     }
 
     setIsExecuting(true);
-
     const normalizedLanguage = language.toLowerCase();
-    const isOffline = !navigator.onLine;
 
     try {
-      // Languages that can run fully in the browser (WebContainer/JS engine, or Pyodide for python).
+      // =======================================================================
+      // REPLIT: route everything directly to the local backend (server.mjs).
+      // Skip Pyodide, WebContainer, and the Supabase edge function entirely.
+      // =======================================================================
+      if (platform === 'replit') {
+        const isShell = ['shell', 'bash', 'sh'].includes(normalizedLanguage);
+
+        if (isShell) {
+          // Shell commands use a persistent bash session so that cd, env vars,
+          // and installed packages survive between commands.
+          let sessionId = replitShellSessionRef.current;
+
+          // Start a new session if we don't have one yet
+          if (!sessionId) {
+            sessionId = await replitShellStart();
+            replitShellSessionRef.current = sessionId;
+          }
+
+          const { result } = await replitShellRun(code, sessionId);
+
+          // If the session expired on the server, create a fresh one and retry
+          if (result.error === '__SESSION_EXPIRED__') {
+            const newSessionId = await replitShellStart();
+            replitShellSessionRef.current = newSessionId;
+            const retry = await replitShellRun(code, newSessionId);
+            return retry.result;
+          }
+
+          return result;
+        }
+
+        // All other languages (python, javascript, …) — fresh process per run,
+        // with stdin piped so input() / readline work.
+        return await replitExecute(code, normalizedLanguage, stdin);
+      }
+      // =======================================================================
+      // Non-Replit platforms: existing Pyodide / WebContainer / edge-fn logic
+      // =======================================================================
+
+      const isOffline = !navigator.onLine;
       const clientSideLanguages = new Set(['javascript', 'typescript', 'shell', 'bash', 'html', 'css', 'json', 'python']);
 
-      // Python hybrid routing: prefer Pyodide for simple scripts; fall back to container for pip/uv/system code.
+      // Python: prefer Pyodide for simple scripts; fall back to container for system code
       if (normalizedLanguage === 'python' || normalizedLanguage === 'py') {
         const pythonExecutorMode = typeof window !== 'undefined'
           ? window.localStorage.getItem('ide.pythonExecutorMode') || 'auto'
@@ -134,7 +239,7 @@ export const useCodeExecution = () => {
             const result = await runPyodide(code, stdin);
             const banner = isOffline
               ? '🐍 Offline — running in Pyodide (browser Python).'
-              : `🐍 Pyodide (browser Python).${unsupported ? '' : ''}`;
+              : '🐍 Pyodide (browser Python).';
             return {
               output: [banner, ...result.stdout, ...result.stderr],
               error: result.exitCode === 0 ? null : 'Python execution failed',
@@ -149,15 +254,11 @@ export const useCodeExecution = () => {
               };
             }
             console.warn('Pyodide failed, falling back to container executor.', err);
-            // fall through to container executor below
+            // fall through
           }
         }
-        // else: fall through to container path
       }
 
-
-      // Offline guard: server-side execution requires internet.
-      // Exception: JS/TS can fall back to an in-browser eval below.
       const canFallbackToBrowserJs = ['javascript', 'typescript'].includes(normalizedLanguage);
       if (isOffline && !clientSideLanguages.has(normalizedLanguage)) {
         showOfflineDialog({
@@ -174,7 +275,6 @@ export const useCodeExecution = () => {
       const shellExecutorMode = typeof window !== 'undefined'
         ? window.localStorage.getItem('ide.shellExecutorMode') || 'webcontainer'
         : 'webcontainer';
-      // When offline, force WebContainer for JS/shell regardless of saved preference (Wandbox needs network).
       const shouldUseWebContainer =
         ['shell', 'bash', 'javascript'].includes(normalizedLanguage) &&
         (isOffline || shellExecutorMode !== 'wandbox') &&
@@ -191,12 +291,8 @@ export const useCodeExecution = () => {
       if (shouldUseWebContainer) {
         const runtimeCommand = normalizedLanguage === 'javascript' ? 'node' : 'jsh';
         const runtimeArgs = normalizedLanguage === 'javascript' ? ['-e', code] : ['-lc', code];
-
         try {
-          if (webContainerStatus === 'idle') {
-            await boot();
-          }
-
+          if (webContainerStatus === 'idle') await boot();
           const result = await spawn(runtimeCommand, runtimeArgs);
           return {
             output: [...result.stdout, ...result.stderr],
@@ -208,7 +304,6 @@ export const useCodeExecution = () => {
         }
       }
 
-      // In-browser JS/TS fallback when WebContainer fails or we're offline.
       if (canFallbackToBrowserJs) {
         const result = await runJavaScriptInBrowser(code);
         return {
@@ -234,17 +329,14 @@ export const useCodeExecution = () => {
         };
       }
 
+      // Edge function (Supabase) for non-Replit platforms
       const sessionKey = normalizedLanguage === 'bash' ? 'shell' : normalizedLanguage;
-      const platform = detectDeploymentPlatform();
       const body: Record<string, string> = { code, language };
       if (stdin) body.stdin = stdin;
       const existingSessionId = executorSessions[sessionKey];
       if (existingSessionId) body.sessionId = existingSessionId;
-      if (platform === 'replit') body.platformHint = 'replit';
 
-      const { data, error } = await supabase.functions.invoke('execute-code', {
-        body,
-      });
+      const { data, error } = await supabase.functions.invoke('execute-code', { body });
 
       if (error) {
         let errorMessage = error.message;
@@ -254,33 +346,20 @@ export const useCodeExecution = () => {
             const parsed = JSON.parse(match[0]);
             errorMessage = parsed.error || errorMessage;
           }
-        } catch {
-          // Keep original error message
-        }
-
-        return {
-          output: [],
-          error: errorMessage,
-          executedAt: new Date().toISOString(),
-        };
-      }
-
-      if (data?.error) {
-        if (data?.sessionId && data.sessionId !== existingSessionId) {
-          setExecutorSessions((prev) => ({ ...prev, [sessionKey]: data.sessionId }));
-        }
-        return {
-          output: data.output || [],
-          error: data.error,
-          executedAt: data.executedAt || new Date().toISOString(),
-        };
+        } catch { /* keep original */ }
+        return { output: [], error: errorMessage, executedAt: new Date().toISOString() };
       }
 
       if (data?.sessionId && data.sessionId !== existingSessionId) {
         setExecutorSessions((prev) => ({ ...prev, [sessionKey]: data.sessionId }));
       }
 
+      if (data?.error) {
+        return { output: data.output || [], error: data.error, executedAt: data.executedAt || new Date().toISOString() };
+      }
+
       return data as ExecutionResult;
+
     } catch (err) {
       let errorMessage = 'Unknown error';
       if (err instanceof Error) {
@@ -296,12 +375,7 @@ export const useCodeExecution = () => {
           errorMessage = err.message;
         }
       }
-
-      return {
-        output: [],
-        error: errorMessage,
-        executedAt: new Date().toISOString(),
-      };
+      return { output: [], error: errorMessage, executedAt: new Date().toISOString() };
     } finally {
       setIsExecuting(false);
     }
@@ -311,9 +385,21 @@ export const useCodeExecution = () => {
     return executeCode(command, 'shell');
   }, [executeCode]);
 
+  // Reset the Replit persistent shell session (e.g. user clicks "clear / new shell")
+  const resetReplitShell = useCallback(async () => {
+    const oldId = replitShellSessionRef.current;
+    replitShellSessionRef.current = null;
+    if (oldId) {
+      try {
+        await fetch(`/api/replit/shell/session/${oldId}`, { method: 'DELETE' });
+      } catch { /* best-effort */ }
+    }
+  }, []);
+
   return {
     executeCode,
     executeShellCommand,
     isExecuting,
+    resetReplitShell,
   };
 };
