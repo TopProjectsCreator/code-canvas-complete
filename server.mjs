@@ -292,6 +292,9 @@ wss.on('connection', (ws) => {
   // command before forwarding the Enter key to bash.
   let lineBuffer = '';
 
+  // cwd is set during init and reused for later sync-files messages.
+  let cwd = '';
+
   ws.on('message', (msg) => {
     const str = msg.toString();
 
@@ -308,7 +311,7 @@ wss.on('connection', (ws) => {
         // a per-connection session ID so git clone / ls can't touch IDE source.
         const resolvedId = projectId || connSessionId;
         const projectDir = path.join(tmpdir(), `canvas-${resolvedId}`);
-        let cwd = projectDir;
+        cwd = projectDir;
         try {
           fs.mkdirSync(projectDir, { recursive: true });
           for (const { path: filePath, content } of files) {
@@ -330,7 +333,7 @@ wss.on('connection', (ws) => {
             '[ -f /etc/bash.bashrc ] && source /etc/bash.bashrc',
             "PS1='\\[\\033[01;36m\\]\\w\\[\\033[00m\\]\\[\\033[01m\\]\\$\\[\\033[00m\\] '",
             '# Resource limits — defence against fork bombs and runaway writes',
-            'ulimit -u 200     # max 200 user processes',
+            'ulimit -u 500     # max 500 user processes (fork bomb protection)',
             'ulimit -f 204800  # max 200 MB per file write',
             '# Shell-level kill guard (server-side filter is the primary block)',
             'kill() {',
@@ -387,11 +390,37 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // PTY is running — handle resize or forward raw input
+    // PTY is running — handle resize, sync-files, or forward raw input
     try {
       const parsed = JSON.parse(str);
+
       if (parsed.type === 'resize' && parsed.cols && parsed.rows) {
         ptyProcess.resize(Math.max(1, parsed.cols), Math.max(1, parsed.rows));
+        return;
+      }
+
+      // sync-files — write new/updated project files into the live shell dir
+      // without restarting the PTY. Sent by the client whenever the IDE file
+      // tree changes (e.g. after a git clone or GitHub import).
+      if (parsed.type === 'sync-files' && Array.isArray(parsed.files) && cwd) {
+        try {
+          for (const { path: filePath, content } of parsed.files) {
+            if (!filePath || typeof content !== 'string') continue;
+            const safe = filePath.replace(/^[./\\]+/, '').replace(/\.\.\//g, '');
+            if (!safe) continue;
+            const fullPath = path.join(cwd, safe);
+            fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+            fs.writeFileSync(fullPath, content, 'utf8');
+          }
+          // Notify the terminal that files are ready — written directly to
+          // the xterm display, not to bash stdin, so it doesn't interfere
+          // with whatever the user is typing.
+          if (ws.readyState === ws.OPEN) {
+            ws.send(`\r\n\x1b[36m● Project files synced to shell.\x1b[0m\r\n`);
+          }
+        } catch (e) {
+          console.error('sync-files error:', e.message);
+        }
         return;
       }
     } catch {}
