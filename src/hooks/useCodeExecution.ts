@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWebContainer } from '@/hooks/useWebContainer';
 import { usePyodide, detectUnsupportedPyodideUsage } from '@/hooks/usePyodide';
 import { showOfflineDialog } from '@/components/ide/OfflineDialog';
+import { detectDeploymentPlatform } from '@/lib/platform';
 
 interface ExecutionResult {
   output: string[];
@@ -234,10 +235,12 @@ export const useCodeExecution = () => {
       }
 
       const sessionKey = normalizedLanguage === 'bash' ? 'shell' : normalizedLanguage;
+      const platform = detectDeploymentPlatform();
       const body: Record<string, string> = { code, language };
       if (stdin) body.stdin = stdin;
       const existingSessionId = executorSessions[sessionKey];
       if (existingSessionId) body.sessionId = existingSessionId;
+      if (platform === 'replit') body.platformHint = 'replit';
 
       const { data, error } = await supabase.functions.invoke('execute-code', {
         body,
