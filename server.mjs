@@ -61,88 +61,232 @@ app.get('/api/replit/auth', (req, res) => {
 app.get('/api/replit/signout', (req, res) => res.json({ ok: true }));
 
 // ---------------------------------------------------------------------------
-// AI proxy — forwards chat/image/music requests to Supabase edge functions
-// using a per-user anonymous Supabase session so the edge functions receive
-// a valid JWT even though auth on Replit goes through the native provider.
+// AI proxy — self-contained, calls AI provider APIs directly from the server
+// so no Supabase session is needed. BYOK keys are stored per-user in memory
+// and on disk (aikeys.json) so they survive server restarts.
 // ---------------------------------------------------------------------------
 
-const SUPABASE_URL  = process.env.VITE_SUPABASE_URL        || '';
-const SUPABASE_ANON = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+const AI_KEYS_FILE = path.join(__dirname, 'aikeys.json');
 
-// In-memory cache: replitUserId → { accessToken, expiresAt }
-const _anonSessions = new Map();
-const _pendingAnon   = new Map();
+// { [userId]: { [provider]: apiKey } }
+let _aiKeys = {};
+try {
+  if (fs.existsSync(AI_KEYS_FILE)) {
+    _aiKeys = JSON.parse(fs.readFileSync(AI_KEYS_FILE, 'utf8'));
+  }
+} catch { _aiKeys = {}; }
 
-async function getSupabaseToken(replitUserId) {
-  const cached = _anonSessions.get(replitUserId);
-  if (cached && cached.expiresAt > Date.now() + 60_000) return cached.accessToken;
+function saveAiKeys() {
+  try { fs.writeFileSync(AI_KEYS_FILE, JSON.stringify(_aiKeys)); } catch {}
+}
 
-  // Deduplicate concurrent requests for the same user
-  if (_pendingAnon.has(replitUserId)) return _pendingAnon.get(replitUserId);
+function getReplitUserId(req) {
+  return req.headers['x-replit-user-id'] || null;
+}
 
-  const promise = (async () => {
-    try {
-      if (!SUPABASE_URL || !SUPABASE_ANON) return null;
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON },
-        body: '{}',
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      if (!data.access_token) return null;
-      const expiresAt = Date.now() + (data.expires_in || 3600) * 1000;
-      _anonSessions.set(replitUserId, { accessToken: data.access_token, expiresAt });
-      return data.access_token;
-    } catch {
-      return null;
-    } finally {
-      _pendingAnon.delete(replitUserId);
+// Provider endpoint configs (mirrors the edge function)
+const BYOK_PROVIDERS = {
+  openai:      { url: 'https://api.openai.com/v1/chat/completions',                          authHeader: 'Bearer' },
+  anthropic:   { url: 'https://api.anthropic.com/v1/messages',                               authHeader: 'x-api-key' },
+  gemini:      { url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', authHeader: 'Bearer' },
+  perplexity:  { url: 'https://api.perplexity.ai/chat/completions',                          authHeader: 'Bearer' },
+  deepseek:    { url: 'https://api.deepseek.com/v1/chat/completions',                        authHeader: 'Bearer' },
+  xai:         { url: 'https://api.x.ai/v1/chat/completions',                                authHeader: 'Bearer' },
+  cohere:      { url: 'https://api.cohere.com/v2/chat',                                      authHeader: 'Bearer' },
+  openrouter:  { url: 'https://openrouter.ai/api/v1/chat/completions',                       authHeader: 'Bearer' },
+  github:      { url: 'https://models.inference.ai.azure.com/chat/completions',              authHeader: 'Bearer' },
+};
+
+const BYOK_DEFAULT_MODELS = {
+  openai: 'gpt-4o', anthropic: 'claude-3-5-sonnet-latest', gemini: 'gemini-2.5-flash',
+  perplexity: 'sonar', deepseek: 'deepseek-chat', xai: 'grok-3-fast',
+  cohere: 'command-r-plus', openrouter: 'openai/gpt-4o', github: 'gpt-4o',
+};
+
+// BYOK key management endpoints
+app.get('/api/replit/ai/keys', (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const userKeys = _aiKeys[uid] || {};
+  const sanitized = Object.keys(userKeys).map(provider => ({
+    id: `${uid}-${provider}`, provider, api_key: userKeys[provider],
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(), user_id: uid,
+  }));
+  res.json(sanitized);
+});
+
+app.put('/api/replit/ai/keys', (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { provider, api_key } = req.body || {};
+  if (!provider || !api_key) return res.status(400).json({ error: 'provider and api_key required' });
+  if (!_aiKeys[uid]) _aiKeys[uid] = {};
+  _aiKeys[uid][provider] = api_key;
+  saveAiKeys();
+  res.json({ ok: true });
+});
+
+app.delete('/api/replit/ai/keys', (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { provider } = req.query;
+  if (!provider) return res.status(400).json({ error: 'provider required' });
+  if (_aiKeys[uid]) { delete _aiKeys[uid][provider]; saveAiKeys(); }
+  res.json({ ok: true });
+});
+
+// Build a simple system prompt for the AI
+function buildSimpleSystemPrompt(currentFile, consoleErrors, workflows) {
+  let ctx = 'You are a helpful AI coding assistant in Code Canvas IDE.\n\n';
+  if (currentFile) {
+    ctx += `### Active File: \`${currentFile.name}\`\n**Language**: ${currentFile.language || 'unknown'}\n\n\`\`\`${currentFile.language || ''}\n${currentFile.content || ''}\n\`\`\`\n`;
+  } else {
+    ctx += '📂 No file is currently open.\n';
+  }
+  if (consoleErrors) ctx += `\n### Console Errors\n\`\`\`\n${consoleErrors}\n\`\`\`\n`;
+  if (workflows && workflows.length > 0) {
+    ctx += `\n### Workflows\n${workflows.map(w => `- **${w.name}**: \`${w.command}\``).join('\n')}\n`;
+  }
+  return ctx;
+}
+
+// Send a streaming SSE response with a single text chunk
+function sseResponse(res, content) {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  const chunk = JSON.stringify({ choices: [{ delta: { content } }] });
+  res.write(`data: ${chunk}\n\n`);
+  res.write('data: [DONE]\n\n');
+  res.end();
+}
+
+function sseError(res, status, message) {
+  res.status(status).json({ error: message });
+}
+
+// Main chat handler
+app.post('/api/replit/ai/chat', async (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return sseError(res, 401, 'Not authenticated with Replit');
+
+  const { messages, currentFile, consoleErrors, workflows, model, byokProvider, byokModel } = req.body || {};
+
+  // Determine which API key and provider to use
+  const userKeys = _aiKeys[uid] || {};
+  let provider = byokProvider || null;
+  let apiKey = provider ? userKeys[provider] : null;
+
+  // If no explicit provider, find the first saved key
+  if (!provider || !apiKey) {
+    for (const p of Object.keys(BYOK_PROVIDERS)) {
+      if (userKeys[p]) { provider = p; apiKey = userKeys[p]; break; }
     }
-  })();
-  _pendingAnon.set(replitUserId, promise);
-  return promise;
-}
-
-async function proxyToEdge(edgeName, req, res) {
-  const replitUserId = req.headers['x-replit-user-id'];
-  if (!replitUserId) return res.status(401).json({ error: 'Not authenticated with Replit' });
-
-  const accessToken = await getSupabaseToken(replitUserId);
-  if (!accessToken) {
-    return res.status(401).json({
-      error: 'Could not establish a Supabase session. Enable anonymous sign-ins in your Supabase project (Authentication → Settings → Allow anonymous sign-ins).',
-    });
   }
 
-  let upstream;
+  if (!provider || !apiKey) {
+    return sseError(res, 503,
+      'No API key configured. Please add your own API key (OpenAI, Anthropic, Gemini, etc.) in the API Keys settings to use the AI assistant on Replit.'
+    );
+  }
+
+  const cfg = BYOK_PROVIDERS[provider];
+  if (!cfg) return sseError(res, 400, `Unsupported provider: ${provider}`);
+
+  const effectiveModel = byokModel || BYOK_DEFAULT_MODELS[provider] || 'gpt-4o';
+  const systemPrompt = buildSimpleSystemPrompt(currentFile, consoleErrors, workflows);
+
+  const aiMessages = [
+    { role: 'system', content: systemPrompt },
+    ...(messages || []),
+  ];
+
   try {
-    upstream = await fetch(`${SUPABASE_URL}/functions/v1/${edgeName}`, {
+    let upstreamRes;
+    if (provider === 'anthropic') {
+      // Anthropic uses a different format
+      const textMessages = aiMessages.filter(m => m.role !== 'system');
+      upstreamRes = await fetch(cfg.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: effectiveModel,
+          max_tokens: 8192,
+          system: systemPrompt,
+          messages: textMessages,
+        }),
+      });
+      if (!upstreamRes.ok) {
+        const err = await upstreamRes.text();
+        return sseError(res, 502, `Anthropic error (${upstreamRes.status}): ${err.slice(0, 300)}`);
+      }
+      const data = await upstreamRes.json();
+      const text = data.content?.filter(b => b.type === 'text').map(b => b.text).join('') || '';
+      return sseResponse(res, text);
+    }
+
+    // OpenAI-compatible providers
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    };
+    upstreamRes = await fetch(cfg.url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(req.body),
+      headers,
+      body: JSON.stringify({ model: effectiveModel, messages: aiMessages, stream: false }),
     });
+
+    if (!upstreamRes.ok) {
+      const err = await upstreamRes.text();
+      return sseError(res, 502, `${provider} error (${upstreamRes.status}): ${err.slice(0, 300)}`);
+    }
+
+    const data = await upstreamRes.json();
+    const content = data.choices?.[0]?.message?.content || '';
+    return sseResponse(res, content);
+
   } catch (err) {
-    return res.status(502).json({ error: `Upstream fetch failed: ${err.message}` });
+    return sseError(res, 500, `AI request failed: ${err.message}`);
+  }
+});
+
+// Image generation — requires a key from a supported image provider
+app.post('/api/replit/ai/image', async (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated with Replit' });
+  const { prompt } = req.body || {};
+  if (!prompt) return res.status(400).json({ error: 'prompt required' });
+
+  const userKeys = _aiKeys[uid] || {};
+  const openaiKey = userKeys['openai'];
+  if (!openaiKey) {
+    return res.status(503).json({ error: 'Image generation requires an OpenAI API key. Add one in API Keys settings.' });
   }
 
-  res.status(upstream.status);
-  upstream.headers.forEach((v, k) => {
-    if (!['transfer-encoding', 'connection'].includes(k.toLowerCase())) res.setHeader(k, v);
-  });
+  try {
+    const r = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${openaiKey}` },
+      body: JSON.stringify({ model: 'dall-e-3', prompt, n: 1, size: '1024x1024', response_format: 'url' }),
+    });
+    if (!r.ok) {
+      const err = await r.text();
+      return res.status(502).json({ error: `OpenAI image error: ${err.slice(0, 300)}` });
+    }
+    const data = await r.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-  if (!upstream.body) return res.end();
-  const { Readable } = await import('stream');
-  Readable.fromWeb(upstream.body).pipe(res);
-}
-
-app.post('/api/replit/ai/chat',  (req, res) => proxyToEdge('ai-chat',          req, res));
-app.post('/api/replit/ai/image', (req, res) => proxyToEdge('generate-image',    req, res));
-app.post('/api/replit/ai/music', (req, res) => proxyToEdge('generate-music',    req, res));
-app.post('/api/replit/ai/cmd',   (req, res) => proxyToEdge('generate-command',  req, res));
+// Music generation — placeholder (no free provider without Lovable key)
+app.post('/api/replit/ai/music', (req, res) => {
+  res.status(503).json({ error: 'Music generation is not available on Replit.' });
+});
 
 // ---------------------------------------------------------------------------
 // One-shot code execution  (Run button — fresh process per run, stdin piped)
