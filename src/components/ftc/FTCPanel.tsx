@@ -78,10 +78,9 @@ function collectOpModes(nodes: FileNode[], includeSamples: boolean, prefix = '')
 
     const normalizedPath = path.toLowerCase();
     const isTeamCodeJava =
-      normalizedPath.includes('/teamcode/src/main/java/') ||
-      normalizedPath.includes('/teamcode/scr/main/java/') ||
-      normalizedPath.includes('teamcode/src/main/java/') ||
-      normalizedPath.includes('teamcode/scr/main/java/');
+      normalizedPath.includes('/teamcode/') &&
+      normalizedPath.includes('/java/') &&
+      (normalizedPath.includes('/src/main/java/') || normalizedPath.includes('/scr/main/java/'));
     if (!isTeamCodeJava) continue;
 
     const isSampleFile = normalizedPath.includes('/samples/');
