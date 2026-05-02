@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { FileNode } from '@/types/ide';
 import { getFileLanguage } from '@/data/defaultFiles';
 import { supabase } from '@/integrations/supabase/client';
+import { detectDeploymentPlatform } from '@/lib/platform';
 
 export type GitProvider = 'github' | 'gitlab' | 'bitbucket' | 'replit' | 'bolt' | 'firebase';
 
@@ -26,6 +27,7 @@ interface SearchResult {
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
+const isReplit = detectDeploymentPlatform() === 'replit';
 
 // Binary extensions that should NOT be fetched as text
 const BINARY_EXTENSIONS = new Set([
@@ -86,6 +88,16 @@ const fetchReplitOEmbedMetadata = async (owner: string, repo: string) => {
 const ghProxy = async (body: Record<string, unknown>) => {
   const userToken = await getUserGithubToken();
   const payload = userToken ? { ...body, userToken } : body;
+  if (isReplit) {
+    const response = await fetch('/api/replit/github-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data?.error || 'Proxy request failed');
+    return data;
+  }
   const { data, error } = await supabase.functions.invoke('github-proxy', { body: payload });
   if (error) throw new Error(error.message || 'Proxy request failed');
   if (data?.error === 'Unknown action') {

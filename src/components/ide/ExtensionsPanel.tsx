@@ -7,6 +7,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildContext, executeExtension } from '@/lib/extensionRuntime';
+import { detectDeploymentPlatform } from '@/lib/platform';
 import type { FileNode } from '@/types/ide';
 import { toast } from 'sonner';
 import { BUILTIN_EXTENSIONS, type BuiltinExtension } from '@/data/builtinExtensions';
@@ -43,6 +44,7 @@ const makeSlug = (v: string) =>
   v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
 const CODE_STORAGE_KEY = 'ext-code-';
+const isReplit = detectDeploymentPlatform() === 'replit';
 
 /* ------------------------------------------------------------------ */
 /*  Sub-components                                                     */
@@ -318,9 +320,19 @@ export const ExtensionsPanel = ({
     }
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-extension', {
-        body: { name: name.trim(), description: description.trim(), runtime_type: runtimeType },
-      });
+      const response = isReplit
+        ? await fetch('/api/replit/ai/generate-extension', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name.trim(), description: description.trim(), runtime_type: runtimeType }),
+          })
+        : null;
+      const payload = response ? await response.json().catch(() => ({})) : null;
+      const { data, error } = response
+        ? { data: payload, error: response.ok ? null : { message: payload?.error || 'Generation failed' } }
+        : await supabase.functions.invoke('generate-extension', {
+            body: { name: name.trim(), description: description.trim(), runtime_type: runtimeType },
+          });
       if (error) throw new Error(error.message);
       if (data?.code) {
         setCode(data.code);
@@ -456,10 +468,16 @@ export const ExtensionsPanel = ({
           name: name.trim(), description: description.trim(), manifest,
         }).eq('id', editingId);
       } else {
-        const { data: resp, error } = await supabase.functions.invoke('create-extension', {
-          body: { name: name.trim(), slug, description: description.trim(), manifest, runtime: runtimeType },
-        });
-        if (error) throw new Error(error.message);
+        const resp = isReplit
+          ? await fetch('/api/replit/extensions/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: name.trim(), slug, description: description.trim(), manifest, runtime: runtimeType }),
+            }).then(async (r) => ({ data: await r.json().catch(() => ({})), error: r.ok ? null : { message: 'Save failed' } }))
+          : await supabase.functions.invoke('create-extension', {
+              body: { name: name.trim(), slug, description: description.trim(), manifest, runtime: runtimeType },
+            });
+        if ((resp as any).error) throw new Error((resp as any).error.message);
         if (resp?.id) setEditingId(resp.id);
       }
 
@@ -476,9 +494,18 @@ export const ExtensionsPanel = ({
 
   const publishExtension = async (ext: ExtensionRecord) => {
     setSaving(true);
-    await supabase.functions.invoke('publish-extension', {
-      body: { extension_id: ext.id, version: ext.version, source_bundle_url: `extensions/${ext.slug}/${ext.version}/bundle.zip` },
-    });
+    if (isReplit) {
+      const r = await fetch('/api/replit/extensions/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extension_id: ext.id, version: ext.version, source_bundle_url: `extensions/${ext.slug}/${ext.version}/bundle.zip` }),
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || 'Publish failed');
+    } else {
+      await supabase.functions.invoke('publish-extension', {
+        body: { extension_id: ext.id, version: ext.version, source_bundle_url: `extensions/${ext.slug}/${ext.version}/bundle.zip` },
+      });
+    }
     toast.success('Published to store!');
     await fetchMyExtensions();
     await fetchStore();
@@ -491,13 +518,31 @@ export const ExtensionsPanel = ({
   };
 
   const installExtension = async (extId: string) => {
-    await supabase.functions.invoke('install-extension', { body: { extension_id: extId } });
+    if (isReplit) {
+      const r = await fetch('/api/replit/extensions/install', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extension_id: extId }),
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || 'Install failed');
+    } else {
+      await supabase.functions.invoke('install-extension', { body: { extension_id: extId } });
+    }
     await fetchInstalled();
     toast.success('Installed');
   };
 
   const uninstallExtension = async (extId: string) => {
-    await supabase.functions.invoke('install-extension', { body: { extension_id: extId, action: 'uninstall' } });
+    if (isReplit) {
+      const r = await fetch('/api/replit/extensions/install', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extension_id: extId, action: 'uninstall' }),
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || 'Uninstall failed');
+    } else {
+      await supabase.functions.invoke('install-extension', { body: { extension_id: extId, action: 'uninstall' } });
+    }
     await fetchInstalled();
   };
 

@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { detectDeploymentPlatform } from '@/lib/platform';
 import {
   requestAdbDevice,
   adbConnect,
@@ -35,9 +36,30 @@ export async function compileFTC(
 ): Promise<BuildResult> {
   onProgress?.('Sending files to build server...');
 
-  const { data, error } = await supabase.functions.invoke('compile-ftc', {
-    body: { files },
-  });
+  if (detectDeploymentPlatform() === 'replit') {
+    const response = await fetch('/api/replit/compile-ftc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.status === 'error') {
+      return {
+        status: 'error',
+        message: data?.message || 'Compilation failed',
+        errors: data?.errors || [data?.error || 'Build request failed'],
+        warnings: data?.warnings || [],
+      };
+    }
+    return {
+      status: 'success',
+      message: data?.message || 'Build successful',
+      apkBase64: data?.apkBase64,
+      warnings: data?.warnings || [],
+    };
+  }
+
+  const { data, error } = await supabase.functions.invoke('compile-ftc', { body: { files } });
 
   if (error) {
     return {
