@@ -283,6 +283,16 @@ wss.on('connection', (ws) => {
             '  done',
             '  command kill "$@"',
             '}',
+            '# Override sudo message — replace "Replit" branding with CodeCanvas',
+            'sudo() {',
+            '  if [[ ! -f ~/.sudo_motd ]]; then',
+            '    echo -e "\\t\\033[93mYou don\'t need sudo in CodeCanvas, all files that\\033[0m" >&2',
+            '    echo -e "\\t\\033[93mcan be modified already have the correct permissions.\\033[0m" >&2',
+            '    echo -e "" >&2',
+            '    touch ~/.sudo_motd',
+            '  fi',
+            '  command sudo "$@"',
+            '}',
           ].join('\n') + '\n';
           fs.writeFileSync(path.join(projectDir, '.bashrc'), bashrc, 'utf8');
         } catch (e) {
