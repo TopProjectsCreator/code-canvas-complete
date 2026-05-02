@@ -28,3 +28,6 @@ skills-lock.json
 *.njsproj
 *.sln
 *.sw?
+
+# Rust build artifacts
+target/
