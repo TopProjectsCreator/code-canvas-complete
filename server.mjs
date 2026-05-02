@@ -333,7 +333,7 @@ wss.on('connection', (ws) => {
             '[ -f /etc/bash.bashrc ] && source /etc/bash.bashrc',
             "PS1='\\[\\033[01;36m\\]\\w\\[\\033[00m\\]\\[\\033[01m\\]\\$\\[\\033[00m\\] '",
             '# Resource limits — defence against fork bombs and runaway writes',
-            'ulimit -u 500     # max 500 user processes (fork bomb protection)',
+            'ulimit -u 2048    # max 2048 user processes (fork bomb protection)',
             'ulimit -f 204800  # max 200 MB per file write',
             '# Shell-level kill guard (server-side filter is the primary block)',
             'kill() {',
