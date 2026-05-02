@@ -64,6 +64,14 @@ export default defineConfig(({ mode }) => ({
       },
     }),
   ].filter(Boolean),
+  define: {
+    // Explicitly pass VITE_DEPLOY_PLATFORM from system env into the frontend bundle.
+    // This ensures Replit's env var is available as import.meta.env.VITE_DEPLOY_PLATFORM
+    // even without a .env file on disk.
+    'import.meta.env.VITE_DEPLOY_PLATFORM': JSON.stringify(
+      process.env.VITE_DEPLOY_PLATFORM ?? 'generic'
+    ),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
