@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Cpu,
   Rocket,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -30,7 +31,7 @@ const COMPETITORS = [
     bg: "from-orange-500/10 to-orange-500/5",
     border: "border-orange-500/30",
     description:
-      "A browser-based IDE focused on quick hosting and multiplayer editing.",
+      "A browser-based IDE with hosting, multiplayer editing, AI agent, and automations.",
   },
   {
     id: "lovable",
@@ -83,14 +84,14 @@ const COMPETITORS = [
       "Generates shadcn/tailwind UI components from prompts, no runtime.",
   },
   {
-    id: "github-copilot",
-    name: "GitHub Copilot",
-    tagline: "AI pair programmer",
+    id: "github-codespaces",
+    name: "GitHub Codespaces",
+    tagline: "Cloud dev environment",
     color: "#58A6FF",
     bg: "from-sky-500/10 to-sky-500/5",
     border: "border-sky-500/30",
     description:
-      "IDE extension providing inline suggestions, chat, and pull request reviews.",
+      "Full VS Code environment in the browser with full extension support, terminal, and port forwarding.",
   },
   {
     id: "windsurf",
@@ -133,8 +134,23 @@ const FEATURES: Feature[] = [
           bolt: "partial",
           cursor: false,
           v0: false,
-          "github-copilot": false,
+          "github-codespaces": true,
           windsurf: false,
+        },
+      },
+      {
+        label: "Local install available",
+        description: "Can also be used as a local desktop app",
+        codecanvas: false,
+        competitors: {
+          replit: false,
+          lovable: false,
+          base44: false,
+          bolt: false,
+          cursor: true,
+          v0: false,
+          "github-codespaces": true,
+          windsurf: true,
         },
       },
       {
@@ -148,7 +164,7 @@ const FEATURES: Feature[] = [
           bolt: true,
           cursor: true,
           v0: false,
-          "github-copilot": true,
+          "github-codespaces": true,
           windsurf: true,
         },
       },
@@ -162,7 +178,7 @@ const FEATURES: Feature[] = [
           bolt: true,
           cursor: true,
           v0: false,
-          "github-copilot": true,
+          "github-codespaces": true,
           windsurf: true,
         },
       },
@@ -176,7 +192,7 @@ const FEATURES: Feature[] = [
           bolt: false,
           cursor: true,
           v0: false,
-          "github-copilot": true,
+          "github-codespaces": true,
           windsurf: true,
         },
       },
@@ -185,13 +201,13 @@ const FEATURES: Feature[] = [
         description: "Design and diagram alongside code",
         codecanvas: true,
         competitors: {
-          replit: false,
+          replit: "partial",
           lovable: false,
           base44: false,
           bolt: false,
           cursor: false,
           v0: false,
-          "github-copilot": false,
+          "github-codespaces": false,
           windsurf: false,
         },
       },
@@ -212,7 +228,7 @@ const FEATURES: Feature[] = [
           bolt: "partial",
           cursor: true,
           v0: false,
-          "github-copilot": true,
+          "github-codespaces": true,
           windsurf: true,
         },
       },
@@ -226,7 +242,7 @@ const FEATURES: Feature[] = [
           bolt: true,
           cursor: false,
           v0: false,
-          "github-copilot": false,
+          "github-codespaces": true,
           windsurf: false,
         },
       },
@@ -240,7 +256,7 @@ const FEATURES: Feature[] = [
           bolt: true,
           cursor: false,
           v0: "partial",
-          "github-copilot": false,
+          "github-codespaces": true,
           windsurf: false,
         },
       },
@@ -254,7 +270,7 @@ const FEATURES: Feature[] = [
           bolt: true,
           cursor: true,
           v0: false,
-          "github-copilot": true,
+          "github-codespaces": true,
           windsurf: true,
         },
       },
@@ -275,7 +291,7 @@ const FEATURES: Feature[] = [
           bolt: false,
           cursor: "partial",
           v0: false,
-          "github-copilot": false,
+          "github-codespaces": "partial",
           windsurf: false,
         },
       },
@@ -289,7 +305,7 @@ const FEATURES: Feature[] = [
           bolt: true,
           cursor: true,
           v0: false,
-          "github-copilot": true,
+          "github-codespaces": true,
           windsurf: true,
         },
       },
@@ -297,13 +313,13 @@ const FEATURES: Feature[] = [
         label: "AI image generation",
         codecanvas: true,
         competitors: {
-          replit: false,
+          replit: "partial",
           lovable: false,
           base44: false,
           bolt: false,
           cursor: false,
           v0: false,
-          "github-copilot": false,
+          "github-codespaces": false,
           windsurf: false,
         },
       },
@@ -317,7 +333,7 @@ const FEATURES: Feature[] = [
           bolt: false,
           cursor: false,
           v0: false,
-          "github-copilot": false,
+          "github-codespaces": false,
           windsurf: false,
         },
       },
@@ -331,7 +347,7 @@ const FEATURES: Feature[] = [
           bolt: false,
           cursor: true,
           v0: false,
-          "github-copilot": false,
+          "github-codespaces": true,
           windsurf: true,
         },
       },
@@ -345,7 +361,7 @@ const FEATURES: Feature[] = [
           bolt: false,
           cursor: true,
           v0: false,
-          "github-copilot": true,
+          "github-codespaces": true,
           windsurf: true,
         },
       },
@@ -365,7 +381,7 @@ const FEATURES: Feature[] = [
           bolt: false,
           cursor: false,
           v0: false,
-          "github-copilot": false,
+          "github-codespaces": false,
           windsurf: false,
         },
       },
@@ -379,7 +395,7 @@ const FEATURES: Feature[] = [
           bolt: false,
           cursor: false,
           v0: "partial",
-          "github-copilot": false,
+          "github-codespaces": false,
           windsurf: false,
         },
       },
@@ -393,7 +409,7 @@ const FEATURES: Feature[] = [
           bolt: false,
           cursor: false,
           v0: false,
-          "github-copilot": false,
+          "github-codespaces": false,
           windsurf: false,
         },
       },
@@ -413,7 +429,7 @@ const FEATURES: Feature[] = [
           bolt: false,
           cursor: true,
           v0: false,
-          "github-copilot": true,
+          "github-codespaces": true,
           windsurf: true,
         },
       },
@@ -421,13 +437,13 @@ const FEATURES: Feature[] = [
         label: "Office file support (docx, pptx, xlsx)",
         codecanvas: true,
         competitors: {
-          replit: false,
+          replit: true,
           lovable: false,
           base44: false,
           bolt: false,
           cursor: false,
           v0: false,
-          "github-copilot": false,
+          "github-codespaces": false,
           windsurf: false,
         },
       },
@@ -441,7 +457,7 @@ const FEATURES: Feature[] = [
           bolt: false,
           cursor: true,
           v0: false,
-          "github-copilot": true,
+          "github-codespaces": true,
           windsurf: "partial",
         },
       },
@@ -449,13 +465,13 @@ const FEATURES: Feature[] = [
         label: "Automations / workflow builder",
         codecanvas: true,
         competitors: {
-          replit: false,
+          replit: true,
           lovable: false,
           base44: "partial",
           bolt: false,
           cursor: false,
           v0: false,
-          "github-copilot": false,
+          "github-codespaces": false,
           windsurf: false,
         },
       },
@@ -469,7 +485,7 @@ const FEATURES: Feature[] = [
           bolt: true,
           cursor: false,
           v0: true,
-          "github-copilot": false,
+          "github-codespaces": true,
           windsurf: false,
         },
       },
@@ -483,7 +499,7 @@ const FEATURES: Feature[] = [
           bolt: true,
           cursor: true,
           v0: true,
-          "github-copilot": true,
+          "github-codespaces": true,
           windsurf: true,
         },
       },
@@ -540,17 +556,31 @@ function scoreCodeCanvas(): number {
 }
 
 const TOTAL_FEATURES = FEATURES.reduce((a, f) => a + f.items.length, 0);
+const MAX_SELECTED = 4;
 
 export default function Compare() {
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<string>("replit");
+  const [selectedIds, setSelectedIds] = useState<string[]>(["replit"]);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(FEATURES.map((f) => f.category))
   );
 
-  const competitor = COMPETITORS.find((c) => c.id === selected)!;
+  const selectedCompetitors = COMPETITORS.filter((c) =>
+    selectedIds.includes(c.id)
+  );
+
   const ccScore = scoreCodeCanvas();
-  const compScore = scoreCompetitor(selected);
+
+  const toggleId = (id: string) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) {
+        if (prev.length === 1) return prev; // keep at least 1
+        return prev.filter((x) => x !== id);
+      }
+      if (prev.length >= MAX_SELECTED) return prev; // max 4
+      return [...prev, id];
+    });
+  };
 
   const toggleCategory = (cat: string) => {
     setExpandedCategories((prev) => {
@@ -559,6 +589,10 @@ export default function Compare() {
       return next;
     });
   };
+
+  // Dynamic grid columns: feature label + CodeCanvas + N competitors
+  const colCount = 1 + 1 + selectedIds.length;
+  const gridTemplate = `1fr repeat(${1 + selectedIds.length}, minmax(100px, 120px))`;
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
@@ -625,57 +659,87 @@ export default function Compare() {
               </span>
             </h1>
             <p className="mt-4 max-w-2xl mx-auto text-base text-muted-foreground sm:text-lg">
-              Pick any tool below and see how CodeCanvas stacks up feature by
-              feature — no marketing spin, just the facts.
+              Pick up to {MAX_SELECTED} tools and see how CodeCanvas stacks up
+              feature by feature — no marketing spin, just the facts.
             </p>
           </div>
 
-          {/* Competitor picker */}
+          {/* Tool picker */}
           <div className="mb-10">
-            <p className="mb-4 text-sm font-mono text-muted-foreground uppercase tracking-widest text-center">
-              Compare against
-            </p>
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm font-mono text-muted-foreground uppercase tracking-widest">
+                Compare against
+              </p>
+              <span className="text-xs text-muted-foreground font-mono">
+                {selectedIds.length}/{MAX_SELECTED} selected
+              </span>
+            </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {COMPETITORS.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setSelected(c.id)}
-                  className={`rounded-xl border p-4 text-left transition-all hover:scale-[1.02] ${
-                    selected === c.id
-                      ? `bg-gradient-to-br ${c.bg} ${c.border} shadow-lg`
-                      : "border-border/40 bg-card/40 hover:border-border/70"
-                  }`}
-                >
-                  <div
-                    className="mb-1 font-semibold text-sm"
-                    style={{ color: selected === c.id ? c.color : undefined }}
+              {COMPETITORS.map((c) => {
+                const isSelected = selectedIds.includes(c.id);
+                const isDisabled = !isSelected && selectedIds.length >= MAX_SELECTED;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => toggleId(c.id)}
+                    disabled={isDisabled}
+                    className={`rounded-xl border p-4 text-left transition-all relative ${
+                      isSelected
+                        ? `bg-gradient-to-br ${c.bg} ${c.border} shadow-lg scale-[1.02]`
+                        : isDisabled
+                        ? "border-border/20 bg-card/20 opacity-40 cursor-not-allowed"
+                        : "border-border/40 bg-card/40 hover:border-border/70 hover:scale-[1.01]"
+                    }`}
                   >
-                    {c.name}
-                  </div>
-                  <div className="text-xs text-muted-foreground line-clamp-2">
-                    {c.tagline}
-                  </div>
-                </button>
-              ))}
+                    {isSelected && (
+                      <span
+                        className="absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold"
+                        style={{ background: c.color, color: "#000" }}
+                      >
+                        {selectedIds.indexOf(c.id) + 1}
+                      </span>
+                    )}
+                    {!isSelected && !isDisabled && (
+                      <span className="absolute top-2.5 right-2.5 flex h-5 w-5 items-center justify-center rounded-full border border-border/50 text-muted-foreground">
+                        <Plus className="h-3 w-3" />
+                      </span>
+                    )}
+                    <div
+                      className="mb-1 font-semibold text-sm pr-6"
+                      style={{ color: isSelected ? c.color : undefined }}
+                    >
+                      {c.name}
+                    </div>
+                    <div className="text-xs text-muted-foreground line-clamp-2">
+                      {c.tagline}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Score summary */}
           <div className="mb-8 rounded-2xl border border-primary/20 bg-card/40 p-6 backdrop-blur-sm shadow-lg shadow-primary/5">
-            <div className="grid grid-cols-2 gap-6 sm:gap-10">
+            <div
+              className="grid gap-4"
+              style={{
+                gridTemplateColumns: `repeat(${1 + selectedIds.length}, 1fr)`,
+              }}
+            >
               {/* CodeCanvas score */}
               <div className="text-center">
                 <div className="mb-1 flex items-center justify-center gap-2">
                   <div className="flex h-7 w-7 items-center justify-center rounded bg-primary/20">
                     <CircuitBoard className="h-4 w-4 text-primary" />
                   </div>
-                  <span className="font-mono font-semibold text-primary">
+                  <span className="font-mono font-semibold text-primary text-sm">
                     CodeCanvas
                   </span>
                 </div>
-                <div className="text-4xl font-bold tabular-nums">
+                <div className="text-3xl font-bold tabular-nums">
                   {ccScore}
-                  <span className="text-lg text-muted-foreground">
+                  <span className="text-base text-muted-foreground">
                     /{TOTAL_FEATURES}
                   </span>
                 </div>
@@ -686,61 +750,95 @@ export default function Compare() {
                   />
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground">
-                  {Math.round((ccScore / TOTAL_FEATURES) * 100)}% of features
+                  {Math.round((ccScore / TOTAL_FEATURES) * 100)}%
                 </div>
               </div>
 
-              {/* Competitor score */}
-              <div className="text-center">
-                <div className="mb-1 flex items-center justify-center gap-2">
-                  <span
-                    className="font-mono font-semibold"
-                    style={{ color: competitor.color }}
-                  >
-                    {competitor.name}
-                  </span>
-                </div>
-                <div className="text-4xl font-bold tabular-nums">
-                  {compScore}
-                  <span className="text-lg text-muted-foreground">
-                    /{TOTAL_FEATURES}
-                  </span>
-                </div>
-                <div className="mt-2 h-2 w-full rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${(compScore / TOTAL_FEATURES) * 100}%`,
-                      backgroundColor: competitor.color,
-                    }}
-                  />
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {Math.round((compScore / TOTAL_FEATURES) * 100)}% of features
-                </div>
-              </div>
+              {/* Competitor scores */}
+              {selectedCompetitors.map((competitor) => {
+                const compScore = scoreCompetitor(competitor.id);
+                return (
+                  <div key={competitor.id} className="text-center">
+                    <div className="mb-1 flex items-center justify-center">
+                      <span
+                        className="font-mono font-semibold text-sm truncate"
+                        style={{ color: competitor.color }}
+                      >
+                        {competitor.name}
+                      </span>
+                    </div>
+                    <div className="text-3xl font-bold tabular-nums">
+                      {compScore}
+                      <span className="text-base text-muted-foreground">
+                        /{TOTAL_FEATURES}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-2 w-full rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${(compScore / TOTAL_FEATURES) * 100}%`,
+                          backgroundColor: competitor.color,
+                        }}
+                      />
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {Math.round((compScore / TOTAL_FEATURES) * 100)}%
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Verdict */}
-            <div className="mt-6 rounded-xl border border-primary/15 bg-primary/5 p-4 text-center">
-              <p className="text-sm text-muted-foreground">
-                {competitor.description}
-              </p>
-              {ccScore > compScore && (
-                <p className="mt-2 font-semibold text-primary">
-                  CodeCanvas leads by{" "}
-                  <span className="font-mono">{ccScore - compScore}</span>{" "}
-                  features in this comparison.
+            {/* Verdicts */}
+            {selectedCompetitors.length === 1 && (
+              <div className="mt-6 rounded-xl border border-primary/15 bg-primary/5 p-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {selectedCompetitors[0].description}
                 </p>
-              )}
-              {ccScore <= compScore && (
-                <p className="mt-2 font-semibold text-yellow-400">
-                  {competitor.name} matches or exceeds CodeCanvas in{" "}
-                  <span className="font-mono">{compScore - ccScore}</span>{" "}
-                  areas — we're working on it!
-                </p>
-              )}
-            </div>
+                {(() => {
+                  const compScore = scoreCompetitor(selectedCompetitors[0].id);
+                  return ccScore > compScore ? (
+                    <p className="mt-2 font-semibold text-primary">
+                      CodeCanvas leads by{" "}
+                      <span className="font-mono">{ccScore - compScore}</span>{" "}
+                      features in this comparison.
+                    </p>
+                  ) : (
+                    <p className="mt-2 font-semibold text-yellow-400">
+                      {selectedCompetitors[0].name} matches or exceeds CodeCanvas
+                      in{" "}
+                      <span className="font-mono">{compScore - ccScore}</span>{" "}
+                      areas — we're working on it!
+                    </p>
+                  );
+                })()}
+              </div>
+            )}
+            {selectedCompetitors.length > 1 && (
+              <div className="mt-6 rounded-xl border border-border/30 bg-muted/10 p-4">
+                <div className="flex flex-wrap gap-3 justify-center">
+                  {selectedCompetitors.map((c) => {
+                    const compScore = scoreCompetitor(c.id);
+                    const diff = ccScore - compScore;
+                    return (
+                      <span
+                        key={c.id}
+                        className="text-xs rounded-full px-3 py-1 border"
+                        style={{ borderColor: c.color + "40", color: c.color }}
+                      >
+                        vs {c.name}:{" "}
+                        {diff > 0
+                          ? `CodeCanvas +${diff}`
+                          : diff < 0
+                          ? `${c.name} +${Math.abs(diff)}`
+                          : "Tied"}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Legend */}
@@ -790,27 +888,34 @@ export default function Compare() {
                   {expanded && (
                     <div className="border-t border-border/30">
                       {/* Column headers */}
-                      <div className="grid grid-cols-[1fr_auto_auto] border-b border-border/20 bg-muted/10 px-5 py-2">
+                      <div
+                        className="border-b border-border/20 bg-muted/10 px-5 py-2"
+                        style={{ display: "grid", gridTemplateColumns: gridTemplate }}
+                      >
                         <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">
                           Feature
                         </span>
-                        <span className="w-28 text-center text-xs font-mono text-primary uppercase tracking-wider">
+                        <span className="text-center text-xs font-mono text-primary uppercase tracking-wider">
                           CodeCanvas
                         </span>
-                        <span
-                          className="w-28 text-center text-xs font-mono uppercase tracking-wider"
-                          style={{ color: competitor.color }}
-                        >
-                          {competitor.name}
-                        </span>
+                        {selectedCompetitors.map((c) => (
+                          <span
+                            key={c.id}
+                            className="text-center text-xs font-mono uppercase tracking-wider truncate px-1"
+                            style={{ color: c.color }}
+                          >
+                            {c.name}
+                          </span>
+                        ))}
                       </div>
 
                       {section.items.map((item, i) => (
                         <div
                           key={item.label}
-                          className={`grid grid-cols-[1fr_auto_auto] items-center px-5 py-3.5 ${
+                          className={`items-center px-5 py-3.5 ${
                             i % 2 === 0 ? "" : "bg-muted/5"
                           } border-b border-border/10 last:border-0`}
+                          style={{ display: "grid", gridTemplateColumns: gridTemplate }}
                         >
                           <div>
                             <div className="text-sm font-medium">
@@ -822,16 +927,16 @@ export default function Compare() {
                               </div>
                             )}
                           </div>
-                          <div className="w-28">
+                          <div className="flex items-center justify-center">
                             <FeatureCell value={item.codecanvas} />
                           </div>
-                          <div className="w-28">
-                            <FeatureCell
-                              value={
-                                item.competitors[selected] ?? false
-                              }
-                            />
-                          </div>
+                          {selectedCompetitors.map((c) => (
+                            <div key={c.id} className="flex items-center justify-center">
+                              <FeatureCell
+                                value={item.competitors[c.id] ?? false}
+                              />
+                            </div>
+                          ))}
                         </div>
                       ))}
                     </div>
