@@ -65,12 +65,13 @@ export default defineConfig(({ mode }) => ({
     }),
   ].filter(Boolean),
   define: {
-    // Explicitly pass VITE_DEPLOY_PLATFORM from system env into the frontend bundle.
-    // This ensures Replit's env var is available as import.meta.env.VITE_DEPLOY_PLATFORM
-    // even without a .env file on disk.
-    'import.meta.env.VITE_DEPLOY_PLATFORM': JSON.stringify(
-      process.env.VITE_DEPLOY_PLATFORM ?? 'generic'
-    ),
+    // Only inject VITE_DEPLOY_PLATFORM when explicitly set in the environment.
+    // This lets host-based detection still work on Lovable/generic platforms
+    // while ensuring Replit's env var (set as a Replit secret) flows through
+    // to the frontend bundle even without a .env file on disk.
+    ...(process.env.VITE_DEPLOY_PLATFORM !== undefined && {
+      'import.meta.env.VITE_DEPLOY_PLATFORM': JSON.stringify(process.env.VITE_DEPLOY_PLATFORM),
+    }),
   },
   resolve: {
     alias: {
