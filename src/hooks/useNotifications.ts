@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export type EmailProvider = 'resend' | 'mailgun' | 'postmark' | 'twilio';
@@ -45,7 +45,8 @@ const DEFAULTS: NotificationSettingsState = {
 };
 
 export function useNotifications() {
-  const { user } = useAuth();
+  const auth = useOptionalAuth();
+  const user = auth?.user ?? null;
   const { toast } = useToast();
 
   const [settings, setSettings] = useState<NotificationSettingsState>(() => {
