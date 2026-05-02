@@ -185,9 +185,40 @@ const supabaseProvider: DataProvider = {
   },
 };
 
+const createReplitDataProvider = (): DataProvider => {
+  // For Replit: API keys are stored locally on the backend server.
+  // All other data operations fall through to Supabase (best-effort).
+  const base = '/api/replit/ai';
+
+  const keyCall = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
+    const response = await fetch(`${base}${path}`, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || `Key request failed (${response.status})`);
+    }
+    if (response.status === 204) return undefined as T;
+    return (await response.json()) as T;
+  };
+
+  return {
+    ...supabaseProvider,
+    platform: 'replit',
+    listApiKeys: (_userId) => keyCall<ApiKeyRecord[]>('/keys'),
+    upsertApiKey: (_userId, provider, apiKey) =>
+      keyCall<void>('/keys', { method: 'PUT', body: JSON.stringify({ provider, api_key: apiKey }) }),
+    deleteApiKey: (_userId, provider) =>
+      keyCall<void>(`/keys?provider=${encodeURIComponent(provider)}`, { method: 'DELETE' }),
+    listUsageForDate: async (_userId, _date) => [],
+  };
+};
+
 const createManagedDataProvider = (platform: 'replit' | 'lovable'): DataProvider => {
   const base = platform === 'replit' ? import.meta.env.VITE_REPLIT_DB_BASE_URL : import.meta.env.VITE_LOVABLE_DB_BASE_URL;
   if (!base) {
+    if (platform === 'replit') return createReplitDataProvider();
     return { ...supabaseProvider, platform };
   }
 

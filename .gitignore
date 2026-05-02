@@ -31,3 +31,4 @@ skills-lock.json
 
 # Rust build artifacts
 target/
+aikeys.json
