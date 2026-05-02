@@ -77,10 +77,7 @@ function collectOpModes(nodes: FileNode[], includeSamples: boolean, prefix = '')
     if (node.type !== 'file' || !node.name.endsWith('.java')) continue;
 
     const normalizedPath = path.toLowerCase();
-    const isTeamCodeJava =
-      normalizedPath.includes('/teamcode/') &&
-      normalizedPath.includes('/java/') &&
-      (normalizedPath.includes('/src/main/java/') || normalizedPath.includes('/scr/main/java/'));
+    const isTeamCodeJava = normalizedPath.includes('teamcode') && normalizedPath.endsWith('.java');
     if (!isTeamCodeJava) continue;
 
     const isSampleFile = normalizedPath.includes('/samples/');
@@ -88,7 +85,7 @@ function collectOpModes(nodes: FileNode[], includeSamples: boolean, prefix = '')
 
     const content = node.content || '';
     if (content.includes('@TeleOp') || content.includes('@Autonomous')) {
-      modes.push(node.name.replace('.java', ''));
+      modes.push(path.replace(/\.java$/i, '').split('/').pop() || node.name);
     }
   }
   return modes;
@@ -104,6 +101,13 @@ function hasFtcTemplate(nodes: FileNode[]): boolean {
     if (node.type === 'folder' && node.children) return hasFtcTemplate(node.children);
     return false;
   });
+}
+
+function cloneFileNode(node: FileNode): FileNode {
+  return {
+    ...node,
+    children: node.children ? node.children.map(cloneFileNode) : undefined,
+  };
 }
 
 export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
@@ -128,8 +132,8 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
   const ensureFtcTemplate = useCallback(() => {
     if (!isReplit || seededTemplate || hasFtcTemplate(files)) return;
     const root = ftcTemplate[0];
-    if (!root?.children?.length) return;
-    onFileUpdate('root', JSON.stringify(root.children));
+    if (!root) return;
+    onFileUpdate('root', JSON.stringify(cloneFileNode(root).children ?? []));
     setSeededTemplate(true);
     toast({
       title: 'FTC template loaded',
