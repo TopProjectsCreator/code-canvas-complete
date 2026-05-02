@@ -227,11 +227,21 @@ wss.on('connection', (ws) => {
             fs.mkdirSync(path.dirname(fullPath), { recursive: true });
             fs.writeFileSync(fullPath, content, 'utf8');
           }
+
+          // Write a .bashrc so bash picks up our prompt when it sources HOME/.bashrc.
+          // System /etc/bash.bashrc would override an env-level PS1, so we write
+          // it as a file instead. \w expands to ~ when cwd==HOME, ~/sub otherwise.
+          const bashrc = [
+            '# CodeCanvas shell — sourced automatically because HOME is set here',
+            '[ -f /etc/bash.bashrc ] && source /etc/bash.bashrc',
+            "PS1='\\[\\033[01;36m\\]\\w\\[\\033[00m\\]\\[\\033[01m\\]\\$\\[\\033[00m\\] '",
+          ].join('\n') + '\n';
+          fs.writeFileSync(path.join(projectDir, '.bashrc'), bashrc, 'utf8');
         } catch (e) {
           console.error('Failed to write project files:', e.message);
         }
 
-        ptyProcess = pty.spawn('bash', [], {
+        ptyProcess = pty.spawn('bash', ['--rcfile', path.join(cwd, '.bashrc')], {
           name: 'xterm-256color',
           cols: Math.max(1, cols),
           rows: Math.max(1, rows),
@@ -241,6 +251,8 @@ wss.on('connection', (ws) => {
             TERM: 'xterm-256color',
             COLORTERM: 'truecolor',
             PYTHONUNBUFFERED: '1',
+            // Make ~ resolve to the project dir so \w in PS1 shows ~/subdir
+            HOME: cwd,
           },
         });
 
