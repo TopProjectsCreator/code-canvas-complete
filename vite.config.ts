@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => ({
       '/api/replit': {
         target: 'http://localhost:3001',
         changeOrigin: true,
+        ws: true,
       },
     },
   },

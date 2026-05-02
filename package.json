@@ -54,6 +54,9 @@
     "@tanstack/react-query": "^5.83.0",
     "@types/three": "^0.170",
     "@webcontainer/api": "^1.6.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/xterm": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -66,6 +69,7 @@
     "lucide-react": "^0.462.0",
     "mammoth": "^1.12.0",
     "next-themes": "^0.3.0",
+    "node-pty": "^1.1.0",
     "pdfjs-dist": "^5.5.207",
     "pptxgenjs": "^4.0.1",
     "pyodide": "^0.29.3",
@@ -89,6 +93,7 @@
     "three-stdlib": "^2.36.1",
     "vaul": "^0.9.9",
     "vite-plugin-pwa": "^1.2.0",
+    "ws": "^8.20.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
