@@ -17,12 +17,13 @@ interface SkillsLibraryDialogProps {
 
 interface ExternalSkill {
   name: string;
+  fullName?: string;
   description: string;
   category: string;
   stars?: number;
   author?: string;
   url?: string;
-  instruction?: string;
+  instruction?: string | null;
 }
 
 interface CategoryInfo {
@@ -138,16 +139,33 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
   }, [search]);
 
   const handleAdd = async (skill: ExternalSkill) => {
-    const instruction = skill.instruction || `Act as a ${skill.name} specialist. ${skill.description}`;
+    let instruction = skill.instruction || null;
+
+    // On Replit: try to fetch the actual skill content from officialskills.sh
+    if (!instruction && isReplit && skill.url) {
+      try {
+        const res = await fetch(`/api/replit/ai/skills/fetch-content?url=${encodeURIComponent(skill.url)}&description=${encodeURIComponent(skill.description)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.content) instruction = data.content;
+        }
+      } catch { /* fall through */ }
+    }
+
+    // Final fallback: generate a sensible instruction from description
+    if (!instruction) {
+      instruction = `You are an expert in ${skill.fullName || skill.name}.\n\n${skill.description}\n\nApply your expertise to help the user with any questions or tasks related to this domain.`;
+    }
+
     const ok = await addSkill({
-      name: skill.name,
+      name: skill.fullName || skill.name,
       description: skill.description,
       instruction,
       icon: 'sparkles',
     });
     if (ok) {
       setAddedSkills(prev => new Set(prev).add(skill.name));
-      toast({ title: 'Skill Added', description: `${skill.name} has been added to your agent.` });
+      toast({ title: 'Skill Added', description: `${skill.fullName || skill.name} has been added to your agent.` });
     }
   };
 
@@ -164,10 +182,10 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
     : activeCategory.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
   const sourceLabel = isReplit
-    ? 'awesome-chatgpt-prompts on GitHub'
+    ? 'VoltAgent/awesome-agent-skills on GitHub'
     : 'ai-skills.io powered by Firecrawl';
   const loadingLabel = isReplit
-    ? 'Fetching from GitHub…'
+    ? 'Fetching from VoltAgent/awesome-agent-skills…'
     : 'Fetching from ai-skills.io via Firecrawl…';
 
   return (
@@ -184,16 +202,15 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
             {title}
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Browse community AI skills from{' '}
-            {isReplit ? (
-              <a href="https://github.com/f/awesome-chatgpt-prompts" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                {sourceLabel}
-              </a>
-            ) : (
-              <a href="https://ai-skills.io" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                {sourceLabel}
-              </a>
-            )}
+            Browse real-world agent skills from{' '}
+            <a
+              href={isReplit ? 'https://github.com/VoltAgent/awesome-agent-skills' : 'https://ai-skills.io'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              {sourceLabel}
+            </a>
           </p>
         </DialogHeader>
 
@@ -288,23 +305,23 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
                 return (
                   <div key={idx} className="flex items-start gap-3 p-3.5 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-0.5">
                         <h4 className="text-sm font-medium truncate">{skill.name}</h4>
                         {skill.stars != null && skill.stars > 0 && (
                           <span className="flex items-center gap-0.5 text-[10px] text-amber-500">
                             <Star className="w-3 h-3" /> {skill.stars.toLocaleString()}
                           </span>
                         )}
-                        {skill.author && (
-                          <span className="text-[10px] text-muted-foreground">by {skill.author}</span>
-                        )}
                       </div>
+                      {skill.fullName && (
+                        <p className="text-[10px] text-muted-foreground/60 font-mono mb-1">{skill.fullName}</p>
+                      )}
                       <p className="text-xs text-muted-foreground line-clamp-2">{skill.description}</p>
                       <div className="flex items-center gap-2 mt-1.5">
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{skill.category}</Badge>
                         {skill.url && (
                           <a href={skill.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline">
-                            View Details →
+                            View on officialskills.sh →
                           </a>
                         )}
                       </div>
