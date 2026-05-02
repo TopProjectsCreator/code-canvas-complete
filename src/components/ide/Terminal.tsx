@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { detectDeploymentPlatform } from '@/lib/platform';
-import { XTerminal } from './XTerminal';
+import { XTerminal, ProjectFile } from './XTerminal';
 
 const platform = detectDeploymentPlatform();
 
@@ -23,11 +23,13 @@ interface TerminalProps {
   stdinPrompt?: { prompts: string[]; code: string; language: string } | null;
   onStdinSubmit?: (stdinValue: string) => void;
   onNewShell?: () => void;
+  projectFiles?: ProjectFile[];
+  projectId?: string;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
-export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, stdinPrompt, onStdinSubmit, onNewShell }: TerminalProps) => {
+export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, stdinPrompt, onStdinSubmit, onNewShell, projectFiles, projectId }: TerminalProps) => {
   const [input, setInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -275,7 +277,7 @@ export const Terminal = ({ history, onCommand, isMinimized, onToggleMinimize, st
         isReplitShell ? (
           // Real interactive PTY terminal via xterm.js (Replit shell tab only)
           <div className="flex-1 overflow-hidden bg-[#0d1117]">
-            <XTerminal key={shellKey} />
+            <XTerminal key={shellKey} projectFiles={projectFiles} projectId={projectId} />
           </div>
         ) : (
           // Classic log-based view: console tab on all platforms, shell tab on non-Replit

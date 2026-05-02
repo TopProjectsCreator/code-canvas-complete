@@ -1807,6 +1807,23 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
   const getFilesWithContent = useCallback((): FileNode[] => filesWithContent, [filesWithContent]);
 
+  // Flatten the project file tree into {path, content} pairs for the PTY shell
+  const flattenedProjectFiles = useMemo(() => {
+    const flatten = (nodes: FileNode[], prefix = ''): { path: string; content: string }[] => {
+      const result: { path: string; content: string }[] = [];
+      for (const node of nodes) {
+        const nodePath = prefix ? `${prefix}/${node.name}` : node.name;
+        if (node.type === 'file' && node.content !== undefined) {
+          result.push({ path: nodePath, content: node.content });
+        } else if (node.type === 'folder' && node.children) {
+          result.push(...flatten(node.children, nodePath));
+        }
+      }
+      return result;
+    };
+    return flatten(filesWithContent);
+  }, [filesWithContent]);
+
   const handleProjectSaved = useCallback(
     (project: Project) => {
       setCurrentProject(project);
@@ -2351,6 +2368,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     stdinPrompt={stdinPrompt}
                     onStdinSubmit={handleStdinSubmit}
                     onNewShell={resetReplitShell}
+                    projectFiles={flattenedProjectFiles}
+                    projectId={currentProject?.id}
                   />
                 </div>
               )}
@@ -2381,6 +2400,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                           stdinPrompt={stdinPrompt}
                           onStdinSubmit={handleStdinSubmit}
                           onNewShell={resetReplitShell}
+                          projectFiles={flattenedProjectFiles}
+                          projectId={currentProject?.id}
                         />
                       </div>
                     </div>
