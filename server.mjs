@@ -47,7 +47,14 @@ app.get('/api/replit/me', (req, res) => {
 });
 
 app.get('/api/replit/auth', (req, res) => {
-  const domain = req.headers['x-forwarded-host'] || req.headers.host || '';
+  // Always use the public Replit dev domain so the auth callback comes back
+  // to a URL the browser can actually reach (not localhost:3001).
+  const domain =
+    process.env.REPLIT_DEV_DOMAIN ||
+    process.env.REPLIT_DOMAINS ||
+    req.headers['x-forwarded-host'] ||
+    req.headers.host ||
+    '';
   res.redirect(`https://replit.com/auth_with_repl_site?domain=${domain}`);
 });
 
