@@ -250,6 +250,124 @@ app.delete('/api/replit/ai/skills/:id', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Skills library — scrapes awesome-chatgpt-prompts (public GitHub, no API key)
+// ---------------------------------------------------------------------------
+
+const PROMPTS_CSV_URL = 'https://raw.githubusercontent.com/f/awesome-chatgpt-prompts/main/prompts.csv';
+
+const SKILL_CATEGORIES = {
+  'Programming':   ['code', 'program', 'developer', 'software', 'python', 'javascript', 'typescript', 'java', 'debug', 'compiler', 'terminal', 'linux', 'bash', 'shell', 'git', 'api', 'regex', 'algorithm', 'fullstack', 'backend', 'frontend'],
+  'Writing':       ['write', 'essay', 'author', 'story', 'novel', 'poem', 'poet', 'copywriter', 'editor', 'proofreader', 'journalist', 'blogger', 'grammar', 'script', 'screenwriter'],
+  'Data & AI':     ['data', 'sql', 'database', 'machine learning', 'statistics', 'analyst', 'excel', 'spreadsheet', 'math', 'calculator', 'ai', 'neural', 'model'],
+  'Business':      ['business', 'ceo', 'manager', 'marketing', 'sales', 'product', 'entrepreneur', 'finance', 'accountant', 'recruiter', 'hr', 'startup', 'strategy', 'executive'],
+  'Creative':      ['design', 'ux', 'ui', 'artist', 'creative', 'brainstorm', 'idea', 'game', 'music', 'chef', 'recipe', 'draw', 'illustrat', 'visual'],
+  'Education':     ['teacher', 'tutor', 'explain', 'learn', 'course', 'student', 'lecture', 'quiz', 'vocabulary', 'language', 'translator', 'teach', 'mentor'],
+  'Research':      ['research', 'scientist', 'academic', 'paper', 'journal', 'fact', 'expert', 'analyze', 'study', 'hypothesis'],
+  'Healthcare':    ['doctor', 'health', 'medical', 'nurse', 'mental', 'therapist', 'fitness', 'diet', 'nutrition', 'psycholog', 'wellness'],
+  'Legal':         ['lawyer', 'legal', 'law', 'attorney', 'contract', 'policy', 'legislat', 'court'],
+  'Communication': ['debate', 'speak', 'present', 'interview', 'negotiat', 'argument', 'rhetoric', 'public'],
+};
+
+function categorizeSkill(name, instruction) {
+  const text = (name + ' ' + instruction.slice(0, 200)).toLowerCase();
+  for (const [cat, keywords] of Object.entries(SKILL_CATEGORIES)) {
+    if (keywords.some(kw => text.includes(kw))) return cat;
+  }
+  return 'General';
+}
+
+function parsePromptCSV(csv) {
+  const skills = [];
+  let i = 0;
+  // Skip header line
+  while (i < csv.length && csv[i] !== '\n') i++;
+  i++;
+  while (i < csv.length) {
+    // Each row: "name","instruction"
+    if (csv[i] !== '"') { while (i < csv.length && csv[i] !== '\n') i++; i++; continue; }
+    i++; // skip opening quote of name
+    let nameEnd = csv.indexOf('","', i);
+    if (nameEnd === -1) break;
+    const name = csv.slice(i, nameEnd).replace(/""/g, '"').trim();
+    i = nameEnd + 3; // skip '","'
+    // Read instruction until closing unescaped quote
+    let instrStart = i;
+    while (i < csv.length) {
+      if (csv[i] === '"') {
+        if (csv[i + 1] === '"') { i += 2; continue; }
+        break;
+      }
+      i++;
+    }
+    const instruction = csv.slice(instrStart, i).replace(/""/g, '"').trim();
+    i++; // skip closing quote
+    while (i < csv.length && (csv[i] === '\r' || csv[i] === '\n')) i++;
+    if (name && instruction && name !== 'act') {
+      const description = instruction.slice(0, 150).replace(/\n/g, ' ') + (instruction.length > 150 ? '…' : '');
+      skills.push({ name, description, instruction, category: categorizeSkill(name, instruction), stars: 0, author: 'awesome-chatgpt-prompts' });
+    }
+  }
+  return skills;
+}
+
+let _libCache = null;
+let _libCacheTime = 0;
+const LIB_CACHE_TTL = 3600000; // 1 hour
+
+async function fetchSkillsLibrary() {
+  if (_libCache && (Date.now() - _libCacheTime) < LIB_CACHE_TTL) return _libCache;
+  const resp = await fetch(PROMPTS_CSV_URL, { headers: { 'User-Agent': 'CodeCanvas-IDE/1.0' } });
+  if (!resp.ok) throw new Error(`GitHub fetch failed: ${resp.status}`);
+  const csv = await resp.text();
+  _libCache = parsePromptCSV(csv);
+  _libCacheTime = Date.now();
+  return _libCache;
+}
+
+app.get('/api/replit/ai/skills/library', async (req, res) => {
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { mode, category, search } = req.query;
+  try {
+    const allSkills = await fetchSkillsLibrary();
+
+    if (!mode || mode === 'categories') {
+      const catMap = {};
+      for (const s of allSkills) catMap[s.category] = (catMap[s.category] || 0) + 1;
+      const categories = Object.entries(catMap)
+        .map(([label, count]) => ({ slug: label.toLowerCase().replace(/[^a-z0-9]+/g, '-'), label, description: '', count }))
+        .sort((a, b) => b.count - a.count);
+      return res.json({ categories });
+    }
+
+    if (mode === 'top') {
+      return res.json({ skills: allSkills.slice(0, 40) });
+    }
+
+    if (mode === 'category' && category) {
+      const filtered = allSkills.filter(s =>
+        s.category.toLowerCase().replace(/[^a-z0-9]+/g, '-') === String(category).toLowerCase()
+      );
+      return res.json({ skills: filtered });
+    }
+
+    if (mode === 'search' && search) {
+      const q = String(search).toLowerCase();
+      const filtered = allSkills.filter(s =>
+        s.name.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q) ||
+        s.instruction.toLowerCase().includes(q)
+      );
+      return res.json({ skills: filtered.slice(0, 40) });
+    }
+
+    res.json({ skills: [], categories: [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // MCP tool helpers + agentic tool-calling loop
 // ---------------------------------------------------------------------------
 
