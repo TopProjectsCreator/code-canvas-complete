@@ -11,10 +11,30 @@ export interface ProjectFile {
 interface XTerminalProps {
   projectFiles?: ProjectFile[];
   projectId?: string;
+  isActive?: boolean;
 }
 
-export const XTerminal = ({ projectFiles, projectId }: XTerminalProps) => {
+export const XTerminal = ({ projectFiles, projectId, isActive = true }: XTerminalProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
+  const termRef = useRef<Terminal | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // Refit + refocus when this terminal's tab becomes active
+  useEffect(() => {
+    if (!isActive) return;
+    requestAnimationFrame(() => {
+      try {
+        fitAddonRef.current?.fit();
+        const t = termRef.current;
+        const ws = wsRef.current;
+        if (ws?.readyState === WebSocket.OPEN && t) {
+          ws.send(JSON.stringify({ type: 'resize', cols: t.cols, rows: t.rows }));
+        }
+        t?.focus();
+      } catch {}
+    });
+  }, [isActive]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -50,20 +70,20 @@ export const XTerminal = ({ projectFiles, projectId }: XTerminalProps) => {
       scrollback: 5000,
       convertEol: true,
     });
+    termRef.current = term;
 
     const fitAddon = new FitAddon();
+    fitAddonRef.current = fitAddon;
     term.loadAddon(fitAddon);
     term.open(container);
-
     requestAnimationFrame(() => fitAddon.fit());
 
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${wsProtocol}//${window.location.host}/api/replit/pty`);
+    wsRef.current = ws;
 
     ws.onopen = () => {
       fitAddon.fit();
-      // Send init message — server writes project files to disk and spawns the
-      // PTY with cwd set to the project directory before sending any output.
       ws.send(JSON.stringify({
         type: 'init',
         projectId: projectId ?? null,
@@ -82,7 +102,7 @@ export const XTerminal = ({ projectFiles, projectId }: XTerminalProps) => {
     };
 
     ws.onclose = () => {
-      term.write('\r\n\x1b[33mShell session ended. Click + to start a new one.\x1b[0m\r\n');
+      term.write('\r\n\x1b[33mShell session ended. Click + to open a new one.\x1b[0m\r\n');
     };
 
     term.onData((data) => {
@@ -103,6 +123,9 @@ export const XTerminal = ({ projectFiles, projectId }: XTerminalProps) => {
       ro.disconnect();
       ws.close();
       term.dispose();
+      fitAddonRef.current = null;
+      termRef.current = null;
+      wsRef.current = null;
     };
   }, []);
 
