@@ -907,11 +907,25 @@ wss.on('connection', (ws) => {
         const { projectId, projectName, files = [], cols = 80, rows = 24 } = parsed;
 
         // Always use a temp dir — never the workspace root.
-        // Use the client-supplied projectId if present, else fall back to
-        // a per-connection session ID so git clone / ls can't touch IDE source.
         const resolvedId = projectId || connSessionId;
         const projectDir = path.join(tmpdir(), `canvas-${resolvedId}`);
-        cwd = projectDir;
+
+        // Detect the common root directory shared by all project files.
+        // e.g. if every file starts with "my-canvas/", the shell should open
+        // directly inside "my-canvas/" rather than the bare temp dir.
+        const getCommonRoot = (filePaths) => {
+          const roots = filePaths
+            .map(p => (p || '').replace(/^[./\\]+/, '').replace(/\.\.\//g, ''))
+            .filter(Boolean)
+            .map(p => { const parts = p.split('/'); return parts.length > 1 ? parts[0] : ''; });
+          if (!roots.length) return '';
+          const first = roots[0];
+          return (first && roots.every(r => r === first)) ? first : '';
+        };
+        const commonRoot = getCommonRoot(files.map(f => f.path || ''));
+        const startDir = commonRoot ? path.join(projectDir, commonRoot) : projectDir;
+        cwd = startDir;
+
         try {
           fs.mkdirSync(projectDir, { recursive: true });
           for (const { path: filePath, content } of files) {
@@ -923,6 +937,8 @@ wss.on('connection', (ws) => {
             fs.mkdirSync(path.dirname(fullPath), { recursive: true });
             fs.writeFileSync(fullPath, content, 'utf8');
           }
+          // Ensure the start dir exists even if no files were in it
+          fs.mkdirSync(startDir, { recursive: true });
 
           // Sanitise the project name for safe embedding in a bash variable.
           const safeProjectName = (projectName || 'project')
@@ -932,7 +948,7 @@ wss.on('connection', (ws) => {
 
           // Write a .bashrc so bash picks up our prompt when it sources HOME/.bashrc.
           // PROMPT_COMMAND updates PS1 before each prompt so cd is reflected.
-          // HOME is set to the project dir so ${PWD/#$HOME/...} shows a friendly path.
+          // HOME is set to startDir so ${PWD/#$HOME/...} shows a friendly path.
           // Also installs runtime safety: ulimit caps + kill() override.
           const bashrc = [
             '# CodeCanvas shell',
@@ -972,18 +988,18 @@ wss.on('connection', (ws) => {
           console.error('Failed to write project files:', e.message);
         }
 
-        ptyProcess = pty.spawn('bash', ['--rcfile', path.join(cwd, '.bashrc')], {
+        ptyProcess = pty.spawn('bash', ['--rcfile', path.join(projectDir, '.bashrc')], {
           name: 'xterm-256color',
           cols: Math.max(1, cols),
           rows: Math.max(1, rows),
-          cwd,
+          cwd: startDir,
           env: {
             ...process.env,
             TERM: 'xterm-256color',
             COLORTERM: 'truecolor',
             PYTHONUNBUFFERED: '1',
-            // Make ~ resolve to the project dir so \w in PS1 shows ~/subdir
-            HOME: cwd,
+            // HOME = startDir so \w / PROMPT_COMMAND shows project-relative paths
+            HOME: startDir,
           },
         });
 
