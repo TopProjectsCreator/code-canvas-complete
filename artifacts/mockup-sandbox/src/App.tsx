@@ -128,10 +128,23 @@ function getPreviewPath(): string | null {
   return match ? match[1] : null;
 }
 
+const previewTitles: Record<string, string> = {
+  "landing-hero/LivingGrid": "The Living Grid",
+  "landing-hero/TerminalBoot": "Terminal Boot",
+  "landing-hero/TheVoid": "The Void",
+  "landing-hero/MonochromePrecision": "Monochrome Precision",
+  "landing-hero/WarmMomentum": "Warm Momentum",
+  "landing-hero/TerminalVerdict": "Terminal Verdict",
+};
+
 function App() {
   const previewPath = getPreviewPath();
 
   if (previewPath) {
+    const title = previewTitles[previewPath];
+    if (title) {
+      document.title = title;
+    }
     return (
       <PreviewRenderer
         componentPath={previewPath}
