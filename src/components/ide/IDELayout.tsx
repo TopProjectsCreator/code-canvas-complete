@@ -1435,10 +1435,12 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       addHistoryEntry("terminal-command", `Ran: ${command}`, isError ? "Error" : undefined);
 
       if (!isError) {
-        const refreshProjectTree = () => {
-          setFiles((prev) => [...prev]);
-        };
-        window.setTimeout(refreshProjectTree, 100);
+        window.setTimeout(() => {
+          setFiles((prev) => {
+            const clone = JSON.parse(JSON.stringify(prev)) as FileNode[];
+            return clone;
+          });
+        }, 100);
       }
     },
     [addHistoryEntry],
