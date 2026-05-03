@@ -10,7 +10,11 @@ import {
   Bug,
   X,
   Trash2,
-  ChevronDown
+  ChevronDown,
+  Search,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,7 +26,7 @@ interface PreviewProps {
 }
 
 type DeviceType = 'desktop' | 'tablet' | 'mobile';
-type DevToolsTab = 'console' | 'elements' | 'network' | 'storage';
+type DevToolsTab = 'console' | 'elements' | 'network' | 'storage' | 'seo';
 
 interface ConsoleEntry {
   id: string;
