@@ -117,20 +117,10 @@ async function init() {
 
   initialized = true;
 
-  const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
-  if (stored) {
-    try {
-      cachedSession = JSON.parse(stored);
-    } catch {
-      cachedSession = null;
-    }
-  }
-
   const replitUser = await fetchReplitUser();
   if (replitUser) {
     cachedSession = makeSession(replitUser);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedSession));
-    notifyListeners('SIGNED_IN', cachedSession);
   } else {
     cachedSession = null;
     localStorage.removeItem(STORAGE_KEY);
