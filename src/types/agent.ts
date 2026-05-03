@@ -5,6 +5,7 @@ export type ToolName =
   | 'suggest_fix'
   | 'apply_code'
   | 'search_codebase'
+  | 'search_automation'
   | 'run_code'
   | 'explain_error'
   | 'generate_tests'
