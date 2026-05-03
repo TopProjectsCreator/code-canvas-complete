@@ -66,7 +66,7 @@ export function BreadboardVisualizer({
     stopAudio();
   }, [simInterval]);
 
-  const syncBuzzerAudio = (levels: Record<string, number>, freqs: Record<string, number>) => {
+  const syncBuzzerAudio = useCallback((levels: Record<string, number>, freqs: Record<string, number>) => {
     if (!Object.keys(levels).length) {
       stopAudio();
       return;
