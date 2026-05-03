@@ -79,27 +79,36 @@ const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => 
       platform,
       supportsManagedAI: true,
       allowsBYOK: true,
-      chat: (payload, options) =>
-        fetch(`${envBase}/chat`, {
+      chat: async (payload, options) => {
+        const res = await fetch(`${envBase}/chat`, {
           method: 'POST',
           headers: jsonHeaders(options?.accessToken),
           body: JSON.stringify(payload),
           signal: options?.signal,
-        }),
-      generateImage: (prompt, options) =>
-        fetch(`${envBase}/image`, {
+        });
+        if (res.ok) return res;
+        return createSupabaseAIProvider().chat(payload, options);
+      },
+      generateImage: async (prompt, options) => {
+        const res = await fetch(`${envBase}/image`, {
           method: 'POST',
           headers: jsonHeaders(options?.accessToken),
           body: JSON.stringify({ prompt }),
           signal: options?.signal,
-        }),
-      generateMusic: (payload, options) =>
-        fetch(`${envBase}/music`, {
+        });
+        if (res.ok) return res;
+        return createSupabaseAIProvider().generateImage(prompt, options);
+      },
+      generateMusic: async (payload, options) => {
+        const res = await fetch(`${envBase}/music`, {
           method: 'POST',
           headers: jsonHeaders(options?.accessToken),
           body: JSON.stringify(payload),
           signal: options?.signal,
-        }),
+        });
+        if (res.ok) return res;
+        return createSupabaseAIProvider().generateMusic(payload, options);
+      },
     };
   }
 
