@@ -122,7 +122,7 @@ export function LivingGrid() {
           </h1>
         </div>
         <div style={{ position: "absolute", left: 180, top: 300, display: "flex", gap: 14 }}>
-          <button style={{ background: "#ff6b00", border: "none", color: "#000", fontWeight: 700, fontSize: 15, padding: "14px 28px", borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 0 24px rgba(255,107,0,0.35)" }}>
+          <button onClick={() => window.location.href = '/editor'} style={{ background: "#ff6b00", border: "none", color: "#000", fontWeight: 700, fontSize: 15, padding: "14px 28px", borderRadius: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, boxShadow: "0 0 24px rgba(255,107,0,0.35)" }}>
             Open CodeCanvas <span style={{ fontSize: 18 }}>›</span>
           </button>
           <button style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "#ddd", fontWeight: 600, fontSize: 15, padding: "14px 24px", borderRadius: 10, cursor: "pointer", whiteSpace: "nowrap" }}>
