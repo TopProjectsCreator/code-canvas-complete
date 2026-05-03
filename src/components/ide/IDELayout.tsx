@@ -1397,44 +1397,50 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   // add any files that don't already exist so they appear in the project pane.
   const handleShellFilesUpdate = useCallback(
     (shellFiles: ShellProjectFile[]) => {
-      setFiles((prev) => {
-        // Collect all existing file names (flat) so we can detect new ones.
-        const existingNames = new Set<string>();
-        const collectNames = (nodes: FileNode[]) => {
-          for (const n of nodes) {
-            if (n.type === "file") existingNames.add(n.name);
-            if (n.children) collectNames(n.children);
-          }
-        };
-        collectNames(prev);
-
-        // Build FileNode entries for each file not already in the tree.
-        const newNodes: FileNode[] = [];
-        for (const sf of shellFiles) {
-          const name = sf.path.split("/").pop() || sf.path;
-          if (!existingNames.has(name)) {
-            const id = Math.random().toString(36).slice(2, 11);
-            newNodes.push({
-              id,
-              name,
-              type: "file",
-              content: sf.content,
-              language: getFileLanguage(name),
-            });
-            // Also record content so edits work immediately
-            setFileContents((c) => ({ ...c, [id]: sf.content }));
-          }
+      const existingByPath = new Map<string, FileNode>();
+      const collectFiles = (nodes: FileNode[], prefix = "") => {
+        for (const node of nodes) {
+          const nodePath = prefix ? `${prefix}/${node.name}` : node.name;
+          if (node.type === "file") existingByPath.set(nodePath, node);
+          if (node.children) collectFiles(node.children, nodePath);
         }
+      };
 
-        if (newNodes.length === 0) return prev;
+      collectFiles(files);
 
-        // Insert into the root folder if one exists, otherwise append at root.
-        const root = prev[0];
-        if (root && root.type === "folder") {
-          return [{ ...root, children: [...(root.children || []), ...newNodes] }];
-        }
-        return [...prev, ...newNodes];
-      });
+      const shellByPath = new Map(shellFiles.map((f) => [f.path.replace(/^\/+/, ""), f]));
+
+      const updateNodes = (nodes: FileNode[], prefix = ""): FileNode[] =>
+        nodes.map((node) => {
+          const nodePath = prefix ? `${prefix}/${node.name}` : node.name;
+          if (node.type === "file") {
+            const shellFile = shellByPath.get(nodePath);
+            if (!shellFile) return node;
+            if (node.content === shellFile.content) return node;
+            setFileContents((prev) => ({ ...prev, [node.id]: shellFile.content }));
+            return { ...node, content: shellFile.content, language: getFileLanguage(node.name) };
+          }
+          if (!node.children) return node;
+          const childPaths = new Set(node.children.map((child) => `${nodePath}/${child.name}`));
+          const newShellChildren = shellFiles.filter((f) => {
+            const normalized = f.path.replace(/^\/+/, "");
+            return normalized.startsWith(`${nodePath}/`) && !childPaths.has(normalized);
+          });
+          const addedNodes = newShellChildren.map<FileNode>((shellFile) => ({
+            id: Math.random().toString(36).slice(2, 11),
+            name: shellFile.path.split("/").pop() || shellFile.path,
+            type: "file",
+            content: shellFile.content,
+            language: getFileLanguage(shellFile.path.split("/").pop() || shellFile.path),
+          }));
+          for (const added of addedNodes) {
+            setFileContents((prev) => ({ ...prev, [added.id]: added.content || "" }));
+          }
+          return { ...node, children: [...updateNodes(node.children, nodePath), ...addedNodes] };
+        });
+
+      const updated = updateNodes(prev);
+      return updated;
     },
     [],
   );
