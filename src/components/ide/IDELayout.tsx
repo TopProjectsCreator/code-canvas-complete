@@ -9,6 +9,7 @@ import { Sidebar } from "./Sidebar";
 import { EditorTabs } from "./EditorTabs";
 import { CodeEditor } from "./CodeEditor";
 import { Terminal } from "./Terminal";
+import type { ProjectFile as ShellProjectFile } from "./XTerminal";
 import { Preview } from "./Preview";
 import { LanguagePicker } from "./LanguagePicker";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -1391,6 +1392,53 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     [handleCreateOrUpdateFile],
   );
 
+  // Called by XTerminal whenever a `list-files` response comes back from the
+  // shell server.  We diff the returned files against the in-memory tree and
+  // add any files that don't already exist so they appear in the project pane.
+  const handleShellFilesUpdate = useCallback(
+    (shellFiles: ShellProjectFile[]) => {
+      setFiles((prev) => {
+        // Collect all existing file names (flat) so we can detect new ones.
+        const existingNames = new Set<string>();
+        const collectNames = (nodes: FileNode[]) => {
+          for (const n of nodes) {
+            if (n.type === "file") existingNames.add(n.name);
+            if (n.children) collectNames(n.children);
+          }
+        };
+        collectNames(prev);
+
+        // Build FileNode entries for each file not already in the tree.
+        const newNodes: FileNode[] = [];
+        for (const sf of shellFiles) {
+          const name = sf.path.split("/").pop() || sf.path;
+          if (!existingNames.has(name)) {
+            const id = Math.random().toString(36).slice(2, 11);
+            newNodes.push({
+              id,
+              name,
+              type: "file",
+              content: sf.content,
+              language: getFileLanguage(name),
+            });
+            // Also record content so edits work immediately
+            setFileContents((c) => ({ ...c, [id]: sf.content }));
+          }
+        }
+
+        if (newNodes.length === 0) return prev;
+
+        // Insert into the root folder if one exists, otherwise append at root.
+        const root = prev[0];
+        if (root && root.type === "folder") {
+          return [{ ...root, children: [...(root.children || []), ...newNodes] }];
+        }
+        return [...prev, ...newNodes];
+      });
+    },
+    [],
+  );
+
   const handleCommand = useCallback(
     (command: string, output: string[], isError: boolean) => {
       // Check for clear command
@@ -2383,6 +2431,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     projectFiles={flattenedProjectFiles}
                     projectId={currentProject?.id}
                     projectName={currentProject?.name}
+                    onFilesUpdate={handleShellFilesUpdate}
                   />
                 </div>
               )}
@@ -2416,6 +2465,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                           projectFiles={flattenedProjectFiles}
                           projectId={currentProject?.id}
                           projectName={currentProject?.name}
+                          onFilesUpdate={handleShellFilesUpdate}
                         />
                       </div>
                     </div>
