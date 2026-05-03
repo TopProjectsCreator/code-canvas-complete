@@ -39,6 +39,8 @@ const jsonHeaders = (accessToken?: string) => ({
   ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
 });
 
+const replitBlueprintModel = 'google/gemini-3-flash';
+
 const createSupabaseAIProvider = (): AIProvider => {
   const base = import.meta.env.VITE_SUPABASE_URL;
   return {
@@ -79,13 +81,16 @@ const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => 
       platform,
       supportsManagedAI: true,
       allowsBYOK: true,
-      chat: (payload, options) =>
-        fetch(`${envBase}/chat`, {
+      chat: async (payload, options) => {
+        const response = await fetch(`${envBase}/chat`, {
           method: 'POST',
           headers: jsonHeaders(options?.accessToken),
-          body: JSON.stringify(payload),
+          body: JSON.stringify({ ...payload, model: replitBlueprintModel }),
           signal: options?.signal,
-        }),
+        });
+        if (response.ok) return response;
+        return createSupabaseAIProvider().chat(payload, options);
+      },
       generateImage: (prompt, options) =>
         fetch(`${envBase}/image`, {
           method: 'POST',
