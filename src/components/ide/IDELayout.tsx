@@ -1433,6 +1433,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       setTerminalHistory((prev) => [...prev, inputLine, ...outputLines]);
 
       addHistoryEntry("terminal-command", `Ran: ${command}`, isError ? "Error" : undefined);
+
+      if (!isError) {
+        const refreshProjectTree = () => {
+          setFiles((prev) => [...prev]);
+        };
+        window.setTimeout(refreshProjectTree, 100);
+      }
     },
     [addHistoryEntry],
   );
