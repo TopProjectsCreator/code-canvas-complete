@@ -1,4 +1,4 @@
-import logo from "@assets/image_1777776917888.png";
+import logo from "@assets/image_1777777029750.png";
 
 export function CodeCanvasLogo({ className = "" }: { className?: string }) {
   return (
