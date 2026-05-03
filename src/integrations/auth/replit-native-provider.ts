@@ -131,15 +131,12 @@ async function init() {
     cachedSession = makeSession(replitUser);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedSession));
     notifyListeners('SIGNED_IN', cachedSession);
-  } else if (cachedSession) {
-    const recheck = await fetchReplitUser();
-    if (!recheck) {
-      cachedSession = null;
-      localStorage.removeItem(STORAGE_KEY);
-      notifyListeners('SIGNED_OUT', null);
-    }
+  } else {
+    cachedSession = null;
+    localStorage.removeItem(STORAGE_KEY);
   }
 
+  notifyListeners(cachedSession ? 'SIGNED_IN' : 'SIGNED_OUT', cachedSession);
   return cachedSession;
 }
 
