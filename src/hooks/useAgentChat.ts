@@ -660,7 +660,14 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
     const { presentationActions, cleanContent: afterPresentations } = parsePresentationGenerations(content);
     presentationActions.forEach(action => {
-      allSteps.push({ id: generateId(), type: 'tool_call', content: `Generating presentation: ${action.prompt}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'generate_pptx', arguments: { prompt: action.prompt }, status: 'pending' } });
+      allSteps.push({ id: generateId(), type: 'tool_call', content: `Generating presentation: ${action.prompt}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'generate_pptx', arguments: { prompt: action.prompt }, status: 'completed' } });
+      const pptxKey = `pptx:${action.prompt}`;
+      if (onAppendToFile && !executedActionsRef.current.has(pptxKey)) {
+        executedActionsRef.current.add(pptxKey);
+        const fileName = `generated-${Date.now()}.pptx`;
+        onCreateFile?.(fileName, 'file', buildPresentationPptx(action.prompt));
+        onAppendToFile(fileName, '');
+      }
     });
     content = afterPresentations;
 
