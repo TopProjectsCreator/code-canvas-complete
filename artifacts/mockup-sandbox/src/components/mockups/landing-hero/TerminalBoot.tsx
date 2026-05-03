@@ -62,11 +62,7 @@ export function TerminalBoot() {
         padding: "18px 40px", borderBottom: "1px solid #1a1a1a",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 6,
-            background: "#ff6b00", display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 13, fontWeight: 800, color: "#000",
-          }}>C</div>
+          <img src="/favicon.svg" alt="CodeCanvas" style={{ width: 28, height: 28 }} />
           <span style={{ color: "#888", fontSize: 13, letterSpacing: "0.05em" }}>CodeCanvas</span>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
@@ -159,7 +155,7 @@ export function TerminalBoot() {
               display: "flex", gap: 12, alignItems: "center",
               animation: "fadeIn 0.5s ease",
             }}>
-              <button style={{
+              <button onClick={() => window.location.href = '/editor'} style={{
                 background: "#ff6b00", border: "none", color: "#000",
                 fontWeight: 700, fontSize: 13, padding: "10px 24px",
                 borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
