@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PROVIDER_MODELS, AIProvider } from '@/hooks/useApiKeys';
 import ReactMarkdown from 'react-markdown';
 import { useAttachments } from '@/hooks/useAttachments';
+import { detectDeploymentPlatform } from '@/lib/platform';
 
 interface ModelConfig {
   provider: AIProvider;
@@ -215,6 +216,8 @@ function ModelConfigurator({
   );
 }
 
+const isShellEnabledForPlatform = () => detectDeploymentPlatform() === 'replit';
+
 export function AIComparisonPanel() {
   const { user } = useAuth();
   const [prompt, setPrompt] = useState('');
@@ -268,7 +271,7 @@ export function AIComparisonPanel() {
             },
             body: JSON.stringify({
               messages: [
-                ...(config.systemPrompt ? [{ role: 'system', content: config.systemPrompt }] : []),
+                ...(config.systemPrompt ? [{ role: 'system', content: `SYSTEM INSTRUCTIONS ONLY:\n${config.systemPrompt}` }] : []),
                 {
                   role: 'user',
                   content: attachments.length > 0 ? buildContentParts(prompt, attachments) : prompt,
@@ -286,7 +289,7 @@ export function AIComparisonPanel() {
               maxTokens: config.maxTokens,
               thinkingBudget: config.thinkingBudget > 0 ? config.thinkingBudget : undefined,
               enableWebSearch: config.enableWebSearch,
-              enableCodeExecution: config.enableCodeExecution,
+              enableCodeExecution: config.enableCodeExecution && isShellEnabledForPlatform(),
               enableMCP: config.enableMCP,
             }),
           }
