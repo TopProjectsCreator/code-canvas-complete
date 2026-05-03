@@ -30,9 +30,8 @@ serve(async (req) => {
     });
 
     const token = authHeader.replace("Bearer ", "");
-    const isReplitSession = token.startsWith("replit-");
-    const replitUserId = req.headers.get("x-replit-user-id") || req.headers.get("x-replit-user");
-    if (!isReplitSession) {
+    const replitUserId = req.headers.get("x-replit-user-id") || req.headers.get("x-replit-user") || token;
+    if (!replitUserId) {
       const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
       if (claimsError || !claimsData?.claims) {
         return new Response(
@@ -40,11 +39,6 @@ serve(async (req) => {
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-    } else if (!replitUserId && !token.replace("replit-", "")) {
-      return new Response(
-        JSON.stringify({ error: "Invalid session" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
     }
 
     const { prompt } = await req.json();

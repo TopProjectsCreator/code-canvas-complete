@@ -1162,11 +1162,10 @@ serve(async (req) => {
     });
 
     const token = authHeader.replace("Bearer ", "");
-    const isReplitSession = token.startsWith("replit-");
-    const replitUserId = req.headers.get("x-replit-user-id") || req.headers.get("x-replit-user");
-    let userId = replitUserId || null;
+    const replitUserId = req.headers.get("x-replit-user-id") || req.headers.get("x-replit-user") || token || null;
+    let userId = replitUserId;
 
-    if (!isReplitSession) {
+    if (!token || !replitUserId) {
       const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
       if (claimsError || !claimsData?.claims) {
         return new Response(JSON.stringify({ error: "Invalid session." }), {
@@ -1176,8 +1175,6 @@ serve(async (req) => {
       }
 
       userId = claimsData.claims.sub;
-    } else if (!userId) {
-      userId = token.replace("replit-", "");
     }
     const {
       messages,
