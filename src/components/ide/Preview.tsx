@@ -306,7 +306,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
     // Score: pass = 100%, warn = 60%, fail = 0%
     const score = Math.round(((passed * 100 + warnings * 60) / (checks.length * 100)) * 100);
 
-    const metadata: Array<[string, string]> = [
+    const metadataAll: Array<[string, string]> = [
       ['Title', title],
       ['Description', description],
       ['Keywords', keywords],
@@ -319,7 +319,8 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
       ['OG Description', ogDesc],
       ['OG Image', ogImage],
       ['Twitter Card', twCard],
-    ].filter(([, v]) => v);
+    ];
+    const metadata: Array<[string, string]> = metadataAll.filter(([, v]) => Boolean(v));
 
     return {
       checks,
