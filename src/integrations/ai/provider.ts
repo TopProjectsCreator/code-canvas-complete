@@ -6,7 +6,7 @@ interface AIRequestOptions {
 }
 
 interface ChatPayload {
-  messages: Array<{ role: 'assistant' | 'user'; content: unknown }>;
+  messages: Array<{ role: 'assistant' | 'system' | 'user'; content: unknown }>;
   currentFile: { name: string; language?: string; content?: string } | null;
   consoleErrors: string | null;
   workflows: Array<{ name: string; type: string; command: string }> | null;
