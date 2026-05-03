@@ -158,3 +158,5 @@ export function LivingGrid() {
     </div>
   );
 }
+
+export default LivingGrid;

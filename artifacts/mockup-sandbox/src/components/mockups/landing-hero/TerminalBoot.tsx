@@ -202,3 +202,5 @@ export function TerminalBoot() {
     </div>
   );
 }
+
+export default TerminalBoot;
