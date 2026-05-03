@@ -10,7 +10,11 @@ import {
   Bug,
   X,
   Trash2,
-  ChevronDown
+  ChevronDown,
+  Search,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -22,7 +26,7 @@ interface PreviewProps {
 }
 
 type DeviceType = 'desktop' | 'tablet' | 'mobile';
-type DevToolsTab = 'console' | 'elements' | 'network' | 'storage';
+type DevToolsTab = 'console' | 'elements' | 'network' | 'storage' | 'seo';
 
 interface ConsoleEntry {
   id: string;
@@ -172,7 +176,164 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
     { id: 'elements', label: 'Elements' },
     { id: 'network', label: 'Network' },
     { id: 'storage', label: 'Storage' },
+    { id: 'seo', label: 'SEO' },
   ];
+
+  // ===================== SEO Analyzer =====================
+  const seoReport = (() => {
+    const html = htmlContent || '';
+    if (typeof window === 'undefined' || !html.trim()) {
+      return null;
+    }
+    let doc: Document;
+    try {
+      doc = new DOMParser().parseFromString(html, 'text/html');
+    } catch {
+      return null;
+    }
+    const head = doc.head;
+    const get = (sel: string) => head?.querySelector(sel) as HTMLElement | null;
+    const getMeta = (name: string) =>
+      (head?.querySelector(`meta[name="${name}" i]`) as HTMLMetaElement | null)?.content || '';
+    const getProp = (prop: string) =>
+      (head?.querySelector(`meta[property="${prop}" i]`) as HTMLMetaElement | null)?.content || '';
+
+    const title = doc.title?.trim() || '';
+    const description = getMeta('description').trim();
+    const keywords = getMeta('keywords').trim();
+    const author = getMeta('author').trim();
+    const viewport = getMeta('viewport').trim();
+    const robots = getMeta('robots').trim();
+    const canonical = (head?.querySelector('link[rel="canonical"]') as HTMLLinkElement | null)?.href || '';
+    const lang = doc.documentElement.getAttribute('lang') || '';
+    const ogTitle = getProp('og:title');
+    const ogDesc = getProp('og:description');
+    const ogImage = getProp('og:image');
+    const twCard = getMeta('twitter:card') || getProp('twitter:card');
+    const h1s = doc.querySelectorAll('h1');
+    const images = Array.from(doc.querySelectorAll('img'));
+    const imagesNoAlt = images.filter((img) => !img.getAttribute('alt'));
+    const links = doc.querySelectorAll('a[href]');
+    const hasFavicon = !!head?.querySelector('link[rel*="icon" i]');
+    const jsonLd = doc.querySelectorAll('script[type="application/ld+json"]').length;
+
+    type Status = 'pass' | 'warn' | 'fail';
+    type Check = { id: string; label: string; status: Status; message: string };
+    const checks: Check[] = [
+      {
+        id: 'title',
+        label: 'Title tag',
+        status: !title ? 'fail' : title.length < 10 || title.length > 60 ? 'warn' : 'pass',
+        message: !title
+          ? 'Missing <title>. Add a unique, keyword-rich title.'
+          : `${title.length} chars — ${title.length < 10 ? 'too short' : title.length > 60 ? 'too long (≤60 ideal)' : 'good length'}.`,
+      },
+      {
+        id: 'description',
+        label: 'Meta description',
+        status: !description ? 'fail' : description.length < 50 || description.length > 160 ? 'warn' : 'pass',
+        message: !description
+          ? 'Missing meta description.'
+          : `${description.length} chars — ${description.length < 50 ? 'too short' : description.length > 160 ? 'too long (≤160 ideal)' : 'good length'}.`,
+      },
+      {
+        id: 'viewport',
+        label: 'Mobile viewport',
+        status: viewport ? 'pass' : 'fail',
+        message: viewport || 'Missing <meta name="viewport">. Required for mobile-friendly pages.',
+      },
+      {
+        id: 'lang',
+        label: 'HTML lang attribute',
+        status: lang ? 'pass' : 'warn',
+        message: lang ? `lang="${lang}"` : 'Missing lang attribute on <html>.',
+      },
+      {
+        id: 'h1',
+        label: 'H1 heading',
+        status: h1s.length === 0 ? 'fail' : h1s.length > 1 ? 'warn' : 'pass',
+        message: h1s.length === 0
+          ? 'No <h1> found. Add a single primary heading.'
+          : h1s.length > 1
+          ? `${h1s.length} <h1> tags — use only one per page.`
+          : 'Single <h1> found.',
+      },
+      {
+        id: 'images-alt',
+        label: 'Image alt text',
+        status: images.length === 0 ? 'pass' : imagesNoAlt.length === 0 ? 'pass' : imagesNoAlt.length / images.length > 0.3 ? 'fail' : 'warn',
+        message: images.length === 0
+          ? 'No images on page.'
+          : `${imagesNoAlt.length}/${images.length} images missing alt text.`,
+      },
+      {
+        id: 'og',
+        label: 'Open Graph tags',
+        status: ogTitle && ogDesc && ogImage ? 'pass' : ogTitle || ogDesc || ogImage ? 'warn' : 'fail',
+        message: ogTitle && ogDesc && ogImage
+          ? 'og:title, og:description, og:image present.'
+          : 'Missing og:title / og:description / og:image for rich social previews.',
+      },
+      {
+        id: 'twitter',
+        label: 'Twitter Card',
+        status: twCard ? 'pass' : 'warn',
+        message: twCard ? `twitter:card = ${twCard}` : 'Missing twitter:card meta.',
+      },
+      {
+        id: 'canonical',
+        label: 'Canonical URL',
+        status: canonical ? 'pass' : 'warn',
+        message: canonical || 'No <link rel="canonical"> set.',
+      },
+      {
+        id: 'favicon',
+        label: 'Favicon',
+        status: hasFavicon ? 'pass' : 'warn',
+        message: hasFavicon ? 'Favicon link found.' : 'No favicon link in <head>.',
+      },
+      {
+        id: 'jsonld',
+        label: 'Structured data (JSON-LD)',
+        status: jsonLd > 0 ? 'pass' : 'warn',
+        message: jsonLd > 0 ? `${jsonLd} JSON-LD block(s).` : 'No JSON-LD structured data detected.',
+      },
+    ];
+
+    const passed = checks.filter((c) => c.status === 'pass').length;
+    const warnings = checks.filter((c) => c.status === 'warn').length;
+    const errors = checks.filter((c) => c.status === 'fail').length;
+    // Score: pass = 100%, warn = 60%, fail = 0%
+    const score = Math.round(((passed * 100 + warnings * 60) / (checks.length * 100)) * 100);
+
+    const metadataAll: Array<[string, string]> = [
+      ['Title', title],
+      ['Description', description],
+      ['Keywords', keywords],
+      ['Author', author],
+      ['Lang', lang],
+      ['Viewport', viewport],
+      ['Robots', robots],
+      ['Canonical', canonical],
+      ['OG Title', ogTitle],
+      ['OG Description', ogDesc],
+      ['OG Image', ogImage],
+      ['Twitter Card', twCard],
+    ];
+    const metadata: Array<[string, string]> = metadataAll.filter(([, v]) => Boolean(v));
+
+    return {
+      checks,
+      passed,
+      warnings,
+      errors,
+      score,
+      metadata,
+      counts: { images: images.length, links: links.length, h1: h1s.length },
+    };
+  })();
+  // ========================================================
+
 
   return (
     <div className={cn(
@@ -485,6 +646,98 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* SEO tab */}
+            {devToolsTab === 'seo' && (
+              <div className="flex-1 overflow-auto ide-scrollbar">
+                {!seoReport ? (
+                  <div className="p-6 text-center text-xs text-muted-foreground">
+                    <Search className="w-6 h-6 mx-auto mb-2 opacity-40" />
+                    <p>Add HTML content to your project to run an SEO analysis.</p>
+                  </div>
+                ) : (
+                  <div className="p-3 space-y-3">
+                    {/* Score header */}
+                    <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background">
+                      <div className={cn(
+                        'w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg shrink-0 border-4',
+                        seoReport.score >= 90 ? 'border-green-500 text-green-500' :
+                        seoReport.score >= 70 ? 'border-yellow-500 text-yellow-500' :
+                        'border-destructive text-destructive'
+                      )}>
+                        {seoReport.score}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold text-foreground mb-0.5">SEO Score</div>
+                        <p className="text-[10px] text-muted-foreground leading-tight">
+                          90+ great · 70–89 needs attention · below 70 needs fixes.
+                        </p>
+                        <div className="flex gap-2 mt-1.5 text-[10px]">
+                          <span className="text-green-500">✓ {seoReport.passed} passed</span>
+                          <span className="text-yellow-500">⚠ {seoReport.warnings} warnings</span>
+                          <span className="text-destructive">✕ {seoReport.errors} errors</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-md border border-border bg-background p-2">
+                        <div className="text-[10px] text-muted-foreground">Images</div>
+                        <div className="text-sm font-semibold text-foreground">{seoReport.counts.images}</div>
+                      </div>
+                      <div className="rounded-md border border-border bg-background p-2">
+                        <div className="text-[10px] text-muted-foreground">Links</div>
+                        <div className="text-sm font-semibold text-foreground">{seoReport.counts.links}</div>
+                      </div>
+                      <div className="rounded-md border border-border bg-background p-2">
+                        <div className="text-[10px] text-muted-foreground">H1 tags</div>
+                        <div className="text-sm font-semibold text-foreground">{seoReport.counts.h1}</div>
+                      </div>
+                    </div>
+
+                    {/* Checks */}
+                    <div className="rounded-lg border border-border bg-background overflow-hidden">
+                      <div className="px-3 py-1.5 border-b border-border text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                        Analysis Report
+                      </div>
+                      <div className="divide-y divide-border">
+                        {seoReport.checks.map((check) => (
+                          <div key={check.id} className="flex items-start gap-2 px-3 py-2">
+                            {check.status === 'pass' && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />}
+                            {check.status === 'warn' && <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 mt-0.5 shrink-0" />}
+                            {check.status === 'fail' && <XCircle className="w-3.5 h-3.5 text-destructive mt-0.5 shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-medium text-foreground">{check.label}</div>
+                              <div className="text-[10px] text-muted-foreground break-words">{check.message}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Detected metadata */}
+                    {seoReport.metadata.length > 0 && (
+                      <div className="rounded-lg border border-border bg-background overflow-hidden">
+                        <div className="px-3 py-1.5 border-b border-border text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                          Detected Metadata
+                        </div>
+                        <table className="w-full text-xs">
+                          <tbody>
+                            {seoReport.metadata.map(([k, v]) => (
+                              <tr key={k} className="border-b border-border/50 last:border-0">
+                                <td className="px-3 py-1.5 text-muted-foreground font-medium align-top w-28">{k}</td>
+                                <td className="px-3 py-1.5 font-mono text-foreground break-all">{v}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
