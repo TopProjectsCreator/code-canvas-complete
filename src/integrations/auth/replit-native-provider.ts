@@ -10,7 +10,6 @@ interface ReplitUser {
 
 type AuthStateCallback = (event: string, session: Session | null) => void;
 
-const STORAGE_KEY = 'replit_auth_user';
 const listeners: AuthStateCallback[] = [];
 const SESSION_KEY = 'replit_auth_session';
 
@@ -94,8 +93,6 @@ function handleAuthCallbackIfNeeded(): boolean {
       const session = makeSession(replitUser);
       localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       cachedSession = session;
-      initialized = true;
-      notifyListeners('SIGNED_IN', session);
     }
   }
 
@@ -118,7 +115,6 @@ async function init() {
 
   initialized = true;
   cachedSession = null;
-  localStorage.removeItem(STORAGE_KEY);
   const storedSession = localStorage.getItem(SESSION_KEY);
   if (storedSession) {
     try {
@@ -176,7 +172,6 @@ export const replitNativeProvider: AuthProvider = {
     cachedSession = null;
     initialized = false;
     localStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem(STORAGE_KEY);
     notifyListeners('SIGNED_OUT', null);
   },
 
