@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, lazy, Suspense, useMemo } from "react";
-import { detectDeploymentPlatform } from "@/lib/platform";
+import { isReplitLikePlatform, detectDeploymentPlatform } from "@/lib/platform";
 import { applyDiff } from "@/lib/diffUtils";
 import { useNavigate } from "react-router-dom";
 import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from "@/types/ide";
@@ -2491,7 +2491,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       htmlContent={htmlContent}
                       cssContent={cssContent}
                       jsContent={jsContent}
-                      isRunning={platform === 'replit' ? (isRunning && !!htmlContent) : isRunning}
+                      isRunning={isReplitLikePlatform(platform) ? (isRunning && !!htmlContent) : isRunning}
                     />
                   )}
                 </div>
@@ -2595,7 +2595,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     htmlContent={htmlContent}
                     cssContent={cssContent}
                     jsContent={jsContent}
-                    isRunning={platform === 'replit' ? (isRunning && !!htmlContent) : isRunning}
+                    isRunning={isReplitLikePlatform(platform) ? (isRunning && !!htmlContent) : isRunning}
                   />
                 )}
               </ResizablePanel>

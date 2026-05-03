@@ -4,7 +4,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { detectDeploymentPlatform } from '@/lib/platform';
+import { isReplitLikePlatform } from '@/lib/platform';
 import {
   requestAdbDevice,
   adbConnect,
@@ -36,7 +36,7 @@ export async function compileFTC(
 ): Promise<BuildResult> {
   onProgress?.('Sending files to build server...');
 
-  if (detectDeploymentPlatform() === 'replit') {
+  if (isReplitLikePlatform()) {
     const response = await fetch('/api/replit/compile-ftc', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

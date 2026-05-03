@@ -26,7 +26,7 @@ interface AdbMessage {
 }
 
 export interface AdbDevice {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   device: any; // USBDevice — WebUSB types vary across TS environments
   interfaceNumber: number;
   endpointIn: number;

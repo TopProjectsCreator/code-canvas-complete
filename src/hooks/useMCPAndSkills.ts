@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { detectDeploymentPlatform } from '@/lib/platform';
+import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 
 export interface MCPServer {
   id: string;
@@ -26,7 +26,7 @@ export interface AgentSkill {
   updated_at: string;
 }
 
-const isReplit = () => detectDeploymentPlatform() === 'replit';
+const isReplit = () => isReplitLikePlatform();
 
 async function replitFetch(path: string, options?: RequestInit) {
   const res = await fetch(path, {

@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useWebContainer } from '@/hooks/useWebContainer';
 import { usePyodide, detectUnsupportedPyodideUsage } from '@/hooks/usePyodide';
 import { showOfflineDialog } from '@/components/ide/OfflineDialog';
-import { detectDeploymentPlatform } from '@/lib/platform';
+import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 
 interface ExecutionResult {
   output: string[];
@@ -28,7 +28,7 @@ async function runJavaScriptInBrowser(code: string): Promise<ExecutionResult> {
         .join(' '),
     );
     if (level === 'error') {
-      // eslint-disable-next-line no-console
+       
       console.error(...args);
     }
   };
@@ -39,7 +39,7 @@ async function runJavaScriptInBrowser(code: string): Promise<ExecutionResult> {
     error: capture('error'),
   };
   try {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
+     
     const fn = new Function('console', `return (async () => { ${code}\n})();`);
     const result = await fn(sandboxConsole);
     if (result !== undefined) output.push(String(result));
@@ -179,7 +179,7 @@ export const useCodeExecution = () => {
       // REPLIT: route everything directly to the local backend (server.mjs).
       // Skip Pyodide, WebContainer, and the Supabase edge function entirely.
       // =======================================================================
-      if (platform === 'replit') {
+      if (isReplitLikePlatform(platform)) {
         const isShell = ['shell', 'bash', 'sh'].includes(normalizedLanguage);
 
         if (isShell) {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { detectDeploymentPlatform } from '@/lib/platform';
+import { isReplitLikePlatform } from '@/lib/platform';
 
 export type EmailProvider = 'resend' | 'mailgun' | 'postmark' | 'twilio';
 export type SmsProvider = 'twilio' | 'vonage' | 'messagebird';
@@ -108,7 +108,7 @@ export function useNotifications() {
   const sendEmailNotification = useCallback(async (to: string, subject: string, body: string) => {
     if (!settings.emailProvider || !settings.emailApiKey || !to) return false;
     try {
-      if (detectDeploymentPlatform() === 'replit') {
+      if (isReplitLikePlatform()) {
         const response = await fetch('/api/replit/send-collab-notification', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -147,7 +147,7 @@ export function useNotifications() {
     const to = toOverride || settings.smsTo;
     if (!settings.smsEnabled || !settings.smsProvider || !settings.smsAuthToken || !settings.smsFrom || !to) return false;
     try {
-      if (detectDeploymentPlatform() === 'replit') {
+      if (isReplitLikePlatform()) {
         const response = await fetch('/api/replit/send-sms-notification', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

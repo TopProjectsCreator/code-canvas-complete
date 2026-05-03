@@ -7,6 +7,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildContext, executeExtension } from '@/lib/extensionRuntime';
+import { isReplitLikePlatform } from '@/lib/platform';
 import { detectDeploymentPlatform } from '@/lib/platform';
 import type { FileNode } from '@/types/ide';
 import { toast } from 'sonner';
@@ -44,7 +45,7 @@ const makeSlug = (v: string) =>
   v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
 const CODE_STORAGE_KEY = 'ext-code-';
-const isReplit = detectDeploymentPlatform() === 'replit';
+const isReplit = isReplitLikePlatform();
 
 /* ------------------------------------------------------------------ */
 /*  Sub-components                                                     */

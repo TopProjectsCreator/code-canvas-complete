@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { FileNode } from '@/types/ide';
 import { getFileLanguage } from '@/data/defaultFiles';
 import { supabase } from '@/integrations/supabase/client';
-import { detectDeploymentPlatform } from '@/lib/platform';
+import { isReplitLikePlatform } from '@/lib/platform';
 
 export type GitProvider = 'github' | 'gitlab' | 'bitbucket' | 'replit' | 'bolt' | 'firebase';
 
@@ -27,7 +27,7 @@ interface SearchResult {
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
-const isReplit = detectDeploymentPlatform() === 'replit';
+const isReplit = isReplitLikePlatform();
 
 // Binary extensions that should NOT be fetched as text
 const BINARY_EXTENSIONS = new Set([

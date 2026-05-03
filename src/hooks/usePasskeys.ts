@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { detectDeploymentPlatform } from '@/lib/platform';
+import { isReplitLikePlatform } from '@/lib/platform';
 
 interface PasskeyCredential {
   id: string;
@@ -34,7 +34,7 @@ export const usePasskeys = () => {
   const isSupported = typeof window !== 'undefined' &&
     !!window.PublicKeyCredential &&
     typeof window.PublicKeyCredential === 'function';
-  const isReplit = detectDeploymentPlatform() === 'replit';
+  const isReplit = isReplitLikePlatform();
 
   const fetchCredentials = useCallback(async () => {
     if (!user) return;

@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { PROVIDER_MODELS, AIProvider } from '@/hooks/useApiKeys';
 import ReactMarkdown from 'react-markdown';
 import { useAttachments } from '@/hooks/useAttachments';
+import { isReplitLikePlatform } from '@/lib/platform';
 import { detectDeploymentPlatform } from '@/lib/platform';
 
 interface ModelConfig {
@@ -216,7 +217,7 @@ function ModelConfigurator({
   );
 }
 
-const isShellEnabledForPlatform = () => detectDeploymentPlatform() === 'replit';
+const isShellEnabledForPlatform = () => isReplitLikePlatform();
 
 export function AIComparisonPanel() {
   const { user } = useAuth();

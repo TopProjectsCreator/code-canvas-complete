@@ -20,6 +20,7 @@ import {
 } from '@/services/ftcUploadService';
 import type { AdbDevice } from '@/lib/webusb-adb';
 import { HardwareConfigEditor } from './HardwareConfigEditor';
+import { isReplitLikePlatform } from '@/lib/platform';
 import { detectDeploymentPlatform } from '@/lib/platform';
 import { ftcTemplate } from '@/data/ftcTemplateFiles';
 import { useEffect } from 'react';
@@ -112,7 +113,7 @@ function cloneFileNode(node: FileNode): FileNode {
 
 export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
   const { toast } = useToast();
-  const isReplit = detectDeploymentPlatform() === 'replit';
+  const isReplit = isReplitLikePlatform();
   const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
   const [buildResult, setBuildResult] = useState<BuildResult | null>(null);
   const [buildProgress, setBuildProgress] = useState('');

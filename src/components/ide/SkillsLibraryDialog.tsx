@@ -8,7 +8,7 @@ import { Search, Plus, Loader2, Sparkles, AlertCircle, ArrowLeft, Star, Grid3X3,
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useMCPAndSkills } from '@/hooks/useMCPAndSkills';
-import { detectDeploymentPlatform } from '@/lib/platform';
+import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 
 interface SkillsLibraryDialogProps {
   open: boolean;
@@ -37,7 +37,7 @@ type ViewMode = 'categories' | 'category' | 'search' | 'top';
 
 async function fetchLibrary(params: Record<string, string>): Promise<{ categories?: CategoryInfo[]; skills?: ExternalSkill[] }> {
   const platform = detectDeploymentPlatform();
-  if (platform === 'replit') {
+  if (isReplitLikePlatform(platform)) {
     const qs = new URLSearchParams(params).toString();
     const res = await fetch(`/api/replit/ai/skills/library?${qs}`);
     if (!res.ok) {
@@ -65,7 +65,7 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
   const { addSkill } = useMCPAndSkills();
   const { toast } = useToast();
 
-  const isReplit = detectDeploymentPlatform() === 'replit';
+  const isReplit = isReplitLikePlatform();
 
   useEffect(() => {
     if (open) {

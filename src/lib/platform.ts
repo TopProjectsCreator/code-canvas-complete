@@ -1,4 +1,4 @@
-export type DeploymentPlatform = 'replit' | 'lovable' | 'generic';
+export type DeploymentPlatform = 'replit' | 'lovable' | 'generic' | 'github_codespaces';
 
 const REPLIT_HOST_PATTERNS = ['.replit.dev', '.repl.co', '.replit.app'];
 const LOVABLE_HOST_PATTERNS = ['.lovable.app', '.lovable.dev'];
@@ -25,7 +25,7 @@ const getHostPlatform = (host: string): DeploymentPlatform | null => {
 
 export const detectDeploymentPlatform = (): DeploymentPlatform => {
   const explicit = import.meta.env.VITE_DEPLOY_PLATFORM as string | undefined;
-  if (explicit === 'replit' || explicit === 'lovable' || explicit === 'generic') {
+  if (explicit === 'replit' || explicit === 'lovable' || explicit === 'generic' || explicit === 'github_codespaces') {
     return explicit;
   }
 
@@ -42,4 +42,9 @@ export const detectDeploymentPlatform = (): DeploymentPlatform => {
   }
 
   return 'generic';
+};
+
+export const isReplitLikePlatform = (platform?: DeploymentPlatform): boolean => {
+  const p = platform || detectDeploymentPlatform();
+  return p === 'replit' || p === 'github_codespaces';
 };

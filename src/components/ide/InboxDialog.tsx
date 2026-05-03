@@ -175,7 +175,7 @@ export const InboxDialog = ({ open, onOpenChange }: InboxDialogProps) => {
     if (labelsToAdd.length !== (m.labels || []).length) patch.labels = labelsToAdd;
     if (markRead && !m.read_at) patch.read_at = new Date().toISOString();
     if (Object.keys(patch).length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       await (supabase.from('messages') as any).update(patch).eq('id', m.id);
     }
     for (const fwd of forwards) {
@@ -289,7 +289,7 @@ export const InboxDialog = ({ open, onOpenChange }: InboxDialogProps) => {
     const next = current.includes(label) ? current.filter((l) => l !== label) : [...current, label];
     setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, labels: next } : x)));
     if (selected?.id === m.id) setSelected({ ...m, labels: next });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const { error } = await (supabase.from('messages') as any).update({ labels: next }).eq('id', m.id);
     if (error) {
       toast({ title: 'Could not update labels', description: error.message, variant: 'destructive' });
@@ -386,7 +386,7 @@ export const InboxDialog = ({ open, onOpenChange }: InboxDialogProps) => {
       kind: 'message',
     };
     if (composeAttachments.length > 0) payload.attachments = composeAttachments;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const { error } = await (supabase.from('messages') as any).insert(payload);
     setSending(false);
     if (error) {

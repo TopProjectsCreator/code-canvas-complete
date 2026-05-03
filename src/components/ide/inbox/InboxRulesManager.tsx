@@ -42,7 +42,7 @@ export const InboxRulesManager = ({
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   const rulesTable = () => (supabase as any).from('inbox_rules');
 
   const load = async () => {

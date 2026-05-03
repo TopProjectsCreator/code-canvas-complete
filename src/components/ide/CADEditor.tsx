@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useApiKeys } from '@/hooks/useApiKeys';
+import { isReplitLikePlatform } from '@/lib/platform';
 import { detectDeploymentPlatform } from '@/lib/platform';
 
 interface CADEditorProps {
@@ -479,7 +480,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
   };
 
   const invoke3D = async (body: Record<string, unknown>): Promise<{ data: any; error: any }> => {
-    if (detectDeploymentPlatform() === 'replit') {
+    if (isReplitLikePlatform()) {
       try {
         const r = await fetch('/api/replit/ai/3d', {
           method: 'POST',

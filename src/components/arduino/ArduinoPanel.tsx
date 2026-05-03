@@ -129,7 +129,6 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }
     }
   }, [circuitFile?.id, circuitFile?.content]);
 
-
   useEffect(() => {
     const code = sketchFile?.content || '';
     if (circuit.code === code) return;
