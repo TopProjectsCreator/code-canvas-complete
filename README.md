@@ -8,7 +8,7 @@ Code Canvas Complete is an advanced, browser-based All-In-One IDE featuring an i
 
 ## 🚀 Core IDE & Workspace
 
-Code Canvas provides a professional development environment entirely in your browser, powered by the WebContainers API.
+Code Canvas provides a professional development environment entirely in your browser, powered by the WebContainers API and Supabase for backend services.
 
 <details>
 <summary><b>View Workspace Features</b></summary>
@@ -29,24 +29,25 @@ Code Canvas provides a professional development environment entirely in your bro
 
 ## 🤖 AI-Powered Intelligence
 
-Experience the next generation of coding with an AI assistant that doesn't just suggest code, but executes tasks.
+Code Canvas features an advanced AI agent designed for full-stack autonomous development.
 
 <details>
-<summary><b>View AI Assistant Capabilities</b></summary>
+<summary><b>View Detailed AI Agent Capabilities</b></summary>
 
-- **Multi-Model Support:** Switch between OpenAI, Anthropic, Gemini, and more. Compare outputs side-by-side with the **AI Comparison Panel**.
-- **Agentic Actions:** The AI can autonomously analyze code, suggest fixes, apply changes, run tests, and manage your file system.
-- **Tool-Driven Workspace Control:** The assistant can run shell commands, create/move/open files, install packages, and trigger project workflows without leaving chat.
-- **Autonomy Modes:**
-    - **Safe:** Manual-first, auto-runs only low-risk actions.
-    - **Balanced:** Auto-applies common actions, gates risky operations.
-    - **Fast:** Maximum autonomy for rapid iteration.
-    - **Custom:** Granular control over file changes, shell commands, git actions, and more.
-- **AI Code Review:** Get per-line suggestions with severity ratings and one-click "Accept/Reject" controls.
-- **Multimodal Generation:** Ask the AI to generate images and music directly from prompts for mockups, assets, and creative experiments.
-- **Git & Sharing Actions from Chat:** The agent can initialize repositories, create branches, commit changes, generate project links, and help publish/share projects.
-- **Explain on Hover:** Hover over any symbol to get an AI-powered explanation of its purpose and implementation.
-- **Interactive Widgets:** The assistant renders specialized tools like **Color Picker**, **Coin Flip**, **Dice Roll**, **Calculator**, **Spinner**, **Stock Ticker**, **Template Changer**, **Pair Programming Timer**, **Docs Linker**, **Countdown**, **Password Generator**, **Unit Converter**, **Progress Tracker**, **JSON Viewer**, **Regex Tester**, **Code Review**, **README Generator**, **Accessibility Audit**, **Dependency Visualizer**, and **Convert Anything** directly in the chat.
+### 🛠️ Core AI Agent Tools
+- **File System Control:** Create, read, update, move, and delete files/folders across the workspace.
+- **Persistent Shell Execution:** Run complex shell commands, install packages, and manage processes directly through the terminal.
+- **Git Operations:** Initialize repos, branch, commit, push, pull, and manage complex merge conflicts autonomously.
+- **Project Workflows:** Execute multi-step build, test, and deploy pipelines.
+- **Contextual Awareness:** Understands code, docs, hardware setups, and media assets in the current project context.
+
+### 🧠 Intelligent Features
+- **Multi-Model Support:** Compare side-by-side outputs from OpenAI, Anthropic, Gemini, and more.
+- **Autonomous Modes:** Choose from Safe (human-in-the-loop), Balanced (auto-gated), or Fast (fully autonomous) modes.
+- **AI Code Review:** Per-line suggestions with severity ratings and one-click acceptance.
+- **Interactive Widgets:** Rich UI components rendered directly in chat (e.g., Code Review, Regex Tester, Dependency Visualizer).
+- **Explain-on-Hover:** Instant AI-powered explanations for symbols, functions, or complex code blocks.
+- **Multimodal Generation:** Generate media (images/audio) for mockups and documentation assets.
 </details>
 
 ### 🧩 MCP & Agent Skills
@@ -71,6 +72,50 @@ Agent Skills are custom "personas" or instruction sets that guide the AI's behav
 2. Click **Add Skill** to create your own, or browse the **Library** for presets. Browse and search over 10,000+ community AI skills from <a href="https://ai-skills.io" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">ai-skills.io</a> powered by Firecrawl.
 3. Define the **Name**, **Icon**, and **Instructions** (e.g., "Always use Tailwind utility classes for styling").
 4. When enabled, the AI will prioritize these instructions in every interaction.
+</details>
+
+## 💻 Persistent Shell & Terminal
+
+Code Canvas offers a professional-grade, persistent terminal environment, ensuring your workflows remain uninterrupted.
+
+<details>
+<summary><b>View Shell & Execution Features</b></summary>
+
+- **Full Terminal Access:** A browser-based terminal emulator with support for standard Linux commands, shell scripts, and build tools.
+- **State Persistence:** Your environment remains active across sessions. Installed packages (npm/pip), file system changes, and process states (background servers/watchers) are persisted.
+- **Multi-Terminal Support:** Open and manage multiple terminal instances simultaneously for parallel tasks (e.g., running a dev server in one, tests in another).
+- **Container-Backed Execution:** Powered by secure, containerized runtimes, providing a near-native environment for your projects.
+- **Integration with AI:** The AI agent can read terminal output, run commands to diagnose errors, and perform automated fixes based on execution results.
+- **API for Advanced Automation:** Interact with the environment via `POST /sessions` and `POST /execute` endpoints.
+
+### API Specification & Execution Modes
+The `execute-code` service handles routing to different execution environments:
+
+- **Executor Modes:**
+    - `wandbox`: Standard sandboxed execution.
+    - `container`: Full persistent container runner.
+    - `hybrid`: Routes shell and python to containers while keeping others sandboxed.
+
+### API Reference
+- `POST /sessions`: Initialize a new persistent session.
+- `POST /execute`: Run commands within a specific `sessionId` to maintain state (e.g., across `pip install` commands).
+
+### Custom Shell Runner Example
+```javascript
+// Example of a compatible Shell Runner API
+app.post('/sessions', (req, res) => {
+  const sessionId = uuidv4();
+  const shell = pty.spawn('bash', [], { name: 'xterm-color', cwd: process.env.HOME });
+  // ... session management logic
+  res.json({ sessionId });
+});
+
+app.post('/execute', (req, res) => {
+  const { sessionId, command } = req.body;
+  // ... execute in virtual terminal
+  res.json({ output: session.getOutput() });
+});
+```
 </details>
 
 ## 🛠️ Specialized Editors & Tools
@@ -486,42 +531,6 @@ Code Canvas goes beyond code, offering a full suite of creative and technical ed
 5. Prepare demo assets in media tools.
 6. Ship with built-in Git and share actions.
 
-</details>
-
-## 💻 Persistent Shell & Python API
-
-For advanced workflows, Code Canvas supports persistent, container-backed execution environments.
-
-<details>
-<summary><b>View API & Executor Details</b></summary>
-
-The `execute-code` service handles routing to different execution environments:
-
-- **Executor Modes:**
-    - `wandbox`: Standard sandboxed execution.
-    - `container`: Full persistent container runner.
-    - `hybrid`: Routes shell and python to containers while keeping others sandboxed.
-
-### API Specification
-- `POST /sessions`: Initialize a new persistent session.
-- `POST /execute`: Run commands within a specific `sessionId` to maintain state (e.g., across `pip install` commands).
-
-### Custom Shell Runner Example
-```javascript
-// Example of a compatible Shell Runner API
-app.post('/sessions', (req, res) => {
-  const sessionId = uuidv4();
-  const shell = pty.spawn('bash', [], { name: 'xterm-color', cwd: process.env.HOME });
-  // ... session management logic
-  res.json({ sessionId });
-});
-
-app.post('/execute', (req, res) => {
-  const { sessionId, command } = req.body;
-  // ... execute in virtual terminal
-  res.json({ output: session.getOutput() });
-});
-```
 </details>
 
 ## 👥 Teams & Enterprise Collaboration
