@@ -72,6 +72,12 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     if (!projectFiles?.length) return;
     ws.send(JSON.stringify({ type: 'sync-files', files: projectFiles }));
+    setTimeout(() => {
+      const currentWs = wsRef.current;
+      if (currentWs?.readyState === WebSocket.OPEN) {
+        currentWs.send(JSON.stringify({ type: 'list-files' }));
+      }
+    }, 150);
   }, [projectFiles]);
 
   // Refit + refocus when this tab becomes active
