@@ -116,6 +116,8 @@ async function init() {
   }
 
   initialized = true;
+  cachedSession = null;
+  localStorage.removeItem(STORAGE_KEY);
 
   const replitUser = await fetchReplitUser();
   if (replitUser) {
