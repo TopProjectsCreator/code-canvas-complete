@@ -39,7 +39,7 @@ const jsonHeaders = (accessToken?: string) => ({
   ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
 });
 
-const replitBlueprintModel = 'google/gemini-3-flash';
+const replitBlueprintModel = 'google/gemini-3-flash-preview';
 
 const createSupabaseAIProvider = (): AIProvider => {
   const base = import.meta.env.VITE_SUPABASE_URL;
