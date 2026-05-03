@@ -29,9 +29,19 @@ const landingVariants = [
   "/__mockup/preview/landing-hero/TerminalVerdict",
 ] as const;
 
+const getLandingVariant = () => {
+  const saved = sessionStorage.getItem("codecanvas-landing-variant");
+  if (saved && landingVariants.includes(saved as (typeof landingVariants)[number])) {
+    return saved;
+  }
+  const choice = landingVariants[Math.floor(Math.random() * landingVariants.length)];
+  sessionStorage.setItem("codecanvas-landing-variant", choice);
+  return choice;
+};
+
 const RootRoute = () => {
   if (isPublishedHost()) return <Index />;
-  const choice = landingVariants[Math.floor(Math.random() * landingVariants.length)];
+  const choice = getLandingVariant();
   if (choice === "/landing") return <Landing />;
   window.location.replace(choice);
   return null;
