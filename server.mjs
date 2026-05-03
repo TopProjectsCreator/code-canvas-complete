@@ -1475,17 +1475,6 @@ wss.on('connection', (ws) => {
             fs.writeFileSync(fullPath, content, 'utf8');
           }
 
-          // After writing, detect the project root by looking at the real filesystem.
-          // If projectDir contains exactly ONE subdirectory (ignoring hidden files like
-          // .bashrc) and no top-level files, the shell should start inside that subdir.
-          // This handles the common layout where all files live under a "my-canvas/" root.
-          const topEntries = fs.readdirSync(projectDir, { withFileTypes: true })
-            .filter(e => !e.name.startsWith('.'));
-          const topDirs  = topEntries.filter(e => e.isDirectory());
-          const topFiles = topEntries.filter(e => e.isFile());
-          if (topDirs.length === 1 && topFiles.length === 0) {
-            cwd = path.join(projectDir, topDirs[0].name);
-          }
           console.log(`[PTY] projectDir=${projectDir}  startCwd=${cwd}`);
 
           // Sanitise the project name for safe embedding in a bash variable.
