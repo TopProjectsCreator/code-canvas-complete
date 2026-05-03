@@ -1226,6 +1226,8 @@ const LANG_CONFIG = {
   py:         { type: 'interpret', cmd: 'python3', ext: 'py' },
   javascript: { type: 'interpret', cmd: 'node',    ext: 'js' },
   js:         { type: 'interpret', cmd: 'node',    ext: 'js' },
+  typescript: { type: 'interpret', cmd: 'node',    ext: 'js' },
+  ts:         { type: 'interpret', cmd: 'node',    ext: 'js' },
   bash:       { type: 'interpret', cmd: 'bash',    ext: 'sh' },
   shell:      { type: 'interpret', cmd: 'bash',    ext: 'sh' },
   sh:         { type: 'interpret', cmd: 'bash',    ext: 'sh' },
@@ -1236,6 +1238,7 @@ const LANG_CONFIG = {
   c:          { type: 'compile', compiler: 'gcc', ext: 'c',   compileFlags: ['-lm'] },
   cpp:        { type: 'compile', compiler: 'g++', ext: 'cpp', compileFlags: ['-lm', '-std=c++17'] },
   'c++':      { type: 'compile', compiler: 'g++', ext: 'cpp', compileFlags: ['-lm', '-std=c++17'] },
+  csharp:     { type: 'dotnet', ext: 'cs' },
 };
 
 // Shared finish-and-respond helper used by all strategies.
@@ -1293,7 +1296,7 @@ app.post('/api/replit/execute', (req, res) => {
 
   if (!config) {
     return res.status(400).json({
-      error: `Language '${language}' is not supported. Supported: python, javascript, bash, rust, c, cpp.`,
+      error: `Language '${language}' is not supported.`,
       output: [],
       executedAt: new Date().toISOString(),
     });
@@ -1352,6 +1355,27 @@ app.post('/api/replit/execute', (req, res) => {
         return res.json({ output: [], error: `Compiler error: ${err.message}`, executedAt: new Date().toISOString() });
       });
       return;
+    }
+
+    if (config.type === 'dotnet') {
+      const programDir = path.join(tmpDir, 'program');
+      fs.mkdirSync(programDir);
+      writeFileSync(path.join(programDir, 'Program.cs'), code, 'utf8');
+      writeFileSync(path.join(programDir, 'Program.csproj'), [
+        '<Project Sdk="Microsoft.NET.Sdk">',
+        '  <PropertyGroup>',
+        '    <OutputType>Exe</OutputType>',
+        '    <TargetFramework>net8.0</TargetFramework>',
+        '    <ImplicitUsings>enable</ImplicitUsings>',
+        '    <Nullable>enable</Nullable>',
+        '  </PropertyGroup>',
+        '</Project>',
+      ].join('\n') + '\n', 'utf8');
+      const proc = spawn('dotnet', ['run', '--project', programDir, '--configuration', 'Release'], {
+        cwd: tmpDir,
+        env: { ...process.env, DOTNET_CLI_TELEMETRY_OPTOUT: '1' },
+      });
+      return finishExec(proc, tmpDir, stdin, res, 90000);
     }
 
     // ── Interpret (python / node / bash) ─────────────────────────────────────
