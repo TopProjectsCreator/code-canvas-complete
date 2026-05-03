@@ -8,6 +8,7 @@ import { CustomThemeColors } from '@/contexts/ThemeContext';
 import { createAIProvider } from '@/integrations/ai/provider';
 import { isPotentiallyDestructiveShellCommand } from '@/lib/agentSafety';
 import { detectDeploymentPlatform } from '@/lib/platform';
+import { generatePresentationPptx, parsePptxSpec, type PptxSpec } from '@/lib/pptxGenerator';
 
 const _agentChatPlatform = detectDeploymentPlatform();
 const canUseShellOnPlatform = _agentChatPlatform === 'replit';
@@ -37,6 +38,8 @@ interface MusicAction {
 
 interface PresentationAction {
   prompt: string;
+  filename?: string;
+  spec?: PptxSpec;
 }
 
 interface UseAgentChatProps {
@@ -265,12 +268,33 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const parsePresentationGenerations = (content: string): { presentationActions: PresentationAction[], cleanContent: string } => {
     const presentationActions: PresentationAction[] = [];
     let cleanContent = content;
-    const pptxRegex = /<generate_pptx\s+prompt="([^"]+)"\s*\/>/g;
+
+    // Block form: <generate_pptx filename="name.pptx" prompt="...">JSON</generate_pptx>
+    const blockRegex = /<generate_pptx([^>]*)>([\s\S]*?)<\/generate_pptx>/g;
     let match;
-    while ((match = pptxRegex.exec(content)) !== null) {
-      presentationActions.push({ prompt: match[1] });
+    while ((match = blockRegex.exec(content)) !== null) {
+      const attrs = match[1];
+      const body = match[2].trim();
+      const filenameMatch = attrs.match(/filename="([^"]+)"/);
+      const promptMatch = attrs.match(/prompt="([^"]+)"/);
+      const filename = filenameMatch ? filenameMatch[1] : undefined;
+      const prompt = promptMatch ? promptMatch[1] : (filename ? filename.replace(/\.pptx$/i, '') : 'presentation');
+      const spec = parsePptxSpec(body) || undefined;
+      presentationActions.push({ prompt, filename, spec });
       cleanContent = cleanContent.replace(match[0], '');
     }
+
+    // Self-closing form: <generate_pptx prompt="..." />
+    const selfClosingRegex = /<generate_pptx\s+prompt="([^"]+)"\s*\/>/g;
+    while ((match = selfClosingRegex.exec(content)) !== null) {
+      // Only add if not already captured by block form
+      const alreadyCaptured = presentationActions.some(a => a.prompt === match![1]);
+      if (!alreadyCaptured) {
+        presentationActions.push({ prompt: match[1] });
+      }
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
     return { presentationActions, cleanContent: cleanContent.trim() };
   };
 
@@ -660,14 +684,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
     const { presentationActions, cleanContent: afterPresentations } = parsePresentationGenerations(content);
     presentationActions.forEach(action => {
-      allSteps.push({ id: generateId(), type: 'tool_call', content: `Generating presentation: ${action.prompt}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'generate_pptx', arguments: { prompt: action.prompt }, status: 'completed' } });
-      const pptxKey = `pptx:${action.prompt}`;
-      if (onAppendToFile && !executedActionsRef.current.has(pptxKey)) {
-        executedActionsRef.current.add(pptxKey);
-        const fileName = `generated-${Date.now()}.pptx`;
-        onCreateFile?.(fileName, 'file', buildPresentationPptx(action.prompt));
-        onAppendToFile(fileName, '');
-      }
+      allSteps.push({ id: generateId(), type: 'tool_call', content: `Generating presentation: ${action.prompt}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'generate_pptx', arguments: { prompt: action.prompt }, status: 'pending' } });
     });
     content = afterPresentations;
 
@@ -812,6 +829,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       hasWorkflowChanges: workflowActions.length > 0,
       imagePrompts,
       musicActions,
+      presentationActions,
       questions: parsedQuestions,
       widgets: parsedWidgets,
       shellCommands,
@@ -975,6 +993,72 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
             } catch {
               setMessages(prev => prev.map(m => { if (m.id !== assistantId) return m; const audios = (m.audios || []).map(a => a.prompt === action.prompt ? { ...a, isLoading: false, error: 'Failed to generate music' } : a); return { ...m, audios }; }));
             }
+          }
+        }
+      }
+
+      // Handle PPTX generation requests (client-side, using pptxgenjs)
+      if (processed.presentationActions && processed.presentationActions.length > 0) {
+        for (const action of processed.presentationActions) {
+          const pptxKey = `pptx:${action.prompt}`;
+          if (executedActionsRef.current.has(pptxKey)) continue;
+          executedActionsRef.current.add(pptxKey);
+
+          const fileName = action.filename || `presentation-${Date.now()}.pptx`;
+
+          // Show loading state in the step
+          setMessages(prev => prev.map(m => {
+            if (m.id !== assistantId) return m;
+            const steps = m.steps?.map(s =>
+              s.toolCall?.name === 'generate_pptx' && (s.toolCall.arguments as Record<string, unknown>).prompt === action.prompt
+                ? { ...s, toolCall: { ...s.toolCall!, status: 'running' as const } }
+                : s
+            );
+            return { ...m, steps };
+          }));
+
+          try {
+            // Build the spec — use parsed JSON from AI if available, otherwise generate a template
+            const spec = action.spec || {
+              title: action.prompt,
+              theme: 'blue' as const,
+              slides: [
+                { title: action.prompt, subtitle: 'Generated by Canvas Agent', layout: 'title' as const },
+                { title: 'Overview', bullets: ['Key point 1', 'Key point 2', 'Key point 3'] },
+                { title: 'Details', content: 'Add your detailed content here.' },
+                { title: 'Conclusion', bullets: ['Summary point 1', 'Summary point 2'] },
+              ],
+            };
+
+            const dataUrl = await generatePresentationPptx(spec);
+
+            // Save to file tree
+            onCreateFile?.(fileName, 'file', dataUrl);
+            // Open the file after state update settles
+            if (onOpenFile) {
+              setTimeout(() => onOpenFile(fileName), 150);
+            }
+
+            // Mark step as completed
+            setMessages(prev => prev.map(m => {
+              if (m.id !== assistantId) return m;
+              const steps = m.steps?.map(s =>
+                s.toolCall?.name === 'generate_pptx' && (s.toolCall.arguments as Record<string, unknown>).prompt === action.prompt
+                  ? { ...s, content: `Created ${fileName}`, toolCall: { ...s.toolCall!, status: 'completed' as const, result: fileName } }
+                  : s
+              );
+              return { ...m, steps };
+            }));
+          } catch (err) {
+            setMessages(prev => prev.map(m => {
+              if (m.id !== assistantId) return m;
+              const steps = m.steps?.map(s =>
+                s.toolCall?.name === 'generate_pptx' && (s.toolCall.arguments as Record<string, unknown>).prompt === action.prompt
+                  ? { ...s, toolCall: { ...s.toolCall!, status: 'failed' as const, result: String(err) } }
+                  : s
+              );
+              return { ...m, steps };
+            }));
           }
         }
       }
