@@ -19,7 +19,23 @@ import { InboxNotifier } from "@/components/ide/InboxNotifier";
 
 const queryClient = new QueryClient();
 
-const RootRoute = () => (isPublishedHost() ? <Index /> : <Landing />);
+const landingVariants = [
+  "/landing",
+  "/__mockup/preview/landing-hero/LivingGrid",
+  "/__mockup/preview/landing-hero/TerminalBoot",
+  "/__mockup/preview/landing-hero/TheVoid",
+  "/__mockup/preview/landing-hero/MonochromePrecision",
+  "/__mockup/preview/landing-hero/WarmMomentum",
+  "/__mockup/preview/landing-hero/TerminalVerdict",
+] as const;
+
+const RootRoute = () => {
+  if (isPublishedHost()) return <Index />;
+  const choice = landingVariants[Math.floor(Math.random() * landingVariants.length)];
+  if (choice === "/landing") return <Landing />;
+  window.location.replace(choice);
+  return null;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
