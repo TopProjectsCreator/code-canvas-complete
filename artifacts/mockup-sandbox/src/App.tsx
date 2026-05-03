@@ -8,15 +8,7 @@ function _resolveComponent(
   mod: Record<string, unknown>,
   name: string,
 ): ComponentType | undefined {
-  const fns = Object.values(mod).filter(
-    (v) => typeof v === "function",
-  ) as ComponentType[];
-  return (
-    (mod.default as ComponentType) ||
-    (mod.Preview as ComponentType) ||
-    (mod[name] as ComponentType) ||
-    fns[fns.length - 1]
-  );
+  return (mod.default as ComponentType) || (mod[name] as ComponentType);
 }
 
 function PreviewRenderer({
@@ -39,7 +31,7 @@ function PreviewRenderer({
       const key = `./components/mockups/${componentPath}.tsx`;
       const loader = modules[key];
       if (!loader) {
-        setError(`No component found at ${componentPath}.tsx`);
+        setError(`No component found at ${key}`);
         return;
       }
 

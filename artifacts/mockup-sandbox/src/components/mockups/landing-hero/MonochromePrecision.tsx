@@ -64,7 +64,7 @@ export function MonochromePrecision() {
           {["Compare", "Docs", "Blog"].map(l => (
             <span key={l} style={{ fontSize: 14, color: "#555", cursor: "pointer", letterSpacing: "-0.01em" }}>{l}</span>
           ))}
-          <button style={{
+          <button onClick={() => window.location.href = '/editor'} style={{
             background: "#0a0a0a", border: "none", color: "#fff",
             fontWeight: 600, fontSize: 13, padding: "9px 22px",
             borderRadius: 6, cursor: "pointer", letterSpacing: "-0.01em",
@@ -103,7 +103,7 @@ export function MonochromePrecision() {
           </p>
 
           <div style={{ display: "flex", gap: 14, alignItems: "center", marginBottom: 56 }}>
-            <button style={{
+            <button onClick={() => window.location.href = '/editor'} style={{
               background: "#0a0a0a", border: "none", color: "#fff",
               fontWeight: 700, fontSize: 15, padding: "15px 36px",
               borderRadius: 8, cursor: "pointer", letterSpacing: "-0.02em",
@@ -201,3 +201,5 @@ export function MonochromePrecision() {
     </div>
   );
 }
+
+export default MonochromePrecision;

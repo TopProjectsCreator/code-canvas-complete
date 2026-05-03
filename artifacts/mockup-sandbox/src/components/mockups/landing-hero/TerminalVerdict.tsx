@@ -123,7 +123,7 @@ export function TerminalVerdict() {
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <span style={{ fontSize: 11, color: "#00ff88" }}>● {online.toLocaleString()} online</span>
           <span style={{ fontSize: 11, color: "#484f58" }}>{latency}ms</span>
-          <button style={{
+          <button onClick={() => window.location.href = '/editor'} style={{
             background: "#238636", border: "1px solid #2ea043", color: "#fff",
             fontWeight: 700, fontSize: 11, padding: "5px 14px", borderRadius: 6,
             cursor: "pointer", letterSpacing: "0.02em",
@@ -208,7 +208,7 @@ export function TerminalVerdict() {
           </p>
 
           <div style={{ display: "flex", gap: 12, marginBottom: 48, flexWrap: "wrap" }}>
-            <button style={{
+            <button onClick={() => window.location.href = '/editor'} style={{
               background: "#238636", border: "1px solid #2ea043", color: "#fff",
               fontWeight: 700, fontSize: 14, padding: "12px 28px",
               borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
@@ -266,3 +266,5 @@ export function TerminalVerdict() {
     </div>
   );
 }
+
+export default TerminalVerdict;
