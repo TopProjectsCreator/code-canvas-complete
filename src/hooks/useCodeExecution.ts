@@ -272,9 +272,10 @@ export const useCodeExecution = () => {
         };
       }
 
+      const defaultShellMode: 'webcontainer' | 'wandbox' = platform === 'lovable' ? 'wandbox' : 'webcontainer';
       const shellExecutorMode = typeof window !== 'undefined'
-        ? window.localStorage.getItem('ide.shellExecutorMode') || 'webcontainer'
-        : 'webcontainer';
+        ? (window.localStorage.getItem('ide.shellExecutorMode') as 'webcontainer' | 'wandbox' | null) || defaultShellMode
+        : defaultShellMode;
       const shouldUseWebContainer =
         ['shell', 'bash', 'javascript'].includes(normalizedLanguage) &&
         (isOffline || shellExecutorMode !== 'wandbox') &&
