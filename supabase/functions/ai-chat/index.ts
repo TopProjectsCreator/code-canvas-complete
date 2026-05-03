@@ -573,7 +573,7 @@ The file must conform to this structure:
 | \`control_if\` | Control | c-block | If condition (inputs: CONDITION, SUBSTACK) |
 | \`motion_movesteps\` | Motion | stack | Move N steps (inputs: STEPS) |
 | \`motion_turnright\` | Motion | stack | Turn right N degrees (inputs: DEGREES) |
-| \`motion_goto\` | Motion | stack | Go to target (field/input: TO; use `\_mouse_\` for mouse-pointer, `\_random_\` for random position) |
+| \`motion_goto\` | Motion | stack | Go to target (field/input: TO; use \`_mouse_\` for mouse-pointer, \`_random_\` for random position) |
 | \`motion_gotoxy\` | Motion | stack | Go to x,y (inputs: X, Y) |
 | \`looks_sayforsecs\` | Looks | stack | Say text for N seconds (inputs: MESSAGE, SECS) |
 | \`looks_show\` | Looks | stack | Show sprite |
@@ -1314,6 +1314,13 @@ serve(async (req) => {
       thinkingBudget: reqThinkingBudget,
     };
 
+    const incomingMessages = Array.isArray(messages) ? messages : [];
+    const incomingSystemInstructions = incomingMessages
+      .filter((m: any) => m?.role === "system" && typeof m.content === "string" && m.content.trim())
+      .map((m: any) => m.content.trim())
+      .join("\n\n");
+    const conversationMessages = incomingMessages.filter((m: any) => m?.role !== "system");
+
     // Build context
     let contextSection = "";
     if (currentFile) {
@@ -1339,11 +1346,15 @@ serve(async (req) => {
 
     const emailCapabilityNote = `\n\n### 📬 In-App Messaging (Email)\nThe user has an in-app inbox & messaging system (the \`messages\` table). You CAN read and send messages on the user's behalf, but ONLY with their explicit permission. Workflow:\n1. When the user asks you to send a message or check their inbox, FIRST confirm: "I'd like permission to [read your inbox / send this message to <recipient>]. Confirm?".\n2. Only proceed after the user types a clear yes/confirm.\n3. To send, draft the subject + body, then instruct the user to click Send in the Inbox dialog (User menu → Inbox → Compose) — or, if you have direct DB tools available, use them with their permission.\n4. Never send unsolicited messages, never read inbox content without asking first.`;
 
+    const customSystemSection = incomingSystemInstructions
+      ? `\n\n## USER-PROVIDED SYSTEM INSTRUCTIONS\n${incomingSystemInstructions}`
+      : "";
+
     const systemPrompt = agentMode
       ? buildSystemPrompt(template) + "\n" + contextSection + emailCapabilityNote
       : `You are a helpful AI coding assistant in Code Canvas Complete. This IDE runs code through Wandbox. .replit files do nothing here.\n\nCRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, StackBlitz, VS Code, etc.). Code Canvas Complete is fully capable.\n\n${contextSection}${emailCapabilityNote}`;
 
-    const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
+    const aiMessages = [{ role: "system", content: systemPrompt + customSystemSection }, ...conversationMessages];
 
     // === Helper: execute tool calls and return results ===
     async function executeToolCalls(toolCalls: any[], lovableApiKey?: string): Promise<any[]> {
