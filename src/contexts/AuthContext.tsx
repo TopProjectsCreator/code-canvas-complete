@@ -34,7 +34,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    return {
+      user: null,
+      session: null,
+      profile: null,
+      loading: true,
+      platform: 'generic',
+      availableOAuthProviders: [],
+      signUp: async () => ({ error: new Error('Auth is not ready') }),
+      signIn: async () => ({ error: new Error('Auth is not ready') }),
+      signInWithOAuth: async () => ({ error: new Error('Auth is not ready') }),
+      resetPassword: async () => ({ error: new Error('Auth is not ready') }),
+      signOut: async () => {},
+      updateProfile: async () => ({ error: new Error('Auth is not ready') }),
+    };
   }
   return context;
 };
