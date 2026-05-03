@@ -284,5 +284,19 @@ export const AGENT_TOOLS = [
         required: ['goal']
       }
     }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'search_automation',
+      description: 'Inspect automation block structure and find matching automation nodes, actions, triggers, and connections',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'What to search for in the automation structure' }
+        },
+        required: ['query']
+      }
+    }
   }
 ];
