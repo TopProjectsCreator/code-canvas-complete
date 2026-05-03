@@ -290,10 +290,16 @@ export class ArduinoUploadService {
    */
   private static async uploadViaNetworkBridge(
     payload: Record<string, unknown>,
-    mode: 'ota' | 'bluetooth' | 'uf2',
+    mode: 'ota' | 'bluetooth' | 'uf2' | 'micropython',
     onProgress?: (message: string, percent?: number) => void
   ): Promise<void> {
-    const modeLabel = mode === 'ota' ? 'WiFi OTA' : mode === 'bluetooth' ? 'Bluetooth' : 'UF2 bridge';
+    const modeLabel = mode === 'ota'
+      ? 'WiFi OTA'
+      : mode === 'bluetooth'
+        ? 'Bluetooth'
+        : mode === 'uf2'
+          ? 'UF2 bridge'
+          : 'MicroPython bridge';
     onProgress?.(`Uploading via ${modeLabel}...`, 30);
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -390,6 +396,27 @@ export class ArduinoUploadService {
     await this.uploadViaNetworkBridge(
       { boardId, targetPath, uf2 },
       'uf2',
+      onProgress
+    );
+  }
+
+  static async deployMicroPythonScript(
+    boardId: string,
+    serialPortPath: string,
+    script: string,
+    filename = 'main.py',
+    onProgress?: (message: string, percent?: number) => void
+  ): Promise<void> {
+    if (!script.trim()) {
+      throw new Error('MicroPython script is empty');
+    }
+    if (!serialPortPath.trim()) {
+      throw new Error('Serial port path is required to deploy MicroPython script');
+    }
+    onProgress?.('Deploying MicroPython script...', 20);
+    await this.uploadViaNetworkBridge(
+      { boardId, port: serialPortPath, filename, content: script },
+      'micropython',
       onProgress
     );
   }

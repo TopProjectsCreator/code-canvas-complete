@@ -36,6 +36,7 @@ interface ArduinoUploadDialogProps {
   onOpenChange: (open: boolean) => void;
   onUpload: (config: UploadConfig, port: SerialPortLike, onProgress?: (message: string, percent?: number) => void) => Promise<void>;
   onInstallMicroPython: (boardId: string, targetPath: string, firmwareUrl: string, onProgress?: (message: string, percent?: number) => void) => Promise<void>;
+  onDeployMicroPython: (boardId: string, serialPortPath: string, script: string, onProgress?: (message: string, percent?: number) => void) => Promise<void>;
   defaultMicroPythonFirmwareUrl?: (boardId: string) => string | undefined;
   sketchCode: string;
 }
@@ -66,6 +67,7 @@ export function ArduinoUploadDialog({
   onOpenChange,
   onUpload,
   onInstallMicroPython,
+  onDeployMicroPython,
   defaultMicroPythonFirmwareUrl,
   sketchCode,
 }: ArduinoUploadDialogProps) {
@@ -85,6 +87,8 @@ export function ArduinoUploadDialog({
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const [progressPercent, setProgressPercent] = useState(0);
   const [microPythonUrl, setMicroPythonUrl] = useState('');
+  const [microPythonSerialPortPath, setMicroPythonSerialPortPath] = useState('');
+  const [microPythonScript, setMicroPythonScript] = useState('from machine import Pin\nfrom time import sleep\n\nled = Pin("LED", Pin.OUT)\n\nwhile True:\n    led.toggle()\n    sleep(0.5)\n');
 
   useEffect(() => {
     if (open) {
@@ -230,6 +234,24 @@ export function ArduinoUploadDialog({
       setProgressLog(prev => [...prev, 'MicroPython installed. You can now run main.py on device boot.']);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'MicroPython install failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeployMicroPython = async () => {
+    setLoading(true);
+    setError('');
+    setProgressLog([]);
+    setProgressPercent(0);
+    try {
+      await onDeployMicroPython(config.boardId, microPythonSerialPortPath, microPythonScript, (message, percent) => {
+        setProgressLog(prev => [...prev, message]);
+        if (percent !== undefined) setProgressPercent(percent);
+      });
+      setProgressLog(prev => [...prev, 'main.py deployed to board.']);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'MicroPython deploy failed');
     } finally {
       setLoading(false);
     }
@@ -403,6 +425,24 @@ export function ArduinoUploadDialog({
                   onChange={(e) => setMicroPythonUrl(e.target.value)}
                 />
               </div>
+              <div>
+                <Label htmlFor="micropython-port">MicroPython Serial Port Path</Label>
+                <Input
+                  id="micropython-port"
+                  placeholder="/dev/ttyACM0 or COM5"
+                  value={microPythonSerialPortPath}
+                  onChange={(e) => setMicroPythonSerialPortPath(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="micropython-script">MicroPython Script (main.py)</Label>
+                <textarea
+                  id="micropython-script"
+                  className="w-full min-h-28 rounded border border-slate-700 bg-slate-950 p-2 text-xs font-mono"
+                  value={microPythonScript}
+                  onChange={(e) => setMicroPythonScript(e.target.value)}
+                />
+              </div>
             </div>
           )}
 
@@ -491,6 +531,21 @@ export function ArduinoUploadDialog({
                 </>
               ) : (
                 'Install MicroPython'
+              )}
+            </Button>
+          )}
+          {isUf2Board && (
+            <Button
+              variant="secondary"
+              onClick={handleDeployMicroPython}
+              disabled={loading || !microPythonSerialPortPath.trim() || !microPythonScript.trim()}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Deploying...
+                </>
+              ) : (
+                'Deploy main.py'
               )}
             </Button>
           )}
