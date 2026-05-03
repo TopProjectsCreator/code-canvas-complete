@@ -78,7 +78,7 @@ const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => 
     return {
       platform,
       supportsManagedAI: true,
-      allowsBYOK: false,
+      allowsBYOK: true,
       chat: (payload, options) =>
         fetch(`${envBase}/chat`, {
           method: 'POST',
