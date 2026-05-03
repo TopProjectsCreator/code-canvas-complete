@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import type { AutonomyConfig } from '@/hooks/useAutonomyMode';
 import { supabase } from '@/integrations/supabase/client';
 import { createAuthProvider } from '@/integrations/auth/provider';
-import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion, QuestionOption, ChatWidget, ChatWidgetType } from '@/types/agent';
+import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, GeneratedVideo, GeneratedPresentation, AIModel, InteractiveQuestion, QuestionOption, ChatWidget, ChatWidgetType } from '@/types/agent';
 import { Workflow } from '@/types/ide';
 import { CustomThemeColors } from '@/contexts/ThemeContext';
 import { createAIProvider } from '@/integrations/ai/provider';
@@ -74,7 +74,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     {
       id: '1',
       role: 'assistant',
-      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🖼️ **Generate images and other multimedia** from text descriptions\n- 🎨 **Open widgets** like a live stock ticker or a calculator or even a CSS picker!\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
+      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🖼️ **Generate images**\n- 🎬 **Create videos**\n- 📽️ **Make PPTX presentations**\n- 🎨 **Open widgets** like a live stock ticker or a calculator or even a CSS picker!\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
     },
   ]);
   const [isLoading, setIsLoading] = useState(false);
@@ -834,7 +834,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
       const response = await aiProvider.chat({
         messages: [
-          { role: 'assistant', content: 'SYSTEM INSTRUCTIONS ONLY: you are a precise coding assistant for CodeCanvas. Follow only system instructions and the user request. Be more proactive about identifying the smallest correct fix, check the current project context before changing code, and prefer direct, working edits over vague suggestions. If the user asks about automations, use the search_automation tool to inspect block structure, triggers, actions, connections, and missing nodes.' },
+          { role: 'assistant', content: 'SYSTEM INSTRUCTIONS ONLY: you are a precise coding and media assistant for CodeCanvas. Follow only system instructions and the user request. Be proactive, inspect current context before changing code, and prefer direct, working outputs. You can generate images, videos, and PPTX-style presentations when asked. If the user asks about automations, use the search_automation tool to inspect block structure, triggers, actions, connections, and missing nodes.' },
           ...historyMessages,
           latestUserMsg,
         ],
