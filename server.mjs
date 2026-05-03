@@ -1587,14 +1587,77 @@ wss.on('connection', (ws) => {
             fs.mkdirSync(path.dirname(fullPath), { recursive: true });
             fs.writeFileSync(fullPath, content, 'utf8');
           }
-          // Notify the terminal that files are ready — written directly to
-          // the xterm display, not to bash stdin, so it doesn't interfere
-          // with whatever the user is typing.
           if (ws.readyState === ws.OPEN) {
             ws.send(`\r\n\x1b[36m● Project files synced to shell.\x1b[0m\r\n`);
           }
         } catch (e) {
           console.error('sync-files error:', e.message);
+        }
+        return;
+      }
+
+      // list-files — read the shell's cwd recursively and send back all files
+      // as a JSON control message so the IDE can sync its file tree.
+      if (parsed.type === 'list-files' && cwd) {
+        try {
+          const fileList = [];
+          const MAX_FILE_SIZE = 512 * 1024; // 512 KB
+          const SKIP_DIRS = new Set([
+            'node_modules', '.git', '__pycache__', '.cache',
+            'dist', 'build', '.next', '.turbo', 'coverage',
+          ]);
+          const MIME_MAP = {
+            '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            '.pdf': 'application/pdf',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.zip': 'application/zip',
+          };
+
+          function walk(dir, prefix) {
+            let entries;
+            try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+            for (const entry of entries) {
+              if (entry.name.startsWith('.')) continue;
+              const fullPath = path.join(dir, entry.name);
+              const relPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+              if (entry.isDirectory()) {
+                if (!SKIP_DIRS.has(entry.name)) walk(fullPath, relPath);
+              } else if (entry.isFile()) {
+                try {
+                  const stat = fs.statSync(fullPath);
+                  if (stat.size > MAX_FILE_SIZE) continue;
+                  const buf = fs.readFileSync(fullPath);
+                  const ext = path.extname(entry.name).toLowerCase();
+                  const mime = MIME_MAP[ext];
+                  let content;
+                  if (mime) {
+                    content = `data:${mime};base64,${buf.toString('base64')}`;
+                  } else {
+                    // Detect binary by null bytes in first 8KB
+                    const sample = buf.slice(0, 8192);
+                    const isBinary = sample.includes(0);
+                    if (isBinary) continue; // skip unknown binary files
+                    content = buf.toString('utf8');
+                  }
+                  fileList.push({ path: relPath, content });
+                } catch { continue; }
+              }
+            }
+          }
+
+          walk(cwd, '');
+
+          if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({ __cc_ctrl: true, type: 'file-list', files: fileList }));
+          }
+        } catch (e) {
+          console.error('list-files error:', e.message);
         }
         return;
       }

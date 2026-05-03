@@ -14,26 +14,28 @@ interface XTerminalProps {
   projectId?: string;
   projectName?: string;
   isActive?: boolean;
+  onFilesUpdate?: (files: ProjectFile[]) => void;
 }
 
 // Strip ANSI/VT escape sequences from a string so we can regex-scan plain text.
 const ANSI_RE = /\x1b\[[0-9;?]*[A-Za-z]|\x1b[()][AB012]|\x1b[=>]|\x07|\x08|\r/g;
 
 // Patterns that indicate a server is listening.
-// Captures the full URL (group 1) and/or port (group 2).
 const URL_RE =
   /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d+)([^\s"'<>)\]]*)/gi;
 
+// Detect shell prompt: ends with "$ " after stripping ANSI codes.
+// The bashrc generates prompts like "my-project$ " or "project$ ".
+const PROMPT_RE = /\$\s$/;
+
 function remapToPublic(url: string): string {
-  // Replace the host+port portion with the Replit public host + the same port.
-  // On Replit, other ports are proxied via hostname:port on the same base domain.
   return url.replace(
     /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d+)/i,
     (_m, port) => `${window.location.protocol}//${window.location.hostname}:${port}`
   );
 }
 
-export const XTerminal = ({ projectFiles, projectId, projectName, isActive = true }: XTerminalProps) => {
+export const XTerminal = ({ projectFiles, projectId, projectName, isActive = true, onFilesUpdate }: XTerminalProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -43,14 +45,19 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
   const projectIdRef = useRef(projectId);
   const projectNameRef = useRef(projectName);
   const projectFilesRef = useRef(projectFiles);
+  const onFilesUpdateRef = useRef(onFilesUpdate);
   useEffect(() => { projectIdRef.current = projectId; }, [projectId]);
   useEffect(() => { projectNameRef.current = projectName; }, [projectName]);
   useEffect(() => { projectFilesRef.current = projectFiles; }, [projectFiles]);
+  useEffect(() => { onFilesUpdateRef.current = onFilesUpdate; }, [onFilesUpdate]);
 
   // True after the first init message has been sent to the server.
   const initSentRef = useRef(false);
 
-  // Rolling plain-text buffer (last 2 KB) used for URL scanning.
+  // True when we are waiting for the next shell prompt (command in-flight).
+  const awaitingPromptRef = useRef(false);
+
+  // Rolling plain-text buffer (last 2 KB) used for URL + prompt scanning.
   const textBufRef = useRef('');
 
   // Detected server URL to display as a clickable link.
@@ -144,11 +151,24 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
 
     ws.onmessage = (event) => {
       const raw = typeof event.data === 'string' ? event.data : '';
+
+      // Check for JSON control messages from the server (file-list, etc.)
+      if (raw.startsWith('{"__cc_ctrl"')) {
+        try {
+          const msg = JSON.parse(raw);
+          if (msg.type === 'file-list' && Array.isArray(msg.files)) {
+            onFilesUpdateRef.current?.(msg.files as ProjectFile[]);
+          }
+        } catch {}
+        return; // don't write control messages to the terminal
+      }
+
       term.write(typeof event.data === 'string' ? event.data : new Uint8Array(event.data));
 
       if (raw) {
+        const plain = raw.replace(ANSI_RE, '');
         // Append stripped text to rolling buffer (keep last 2 KB)
-        textBufRef.current = (textBufRef.current + raw.replace(ANSI_RE, '')).slice(-2048);
+        textBufRef.current = (textBufRef.current + plain).slice(-2048);
 
         // Scan for any server URL in the buffer
         URL_RE.lastIndex = 0;
@@ -157,6 +177,18 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
           const public_url = remapToPublic(match[0]);
           setServerUrl(public_url);
           setDismissed(false);
+        }
+
+        // Detect shell prompt returning after a command — request file listing
+        if (awaitingPromptRef.current && PROMPT_RE.test(textBufRef.current)) {
+          awaitingPromptRef.current = false;
+          // Small delay so the command has fully finished writing before we scan
+          setTimeout(() => {
+            const currentWs = wsRef.current;
+            if (currentWs?.readyState === WebSocket.OPEN) {
+              currentWs.send(JSON.stringify({ type: 'list-files' }));
+            }
+          }, 300);
         }
       }
     };
@@ -167,12 +199,17 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
 
     ws.onclose = () => {
       term.write('\r\n\x1b[33mShell session ended. Click + to open a new one.\x1b[0m\r\n');
-      // Clear detected URL when shell closes
       setServerUrl(null);
     };
 
     term.onData((data) => {
-      if (ws.readyState === WebSocket.OPEN) ws.send(data);
+      if (ws.readyState === WebSocket.OPEN) {
+        // If user pressed Enter, expect prompt to return
+        if (data === '\r' || data === '\n') {
+          awaitingPromptRef.current = true;
+        }
+        ws.send(data);
+      }
     });
 
     const ro = new ResizeObserver(() => {
