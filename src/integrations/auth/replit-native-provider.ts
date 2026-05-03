@@ -29,7 +29,7 @@ function makeSession(replitUser: ReplitUser): Session {
   };
   return {
     user,
-    access_token: `replit-${replitUser.id}`,
+    access_token: replitUser.id,
     refresh_token: `replit-refresh-${replitUser.id}`,
     expires_in: 60 * 60 * 24,
     expires_at: now + 60 * 60 * 24,
