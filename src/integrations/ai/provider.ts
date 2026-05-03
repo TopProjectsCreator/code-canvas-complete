@@ -1,4 +1,4 @@
-import { detectDeploymentPlatform, type DeploymentPlatform } from '@/lib/platform';
+import { detectDeploymentPlatform, isReplitLikePlatform, type DeploymentPlatform } from '@/lib/platform';
 
 interface AIRequestOptions {
   accessToken?: string;
@@ -6,7 +6,7 @@ interface AIRequestOptions {
 }
 
 interface ChatPayload {
-  messages: Array<{ role: 'assistant' | 'user'; content: unknown }>;
+  messages: Array<{ role: 'assistant' | 'system' | 'user'; content: unknown }>;
   currentFile: { name: string; language?: string; content?: string } | null;
   consoleErrors: string | null;
   workflows: Array<{ name: string; type: string; command: string }> | null;
@@ -38,6 +38,8 @@ const jsonHeaders = (accessToken?: string) => ({
   'Content-Type': 'application/json',
   ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
 });
+
+const replitBlueprintModel = 'google/gemini-3-flash-preview';
 
 const createSupabaseAIProvider = (): AIProvider => {
   const base = import.meta.env.VITE_SUPABASE_URL;
@@ -71,24 +73,48 @@ const createSupabaseAIProvider = (): AIProvider => {
 
 const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => {
   const envBase =
-    platform === 'replit'
-      ? import.meta.env.VITE_REPLIT_AI_BASE_URL
+    isReplitLikePlatform(platform)
+      ? (import.meta.env.VITE_REPLIT_AI_BASE_URL || '/api/replit/ai')
       : import.meta.env.VITE_LOVABLE_AI_BASE_URL;
-
-  const fallback = createSupabaseAIProvider();
-  if (!envBase) {
+  if (isReplitLikePlatform(platform)) {
     return {
-      ...fallback,
       platform,
-      supportsManagedAI: false,
+      supportsManagedAI: true,
       allowsBYOK: true,
+      chat: async (payload, options) => {
+        const response = await fetch(`${envBase}/chat`, {
+          method: 'POST',
+          headers: jsonHeaders(options?.accessToken),
+          body: JSON.stringify({ ...payload, model: replitBlueprintModel }),
+          signal: options?.signal,
+        });
+        if (response.ok) return response;
+        return createSupabaseAIProvider().chat(payload, options);
+      },
+      generateImage: (prompt, options) =>
+        fetch(`${envBase}/image`, {
+          method: 'POST',
+          headers: jsonHeaders(options?.accessToken),
+          body: JSON.stringify({ prompt }),
+          signal: options?.signal,
+        }),
+      generateMusic: (payload, options) =>
+        fetch(`${envBase}/music`, {
+          method: 'POST',
+          headers: jsonHeaders(options?.accessToken),
+          body: JSON.stringify(payload),
+          signal: options?.signal,
+        }),
     };
   }
+
+  const fallback = createSupabaseAIProvider();
+  if (!envBase) return { ...fallback, platform };
 
   return {
     platform,
     supportsManagedAI: true,
-    allowsBYOK: false,
+    allowsBYOK: true,
     chat: (payload, options) =>
       fetch(`${envBase}/chat`, {
         method: 'POST',
@@ -116,7 +142,7 @@ const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => 
 export const createAIProvider = (): AIProvider => {
   const platform = detectDeploymentPlatform();
 
-  if (platform === 'replit') return createManagedAIProvider('replit');
+  if (isReplitLikePlatform(platform)) return createManagedAIProvider('replit');
   if (platform === 'lovable') return createManagedAIProvider('lovable');
 
   return createSupabaseAIProvider();

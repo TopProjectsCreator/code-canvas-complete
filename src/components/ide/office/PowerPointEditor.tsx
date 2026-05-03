@@ -87,7 +87,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const [presentAnimating, setPresentAnimating] = useState(false);
   const lastSavedBytesRef = useRef<Uint8Array | null>(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   useEffect(() => {
     const load = async () => {
       setLoading(true);

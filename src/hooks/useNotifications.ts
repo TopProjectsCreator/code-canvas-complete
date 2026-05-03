@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useOptionalAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { isReplitLikePlatform } from '@/lib/platform';
 
 export type EmailProvider = 'resend' | 'mailgun' | 'postmark' | 'twilio';
 export type SmsProvider = 'twilio' | 'vonage' | 'messagebird';
@@ -45,7 +46,8 @@ const DEFAULTS: NotificationSettingsState = {
 };
 
 export function useNotifications() {
-  const { user } = useAuth();
+  const auth = useOptionalAuth();
+  const user = auth?.user ?? null;
   const { toast } = useToast();
 
   const [settings, setSettings] = useState<NotificationSettingsState>(() => {
@@ -106,18 +108,34 @@ export function useNotifications() {
   const sendEmailNotification = useCallback(async (to: string, subject: string, body: string) => {
     if (!settings.emailProvider || !settings.emailApiKey || !to) return false;
     try {
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { error } = await supabase.functions.invoke('send-collab-notification', {
-        body: {
-          provider: settings.emailProvider,
-          apiKey: settings.emailApiKey,
-          from: settings.emailFrom || 'noreply@ide.app',
-          to,
-          subject,
-          html: body,
-        },
-      });
-      if (error) throw error;
+      if (isReplitLikePlatform()) {
+        const response = await fetch('/api/replit/send-collab-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider: settings.emailProvider,
+            apiKey: settings.emailApiKey,
+            from: settings.emailFrom || 'noreply@ide.app',
+            to,
+            subject,
+            html: body,
+          }),
+        });
+        if (!response.ok) throw new Error((await response.json().catch(() => ({})))?.error || 'Request failed');
+      } else {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { error } = await supabase.functions.invoke('send-collab-notification', {
+          body: {
+            provider: settings.emailProvider,
+            apiKey: settings.emailApiKey,
+            from: settings.emailFrom || 'noreply@ide.app',
+            to,
+            subject,
+            html: body,
+          },
+        });
+        if (error) throw error;
+      }
       return true;
     } catch (err) {
       console.error('Failed to send email notification:', err);
@@ -129,18 +147,34 @@ export function useNotifications() {
     const to = toOverride || settings.smsTo;
     if (!settings.smsEnabled || !settings.smsProvider || !settings.smsAuthToken || !settings.smsFrom || !to) return false;
     try {
-      const { supabase } = await import('@/integrations/supabase/client');
-      const { error } = await supabase.functions.invoke('send-sms-notification', {
-        body: {
-          provider: settings.smsProvider,
-          accountSid: settings.smsAccountSid,
-          authToken: settings.smsAuthToken,
-          from: settings.smsFrom,
-          to,
-          body: text.slice(0, 320),
-        },
-      });
-      if (error) throw error;
+      if (isReplitLikePlatform()) {
+        const response = await fetch('/api/replit/send-sms-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider: settings.smsProvider,
+            accountSid: settings.smsAccountSid,
+            authToken: settings.smsAuthToken,
+            from: settings.smsFrom,
+            to,
+            body: text.slice(0, 320),
+          }),
+        });
+        if (!response.ok) throw new Error((await response.json().catch(() => ({})))?.error || 'Request failed');
+      } else {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { error } = await supabase.functions.invoke('send-sms-notification', {
+          body: {
+            provider: settings.smsProvider,
+            accountSid: settings.smsAccountSid,
+            authToken: settings.smsAuthToken,
+            from: settings.smsFrom,
+            to,
+            body: text.slice(0, 320),
+          },
+        });
+        if (error) throw error;
+      }
       return true;
     } catch (err) {
       console.error('Failed to send SMS notification:', err);

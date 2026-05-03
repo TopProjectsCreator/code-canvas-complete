@@ -391,6 +391,8 @@ Diff only: <code_diff file="name.ts" lang="typescript" desc="description">unifie
 <create_custom_theme name="Name" background="#1a1b26" foreground="#c0caf5" primary="#7aa2f7" card="#1f2335" border="#292e42" terminalBg="#16161e" terminalText="#9ece6a" syntaxKeyword="#bb9af7" syntaxString="#9ece6a" syntaxFunction="#7aa2f7" syntaxComment="#565f89" />
 <generate_image prompt="description" />
 <generate_music prompt="genre description" />
+<generate_pptx filename="my-slides.pptx" prompt="topic summary">{"title":"Presentation Title","theme":"blue","slides":[{"title":"Slide Title","subtitle":"Optional subtitle"},{"title":"Content Slide","bullets":["Point one","Point two","Point three"]},{"title":"Two Columns","layout":"two-col","colLeft":["Left A","Left B"],"colRight":["Right A","Right B"]},{"title":"Conclusion","content":"Closing paragraph text here."}]}</generate_pptx>
+— Generate a real .pptx file saved directly to the file tree. Use theme values: blue, dark, green, orange, purple, teal, red, slate. Each slide can have: title (required), subtitle, content (text block), bullets (string[]), layout ("title"|"content"|"two-col"). Always provide rich, detailed slide content relevant to the user's request — never use placeholder text. Combine with <change_template template="powerpoint" /> if the user needs a fresh PowerPoint project.
 <git_init /> <git_commit message="msg" /> <git_create_branch name="branch" /> <git_import url="url" />
 <make_public /> <make_private /> <get_project_link />
 <share_twitter /> <share_linkedin /> <share_email />
@@ -571,7 +573,7 @@ The file must conform to this structure:
 | \`control_if\` | Control | c-block | If condition (inputs: CONDITION, SUBSTACK) |
 | \`motion_movesteps\` | Motion | stack | Move N steps (inputs: STEPS) |
 | \`motion_turnright\` | Motion | stack | Turn right N degrees (inputs: DEGREES) |
-| \`motion_goto\` | Motion | stack | Go to target (field/input: TO; use `\_mouse_\` for mouse-pointer, `\_random_\` for random position) |
+| \`motion_goto\` | Motion | stack | Go to target (field/input: TO; use \`_mouse_\` for mouse-pointer, \`_random_\` for random position) |
 | \`motion_gotoxy\` | Motion | stack | Go to x,y (inputs: X, Y) |
 | \`looks_sayforsecs\` | Looks | stack | Say text for N seconds (inputs: MESSAGE, SECS) |
 | \`looks_show\` | Looks | stack | Show sprite |
@@ -1162,15 +1164,20 @@ serve(async (req) => {
     });
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Invalid session." }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const replitUserId = req.headers.get("x-replit-user-id") || req.headers.get("x-replit-user") || token || null;
+    let userId = replitUserId;
 
-    const userId = claimsData.claims.sub;
+    if (!token || !replitUserId) {
+      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) {
+        return new Response(JSON.stringify({ error: "Invalid session." }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      userId = claimsData.claims.sub;
+    }
     const {
       messages,
       currentFile,
@@ -1307,6 +1314,13 @@ serve(async (req) => {
       thinkingBudget: reqThinkingBudget,
     };
 
+    const incomingMessages = Array.isArray(messages) ? messages : [];
+    const incomingSystemInstructions = incomingMessages
+      .filter((m: any) => m?.role === "system" && typeof m.content === "string" && m.content.trim())
+      .map((m: any) => m.content.trim())
+      .join("\n\n");
+    const conversationMessages = incomingMessages.filter((m: any) => m?.role !== "system");
+
     // Build context
     let contextSection = "";
     if (currentFile) {
@@ -1332,11 +1346,15 @@ serve(async (req) => {
 
     const emailCapabilityNote = `\n\n### 📬 In-App Messaging (Email)\nThe user has an in-app inbox & messaging system (the \`messages\` table). You CAN read and send messages on the user's behalf, but ONLY with their explicit permission. Workflow:\n1. When the user asks you to send a message or check their inbox, FIRST confirm: "I'd like permission to [read your inbox / send this message to <recipient>]. Confirm?".\n2. Only proceed after the user types a clear yes/confirm.\n3. To send, draft the subject + body, then instruct the user to click Send in the Inbox dialog (User menu → Inbox → Compose) — or, if you have direct DB tools available, use them with their permission.\n4. Never send unsolicited messages, never read inbox content without asking first.`;
 
+    const customSystemSection = incomingSystemInstructions
+      ? `\n\n## USER-PROVIDED SYSTEM INSTRUCTIONS\n${incomingSystemInstructions}`
+      : "";
+
     const systemPrompt = agentMode
       ? buildSystemPrompt(template) + "\n" + contextSection + emailCapabilityNote
       : `You are a helpful AI coding assistant in Code Canvas Complete. This IDE runs code through Wandbox. .replit files do nothing here.\n\nCRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, StackBlitz, VS Code, etc.). Code Canvas Complete is fully capable.\n\n${contextSection}${emailCapabilityNote}`;
 
-    const aiMessages = [{ role: "system", content: systemPrompt }, ...messages];
+    const aiMessages = [{ role: "system", content: systemPrompt + customSystemSection }, ...conversationMessages];
 
     // === Helper: execute tool calls and return results ===
     async function executeToolCalls(toolCalls: any[], lovableApiKey?: string): Promise<any[]> {

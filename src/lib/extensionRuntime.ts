@@ -7,6 +7,9 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
+
+const platform = detectDeploymentPlatform();
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -73,7 +76,21 @@ function getStorage(extensionSlug: string) {
 /*  AI helpers exposed to extensions                                   */
 /* ------------------------------------------------------------------ */
 
+async function replitAiChat(body: object): Promise<unknown> {
+  const res = await fetch('/api/replit/ai/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`AI request failed: ${res.status}`);
+  return res.json();
+}
+
 async function aiComplete(prompt: string): Promise<string> {
+  if (isReplitLikePlatform(platform)) {
+    const data = await replitAiChat({ messages: [{ role: 'user', content: prompt }], model: 'google/gemini-flash-1.5' }) as Record<string, unknown>;
+    return (data?.reply ?? (data?.choices as any)?.[0]?.message?.content ?? '') as string;
+  }
   const { data, error } = await supabase.functions.invoke('ai-chat', {
     body: { messages: [{ role: 'user', content: prompt }], model: 'google/gemini-3-flash-preview' },
   });
@@ -82,6 +99,18 @@ async function aiComplete(prompt: string): Promise<string> {
 }
 
 async function aiStructured(prompt: string, schema: Record<string, unknown>): Promise<unknown> {
+  if (isReplitLikePlatform(platform)) {
+    const data = await replitAiChat({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'google/gemini-flash-1.5',
+      tools: [{ type: 'function', function: { name: 'extract', description: 'Extract structured data', parameters: schema } }],
+      tool_choice: { type: 'function', function: { name: 'extract' } },
+    }) as Record<string, unknown>;
+    try {
+      const call = (data?.choices as any)?.[0]?.message?.tool_calls?.[0];
+      return call ? JSON.parse(call.function.arguments) : data;
+    } catch { return data; }
+  }
   const { data, error } = await supabase.functions.invoke('ai-chat', {
     body: {
       messages: [{ role: 'user', content: prompt }],

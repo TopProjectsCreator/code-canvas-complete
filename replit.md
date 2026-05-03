@@ -75,6 +75,7 @@ Located in `supabase/functions/`, these are Deno-based edge functions deployed t
 - Team management
 - 3D model generation (Meshy, Tripo, Fal.ai, etc.)
 - Image and music generation
+- AI-generated PowerPoint files via pptxgenjs (client-side, saves real .pptx to file tree)
 - Office document editing (Word, Excel, PowerPoint)
 - Scratch visual programming
 - CAD model viewer

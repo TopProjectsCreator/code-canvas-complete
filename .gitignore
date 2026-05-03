@@ -11,7 +11,6 @@ node_modules
 dist
 dist-ssr
 *.local
-.env
 .env.*
 
 .agents
@@ -28,3 +27,7 @@ skills-lock.json
 *.njsproj
 *.sln
 *.sw?
+
+# Rust build artifacts
+target/
+aikeys.json

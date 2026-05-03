@@ -8,6 +8,7 @@ import { Search, Plus, Loader2, Sparkles, AlertCircle, ArrowLeft, Star, Grid3X3,
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useMCPAndSkills } from '@/hooks/useMCPAndSkills';
+import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 
 interface SkillsLibraryDialogProps {
   open: boolean;
@@ -16,12 +17,13 @@ interface SkillsLibraryDialogProps {
 
 interface ExternalSkill {
   name: string;
+  fullName?: string;
   description: string;
   category: string;
   stars?: number;
   author?: string;
   url?: string;
-  instruction?: string;
+  instruction?: string | null;
 }
 
 interface CategoryInfo {
@@ -32,6 +34,23 @@ interface CategoryInfo {
 }
 
 type ViewMode = 'categories' | 'category' | 'search' | 'top';
+
+async function fetchLibrary(params: Record<string, string>): Promise<{ categories?: CategoryInfo[]; skills?: ExternalSkill[] }> {
+  const platform = detectDeploymentPlatform();
+  if (isReplitLikePlatform(platform)) {
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch(`/api/replit/ai/skills/library?${qs}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || res.statusText);
+    }
+    return res.json();
+  }
+  const { data, error: fnError } = await supabase.functions.invoke('fetch-ai-skills', { body: params });
+  if (fnError) throw new Error(fnError.message);
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
 
 export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogProps) {
   const [skills, setSkills] = useState<ExternalSkill[]>([]);
@@ -45,6 +64,8 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
 
   const { addSkill } = useMCPAndSkills();
   const { toast } = useToast();
+
+  const isReplit = isReplitLikePlatform();
 
   useEffect(() => {
     if (open) {
@@ -61,15 +82,10 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('fetch-ai-skills', {
-        body: { mode: 'categories' },
-      });
-      if (fnError) throw new Error(fnError.message);
-      if (data?.error) throw new Error(data.error);
+      const data = await fetchLibrary({ mode: 'categories' });
       setCategories(data?.categories || []);
-    } catch (err: any) {
-      console.error('Error fetching categories:', err);
-      setError(err.message || 'Failed to load categories');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load categories');
     } finally {
       setLoading(false);
     }
@@ -82,14 +98,10 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
     setError(null);
     setSkills([]);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('fetch-ai-skills', {
-        body: { mode: 'category', category: slug },
-      });
-      if (fnError) throw new Error(fnError.message);
-      if (data?.error) throw new Error(data.error);
+      const data = await fetchLibrary({ mode: 'category', category: slug });
       setSkills(data?.skills || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load skills');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load skills');
     } finally {
       setLoading(false);
     }
@@ -101,14 +113,10 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
     setError(null);
     setSkills([]);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('fetch-ai-skills', {
-        body: { mode: 'top' },
-      });
-      if (fnError) throw new Error(fnError.message);
-      if (data?.error) throw new Error(data.error);
+      const data = await fetchLibrary({ mode: 'top' });
       setSkills(data?.skills || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load top skills');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load top skills');
     } finally {
       setLoading(false);
     }
@@ -121,30 +129,43 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
     setError(null);
     setSkills([]);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('fetch-ai-skills', {
-        body: { mode: 'search', search: search.trim() },
-      });
-      if (fnError) throw new Error(fnError.message);
-      if (data?.error) throw new Error(data.error);
+      const data = await fetchLibrary({ mode: 'search', search: search.trim() });
       setSkills(data?.skills || []);
-    } catch (err: any) {
-      setError(err.message || 'Search failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Search failed');
     } finally {
       setLoading(false);
     }
   }, [search]);
 
   const handleAdd = async (skill: ExternalSkill) => {
-    const instruction = skill.instruction || `Act as a ${skill.name} specialist. ${skill.description}`;
+    let instruction = skill.instruction || null;
+
+    // On Replit: try to fetch the actual skill content from officialskills.sh
+    if (!instruction && isReplit && skill.url) {
+      try {
+        const res = await fetch(`/api/replit/ai/skills/fetch-content?url=${encodeURIComponent(skill.url)}&description=${encodeURIComponent(skill.description)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.content) instruction = data.content;
+        }
+      } catch { /* fall through */ }
+    }
+
+    // Final fallback: generate a sensible instruction from description
+    if (!instruction) {
+      instruction = `You are an expert in ${skill.fullName || skill.name}.\n\n${skill.description}\n\nApply your expertise to help the user with any questions or tasks related to this domain.`;
+    }
+
     const ok = await addSkill({
-      name: skill.name,
+      name: skill.fullName || skill.name,
       description: skill.description,
       instruction,
       icon: 'sparkles',
     });
     if (ok) {
       setAddedSkills(prev => new Set(prev).add(skill.name));
-      toast({ title: 'Skill Added', description: `${skill.name} has been added to your agent.` });
+      toast({ title: 'Skill Added', description: `${skill.fullName || skill.name} has been added to your agent.` });
     }
   };
 
@@ -155,10 +176,17 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
   };
 
   const showBackButton = view !== 'categories';
-  const title = view === 'categories' ? 'Skills Library' 
-    : view === 'top' ? 'Top Starred Skills'
+  const title = view === 'categories' ? 'Skills Library'
+    : view === 'top' ? 'Top Skills'
     : view === 'search' ? `Search: "${search}"`
     : activeCategory.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+  const sourceLabel = isReplit
+    ? 'VoltAgent/awesome-agent-skills on GitHub'
+    : 'ai-skills.io powered by Firecrawl';
+  const loadingLabel = isReplit
+    ? 'Fetching from VoltAgent/awesome-agent-skills…'
+    : 'Fetching from ai-skills.io via Firecrawl…';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,7 +202,15 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
             {title}
           </DialogTitle>
           <p className="text-sm text-muted-foreground">
-            Browse 10,000+ community AI skills from <a href="https://ai-skills.io" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">ai-skills.io</a> powered by Firecrawl
+            Browse real-world agent skills from{' '}
+            <a
+              href={isReplit ? 'https://github.com/VoltAgent/awesome-agent-skills' : 'https://ai-skills.io'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline"
+            >
+              {sourceLabel}
+            </a>
           </p>
         </DialogHeader>
 
@@ -183,7 +219,7 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search skills on ai-skills.io..."
+              placeholder="Search skills…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -199,7 +235,7 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="w-8 h-8 animate-spin mb-4" />
-              <p className="text-sm">Fetching from ai-skills.io via Firecrawl...</p>
+              <p className="text-sm">{loadingLabel}</p>
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12 text-destructive text-center px-6">
@@ -212,7 +248,7 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
             </div>
           ) : view === 'categories' ? (
             <div className="space-y-4">
-              {/* Top Starred button */}
+              {/* Top Starred / Top Skills button */}
               <button
                 onClick={fetchTopStarred}
                 className="w-full p-4 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors text-left flex items-center gap-3"
@@ -221,8 +257,8 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
                   <Trophy className="w-5 h-5 text-amber-500" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="text-sm font-medium">Top Starred Skills</h4>
-                  <p className="text-xs text-muted-foreground">The most popular agent skills by GitHub stars</p>
+                  <h4 className="text-sm font-medium">Top Skills</h4>
+                  <p className="text-xs text-muted-foreground">The most popular community agent skills</p>
                 </div>
                 <Star className="w-4 h-4 text-muted-foreground" />
               </button>
@@ -269,23 +305,23 @@ export function SkillsLibraryDialog({ open, onOpenChange }: SkillsLibraryDialogP
                 return (
                   <div key={idx} className="flex items-start gap-3 p-3.5 rounded-lg border border-border bg-card hover:border-primary/50 transition-colors">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-0.5">
                         <h4 className="text-sm font-medium truncate">{skill.name}</h4>
-                        {skill.stars && skill.stars > 0 && (
+                        {skill.stars != null && skill.stars > 0 && (
                           <span className="flex items-center gap-0.5 text-[10px] text-amber-500">
                             <Star className="w-3 h-3" /> {skill.stars.toLocaleString()}
                           </span>
                         )}
-                        {skill.author && (
-                          <span className="text-[10px] text-muted-foreground">by {skill.author}</span>
-                        )}
                       </div>
+                      {skill.fullName && (
+                        <p className="text-[10px] text-muted-foreground/60 font-mono mb-1">{skill.fullName}</p>
+                      )}
                       <p className="text-xs text-muted-foreground line-clamp-2">{skill.description}</p>
                       <div className="flex items-center gap-2 mt-1.5">
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{skill.category}</Badge>
                         {skill.url && (
                           <a href={skill.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-primary hover:underline">
-                            View Details →
+                            View on officialskills.sh →
                           </a>
                         )}
                       </div>

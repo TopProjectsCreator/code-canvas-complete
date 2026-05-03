@@ -10,6 +10,7 @@ interface ExecuteRequest {
   language: string;
   stdin?: string;
   sessionId?: string;
+  platformHint?: 'replit' | 'lovable' | 'generic';
 }
 
 interface ExecuteResult {
@@ -362,7 +363,7 @@ serve(async (req) => {
   }
 
   try {
-    const { code, language, stdin, sessionId } = await req.json() as ExecuteRequest;
+    const { code, language, stdin, sessionId, platformHint } = await req.json() as ExecuteRequest;
 
     if (!code || !code.trim()) {
       return new Response(
@@ -379,7 +380,8 @@ serve(async (req) => {
     }
 
     const normalizedLanguage = normalizeLanguage(language);
-    const useContainer = shouldUseContainer(normalizedLanguage);
+    const forceContainer = platformHint === 'replit';
+    const useContainer = forceContainer || shouldUseContainer(normalizedLanguage);
     const executorName = useContainer ? 'Container (session-capable)' : 'Wandbox';
 
     if (normalizedLanguage === 'shell' || normalizedLanguage === 'bash') {

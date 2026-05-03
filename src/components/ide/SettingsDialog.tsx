@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme, themeInfo, IDETheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { useApiKeys, AIProvider, PROVIDER_INFO } from '@/hooks/useApiKeys';
+import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   User, Palette, Keyboard, Check, Upload, Loader2, Key, Shield, Zap,
@@ -189,6 +190,10 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
   const validateKey = async (provider: AIProvider, key: string): Promise<{ valid: boolean; error?: string }> => {
     const formatError = validateKeyFormat(provider, key);
     if (formatError) return { valid: false, error: formatError };
+
+    if (isReplitLikePlatform()) {
+      return { valid: true };
+    }
 
     try {
       const { data, error } = await supabase.functions.invoke('validate-api-key', {

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, lazy, Suspense, useMemo } from "react";
+import { isReplitLikePlatform, detectDeploymentPlatform } from "@/lib/platform";
 import { applyDiff } from "@/lib/diffUtils";
 import { useNavigate } from "react-router-dom";
 import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from "@/types/ide";
@@ -8,6 +9,7 @@ import { Sidebar } from "./Sidebar";
 import { EditorTabs } from "./EditorTabs";
 import { CodeEditor } from "./CodeEditor";
 import { Terminal } from "./Terminal";
+import type { ProjectFile as ShellProjectFile } from "./XTerminal";
 import { Preview } from "./Preview";
 import { LanguagePicker } from "./LanguagePicker";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -39,6 +41,8 @@ import { useOfflineProject } from "@/hooks/useOfflineProject";
 import { AutomationTemplatePane, type AutomationBlockInstance, serializeAutomationConfig, parseAutomationConfig } from "@/components/ide/AutomationTemplatePane";
 import { DatabaseDesignerPane } from "@/components/ide/DatabaseDesignerPane";
 import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
+
+const platform = detectDeploymentPlatform();
 
 const GITHUB_TEMPLATE_REPOS: Partial<Record<LanguageTemplate, string>> = {
   ftc: "https://github.com/FIRST-Tech-Challenge/FtcRobotController",
@@ -308,7 +312,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   >([]);
   const editedFilesRef = useRef<Set<string>>(new Set());
   const collabEngineRef = useRef<CollaborationSyncEngine>(new CollaborationSyncEngine());
-  const { executeCode, executeShellCommand, isExecuting } = useCodeExecution();
+  const { executeCode, executeShellCommand, isExecuting, resetReplitShell } = useCodeExecution();
   const collab = useCollaboration(currentProject?.id);
   const { importRepository: gitImportRepo } = useGitHubImport();
   const { importRepository: gitProviderImport } = useGitProviderImport();
@@ -1318,6 +1322,25 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       if (filePath) {
         void collab.broadcastFilePatch(collabEngineRef.current, fileId, filePath, content);
         void collab.broadcastFileChange({ fileId, filePath, content });
+        setFiles((prev) =>
+          prev.map((node) => {
+            if (node.type === "file" && node.id === fileId) {
+              return { ...node, content };
+            }
+            if (node.type === "folder" && node.children) {
+              const updateChildren = (children: FileNode[]): FileNode[] =>
+                children.map((child) => {
+                  if (child.type === "file" && child.id === fileId) return { ...child, content };
+                  if (child.type === "folder" && child.children) {
+                    return { ...child, children: updateChildren(child.children) };
+                  }
+                  return child;
+                });
+              return { ...node, children: updateChildren(node.children) };
+            }
+            return node;
+          })
+        );
       }
 
       // Track file edits in history (deduplicate rapid edits)
@@ -1388,6 +1411,114 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     [handleCreateOrUpdateFile],
   );
 
+  // Called by XTerminal whenever a `list-files` response comes back from the
+  // shell server.  We diff the returned files against the in-memory tree and
+  // add any files that don't already exist so they appear in the project pane.
+  const handleShellFilesUpdate = useCallback(
+    (shellFiles: ShellProjectFile[]) => {
+      const normalize = (value: string) => value.replace(/^\/+/, "");
+      const shellByPath = new Map(shellFiles.map((f) => [normalize(f.path), f]));
+      const shellByName = new Map<string, ShellProjectFile[]>();
+      for (const file of shellFiles) {
+        const name = file.path.split("/").pop() || file.path;
+        const list = shellByName.get(name) || [];
+        list.push(file);
+        shellByName.set(name, list);
+      }
+
+      const indexNodes = (nodes: FileNode[], prefix = ""): Array<{ node: FileNode; path: string }> => {
+        const out: Array<{ node: FileNode; path: string }> = [];
+        for (const node of nodes) {
+          const path = prefix ? `${prefix}/${node.name}` : node.name;
+          out.push({ node, path });
+          if (node.children) out.push(...indexNodes(node.children, path));
+        }
+        return out;
+      };
+
+      const existingIndexed = indexNodes(files).filter(({ node }) => node.type === "file");
+      const usedShellPaths = new Set<string>();
+      const usedNodeIds = new Set<string>();
+      const nodeUpdates = new Map<string, { name?: string; content?: string; language?: string }>();
+
+      for (const { node, path } of existingIndexed) {
+        const exact = shellByPath.get(path);
+        const candidates = shellByName.get(node.name) || [];
+        const oldContent = node.content ?? fileContents[node.id] ?? "";
+        const renamed = exact || candidates.find((candidate) => candidate.content === oldContent) || candidates[0] || null;
+        if (!renamed) continue;
+
+        const nextPath = normalize(renamed.path);
+        const nextName = renamed.path.split("/").pop() || renamed.path;
+        const nextContent = renamed.content;
+        usedShellPaths.add(nextPath);
+        usedNodeIds.add(node.id);
+
+        if (node.content !== nextContent || node.name !== nextName || path !== nextPath) {
+          nodeUpdates.set(node.id, {
+            name: nextName,
+            content: nextContent,
+            language: getFileLanguage(nextName),
+          });
+        }
+      }
+
+      const applyUpdates = (nodes: FileNode[], prefix = ""): FileNode[] => {
+        let changed = false;
+        const nextNodes = nodes.map((node) => {
+          const currentPath = prefix ? `${prefix}/${node.name}` : node.name;
+          if (node.type === "folder") {
+            const nextChildren = node.children ? applyUpdates(node.children, currentPath) : node.children;
+            if (nextChildren !== node.children) {
+              changed = true;
+              return { ...node, children: nextChildren };
+            }
+            return node;
+          }
+
+          const update = nodeUpdates.get(node.id);
+          if (!update) return node;
+          changed = true;
+          if (update.content !== undefined) {
+            setFileContents((prev) => ({ ...prev, [node.id]: update.content ?? "" }));
+          }
+          return {
+            ...node,
+            ...(update.name ? { name: update.name } : {}),
+            ...(update.content !== undefined ? { content: update.content } : {}),
+            ...(update.language ? { language: update.language } : {}),
+          };
+        });
+
+        const existingPaths = new Set(nextNodes.map((node) => `${prefix ? `${prefix}/` : ""}${node.name}`));
+        const additions = shellFiles
+          .map((file) => normalize(file.path))
+          .filter((path) => !usedShellPaths.has(path) && !existingPaths.has(path))
+          .map((path) => shellByPath.get(path))
+          .filter((file): file is ShellProjectFile => Boolean(file));
+
+        if (!changed && additions.length === 0) return nodes;
+
+        const addedNodes: FileNode[] = additions.map((shellFile) => ({
+          id: Math.random().toString(36).slice(2, 11),
+          name: shellFile.path.split("/").pop() || shellFile.path,
+          type: "file",
+          content: shellFile.content,
+          language: getFileLanguage(shellFile.path.split("/").pop() || shellFile.path),
+        }));
+
+        for (const added of addedNodes) {
+          setFileContents((prev) => ({ ...prev, [added.id]: added.content || "" }));
+        }
+
+        return [...nextNodes, ...addedNodes];
+      };
+
+      setFiles(applyUpdates(files));
+    },
+    [fileContents, files],
+  );
+
   const handleCommand = useCallback(
     (command: string, output: string[], isError: boolean) => {
       // Check for clear command
@@ -1430,6 +1561,15 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       setTerminalHistory((prev) => [...prev, inputLine, ...outputLines]);
 
       addHistoryEntry("terminal-command", `Ran: ${command}`, isError ? "Error" : undefined);
+
+      if (!isError) {
+        window.setTimeout(() => {
+          setFiles((prev) => {
+            const clone = JSON.parse(JSON.stringify(prev)) as FileNode[];
+            return clone;
+          });
+        }, 100);
+      }
     },
     [addHistoryEntry],
   );
@@ -1806,6 +1946,23 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   }, [files, fileContents]);
 
   const getFilesWithContent = useCallback((): FileNode[] => filesWithContent, [filesWithContent]);
+
+  // Flatten the project file tree into {path, content} pairs for the PTY shell
+  const flattenedProjectFiles = useMemo(() => {
+    const flatten = (nodes: FileNode[], prefix = ''): { path: string; content: string }[] => {
+      const result: { path: string; content: string }[] = [];
+      for (const node of nodes) {
+        const nodePath = prefix ? `${prefix}/${node.name}` : node.name;
+        if (node.type === 'file' && node.content !== undefined) {
+          result.push({ path: nodePath, content: node.content });
+        } else if (node.type === 'folder' && node.children) {
+          result.push(...flatten(node.children, nodePath));
+        }
+      }
+      return result;
+    };
+    return flatten(filesWithContent);
+  }, [filesWithContent]);
 
   const handleProjectSaved = useCallback(
     (project: Project) => {
@@ -2334,7 +2491,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       htmlContent={htmlContent}
                       cssContent={cssContent}
                       jsContent={jsContent}
-                      isRunning={isRunning}
+                      isRunning={isReplitLikePlatform(platform) ? (isRunning && !!htmlContent) : isRunning}
                     />
                   )}
                 </div>
@@ -2350,6 +2507,11 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     onToggleMinimize={() => {}}
                     stdinPrompt={stdinPrompt}
                     onStdinSubmit={handleStdinSubmit}
+                    onNewShell={resetReplitShell}
+                    projectFiles={flattenedProjectFiles}
+                    projectId={currentProject?.id}
+                    projectName={currentProject?.name}
+                    onFilesUpdate={handleShellFilesUpdate}
                   />
                 </div>
               )}
@@ -2360,7 +2522,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             // Desktop: Resizable panels
             <ResizablePanelGroup direction="horizontal" className="flex-1">
               {/* Editor panel - hidden for scratch and automation templates */}
-              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && (
+              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && !(isAIChatOpen || mobileActivePanel === "ai") && (
                 <>
                   <ResizablePanel defaultSize={54} minSize={34}>
                     <div className="h-full flex flex-col">
@@ -2379,6 +2541,11 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                           onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
                           stdinPrompt={stdinPrompt}
                           onStdinSubmit={handleStdinSubmit}
+                          onNewShell={resetReplitShell}
+                          projectFiles={flattenedProjectFiles}
+                          projectId={currentProject?.id}
+                          projectName={currentProject?.name}
+                          onFilesUpdate={handleShellFilesUpdate}
                         />
                       </div>
                     </div>
@@ -2428,7 +2595,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     htmlContent={htmlContent}
                     cssContent={cssContent}
                     jsContent={jsContent}
-                    isRunning={isRunning}
+                    isRunning={isReplitLikePlatform(platform) ? (isRunning && !!htmlContent) : isRunning}
                   />
                 )}
               </ResizablePanel>

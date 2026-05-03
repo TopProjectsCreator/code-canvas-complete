@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Key, Trash2, ExternalLink, Eye, EyeOff, Shield, Zap, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { useApiKeys, AIProvider, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { supabase } from '@/integrations/supabase/client';
+import { isReplitLikePlatform } from '@/lib/platform';
+import { detectDeploymentPlatform } from '@/lib/platform';
 import { cn } from '@/lib/utils';
 
 interface ApiKeysDialogProps {
@@ -67,11 +69,13 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
   const [validationError, setValidationError] = useState<string>('');
 
   const validateKey = async (provider: AIProvider, key: string): Promise<{ valid: boolean; error?: string }> => {
-    // Step 1: Format check
     const formatError = validateKeyFormat(provider, key);
     if (formatError) return { valid: false, error: formatError };
 
-    // Step 2: Server-side validation via edge function (avoids CORS)
+    if (isReplitLikePlatform()) {
+      return { valid: true };
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('validate-api-key', {
         body: { provider, apiKey: key },

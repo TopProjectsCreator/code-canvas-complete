@@ -1,11 +1,11 @@
-modules = ["nodejs-20", "python-3.11", "web"]
+modules = ["nodejs-20", "python-3.11", "web", "rust-stable"]
 [agent]
 expertMode = true
 integrations = ["javascript_database:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["killall"]
+packages = ["killall", "gemini-cli"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -31,6 +31,10 @@ args = "Lint"
 [[workflows.workflow.tasks]]
 task = "workflow.run"
 args = "Fund "
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Replit Backend"
 
 [[workflows.workflow]]
 name = "Start application"
@@ -66,6 +70,26 @@ args = "npm fund"
 [workflows.workflow.metadata]
 isValidation = true
 
+[[workflows.workflow]]
+name = "Replit Backend"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run server:replit"
+waitForPort = 3001
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[ports]]
+localPort = 3000
+externalPort = 3002
+
+[[ports]]
+localPort = 3001
+externalPort = 3001
+
 [[ports]]
 localPort = 5000
 externalPort = 80
@@ -74,10 +98,18 @@ externalPort = 80
 localPort = 5001
 externalPort = 3000
 
+[[ports]]
+localPort = 5173
+externalPort = 5173
+
+[[ports]]
+localPort = 23636
+externalPort = 3003
+
 [userenv]
 
 [userenv.shared]
 VITE_SUPABASE_URL = "https://xlmvlplazxrouscupidi.supabase.co"
 VITE_SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsbXZscGxhenhyb3VzY3VwaWRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NjYyNjQsImV4cCI6MjA4NTU0MjI2NH0.j5b8QH6RusxDfJ21Fsp7A-ILDPPTL4r6ZpmO_OFoqT8"
 VITE_SUPABASE_PROJECT_ID = "xlmvlplazxrouscupidi"
-VITE_DEPLOY_PLATFORM = "lovable"
+VITE_DEPLOY_PLATFORM = "replit"

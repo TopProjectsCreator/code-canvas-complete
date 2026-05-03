@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Landing from "./pages/Landing";
@@ -12,13 +12,37 @@ import Docs from "./pages/Docs";
 import ProfilePage from "./pages/Profile";
 import PrivacyPolicyPage from "./pages/PrivacyPolicy";
 import TermsOfUsePage from "./pages/TermsOfUse";
+import Compare from "./pages/Compare";
 import { isPublishedHost } from "./lib/publishing";
 import { OfflineDialog } from "@/components/ide/OfflineDialog";
 import { InboxNotifier } from "@/components/ide/InboxNotifier";
 
 const queryClient = new QueryClient();
 
-const RootRoute = () => (isPublishedHost() ? <Index /> : <Landing />);
+const landingVariants = [
+  "/landing",
+  "/__mockup/preview/landing-hero/LivingGrid",
+  "/__mockup/preview/landing-hero/TerminalBoot",
+  "/__mockup/preview/landing-hero/TheVoid",
+  "/__mockup/preview/landing-hero/MonochromePrecision",
+  "/__mockup/preview/landing-hero/WarmMomentum",
+  "/__mockup/preview/landing-hero/TerminalVerdict",
+] as const;
+
+const getLandingVariant = () => {
+  const roll = Math.random();
+  if (roll < 0.99) return "/landing";
+  const otherVariants = landingVariants.slice(1);
+  const idx = Math.floor(Math.random() * otherVariants.length);
+  return otherVariants[idx] ?? "/landing";
+};
+
+const RootRoute = () => {
+  if (isPublishedHost()) return <Index />;
+  const choice = getLandingVariant();
+  if (choice === "/landing") return <Landing />;
+  return <Navigate to={choice} replace />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -41,6 +65,7 @@ const App = () => (
               <Route path="/profile/:userId" element={<ProfilePage />} />
               <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
               <Route path="/terms-of-use" element={<TermsOfUsePage />} />
+              <Route path="/compare" element={<Compare />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

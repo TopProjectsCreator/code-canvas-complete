@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { PublicCanvasSearch } from "@/components/landing/PublicCanvasSearch";
 import { AnimatedCounter } from "@/components/landing/AnimatedCounter";
+import { CodeCanvasLogo } from "@/components/brand/CodeCanvasLogo";
 import { useLandingStats } from "@/hooks/useLandingStats";
 
 const missionBlocks = [
@@ -217,13 +218,9 @@ export default function Landing() {
 
       <nav className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary shadow-lg shadow-primary/25">
-              <CircuitBoard className="h-4.5 w-4.5 text-primary-foreground" />
-            </div>
-            <span className="font-mono text-lg font-semibold tracking-tight">CodeCanvas</span>
-          </div>
+          <CodeCanvasLogo />
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/compare")}>Compare</Button>
             <Button variant="ghost" size="sm" onClick={() => navigate("/editor")}>Sign In</Button>
             <Button size="sm" onClick={() => navigate("/editor")} className="gap-1.5 shadow-lg shadow-primary/30">
               Enter Grid <ArrowRight className="h-3.5 w-3.5" />

@@ -20,6 +20,10 @@ import {
 } from '@/services/ftcUploadService';
 import type { AdbDevice } from '@/lib/webusb-adb';
 import { HardwareConfigEditor } from './HardwareConfigEditor';
+import { isReplitLikePlatform } from '@/lib/platform';
+import { detectDeploymentPlatform } from '@/lib/platform';
+import { ftcTemplate } from '@/data/ftcTemplateFiles';
+import { useEffect } from 'react';
 import {
   Hammer,
   Upload,
@@ -74,7 +78,7 @@ function collectOpModes(nodes: FileNode[], includeSamples: boolean, prefix = '')
     if (node.type !== 'file' || !node.name.endsWith('.java')) continue;
 
     const normalizedPath = path.toLowerCase();
-    const isTeamCodeJava = normalizedPath.includes('/teamcode/src/main/java/');
+    const isTeamCodeJava = normalizedPath.includes('teamcode') && normalizedPath.endsWith('.java');
     if (!isTeamCodeJava) continue;
 
     const isSampleFile = normalizedPath.includes('/samples/');
@@ -82,7 +86,7 @@ function collectOpModes(nodes: FileNode[], includeSamples: boolean, prefix = '')
 
     const content = node.content || '';
     if (content.includes('@TeleOp') || content.includes('@Autonomous')) {
-      modes.push(node.name.replace('.java', ''));
+      modes.push(path.replace(/\.java$/i, '').split('/').pop() || node.name);
     }
   }
   return modes;
@@ -92,8 +96,24 @@ function countJavaKotlinFiles(nodes: FileNode[]): number {
   return collectSourceFiles(nodes).length;
 }
 
+function hasFtcTemplate(nodes: FileNode[]): boolean {
+  return nodes.some((node) => {
+    if (node.name === 'FtcRobotController') return true;
+    if (node.type === 'folder' && node.children) return hasFtcTemplate(node.children);
+    return false;
+  });
+}
+
+function cloneFileNode(node: FileNode): FileNode {
+  return {
+    ...node,
+    children: node.children ? node.children.map(cloneFileNode) : undefined,
+  };
+}
+
 export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
   const { toast } = useToast();
+  const isReplit = isReplitLikePlatform();
   const [buildStatus, setBuildStatus] = useState<BuildStatus>('idle');
   const [buildResult, setBuildResult] = useState<BuildResult | null>(null);
   const [buildProgress, setBuildProgress] = useState('');
@@ -105,9 +125,26 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
   const [logLines, setLogLines] = useState<string[]>([]);
   const logRef = useRef<HTMLDivElement>(null);
   const [includeSamples, setIncludeSamples] = useState(false);
+  const [seededTemplate, setSeededTemplate] = useState(false);
 
   const opModes = collectOpModes(files, includeSamples);
   const sourceFileCount = countJavaKotlinFiles(files);
+
+  const ensureFtcTemplate = useCallback(() => {
+    if (!isReplit || seededTemplate || hasFtcTemplate(files)) return;
+    const root = ftcTemplate[0];
+    if (!root) return;
+    onFileUpdate('root', JSON.stringify(cloneFileNode(root).children ?? []));
+    setSeededTemplate(true);
+    toast({
+      title: 'FTC template loaded',
+      description: 'The FTC project structure was added locally for Replit.',
+    });
+  }, [files, isReplit, onFileUpdate, seededTemplate, toast]);
+
+  useEffect(() => {
+    ensureFtcTemplate();
+  }, [ensureFtcTemplate]);
 
   const handleBuild = useCallback(async () => {
     setBuildStatus('compiling');
@@ -117,6 +154,12 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
 
     const sourceFiles = collectSourceFiles(files);
     if (sourceFiles.length === 0) {
+      if (isReplit) {
+        toast({
+          title: 'No FTC sources yet',
+          description: 'The FTC template should be added first on Replit.',
+        });
+      }
       setBuildStatus('error');
       setBuildResult({ status: 'error', message: 'No .java or .kt files found in the project.' });
       return;

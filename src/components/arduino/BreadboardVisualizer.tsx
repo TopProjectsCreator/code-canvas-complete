@@ -66,7 +66,7 @@ export function BreadboardVisualizer({
     stopAudio();
   }, [simInterval]);
 
-  const syncBuzzerAudio = (levels: Record<string, number>, freqs: Record<string, number>) => {
+  const syncBuzzerAudio = useCallback((levels: Record<string, number>, freqs: Record<string, number>) => {
     if (!Object.keys(levels).length) {
       stopAudio();
       return;
@@ -103,7 +103,8 @@ export function BreadboardVisualizer({
       oscRef.current[id].frequency.value = freq;
       gainRef.current[id].gain.value = Math.min(0.2, lvl * 0.2);
     });
-  };
+  }, []);
+
 
 
   const getDefaultProps = (type: string): Record<string, any> => {
@@ -303,7 +304,7 @@ export function BreadboardVisualizer({
       setSimInterval(interval);
       toast.success('Simulation started — code + wiring simulation active.');
     }
-  }, [simulation.running, simInterval, circuit, wires]);
+  }, [simulation.running, simInterval, circuit, wires, syncBuzzerAudio]);
 
   const selectedComp = circuit.components.find(c => c.id === selectedComponent);
 
