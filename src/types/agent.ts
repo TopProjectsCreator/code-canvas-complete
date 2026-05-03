@@ -18,6 +18,8 @@ export type ToolName =
   | 'create_custom_theme'
   | 'generate_image'
   | 'generate_music'
+  | 'generate_video'
+  | 'generate_pptx'
   | 'git_commit'
   | 'git_init'
   | 'git_create_branch'
@@ -88,6 +90,20 @@ export interface GeneratedAudio {
   duration?: number;
 }
 
+export interface GeneratedVideo {
+  prompt: string;
+  videoUrl: string;
+  isLoading?: boolean;
+  error?: string;
+}
+
+export interface GeneratedPresentation {
+  prompt: string;
+  fileUrl: string;
+  isLoading?: boolean;
+  error?: string;
+}
+
 export type QuestionType = 'text' | 'multiple_choice' | 'ranking' | 'slider' | 'yes_no' | 'number' | 'date' | 'time' | 'datetime' | 'email';
 
 export interface QuestionOption {
@@ -153,6 +169,8 @@ export interface AgentMessage {
   hasCodeChanges?: boolean;
   images?: GeneratedImage[];
   audios?: GeneratedAudio[];
+  videos?: GeneratedVideo[];
+  presentations?: GeneratedPresentation[];
   questions?: InteractiveQuestion[];
   widgets?: ChatWidget[];
 }
@@ -282,6 +300,34 @@ export const AGENT_TOOLS = [
           pattern: { type: 'string', description: 'Design pattern to apply (optional)' }
         },
         required: ['goal']
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'generate_video',
+      description: 'Generate a short video from a prompt, storyboard, or script',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: { type: 'string', description: 'Video concept or script' }
+        },
+        required: ['prompt']
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'generate_pptx',
+      description: 'Generate a PowerPoint presentation from a prompt or outline',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt: { type: 'string', description: 'Presentation topic or outline' }
+        },
+        required: ['prompt']
       }
     }
   },
