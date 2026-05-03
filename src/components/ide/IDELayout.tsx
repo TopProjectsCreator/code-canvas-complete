@@ -1322,6 +1322,25 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       if (filePath) {
         void collab.broadcastFilePatch(collabEngineRef.current, fileId, filePath, content);
         void collab.broadcastFileChange({ fileId, filePath, content });
+        setFiles((prev) =>
+          prev.map((node) => {
+            if (node.type === "file" && node.id === fileId) {
+              return { ...node, content };
+            }
+            if (node.type === "folder" && node.children) {
+              const updateChildren = (children: FileNode[]): FileNode[] =>
+                children.map((child) => {
+                  if (child.type === "file" && child.id === fileId) return { ...child, content };
+                  if (child.type === "folder" && child.children) {
+                    return { ...child, children: updateChildren(child.children) };
+                  }
+                  return child;
+                });
+              return { ...node, children: updateChildren(node.children) };
+            }
+            return node;
+          })
+        );
       }
 
       // Track file edits in history (deduplicate rapid edits)
