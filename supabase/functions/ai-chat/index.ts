@@ -391,6 +391,8 @@ Diff only: <code_diff file="name.ts" lang="typescript" desc="description">unifie
 <create_custom_theme name="Name" background="#1a1b26" foreground="#c0caf5" primary="#7aa2f7" card="#1f2335" border="#292e42" terminalBg="#16161e" terminalText="#9ece6a" syntaxKeyword="#bb9af7" syntaxString="#9ece6a" syntaxFunction="#7aa2f7" syntaxComment="#565f89" />
 <generate_image prompt="description" />
 <generate_music prompt="genre description" />
+<generate_pptx filename="my-slides.pptx" prompt="topic summary">{"title":"Presentation Title","theme":"blue","slides":[{"title":"Slide Title","subtitle":"Optional subtitle"},{"title":"Content Slide","bullets":["Point one","Point two","Point three"]},{"title":"Two Columns","layout":"two-col","colLeft":["Left A","Left B"],"colRight":["Right A","Right B"]},{"title":"Conclusion","content":"Closing paragraph text here."}]}</generate_pptx>
+— Generate a real .pptx file saved directly to the file tree. Use theme values: blue, dark, green, orange, purple, teal, red, slate. Each slide can have: title (required), subtitle, content (text block), bullets (string[]), layout ("title"|"content"|"two-col"). Always provide rich, detailed slide content relevant to the user's request — never use placeholder text. Combine with <change_template template="powerpoint" /> if the user needs a fresh PowerPoint project.
 <git_init /> <git_commit message="msg" /> <git_create_branch name="branch" /> <git_import url="url" />
 <make_public /> <make_private /> <get_project_link />
 <share_twitter /> <share_linkedin /> <share_email />
