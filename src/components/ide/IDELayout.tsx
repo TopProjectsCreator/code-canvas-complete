@@ -266,6 +266,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [stdinPrompt, setStdinPrompt] = useState<{ prompts: string[]; code: string; language: string } | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const [isAIModeActive, setIsAIModeActive] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
   const [mobileActivePanel, setMobileActivePanel] = useState<"editor" | "preview" | "terminal" | "ai">("editor");
   const [fileContents, setFileContents] = useState<Record<string, string>>({});
@@ -2115,6 +2116,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           if (isMobile) {
             setMobileActivePanel("ai");
           } else {
+            setIsAIModeActive((prev) => !prev);
             setIsAIChatOpen(!isAIChatOpen);
           }
         }}
@@ -2384,7 +2386,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             // Desktop: Resizable panels
             <ResizablePanelGroup direction="horizontal" className="flex-1">
               {/* Editor panel - hidden for scratch and automation templates */}
-              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && (
+              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && !isAIModeActive && (
                 <>
                   <ResizablePanel defaultSize={54} minSize={34}>
                     <div className="h-full flex flex-col">
@@ -2471,6 +2473,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                 setMobileActivePanel("editor");
               } else {
                 setIsAIChatOpen(false);
+                setIsAIModeActive(false);
               }
             }}
             currentFile={activeFileWithContent}
