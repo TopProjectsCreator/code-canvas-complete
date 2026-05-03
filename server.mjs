@@ -1587,9 +1587,6 @@ wss.on('connection', (ws) => {
             fs.mkdirSync(path.dirname(fullPath), { recursive: true });
             fs.writeFileSync(fullPath, content, 'utf8');
           }
-          if (ws.readyState === ws.OPEN) {
-            ws.send(`\r\n\x1b[36m● Project files synced to shell.\x1b[0m\r\n`);
-          }
         } catch (e) {
           console.error('sync-files error:', e.message);
         }
