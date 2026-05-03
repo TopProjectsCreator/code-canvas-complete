@@ -1397,52 +1397,107 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   // add any files that don't already exist so they appear in the project pane.
   const handleShellFilesUpdate = useCallback(
     (shellFiles: ShellProjectFile[]) => {
-      const existingByPath = new Map<string, FileNode>();
-      const collectFiles = (nodes: FileNode[], prefix = "") => {
+      const normalize = (value: string) => value.replace(/^\/+/, "");
+      const shellByPath = new Map(shellFiles.map((f) => [normalize(f.path), f]));
+      const shellByName = new Map<string, ShellProjectFile[]>();
+      for (const file of shellFiles) {
+        const name = file.path.split("/").pop() || file.path;
+        const list = shellByName.get(name) || [];
+        list.push(file);
+        shellByName.set(name, list);
+      }
+
+      const indexNodes = (nodes: FileNode[], prefix = ""): Array<{ node: FileNode; path: string }> => {
+        const out: Array<{ node: FileNode; path: string }> = [];
         for (const node of nodes) {
-          const nodePath = prefix ? `${prefix}/${node.name}` : node.name;
-          if (node.type === "file") existingByPath.set(nodePath, node);
-          if (node.children) collectFiles(node.children, nodePath);
+          const path = prefix ? `${prefix}/${node.name}` : node.name;
+          out.push({ node, path });
+          if (node.children) out.push(...indexNodes(node.children, path));
         }
+        return out;
       };
 
-      collectFiles(files);
+      const existingIndexed = indexNodes(files).filter(({ node }) => node.type === "file");
+      const usedShellPaths = new Set<string>();
+      const usedNodeIds = new Set<string>();
+      const nodeUpdates = new Map<string, { name?: string; content?: string; language?: string }>();
 
-      const shellByPath = new Map(shellFiles.map((f) => [f.path.replace(/^\/+/, ""), f]));
+      for (const { node, path } of existingIndexed) {
+        const exact = shellByPath.get(path);
+        const candidates = shellByName.get(node.name) || [];
+        const oldContent = node.content ?? fileContents[node.id] ?? "";
+        const renamed = exact || candidates.find((candidate) => candidate.content === oldContent) || candidates[0] || null;
+        if (!renamed) continue;
 
-      const updateNodes = (nodes: FileNode[], prefix = ""): FileNode[] =>
-        nodes.map((node) => {
-          const nodePath = prefix ? `${prefix}/${node.name}` : node.name;
-          if (node.type === "file") {
-            const shellFile = shellByPath.get(nodePath);
-            if (!shellFile) return node;
-            if (node.content === shellFile.content) return node;
-            setFileContents((prev) => ({ ...prev, [node.id]: shellFile.content }));
-            return { ...node, content: shellFile.content, language: getFileLanguage(node.name) };
-          }
-          if (!node.children) return node;
-          const childPaths = new Set(node.children.map((child) => `${nodePath}/${child.name}`));
-          const newShellChildren = shellFiles.filter((f) => {
-            const normalized = f.path.replace(/^\/+/, "");
-            return normalized.startsWith(`${nodePath}/`) && !childPaths.has(normalized);
+        const nextPath = normalize(renamed.path);
+        const nextName = renamed.path.split("/").pop() || renamed.path;
+        const nextContent = renamed.content;
+        usedShellPaths.add(nextPath);
+        usedNodeIds.add(node.id);
+
+        if (node.content !== nextContent || node.name !== nextName || path !== nextPath) {
+          nodeUpdates.set(node.id, {
+            name: nextName,
+            content: nextContent,
+            language: getFileLanguage(nextName),
           });
-          const addedNodes = newShellChildren.map<FileNode>((shellFile) => ({
-            id: Math.random().toString(36).slice(2, 11),
-            name: shellFile.path.split("/").pop() || shellFile.path,
-            type: "file",
-            content: shellFile.content,
-            language: getFileLanguage(shellFile.path.split("/").pop() || shellFile.path),
-          }));
-          for (const added of addedNodes) {
-            setFileContents((prev) => ({ ...prev, [added.id]: added.content || "" }));
+        }
+      }
+
+      const applyUpdates = (nodes: FileNode[], prefix = ""): FileNode[] => {
+        let changed = false;
+        const nextNodes = nodes.map((node) => {
+          const currentPath = prefix ? `${prefix}/${node.name}` : node.name;
+          if (node.type === "folder") {
+            const nextChildren = node.children ? applyUpdates(node.children, currentPath) : node.children;
+            if (nextChildren !== node.children) {
+              changed = true;
+              return { ...node, children: nextChildren };
+            }
+            return node;
           }
-          return { ...node, children: [...updateNodes(node.children, nodePath), ...addedNodes] };
+
+          const update = nodeUpdates.get(node.id);
+          if (!update) return node;
+          changed = true;
+          if (update.content !== undefined) {
+            setFileContents((prev) => ({ ...prev, [node.id]: update.content ?? "" }));
+          }
+          return {
+            ...node,
+            ...(update.name ? { name: update.name } : {}),
+            ...(update.content !== undefined ? { content: update.content } : {}),
+            ...(update.language ? { language: update.language } : {}),
+          };
         });
 
-      const updated = updateNodes(prev);
-      return updated;
+        const existingPaths = new Set(nextNodes.map((node) => `${prefix ? `${prefix}/` : ""}${node.name}`));
+        const additions = shellFiles
+          .map((file) => normalize(file.path))
+          .filter((path) => !usedShellPaths.has(path) && !existingPaths.has(path))
+          .map((path) => shellByPath.get(path))
+          .filter((file): file is ShellProjectFile => Boolean(file));
+
+        if (!changed && additions.length === 0) return nodes;
+
+        const addedNodes: FileNode[] = additions.map((shellFile) => ({
+          id: Math.random().toString(36).slice(2, 11),
+          name: shellFile.path.split("/").pop() || shellFile.path,
+          type: "file",
+          content: shellFile.content,
+          language: getFileLanguage(shellFile.path.split("/").pop() || shellFile.path),
+        }));
+
+        for (const added of addedNodes) {
+          setFileContents((prev) => ({ ...prev, [added.id]: added.content || "" }));
+        }
+
+        return [...nextNodes, ...addedNodes];
+      };
+
+      return applyUpdates(files);
     },
-    [],
+    [fileContents, files],
   );
 
   const handleCommand = useCallback(
