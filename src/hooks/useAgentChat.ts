@@ -35,6 +35,10 @@ interface MusicAction {
   duration?: number;
 }
 
+interface PresentationAction {
+  prompt: string;
+}
+
 interface UseAgentChatProps {
   onCodeChange?: (change: CodeChange) => void;
   onApplyCode?: (code: string, fileName: string) => void;
@@ -256,6 +260,18 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       cleanContent = cleanContent.replace(match[0], '');
     }
     return { musicActions, cleanContent: cleanContent.trim() };
+  };
+
+  const parsePresentationGenerations = (content: string): { presentationActions: PresentationAction[], cleanContent: string } => {
+    const presentationActions: PresentationAction[] = [];
+    let cleanContent = content;
+    const pptxRegex = /<generate_pptx\s+prompt="([^"]+)"\s*\/>/g;
+    let match;
+    while ((match = pptxRegex.exec(content)) !== null) {
+      presentationActions.push({ prompt: match[1] });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+    return { presentationActions, cleanContent: cleanContent.trim() };
   };
 
   const parseGitCommands = (content: string): { gitActions: GitAction[], cleanContent: string } => {
@@ -642,6 +658,12 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     });
     content = afterMusic;
 
+    const { presentationActions, cleanContent: afterPresentations } = parsePresentationGenerations(content);
+    presentationActions.forEach(action => {
+      allSteps.push({ id: generateId(), type: 'tool_call', content: `Generating presentation: ${action.prompt}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'generate_pptx', arguments: { prompt: action.prompt }, status: 'pending' } });
+    });
+    content = afterPresentations;
+
     const { gitActions, cleanContent: afterGit } = parseGitCommands(content);
     gitActions.forEach(action => {
       const labelMap: Record<string, string> = { git_init: 'Initialize Git repository', git_commit: `Commit: "${action.message}"`, git_create_branch: `Create branch: ${action.branchName}`, git_import: `Import repo: ${action.url}` };
@@ -889,6 +911,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
               if ((fullContent.includes('<thinking_process>') && !fullContent.includes('</thinking_process>')) || (fullContent.includes('<thinking>') && !fullContent.includes('</thinking>'))) { setCurrentStep('Analyzing...'); }
               else if (fullContent.includes('<code_change')) { setCurrentStep('Preparing changes...'); }
               else if (fullContent.includes('<generate_music')) { setCurrentStep('Preparing music...'); }
+              else if (fullContent.includes('<generate_pptx')) { setCurrentStep('Preparing presentation...'); }
               else { setCurrentStep(null); }
               
               const processed = processAgentResponse(fullContent);
