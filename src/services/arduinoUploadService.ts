@@ -14,6 +14,10 @@ const AVR109_BOARDS = ['leonardo', 'micro'];
 const ESP_BOARDS = ['esp32', 'esp8266'];
 const STM32_BOARDS = ['portenta_h7', 'giga_r1'];
 const UF2_BOARDS = ['nano_33_ble', 'rp2040_connect'];
+const MICROPYTHON_FW_URLS: Record<string, string> = {
+  nano_33_ble: 'https://micropython.org/resources/firmware/ARDUINO_NANO_33_BLE-20241129-v1.24.1.uf2',
+  rp2040_connect: 'https://micropython.org/resources/firmware/ARDUINO_NANO_RP2040_CONNECT-20241129-v1.24.1.uf2',
+};
 
 const OTA_BRIDGE_URL = import.meta.env.VITE_OTA_BRIDGE_URL || 'http://127.0.0.1:3232';
 const OTA_BRIDGE_TOKEN = import.meta.env.VITE_OTA_BRIDGE_TOKEN;
@@ -345,6 +349,47 @@ export class ArduinoUploadService {
         binary: compileResult.binary,
       },
       'bluetooth',
+      onProgress
+    );
+  }
+
+  static getMicroPythonFirmwareUrl(boardId: string): string | undefined {
+    return MICROPYTHON_FW_URLS[boardId];
+  }
+
+  static async installMicroPython(
+    boardId: string,
+    targetPath: string,
+    firmwareUrl: string | undefined,
+    onProgress?: (message: string, percent?: number) => void
+  ): Promise<void> {
+    if (!UF2_BOARDS.includes(boardId)) {
+      throw new Error('MicroPython installer currently supports UF2 boards only');
+    }
+    if (!targetPath.trim()) {
+      throw new Error('UF2 drive path is required');
+    }
+
+    const sourceUrl = firmwareUrl?.trim() || this.getMicroPythonFirmwareUrl(boardId);
+    if (!sourceUrl) {
+      throw new Error('No default MicroPython firmware URL for this board. Provide a firmware URL.');
+    }
+
+    onProgress?.('Downloading MicroPython firmware...', 5);
+    const response = await this.fetchWithTimeout(sourceUrl, { method: 'GET' }, 60000);
+    if (!response.ok) {
+      throw new Error(`Failed to download firmware: ${response.status} ${response.statusText}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let out = '';
+    for (const byte of bytes) out += String.fromCharCode(byte);
+    const uf2 = btoa(out);
+
+    await this.uploadViaNetworkBridge(
+      { boardId, targetPath, uf2 },
+      'uf2',
       onProgress
     );
   }

@@ -35,6 +35,8 @@ interface ArduinoUploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpload: (config: UploadConfig, port: SerialPortLike, onProgress?: (message: string, percent?: number) => void) => Promise<void>;
+  onInstallMicroPython: (boardId: string, targetPath: string, firmwareUrl: string, onProgress?: (message: string, percent?: number) => void) => Promise<void>;
+  defaultMicroPythonFirmwareUrl?: (boardId: string) => string | undefined;
   sketchCode: string;
 }
 
@@ -63,6 +65,8 @@ export function ArduinoUploadDialog({
   open,
   onOpenChange,
   onUpload,
+  onInstallMicroPython,
+  defaultMicroPythonFirmwareUrl,
   sketchCode,
 }: ArduinoUploadDialogProps) {
   const [config, setConfig] = useState<UploadConfig>({
@@ -80,6 +84,7 @@ export function ArduinoUploadDialog({
   const [error, setError] = useState<string>('');
   const [progressLog, setProgressLog] = useState<string[]>([]);
   const [progressPercent, setProgressPercent] = useState(0);
+  const [microPythonUrl, setMicroPythonUrl] = useState('');
 
   useEffect(() => {
     if (open) {
@@ -206,6 +211,25 @@ export function ArduinoUploadDialog({
       } else {
         setError(err instanceof Error ? err.message : 'Upload failed');
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInstallMicroPython = async () => {
+    setLoading(true);
+    setError('');
+    setProgressLog([]);
+    setProgressPercent(0);
+    try {
+      const firmwareUrl = microPythonUrl.trim() || defaultMicroPythonFirmwareUrl?.(config.boardId) || '';
+      await onInstallMicroPython(config.boardId, config.portName, firmwareUrl, (message, percent) => {
+        setProgressLog(prev => [...prev, message]);
+        if (percent !== undefined) setProgressPercent(percent);
+      });
+      setProgressLog(prev => [...prev, 'MicroPython installed. You can now run main.py on device boot.']);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'MicroPython install failed');
     } finally {
       setLoading(false);
     }
@@ -370,6 +394,15 @@ export function ArduinoUploadDialog({
                   onChange={(e) => setConfig({ ...config, portName: e.target.value })}
                 />
               </div>
+              <div>
+                <Label htmlFor="micropython-url">MicroPython UF2 URL (optional)</Label>
+                <Input
+                  id="micropython-url"
+                  placeholder={defaultMicroPythonFirmwareUrl?.(config.boardId) || 'https://micropython.org/resources/firmware/...uf2'}
+                  value={microPythonUrl}
+                  onChange={(e) => setMicroPythonUrl(e.target.value)}
+                />
+              </div>
             </div>
           )}
 
@@ -446,6 +479,21 @@ export function ArduinoUploadDialog({
               'Upload Sketch'
             )}
           </Button>
+          {isUf2Board && (
+            <Button
+              variant="secondary"
+              onClick={handleInstallMicroPython}
+              disabled={loading || !config.portName.trim()}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Installing...
+                </>
+              ) : (
+                'Install MicroPython'
+              )}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
