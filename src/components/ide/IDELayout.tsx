@@ -1514,7 +1514,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         return [...nextNodes, ...addedNodes];
       };
 
-      return applyUpdates(files);
+      setFiles(applyUpdates(files));
     },
     [fileContents, files],
   );
