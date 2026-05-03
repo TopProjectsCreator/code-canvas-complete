@@ -33,12 +33,13 @@ interface TerminalProps {
   projectId?: string;
   projectName?: string;
   onFilesUpdate?: (files: ProjectFile[]) => void;
+  onProjectFilesChange?: (files: ProjectFile[]) => void;
 }
 
 export const Terminal = ({
   history, onCommand, isMinimized, onToggleMinimize,
   stdinPrompt, onStdinSubmit, onNewShell,
-  projectFiles, projectId, projectName, onFilesUpdate,
+  projectFiles, projectId, projectName, onFilesUpdate, onProjectFilesChange,
 }: TerminalProps) => {
   const [input, setInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
@@ -98,6 +99,10 @@ export const Terminal = ({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [history]);
+
+  useEffect(() => {
+    onProjectFilesChange?.(projectFiles ?? []);
+  }, [projectFiles, onProjectFilesChange]);
 
   useEffect(() => {
     if (stdinPrompt) {
