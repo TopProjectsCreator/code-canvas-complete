@@ -30,11 +30,11 @@ const landingVariants = [
 ] as const;
 
 const getLandingVariant = () => {
-  const last = sessionStorage.getItem("codecanvas-landing-variant");
-  const idx = last ? landingVariants.indexOf(last as (typeof landingVariants)[number]) : -1;
-  const choice = landingVariants[(idx + 1 + Math.floor(Math.random() * (landingVariants.length - 1))) % landingVariants.length] ?? landingVariants[0];
-  sessionStorage.setItem("codecanvas-landing-variant", choice);
-  return choice;
+  const roll = Math.random();
+  if (roll < 0.99) return "/landing";
+  const otherVariants = landingVariants.slice(1);
+  const idx = Math.floor(Math.random() * otherVariants.length);
+  return otherVariants[idx] ?? "/landing";
 };
 
 const RootRoute = () => {
