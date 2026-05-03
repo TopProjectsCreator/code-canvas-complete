@@ -14,6 +14,10 @@ const AVR109_BOARDS = ['leonardo', 'micro'];
 const ESP_BOARDS = ['esp32', 'esp8266'];
 const STM32_BOARDS = ['portenta_h7', 'giga_r1'];
 const UF2_BOARDS = ['nano_33_ble', 'rp2040_connect'];
+const MICROPYTHON_FW_URLS: Record<string, string> = {
+  nano_33_ble: 'https://micropython.org/resources/firmware/ARDUINO_NANO_33_BLE-20241129-v1.24.1.uf2',
+  rp2040_connect: 'https://micropython.org/resources/firmware/ARDUINO_NANO_RP2040_CONNECT-20241129-v1.24.1.uf2',
+};
 
 const OTA_BRIDGE_URL = import.meta.env.VITE_OTA_BRIDGE_URL || 'http://127.0.0.1:3232';
 const OTA_BRIDGE_TOKEN = import.meta.env.VITE_OTA_BRIDGE_TOKEN;
@@ -286,10 +290,16 @@ export class ArduinoUploadService {
    */
   private static async uploadViaNetworkBridge(
     payload: Record<string, unknown>,
-    mode: 'ota' | 'bluetooth' | 'uf2',
+    mode: 'ota' | 'bluetooth' | 'uf2' | 'micropython',
     onProgress?: (message: string, percent?: number) => void
   ): Promise<void> {
-    const modeLabel = mode === 'ota' ? 'WiFi OTA' : mode === 'bluetooth' ? 'Bluetooth' : 'UF2 bridge';
+    const modeLabel = mode === 'ota'
+      ? 'WiFi OTA'
+      : mode === 'bluetooth'
+        ? 'Bluetooth'
+        : mode === 'uf2'
+          ? 'UF2 bridge'
+          : 'MicroPython bridge';
     onProgress?.(`Uploading via ${modeLabel}...`, 30);
 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -345,6 +355,68 @@ export class ArduinoUploadService {
         binary: compileResult.binary,
       },
       'bluetooth',
+      onProgress
+    );
+  }
+
+  static getMicroPythonFirmwareUrl(boardId: string): string | undefined {
+    return MICROPYTHON_FW_URLS[boardId];
+  }
+
+  static async installMicroPython(
+    boardId: string,
+    targetPath: string,
+    firmwareUrl: string | undefined,
+    onProgress?: (message: string, percent?: number) => void
+  ): Promise<void> {
+    if (!UF2_BOARDS.includes(boardId)) {
+      throw new Error('MicroPython installer currently supports UF2 boards only');
+    }
+    if (!targetPath.trim()) {
+      throw new Error('UF2 drive path is required');
+    }
+
+    const sourceUrl = firmwareUrl?.trim() || this.getMicroPythonFirmwareUrl(boardId);
+    if (!sourceUrl) {
+      throw new Error('No default MicroPython firmware URL for this board. Provide a firmware URL.');
+    }
+
+    onProgress?.('Downloading MicroPython firmware...', 5);
+    const response = await this.fetchWithTimeout(sourceUrl, { method: 'GET' }, 60000);
+    if (!response.ok) {
+      throw new Error(`Failed to download firmware: ${response.status} ${response.statusText}`);
+    }
+
+    const buffer = await response.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let out = '';
+    for (const byte of bytes) out += String.fromCharCode(byte);
+    const uf2 = btoa(out);
+
+    await this.uploadViaNetworkBridge(
+      { boardId, targetPath, uf2 },
+      'uf2',
+      onProgress
+    );
+  }
+
+  static async deployMicroPythonScript(
+    boardId: string,
+    serialPortPath: string,
+    script: string,
+    filename = 'main.py',
+    onProgress?: (message: string, percent?: number) => void
+  ): Promise<void> {
+    if (!script.trim()) {
+      throw new Error('MicroPython script is empty');
+    }
+    if (!serialPortPath.trim()) {
+      throw new Error('Serial port path is required to deploy MicroPython script');
+    }
+    onProgress?.('Deploying MicroPython script...', 20);
+    await this.uploadViaNetworkBridge(
+      { boardId, port: serialPortPath, filename, content: script },
+      'micropython',
       onProgress
     );
   }

@@ -518,6 +518,13 @@ String runAppBrickAction(String action, int value) {
           }
           await ArduinoUploadService.uploadViaSerial(getSketchWithLibraries(), config, port, onProgress);
         }}
+        onInstallMicroPython={async (boardId, targetPath, firmwareUrl, onProgress) => {
+          await ArduinoUploadService.installMicroPython(boardId, targetPath, firmwareUrl, onProgress);
+        }}
+        onDeployMicroPython={async (boardId, serialPortPath, script, onProgress) => {
+          await ArduinoUploadService.deployMicroPythonScript(boardId, serialPortPath, script, 'main.py', onProgress);
+        }}
+        defaultMicroPythonFirmwareUrl={(boardId) => ArduinoUploadService.getMicroPythonFirmwareUrl(boardId)}
         sketchCode={getSketchWithLibraries()}
       />
 

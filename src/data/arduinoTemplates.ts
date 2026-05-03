@@ -298,6 +298,27 @@ void loop() {
             2
           ),
         },
+
+        {
+          id: 'arduino-micropython',
+          name: 'main.py',
+          type: 'file',
+          language: 'python',
+          content: `"""MicroPython starter for ${boardName}.
+
+This file is optional: use it when your board has MicroPython firmware installed.
+"""
+
+from machine import Pin
+from time import sleep
+
+led = Pin("LED", Pin.OUT)
+
+while True:
+    led.toggle()
+    sleep(0.5)
+`,
+        },
         {
           id: 'arduino-readme',
           name: 'README.md',
@@ -320,6 +341,7 @@ Board: ${boardName}
 - [Arduino Documentation](https://www.arduino.cc/reference/)
 - [Arduino Libraries](https://www.arduino.cc/en/reference/libraries/)
 - [Pin Reference for ${boardName}](https://www.arduino.cc/en/Guide/ArduinoUno)
+- [MicroPython docs](https://docs.micropython.org/)
 `,
         },
         {
@@ -355,6 +377,21 @@ void loop() {
   digitalWrite(13, LOW);
   delay(500);
 }
+\`\`\`
+
+## Optional: Use MicroPython Instead
+
+For boards that support it (for example Nano RP2040 Connect), install MicroPython firmware and edit \`main.py\`:
+
+\`\`\`python
+from machine import Pin
+from time import sleep
+
+led = Pin("LED", Pin.OUT)
+
+while True:
+    led.toggle()
+    sleep(0.5)
 \`\`\`
 
 ## Step 2: Design Your Circuit
