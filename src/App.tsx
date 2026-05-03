@@ -30,11 +30,9 @@ const landingVariants = [
 ] as const;
 
 const getLandingVariant = () => {
-  const saved = sessionStorage.getItem("codecanvas-landing-variant");
-  if (saved && landingVariants.includes(saved as (typeof landingVariants)[number])) {
-    return saved;
-  }
-  const choice = landingVariants[Math.floor(Math.random() * landingVariants.length)];
+  const last = sessionStorage.getItem("codecanvas-landing-variant");
+  const idx = last ? landingVariants.indexOf(last as (typeof landingVariants)[number]) : -1;
+  const choice = landingVariants[(idx + 1 + Math.floor(Math.random() * (landingVariants.length - 1))) % landingVariants.length] ?? landingVariants[0];
   sessionStorage.setItem("codecanvas-landing-variant", choice);
   return choice;
 };
