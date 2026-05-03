@@ -53,6 +53,7 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
 
   // True after the first init message has been sent to the server.
   const initSentRef = useRef(false);
+  const lastSyncedSignatureRef = useRef('');
 
   // True when we are waiting for the next shell prompt (command in-flight).
   const awaitingPromptRef = useRef(false);
@@ -64,20 +65,15 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
-  // Whenever the IDE file tree changes after init (e.g. after a git clone),
-  // push the updated files into the live shell directory via sync-files.
   useEffect(() => {
     if (!initSentRef.current) return;
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     if (!projectFiles?.length) return;
+    const signature = projectFiles.map((file) => `${file.path}\u0000${file.content}`).join('\u0001');
+    if (signature === lastSyncedSignatureRef.current) return;
+    lastSyncedSignatureRef.current = signature;
     ws.send(JSON.stringify({ type: 'sync-files', files: projectFiles }));
-    setTimeout(() => {
-      const currentWs = wsRef.current;
-      if (currentWs?.readyState === WebSocket.OPEN) {
-        currentWs.send(JSON.stringify({ type: 'list-files' }));
-      }
-    }, 150);
   }, [projectFiles]);
 
   // Refit + refocus when this tab becomes active
