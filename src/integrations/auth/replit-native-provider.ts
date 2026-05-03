@@ -128,6 +128,8 @@ async function init() {
   if (replitUser) {
     cachedSession = makeSession(replitUser);
     localStorage.setItem(SESSION_KEY, JSON.stringify(cachedSession));
+  } else if (cachedSession) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(cachedSession));
   } else {
     cachedSession = null;
     localStorage.removeItem(SESSION_KEY);
