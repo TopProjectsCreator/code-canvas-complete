@@ -101,7 +101,7 @@ export function LivingGrid() {
       <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 80% at 50% 50%, transparent 30%, #0f0f10 100%)", pointerEvents: "none", zIndex: 1 }} />
       <nav style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 40px", borderBottom: "1px solid rgba(255,107,0,0.12)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: "#ff6b00", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#000" }}>C</div>
+          <img src="/favicon.svg" alt="CodeCanvas" style={{ width: 32, height: 32 }} />
           <span style={{ color: "#fff", fontWeight: 600, fontSize: 16 }}>CodeCanvas</span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
