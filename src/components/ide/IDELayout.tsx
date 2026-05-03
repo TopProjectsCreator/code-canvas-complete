@@ -1316,14 +1316,12 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
   const handleContentChange = useCallback(
     (fileId: string, content: string) => {
-      const nextFiles = updateFileTreeContent(files, fileId, content);
       setFileContents((prev) => ({ ...prev, [fileId]: content }));
 
-      const filePath = findFilePathById(nextFiles, fileId);
+      const filePath = findFilePathById(files, fileId);
       if (filePath) {
         void collab.broadcastFilePatch(collabEngineRef.current, fileId, filePath, content);
         void collab.broadcastFileChange({ fileId, filePath, content });
-        setFiles(nextFiles);
       }
 
       // Track file edits in history (deduplicate rapid edits)
