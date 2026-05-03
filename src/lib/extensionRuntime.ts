@@ -9,7 +9,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 
-const _platform = detectDeploymentPlatform();
+const platform = detectDeploymentPlatform();
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
