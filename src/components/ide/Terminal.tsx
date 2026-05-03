@@ -10,7 +10,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
-import { detectDeploymentPlatform } from '@/lib/platform';
+import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 import { XTerminal, ProjectFile } from './XTerminal';
 
 const platform = detectDeploymentPlatform();
@@ -92,7 +92,7 @@ export const Terminal = ({
   const isOnline = useOnlineStatus();
   const pythonExecutorMode = usePythonExecutorMode();
 
-  const isReplitShellActive = platform === 'replit' && activePane !== 'console';
+  const isReplitShellActive = isReplitLikePlatform(platform) && activePane !== 'console';
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -195,7 +195,7 @@ export const Terminal = ({
     setIsGenerating(true);
     try {
       let data: { command?: string } | null = null;
-      if (platform === 'replit') {
+      if (isReplitLikePlatform(platform)) {
         const res = await fetch('/api/replit/ai/generate-command', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -233,13 +233,13 @@ export const Terminal = ({
   return (
     <div className={cn(
       'flex flex-col bg-terminal transition-all duration-200',
-      isMinimized ? 'h-9' : platform === 'replit' ? 'h-64' : 'h-48'
+      isMinimized ? 'h-9' : isReplitLikePlatform(platform) ? 'h-64' : 'h-48'
     )}>
       {/* ── Header ── */}
       <div className="flex items-center justify-between h-9 px-2 bg-card border-t border-border shrink-0 overflow-x-auto">
         <div className="flex items-center gap-0.5 min-w-0 flex-1">
 
-          {platform === 'replit' ? (
+          {isReplitLikePlatform(platform) ? (
             <>
               {/* Numbered shell tabs */}
               {shells.map(shell => (
@@ -397,7 +397,7 @@ export const Terminal = ({
       {!isMinimized && (
         <>
           {/* Shell panes (all mounted simultaneously so PTY sessions stay alive) */}
-          {platform === 'replit' && (
+          {isReplitLikePlatform(platform) && (
             <div className={cn('relative flex-1 overflow-hidden bg-[#0d1117]', activePane === 'console' && 'hidden')}>
               {shells.map(shell => (
                 <div
@@ -422,7 +422,7 @@ export const Terminal = ({
             className={cn(
               'flex-1 overflow-auto ide-scrollbar p-3 font-mono text-sm',
               // Show when: console tab active, OR not on Replit
-              (activePane !== 'console' && platform === 'replit') && 'hidden'
+              (activePane !== 'console' && isReplitLikePlatform(platform)) && 'hidden'
             )}
             ref={scrollRef}
             onClick={() => inputRef.current?.focus()}

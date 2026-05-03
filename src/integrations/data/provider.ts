@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { detectDeploymentPlatform, type DeploymentPlatform } from '@/lib/platform';
+import { detectDeploymentPlatform, isReplitLikePlatform, type DeploymentPlatform } from '@/lib/platform';
 import { FileNode } from '@/types/ide';
 
 export interface ProjectRecord {
@@ -216,14 +216,14 @@ const createReplitDataProvider = (): DataProvider => {
 };
 
 const createManagedDataProvider = (platform: 'replit' | 'lovable'): DataProvider => {
-  const base = platform === 'replit' ? import.meta.env.VITE_REPLIT_DB_BASE_URL : import.meta.env.VITE_LOVABLE_DB_BASE_URL;
+  const base = isReplitLikePlatform(platform) ? import.meta.env.VITE_REPLIT_DB_BASE_URL : import.meta.env.VITE_LOVABLE_DB_BASE_URL;
   if (!base) {
-    if (platform === 'replit') return createReplitDataProvider();
+    if (isReplitLikePlatform(platform)) return createReplitDataProvider();
     return { ...supabaseProvider, platform };
   }
 
   const call = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
-    const token = platform === 'replit' ? import.meta.env.VITE_REPLIT_DB_TOKEN : import.meta.env.VITE_LOVABLE_DB_TOKEN;
+    const token = isReplitLikePlatform(platform) ? import.meta.env.VITE_REPLIT_DB_TOKEN : import.meta.env.VITE_LOVABLE_DB_TOKEN;
     const response = await fetch(`${base}${path}`, {
       ...init,
       headers: {
@@ -268,7 +268,7 @@ const createManagedDataProvider = (platform: 'replit' | 'lovable'): DataProvider
 
 export const createDataProvider = (): DataProvider => {
   const platform = detectDeploymentPlatform();
-  if (platform === 'replit') return createManagedDataProvider('replit');
+  if (isReplitLikePlatform(platform)) return createManagedDataProvider('replit');
   if (platform === 'lovable') return createManagedDataProvider('lovable');
   return supabaseProvider;
 };

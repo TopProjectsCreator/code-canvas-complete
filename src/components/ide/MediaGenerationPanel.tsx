@@ -3,6 +3,7 @@ import { WandSparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
+import { isReplitLikePlatform } from '@/lib/platform';
 import { detectDeploymentPlatform } from '@/lib/platform';
 
 type MediaMode = 'image' | 'video';
@@ -101,7 +102,7 @@ export const MediaGenerationPanel = ({ mode, onGenerated }: MediaGenerationPanel
     try {
       let mediaUrl: string;
 
-      if (detectDeploymentPlatform() === 'replit') {
+      if (isReplitLikePlatform()) {
         const r = await fetch('/api/replit/ai/media', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

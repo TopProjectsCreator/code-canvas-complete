@@ -7,11 +7,11 @@ import { Workflow } from '@/types/ide';
 import { CustomThemeColors } from '@/contexts/ThemeContext';
 import { createAIProvider } from '@/integrations/ai/provider';
 import { isPotentiallyDestructiveShellCommand } from '@/lib/agentSafety';
-import { detectDeploymentPlatform } from '@/lib/platform';
+import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 import { generatePresentationPptx, parsePptxSpec, type PptxSpec } from '@/lib/pptxGenerator';
 
 const _agentChatPlatform = detectDeploymentPlatform();
-const canUseShellOnPlatform = _agentChatPlatform === 'replit';
+const canUseShellOnPlatform = isReplitLikePlatform(_agentChatPlatform);
 
 interface CustomThemeAction {
   name: string;
@@ -1113,7 +1113,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           try {
             let output: string;
             let success: boolean;
-            if (_agentChatPlatform === 'replit') {
+            if (isReplitLikePlatform(_agentChatPlatform)) {
               const res = await fetch('/api/replit/execute', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

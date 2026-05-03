@@ -1,4 +1,4 @@
-import { detectDeploymentPlatform, type DeploymentPlatform } from '@/lib/platform';
+import { detectDeploymentPlatform, isReplitLikePlatform, type DeploymentPlatform } from '@/lib/platform';
 
 interface AIRequestOptions {
   accessToken?: string;
@@ -73,10 +73,10 @@ const createSupabaseAIProvider = (): AIProvider => {
 
 const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => {
   const envBase =
-    platform === 'replit'
+    isReplitLikePlatform(platform)
       ? (import.meta.env.VITE_REPLIT_AI_BASE_URL || '/api/replit/ai')
       : import.meta.env.VITE_LOVABLE_AI_BASE_URL;
-  if (platform === 'replit') {
+  if (isReplitLikePlatform(platform)) {
     return {
       platform,
       supportsManagedAI: true,
@@ -142,7 +142,7 @@ const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => 
 export const createAIProvider = (): AIProvider => {
   const platform = detectDeploymentPlatform();
 
-  if (platform === 'replit') return createManagedAIProvider('replit');
+  if (isReplitLikePlatform(platform)) return createManagedAIProvider('replit');
   if (platform === 'lovable') return createManagedAIProvider('lovable');
 
   return createSupabaseAIProvider();

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, ReactNode } fr
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { createAuthProvider, OAuthProvider } from '@/integrations/auth/provider';
-import { DeploymentPlatform } from '@/lib/platform';
+import { DeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 
 interface Profile {
   id: string;
@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isReplitPlatform = authProvider.platform === 'replit';
+  const isReplitPlatform = isReplitLikePlatform(authProvider.platform);
 
   useEffect(() => {
     const subscription = authProvider.onAuthStateChange(async (_event, nextSession) => {

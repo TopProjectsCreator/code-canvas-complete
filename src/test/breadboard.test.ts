@@ -5,7 +5,7 @@ import { arduinoBoards, getArduinoTemplateFiles } from '@/data/arduinoTemplates'
 // jsdom does not implement canvas; tests that mount the visualizer may access
 // a canvas element. Provide a dummy implementation so errors are avoided.
 beforeAll(() => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (HTMLCanvasElement.prototype as any).getContext = function (_: string) {
     const noOp = () => {};
     const dummyContext: Partial<CanvasRenderingContext2D> = {

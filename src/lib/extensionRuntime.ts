@@ -7,7 +7,7 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
-import { detectDeploymentPlatform } from '@/lib/platform';
+import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 
 const _platform = detectDeploymentPlatform();
 
@@ -87,7 +87,7 @@ async function replitAiChat(body: object): Promise<unknown> {
 }
 
 async function aiComplete(prompt: string): Promise<string> {
-  if (_platform === 'replit') {
+  if (isReplitLikePlatform(platform)) {
     const data = await replitAiChat({ messages: [{ role: 'user', content: prompt }], model: 'google/gemini-flash-1.5' }) as Record<string, unknown>;
     return (data?.reply ?? (data?.choices as any)?.[0]?.message?.content ?? '') as string;
   }
@@ -99,7 +99,7 @@ async function aiComplete(prompt: string): Promise<string> {
 }
 
 async function aiStructured(prompt: string, schema: Record<string, unknown>): Promise<unknown> {
-  if (_platform === 'replit') {
+  if (isReplitLikePlatform(platform)) {
     const data = await replitAiChat({
       messages: [{ role: 'user', content: prompt }],
       model: 'google/gemini-flash-1.5',
