@@ -108,7 +108,9 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
   const [shellExecutorMode, setShellExecutorMode] = useState<'webcontainer' | 'wandbox'>(() => {
     if (typeof window === 'undefined') return 'webcontainer';
     const saved = window.localStorage.getItem('ide.shellExecutorMode');
-    return saved === 'wandbox' ? 'wandbox' : 'webcontainer';
+    if (saved === 'wandbox' || saved === 'webcontainer') return saved;
+    // Default to Wandbox on Lovable (WebContainers require COOP/COEP that Lovable preview lacks).
+    return detectDeploymentPlatform() === 'lovable' ? 'wandbox' : 'webcontainer';
   });
 
   const [pythonExecutorMode, setPythonExecutorMode] = useState<'auto' | 'pyodide' | 'container'>(() => {
