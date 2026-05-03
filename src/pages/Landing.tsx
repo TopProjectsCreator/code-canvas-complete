@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowRight,
@@ -25,6 +25,16 @@ import { Button } from "@/components/ui/button";
 import { PublicCanvasSearch } from "@/components/landing/PublicCanvasSearch";
 import { AnimatedCounter } from "@/components/landing/AnimatedCounter";
 import { useLandingStats } from "@/hooks/useLandingStats";
+
+const landingVariants = [
+  "/landing",
+  "/__mockup/preview/landing-hero/LivingGrid",
+  "/__mockup/preview/landing-hero/TerminalBoot",
+  "/__mockup/preview/landing-hero/TheVoid",
+  "/__mockup/preview/landing-hero/MonochromePrecision",
+  "/__mockup/preview/landing-hero/WarmMomentum",
+  "/__mockup/preview/landing-hero/TerminalVerdict",
+] as const;
 
 const missionBlocks = [
   {
@@ -98,8 +108,10 @@ const floatingBadges = ["Realtime AI Pairing", "All in one IDE", "Live Team Pres
 // pulseNodes is now derived live from recent public projects (see component body)
 
 export default function Landing() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { stats } = useLandingStats();
+  const [variant, setVariant] = useState<(typeof landingVariants)[number] | null>(null);
 
   const agentsLabel = stats.activeAgents > 0 ? "AI Agents Live" : "Total Prompts";
   const agentsValue = stats.activeAgents > 0
@@ -111,6 +123,14 @@ export default function Landing() {
     { label: agentsLabel, value: agentsValue, icon: <Bot className="h-4 w-4" /> },
     ...staticSignalReadout,
   ];
+
+  useEffect(() => {
+    const last = sessionStorage.getItem("codecanvas-landing-variant");
+    const next = landingVariants.filter((item) => item !== last);
+    const choice = next[Math.floor(Math.random() * next.length)] ?? landingVariants[0];
+    sessionStorage.setItem("codecanvas-landing-variant", choice);
+    setVariant(choice);
+  }, [location.pathname]);
 
   // Live pulse nodes from most-recently-updated public canvases
   const [pulseNodes, setPulseNodes] = useState<Array<{
@@ -183,6 +203,11 @@ export default function Landing() {
     return `${d}d ago`;
   };
 
+
+  if (variant && variant !== "/landing") {
+    window.location.replace(variant);
+    return null;
+  }
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
