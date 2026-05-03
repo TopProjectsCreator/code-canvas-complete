@@ -478,7 +478,8 @@ export const ExtensionsPanel = ({
               body: { name: name.trim(), slug, description: description.trim(), manifest, runtime: runtimeType },
             });
         if ((resp as any).error) throw new Error((resp as any).error.message);
-        if (resp?.id) setEditingId(resp.id);
+        const createdId = (resp as any).data?.id ?? (resp as any).id;
+        if (createdId) setEditingId(createdId);
       }
 
       // Persist code locally (keyed by slug)
