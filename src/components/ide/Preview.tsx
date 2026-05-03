@@ -648,6 +648,98 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
                 </div>
               </div>
             )}
+
+            {/* SEO tab */}
+            {devToolsTab === 'seo' && (
+              <div className="flex-1 overflow-auto ide-scrollbar">
+                {!seoReport ? (
+                  <div className="p-6 text-center text-xs text-muted-foreground">
+                    <Search className="w-6 h-6 mx-auto mb-2 opacity-40" />
+                    <p>Add HTML content to your project to run an SEO analysis.</p>
+                  </div>
+                ) : (
+                  <div className="p-3 space-y-3">
+                    {/* Score header */}
+                    <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background">
+                      <div className={cn(
+                        'w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg shrink-0 border-4',
+                        seoReport.score >= 90 ? 'border-green-500 text-green-500' :
+                        seoReport.score >= 70 ? 'border-yellow-500 text-yellow-500' :
+                        'border-destructive text-destructive'
+                      )}>
+                        {seoReport.score}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold text-foreground mb-0.5">SEO Score</div>
+                        <p className="text-[10px] text-muted-foreground leading-tight">
+                          90+ great · 70–89 needs attention · below 70 needs fixes.
+                        </p>
+                        <div className="flex gap-2 mt-1.5 text-[10px]">
+                          <span className="text-green-500">✓ {seoReport.passed} passed</span>
+                          <span className="text-yellow-500">⚠ {seoReport.warnings} warnings</span>
+                          <span className="text-destructive">✕ {seoReport.errors} errors</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-md border border-border bg-background p-2">
+                        <div className="text-[10px] text-muted-foreground">Images</div>
+                        <div className="text-sm font-semibold text-foreground">{seoReport.counts.images}</div>
+                      </div>
+                      <div className="rounded-md border border-border bg-background p-2">
+                        <div className="text-[10px] text-muted-foreground">Links</div>
+                        <div className="text-sm font-semibold text-foreground">{seoReport.counts.links}</div>
+                      </div>
+                      <div className="rounded-md border border-border bg-background p-2">
+                        <div className="text-[10px] text-muted-foreground">H1 tags</div>
+                        <div className="text-sm font-semibold text-foreground">{seoReport.counts.h1}</div>
+                      </div>
+                    </div>
+
+                    {/* Checks */}
+                    <div className="rounded-lg border border-border bg-background overflow-hidden">
+                      <div className="px-3 py-1.5 border-b border-border text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                        Analysis Report
+                      </div>
+                      <div className="divide-y divide-border">
+                        {seoReport.checks.map((check) => (
+                          <div key={check.id} className="flex items-start gap-2 px-3 py-2">
+                            {check.status === 'pass' && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" />}
+                            {check.status === 'warn' && <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 mt-0.5 shrink-0" />}
+                            {check.status === 'fail' && <XCircle className="w-3.5 h-3.5 text-destructive mt-0.5 shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-medium text-foreground">{check.label}</div>
+                              <div className="text-[10px] text-muted-foreground break-words">{check.message}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Detected metadata */}
+                    {seoReport.metadata.length > 0 && (
+                      <div className="rounded-lg border border-border bg-background overflow-hidden">
+                        <div className="px-3 py-1.5 border-b border-border text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                          Detected Metadata
+                        </div>
+                        <table className="w-full text-xs">
+                          <tbody>
+                            {seoReport.metadata.map(([k, v]) => (
+                              <tr key={k} className="border-b border-border/50 last:border-0">
+                                <td className="px-3 py-1.5 text-muted-foreground font-medium align-top w-28">{k}</td>
+                                <td className="px-3 py-1.5 font-mono text-foreground break-all">{v}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
