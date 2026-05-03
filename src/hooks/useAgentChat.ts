@@ -604,6 +604,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     hasWorkflowChanges: boolean;
     imagePrompts: string[];
     musicActions: MusicAction[];
+    presentationActions: PresentationAction[];
     questions: InteractiveQuestion[];
     widgets: ChatWidget[];
     shellCommands: string[];
