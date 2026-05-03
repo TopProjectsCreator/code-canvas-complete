@@ -15,6 +15,7 @@ interface XTerminalProps {
   projectName?: string;
   isActive?: boolean;
   onFilesUpdate?: (files: ProjectFile[]) => void;
+  onProjectFilesChange?: (files: ProjectFile[]) => void;
 }
 
 // Strip ANSI/VT escape sequences from a string so we can regex-scan plain text.
@@ -35,7 +36,7 @@ function remapToPublic(url: string): string {
   );
 }
 
-export const XTerminal = ({ projectFiles, projectId, projectName, isActive = true, onFilesUpdate }: XTerminalProps) => {
+export const XTerminal = ({ projectFiles, projectId, projectName, isActive = true, onFilesUpdate, onProjectFilesChange }: XTerminalProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -73,6 +74,10 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
     if (!projectFiles?.length) return;
     ws.send(JSON.stringify({ type: 'sync-files', files: projectFiles }));
   }, [projectFiles]);
+
+  useEffect(() => {
+    onProjectFilesChange?.(projectFiles ?? []);
+  }, [projectFiles, onProjectFilesChange]);
 
   // Refit + refocus when this tab becomes active
   useEffect(() => {
