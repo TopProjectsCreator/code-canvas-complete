@@ -12,6 +12,7 @@ type AuthStateCallback = (event: string, session: Session | null) => void;
 
 const STORAGE_KEY = 'replit_auth_user';
 const listeners: AuthStateCallback[] = [];
+const SESSION_KEY = 'replit_auth_session';
 
 function makeSession(replitUser: ReplitUser): Session {
   const now = Math.floor(Date.now() / 1000);
@@ -91,7 +92,7 @@ function handleAuthCallbackIfNeeded(): boolean {
     const replitUser = decodeReplitToken(token);
     if (replitUser) {
       const session = makeSession(replitUser);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
       cachedSession = session;
       initialized = true;
       notifyListeners('SIGNED_IN', session);
@@ -118,14 +119,22 @@ async function init() {
   initialized = true;
   cachedSession = null;
   localStorage.removeItem(STORAGE_KEY);
+  const storedSession = localStorage.getItem(SESSION_KEY);
+  if (storedSession) {
+    try {
+      cachedSession = JSON.parse(storedSession);
+    } catch {
+      cachedSession = null;
+    }
+  }
 
   const replitUser = await fetchReplitUser();
   if (replitUser) {
     cachedSession = makeSession(replitUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedSession));
+    localStorage.setItem(SESSION_KEY, JSON.stringify(cachedSession));
   } else {
     cachedSession = null;
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(SESSION_KEY);
   }
 
   notifyListeners(cachedSession ? 'SIGNED_IN' : 'SIGNED_OUT', cachedSession);
@@ -166,6 +175,7 @@ export const replitNativeProvider: AuthProvider = {
   async signOut() {
     cachedSession = null;
     initialized = false;
+    localStorage.removeItem(SESSION_KEY);
     localStorage.removeItem(STORAGE_KEY);
     notifyListeners('SIGNED_OUT', null);
   },
