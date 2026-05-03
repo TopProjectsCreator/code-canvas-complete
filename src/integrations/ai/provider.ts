@@ -74,11 +74,37 @@ const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => 
     platform === 'replit'
       ? (import.meta.env.VITE_REPLIT_AI_BASE_URL || '/api/replit/ai')
       : import.meta.env.VITE_LOVABLE_AI_BASE_URL;
+  if (platform === 'replit') {
+    return {
+      platform,
+      supportsManagedAI: true,
+      allowsBYOK: false,
+      chat: (payload, options) =>
+        fetch(`${envBase}/chat`, {
+          method: 'POST',
+          headers: jsonHeaders(options?.accessToken),
+          body: JSON.stringify(payload),
+          signal: options?.signal,
+        }),
+      generateImage: (prompt, options) =>
+        fetch(`${envBase}/image`, {
+          method: 'POST',
+          headers: jsonHeaders(options?.accessToken),
+          body: JSON.stringify({ prompt }),
+          signal: options?.signal,
+        }),
+      generateMusic: (payload, options) =>
+        fetch(`${envBase}/music`, {
+          method: 'POST',
+          headers: jsonHeaders(options?.accessToken),
+          body: JSON.stringify(payload),
+          signal: options?.signal,
+        }),
+    };
+  }
 
   const fallback = createSupabaseAIProvider();
-  if (!envBase) {
-    return { ...fallback, platform };
-  }
+  if (!envBase) return { ...fallback, platform };
 
   return {
     platform,
