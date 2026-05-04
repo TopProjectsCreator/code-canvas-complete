@@ -147,6 +147,20 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   window.onunhandledrejection = function(e) {
     send('error', ['Unhandled Promise: ' + (e.reason?.message || e.reason || 'unknown')]);
   };
+  window.addEventListener('message', function(ev){
+    if (ev && ev.data && ev.data.type === 'seo-scan') {
+      try {
+        var doctype = '';
+        if (document.doctype) {
+          doctype = '<!DOCTYPE ' + document.doctype.name + '>';
+        }
+        var html = doctype + (document.documentElement ? document.documentElement.outerHTML : '');
+        parent.postMessage({ type: 'seo-result', html: html }, '*');
+      } catch(e) {
+        parent.postMessage({ type: 'seo-result', html: '' }, '*');
+      }
+    }
+  });
 })();
 </script>`;
 
