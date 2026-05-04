@@ -54,7 +54,10 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   const [networkLogs, setNetworkLogs] = useState<NetworkEntry[]>([]);
   const [consoleFilter, setConsoleFilter] = useState<'all' | 'log' | 'warn' | 'error'>('all');
   const [isWebviewClosed, setIsWebviewClosed] = useState(false);
+  const [liveHtml, setLiveHtml] = useState<string>('');
+  const [seoScanning, setSeoScanning] = useState(false);
   const consoleEndRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Auto-scroll console
   useEffect(() => {
@@ -82,10 +85,35 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
           timestamp: new Date(),
         }]);
       }
+      if (e.data?.type === 'seo-result' && typeof e.data.html === 'string') {
+        setLiveHtml(e.data.html);
+        setSeoScanning(false);
+      }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, []);
+
+  const requestSeoScan = useCallback(() => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    setSeoScanning(true);
+    try {
+      win.postMessage({ type: 'seo-scan' }, '*');
+    } catch {
+      setSeoScanning(false);
+    }
+    // Safety timeout
+    setTimeout(() => setSeoScanning((s) => (s ? false : s)), 1500);
+  }, []);
+
+  // Auto-scan when opening the SEO tab or when content changes while it's open
+  useEffect(() => {
+    if (showDevTools && devToolsTab === 'seo' && isRunning && !isWebviewClosed) {
+      const t = setTimeout(requestSeoScan, 200);
+      return () => clearTimeout(t);
+    }
+  }, [showDevTools, devToolsTab, isRunning, isWebviewClosed, key, htmlContent, cssContent, jsContent, requestSeoScan]);
 
   const getDeviceWidth = () => {
     switch (device) {
@@ -119,6 +147,20 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   window.onunhandledrejection = function(e) {
     send('error', ['Unhandled Promise: ' + (e.reason?.message || e.reason || 'unknown')]);
   };
+  window.addEventListener('message', function(ev){
+    if (ev && ev.data && ev.data.type === 'seo-scan') {
+      try {
+        var doctype = '';
+        if (document.doctype) {
+          doctype = '<!DOCTYPE ' + document.doctype.name + '>';
+        }
+        var html = doctype + (document.documentElement ? document.documentElement.outerHTML : '');
+        parent.postMessage({ type: 'seo-result', html: html }, '*');
+      } catch(e) {
+        parent.postMessage({ type: 'seo-result', html: '' }, '*');
+      }
+    }
+  });
 })();
 </script>`;
 
@@ -156,6 +198,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
     setKey(prev => prev + 1);
     setConsoleLogs([]);
     setNetworkLogs([]);
+    setLiveHtml('');
   };
 
   const devices = [
@@ -181,7 +224,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
 
   // ===================== SEO Analyzer =====================
   const seoReport = (() => {
-    const html = htmlContent || '';
+    const html = liveHtml || htmlContent || '';
     if (typeof window === 'undefined' || !html.trim()) {
       return null;
     }
@@ -447,6 +490,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
               getDeviceWidth()
             )}>
               <iframe
+                ref={iframeRef}
                 key={key}
                 srcDoc={createPreviewDocument()}
                 className="w-full h-full border-0"
@@ -652,10 +696,26 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
             {/* SEO tab */}
             {devToolsTab === 'seo' && (
               <div className="flex-1 overflow-auto ide-scrollbar">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card/50">
+                  <div className="text-[11px] text-muted-foreground">
+                    {liveHtml
+                      ? 'Analysing rendered DOM from preview.'
+                      : seoReport
+                      ? 'Analysing source HTML. Run preview to scan rendered DOM.'
+                      : 'No content to analyse yet.'}
+                  </div>
+                  <button
+                    onClick={requestSeoScan}
+                    disabled={!isRunning || isWebviewClosed || seoScanning}
+                    className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {seoScanning ? 'Scanning…' : 'Rescan'}
+                  </button>
+                </div>
                 {!seoReport ? (
                   <div className="p-6 text-center text-xs text-muted-foreground">
                     <Search className="w-6 h-6 mx-auto mb-2 opacity-40" />
-                    <p>Add HTML content to your project to run an SEO analysis.</p>
+                    <p>Run the preview to analyse the rendered page.</p>
                   </div>
                 ) : (
                   <div className="p-3 space-y-3">
