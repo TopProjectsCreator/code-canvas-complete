@@ -223,7 +223,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
 
   // ===================== SEO Analyzer =====================
   const seoReport = (() => {
-    const html = htmlContent || '';
+    const html = liveHtml || htmlContent || '';
     if (typeof window === 'undefined' || !html.trim()) {
       return null;
     }
