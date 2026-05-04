@@ -54,7 +54,10 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   const [networkLogs, setNetworkLogs] = useState<NetworkEntry[]>([]);
   const [consoleFilter, setConsoleFilter] = useState<'all' | 'log' | 'warn' | 'error'>('all');
   const [isWebviewClosed, setIsWebviewClosed] = useState(false);
+  const [liveHtml, setLiveHtml] = useState<string>('');
+  const [seoScanning, setSeoScanning] = useState(false);
   const consoleEndRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Auto-scroll console
   useEffect(() => {
