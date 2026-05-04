@@ -489,6 +489,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
               getDeviceWidth()
             )}>
               <iframe
+                ref={iframeRef}
                 key={key}
                 srcDoc={createPreviewDocument()}
                 className="w-full h-full border-0"
