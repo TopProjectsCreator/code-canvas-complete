@@ -85,10 +85,35 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
           timestamp: new Date(),
         }]);
       }
+      if (e.data?.type === 'seo-result' && typeof e.data.html === 'string') {
+        setLiveHtml(e.data.html);
+        setSeoScanning(false);
+      }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, []);
+
+  const requestSeoScan = useCallback(() => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    setSeoScanning(true);
+    try {
+      win.postMessage({ type: 'seo-scan' }, '*');
+    } catch {
+      setSeoScanning(false);
+    }
+    // Safety timeout
+    setTimeout(() => setSeoScanning((s) => (s ? false : s)), 1500);
+  }, []);
+
+  // Auto-scan when opening the SEO tab or when content changes while it's open
+  useEffect(() => {
+    if (showDevTools && devToolsTab === 'seo' && isRunning && !isWebviewClosed) {
+      const t = setTimeout(requestSeoScan, 200);
+      return () => clearTimeout(t);
+    }
+  }, [showDevTools, devToolsTab, isRunning, isWebviewClosed, key, htmlContent, cssContent, jsContent, requestSeoScan]);
 
   const getDeviceWidth = () => {
     switch (device) {
