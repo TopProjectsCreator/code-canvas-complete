@@ -198,6 +198,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
     setKey(prev => prev + 1);
     setConsoleLogs([]);
     setNetworkLogs([]);
+    setLiveHtml('');
   };
 
   const devices = [
