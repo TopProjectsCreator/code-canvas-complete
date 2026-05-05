@@ -58,7 +58,12 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   const [networkLogs, setNetworkLogs] = useState<NetworkEntry[]>([]);
   const [consoleFilter, setConsoleFilter] = useState<'all' | 'log' | 'warn' | 'error'>('all');
   const [isWebviewClosed, setIsWebviewClosed] = useState(false);
-  const [liveHtml, setLiveHtml] = useState<string>('');
+  const [liveHtml, setLiveHtml] = useState<string>(() => {
+    try { return localStorage.getItem('seo:lastHtml') || ''; } catch { return ''; }
+  });
+  const [seoLastScannedAt, setSeoLastScannedAt] = useState<string>(() => {
+    try { return localStorage.getItem('seo:lastScannedAt') || ''; } catch { return ''; }
+  });
   const [seoScanning, setSeoScanning] = useState(false);
   const [seoCopied, setSeoCopied] = useState(false);
   const seoReportRef = useRef<any>(null);
@@ -170,8 +175,17 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
         }]);
       }
       if (e.data?.type === 'seo-result' && typeof e.data.html === 'string') {
-        setLiveHtml(e.data.html);
+        const html = e.data.html;
+        setLiveHtml(html);
         setSeoScanning(false);
+        if (html) {
+          const ts = new Date().toISOString();
+          setSeoLastScannedAt(ts);
+          try {
+            localStorage.setItem('seo:lastHtml', html);
+            localStorage.setItem('seo:lastScannedAt', ts);
+          } catch {}
+        }
       }
     };
     window.addEventListener('message', handler);
