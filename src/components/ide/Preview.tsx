@@ -746,13 +746,24 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
                       ? 'Analysing source HTML. Run preview to scan rendered DOM.'
                       : 'No content to analyse yet.'}
                   </div>
-                  <button
-                    onClick={requestSeoScan}
-                    disabled={!isRunning || isWebviewClosed || seoScanning}
-                    className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {seoScanning ? 'Scanning…' : 'Rescan'}
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={copySeoReport}
+                      disabled={!seoReport}
+                      className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
+                      title="Copy SEO report as text"
+                    >
+                      {seoCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      {seoCopied ? 'Copied' : 'Copy report'}
+                    </button>
+                    <button
+                      onClick={requestSeoScan}
+                      disabled={!isRunning || isWebviewClosed || seoScanning}
+                      className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {seoScanning ? 'Scanning…' : 'Rescan'}
+                    </button>
+                  </div>
                 </div>
                 {!seoReport ? (
                   <div className="p-6 text-center text-xs text-muted-foreground">
