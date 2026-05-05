@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -56,6 +58,45 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   const [isWebviewClosed, setIsWebviewClosed] = useState(false);
   const [liveHtml, setLiveHtml] = useState<string>('');
   const [seoScanning, setSeoScanning] = useState(false);
+  const [seoCopied, setSeoCopied] = useState(false);
+  const seoReportRef = useRef<any>(null);
+
+  const copySeoReport = useCallback(async () => {
+    if (!seoReportRef.current) return;
+    const r = seoReportRef.current;
+    const lines: string[] = [];
+    lines.push('SEO Report');
+    lines.push('==========');
+    lines.push(`Score: ${r.score}/100`);
+    lines.push(`Passed: ${r.passed}  Warnings: ${r.warnings}  Errors: ${r.errors}`);
+    lines.push(`Images: ${r.counts.images}  Links: ${r.counts.links}  H1 tags: ${r.counts.h1}`);
+    lines.push('');
+    lines.push('Checks');
+    lines.push('------');
+    for (const c of r.checks) {
+      const icon = c.status === 'pass' ? '[PASS]' : c.status === 'warn' ? '[WARN]' : '[FAIL]';
+      lines.push(`${icon} ${c.label}: ${c.message}`);
+    }
+    if (r.metadata.length) {
+      lines.push('');
+      lines.push('Detected Metadata');
+      lines.push('-----------------');
+      for (const [k, v] of r.metadata) lines.push(`${k}: ${v}`);
+    }
+    const text = lines.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch {}
+      document.body.removeChild(ta);
+    }
+    setSeoCopied(true);
+    setTimeout(() => setSeoCopied(false), 1500);
+  }, []);
   const consoleEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -375,6 +416,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
       counts: { images: images.length, links: links.length, h1: h1s.length },
     };
   })();
+  seoReportRef.current = seoReport;
   // ========================================================
 
 
@@ -704,13 +746,24 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
                       ? 'Analysing source HTML. Run preview to scan rendered DOM.'
                       : 'No content to analyse yet.'}
                   </div>
-                  <button
-                    onClick={requestSeoScan}
-                    disabled={!isRunning || isWebviewClosed || seoScanning}
-                    className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {seoScanning ? 'Scanning…' : 'Rescan'}
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={copySeoReport}
+                      disabled={!seoReport}
+                      className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
+                      title="Copy SEO report as text"
+                    >
+                      {seoCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                      {seoCopied ? 'Copied' : 'Copy report'}
+                    </button>
+                    <button
+                      onClick={requestSeoScan}
+                      disabled={!isRunning || isWebviewClosed || seoScanning}
+                      className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {seoScanning ? 'Scanning…' : 'Rescan'}
+                    </button>
+                  </div>
                 </div>
                 {!seoReport ? (
                   <div className="p-6 text-center text-xs text-muted-foreground">
