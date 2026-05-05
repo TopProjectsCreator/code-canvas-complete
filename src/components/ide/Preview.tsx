@@ -416,6 +416,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
       counts: { images: images.length, links: links.length, h1: h1s.length },
     };
   })();
+  seoReportRef.current = seoReport;
   // ========================================================
 
 
