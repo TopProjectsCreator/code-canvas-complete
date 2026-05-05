@@ -798,7 +798,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
                 <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card/50">
                   <div className="text-[11px] text-muted-foreground">
                     {liveHtml
-                      ? 'Analysing rendered DOM from preview.'
+                      ? `Analysing rendered DOM${seoLastScannedAt ? ` · last scan ${new Date(seoLastScannedAt).toLocaleString()}` : ''}.`
                       : seoReport
                       ? 'Analysing source HTML. Run preview to scan rendered DOM.'
                       : 'No content to analyse yet.'}
