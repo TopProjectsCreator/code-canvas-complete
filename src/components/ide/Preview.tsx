@@ -58,7 +58,12 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   const [networkLogs, setNetworkLogs] = useState<NetworkEntry[]>([]);
   const [consoleFilter, setConsoleFilter] = useState<'all' | 'log' | 'warn' | 'error'>('all');
   const [isWebviewClosed, setIsWebviewClosed] = useState(false);
-  const [liveHtml, setLiveHtml] = useState<string>('');
+  const [liveHtml, setLiveHtml] = useState<string>(() => {
+    try { return localStorage.getItem('seo:lastHtml') || ''; } catch { return ''; }
+  });
+  const [seoLastScannedAt, setSeoLastScannedAt] = useState<string>(() => {
+    try { return localStorage.getItem('seo:lastScannedAt') || ''; } catch { return ''; }
+  });
   const [seoScanning, setSeoScanning] = useState(false);
   const [seoCopied, setSeoCopied] = useState(false);
   const seoReportRef = useRef<any>(null);
@@ -170,8 +175,17 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
         }]);
       }
       if (e.data?.type === 'seo-result' && typeof e.data.html === 'string') {
-        setLiveHtml(e.data.html);
+        const html = e.data.html;
+        setLiveHtml(html);
         setSeoScanning(false);
+        if (html) {
+          const ts = new Date().toISOString();
+          setSeoLastScannedAt(ts);
+          try {
+            localStorage.setItem('seo:lastHtml', html);
+            localStorage.setItem('seo:lastScannedAt', ts);
+          } catch {}
+        }
       }
     };
     window.addEventListener('message', handler);
@@ -784,7 +798,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
                 <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card/50">
                   <div className="text-[11px] text-muted-foreground">
                     {liveHtml
-                      ? 'Analysing rendered DOM from preview.'
+                      ? `Analysing rendered DOM${seoLastScannedAt ? ` · last scan ${new Date(seoLastScannedAt).toLocaleString()}` : ''}.`
                       : seoReport
                       ? 'Analysing source HTML. Run preview to scan rendered DOM.'
                       : 'No content to analyse yet.'}
