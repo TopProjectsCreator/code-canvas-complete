@@ -59,6 +59,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   const [liveHtml, setLiveHtml] = useState<string>('');
   const [seoScanning, setSeoScanning] = useState(false);
   const [seoCopied, setSeoCopied] = useState(false);
+  const seoReportRef = useRef<any>(null);
 
   const copySeoReport = useCallback(async () => {
     if (!seoReportRef.current) return;
