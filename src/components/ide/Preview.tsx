@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
