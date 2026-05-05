@@ -58,7 +58,12 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   const [networkLogs, setNetworkLogs] = useState<NetworkEntry[]>([]);
   const [consoleFilter, setConsoleFilter] = useState<'all' | 'log' | 'warn' | 'error'>('all');
   const [isWebviewClosed, setIsWebviewClosed] = useState(false);
-  const [liveHtml, setLiveHtml] = useState<string>('');
+  const [liveHtml, setLiveHtml] = useState<string>(() => {
+    try { return localStorage.getItem('seo:lastHtml') || ''; } catch { return ''; }
+  });
+  const [seoLastScannedAt, setSeoLastScannedAt] = useState<string>(() => {
+    try { return localStorage.getItem('seo:lastScannedAt') || ''; } catch { return ''; }
+  });
   const [seoScanning, setSeoScanning] = useState(false);
   const [seoCopied, setSeoCopied] = useState(false);
   const seoReportRef = useRef<any>(null);
@@ -170,8 +175,17 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
         }]);
       }
       if (e.data?.type === 'seo-result' && typeof e.data.html === 'string') {
-        setLiveHtml(e.data.html);
+        const html = e.data.html;
+        setLiveHtml(html);
         setSeoScanning(false);
+        if (html) {
+          const ts = new Date().toISOString();
+          setSeoLastScannedAt(ts);
+          try {
+            localStorage.setItem('seo:lastHtml', html);
+            localStorage.setItem('seo:lastScannedAt', ts);
+          } catch {}
+        }
       }
     };
     window.addEventListener('message', handler);
@@ -784,7 +798,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
                 <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card/50">
                   <div className="text-[11px] text-muted-foreground">
                     {liveHtml
-                      ? 'Analysing rendered DOM from preview.'
+                      ? `Analysing rendered DOM${seoLastScannedAt ? ` · last scan ${new Date(seoLastScannedAt).toLocaleString()}` : ''}.`
                       : seoReport
                       ? 'Analysing source HTML. Run preview to scan rendered DOM.'
                       : 'No content to analyse yet.'}
@@ -891,6 +905,120 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
                         ))}
                       </div>
                     </div>
+
+                    {/* How to fix */}
+                    {(() => {
+                      const issues = seoReport.checks.filter((c) => c.status !== 'pass');
+                      if (issues.length === 0) {
+                        return (
+                          <div className="rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-2 text-xs text-green-600 dark:text-green-400 flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            All checks pass — no fixes needed.
+                          </div>
+                        );
+                      }
+                      const fixMap: Record<string, { steps: string[]; snippet?: string }> = {
+                        title: {
+                          steps: [
+                            'Add a unique <title> in <head>, 50–60 characters.',
+                            'Lead with the primary keyword and include your brand at the end.',
+                          ],
+                          snippet: '<title>Primary Keyword — Brand</title>',
+                        },
+                        description: {
+                          steps: [
+                            'Add a meta description, 120–160 characters.',
+                            'Summarise the page value and include a call to action.',
+                          ],
+                          snippet: '<meta name="description" content="Concise, compelling summary (120–160 chars).">',
+                        },
+                        viewport: {
+                          steps: ['Add the responsive viewport meta tag inside <head>.'],
+                          snippet: '<meta name="viewport" content="width=device-width, initial-scale=1">',
+                        },
+                        lang: {
+                          steps: ['Set a language on the root <html> element (e.g. en, en-US).'],
+                          snippet: '<html lang="en">',
+                        },
+                        h1: {
+                          steps: [
+                            'Use exactly one <h1> per page describing the main topic.',
+                            'Demote extra H1s to <h2> to keep a single top-level heading.',
+                          ],
+                          snippet: '<h1>Page Topic</h1>',
+                        },
+                        'images-alt': {
+                          steps: [
+                            'Add descriptive alt="" to every <img>.',
+                            'Use alt="" (empty) only for purely decorative images.',
+                          ],
+                          snippet: '<img src="hero.jpg" alt="Team collaborating around a laptop">',
+                        },
+                        og: {
+                          steps: ['Add Open Graph tags so links unfurl nicely on social platforms.'],
+                          snippet: '<meta property="og:title" content="...">\n<meta property="og:description" content="...">\n<meta property="og:image" content="https://example.com/og.png">\n<meta property="og:type" content="website">',
+                        },
+                        twitter: {
+                          steps: ['Add Twitter Card meta for rich previews on X/Twitter.'],
+                          snippet: '<meta name="twitter:card" content="summary_large_image">',
+                        },
+                        canonical: {
+                          steps: ['Declare the canonical URL to avoid duplicate-content issues.'],
+                          snippet: '<link rel="canonical" href="https://example.com/this-page">',
+                        },
+                        favicon: {
+                          steps: ['Link a favicon so the page is identifiable in tabs and bookmarks.'],
+                          snippet: '<link rel="icon" type="image/svg+xml" href="/favicon.svg">',
+                        },
+                        jsonld: {
+                          steps: [
+                            'Add JSON-LD structured data so search engines can build rich results.',
+                            'Pick a schema.org type matching the page (WebSite, Article, Product, etc.).',
+                          ],
+                          snippet: '<script type="application/ld+json">\n{\n  "@context": "https://schema.org",\n  "@type": "WebSite",\n  "name": "Site Name",\n  "url": "https://example.com"\n}\n</script>',
+                        },
+                      };
+                      return (
+                        <div className="rounded-lg border border-border bg-background overflow-hidden">
+                          <div className="px-3 py-1.5 border-b border-border text-[10px] font-medium text-muted-foreground uppercase tracking-wide flex items-center justify-between">
+                            <span>How to fix</span>
+                            <span className="text-muted-foreground/70 normal-case tracking-normal">{issues.length} issue{issues.length === 1 ? '' : 's'}</span>
+                          </div>
+                          <div className="divide-y divide-border">
+                            {issues.map((c) => {
+                              const fix = fixMap[c.id];
+                              return (
+                                <div key={c.id} className="px-3 py-2 space-y-1.5">
+                                  <div className="flex items-center gap-2">
+                                    {c.status === 'warn'
+                                      ? <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 shrink-0" />
+                                      : <XCircle className="w-3.5 h-3.5 text-destructive shrink-0" />}
+                                    <div className="text-xs font-medium text-foreground">{c.label}</div>
+                                    <span className={cn(
+                                      'text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded border',
+                                      c.status === 'warn'
+                                        ? 'border-yellow-500/40 text-yellow-600 dark:text-yellow-400'
+                                        : 'border-destructive/40 text-destructive'
+                                    )}>
+                                      {c.status === 'warn' ? 'Warning' : 'Error'}
+                                    </span>
+                                  </div>
+                                  <div className="text-[10px] text-muted-foreground">{c.message}</div>
+                                  {fix && (
+                                    <ul className="list-disc pl-4 text-[11px] text-foreground/90 space-y-0.5">
+                                      {fix.steps.map((s, i) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                  )}
+                                  {fix?.snippet && (
+                                    <pre className="text-[10px] font-mono bg-muted/50 border border-border rounded px-2 py-1.5 overflow-x-auto whitespace-pre">{fix.snippet}</pre>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Detected metadata */}
                     {seoReport.metadata.length > 0 && (
