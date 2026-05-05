@@ -17,6 +17,8 @@ import {
   XCircle,
   Copy,
   Check,
+  Download,
+  FileJson,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -61,9 +63,9 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   const [seoCopied, setSeoCopied] = useState(false);
   const seoReportRef = useRef<any>(null);
 
-  const copySeoReport = useCallback(async () => {
-    if (!seoReportRef.current) return;
+  const buildSeoText = useCallback(() => {
     const r = seoReportRef.current;
+    if (!r) return '';
     const lines: string[] = [];
     lines.push('SEO Report');
     lines.push('==========');
@@ -83,7 +85,12 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
       lines.push('-----------------');
       for (const [k, v] of r.metadata) lines.push(`${k}: ${v}`);
     }
-    const text = lines.join('\n');
+    return lines.join('\n');
+  }, []);
+
+  const copySeoReport = useCallback(async () => {
+    const text = buildSeoText();
+    if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -96,6 +103,42 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
     }
     setSeoCopied(true);
     setTimeout(() => setSeoCopied(false), 1500);
+  }, [buildSeoText]);
+
+  const downloadBlob = (content: string, mime: string, filename: string) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const downloadSeoTxt = useCallback(() => {
+    const text = buildSeoText();
+    if (!text) return;
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    downloadBlob(text, 'text/plain;charset=utf-8', `seo-report-${ts}.txt`);
+  }, [buildSeoText]);
+
+  const downloadSeoJson = useCallback(() => {
+    const r = seoReportRef.current;
+    if (!r) return;
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      score: r.score,
+      passed: r.passed,
+      warnings: r.warnings,
+      errors: r.errors,
+      counts: r.counts,
+      checks: r.checks,
+      metadata: Object.fromEntries(r.metadata || []),
+    };
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    downloadBlob(JSON.stringify(payload, null, 2), 'application/json', `seo-report-${ts}.json`);
   }, []);
   const consoleEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -755,6 +798,24 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
                     >
                       {seoCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
                       {seoCopied ? 'Copied' : 'Copy report'}
+                    </button>
+                    <button
+                      onClick={downloadSeoTxt}
+                      disabled={!seoReport}
+                      className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
+                      title="Download SEO report as .txt"
+                    >
+                      <Download className="w-3 h-3" />
+                      .txt
+                    </button>
+                    <button
+                      onClick={downloadSeoJson}
+                      disabled={!seoReport}
+                      className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
+                      title="Download SEO report as .json"
+                    >
+                      <FileJson className="w-3 h-3" />
+                      .json
                     </button>
                     <button
                       onClick={requestSeoScan}
