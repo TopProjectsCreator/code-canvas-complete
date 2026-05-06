@@ -66,6 +66,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   });
   const [seoScanning, setSeoScanning] = useState(false);
   const [seoCopied, setSeoCopied] = useState(false);
+  const [copiedFixId, setCopiedFixId] = useState<string | null>(null);
   const seoReportRef = useRef<any>(null);
 
   const buildSeoText = useCallback(() => {
@@ -1010,7 +1011,24 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
                                     </ul>
                                   )}
                                   {fix?.snippet && (
-                                    <pre className="text-[10px] font-mono bg-muted/50 border border-border rounded px-2 py-1.5 overflow-x-auto whitespace-pre">{fix.snippet}</pre>
+                                    <div className="relative group">
+                                      <pre className="text-[10px] font-mono bg-muted/50 border border-border rounded px-2 py-1.5 pr-16 overflow-x-auto whitespace-pre">{fix.snippet}</pre>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          try {
+                                            await navigator.clipboard.writeText(fix.snippet!);
+                                            setCopiedFixId(c.id);
+                                            setTimeout(() => setCopiedFixId((cur) => (cur === c.id ? null : cur)), 1500);
+                                          } catch {}
+                                        }}
+                                        className="absolute top-1 right-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-border bg-background hover:bg-accent text-foreground transition-colors"
+                                        title="Copy fix snippet"
+                                      >
+                                        {copiedFixId === c.id ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                                        <span>{copiedFixId === c.id ? 'Copied' : 'Copy'}</span>
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               );
