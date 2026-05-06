@@ -2,11 +2,21 @@
 
 # Code Canvas Complete
 
-Code Canvas Complete is an advanced, browser-based All-In-One IDE featuring an integrated AI assistant, multi-file editing, persistent shell sessions, and a massive suite of specialized editors.
+Code Canvas Complete is an advanced, browser-based All-In-One IDE that transforms how you build, test, and deploy applications. By combining a professional editor, a persistent AI assistant, and a massive suite of specialized tools—from Arduino prototyping to media production—we eliminate the friction of tool switching and environment configuration.
 
 ![Code Canvas Teaser](teaser.gif)
 
-## 🚀 Core IDE & Workspace
+## ⚡ Quick Start
+
+Ready to build? Get productive in minutes:
+
+1. **Import:** Connect your GitHub/GitLab/Bitbucket repo or start from a template.
+2. **Configure:** Securely manage environment variables in the **Environment** manager.
+3. **Run:** Use the built-in terminal to install dependencies (`npm install`) and start your development server (`npm run dev`).
+4. **Automate:** Leverage the AI agent for your first task (e.g., "Add loading states to this component").
+5. **Ship:** Use our integrated Git and Deployment tools to publish your project with ease.
+
+*Need more guidance? Check out our [Getting Started guide](/docs/features/getting-started.mdx).*
 
 Code Canvas provides a professional development environment entirely in your browser, powered by the WebContainers API and Supabase for backend services.
 
@@ -120,10 +130,37 @@ app.post('/execute', (req, res) => {
 
 ## 🛠️ Specialized Editors & Tools
 
-Code Canvas goes beyond code, offering a full suite of creative and technical editors.
+<details>
+<summary><b>Editor Capabilities Deep Dive</b></summary>
+Our specialized editors are designed to bridge the gap between ideation, implementation, and verification, all within the same unified workspace.
+
+### 🛠️ Hardware & Prototyping
+*   **Arduino IDE:** Professional-grade sketch environment. Includes AVR/ESP board profiles, live compile diagnostics, and virtual breadboarding to simulate hardware interactions before flashing firmware.
+*   **CAD Editor:** Parametric-inspired design tool. Build mechanical parts and enclosures while keeping design specifications and manufacturing handoff notes versioned alongside your application code.
+
+### 🎨 Visual & Creative
+*   **Scratch Integration:** Visual logic for rapid gameplay and interaction prototyping. Perfect for modeling user flows and logic branching before writing production code.
+*   **3D Editor:** Built-in scene composition. Transform, rotate, and scale 3D assets in a web-first workspace, ideal for game concepting, product mockups, and real-time visualization.
+*   **Media Suite:** Integrated timeline-based audio and video editors. Create tutorials, demos, and release videos without leaving your codebase context.
+
+### 📊 Data & Documentation
+*   **Office Suite:** Full-featured document and spreadsheet editing. Maintain architecture specs (Word), sprint/test matrices (Excel), and stakeholder presentations (PowerPoint) as project artifacts.
+*   **Database Designer:** Visual schema modeling. Plan entities and relationships (ERD) visually to generate clean, production-ready SQL migrations.
+
+### 🧪 API & Orchestration
+*   **API Playground:** High-velocity testing for REST and GraphQL endpoints. Validate your API contracts and debug responses iteratively while editing your service implementations.
+*   **Workflows Panel:** Visual orchestration of your build, test, and deploy pipelines. Define, trigger, and inspect multi-step automation sequences to ensure consistent quality standards.
+*   **Extensions Panel:** Build and manage private IDE helpers. Create your own widgets, commands, or AI chat-tool runtimes to tailor your development environment to your team's unique workflows.
+</details>
 
 <details>
 <summary><b>Arduino IDE — Board Setup, Coding, Sim, and Upload</b></summary>
+
+### Deep Dive: Professional Hardware Workflows
+*   **Unified Build Environment:** Skip local toolchain conflicts. Our cloud-integrated AVR/ESP compiler ensures consistent binary generation across your team, with precise control over memory profiles, clock speeds, and upload protocols (USB/OTA/Serial).
+*   **Interactive Virtual Prototyping:** Accelerate the hardware-software feedback loop using our grid-aligned virtual breadboard. Validate logic, component wiring, and sensor integration before deploying to physical hardware, reducing hardware wear and accidental short-circuits.
+*   **Firmware Diagnostics & Failure Analysis:** Get granular feedback during compile and flash failures. Our system maps low-level hardware errors directly to your code and suggests specific adjustments, whether it's a baud rate mismatch, memory overflow, or pin assignment conflict.
+*   **Collaborative Template Management:** Standardize your hardware architecture by creating and sharing project-wide templates. Easily bundle pin mappings, library dependencies, and configuration presets, ensuring team-wide consistency for complex IoT projects.
 
 ### What you can do
 - Create `.ino` sketches with syntax highlighting, snippets, and live diagnostics.
@@ -166,7 +203,12 @@ Code Canvas goes beyond code, offering a full suite of creative and technical ed
 </details>
 
 <details>
-<summary><b>Scratch Integration — Visual Logic + Project Prototyping</b></summary>
+<summary><b>Scratch Integration — Visual Logic & Architectural Prototyping</b></summary>
+
+### Deep Dive: Visual Logic Engineering
+*   **Architectural Modeling:** Move beyond simple animations. Use block logic to map complex event-driven workflows, state machines, and data transitions before committing to high-level language implementations.
+*   **Interdisciplinary Bridge:** Provide non-technical stakeholders (PMs, designers) with a functional "sandbox" of the project's core logic. This enables early-stage feedback loops without requiring code review, significantly reducing late-stage refactoring.
+*   **Logic Verification:** Leverage the visual environment to debug complex branching and edge-case behaviors. The deterministic nature of block-based execution makes it ideal for visualizing the "happy path" versus failure states in user interaction flows.
 
 ### What you can do
 - Build with drag-and-drop visual programming blocks.
@@ -201,7 +243,12 @@ Code Canvas goes beyond code, offering a full suite of creative and technical ed
 </details>
 
 <details>
-<summary><b>3D Editor — Modeling Workspace + Text-to-3D</b></summary>
+<summary><b>3D Editor — Real-Time Scene Composition & Asset Pipeline</b></summary>
+
+### Deep Dive: 3D Workspace Integration
+*   **Asset-First Development:** Seamlessly manage 3D model dependencies, textures, and lighting configurations alongside your code and build scripts. Eliminate file-path headaches and external tool syncing by keeping assets natively versioned.
+*   **Scene-Level Iteration:** Perform rapid layout testing and camera framing within the IDE. This minimizes the "import/export/preview" cycle, allowing for real-time adjustments of visual assets in their target environment.
+*   **Optimization for Real-Time:** Use the editor to stress-test your scene hierarchy, manage object hierarchies, and plan LOD (Level of Detail) strategies, ensuring your 3D experiments remain performant on web platforms.
 
 ### What you can do
 - Build and edit 3D scenes directly in the IDE.
@@ -236,7 +283,12 @@ Code Canvas goes beyond code, offering a full suite of creative and technical ed
 </details>
 
 <details>
-<summary><b>Media Suite — Audio + Video Editors in One Workspace</b></summary>
+<summary><b>Media Suite — Professional Production & Developer Relatable Media</b></summary>
+
+### Deep Dive: Production-Grade Media Workflows
+*   **Contextual Media Pipeline:** Keep audio clips, video raw-assets, and final exports co-located with your source code. This ensures that every changelog, tutorial, or demo remains aligned with the feature state it represents.
+*   **Timeline-Driven Editing:** Utilize non-linear editing (NLE) tools within the IDE to perform precise cuts, sequencing, and audio mastering. This eliminates context-switching between specialized media software and your IDE, keeping your production workflow within the same environment as your implementation.
+*   **Documentation-Media Synergy:** Streamline your DevRel and documentation efforts by creating chapter markers, syncing voice-overs with code walkthroughs, and generating assets that update alongside project versions.
 
 ### What you can do
 - Edit audio and video without leaving the project.
@@ -279,7 +331,12 @@ Code Canvas goes beyond code, offering a full suite of creative and technical ed
 </details>
 
 <details>
-<summary><b>Office Suite — Word, Excel, PowerPoint, and Rich Text</b></summary>
+<summary><b>Office Suite — Integrated Technical Documentation & Planning</b></summary>
+
+### Deep Dive: Data-Driven Project Governance
+*   **Integrated Documentation Hub:** Maintain high-value artifacts like PRDs, RFCs, and troubleshooting runbooks in an environment that bridges planning and implementation. Links documentation directly to source code, ensuring that project specs evolve alongside the codebase.
+*   **Tabular Project Planning:** Utilize spreadsheet views to manage complex data like feature matrices, test-case coverage, and sprint milestones. This data is kept live and linked to the source tree, making it easy to generate automated reports or dashboards from your structured project metadata.
+*   **Engineering-Focused Presentation:** Draft and refine stakeholder presentations (PowerPoint) within the same workspace as your technical specs. Re-use project-native assets, source code snippets, and design references directly in your decks to create highly accurate documentation and communication assets.
 
 ### What you can do
 - Open and edit document formats in the same workspace.
@@ -330,7 +387,12 @@ Code Canvas goes beyond code, offering a full suite of creative and technical ed
 </details>
 
 <details>
-<summary><b>CAD Editor — Parametric Thinking + Visual Design</b></summary>
+<summary><b>CAD Editor — Mechanical Design & Parametric Thinking</b></summary>
+
+### Deep Dive: Engineering Design Integration
+*   **Parametric Design Workflow:** Move beyond static design files. Our CAD environment encourages parametric thinking, allowing for iterative refinements and quick layout adjustments that can be instantly synced with your hardware configuration and firmware requirements.
+*   **Cross-Discipline Synchronization:** Link your mechanical designs and enclosure specs directly with firmware pin-outs and electronic design requirements. This tight coupling reduces mechanical/electronic collisions, ensuring your enclosure designs account for all physical hardware components.
+*   **Design Review Feedback Loops:** Foster clearer collaboration by reviewing design models, stress tests, and enclosure concepts within the same workspace as the application code, creating a single source of truth for all project stakeholders.
 
 ### What you can do
 - Build CAD-style models inside the same IDE session.
@@ -365,7 +427,12 @@ Code Canvas goes beyond code, offering a full suite of creative and technical ed
 </details>
 
 <details>
-<summary><b>Database Designer — ERD-Style Planning + SQL Export</b></summary>
+<summary><b>Database Designer — Visual ERD & Schema-as-Code</b></summary>
+
+### Deep Dive: Schema Engineering & Validation
+*   **Visual Data Modeling:** Plan table structures, constraints, and relational mappings (one-to-many, etc.) in a high-fidelity visual workspace. This helps align backend/frontend expectations early, reducing ambiguity and improving data integrity during schema design.
+*   **Migration Handoff:** Effortlessly export your validated schema as production-ready SQL migration scripts. This automated transition ensures that your visual plans are perfectly represented in your database implementation, reducing human error.
+*   **Data Contract Governance:** Use the model as a source of truth for all API contracts and data-related logic within the app. Changes in the visual model can be immediately reconciled with existing code and documentation, ensuring consistent data handling across your entire tech stack.
 
 ### What you can do
 - Model entities and relationships visually.
@@ -400,7 +467,12 @@ Code Canvas goes beyond code, offering a full suite of creative and technical ed
 </details>
 
 <details>
-<summary><b>API Playground — REST + GraphQL Testing Hub</b></summary>
+<summary><b>API Playground — High-Velocity Contract & Integration Testing</b></summary>
+
+### Deep Dive: Contract-First Development
+*   **Iterative API Validation:** Seamlessly test REST/GraphQL endpoints as you code. Perform real-time validation of your request/response payloads within the same workspace as your service implementation, drastically shortening debugging cycles.
+*   **API Documentation as Code:** Keep your API playground configurations and request patterns versioned as project artifacts. This serves as a "living" documentation set that others can import, run, and experiment with, ensuring your test cases are as current as your source code.
+*   **Reproducible Bug Triage:** Save complex request states—including custom headers, auth context, and payload variables—to easily reproduce and debug edge-case failures across different environments, streamlining integration testing and QA collaboration.
 
 ### What you can do
 - Test REST and GraphQL endpoints from inside the IDE.
@@ -435,7 +507,12 @@ Code Canvas goes beyond code, offering a full suite of creative and technical ed
 </details>
 
 <details>
-<summary><b>Workflows Panel — Visual Build/Test/Deploy Automation</b></summary>
+<summary><b>Workflows Panel — Visual Pipeline Orchestration & CI/CD</b></summary>
+
+### Deep Dive: Automation Engineering
+*   **Visual Workflow Construction:** Orchestrate multi-step build/test/deploy actions through a intuitive interface rather than complex configuration files alone. Create named pipelines that mirror your actual deployment stages, making automation transparent, maintainable, and easy to audit.
+*   **State-Aware Execution:** Easily re-run specific workflow steps as your project state evolves. This provides a lightweight CI/CD-style environment where developers can quickly iterate on pipeline configurations, test rollbacks, or troubleshoot failures without external dependencies.
+*   **Consistency-by-Design:** Standardize your automation strategy team-wide by embedding workflow configurations directly in the project. This ensures that every developer—regardless of experience level—can execute release-ready tasks with predictable results and standardized security/linting gates.
 
 ### What you can do
 - Create project workflows with visual steps.
@@ -470,7 +547,12 @@ Code Canvas goes beyond code, offering a full suite of creative and technical ed
 </details>
 
 <details>
-<summary><b>Extensions Panel — Build Widget, Command, and Chat-Tool Runtimes</b></summary>
+<summary><b>Extensions Panel — Custom IDE Runtimes & Tooling Adapters</b></summary>
+
+### Deep Dive: Platform Engineering
+*   **Custom IDE Runtimes:** Empower your team by scaffolding private IDE extensions—whether they're simple command-line helpers, complex UI widgets for internal dashboards, or custom chat-tool runtimes that extend the AI's capabilities.
+*   **Project-Native Tooling:** Prototype and build IDE helpers right next to the code they manipulate. This co-location drastically reduces the friction of platform-team maintenance and ensures that internal tooling can iterate at the same velocity as your product.
+*   **AI-Aware Adapters:** Design extensions specifically to guide the AI assistant, providing it with custom tool adapters, specialized data interfaces, or domain-specific logic that it can leverage to perform more intelligent, context-aware assistance.
 
 ### What you can do
 - Create custom IDE extensions in-project.
