@@ -103,6 +103,56 @@ const COMPETITORS = [
     description:
       "Local IDE with autonomous AI agent that plans and executes multi-file tasks.",
   },
+  {
+    id: "zed",
+    name: "Zed",
+    tagline: "High-performance native editor",
+    color: "#F472B6",
+    bg: "from-pink-500/10 to-pink-500/5",
+    border: "border-pink-500/30",
+    description:
+      "Rust-based collaborative code editor with built-in AI assistant and CRDT multiplayer.",
+  },
+  {
+    id: "codesandbox",
+    name: "CodeSandbox",
+    tagline: "Browser sandboxes & devboxes",
+    color: "#22D3EE",
+    bg: "from-cyan-500/10 to-cyan-500/5",
+    border: "border-cyan-500/30",
+    description:
+      "Instant cloud sandboxes for web apps with live preview, sharing, and Docker-based devboxes.",
+  },
+  {
+    id: "gitpod",
+    name: "Gitpod",
+    tagline: "Ephemeral cloud workspaces",
+    color: "#FB7185",
+    bg: "from-rose-500/10 to-rose-500/5",
+    border: "border-rose-500/30",
+    description:
+      "Pre-configured, ephemeral cloud dev environments launched from any Git repo.",
+  },
+  {
+    id: "firebase-studio",
+    name: "Firebase Studio",
+    tagline: "Google AI dev workspace",
+    color: "#FCD34D",
+    bg: "from-amber-500/10 to-amber-500/5",
+    border: "border-amber-500/30",
+    description:
+      "Google's cloud IDE (formerly Project IDX) with Gemini, emulators, and Firebase deploy built in.",
+  },
+  {
+    id: "trae",
+    name: "Trae",
+    tagline: "ByteDance AI IDE",
+    color: "#F87171",
+    bg: "from-red-500/10 to-red-500/5",
+    border: "border-red-500/30",
+    description:
+      "AI-native IDE from ByteDance featuring autonomous Builder mode and free frontier models.",
+  },
 ];
 
 type FeatureValue = true | false | "partial" | string;
