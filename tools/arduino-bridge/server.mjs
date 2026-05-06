@@ -176,6 +176,27 @@ async function handleUf2Upload(payload) {
   return { ok: true, method: 'uf2', boardId, targetPath: normalizedPath, file: outputPath };
 }
 
+async function handleMicroPythonPush(payload) {
+  const { boardId, port, filename = 'main.py', content } = payload;
+  if (!boardId || !port || !content) {
+    throw new Error('MicroPython push requires boardId, port, and content');
+  }
+  if (!hasBin('mpremote')) {
+    throw new Error('mpremote not found in PATH. Install with: pip install mpremote');
+  }
+
+  const dir = await fs.mkdtemp(path.join(TEMP_ROOT, 'mpy-'));
+  try {
+    const localPath = path.join(dir, filename);
+    await fs.writeFile(localPath, content, 'utf8');
+    await runCommand('mpremote', ['connect', String(port), 'fs', 'cp', localPath, `:${filename}`]);
+    await runCommand('mpremote', ['connect', String(port), 'reset']);
+    return { ok: true, method: 'micropython-push', boardId, port, filename };
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
@@ -219,6 +240,12 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/upload/uf2' && req.method === 'POST') {
       const payload = await readJson(req);
       const result = await handleUf2Upload(payload);
+      return json(res, 200, result);
+    }
+
+    if (req.url === '/upload/micropython' && req.method === 'POST') {
+      const payload = await readJson(req);
+      const result = await handleMicroPythonPush(payload);
       return json(res, 200, result);
     }
 
