@@ -66,6 +66,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
   });
   const [seoScanning, setSeoScanning] = useState(false);
   const [seoCopied, setSeoCopied] = useState(false);
+  const [copiedFixId, setCopiedFixId] = useState<string | null>(null);
   const seoReportRef = useRef<any>(null);
 
   const buildSeoText = useCallback(() => {
