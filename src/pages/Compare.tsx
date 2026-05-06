@@ -680,6 +680,228 @@ const FEATURES: Feature[] = [
       },
     ],
   },
+  {
+    category: "Deployment & Hosting",
+    icon: <Rocket className="h-4 w-4" />,
+    items: [
+      {
+        label: "One-click publish to a URL",
+        description: "Deploy without configuring CI/CD",
+        codecanvas: true,
+        competitors: {
+          replit: true, lovable: true, base44: true, bolt: true, cursor: false,
+          v0: true, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: true, gitpod: false, "firebase-studio": true, trae: false,
+        },
+      },
+      {
+        label: "Custom domain support",
+        codecanvas: true,
+        competitors: {
+          replit: true, lovable: true, base44: true, bolt: "partial", cursor: false,
+          v0: true, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: true, gitpod: false, "firebase-studio": true, trae: false,
+        },
+      },
+      {
+        label: "Static site hosting",
+        codecanvas: true,
+        competitors: {
+          replit: true, lovable: true, base44: true, bolt: true, cursor: false,
+          v0: true, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: true, gitpod: false, "firebase-studio": true, trae: false,
+        },
+      },
+      {
+        label: "Edge functions / serverless",
+        codecanvas: true,
+        competitors: {
+          replit: "partial", lovable: true, base44: "partial", bolt: false, cursor: false,
+          v0: true, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: false, gitpod: false, "firebase-studio": true, trae: false,
+        },
+      },
+    ],
+  },
+  {
+    category: "Backend & Data",
+    icon: <Cpu className="h-4 w-4" />,
+    items: [
+      {
+        label: "Built-in database",
+        description: "Managed Postgres / KV out of the box",
+        codecanvas: true,
+        competitors: {
+          replit: true, lovable: true, base44: true, bolt: false, cursor: false,
+          v0: false, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: false, gitpod: false, "firebase-studio": true, trae: false,
+        },
+      },
+      {
+        label: "Authentication system",
+        codecanvas: true,
+        competitors: {
+          replit: "partial", lovable: true, base44: true, bolt: false, cursor: false,
+          v0: false, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: false, gitpod: false, "firebase-studio": true, trae: false,
+        },
+      },
+      {
+        label: "File / blob storage",
+        codecanvas: true,
+        competitors: {
+          replit: true, lovable: true, base44: true, bolt: false, cursor: false,
+          v0: false, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: false, gitpod: false, "firebase-studio": true, trae: false,
+        },
+      },
+      {
+        label: "Visual ERD / schema designer",
+        codecanvas: true,
+        competitors: {
+          replit: false, lovable: false, base44: "partial", bolt: false, cursor: false,
+          v0: false, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: false, gitpod: false, "firebase-studio": false, trae: false,
+        },
+      },
+      {
+        label: "Secrets / env management",
+        codecanvas: true,
+        competitors: {
+          replit: true, lovable: true, base44: true, bolt: "partial", cursor: false,
+          v0: false, "github-codespaces": true, windsurf: false,
+          zed: false, codesandbox: true, gitpod: true, "firebase-studio": true, trae: false,
+        },
+      },
+    ],
+  },
+  {
+    category: "Hardware & Robotics",
+    icon: <CircuitBoard className="h-4 w-4" />,
+    items: [
+      {
+        label: "Arduino compile & flash",
+        description: "Cloud build + Web Serial upload",
+        codecanvas: true,
+        competitors: {
+          replit: false, lovable: false, base44: false, bolt: false, cursor: false,
+          v0: false, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: false, gitpod: false, "firebase-studio": false, trae: false,
+        },
+      },
+      {
+        label: "Breadboard / circuit visualizer",
+        codecanvas: true,
+        competitors: {
+          replit: false, lovable: false, base44: false, bolt: false, cursor: false,
+          v0: false, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: false, gitpod: false, "firebase-studio": false, trae: false,
+        },
+      },
+      {
+        label: "FTC / FRC / EV3 robotics",
+        codecanvas: true,
+        competitors: {
+          replit: false, lovable: false, base44: false, bolt: false, cursor: false,
+          v0: false, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: false, gitpod: false, "firebase-studio": false, trae: false,
+        },
+      },
+      {
+        label: "Scratch block-based coding",
+        codecanvas: true,
+        competitors: {
+          replit: false, lovable: false, base44: false, bolt: false, cursor: false,
+          v0: false, "github-codespaces": false, windsurf: false,
+          zed: false, codesandbox: false, gitpod: false, "firebase-studio": false, trae: false,
+        },
+      },
+    ],
+  },
+  {
+    category: "Security & Privacy",
+    icon: <ShieldCheck className="h-4 w-4" />,
+    items: [
+      {
+        label: "Open source",
+        codecanvas: true,
+        competitors: {
+          replit: false, lovable: false, base44: false, bolt: "partial", cursor: false,
+          v0: false, "github-codespaces": false, windsurf: false,
+          zed: true, codesandbox: false, gitpod: "partial", "firebase-studio": false, trae: false,
+        },
+      },
+      {
+        label: "Self-hostable",
+        codecanvas: true,
+        competitors: {
+          replit: false, lovable: false, base44: false, bolt: false, cursor: false,
+          v0: false, "github-codespaces": false, windsurf: false,
+          zed: true, codesandbox: "partial", gitpod: true, "firebase-studio": false, trae: false,
+        },
+      },
+      {
+        label: "Offline / PWA mode",
+        codecanvas: true,
+        competitors: {
+          replit: false, lovable: false, base44: false, bolt: false, cursor: true,
+          v0: false, "github-codespaces": false, windsurf: true,
+          zed: true, codesandbox: false, gitpod: false, "firebase-studio": false, trae: true,
+        },
+      },
+      {
+        label: "Passkey / WebAuthn login",
+        codecanvas: true,
+        competitors: {
+          replit: false, lovable: false, base44: false, bolt: false, cursor: false,
+          v0: false, "github-codespaces": true, windsurf: false,
+          zed: false, codesandbox: false, gitpod: false, "firebase-studio": false, trae: false,
+        },
+      },
+      {
+        label: "Granular team / role policies",
+        codecanvas: true,
+        competitors: {
+          replit: "partial", lovable: false, base44: "partial", bolt: false, cursor: false,
+          v0: false, "github-codespaces": true, windsurf: false,
+          zed: false, codesandbox: "partial", gitpod: true, "firebase-studio": "partial", trae: false,
+        },
+      },
+    ],
+  },
+  {
+    category: "Performance & Speed",
+    icon: <Zap className="h-4 w-4" />,
+    items: [
+      {
+        label: "Instant startup (no boot wait)",
+        codecanvas: true,
+        competitors: {
+          replit: false, lovable: true, base44: true, bolt: true, cursor: true,
+          v0: true, "github-codespaces": false, windsurf: true,
+          zed: true, codesandbox: "partial", gitpod: false, "firebase-studio": false, trae: true,
+        },
+      },
+      {
+        label: "Native-speed editor (no lag on big files)",
+        codecanvas: true,
+        competitors: {
+          replit: "partial", lovable: false, base44: false, bolt: "partial", cursor: true,
+          v0: false, "github-codespaces": "partial", windsurf: true,
+          zed: true, codesandbox: "partial", gitpod: "partial", "firebase-studio": "partial", trae: true,
+        },
+      },
+      {
+        label: "Works on low-end devices",
+        codecanvas: true,
+        competitors: {
+          replit: "partial", lovable: true, base44: true, bolt: "partial", cursor: false,
+          v0: true, "github-codespaces": "partial", windsurf: false,
+          zed: false, codesandbox: "partial", gitpod: true, "firebase-studio": "partial", trae: false,
+        },
+      },
+    ],
+  },
 ];
 
 function FeatureCell({ value }: { value: FeatureValue }) {
