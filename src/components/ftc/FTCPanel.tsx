@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,13 +23,11 @@ import { HardwareConfigEditor } from './HardwareConfigEditor';
 import { isReplitLikePlatform } from '@/lib/platform';
 import { detectDeploymentPlatform } from '@/lib/platform';
 import { ftcTemplate } from '@/data/ftcTemplateFiles';
-import { useEffect } from 'react';
 import {
   Hammer,
   Upload,
   Plug,
   PlugZap,
-  Terminal,
   FileCode,
   AlertCircle,
   CheckCircle2,
@@ -37,7 +35,6 @@ import {
   RefreshCw,
   Trash2,
   Package,
-  Settings2,
   ClipboardCheck,
   Bot,
   Camera,
@@ -66,6 +63,15 @@ function collectSourceFiles(nodes: FileNode[], prefix = ''): FTCFile[] {
 }
 
 /** Collect OpModes with path-aware filtering for TeamCode and optional samples. */
+function stripComments(content: string): string {
+  return content.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+}
+
+function hasOpModeAnnotation(content: string): boolean {
+  return /@\s*(TeleOp|Autonomous)\b/.test(stripComments(content));
+}
+
+/** Collect OpModes with path-aware filtering for TeamCode and optional samples. */
 function collectOpModes(nodes: FileNode[], includeSamples: boolean, prefix = ''): string[] {
   const modes: string[] = [];
   for (const node of nodes) {
@@ -75,18 +81,18 @@ function collectOpModes(nodes: FileNode[], includeSamples: boolean, prefix = '')
       continue;
     }
 
-    if (node.type !== 'file' || !node.name.endsWith('.java')) continue;
+    if (node.type !== 'file' || (!node.name.endsWith('.java') && !node.name.endsWith('.kt'))) continue;
 
     const normalizedPath = path.toLowerCase();
-    const isTeamCodeJava = normalizedPath.includes('teamcode') && normalizedPath.endsWith('.java');
-    if (!isTeamCodeJava) continue;
+    const isTeamCodeSource = normalizedPath.includes('/teamcode/src/main/java/');
+    if (!isTeamCodeSource) continue;
 
     const isSampleFile = normalizedPath.includes('/samples/');
     if (!includeSamples && isSampleFile) continue;
 
     const content = node.content || '';
-    if (content.includes('@TeleOp') || content.includes('@Autonomous')) {
-      modes.push(path.replace(/\.java$/i, '').split('/').pop() || node.name);
+    if (hasOpModeAnnotation(content)) {
+      modes.push(path.replace(/\.(java|kt)$/i, '').split('/').pop() || node.name);
     }
   }
   return modes;
@@ -126,6 +132,14 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
   const logRef = useRef<HTMLDivElement>(null);
   const [includeSamples, setIncludeSamples] = useState(false);
   const [seededTemplate, setSeededTemplate] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [logFilter, setLogFilter] = useState<'all' | 'error' | 'warn' | 'info'>('all');
+  const [logSearch, setLogSearch] = useState('');
+  const [autoScrollLogs, setAutoScrollLogs] = useState(true);
+  const [buildPhase, setBuildPhase] = useState('idle');
+  const isMountedRef = useRef(true);
 
   const opModes = collectOpModes(files, includeSamples);
   const sourceFileCount = countJavaKotlinFiles(files);
@@ -146,10 +160,23 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
     ensureFtcTemplate();
   }, [ensureFtcTemplate]);
 
+  useEffect(() => () => {
+    isMountedRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    if (autoScrollLogs && logRef.current) {
+      logRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [logLines, autoScrollLogs]);
+
   const handleBuild = useCallback(async () => {
+    if (isBuilding) return;
+    setIsBuilding(true);
     setBuildStatus('compiling');
     setBuildResult(null);
     setBuildPercent(10);
+    setBuildPhase('Collecting source files');
     setBuildProgress('Collecting source files...');
 
     const sourceFiles = collectSourceFiles(files);
@@ -165,27 +192,46 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
       return;
     }
 
-    setBuildPercent(30);
-    const result = await compileFTC(sourceFiles, (msg) => {
-      setBuildProgress(msg);
-      setBuildPercent((p) => Math.min(p + 20, 90));
-    });
-
-    setBuildResult(result);
-    setBuildStatus(result.status === 'success' ? 'success' : 'error');
-    setBuildPercent(result.status === 'success' ? 100 : 0);
-  }, [files]);
+    try {
+      setBuildPercent(35);
+      setBuildPhase('Submitting cloud compile request');
+      const result = await compileFTC(sourceFiles, (msg) => {
+        if (!isMountedRef.current) return;
+        setBuildProgress(msg);
+        setBuildPhase('Compiler running');
+        setBuildPercent(70);
+      });
+      if (!isMountedRef.current) return;
+      setBuildPhase('Processing results');
+      setBuildResult(result);
+      setBuildStatus(result.status === 'success' ? 'success' : 'error');
+      setBuildPercent(result.status === 'success' ? 100 : 0);
+      setBuildPhase('idle');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setBuildStatus('error');
+      setBuildProgress(`Build failed: ${message}`);
+      setBuildPercent(0);
+      setBuildPhase('idle');
+      toast({ title: 'Build failed', description: message, variant: 'destructive' });
+    } finally {
+      if (isMountedRef.current) setIsBuilding(false);
+    }
+  }, [files, isBuilding, isReplit, toast]);
 
   const handleConnect = useCallback(async () => {
     try {
       setDeviceStatus('Connecting...');
       const dev = await connectDevice((msg) => setDeviceStatus(msg));
+      if (!isMountedRef.current) return;
       setDevice(dev);
       setDeviceStatus('Connected');
     } catch (e) {
-      setDeviceStatus(`Connection failed: ${e instanceof Error ? e.message : String(e)}`);
+      const message = e instanceof Error ? e.message : String(e);
+      setDeviceStatus(`Connection failed: ${message}`);
+      toast({ title: 'Device connection failed', description: message, variant: 'destructive' });
     }
-  }, []);
+  }, [toast]);
 
   const handleDisconnect = useCallback(async () => {
     if (device) {
@@ -196,27 +242,42 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
   }, [device]);
 
   const handleUpload = useCallback(async () => {
-    if (!device || !buildResult?.apkBase64) return;
+    if (!device || !buildResult?.apkBase64 || isUploading) return;
     setBuildProgress('');
     setBuildPercent(0);
+    setIsUploading(true);
 
     try {
       await uploadToDevice(device, buildResult.apkBase64, (msg, pct) => {
+        if (!isMountedRef.current) return;
         setBuildProgress(msg);
         if (pct !== undefined) setBuildPercent(pct);
       });
     } catch (e) {
-      setBuildProgress(`Upload failed: ${e instanceof Error ? e.message : String(e)}`);
+      const message = e instanceof Error ? e.message : String(e);
+      setBuildProgress(`Upload failed: ${message}`);
+      toast({ title: 'Upload failed', description: message, variant: 'destructive' });
+    } finally {
+      if (isMountedRef.current) setIsUploading(false);
     }
-  }, [device, buildResult]);
+  }, [device, buildResult, isUploading, toast]);
 
   const handleLogcat = useCallback(async () => {
-    if (!device) return;
+    if (!device || isLoadingLogs) return;
     setLogLines([]);
-    await startLogcat(device, (line) => {
-      setLogLines((prev) => [...prev.slice(-500), line]);
-    });
-  }, [device]);
+    setIsLoadingLogs(true);
+    try {
+      await startLogcat(device, (line) => {
+        if (!isMountedRef.current) return;
+        setLogLines((prev) => [...prev.slice(-500), line]);
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      toast({ title: 'Logcat failed', description: message, variant: 'destructive' });
+    } finally {
+      if (isMountedRef.current) setIsLoadingLogs(false);
+    }
+  }, [device, isLoadingLogs, toast]);
 
   const statusIcon = buildStatus === 'compiling' ? (
     <Loader2 className="w-4 h-4 animate-spin" />
@@ -227,12 +288,10 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
   ) : null;
 
   const handleExportConfig = useCallback((xmlContent: string, javaContent: string) => {
-    // Keep xmlContent for future hardware-config file export support.
-    void xmlContent;
-    navigator.clipboard.writeText(javaContent);
+    navigator.clipboard.writeText(`--- Java Mapping ---\n${javaContent}\n\n--- Hardware XML ---\n${xmlContent}`);
     toast({
-      title: 'Hardware mapping copied',
-      description: 'Paste it into your RobotHardware.init() method.',
+      title: 'Hardware exports copied',
+      description: 'Copied Java mapping and XML config to clipboard.',
     });
   }, [toast]);
 
@@ -260,7 +319,7 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
       <div className="flex flex-wrap gap-2">
         <Button
           onClick={handleBuild}
-          disabled={buildStatus === 'compiling'}
+          disabled={buildStatus === 'compiling' || isBuilding}
           className="bg-orange-600 hover:bg-orange-700"
         >
           {buildStatus === 'compiling' ? (
@@ -268,15 +327,15 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
           ) : (
             <Hammer className="w-4 h-4 mr-2" />
           )}
-          Build
+          {isBuilding ? 'Building…' : 'Build'}
         </Button>
 
         <Button
           onClick={handleUpload}
-          disabled={!device || !buildResult?.apkBase64}
+          disabled={!device || !buildResult?.apkBase64 || isUploading}
           className="bg-blue-600 hover:bg-blue-700"
         >
-          <Upload className="w-4 h-4 mr-2" /> Upload to Robot
+          <Upload className="w-4 h-4 mr-2" /> {isUploading ? 'Uploading…' : 'Upload to Robot'}
         </Button>
 
         {!device ? (
@@ -321,6 +380,9 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               {statusIcon}
               <span>{buildProgress}</span>
+              {buildPhase !== 'idle' && (
+                <Badge variant="outline" className="ml-2 text-[10px]">{buildPhase}</Badge>
+              )}
             </div>
           )}
           {buildPercent > 0 && buildPercent < 100 && (
@@ -451,14 +513,14 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
 
         {/* Logcat Tab */}
         <TabsContent value="logcat" className="space-y-2">
-          <div className="flex gap-2 mb-2">
+          <div className="flex flex-wrap gap-2 mb-2">
             <Button
               onClick={handleLogcat}
-              disabled={!device}
+              disabled={!device || isLoadingLogs}
               variant="outline"
               size="sm"
             >
-              <RefreshCw className="w-3 h-3 mr-1" /> Refresh Logs
+              <RefreshCw className="w-3 h-3 mr-1" /> {isLoadingLogs ? 'Loading…' : 'Refresh Logs'}
             </Button>
             <Button
               onClick={() => setLogLines([])}
@@ -475,6 +537,17 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
             >
               <ClipboardCheck className="w-3 h-3 mr-1" /> Copy
             </Button>
+            <select className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs" value={logFilter} onChange={(e) => setLogFilter(e.target.value as 'all' | 'error' | 'warn' | 'info')}>
+              <option value="all">All</option>
+              <option value="error">Errors</option>
+              <option value="warn">Warnings</option>
+              <option value="info">Info</option>
+            </select>
+            <input className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs" placeholder="Search logs" value={logSearch} onChange={(e) => setLogSearch(e.target.value)} />
+            <label className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Checkbox checked={autoScrollLogs} onCheckedChange={(v) => setAutoScrollLogs(v === true)} />
+              Auto-scroll
+            </label>
           </div>
           <Card className="bg-black border-slate-700 p-0">
             <ScrollArea className="h-[300px]">
@@ -486,7 +559,11 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
                       : 'Connect a device to view logs.'}
                   </p>
                 ) : (
-                  logLines.map((line, i) => (
+                  logLines.filter((line) => {
+                    const matchesSeverity = logFilter === 'all' || (logFilter === 'error' && (line.includes(' E ') || line.includes('Error'))) || (logFilter === 'warn' && line.includes(' W ')) || (logFilter === 'info' && line.includes(' I '));
+                    const matchesSearch = line.toLowerCase().includes(logSearch.toLowerCase());
+                    return matchesSeverity && matchesSearch;
+                  }).map((line, i) => (
                     <div
                       key={i}
                       className={
