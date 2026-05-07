@@ -44,6 +44,30 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   // Track last saved ZIP bytes so save() doesn't read stale file.content
   const lastZipBytesRef = useRef<Uint8Array | null>(null);
   const { toast } = useToast();
+  const historyRef = useRef<string[]>([]);
+  const redoRef = useRef<string[]>([]);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m] || m));
+  const sanitizeUrl = (raw: string) => {
+    try {
+      const u = new URL(raw);
+      return ['http:', 'https:', 'mailto:'].includes(u.protocol) ? u.toString() : null;
+    } catch {
+      return null;
+    }
+  };
+  const insertSafeHtml = (html: string) => exec('insertHTML', html);
+  const scheduleSave = () => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => { save(); }, 500);
+  };
+  const pushHistory = () => {
+    const current = editorRef.current?.innerHTML || '';
+    if (historyRef.current[historyRef.current.length - 1] !== current) historyRef.current.push(current);
+    if (historyRef.current.length > 100) historyRef.current.shift();
+    redoRef.current = [];
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -114,13 +138,10 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
 
 
   // Auto-save on editor input (debounced)
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleEditorInput = () => {
     updateWordCount();
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = setTimeout(() => {
-      save();
-    }, 500);
+    scheduleSave();
+    pushHistory();
   };
 
   // --- execCommand helpers ---
@@ -164,19 +185,21 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     if (url) {
       const sel = window.getSelection();
       const text = sel && sel.toString() ? sel.toString() : url;
-      exec('insertHTML', `<a href="${url}" style="color:hsl(217,91%,60%);text-decoration:underline" target="_blank">${text}</a>`);
+      const safeUrl = sanitizeUrl(url);
+      if (!safeUrl) return;
+      insertSafeHtml(`<a href="${safeUrl}" rel="noopener noreferrer" style="color:hsl(217,91%,60%);text-decoration:underline" target="_blank">${escapeHtml(text)}</a>`);
     }
   };
 
   const insertBookmark = () => {
     const name = prompt('Bookmark name:');
     if (name) {
-      exec('insertHTML', `<span style="background:hsl(48,96%,89%);padding:0 4px;border-radius:2px;font-size:0.85em" data-bookmark="${name}">🔖 ${name}</span>`);
+      insertSafeHtml(`<span style="background:hsl(48,96%,89%);padding:0 4px;border-radius:2px;font-size:0.85em" data-bookmark="${escapeHtml(name)}">🔖 ${escapeHtml(name)}</span>`);
     }
   };
 
   const insertHeader = () => {
-    exec('insertHTML', `<div style="border-bottom:1px solid hsl(var(--border));padding-bottom:8px;margin-bottom:12px;color:hsl(var(--muted-foreground));font-size:0.85em">Header — ${file.name}</div>`);
+    insertSafeHtml(`<div style="border-bottom:1px solid hsl(var(--border));padding-bottom:8px;margin-bottom:12px;color:hsl(var(--muted-foreground));font-size:0.85em">Header — ${escapeHtml(file.name)}</div>`);
   };
 
   const insertFooter = () => {
@@ -194,7 +217,9 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     if (choice.toLowerCase().trim() === 'file') {
       videoInputRef.current?.click();
     } else {
-      exec('insertHTML', `<div style="margin:8px 0;padding:12px;background:hsl(var(--muted));border-radius:6px;text-align:center"><span style="font-size:0.85em">🎬 Video: <a href="${choice}" target="_blank" style="color:hsl(217,91%,60%)">${choice}</a></span></div>`);
+      const safeUrl = sanitizeUrl(choice);
+      if (!safeUrl) return;
+      insertSafeHtml(`<div style="margin:8px 0;padding:12px;background:hsl(var(--muted));border-radius:6px;text-align:center"><span style="font-size:0.85em">🎬 Video: <a href="${safeUrl}" rel="noopener noreferrer" target="_blank" style="color:hsl(217,91%,60%)">${escapeHtml(safeUrl)}</a></span></div>`);
     }
   };
 
@@ -256,7 +281,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const insertComment = () => {
     const comment = prompt('Comment text:')?.trim();
     if (!comment) return;
-    exec('insertHTML', `<span style="background:hsl(48,96%,89%);padding:0 4px;border-radius:2px" data-comment="${comment}">💬 ${comment}</span>`);
+    insertSafeHtml(`<span style="background:hsl(48,96%,89%);padding:0 4px;border-radius:2px" data-comment="${escapeHtml(comment)}">💬 ${escapeHtml(comment)}</span>`);
   };
 
   const doFind = () => {
@@ -330,8 +355,8 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
           {activeTab === 'home' && (
             <>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('undo')}><Undo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('redo')}><Redo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { const prev = historyRef.current.pop(); if (!prev || !editorRef.current) return; redoRef.current.push(editorRef.current.innerHTML); editorRef.current.innerHTML = prev; }}><Undo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { const next = redoRef.current.pop(); if (!next || !editorRef.current) return; historyRef.current.push(editorRef.current.innerHTML); editorRef.current.innerHTML = next; }}><Redo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-1 pr-2 border-r border-border">
                 <Select defaultValue="calibri" onValueChange={(v) => exec('fontName', v)}>
