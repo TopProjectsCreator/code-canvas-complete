@@ -877,14 +877,24 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                           />
                         ) : (
                           <div className="w-full h-full p-1 whitespace-pre-wrap overflow-hidden" style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle || 'normal', textDecoration: el.textDecoration || 'none', textAlign: el.textAlign || 'left', color: el.color || '#1A1A1A' }}>
-                            {el.placeholderType === 'table' && el.tableRows?.length ? (
-                              <div className="h-full border border-dashed border-muted-foreground/50 rounded-sm p-1 text-[11px] leading-tight">
-                                {el.tableRows.map((row, idx) => (
-                                  <div key={idx} className="truncate">
-                                    {row.join(' | ')}
-                                  </div>
-                                ))}
+                            {el.placeholderType === 'shape' ? (
+                              <div className="w-full h-full rounded-sm border border-slate-500/80 bg-slate-200/70 dark:bg-slate-700/55 flex items-center justify-center text-xs font-medium">
+                                {el.content || 'Shape'}
                               </div>
+                            ) : el.placeholderType === 'table' && el.tableRows?.length ? (
+                              <table className="w-full h-full border-collapse table-fixed text-[11px]">
+                                <tbody>
+                                  {el.tableRows.map((row, rowIndex) => (
+                                    <tr key={rowIndex}>
+                                      {row.map((cell, colIndex) => (
+                                        <td key={`${rowIndex}-${colIndex}`} className="border border-muted-foreground/40 px-1 align-top">
+                                          <span className="block truncate">{cell || '\u00A0'}</span>
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
                             ) : (
                               el.content || <span className="text-muted-foreground/40 italic">Click to add text</span>
                             )}
