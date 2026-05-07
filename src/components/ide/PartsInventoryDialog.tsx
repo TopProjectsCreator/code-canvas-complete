@@ -680,7 +680,7 @@ export const PartsInventoryDialog = ({
               </Select>
             </div>
 
-            <ScrollArea className="flex-1 min-h-0" ref={catalogScrollRef}>
+            <ScrollArea className="flex-1 min-h-0 h-[55vh]" ref={catalogScrollRef}>
               {visibleCatalogParts.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <DatabaseZap className="w-10 h-10 mx-auto mb-2 opacity-40" />
