@@ -63,6 +63,10 @@ const normalizeImageDataForPptx = (value: string) => {
   return `${match[1]};base64,${match[2]}`;
 };
 
+const EMU_PER_INCH = 914400;
+const emuToCanvasX = (emu: number) => ((emu / EMU_PER_INCH) / SLIDE_W_IN) * CANVAS_W;
+const emuToCanvasY = (emu: number) => ((emu / EMU_PER_INCH) / SLIDE_H_IN) * CANVAS_H;
+
 export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -117,15 +121,23 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             const text = tNodes.map(n => n.textContent || '').join('');
             if (text || tNodes.length > 0) {
               const isTitle = elements.length === 0;
+              const xfrm = sp.getElementsByTagNameNS('*', 'xfrm')[0];
+              const off = xfrm?.getElementsByTagNameNS('*', 'off')[0];
+              const ext = xfrm?.getElementsByTagNameNS('*', 'ext')[0];
+              const x = Number(off?.getAttribute('x') || 0);
+              const y = Number(off?.getAttribute('y') || 0);
+              const cx = Number(ext?.getAttribute('cx') || 0);
+              const cy = Number(ext?.getAttribute('cy') || 0);
+              const fontSizeVal = Number(sp.getElementsByTagNameNS('*', 'rPr')[0]?.getAttribute('sz') || 0);
               elements.push({
                 id: newId(),
                 type: 'text',
-                x: 30,
-                y: isTitle ? 30 : 100 + (elements.length - 1) * 70,
-                width: 660,
-                height: isTitle ? 60 : 50,
+                x: x ? emuToCanvasX(x) : 30,
+                y: y ? emuToCanvasY(y) : (isTitle ? 30 : 100 + (elements.length - 1) * 70),
+                width: cx ? emuToCanvasX(cx) : 660,
+                height: cy ? emuToCanvasY(cy) : (isTitle ? 60 : 50),
                 content: text,
-                fontSize: isTitle ? 28 : 16,
+                fontSize: fontSizeVal ? Math.max(10, fontSizeVal / 100) : (isTitle ? 28 : 16),
                 fontWeight: isTitle ? 700 : 400,
                 color: '#1A1A1A',
               });
