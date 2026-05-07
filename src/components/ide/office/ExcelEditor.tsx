@@ -39,6 +39,9 @@ const colLabel = (idx: number): string => {
 const DEFAULT_ROWS = 50;
 const DEFAULT_COLS = 26;
 
+const isFormula = (value: string) => value.trim().startsWith("=");
+const isNumericLiteral = (value: string) => /^-?\d+(\.\d+)?$/.test(value.trim());
+
 export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +94,9 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
             col -= 1;
             if (row < 0 || col < 0 || row >= DEFAULT_ROWS || col >= DEFAULT_COLS) continue;
             const v = cell.getElementsByTagNameNS('*', 'v')[0]?.textContent || '';
-            matrix[row][col] = cell.getAttribute('t') === 's' ? (sharedStrings[Number(v)] || '') : v;
+            const f = cell.getElementsByTagNameNS('*', 'f')[0]?.textContent || '';
+            if (f) matrix[row][col] = `=${f}`;
+            else matrix[row][col] = cell.getAttribute('t') === 's' ? (sharedStrings[Number(v)] || '') : v;
           }
         }
         setGrid(matrix);
@@ -113,7 +118,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     const baseBytes = lastZipBytesRef.current || (await buildNewXlsx());
     const zip = await JSZip.loadAsync(baseBytes);
 
-    const sharedValues = grid.flat().filter(v => v.length > 0);
+    const sharedValues = grid.flat().filter(v => v.length > 0 && !isFormula(v) && !isNumericLiteral(v));
     const uniqueShared = Array.from(new Set(sharedValues));
     const sharedIndex = new Map(uniqueShared.map((v, i) => [v, i]));
 
@@ -126,6 +131,12 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
           .map((value, colIdx) => {
             if (!value) return '';
             const ref = `${colLabel(colIdx)}${rowIdx + 1}`;
+            if (isFormula(value)) {
+              return `<c r="${ref}"><f>${xmlEncode(value.trim().slice(1))}</f></c>`;
+            }
+            if (isNumericLiteral(value)) {
+              return `<c r="${ref}"><v>${value.trim()}</v></c>`;
+            }
             const index = sharedIndex.get(value) || 0;
             return `<c r="${ref}" t="s"><v>${index}</v></c>`;
           })
