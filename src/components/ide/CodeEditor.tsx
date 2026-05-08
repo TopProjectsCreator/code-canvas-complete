@@ -17,6 +17,7 @@ import { VideoEditor } from "./VideoEditor";
 import { AudioEditor } from "./AudioEditor";
 import { RTFEditor } from "./RTFEditor";
 import { CADEditor } from "./CADEditor";
+import { ZipEditor } from "./ZipEditor";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +41,7 @@ interface CodeEditorProps {
 
 const getPreviewType = (
   fileName: string,
-): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | null => {
+): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | null => {
   const ext = fileName.split(".").pop()?.toLowerCase();
   const imageExtensions = ["png", "jpg", "jpeg", "gif", "webp", "ico", "bmp"];
   const videoExtensions = ["mp4", "webm", "mov", "avi", "mkv", "ogv", "ogg"];
@@ -55,6 +56,7 @@ const getPreviewType = (
   if (videoExtensions.includes(ext || "")) return "video";
   if (audioExtensions.includes(ext || "")) return "audio";
   if (["docx", "xlsx", "pptx"].includes(ext || "")) return "office";
+  if (["zip"].includes(ext || "")) return "zip";
   if (cadExtensions.includes(ext || "")) return "cad";
   return null;
 };
@@ -554,6 +556,7 @@ export const CodeEditor = ({
   if (previewType === "audio") return <AudioEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "rtf") return <RTFEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "cad") return <CADEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === "zip") return <ZipEditor file={file} onContentChange={onContentChange} />;
   if (previewType && !isTextPreviewable)
     return <FilePreview file={file} previewType={previewType as "image" | "csv" | "markdown" | "svg"} onContentChange={onContentChange} />;
 
