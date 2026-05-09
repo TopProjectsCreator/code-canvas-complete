@@ -28,6 +28,7 @@ import { SettingsDialog } from './SettingsDialog';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
 import { fileToBase64DataUrl } from '@/lib/binaryEncoding';
+import { toast } from 'sonner';
 import { ExtensionsPanel } from './ExtensionsPanel';
 
 
