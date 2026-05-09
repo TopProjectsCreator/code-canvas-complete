@@ -63,6 +63,12 @@ const App = () => (
             <Routes>
               <Route path="/" element={<RootRoute />} />
               <Route path="/landing" element={<Landing />} />
+              <Route path="/landing/living-grid" element={<LivingGrid />} />
+              <Route path="/landing/terminal-boot" element={<TerminalBoot />} />
+              <Route path="/landing/the-void" element={<TheVoid />} />
+              <Route path="/landing/monochrome" element={<MonochromePrecision />} />
+              <Route path="/landing/warm-momentum" element={<WarmMomentum />} />
+              <Route path="/landing/terminal-verdict" element={<TerminalVerdict />} />
               <Route path="/home" element={<Index />} />
               <Route path="/editor" element={<Index />} />
               <Route path="/project/:projectId" element={<Index />} />
