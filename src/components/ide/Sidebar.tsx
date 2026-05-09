@@ -225,6 +225,25 @@ export const Sidebar = ({
     return lower.endsWith('.sb3') || lower.endsWith('.sb2') || lower.endsWith('.sb');
   };
 
+  const readOneFile = (file: File): Promise<{ name: string; content: string; language: string }> => {
+    const isBin = isImageFile(file.name) || isOfficeFile(file.name) || isBinaryFile(file.name);
+    const language = getFileLanguage(file.name);
+    if (isBin) {
+      // Stream-friendly chunked base64 encoding so multi-hundred-MB ZIPs
+      // don't trigger Latin1 / stack overflow / freeze the UI.
+      const mime = file.type || 'application/octet-stream';
+      return fileToBase64DataUrl(file, mime)
+        .then((content) => ({ name: file.name, content, language }))
+        .catch(() => ({ name: file.name, content: '', language }));
+    }
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve({ name: file.name, content: (e.target?.result as string) || '', language });
+      reader.onerror = () => resolve({ name: file.name, content: '', language });
+      reader.readAsText(file);
+    });
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFiles = event.target.files;
     if (!uploadedFiles || uploadedFiles.length === 0) return;
@@ -234,38 +253,12 @@ export const Sidebar = ({
 
     const readFiles = Array.from(uploadedFiles)
       .filter((file) => !isScratchArchiveFile(file.name))
-      .map((file) => {
-      return new Promise<{ name: string; content: string; language: string }>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const content = e.target?.result as string;
-          resolve({
-            name: file.name,
-            content: content || '',
-            language: getFileLanguage(file.name),
-          });
-        };
-        reader.onerror = () => {
-          resolve({
-            name: file.name,
-            content: '',
-            language: getFileLanguage(file.name),
-          });
-        };
-        // Read binary media/office files as data URLs, text files as plain text
-        if (isImageFile(file.name) || isOfficeFile(file.name) || isBinaryFile(file.name)) {
-          reader.readAsDataURL(file);
-        } else {
-          reader.readAsText(file);
-        }
-      });
-    });
+      .map(readOneFile);
 
     Promise.all(readFiles).then((files) => {
       onUploadFiles(files);
     });
 
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
