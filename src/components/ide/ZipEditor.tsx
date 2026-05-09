@@ -20,9 +20,38 @@ const textExtensions = new Set([
   'txt', 'md', 'markdown', 'js', 'ts', 'tsx', 'jsx', 'json', 'html', 'css', 'scss', 'xml', 'yml', 'yaml', 'csv', 'env', 'gitignore', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'rs', 'go', 'php', 'rb', 'sh', 'sql',
 ]);
 
-const decodeBase64 = (value: string): Uint8Array => Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
-const encodeBase64 = (bytes: Uint8Array): string => btoa(String.fromCharCode(...bytes));
-const decodeZipSource = (content: string): Uint8Array => decodeBase64(content.startsWith('data:') ? content.split(',', 2)[1] || '' : content);
+const decodeBase64 = (value: string): Uint8Array => {
+  const clean = value.replace(/\s+/g, '');
+  const bin = atob(clean);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+};
+const encodeBase64 = (bytes: Uint8Array): string => {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+};
+const looksLikeBase64 = (s: string): boolean => /^[A-Za-z0-9+/=\s]+$/.test(s);
+const stringToBytes = (s: string): Uint8Array => {
+  const bytes = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) bytes[i] = s.charCodeAt(i) & 0xff;
+  return bytes;
+};
+const decodeZipSource = (content: string): Uint8Array => {
+  if (content.startsWith('data:')) {
+    return decodeBase64(content.split(',', 2)[1] || '');
+  }
+  const trimmed = content.trim();
+  if (looksLikeBase64(trimmed)) {
+    try { return decodeBase64(trimmed); } catch { /* fall through */ }
+  }
+  // Raw binary string fallback (avoids atob Latin1 error)
+  return stringToBytes(content);
+};
 const extOf = (path: string) => path.split('.').pop()?.toLowerCase() || '';
 
 const getPreviewType = (path: string): ZipPreviewType => {
