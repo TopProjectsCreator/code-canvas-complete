@@ -202,7 +202,8 @@ export const Sidebar = ({
 
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'svg'];
   const officeExtensions = ['docx', 'xlsx', 'pptx'];
-  
+  const binaryExtensions = ['zip', 'tar', 'gz', 'bz2', '7z', 'rar', 'xz', 'pdf', 'mp3', 'wav', 'flac', 'aac', 'm4a', 'mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg', 'ogv', 'ttf', 'otf', 'woff', 'woff2', 'wasm', 'bin', 'exe', 'dll', 'so', 'dylib'];
+
   const isImageFile = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase() || '';
     return imageExtensions.includes(ext);
@@ -211,6 +212,11 @@ export const Sidebar = ({
   const isOfficeFile = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase() || '';
     return officeExtensions.includes(ext);
+  };
+
+  const isBinaryFile = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase() || '';
+    return binaryExtensions.includes(ext);
   };
 
   const isScratchArchiveFile = (filename: string) => {
