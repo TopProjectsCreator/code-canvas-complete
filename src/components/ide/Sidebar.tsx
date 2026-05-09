@@ -27,6 +27,7 @@ import { FileIcon } from './FileIcon';
 import { SettingsDialog } from './SettingsDialog';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
+import { fileToBase64DataUrl } from '@/lib/binaryEncoding';
 import { ExtensionsPanel } from './ExtensionsPanel';
 
 
