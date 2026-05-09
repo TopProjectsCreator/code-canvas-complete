@@ -303,26 +303,7 @@ export const Sidebar = ({
 
     const readFiles = Array.from(droppedFiles)
       .filter((file) => !isScratchArchiveFile(file.name))
-      .map((file) => {
-      return new Promise<{ name: string; content: string; language: string }>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          resolve({
-            name: file.name,
-            content: (ev.target?.result as string) || '',
-            language: getFileLanguage(file.name),
-          });
-        };
-        reader.onerror = () => {
-          resolve({ name: file.name, content: '', language: getFileLanguage(file.name) });
-        };
-        if (isImageFile(file.name) || isOfficeFile(file.name) || isBinaryFile(file.name)) {
-          reader.readAsDataURL(file);
-        } else {
-          reader.readAsText(file);
-        }
-      });
-    });
+      .map(readOneFile);
 
     Promise.all(readFiles).then((files) => {
       onUploadFiles(files);
