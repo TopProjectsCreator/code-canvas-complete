@@ -55,12 +55,24 @@ export const decodeMaybeDataUrl = (content: string): Uint8Array => {
   return out;
 };
 
-export const fileToBase64DataUrl = async (
+// Use the browser's native FileReader for File/Blob -> data URL. This runs the
+// base64 encoding off the main thread (browser implementation) so 100MB+ files
+// don't freeze the UI the way a manual chunked loop would.
+export const fileToBase64DataUrl = (
   file: File | Blob,
-  mime: string,
+  _mime?: string,
   onProgress?: (ratio: number) => void,
 ): Promise<string> => {
-  const buf = await file.arrayBuffer();
-  const b64 = await bytesToBase64Async(new Uint8Array(buf), onProgress);
-  return `data:${mime};base64,${b64}`;
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+    };
+    reader.onload = () => {
+      onProgress?.(1);
+      resolve(reader.result as string);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'));
+    reader.readAsDataURL(file);
+  });
 };
