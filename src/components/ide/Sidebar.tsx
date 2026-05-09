@@ -332,12 +332,9 @@ export const Sidebar = ({
       .filter((file) => isScratchArchiveFile(file.name))
       .forEach((file) => onImportScratchProject?.(file));
 
-    const readFiles = Array.from(droppedFiles)
-      .filter((file) => !isScratchArchiveFile(file.name))
-      .map(readOneFile);
-
-    Promise.all(readFiles).then((files) => {
-      onUploadFiles(files);
+    const toRead = Array.from(droppedFiles).filter((file) => !isScratchArchiveFile(file.name));
+    void readFilesSequentially(toRead).then((files) => {
+      if (files.length > 0) onUploadFiles(files);
     });
   };
 
