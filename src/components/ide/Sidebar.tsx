@@ -322,7 +322,7 @@ export const Sidebar = ({
         reader.onerror = () => {
           resolve({ name: file.name, content: '', language: getFileLanguage(file.name) });
         };
-        if (isImageFile(file.name) || isOfficeFile(file.name)) {
+        if (isImageFile(file.name) || isOfficeFile(file.name) || isBinaryFile(file.name)) {
           reader.readAsDataURL(file);
         } else {
           reader.readAsText(file);
