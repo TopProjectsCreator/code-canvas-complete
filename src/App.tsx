@@ -27,12 +27,12 @@ const queryClient = new QueryClient();
 
 const landingVariants = [
   "/landing",
-  "/__mockup/preview/landing-hero/LivingGrid",
-  "/__mockup/preview/landing-hero/TerminalBoot",
-  "/__mockup/preview/landing-hero/TheVoid",
-  "/__mockup/preview/landing-hero/MonochromePrecision",
-  "/__mockup/preview/landing-hero/WarmMomentum",
-  "/__mockup/preview/landing-hero/TerminalVerdict",
+  "/landing/living-grid",
+  "/landing/terminal-boot",
+  "/landing/the-void",
+  "/landing/monochrome",
+  "/landing/warm-momentum",
+  "/landing/terminal-verdict",
 ] as const;
 
 const getLandingVariant = () => {
