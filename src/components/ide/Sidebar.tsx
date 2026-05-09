@@ -252,7 +252,7 @@ export const Sidebar = ({
           });
         };
         // Read binary media/office files as data URLs, text files as plain text
-        if (isImageFile(file.name) || isOfficeFile(file.name)) {
+        if (isImageFile(file.name) || isOfficeFile(file.name) || isBinaryFile(file.name)) {
           reader.readAsDataURL(file);
         } else {
           reader.readAsText(file);
