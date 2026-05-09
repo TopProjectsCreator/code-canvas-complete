@@ -28,6 +28,7 @@ import { SettingsDialog } from './SettingsDialog';
 import { cn } from '@/lib/utils';
 import { getFileLanguage } from '@/data/defaultFiles';
 import { fileToBase64DataUrl } from '@/lib/binaryEncoding';
+import { toast } from 'sonner';
 import { ExtensionsPanel } from './ExtensionsPanel';
 
 
@@ -225,23 +226,55 @@ export const Sidebar = ({
     return lower.endsWith('.sb3') || lower.endsWith('.sb2') || lower.endsWith('.sb');
   };
 
-  const readOneFile = (file: File): Promise<{ name: string; content: string; language: string }> => {
+  const LARGE_FILE_BYTES = 10 * 1024 * 1024; // 10MB
+
+  const readOneFile = (
+    file: File,
+    onProgress?: (ratio: number) => void,
+  ): Promise<{ name: string; content: string; language: string }> => {
     const isBin = isImageFile(file.name) || isOfficeFile(file.name) || isBinaryFile(file.name);
     const language = getFileLanguage(file.name);
     if (isBin) {
-      // Stream-friendly chunked base64 encoding so multi-hundred-MB ZIPs
-      // don't trigger Latin1 / stack overflow / freeze the UI.
       const mime = file.type || 'application/octet-stream';
-      return fileToBase64DataUrl(file, mime)
+      return fileToBase64DataUrl(file, mime, onProgress)
         .then((content) => ({ name: file.name, content, language }))
         .catch(() => ({ name: file.name, content: '', language }));
     }
     return new Promise((resolve) => {
       const reader = new FileReader();
+      reader.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+      };
       reader.onload = (e) => resolve({ name: file.name, content: (e.target?.result as string) || '', language });
       reader.onerror = () => resolve({ name: file.name, content: '', language });
       reader.readAsText(file);
     });
+  };
+
+  // Read files one at a time (sequentially) so multiple large uploads don't
+  // pile up in memory and freeze the tab.
+  const readFilesSequentially = async (files: File[]): Promise<Array<{ name: string; content: string; language: string }>> => {
+    const out: Array<{ name: string; content: string; language: string }> = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const isLarge = file.size >= LARGE_FILE_BYTES;
+      const toastId = isLarge ? toast.loading(`Uploading ${file.name} (0%)`, { duration: Infinity }) : null;
+      try {
+        const result = await readOneFile(file, (ratio) => {
+          if (toastId !== null) {
+            toast.loading(`Uploading ${file.name} (${Math.round(ratio * 100)}%)`, { id: toastId, duration: Infinity });
+          }
+        });
+        if (toastId !== null) toast.success(`Uploaded ${file.name}`, { id: toastId });
+        out.push(result);
+      } catch {
+        if (toastId !== null) toast.error(`Failed to upload ${file.name}`, { id: toastId });
+        out.push({ name: file.name, content: '', language: getFileLanguage(file.name) });
+      }
+      // yield to the event loop between files so the UI stays responsive
+      await new Promise((r) => setTimeout(r, 0));
+    }
+    return out;
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -251,12 +284,10 @@ export const Sidebar = ({
     const scratchFiles = Array.from(uploadedFiles).filter((file) => isScratchArchiveFile(file.name));
     scratchFiles.forEach((file) => onImportScratchProject?.(file));
 
-    const readFiles = Array.from(uploadedFiles)
-      .filter((file) => !isScratchArchiveFile(file.name))
-      .map(readOneFile);
+    const toRead = Array.from(uploadedFiles).filter((file) => !isScratchArchiveFile(file.name));
 
-    Promise.all(readFiles).then((files) => {
-      onUploadFiles(files);
+    void readFilesSequentially(toRead).then((files) => {
+      if (files.length > 0) onUploadFiles(files);
     });
 
     if (fileInputRef.current) {
@@ -301,12 +332,9 @@ export const Sidebar = ({
       .filter((file) => isScratchArchiveFile(file.name))
       .forEach((file) => onImportScratchProject?.(file));
 
-    const readFiles = Array.from(droppedFiles)
-      .filter((file) => !isScratchArchiveFile(file.name))
-      .map(readOneFile);
-
-    Promise.all(readFiles).then((files) => {
-      onUploadFiles(files);
+    const toRead = Array.from(droppedFiles).filter((file) => !isScratchArchiveFile(file.name));
+    void readFilesSequentially(toRead).then((files) => {
+      if (files.length > 0) onUploadFiles(files);
     });
   };
 
