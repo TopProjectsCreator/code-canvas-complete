@@ -13,6 +13,12 @@ import ProfilePage from "./pages/Profile";
 import PrivacyPolicyPage from "./pages/PrivacyPolicy";
 import TermsOfUsePage from "./pages/TermsOfUse";
 import Compare from "./pages/Compare";
+import { LivingGrid } from "./pages/landings/LivingGrid";
+import { TerminalBoot } from "./pages/landings/TerminalBoot";
+import { TheVoid } from "./pages/landings/TheVoid";
+import { MonochromePrecision } from "./pages/landings/MonochromePrecision";
+import { WarmMomentum } from "./pages/landings/WarmMomentum";
+import { TerminalVerdict } from "./pages/landings/TerminalVerdict";
 import { isPublishedHost } from "./lib/publishing";
 import { OfflineDialog } from "@/components/ide/OfflineDialog";
 import { InboxNotifier } from "@/components/ide/InboxNotifier";
@@ -21,12 +27,12 @@ const queryClient = new QueryClient();
 
 const landingVariants = [
   "/landing",
-  "/__mockup/preview/landing-hero/LivingGrid",
-  "/__mockup/preview/landing-hero/TerminalBoot",
-  "/__mockup/preview/landing-hero/TheVoid",
-  "/__mockup/preview/landing-hero/MonochromePrecision",
-  "/__mockup/preview/landing-hero/WarmMomentum",
-  "/__mockup/preview/landing-hero/TerminalVerdict",
+  "/landing/living-grid",
+  "/landing/terminal-boot",
+  "/landing/the-void",
+  "/landing/monochrome",
+  "/landing/warm-momentum",
+  "/landing/terminal-verdict",
 ] as const;
 
 const getLandingVariant = () => {
@@ -57,6 +63,12 @@ const App = () => (
             <Routes>
               <Route path="/" element={<RootRoute />} />
               <Route path="/landing" element={<Landing />} />
+              <Route path="/landing/living-grid" element={<LivingGrid />} />
+              <Route path="/landing/terminal-boot" element={<TerminalBoot />} />
+              <Route path="/landing/the-void" element={<TheVoid />} />
+              <Route path="/landing/monochrome" element={<MonochromePrecision />} />
+              <Route path="/landing/warm-momentum" element={<WarmMomentum />} />
+              <Route path="/landing/terminal-verdict" element={<TerminalVerdict />} />
               <Route path="/home" element={<Index />} />
               <Route path="/editor" element={<Index />} />
               <Route path="/project/:projectId" element={<Index />} />
