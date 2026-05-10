@@ -58,29 +58,8 @@ const toSlideY = (y: number, slideHeightInches: number) => (y / CANVAS_H) * slid
 const toSlideW = (w: number, slideWidthInches: number) => (w / CANVAS_W) * slideWidthInches;
 const toSlideH = (h: number, slideHeightInches: number) => (h / CANVAS_H) * slideHeightInches;
 const toPptxColor = (value?: string) => (value || '#1A1A1A').replace('#', '').toUpperCase();
-const pointsToCssPixels = (pt: number) => pt;
-const cssPixelsToPoints = (px: number) => px;
-
-const normalizeZipPath = (value: string) => {
-  const segments = value.replace(/\\/g, '/').split('/');
-  const normalized: string[] = [];
-  for (const segment of segments) {
-    if (!segment || segment === '.') continue;
-    if (segment === '..') {
-      if (normalized.length) normalized.pop();
-      continue;
-    }
-    normalized.push(segment);
-  }
-  return normalized.join('/');
-};
-
-const resolveRelationshipTarget = (slideFile: string, target: string) => {
-  const slideDir = slideFile.split('/').slice(0, -1).join('/');
-  if (target.startsWith('/')) return normalizeZipPath(`ppt/${target.slice(1)}`);
-  return normalizeZipPath(`${slideDir}/${target}`);
-};
-
+const pointsToCssPixels = (pt: number) => pt * (96 / 72);
+const cssPixelsToPoints = (px: number) => px * (72 / 96);
 const normalizeImageDataForPptx = (value: string) => {
   const match = value.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!match) return value;
@@ -202,9 +181,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 width: cx ? emuToCanvasX(cx) : 660,
                 height: cy ? emuToCanvasY(cy) : (isTitle ? 60 : 50),
                 content: text,
-                fontSize: fontSizeVal
-                  ? Math.max(10, pointsToCssPixels(fontSizeVal / 100))
-                  : Math.max(10, Math.min(32, (cy ? emuToCanvasY(cy) : (isTitle ? 60 : 50)) * 0.45)),
+                fontSize: fontSizeVal ? Math.max(10, pointsToCssPixels(fontSizeVal / 100)) : (isTitle ? 28 : 16),
                 fontWeight: isTitle ? 700 : 400,
                 color: '#1A1A1A',
               });
@@ -248,8 +225,11 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             if (!relId) continue;
             const target = relMap.get(relId);
             if (!target) continue;
-            const mediaPath = resolveRelationshipTarget(slideFile, target);
-            const mediaFile = zip.file(mediaPath) || zip.file(normalizeZipPath(`ppt/${target}`));
+            const normalizedTarget = target.replace(/\\/g, '/');
+            const mediaPath = normalizedTarget.startsWith('/')
+              ? `ppt${normalizedTarget}`
+              : `ppt/slides/${normalizedTarget}`.replace(/ppt\/slides\/(\.\.\/)+/g, 'ppt/');
+            const mediaFile = zip.file(mediaPath) || zip.file(`ppt/${normalizedTarget.replace(/^\.\.\//, '')}`);
             if (!mediaFile) continue;
             const mediaBytes = await mediaFile.async('uint8array');
             const extname = mediaPath.split('.').pop()?.toLowerCase();
