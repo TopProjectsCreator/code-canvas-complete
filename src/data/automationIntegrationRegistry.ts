@@ -3180,6 +3180,210 @@ const expandedApiCatalogV2: Array<[string, AutomationAuthType, string, APIParame
   ['HaveIBeenPwned API', 'api_key', 'HIBP breached account/password APIs.', securityParams],
 ];
 
+const stripeRadarApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const plaidTransactionsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const hubspotMarketingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const salesforceBulkApi2Params: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const zendeskTicketsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const intercomContactsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const notionBlocksApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const airtableWebApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const googleSheetsValuesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const slackConversationsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const discordInteractionsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const twilioVerifyV2ApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const sendgridContactsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const mailchimpMarketingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const shopifyStorefrontApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const woocommerceOrdersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const bigcommerceCatalogApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const amazonSpApiOrdersParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const etsyShopApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const stripeBillingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const paypalPayoutsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const squareCatalogApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const razorpaySubscriptionsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const adyenTransfersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const braintreeVaultApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const fedexRatesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const upsTrackingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const uspsAddressApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const shippoShipmentsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const easypostTrackerApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const openweatherGeocodingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const mapboxGeocodingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const googleMapsRoutesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const tomtomSearchApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const hereGeocodingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const algoliaRecommendApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const elasticsearchSqlApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const meilisearchTasksApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const typesenseDocumentsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const pineconeInferenceApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const weaviateBatchApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const qdrantCollectionsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const googleAnalyticsAdminApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const posthogFeatureFlagsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const plausibleSitesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const datadogLogsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const newRelicLogsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const sentryReleasesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const grafanaAlertingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const cloudflareWorkersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const githubChecksApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const gitlabMergeRequestsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const bitbucketPipelinesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const circleciInsightsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const jenkinsCrumbApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const dockerHubReposApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const openaiFilesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const anthropicBatchesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const mistralOcrApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const cohereEmbedApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const perplexitySearchApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const replicatePredictionsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const runwayTasksApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const stabilityImageApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const elevenlabsVoicesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const assemblyaiTranscriptApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const deepgramListenApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const zoomRecordingsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const googleMeetSpacesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const microsoftGraphUsersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const outlookMailApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const dropboxFilesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const googleDrivePermissionsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const oneDriveItemsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const boxFoldersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const airtableMetadataApiV3Params: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const smartsheetSheetsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const codaRowsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const quickbooksInvoicesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const xeroContactsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const wiseTransfersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const docusignEnvelopesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const dropboxSignRequestsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const pandadocDocumentsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const auth0UsersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const oktaGroupsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const clerkUsersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const stytchMagicLinksApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const kindeOauthApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const virustotalUrlsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const shodanHostApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const haveibeenpwnedBreachApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const crowdstrikeAlertsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const splunkSearchApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const pagerdutyIncidentsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const opsgenieAlertsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const statuspageComponentsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const novuEventsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const courierSendApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const knockWorkflowsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+
+const expandedApiCatalogV3: Array<[string, AutomationAuthType, string, APIParameter[]]> = [
+  ['Stripe Radar API', 'api_key', 'Stripe Radar fraud review endpoints.', stripeRadarApiParams],
+  ['Plaid Transactions API', 'api_key', 'Plaid transactions/sync endpoints.', plaidTransactionsApiParams],
+  ['HubSpot Marketing API', 'api_key', 'HubSpot marketing emails/campaigns API.', hubspotMarketingApiParams],
+  ['Salesforce Bulk API 2.0', 'api_key', 'Salesforce Bulk API 2.0 ingest/query jobs.', salesforceBulkApi2Params],
+  ['Zendesk Tickets API', 'api_key', 'Zendesk tickets/search endpoints.', zendeskTicketsApiParams],
+  ['Intercom Contacts API', 'api_key', 'Intercom contacts/conversations endpoints.', intercomContactsApiParams],
+  ['Notion Blocks API', 'api_key', 'Notion blocks append/retrieve endpoints.', notionBlocksApiParams],
+  ['Airtable Web API', 'api_key', 'Airtable records create/update/list endpoints.', airtableWebApiParams],
+  ['Google Sheets Values API', 'api_key', 'Google Sheets values get/update/batchUpdate.', googleSheetsValuesApiParams],
+  ['Slack Conversations API', 'api_key', 'Slack conversations.history/replies API.', slackConversationsApiParams],
+  ['Discord Interactions API', 'api_key', 'Discord interactions callbacks API.', discordInteractionsApiParams],
+  ['Twilio Verify V2 API', 'api_key', 'Twilio Verify v2 verification checks.', twilioVerifyV2ApiParams],
+  ['SendGrid Contacts API', 'api_key', 'SendGrid marketing contacts endpoints.', sendgridContactsApiParams],
+  ['Mailchimp Marketing API', 'api_key', 'Mailchimp audiences/campaigns endpoints.', mailchimpMarketingApiParams],
+  ['Shopify Storefront API', 'api_key', 'Shopify Storefront GraphQL API.', shopifyStorefrontApiParams],
+  ['WooCommerce Orders API', 'api_key', 'WooCommerce order create/list/update API.', woocommerceOrdersApiParams],
+  ['BigCommerce Catalog API', 'api_key', 'BigCommerce catalog products endpoints.', bigcommerceCatalogApiParams],
+  ['Amazon SP-API Orders', 'api_key', 'Amazon Selling Partner Orders API.', amazonSpApiOrdersParams],
+  ['Etsy Shop API', 'api_key', 'Etsy shop listings/receipts endpoints.', etsyShopApiParams],
+  ['Stripe Billing API', 'api_key', 'Stripe subscriptions/invoices endpoints.', stripeBillingApiParams],
+  ['PayPal Payouts API', 'api_key', 'PayPal Payouts create/batch status API.', paypalPayoutsApiParams],
+  ['Square Catalog API', 'api_key', 'Square catalog objects/search endpoints.', squareCatalogApiParams],
+  ['Razorpay Subscriptions API', 'api_key', 'Razorpay subscriptions/invoices endpoints.', razorpaySubscriptionsApiParams],
+  ['Adyen Transfers API', 'api_key', 'Adyen transfers/balance platform API.', adyenTransfersApiParams],
+  ['Braintree Vault API', 'api_key', 'Braintree customer/payment method vault API.', braintreeVaultApiParams],
+  ['FedEx Rates API', 'api_key', 'FedEx rates and transit times API.', fedexRatesApiParams],
+  ['UPS Tracking API', 'api_key', 'UPS tracking details endpoints.', upsTrackingApiParams],
+  ['USPS Address API', 'api_key', 'USPS address verification endpoints.', uspsAddressApiParams],
+  ['Shippo Shipments API', 'api_key', 'Shippo shipments and labels API.', shippoShipmentsApiParams],
+  ['EasyPost Tracker API', 'api_key', 'EasyPost trackers create/retrieve API.', easypostTrackerApiParams],
+  ['OpenWeather Geocoding API', 'api_key', 'OpenWeather geocoding direct/reverse API.', openweatherGeocodingApiParams],
+  ['Mapbox Geocoding API', 'api_key', 'Mapbox geocoding endpoints.', mapboxGeocodingApiParams],
+  ['Google Maps Routes API', 'api_key', 'Google Maps Routes computeRoutes API.', googleMapsRoutesApiParams],
+  ['TomTom Search API', 'api_key', 'TomTom search and reverse geocode API.', tomtomSearchApiParams],
+  ['Here Geocoding API', 'api_key', 'HERE geocoding and autosuggest API.', hereGeocodingApiParams],
+  ['Algolia Recommend API', 'api_key', 'Algolia recommend related products API.', algoliaRecommendApiParams],
+  ['Elasticsearch SQL API', 'api_key', 'Elasticsearch SQL query endpoint.', elasticsearchSqlApiParams],
+  ['Meilisearch Tasks API', 'api_key', 'Meilisearch task status endpoints.', meilisearchTasksApiParams],
+  ['Typesense Documents API', 'api_key', 'Typesense documents import/search API.', typesenseDocumentsApiParams],
+  ['Pinecone Inference API', 'api_key', 'Pinecone inference rerank/embed endpoints.', pineconeInferenceApiParams],
+  ['Weaviate Batch API', 'api_key', 'Weaviate batch objects endpoints.', weaviateBatchApiParams],
+  ['Qdrant Collections API', 'api_key', 'Qdrant collections management API.', qdrantCollectionsApiParams],
+  ['Google Analytics Admin API', 'api_key', 'GA Admin properties/dataStreams endpoints.', googleAnalyticsAdminApiParams],
+  ['PostHog Feature Flags API', 'api_key', 'PostHog feature flags endpoints.', posthogFeatureFlagsApiParams],
+  ['Plausible Sites API', 'api_key', 'Plausible sites and goals API.', plausibleSitesApiParams],
+  ['Datadog Logs API', 'api_key', 'Datadog logs query endpoints.', datadogLogsApiParams],
+  ['New Relic Logs API', 'api_key', 'New Relic logs/events query API.', newRelicLogsApiParams],
+  ['Sentry Releases API', 'api_key', 'Sentry releases deploy endpoints.', sentryReleasesApiParams],
+  ['Grafana Alerting API', 'api_key', 'Grafana alert rules endpoints.', grafanaAlertingApiParams],
+  ['Cloudflare Workers API', 'api_key', 'Cloudflare Workers scripts/routes API.', cloudflareWorkersApiParams],
+  ['GitHub Checks API', 'api_key', 'GitHub check-runs/check-suites API.', githubChecksApiParams],
+  ['GitLab Merge Requests API', 'api_key', 'GitLab merge requests endpoints.', gitlabMergeRequestsApiParams],
+  ['Bitbucket Pipelines API', 'api_key', 'Bitbucket pipelines trigger/status API.', bitbucketPipelinesApiParams],
+  ['CircleCI Insights API', 'api_key', 'CircleCI insights metrics endpoints.', circleciInsightsApiParams],
+  ['Jenkins Crumb API', 'api_key', 'Jenkins crumb issuer and build trigger.', jenkinsCrumbApiParams],
+  ['Docker Hub Repos API', 'api_key', 'Docker Hub repositories/tags API.', dockerHubReposApiParams],
+  ['OpenAI Files API', 'api_key', 'OpenAI files upload/list/delete endpoints.', openaiFilesApiParams],
+  ['Anthropic Batches API', 'api_key', 'Anthropic message batches API.', anthropicBatchesApiParams],
+  ['Mistral OCR API', 'api_key', 'Mistral OCR document parsing API.', mistralOcrApiParams],
+  ['Cohere Embed API', 'api_key', 'Cohere embed endpoint.', cohereEmbedApiParams],
+  ['Perplexity Search API', 'api_key', 'Perplexity online search API.', perplexitySearchApiParams],
+  ['Replicate Predictions API', 'api_key', 'Replicate predictions create/get API.', replicatePredictionsApiParams],
+  ['Runway Tasks API', 'api_key', 'Runway tasks generation API.', runwayTasksApiParams],
+  ['Stability Image API', 'api_key', 'Stability image generation/edit API.', stabilityImageApiParams],
+  ['ElevenLabs Voices API', 'api_key', 'ElevenLabs voices and TTS API.', elevenlabsVoicesApiParams],
+  ['AssemblyAI Transcript API', 'api_key', 'AssemblyAI transcript create/get API.', assemblyaiTranscriptApiParams],
+  ['Deepgram Listen API', 'api_key', 'Deepgram listen transcribe API.', deepgramListenApiParams],
+  ['Zoom Recordings API', 'api_key', 'Zoom cloud recordings endpoints.', zoomRecordingsApiParams],
+  ['Google Meet Spaces API', 'api_key', 'Google Meet spaces API.', googleMeetSpacesApiParams],
+  ['Microsoft Graph Users API', 'api_key', 'Microsoft Graph users and mailfolders API.', microsoftGraphUsersApiParams],
+  ['Outlook Mail API', 'api_key', 'Outlook messages send/list API.', outlookMailApiParams],
+  ['Dropbox Files API', 'api_key', 'Dropbox files upload/download/list API.', dropboxFilesApiParams],
+  ['Google Drive Permissions API', 'api_key', 'Google Drive permissions create/list API.', googleDrivePermissionsApiParams],
+  ['OneDrive Items API', 'api_key', 'OneDrive driveItems endpoints.', oneDriveItemsApiParams],
+  ['Box Folders API', 'api_key', 'Box folders and items API.', boxFoldersApiParams],
+  ['Airtable Metadata API V3', 'api_key', 'Airtable metadata API schema endpoints.', airtableMetadataApiV3Params],
+  ['Smartsheet Sheets API', 'api_key', 'Smartsheet sheets rows API.', smartsheetSheetsApiParams],
+  ['Coda Rows API', 'api_key', 'Coda tables rows upsert/list API.', codaRowsApiParams],
+  ['QuickBooks Invoices API', 'api_key', 'QuickBooks invoices endpoints.', quickbooksInvoicesApiParams],
+  ['Xero Contacts API', 'api_key', 'Xero contacts and invoices API.', xeroContactsApiParams],
+  ['Wise Transfers API', 'api_key', 'Wise quote and transfer API.', wiseTransfersApiParams],
+  ['DocuSign Envelopes API', 'api_key', 'DocuSign envelopes create/status API.', docusignEnvelopesApiParams],
+  ['Dropbox Sign Requests API', 'api_key', 'Dropbox Sign signature requests API.', dropboxSignRequestsApiParams],
+  ['PandaDoc Documents API', 'api_key', 'PandaDoc documents/send API.', pandadocDocumentsApiParams],
+  ['Auth0 Users API', 'api_key', 'Auth0 Management users API.', auth0UsersApiParams],
+  ['Okta Groups API', 'api_key', 'Okta groups list/assign API.', oktaGroupsApiParams],
+  ['Clerk Users API', 'api_key', 'Clerk users endpoints.', clerkUsersApiParams],
+  ['Stytch Magic Links API', 'api_key', 'Stytch magic links email API.', stytchMagicLinksApiParams],
+  ['Kinde OAuth API', 'api_key', 'Kinde OAuth token/introspection API.', kindeOauthApiParams],
+  ['VirusTotal URLs API', 'api_key', 'VirusTotal URL scan/report API.', virustotalUrlsApiParams],
+  ['Shodan Host API', 'api_key', 'Shodan host lookup API.', shodanHostApiParams],
+  ['HaveIBeenPwned Breach API', 'api_key', 'HIBP breach lookup API.', haveibeenpwnedBreachApiParams],
+  ['CrowdStrike Alerts API', 'api_key', 'CrowdStrike alerts query API.', crowdstrikeAlertsApiParams],
+  ['Splunk Search API', 'api_key', 'Splunk search jobs endpoints.', splunkSearchApiParams],
+  ['PagerDuty Incidents API', 'api_key', 'PagerDuty incidents create/list API.', pagerdutyIncidentsApiParams],
+  ['Opsgenie Alerts API', 'api_key', 'Opsgenie alerts endpoints.', opsgenieAlertsApiParams],
+  ['Statuspage Components API', 'api_key', 'Statuspage components/incidents API.', statuspageComponentsApiParams],
+  ['Novu Events API', 'api_key', 'Novu events trigger API.', novuEventsApiParams],
+  ['Courier Send API', 'api_key', 'Courier notifications send API.', courierSendApiParams],
+  ['Knock Workflows API', 'api_key', 'Knock workflows trigger API.', knockWorkflowsApiParams],
+];
+
 export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
   {
     id: 'comm',
@@ -3654,6 +3858,7 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
       ]),
       withBlocks('expanded-api-catalog', 'Expanded API Catalog (100)', expandedApiCatalog),
       withBlocks('expanded-api-catalog-v2', 'Expanded API Catalog (100 New)', expandedApiCatalogV2),
+      withBlocks('expanded-api-catalog-v3', 'Expanded API Catalog (100 More)', expandedApiCatalogV3),
     ],
   },
 ];
