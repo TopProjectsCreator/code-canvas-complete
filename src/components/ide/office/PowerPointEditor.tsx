@@ -169,7 +169,10 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             const cx = Number(ext?.getAttribute('cx') || 0);
             const cy = Number(ext?.getAttribute('cy') || 0);
             const blip = pic.getElementsByTagNameNS('*', 'blip')[0];
-            const relId = blip?.getAttribute('r:embed') || blip?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed');
+            const relId = blip?.getAttribute('r:embed')
+              || blip?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed')
+              || blip?.getAttribute('r:link')
+              || blip?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'link');
             if (!relId) continue;
             const target = relMap.get(relId);
             if (!target) continue;
