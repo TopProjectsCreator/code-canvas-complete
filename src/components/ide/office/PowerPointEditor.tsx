@@ -57,6 +57,8 @@ const toSlideY = (y: number) => (y / CANVAS_H) * SLIDE_H_IN;
 const toSlideW = (w: number) => (w / CANVAS_W) * SLIDE_W_IN;
 const toSlideH = (h: number) => (h / CANVAS_H) * SLIDE_H_IN;
 const toPptxColor = (value?: string) => (value || '#1A1A1A').replace('#', '').toUpperCase();
+const pointsToCssPixels = (pt: number) => pt * (96 / 72);
+const cssPixelsToPoints = (px: number) => px * (72 / 96);
 const normalizeImageDataForPptx = (value: string) => {
   const match = value.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!match) return value;
@@ -151,7 +153,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 width: cx ? emuToCanvasX(cx) : 660,
                 height: cy ? emuToCanvasY(cy) : (isTitle ? 60 : 50),
                 content: text,
-                fontSize: fontSizeVal ? Math.max(10, fontSizeVal / 100) : (isTitle ? 28 : 16),
+                fontSize: fontSizeVal ? Math.max(10, pointsToCssPixels(fontSizeVal / 100)) : (isTitle ? 28 : 16),
                 fontWeight: isTitle ? 700 : 400,
                 color: '#1A1A1A',
               });
@@ -171,8 +173,11 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             if (!relId) continue;
             const target = relMap.get(relId);
             if (!target) continue;
-            const mediaPath = target.startsWith('/') ? `ppt${target}` : `ppt/slides/${target}`.replace('ppt/slides/../', 'ppt/');
-            const mediaFile = zip.file(mediaPath) || zip.file(mediaPath.replace('ppt/slides/', 'ppt/'));
+            const normalizedTarget = target.replace(/\\/g, '/');
+            const mediaPath = normalizedTarget.startsWith('/')
+              ? `ppt${normalizedTarget}`
+              : `ppt/slides/${normalizedTarget}`.replace(/ppt\/slides\/(\.\.\/)+/g, 'ppt/');
+            const mediaFile = zip.file(mediaPath) || zip.file(`ppt/${normalizedTarget.replace(/^\.\.\//, '')}`);
             if (!mediaFile) continue;
             const mediaBytes = await mediaFile.async('uint8array');
             const extname = mediaPath.split('.').pop()?.toLowerCase();
@@ -299,7 +304,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 y: y + Math.max(0.05, h / 3),
                 w,
                 h: Math.max(0.2, h / 3),
-                fontSize: Math.max(10, el.fontSize || 14),
+                fontSize: Math.max(10, cssPixelsToPoints(el.fontSize || 14)),
                 align: 'center',
                 color: toPptxColor(el.color),
               });
@@ -315,7 +320,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               h,
               border: { type: 'solid', color: '6B7280', pt: 1 },
               color: toPptxColor(el.color),
-              fontSize: Math.max(10, el.fontSize || 12),
+              fontSize: Math.max(10, cssPixelsToPoints(el.fontSize || 12)),
               valign: 'middle',
             });
             return;
@@ -335,7 +340,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             y,
             w,
             h,
-            fontSize: el.fontSize || 16,
+            fontSize: cssPixelsToPoints(el.fontSize || 16),
             bold: (el.fontWeight || 400) >= 600,
             italic: el.fontStyle === 'italic',
             underline: el.textDecoration === 'underline' ? { style: 'sng' } : undefined,
