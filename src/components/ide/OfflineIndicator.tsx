@@ -10,15 +10,21 @@ export const OfflineIndicator = () => {
 
   useEffect(() => {
     const cleanup = onOnlineStatusChange(setOnline);
-    const checkDirty = () => getDirtyProjects().then((p) => setDirtyCount(p.length));
+    let cancelled = false;
+    const checkDirty = () => {
+      getDirtyProjects()
+        .then((p) => { if (!cancelled) setDirtyCount(p.length); })
+        .catch(() => {});
+    };
     checkDirty();
-    const interval = setInterval(checkDirty, 5000);
     const handleSync = () => checkDirty();
     window.addEventListener('offline-sync-complete', handleSync);
+    window.addEventListener('offline-projects-changed', handleSync);
     return () => {
+      cancelled = true;
       cleanup();
-      clearInterval(interval);
       window.removeEventListener('offline-sync-complete', handleSync);
+      window.removeEventListener('offline-projects-changed', handleSync);
     };
   }, []);
 

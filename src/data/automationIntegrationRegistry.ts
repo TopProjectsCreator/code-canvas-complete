@@ -2980,7 +2980,7 @@ const expandedApiCatalog: Array<[string, AutomationAuthType, string, APIParamete
   ['Airtable Records', 'free', 'Airtable Records endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
   ['Coda Docs', 'free', 'Coda Docs endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
   ['Asana Tasks', 'free', 'Asana Tasks endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Trello Cards', 'free', 'Trello Cards endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
+  
   ['ClickUp Tasks', 'free', 'ClickUp Tasks endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
   ['Linear Issues', 'free', 'Linear Issues endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
   ['Jira Service Management', 'api_key', 'Jira Service Management endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
@@ -3393,7 +3393,7 @@ const jiraAgileApiParams: APIParameter[] = [{ name: 'operation', displayName: 'O
 const confluenceContentApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Confluence content pages/blogpost API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const notionSearchApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Notion search and database query API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const ahaRoadmapsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Aha! initiatives/features REST endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const trelloCardsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Trello cards, lists, and labels endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+
 const basecamp3ApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Basecamp projects/todolists/messages API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const freshdeskTicketsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Freshdesk tickets and contacts API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const freshserviceApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Freshservice incidents and assets endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
@@ -3495,7 +3495,7 @@ const expandedApiCatalogV4: Array<[string, AutomationAuthType, string, APIParame
   ['Confluence Content API', 'api_key', 'Confluence content pages/blogpost API.', confluenceContentApiParams],
   ['Notion Search API', 'api_key', 'Notion search and database query API.', notionSearchApiParams],
   ['Aha! Roadmaps API', 'api_key', 'Aha! initiatives/features REST endpoints.', ahaRoadmapsApiParams],
-  ['Trello Cards API', 'api_key', 'Trello cards, lists, and labels endpoints.', trelloCardsApiParams],
+  
   ['Basecamp 3 API', 'api_key', 'Basecamp projects/todolists/messages API.', basecamp3ApiParams],
   ['Freshdesk Tickets API', 'api_key', 'Freshdesk tickets and contacts API.', freshdeskTicketsApiParams],
   ['Freshservice API', 'api_key', 'Freshservice incidents and assets endpoints.', freshserviceApiParams],
@@ -4061,10 +4061,10 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Metabase', 'free', undefined, analyticsParams], ['Looker', 'api_key', undefined, analyticsParams], ['Tableau', 'api_key', undefined, analyticsParams],
         ['Apache Superset', 'free', undefined, analyticsParams], ['Grafana', 'free', undefined, analyticsParams],
       ]),
-      withBlocks('expanded-api-catalog', 'Expanded API Catalog (100)', expandedApiCatalog),
-      withBlocks('expanded-api-catalog-v2', 'Expanded API Catalog (100 New)', expandedApiCatalogV2),
-      withBlocks('expanded-api-catalog-v3', 'Expanded API Catalog (100 More)', expandedApiCatalogV3),
-      withBlocks('expanded-api-catalog-v4', 'Expanded API Catalog (100 Newest)', expandedApiCatalogV4),
+      withBlocks('expanded-api-catalog', 'More Integrations', expandedApiCatalog),
+      withBlocks('expanded-api-catalog-v2', 'More Integrations II', expandedApiCatalogV2),
+      withBlocks('expanded-api-catalog-v3', 'More Integrations III', expandedApiCatalogV3),
+      withBlocks('expanded-api-catalog-v4', 'More Integrations IV', expandedApiCatalogV4),
     ],
   },
 ];
