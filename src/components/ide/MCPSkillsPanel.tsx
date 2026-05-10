@@ -12,6 +12,7 @@ import {
   Lightbulb, Wrench, Shield, Bug, Library
 } from 'lucide-react';
 import { SkillsLibraryDialog } from './SkillsLibraryDialog';
+import { MCPMarketDialog } from './MCPMarketDialog';
 
 const SKILL_ICONS: Record<string, React.ReactNode> = {
   sparkles: <Sparkles className="w-4 h-4" />,
@@ -38,6 +39,7 @@ export function MCPServersPanel() {
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showMarket, setShowMarket] = useState(false);
 
   if (!user) {
     return (
@@ -73,9 +75,14 @@ export function MCPServersPanel() {
             Connect Model Context Protocol servers to extend agent capabilities
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)} className="gap-1.5">
-          <Plus className="w-3.5 h-3.5" /> Add
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="secondary" onClick={() => setShowMarket(true)} className="gap-1.5">
+            <Library className="w-3.5 h-3.5" /> Browse
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowForm(!showForm)} className="gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> Add
+          </Button>
+        </div>
       </div>
 
       {showForm && (
@@ -130,6 +137,18 @@ export function MCPServersPanel() {
           ))}
         </div>
       )}
+
+      <MCPMarketDialog
+        open={showMarket}
+        onOpenChange={setShowMarket}
+        onPick={(s) => {
+          setName(s.name);
+          setUrl('');
+          setDescription(s.description);
+          setApiKey('');
+          setShowForm(true);
+        }}
+      />
     </div>
   );
 }
