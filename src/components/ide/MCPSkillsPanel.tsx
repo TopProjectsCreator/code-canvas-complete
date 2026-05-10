@@ -12,6 +12,7 @@ import {
   Lightbulb, Wrench, Shield, Bug, Library
 } from 'lucide-react';
 import { SkillsLibraryDialog } from './SkillsLibraryDialog';
+import { MCPMarketDialog } from './MCPMarketDialog';
 
 const SKILL_ICONS: Record<string, React.ReactNode> = {
   sparkles: <Sparkles className="w-4 h-4" />,
