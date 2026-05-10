@@ -4061,10 +4061,12 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Metabase', 'free', undefined, analyticsParams], ['Looker', 'api_key', undefined, analyticsParams], ['Tableau', 'api_key', undefined, analyticsParams],
         ['Apache Superset', 'free', undefined, analyticsParams], ['Grafana', 'free', undefined, analyticsParams],
       ]),
-      withBlocks('expanded-api-catalog', 'More Integrations', expandedApiCatalog),
-      withBlocks('expanded-api-catalog-v2', 'More Integrations II', expandedApiCatalogV2),
-      withBlocks('expanded-api-catalog-v3', 'More Integrations III', expandedApiCatalogV3),
-      withBlocks('expanded-api-catalog-v4', 'More Integrations IV', expandedApiCatalogV4),
+      withBlocks('api-library', 'API Library', [
+        ...expandedApiCatalog,
+        ...expandedApiCatalogV2,
+        ...expandedApiCatalogV3,
+        ...expandedApiCatalogV4,
+      ]),
     ],
   },
 ];
