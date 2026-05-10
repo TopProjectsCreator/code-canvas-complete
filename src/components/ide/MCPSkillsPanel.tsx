@@ -137,6 +137,18 @@ export function MCPServersPanel() {
           ))}
         </div>
       )}
+
+      <MCPMarketDialog
+        open={showMarket}
+        onOpenChange={setShowMarket}
+        onPick={(s) => {
+          setName(s.name);
+          setUrl('');
+          setDescription(s.description);
+          setApiKey('');
+          setShowForm(true);
+        }}
+      />
     </div>
   );
 }
