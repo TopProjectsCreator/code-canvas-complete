@@ -81,6 +81,7 @@ function wrap<T>(req: IDBRequest<T>): Promise<T> {
 export async function saveOfflineProject(project: OfflineProject): Promise<void> {
   const db = await openDB();
   await wrap(tx(db, STORE_PROJECTS, 'readwrite').put(project));
+  notifyChange();
 }
 
 export async function getOfflineProject(id: string): Promise<OfflineProject | undefined> {
@@ -96,6 +97,7 @@ export async function listOfflineProjects(): Promise<OfflineProject[]> {
 export async function deleteOfflineProject(id: string): Promise<void> {
   const db = await openDB();
   await wrap(tx(db, STORE_PROJECTS, 'readwrite').delete(id));
+  notifyChange();
 }
 
 export async function getDirtyProjects(): Promise<OfflineProject[]> {
