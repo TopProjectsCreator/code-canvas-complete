@@ -36,8 +36,10 @@ export function isOfflineCapable(template: string): boolean {
   return (OFFLINE_CAPABLE_TEMPLATES as readonly string[]).includes(template);
 }
 
+let dbPromise: Promise<IDBDatabase> | null = null;
 function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -48,9 +50,19 @@ function openDB(): Promise<IDBDatabase> {
         db.createObjectStore(STORE_META, { keyPath: 'key' });
       }
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onclose = () => { dbPromise = null; };
+      db.onversionchange = () => { db.close(); dbPromise = null; };
+      resolve(db);
+    };
+    req.onerror = () => { dbPromise = null; reject(req.error); };
   });
+  return dbPromise;
+}
+
+function notifyChange() {
+  try { window.dispatchEvent(new CustomEvent('offline-projects-changed')); } catch { /* SSR */ }
 }
 
 function tx(db: IDBDatabase, store: string, mode: IDBTransactionMode) {
