@@ -39,6 +39,7 @@ export function MCPServersPanel() {
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showMarket, setShowMarket] = useState(false);
 
   if (!user) {
     return (
