@@ -57,8 +57,8 @@ const toSlideY = (y: number) => (y / CANVAS_H) * SLIDE_H_IN;
 const toSlideW = (w: number) => (w / CANVAS_W) * SLIDE_W_IN;
 const toSlideH = (h: number) => (h / CANVAS_H) * SLIDE_H_IN;
 const toPptxColor = (value?: string) => (value || '#1A1A1A').replace('#', '').toUpperCase();
-const pointsToCssPixels = (pt: number) => pt * (96 / 72);
-const cssPixelsToPoints = (px: number) => px * (72 / 96);
+const pointsToCssPixels = (pt: number) => pt;
+const cssPixelsToPoints = (px: number) => px;
 
 const normalizeZipPath = (value: string) => {
   const segments = value.replace(/\\/g, '/').split('/');
@@ -192,7 +192,10 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             const cx = Number(ext?.getAttribute('cx') || 0);
             const cy = Number(ext?.getAttribute('cy') || 0);
             const blip = pic.getElementsByTagNameNS('*', 'blip')[0];
-            const relId = blip?.getAttribute('r:embed') || blip?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed');
+            const relId = blip?.getAttribute('r:embed')
+              || blip?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed')
+              || blip?.getAttribute('r:link')
+              || blip?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'link');
             if (!relId) continue;
             const target = relMap.get(relId);
             if (!target) continue;
