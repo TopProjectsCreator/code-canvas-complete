@@ -17,7 +17,7 @@ import { decodeDataUrl, encodeDataUrl, parseXml, buildNewPptx } from './officeUt
 
 interface SlideElement {
   id: string;
-  type: 'text' | 'image';
+  type: 'text' | 'image' | 'shape';
   placeholderType?: 'shape' | 'table' | 'link' | 'video';
   linkUrl?: string;
   tableRows?: string[][];
@@ -32,6 +32,7 @@ interface SlideElement {
   textDecoration?: 'none' | 'underline';
   textAlign?: 'left' | 'center' | 'right';
   color?: string;
+  fillColor?: string;
 }
 
 interface SlideData {
@@ -52,10 +53,10 @@ const CANVAS_H = 405;
 const SLIDE_W_IN = 10;
 const SLIDE_H_IN = 5.625;
 
-const toSlideX = (x: number) => (x / CANVAS_W) * SLIDE_W_IN;
-const toSlideY = (y: number) => (y / CANVAS_H) * SLIDE_H_IN;
-const toSlideW = (w: number) => (w / CANVAS_W) * SLIDE_W_IN;
-const toSlideH = (h: number) => (h / CANVAS_H) * SLIDE_H_IN;
+const toSlideX = (x: number, slideWidthInches: number) => (x / CANVAS_W) * slideWidthInches;
+const toSlideY = (y: number, slideHeightInches: number) => (y / CANVAS_H) * slideHeightInches;
+const toSlideW = (w: number, slideWidthInches: number) => (w / CANVAS_W) * slideWidthInches;
+const toSlideH = (h: number, slideHeightInches: number) => (h / CANVAS_H) * slideHeightInches;
 const toPptxColor = (value?: string) => (value || '#1A1A1A').replace('#', '').toUpperCase();
 const pointsToCssPixels = (pt: number) => pt * (96 / 72);
 const cssPixelsToPoints = (px: number) => px * (72 / 96);
@@ -65,9 +66,16 @@ const normalizeImageDataForPptx = (value: string) => {
   return `${match[1]};base64,${match[2]}`;
 };
 
+
+const getShapeFillColor = (sp: Element): string | undefined => {
+  const solidFill = sp.getElementsByTagNameNS('*', 'solidFill')[0];
+  if (!solidFill) return undefined;
+  const srgb = solidFill.getElementsByTagNameNS('*', 'srgbClr')[0]?.getAttribute('val');
+  if (srgb) return `#${srgb}`;
+  return undefined;
+};
+
 const EMU_PER_INCH = 914400;
-const emuToCanvasX = (emu: number) => ((emu / EMU_PER_INCH) / SLIDE_W_IN) * CANVAS_W;
-const emuToCanvasY = (emu: number) => ((emu / EMU_PER_INCH) / SLIDE_H_IN) * CANVAS_H;
 
 export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProps) => {
   const [loading, setLoading] = useState(true);
@@ -92,6 +100,8 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const [presentSlideIndex, setPresentSlideIndex] = useState(0);
   const [presentAnimating, setPresentAnimating] = useState(false);
   const lastSavedBytesRef = useRef<Uint8Array | null>(null);
+  const slideWidthInchesRef = useRef(SLIDE_W_IN);
+  const slideHeightInchesRef = useRef(SLIDE_H_IN);
 
    
   useEffect(() => {
@@ -107,6 +117,24 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
         }
         lastSavedBytesRef.current = bytes;
         const zip = await JSZip.loadAsync(bytes);
+        const presentationXml = await zip.file('ppt/presentation.xml')?.async('string');
+        let slideWidthEmu = Math.round(SLIDE_W_IN * EMU_PER_INCH);
+        let slideHeightEmu = Math.round(SLIDE_H_IN * EMU_PER_INCH);
+        if (presentationXml) {
+          const presentationDoc = parseXml(presentationXml);
+          const sizeNode = presentationDoc.getElementsByTagNameNS('*', 'sldSz')[0];
+          const cx = Number(sizeNode?.getAttribute('cx') || 0);
+          const cy = Number(sizeNode?.getAttribute('cy') || 0);
+          if (cx > 0 && cy > 0) {
+            slideWidthEmu = cx;
+            slideHeightEmu = cy;
+          }
+        }
+        slideWidthInchesRef.current = slideWidthEmu / EMU_PER_INCH;
+        slideHeightInchesRef.current = slideHeightEmu / EMU_PER_INCH;
+        const emuToCanvasX = (emu: number) => (emu / slideWidthEmu) * CANVAS_W;
+        const emuToCanvasY = (emu: number) => (emu / slideHeightEmu) * CANVAS_H;
+
         const slideFiles = Object.keys(zip.files)
           .filter(name => /^ppt\/slides\/slide\d+\.xml$/i.test(name))
           .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
@@ -157,6 +185,27 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 fontWeight: isTitle ? 700 : 400,
                 color: '#1A1A1A',
               });
+            } else {
+              const fillColor = getShapeFillColor(sp);
+              if (fillColor) {
+                const xfrm = sp.getElementsByTagNameNS('*', 'xfrm')[0];
+                const off = xfrm?.getElementsByTagNameNS('*', 'off')[0];
+                const ext = xfrm?.getElementsByTagNameNS('*', 'ext')[0];
+                const x = Number(off?.getAttribute('x') || 0);
+                const y = Number(off?.getAttribute('y') || 0);
+                const cx = Number(ext?.getAttribute('cx') || 0);
+                const cy = Number(ext?.getAttribute('cy') || 0);
+                elements.push({
+                  id: newId(),
+                  type: 'shape',
+                  x: x ? emuToCanvasX(x) : 0,
+                  y: y ? emuToCanvasY(y) : 0,
+                  width: cx ? emuToCanvasX(cx) : CANVAS_W,
+                  height: cy ? emuToCanvasY(cy) : CANVAS_H,
+                  content: '',
+                  fillColor,
+                });
+              }
             }
           }
 
@@ -271,7 +320,9 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const save = useCallback(async () => {
     try {
       const pptx = new PptxGenJS();
-      pptx.defineLayout({ name: 'CANVAS_16_9', width: SLIDE_W_IN, height: SLIDE_H_IN });
+      const slideWidthInches = slideWidthInchesRef.current || SLIDE_W_IN;
+      const slideHeightInches = slideHeightInchesRef.current || SLIDE_H_IN;
+      pptx.defineLayout({ name: 'CANVAS_16_9', width: slideWidthInches, height: slideHeightInches });
       pptx.layout = 'CANVAS_16_9';
 
       slides.forEach((slideData) => {
@@ -286,10 +337,19 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
         }
 
         slideData.elements.forEach((el) => {
-          const x = toSlideX(el.x);
-          const y = toSlideY(el.y);
-          const w = toSlideW(el.width);
-          const h = toSlideH(el.height);
+          const x = toSlideX(el.x, slideWidthInches);
+          const y = toSlideY(el.y, slideHeightInches);
+          const w = toSlideW(el.width, slideWidthInches);
+          const h = toSlideH(el.height, slideHeightInches);
+
+          if (el.type === 'shape') {
+            slide.addShape(pptx.ShapeType.rect, {
+              x, y, w, h,
+              fill: { color: toPptxColor(el.fillColor || '#FFFFFF') },
+              line: { color: toPptxColor(el.fillColor || '#FFFFFF'), transparency: 100, pt: 0 },
+            });
+            return;
+          }
 
           if (el.placeholderType === 'shape') {
             slide.addShape(pptx.ShapeType.rect, {
@@ -859,7 +919,9 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                     <div className="absolute -left-0.5 top-0 text-[10px] text-muted-foreground font-mono">{idx + 1}</div>
                     <div className="ml-3 aspect-[16/9] bg-white dark:bg-[#2d2d2d] rounded-sm p-1 overflow-hidden relative">
                       {slide.elements.map(el => (
-                        el.type === 'text' ? (
+                        el.type === 'shape' ? (
+                          <div key={el.id} style={{ position: 'absolute', left: el.x * 0.19, top: el.y * 0.19, width: el.width * 0.19, height: el.height * 0.19, backgroundColor: el.fillColor || '#FFFFFF' }} />
+                        ) : el.type === 'text' ? (
                           <p key={el.id} className="truncate text-[6px] text-muted-foreground" style={{ position: 'absolute', left: el.x * 0.19, top: el.y * 0.19, fontSize: (el.fontSize || 16) * 0.19, fontWeight: el.fontWeight }}>
                             {el.content || 'Text'}
                           </p>
@@ -916,7 +978,11 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                         setDragging({ id: el.id, startX: e.clientX, startY: e.clientY, elX: el.x, elY: el.y });
                       }}
                     >
-                      {el.type === 'text' ? (
+                      {el.type === 'shape' ? (
+                        <div className="w-full h-full" style={{ backgroundColor: el.fillColor || '#FFFFFF' }} />
+                      ) : el.type === 'shape' ? (
+                          <div key={el.id} style={{ position: 'absolute', left: el.x * 0.19, top: el.y * 0.19, width: el.width * 0.19, height: el.height * 0.19, backgroundColor: el.fillColor || '#FFFFFF' }} />
+                        ) : el.type === 'text' ? (
                         isEditing ? (
                           <textarea
                             className="w-full h-full bg-transparent outline-none resize-none p-1"
@@ -992,7 +1058,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               return (
                 <div className="px-3 py-1.5 border-t border-border bg-background flex items-center gap-3 text-xs">
                   <span className="text-muted-foreground font-medium">
-                    {el.type === 'image' ? 'Image' : (el.placeholderType ? `${el.placeholderType[0].toUpperCase()}${el.placeholderType.slice(1)}` : 'Text Box')}
+                    {el.type === 'shape' ? 'Shape' : el.type === 'image' ? 'Image' : (el.placeholderType ? `${el.placeholderType[0].toUpperCase()}${el.placeholderType.slice(1)}` : 'Text Box')}
                   </span>
                   <span className="text-muted-foreground">X: {Math.round(el.x)}</span>
                   <span className="text-muted-foreground">Y: {Math.round(el.y)}</span>
