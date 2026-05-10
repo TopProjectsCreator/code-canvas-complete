@@ -3495,7 +3495,7 @@ const expandedApiCatalogV4: Array<[string, AutomationAuthType, string, APIParame
   ['Confluence Content API', 'api_key', 'Confluence content pages/blogpost API.', confluenceContentApiParams],
   ['Notion Search API', 'api_key', 'Notion search and database query API.', notionSearchApiParams],
   ['Aha! Roadmaps API', 'api_key', 'Aha! initiatives/features REST endpoints.', ahaRoadmapsApiParams],
-  ['Trello Cards API', 'api_key', 'Trello cards, lists, and labels endpoints.', trelloCardsApiParams],
+  
   ['Basecamp 3 API', 'api_key', 'Basecamp projects/todolists/messages API.', basecamp3ApiParams],
   ['Freshdesk Tickets API', 'api_key', 'Freshdesk tickets and contacts API.', freshdeskTicketsApiParams],
   ['Freshservice API', 'api_key', 'Freshservice incidents and assets endpoints.', freshserviceApiParams],
