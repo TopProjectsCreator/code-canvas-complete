@@ -115,6 +115,20 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
           if (!xml) continue;
           const doc = parseXml(xml);
           const spNodes = Array.from(doc.getElementsByTagNameNS('*', 'sp'));
+          const picNodes = Array.from(doc.getElementsByTagNameNS('*', 'pic'));
+          const relsPath = slideFile.replace('ppt/slides/', 'ppt/slides/_rels/') + '.rels';
+          const relsXml = await zip.file(relsPath)?.async('string');
+          const relMap = new Map<string, string>();
+          if (relsXml) {
+            const relDoc = parseXml(relsXml);
+            const relNodes = Array.from(relDoc.getElementsByTagNameNS('*', 'Relationship'));
+            relNodes.forEach((rel) => {
+              const id = rel.getAttribute('Id');
+              const target = rel.getAttribute('Target');
+              if (id && target) relMap.set(id, target);
+            });
+          }
+
           const elements: SlideElement[] = [];
           for (const sp of spNodes) {
             const tNodes = Array.from(sp.getElementsByTagNameNS('*', 't'));
@@ -143,6 +157,37 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               });
             }
           }
+
+          for (const pic of picNodes) {
+            const xfrm = pic.getElementsByTagNameNS('*', 'xfrm')[0];
+            const off = xfrm?.getElementsByTagNameNS('*', 'off')[0];
+            const ext = xfrm?.getElementsByTagNameNS('*', 'ext')[0];
+            const x = Number(off?.getAttribute('x') || 0);
+            const y = Number(off?.getAttribute('y') || 0);
+            const cx = Number(ext?.getAttribute('cx') || 0);
+            const cy = Number(ext?.getAttribute('cy') || 0);
+            const blip = pic.getElementsByTagNameNS('*', 'blip')[0];
+            const relId = blip?.getAttribute('r:embed') || blip?.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed');
+            if (!relId) continue;
+            const target = relMap.get(relId);
+            if (!target) continue;
+            const mediaPath = target.startsWith('/') ? `ppt${target}` : `ppt/slides/${target}`.replace('ppt/slides/../', 'ppt/');
+            const mediaFile = zip.file(mediaPath) || zip.file(mediaPath.replace('ppt/slides/', 'ppt/'));
+            if (!mediaFile) continue;
+            const mediaBytes = await mediaFile.async('uint8array');
+            const extname = mediaPath.split('.').pop()?.toLowerCase();
+            const mime = extname === 'jpg' || extname === 'jpeg' ? 'image/jpeg' : extname === 'gif' ? 'image/gif' : extname === 'webp' ? 'image/webp' : 'image/png';
+            elements.push({
+              id: newId(),
+              type: 'image',
+              x: x ? emuToCanvasX(x) : 30,
+              y: y ? emuToCanvasY(y) : 30,
+              width: cx ? emuToCanvasX(cx) : 240,
+              height: cy ? emuToCanvasY(cy) : 180,
+              content: encodeDataUrl(mime, mediaBytes),
+            });
+          }
+
           if (elements.length === 0) {
             elements.push(
               { id: newId(), type: 'text', x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700, color: '#1A1A1A' },
