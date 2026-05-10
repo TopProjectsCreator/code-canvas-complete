@@ -980,9 +980,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                     >
                       {el.type === 'shape' ? (
                         <div className="w-full h-full" style={{ backgroundColor: el.fillColor || '#FFFFFF' }} />
-                      ) : el.type === 'shape' ? (
-                          <div key={el.id} style={{ position: 'absolute', left: el.x * 0.19, top: el.y * 0.19, width: el.width * 0.19, height: el.height * 0.19, backgroundColor: el.fillColor || '#FFFFFF' }} />
-                        ) : el.type === 'text' ? (
+                      ) : el.type === 'text' ? (
                         isEditing ? (
                           <textarea
                             className="w-full h-full bg-transparent outline-none resize-none p-1"
