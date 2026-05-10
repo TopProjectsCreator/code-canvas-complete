@@ -57,8 +57,8 @@ const toSlideY = (y: number) => (y / CANVAS_H) * SLIDE_H_IN;
 const toSlideW = (w: number) => (w / CANVAS_W) * SLIDE_W_IN;
 const toSlideH = (h: number) => (h / CANVAS_H) * SLIDE_H_IN;
 const toPptxColor = (value?: string) => (value || '#1A1A1A').replace('#', '').toUpperCase();
-const pointsToCssPixels = (pt: number) => pt;
-const cssPixelsToPoints = (px: number) => px;
+const pointsToCssPixels = (pt: number) => (pt * 96) / 72;
+const cssPixelsToPoints = (px: number) => (px * 72) / 96;
 
 const normalizeZipPath = (value: string) => {
   const segments = value.replace(/\\/g, '/').split('/');
