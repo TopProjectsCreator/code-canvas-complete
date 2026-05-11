@@ -30,8 +30,9 @@ const slugToLabel = (slug: string) =>
 function parseServers(markdown: string): ParsedServer[] {
   const servers: ParsedServer[] = [];
   const seen = new Set<string>();
+  // Cards may include rank prefix like "#1\\\n\\\n" before the bolded name.
   const re =
-    /\[\*\*([^*]+)\*\*([\s\S]*?)\]\((https:\/\/mcpmarket\.com\/server\/[a-z0-9-]+)\)/g;
+    /\[(?:[^\]]*?)\*\*([^*\n]+)\*\*([\s\S]*?)\]\((https:\/\/mcpmarket\.com\/server\/[a-z0-9-]+)\)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(markdown)) !== null) {
     const name = m[1].trim();
@@ -151,9 +152,10 @@ async function firecrawlFetchMarkdown(url: string): Promise<string | null> {
 }
 
 async function fetchMarkdown(url: string): Promise<string | null> {
-  // Hybrid: try direct fetch (free) first, fallback to Firecrawl if too small.
+  // Hybrid: try direct fetch (free) first, fallback to Firecrawl if it doesn't look fully rendered.
   const direct = await directFetchMarkdown(url);
-  if (direct && direct.length > 4000 && /mcpmarket\.com\/server\//.test(direct)) {
+  const directServerCount = direct ? (direct.match(/mcpmarket\.com\/server\//g) || []).length : 0;
+  if (direct && direct.length > 6000 && directServerCount >= 5) {
     return direct;
   }
   const fc = await firecrawlFetchMarkdown(url);
