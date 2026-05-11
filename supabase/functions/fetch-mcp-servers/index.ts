@@ -152,9 +152,10 @@ async function firecrawlFetchMarkdown(url: string): Promise<string | null> {
 }
 
 async function fetchMarkdown(url: string): Promise<string | null> {
-  // Hybrid: try direct fetch (free) first, fallback to Firecrawl if too small.
+  // Hybrid: try direct fetch (free) first, fallback to Firecrawl if it doesn't look fully rendered.
   const direct = await directFetchMarkdown(url);
-  if (direct && direct.length > 4000 && /mcpmarket\.com\/server\//.test(direct)) {
+  const directServerCount = direct ? (direct.match(/mcpmarket\.com\/server\//g) || []).length : 0;
+  if (direct && direct.length > 6000 && directServerCount >= 5) {
     return direct;
   }
   const fc = await firecrawlFetchMarkdown(url);
