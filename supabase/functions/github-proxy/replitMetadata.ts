@@ -16,7 +16,7 @@ export const parseReplitMetadata = (html: string): ReplitMetadata => {
   if (!nextDataMatch?.[1]) {
     const githubMatch = html.match(GITHUB_HTML_REGEX) || html.match(GITHUB_HTML_LOOSE_REGEX);
     return {
-      exists: true,
+      exists: githubMatch !== null,
       title: null,
       description: null,
       githubOwner: githubMatch?.[1] ?? null,

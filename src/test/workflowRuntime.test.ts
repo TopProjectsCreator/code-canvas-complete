@@ -228,6 +228,7 @@ describe('workflowRuntime.runWorkflow', () => {
     const result = await runWorkflow(
       `
         best_effort: flaky | continueOnError=true
+        downstream: echo ok | needs=best_effort
         always: echo ok
       `,
       createAdapter(async (req) => {
@@ -242,7 +243,8 @@ describe('workflowRuntime.runWorkflow', () => {
       },
     );
 
-    expect(result.steps.best_effort.status).toBe('skipped');
+    expect(result.steps.best_effort.status).toBe('failed');
+    expect(result.steps.downstream.status).toBe('succeeded');
     expect(result.steps.always.status).toBe('succeeded');
   });
 
