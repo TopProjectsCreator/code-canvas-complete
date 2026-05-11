@@ -15,6 +15,7 @@ import {
   FileText,
   Zap,
   Wrench,
+  ShieldAlert,
 } from 'lucide-react';
 import { FileNode, GitState, Workflow } from '@/types/ide';
 import { FileTree } from './FileTree';
@@ -30,6 +31,7 @@ import { getFileLanguage } from '@/data/defaultFiles';
 import { fileToBase64DataUrl } from '@/lib/binaryEncoding';
 import { toast } from 'sonner';
 import { ExtensionsPanel } from './ExtensionsPanel';
+import { VulnerabilityScannerPanel } from './VulnerabilityScannerPanel';
 
 
 interface SearchResult {
@@ -68,7 +70,7 @@ interface SidebarProps {
   onInvite: () => void;
 }
 
-type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'tools' | 'history';
+type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'tools' | 'vulnerabilities' | 'history';
 
 export const Sidebar = ({ 
   files,
@@ -346,6 +348,7 @@ export const Sidebar = ({
     { id: 'packages' as const, icon: Package, label: 'Packages' },
     { id: 'workflows' as const, icon: Zap, label: 'Workflows' },
     { id: 'tools' as const, icon: Wrench, label: 'Extensions' },
+    { id: 'vulnerabilities' as const, icon: ShieldAlert, label: 'Vulnerabilities' },
   ];
 
   const handleNewFile = (name: string, type: 'file' | 'folder') => {
@@ -608,7 +611,12 @@ export const Sidebar = ({
           />
         )}
 
-        
+        {activeTab === 'vulnerabilities' && (
+          <VulnerabilityScannerPanel
+            files={files}
+            fileContents={fileContents}
+          />
+        )}
 
         {activeTab === 'history' && (
           <HistoryPanel entries={historyEntries} onRestoreEntry={onRestoreEntry} />
