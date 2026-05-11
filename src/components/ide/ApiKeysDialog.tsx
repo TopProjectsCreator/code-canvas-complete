@@ -41,6 +41,7 @@ const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; lab
   higgsfield: { minLength: 12, label: '12+ characters' },
   luma: { minLength: 12, label: '12+ characters' },
   pika: { minLength: 12, label: '12+ characters' },
+  mistral: { minLength: 20, label: '20+ characters' },
 };
 
 function validateKeyFormat(provider: AIProvider, key: string): string | null {
