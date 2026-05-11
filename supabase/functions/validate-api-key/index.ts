@@ -48,6 +48,11 @@ const PROVIDER_TESTS: Record<string, { url: string; method: string; headers: (ke
     method: "GET",
     headers: (key) => ({ Authorization: `Bearer ${key}` }),
   },
+  mistral: {
+    url: "https://api.mistral.ai/v1/models",
+    method: "GET",
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+  },
   github: {
     url: "https://api.github.com/user",
     method: "GET",

@@ -13,6 +13,7 @@ export type AIProvider =
   | 'cohere' 
   | 'openrouter'
   | 'github'
+  | 'mistral'
   | 'meshy'
   | 'sloyd'
   | 'tripo'
@@ -51,6 +52,7 @@ export const PROVIDER_INFO: Record<AIProvider, { label: string; placeholder: str
   cohere: { label: 'Cohere', placeholder: '...', docsUrl: 'https://dashboard.cohere.com/api-keys' },
   openrouter: { label: 'OpenRouter', placeholder: 'sk-or-...', docsUrl: 'https://openrouter.ai/keys' },
   github: { label: 'GitHub', placeholder: 'ghp_... or github_pat_...', docsUrl: 'https://github.com/settings/tokens' },
+  mistral: { label: 'Mistral AI', placeholder: '...', docsUrl: 'https://console.mistral.ai/api-keys' },
   meshy: { label: 'Meshy (Text-to-3D)', placeholder: 'msy_...', docsUrl: 'https://docs.meshy.ai/api-introduction' },
   sloyd: { label: 'Sloyd (Text-to-3D)', placeholder: 'sloyd_...', docsUrl: 'https://www.sloyd.ai/docs' },
   tripo: { label: 'Tripo (Text-to-3D)', placeholder: 'tsk_...', docsUrl: 'https://platform.tripo3d.ai/docs' },
@@ -254,6 +256,16 @@ export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]
     { id: 'AI21-Jamba-1.5-Large', label: 'Jamba 1.5 Large' },
     { id: 'Phi-4', label: 'Phi-4' },
     { id: 'DeepSeek-R1', label: 'DeepSeek R1' },
+  ],
+  mistral: [
+    { id: 'mistral-large-latest', label: 'Mistral Large' },
+    { id: 'pixtral-large-latest', label: 'Pixtral Large' },
+    { id: 'mistral-moderation-latest', label: 'Mistral Moderation' },
+    { id: 'mistral-saba-latest', label: 'Mistral Saba' },
+    { id: 'mistral-small-latest', label: 'Mistral Small' },
+    { id: 'codestral-latest', label: 'Codestral' },
+    { id: 'open-mistral-nemo', label: 'Mistral Nemo' },
+    { id: 'open-codestral-mamba', label: 'Codestral Mamba' },
   ],
   meshy: [
     { id: 'text-to-3d', label: 'Text to 3D' },

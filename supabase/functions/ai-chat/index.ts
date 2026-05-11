@@ -959,6 +959,8 @@ const BYOK_DEFAULT_MODELS: Record<string, string> = {
   cohere: "command-r-plus",
   openrouter: "openai/gpt-4o",
   github: "gpt-4o",
+  mistral: "mistral-large-latest",
+  github: "gpt-4o",
 };
 
 const BYOK_PROVIDERS: Record<string, { url: string; headerKey: string }> = {
@@ -971,6 +973,7 @@ const BYOK_PROVIDERS: Record<string, { url: string; headerKey: string }> = {
   cohere: { url: "https://api.cohere.com/v2/chat", headerKey: "Bearer" },
   openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", headerKey: "Bearer" },
   github: { url: "https://models.inference.ai.azure.com/chat/completions", headerKey: "Bearer" },
+  mistral: { url: "https://api.mistral.ai/v1/chat/completions", headerKey: "Bearer" },
 };
 
 async function executeWebSearch(query: string, apiKey: string): Promise<string> {
