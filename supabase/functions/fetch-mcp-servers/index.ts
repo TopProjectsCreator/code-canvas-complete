@@ -231,8 +231,7 @@ Deno.serve(async (req) => {
           : `https://mcpmarket.com/categories/${mode}`;
       const md = await fetchMarkdown(path);
       const servers = md ? parseServers(md) : [];
-      console.log(`[${mode}] md len=${md?.length || 0} servers=${servers.length}`);
-      return new Response(JSON.stringify({ servers, _debug: { mdLen: md?.length || 0, sample: md?.slice(0, 500) } }), {
+      return new Response(JSON.stringify({ servers }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
