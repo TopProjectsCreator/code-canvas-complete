@@ -49,9 +49,9 @@ describe('parseReplitMetadata', () => {
     expect(parsed.githubRepo).toBe('next.js');
   });
 
-  it('returns exists=true with null fields when no metadata script exists', () => {
+  it('returns exists=false with null fields when no metadata script exists', () => {
     const parsed = parseReplitMetadata('<html><body>No script here</body></html>');
-    expect(parsed.exists).toBe(true);
+    expect(parsed.exists).toBe(false);
     expect(parsed.title).toBeNull();
     expect(parsed.description).toBeNull();
     expect(parsed.githubOwner).toBeNull();

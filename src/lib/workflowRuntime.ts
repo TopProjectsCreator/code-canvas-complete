@@ -653,7 +653,14 @@ const canRunStep = (
       return { ok: false };
     }
 
-    if (dep.status === 'failed' || dep.status === 'blocked' || dep.status === 'canceled') {
+    if (dep.status === 'failed') {
+      if (!dep.def.continueOnError) {
+        return { ok: false, blockedReason: `Dependency ${depId} is ${dep.status}` };
+      }
+      continue;
+    }
+
+    if (dep.status === 'blocked' || dep.status === 'canceled') {
       return { ok: false, blockedReason: `Dependency ${depId} is ${dep.status}` };
     }
 
@@ -951,11 +958,12 @@ export const runWorkflow = async (
               reason,
             });
           } else if (state.def.continueOnError) {
-            markState(state, 'skipped', reason, `continueOnError=true; treating failure as skipped`);
-            emit(options, 'stepSkipped', {
+            markState(state, 'failed', reason, `continueOnError=true; allowing downstream to proceed`);
+            emit(options, 'stepFailed', {
               timestamp: nowIso(),
               stepId: state.def.id,
-              message: `Step ${state.def.id} skipped after failure`,
+              message: `Step ${state.def.id} failed (continueOnError)`,
+              attempt: state.attempts,
               reason,
             });
           } else {
