@@ -1167,10 +1167,10 @@ serve(async (req) => {
     });
 
     const token = authHeader.replace("Bearer ", "");
-    const replitUserId = req.headers.get("x-replit-user-id") || req.headers.get("x-replit-user") || token || null;
-    let userId = replitUserId;
+    const replitUserId = req.headers.get("x-replit-user-id") || req.headers.get("x-replit-user") || null;
+    let userId: string | null = replitUserId;
 
-    if (!token || !replitUserId) {
+    if (!replitUserId) {
       const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
       if (claimsError || !claimsData?.claims) {
         return new Response(JSON.stringify({ error: "Invalid session." }), {
