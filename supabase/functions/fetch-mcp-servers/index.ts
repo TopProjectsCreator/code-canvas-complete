@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
       const md = await fetchMarkdown(path);
       const servers = md ? parseServers(md) : [];
       console.log(`[${mode}] md len=${md?.length || 0} servers=${servers.length}`);
-      return new Response(JSON.stringify({ servers }), {
+      return new Response(JSON.stringify({ servers, _debug: { mdLen: md?.length || 0, sample: md?.slice(0, 500) } }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
