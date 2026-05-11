@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAgentChat } from '@/hooks/useAgentChat';
 import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion } from '@/types/agent';
 import { useApiKeys, PROVIDER_MODELS, PROVIDER_INFO } from '@/hooks/useApiKeys';
-const CHAT_BYOK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github']);
+const CHAT_BYOK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'mistral']);
 
 import { SettingsDialog } from './SettingsDialog';
 import { getDiffLines } from '@/lib/diffUtils';
