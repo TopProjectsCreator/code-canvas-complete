@@ -30,8 +30,9 @@ const slugToLabel = (slug: string) =>
 function parseServers(markdown: string): ParsedServer[] {
   const servers: ParsedServer[] = [];
   const seen = new Set<string>();
+  // Cards may include rank prefix like "#1\\\n\\\n" before the bolded name.
   const re =
-    /\[\*\*([^*]+)\*\*([\s\S]*?)\]\((https:\/\/mcpmarket\.com\/server\/[a-z0-9-]+)\)/g;
+    /\[(?:[^\]]*?)\*\*([^*\n]+)\*\*([\s\S]*?)\]\((https:\/\/mcpmarket\.com\/server\/[a-z0-9-]+)\)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(markdown)) !== null) {
     const name = m[1].trim();
