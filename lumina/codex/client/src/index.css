@@ -1,4 +1,0 @@
-@tailwind base;@tailwind components;@tailwind utilities;
-.btn{@apply px-3 py-2 rounded bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 disabled:opacity-40}
-.card{@apply bg-slate-900 text-slate-100 rounded p-4 border border-slate-800}
-.skel{@apply animate-pulse bg-slate-700 rounded}
