@@ -6,6 +6,11 @@ const effectiveDate = "April 22, 2026";
 export default function PrivacyPolicyPage() {
   return (
     <main className="min-h-screen bg-background px-6 py-12 text-foreground">
+      <Seo
+        title="Privacy Policy | Code Canvas"
+        description="How Code Canvas collects, uses, and protects your data."
+        path="/privacy-policy"
+      />
       <div className="mx-auto max-w-4xl space-y-8 rounded-2xl border border-border bg-card/40 p-8">
         <header className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
