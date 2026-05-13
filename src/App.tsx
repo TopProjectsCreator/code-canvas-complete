@@ -13,6 +13,8 @@ import ProfilePage from "./pages/Profile";
 import PrivacyPolicyPage from "./pages/PrivacyPolicy";
 import TermsOfUsePage from "./pages/TermsOfUse";
 import Compare from "./pages/Compare";
+import FTCPage from "./pages/FTC";
+import ArduinoPage from "./pages/Arduino";
 import { LivingGrid } from "./pages/landings/LivingGrid";
 import { TerminalBoot } from "./pages/landings/TerminalBoot";
 import { TheVoid } from "./pages/landings/TheVoid";
