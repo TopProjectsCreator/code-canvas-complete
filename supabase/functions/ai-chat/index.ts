@@ -1002,6 +1002,33 @@ async function executeWebSearch(query: string, apiKey: string): Promise<string> 
   }
 }
 
+function buildMcpUrlCandidates(rawUrl: string): string[] {
+  const candidates: string[] = [];
+  const add = (value: string) => {
+    if (value && !candidates.includes(value)) candidates.push(value);
+  };
+
+  try {
+    const parsed = new URL(rawUrl);
+    add(parsed.toString());
+
+    const path = parsed.pathname.replace(/\/+$/, "");
+    if (path.endsWith("/sse") || path === "/sse") {
+      parsed.pathname = path.replace(/\/sse$/, "/mcp");
+      add(parsed.toString());
+    }
+
+    if (path === "" || path === "/") {
+      parsed.pathname = "/mcp";
+      add(parsed.toString());
+    }
+  } catch {
+    add(rawUrl);
+  }
+
+  return candidates;
+}
+
 async function executeMCPCall(serverName: string, method: string, params: any, mcpServers: any[]): Promise<string> {
   const server = mcpServers.find((s: any) => s.name.toLowerCase() === serverName.toLowerCase());
   if (!server) {
@@ -1026,18 +1053,32 @@ async function executeMCPCall(serverName: string, method: string, params: any, m
       params: params || {},
     };
 
-    console.log(`MCP call to ${server.name} (${server.url}): ${method}`);
+    const urls = buildMcpUrlCandidates(server.url);
+    let resp: Response | null = null;
+    let lastErrorText = "";
 
-    const resp = await fetch(server.url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
+    for (const url of urls) {
+      console.log(`MCP call to ${server.name} (${url}): ${method}`);
+      resp = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      if (resp.ok) break;
+
+      lastErrorText = await resp.text();
+      const shouldRetry = [404, 405, 410].includes(resp.status) && url !== urls[urls.length - 1];
+      console.error(`MCP server error (${resp.status}) at ${url}:`, lastErrorText.slice(0, 500));
+      if (!shouldRetry) break;
+    }
+
+    if (!resp) {
+      return JSON.stringify({ error: "MCP server request was not sent" });
+    }
 
     if (!resp.ok) {
-      const errText = await resp.text();
-      console.error(`MCP server error (${resp.status}):`, errText.slice(0, 500));
-      return JSON.stringify({ error: `MCP server returned ${resp.status}: ${errText.slice(0, 300)}` });
+      return JSON.stringify({ error: `MCP server returned ${resp.status}: ${lastErrorText.slice(0, 300)}` });
     }
 
     const contentType = resp.headers.get("content-type") || "";
