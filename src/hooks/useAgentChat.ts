@@ -1304,7 +1304,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
   const clearMessages = useCallback(() => {
     setMessages([{ id: '1', role: 'assistant', content: "👋 Conversation cleared! How can I help you?" }]);
-  }, []);
+    try { localStorage.removeItem(chatStorageKey(currentProjectId)); } catch { /* ignore */ }
+  }, [currentProjectId]);
 
   const answerQuestion = useCallback((messageId: string, questionId: string, answer: string | string[] | number | boolean) => {
     setMessages(prev => prev.map(m => {
