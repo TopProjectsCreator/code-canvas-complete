@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 import {
   ArrowRight,
   Check,
@@ -993,6 +994,11 @@ export default function Compare() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
+      <Seo
+        title="Compare Code Canvas vs Other IDEs | Code Canvas"
+        description="Side-by-side comparison of Code Canvas against other AI coding platforms — features, pricing, and capabilities."
+        path="/compare"
+      />
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div

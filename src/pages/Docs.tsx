@@ -3,6 +3,7 @@ import { ArrowLeft, BookOpen, ExternalLink, Search } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
+import { Seo } from "@/components/Seo";
 import remarkGfm from "remark-gfm";
 
 /* ------------------------------------------------------------------ */
@@ -224,6 +225,11 @@ export default function Docs() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <Seo
+        title="Documentation | Code Canvas"
+        description="Browse Code Canvas documentation — IDE workflows, AI assistant, hardware integrations, Office editors, automations, deployment, and developer reference."
+        path="/docs"
+      />
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
         {/* Header */}
         <header className="mb-6 rounded-2xl border border-border bg-card p-6">

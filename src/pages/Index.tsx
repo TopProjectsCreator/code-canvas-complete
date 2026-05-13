@@ -4,6 +4,7 @@ import { IDELayout } from '@/components/ide';
 import { ThemeImportDialog } from '@/components/ide/ThemeImportDialog';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getPublishSlugFromHost } from '@/lib/publishing';
+import { Seo } from '@/components/Seo';
 
 const Index = () => {
   const { projectId } = useParams<{ projectId?: string }>();
@@ -24,6 +25,11 @@ const Index = () => {
 
   return (
     <>
+      <Seo
+        title="Editor | Code Canvas"
+        description="Open the Code Canvas IDE — code editor, file tree, terminal, live preview, AI assistant, and integrated robotics, Office, and Scratch editors."
+        path="/editor"
+      />
       <IDELayout projectId={projectId} publishSlug={publishSlug} />
       <ThemeImportDialog
         open={!!themeImportData}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowRight,
@@ -187,6 +188,11 @@ export default function Landing() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
+      <Seo
+        title="Code Canvas — Collaborative AI IDE and Workspace"
+        description="Open-source, browser-based AI IDE with code editor, terminal, live preview, robotics flashing, Office editors, and an agentic assistant."
+        path="/"
+      />
       <div className="pointer-events-none fixed inset-0 z-0">
         <div
           className="absolute inset-0 opacity-[0.05] motion-safe:animate-grid-drift"
