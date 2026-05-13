@@ -80,6 +80,10 @@ const App = () => (
               <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
               <Route path="/terms-of-use" element={<TermsOfUsePage />} />
               <Route path="/compare" element={<Compare />} />
+              <Route path="/FTC" element={<FTCPage />} />
+              <Route path="/ftc" element={<FTCPage />} />
+              <Route path="/ardurino" element={<ArduinoPage />} />
+              <Route path="/arduino" element={<ArduinoPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
