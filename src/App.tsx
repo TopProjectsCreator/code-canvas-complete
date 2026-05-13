@@ -13,6 +13,8 @@ import ProfilePage from "./pages/Profile";
 import PrivacyPolicyPage from "./pages/PrivacyPolicy";
 import TermsOfUsePage from "./pages/TermsOfUse";
 import Compare from "./pages/Compare";
+import FTCPage from "./pages/FTC";
+import ArduinoPage from "./pages/Arduino";
 import { LivingGrid } from "./pages/landings/LivingGrid";
 import { TerminalBoot } from "./pages/landings/TerminalBoot";
 import { TheVoid } from "./pages/landings/TheVoid";
@@ -78,6 +80,10 @@ const App = () => (
               <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
               <Route path="/terms-of-use" element={<TermsOfUsePage />} />
               <Route path="/compare" element={<Compare />} />
+              <Route path="/FTC" element={<FTCPage />} />
+              <Route path="/ftc" element={<FTCPage />} />
+              <Route path="/ardurino" element={<ArduinoPage />} />
+              <Route path="/arduino" element={<ArduinoPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
