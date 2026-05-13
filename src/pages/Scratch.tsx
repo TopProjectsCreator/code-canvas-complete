@@ -1,8 +1,14 @@
 import { Link } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 
 export default function ScratchPage() {
   return (
     <main className="min-h-screen bg-background px-6 py-12 text-foreground">
+      <Seo
+        title="Scratch-style Block Editor | Code Canvas"
+        description="A custom block-based programming editor with sprite stage runtime, native browser bridging, and full .sb3 import/export."
+        path="/scratch"
+      />
       <div className="mx-auto max-w-4xl space-y-8 rounded-2xl border border-border bg-card/40 p-8">
         <header className="space-y-3">
           <p className="text-xs uppercase tracking-widest text-primary">Visual Programming</p>

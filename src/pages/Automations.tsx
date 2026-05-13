@@ -1,8 +1,14 @@
 import { Link } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 
 export default function AutomationsPage() {
   return (
     <main className="min-h-screen bg-background px-6 py-12 text-foreground">
+      <Seo
+        title="Workflow Automations & Integrations | Code Canvas"
+        description="Build trigger-first automations with 70+ blocks — webhooks, schedules, AI steps, HTTP calls, and integrations, all on the same runtime that powers agentic mode."
+        path="/automations"
+      />
       <div className="mx-auto max-w-4xl space-y-8 rounded-2xl border border-border bg-card/40 p-8">
         <header className="space-y-3">
           <p className="text-xs uppercase tracking-widest text-primary">Workflows &amp; Integrations</p>

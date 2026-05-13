@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 
 const effectiveDate = "April 22, 2026";
 

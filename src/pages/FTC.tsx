@@ -1,8 +1,14 @@
 import { Link } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 
 export default function FTCPage() {
   return (
     <main className="min-h-screen bg-background px-6 py-12 text-foreground">
+      <Seo
+        title="FTC SDK in the Browser | Code Canvas"
+        description="Build, deploy, and debug FIRST Tech Challenge robots from the browser — FTC SDK clone, Hardware config editor, cloud Gradle build, and ADB-over-WebUSB flashing to the REV Control Hub."
+        path="/FTC"
+      />
       <div className="mx-auto max-w-4xl space-y-8 rounded-2xl border border-border bg-card/40 p-8">
         <header className="space-y-3">
           <p className="text-xs uppercase tracking-widest text-primary">FIRST Tech Challenge</p>
