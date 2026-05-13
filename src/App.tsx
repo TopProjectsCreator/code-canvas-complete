@@ -87,6 +87,9 @@ const App = () => (
               <Route path="/ftc" element={<FTCPage />} />
               <Route path="/ardurino" element={<ArduinoPage />} />
               <Route path="/arduino" element={<ArduinoPage />} />
+              <Route path="/office" element={<OfficePage />} />
+              <Route path="/automations" element={<AutomationsPage />} />
+              <Route path="/scratch" element={<ScratchPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
