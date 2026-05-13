@@ -1,8 +1,14 @@
 import { Link } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 
 export default function ArduinoPage() {
   return (
     <main className="min-h-screen bg-background px-6 py-12 text-foreground">
+      <Seo
+        title="Arduino & ESP in the Browser | Code Canvas"
+        description="Code, simulate, compile, and flash Arduino, ESP32, ESP8266, SAMD, STM32, and RP2040 boards directly from the browser — no Arduino IDE install required."
+        path="/arduino"
+      />
       <div className="mx-auto max-w-4xl space-y-8 rounded-2xl border border-border bg-card/40 p-8">
         <header className="space-y-3">
           <p className="text-xs uppercase tracking-widest text-primary">Arduino &amp; ESP</p>

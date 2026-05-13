@@ -1,8 +1,14 @@
 import { Link } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 
 export default function OfficePage() {
   return (
     <main className="min-h-screen bg-background px-6 py-12 text-foreground">
+      <Seo
+        title="Word, Excel & PowerPoint Editing | Code Canvas"
+        description="Edit .docx, .xlsx, and .pptx files in the browser with full OOXML round-trip — formulas, styles, and embedded media preserved."
+        path="/office"
+      />
       <div className="mx-auto max-w-4xl space-y-8 rounded-2xl border border-border bg-card/40 p-8">
         <header className="space-y-3">
           <p className="text-xs uppercase tracking-widest text-primary">Office Suite</p>
