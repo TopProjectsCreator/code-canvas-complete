@@ -15,6 +15,9 @@ import TermsOfUsePage from "./pages/TermsOfUse";
 import Compare from "./pages/Compare";
 import FTCPage from "./pages/FTC";
 import ArduinoPage from "./pages/Arduino";
+import OfficePage from "./pages/Office";
+import AutomationsPage from "./pages/Automations";
+import ScratchPage from "./pages/Scratch";
 import { LivingGrid } from "./pages/landings/LivingGrid";
 import { TerminalBoot } from "./pages/landings/TerminalBoot";
 import { TheVoid } from "./pages/landings/TheVoid";
@@ -84,6 +87,9 @@ const App = () => (
               <Route path="/ftc" element={<FTCPage />} />
               <Route path="/ardurino" element={<ArduinoPage />} />
               <Route path="/arduino" element={<ArduinoPage />} />
+              <Route path="/office" element={<OfficePage />} />
+              <Route path="/automations" element={<AutomationsPage />} />
+              <Route path="/scratch" element={<ScratchPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
