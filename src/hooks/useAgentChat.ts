@@ -74,16 +74,53 @@ interface UseAgentChatProps {
   onAppendToFile?: (name: string, content: string) => void;
   workflows?: Workflow[];
   autonomyConfig?: AutonomyConfig;
+  currentProjectId?: string | null;
 }
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, workflows = [], autonomyConfig }: UseAgentChatProps = {}) => {
-  const [messages, setMessages] = useState<AgentMessage[]>([
-    {
-      id: '1',
-      role: 'assistant',
-      content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🖼️ **Generate images**\n- 🎬 **Create videos**\n- 📽️ **Make PPTX presentations**\n- 🎨 **Open widgets** like a live stock ticker or a calculator or even a CSS picker!\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
-    },
-  ]);
+const WELCOME_MESSAGE: AgentMessage = {
+  id: '1',
+  role: 'assistant',
+  content: "👋 Hi! I'm **Canvas Agent** - your AI coding partner.\n\nI can:\n- 🔍 **Analyze** your code and find issues\n- 🛠️ **Fix bugs** and apply changes directly\n- ⚡ **Refactor** for better performance\n- 🧪 **Generate tests** for your functions\n- 📝 **Explain** complex code\n- 🖼️ **Generate images**\n- 🎬 **Create videos**\n- 📽️ **Make PPTX presentations**\n- 🎨 **Open widgets** like a live stock ticker or a calculator or even a CSS picker!\n- 🌐 **Search the web** for information\n\nI'll show you my thinking process and let you approve changes before I apply them!",
+};
+
+const chatStorageKey = (projectId?: string | null) => `canvas-agent-chat:${projectId || 'default'}`;
+
+const loadPersistedMessages = (projectId?: string | null): AgentMessage[] => {
+  if (typeof window === 'undefined') return [WELCOME_MESSAGE];
+  try {
+    const raw = localStorage.getItem(chatStorageKey(projectId));
+    if (!raw) return [WELCOME_MESSAGE];
+    const parsed = JSON.parse(raw) as AgentMessage[];
+    if (!Array.isArray(parsed) || parsed.length === 0) return [WELCOME_MESSAGE];
+    // Strip transient flags
+    return parsed.map(m => ({ ...m, isStreaming: false }));
+  } catch {
+    return [WELCOME_MESSAGE];
+  }
+};
+
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, workflows = [], autonomyConfig, currentProjectId }: UseAgentChatProps = {}) => {
+  const [messages, setMessages] = useState<AgentMessage[]>(() => loadPersistedMessages(currentProjectId));
+
+  // Reload messages when project changes
+  const lastProjectIdRef = useRef<string | null | undefined>(currentProjectId);
+  useEffect(() => {
+    if (lastProjectIdRef.current !== currentProjectId) {
+      lastProjectIdRef.current = currentProjectId;
+      setMessages(loadPersistedMessages(currentProjectId));
+    }
+  }, [currentProjectId]);
+
+  // Persist messages whenever they change (skip while streaming to avoid spam)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (messages.some(m => m.isStreaming)) return;
+    try {
+      localStorage.setItem(chatStorageKey(currentProjectId), JSON.stringify(messages));
+    } catch {
+      // ignore quota errors
+    }
+  }, [messages, currentProjectId]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<AIModel>('flash');
@@ -1267,7 +1304,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
   const clearMessages = useCallback(() => {
     setMessages([{ id: '1', role: 'assistant', content: "👋 Conversation cleared! How can I help you?" }]);
-  }, []);
+    try { localStorage.removeItem(chatStorageKey(currentProjectId)); } catch { /* ignore */ }
+  }, [currentProjectId]);
 
   const answerQuestion = useCallback((messageId: string, questionId: string, answer: string | string[] | number | boolean) => {
     setMessages(prev => prev.map(m => {

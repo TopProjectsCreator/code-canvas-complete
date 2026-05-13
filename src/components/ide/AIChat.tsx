@@ -771,6 +771,7 @@ export const AIChat = ({
     onAppendToFile,
     workflows,
     autonomyConfig,
+    currentProjectId,
   });
 
   const { apiKeys, fetchApiKeys: refetchApiKeys } = useApiKeys();
