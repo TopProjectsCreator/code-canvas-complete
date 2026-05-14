@@ -195,6 +195,7 @@ export interface AutomationRunRecord {
 
 const RUN_HISTORY_KEY = 'automation.runHistory.v1';
 const MAX_RUN_HISTORY = 25;
+const TEST_RUN_TIMEOUT_MS = 45_000;
 
 const loadRunHistory = (): AutomationRunRecord[] => {
   if (typeof window === 'undefined') return [];
@@ -965,6 +966,10 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   const handleTestRun = useCallback(async () => {
     if (blocks.length === 0) { toast.error('Add at least one block to test.'); return; }
     if (invalidTriggerStart) { toast.error('The first block must be a trigger block.'); return; }
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      toast.error('You appear to be offline. Reconnect to run sandbox tests.');
+      return;
+    }
     setIsTestRunning(true);
     setTestRunLogs([]);
     setStepArtifacts((prev) => prev.filter((a) => a.source === 'upload')); // keep uploads, drop previous inline artifacts
@@ -1000,9 +1005,18 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     push('dot', 'Executing pipeline in sandbox…');
     let result;
     try {
-      result = await executeCode(testHarness + code, 'javascript');
+      result = await Promise.race([
+        executeCode(testHarness + code, 'javascript'),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error(`Test run timed out after ${Math.round(TEST_RUN_TIMEOUT_MS / 1000)} seconds.`)), TEST_RUN_TIMEOUT_MS);
+        }),
+      ]);
     } catch (err) {
-      push('error', `Executor failed: ${err instanceof Error ? err.message : String(err)}`);
+      const message = err instanceof Error ? err.message : String(err);
+      push('error', `Executor failed: ${message}`);
+      if (/timed out/i.test(message)) {
+        push('dot', 'Try reducing long-running steps or add early exit conditions in your workflow.');
+      }
       setIsTestRunning(false);
       return;
     }
