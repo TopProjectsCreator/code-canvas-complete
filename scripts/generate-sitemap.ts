@@ -16,6 +16,13 @@ const today = new Date().toISOString().split("T")[0];
 
 const entries: SitemapEntry[] = [
   { path: "/", lastmod: today, changefreq: "weekly", priority: "1.0" },
+  { path: "/landing", lastmod: today, changefreq: "weekly", priority: "0.8" },
+  { path: "/landing/living-grid", lastmod: today, changefreq: "monthly", priority: "0.4" },
+  { path: "/landing/terminal-boot", lastmod: today, changefreq: "monthly", priority: "0.4" },
+  { path: "/landing/the-void", lastmod: today, changefreq: "monthly", priority: "0.4" },
+  { path: "/landing/monochrome", lastmod: today, changefreq: "monthly", priority: "0.4" },
+  { path: "/landing/warm-momentum", lastmod: today, changefreq: "monthly", priority: "0.4" },
+  { path: "/landing/terminal-verdict", lastmod: today, changefreq: "monthly", priority: "0.4" },
   { path: "/editor", lastmod: today, changefreq: "weekly", priority: "0.9" },
   { path: "/docs", lastmod: today, changefreq: "weekly", priority: "0.8" },
   { path: "/compare", lastmod: today, changefreq: "monthly", priority: "0.6" },
