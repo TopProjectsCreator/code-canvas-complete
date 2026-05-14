@@ -7,6 +7,48 @@
     <priority>1.0</priority>
   </url>
   <url>
+    <loc>https://replitclone.lovable.app/landing</loc>
+    <lastmod>2026-05-14</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://replitclone.lovable.app/landing/living-grid</loc>
+    <lastmod>2026-05-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://replitclone.lovable.app/landing/terminal-boot</loc>
+    <lastmod>2026-05-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://replitclone.lovable.app/landing/the-void</loc>
+    <lastmod>2026-05-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://replitclone.lovable.app/landing/monochrome</loc>
+    <lastmod>2026-05-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://replitclone.lovable.app/landing/warm-momentum</loc>
+    <lastmod>2026-05-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://replitclone.lovable.app/landing/terminal-verdict</loc>
+    <lastmod>2026-05-14</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
     <loc>https://replitclone.lovable.app/editor</loc>
     <lastmod>2026-05-14</lastmod>
     <changefreq>weekly</changefreq>
