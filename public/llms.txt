@@ -1,0 +1,22 @@
+# Code Canvas
+
+> Open-source, browser-based AI IDE with code editor, terminal, live preview, robotics flashing, Office editors, automations, and an agentic assistant.
+
+Code Canvas is a collaborative coding workspace that runs entirely in the browser. It pairs a full IDE (multi-file editing, terminal, live preview, Git, extensions) with specialized editors for Arduino, FTC robotics, Scratch-style blocks, and Office documents (Word, Excel, PowerPoint). An AI assistant operates as a teammate across the project, and a workflow engine ("Automations") wires actions and integrations together.
+
+## Pages
+
+- [Home](/): Product overview, live stats, and entry points to the IDE.
+- [Editor](/editor): The full Code Canvas IDE — file tree, editor, terminal, preview, AI assistant.
+- [Documentation](/docs): Guides covering the IDE, AI assistant, automations, hardware flashing, and more.
+- [Compare](/compare): How Code Canvas compares to Replit, CodeSandbox, StackBlitz, and other web IDEs.
+- [FTC](/FTC): FTC robotics SDK in the browser — Hardware Map editor, ADB-over-WebUSB flashing.
+- [Arduino](/arduino): Arduino & ESP support — breadboard visualizer, Web Serial flashing (STK500/AVR109/DFU/ESPTool).
+- [Office](/office): In-browser Word, Excel, and PowerPoint editing with auto-save.
+- [Automations](/automations): Trigger-first workflow builder with 70+ blocks and integrations.
+- [Scratch](/scratch): Custom Scratch-style block editor with full .sb3 import/export.
+
+## Optional
+
+- [Privacy Policy](/privacy-policy): How user data is handled.
+- [Terms of Use](/terms-of-use): Terms governing use of the platform.
