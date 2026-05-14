@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FileNode } from '@/types/ide';
-import { Image, FileText, Code2, AlertCircle, Video, Music, Table } from 'lucide-react';
+import { Image, FileText, Code2, Video, Music, Table, Database } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMemo } from 'react';
@@ -8,8 +8,14 @@ import { MediaGenerationPanel } from './MediaGenerationPanel';
 
 interface FilePreviewProps {
   file: FileNode;
-  previewType: 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv';
+  previewType: 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'sqlite';
   onContentChange: (fileId: string, content: string) => void;
+}
+
+interface SqliteTableData {
+  name: string;
+  columns: string[];
+  rows: string[][];
 }
 
 // Parse CSV content into rows and columns
@@ -102,11 +108,72 @@ const ImagePreview = ({ file, content, onContentChange }: { file: FileNode; cont
 
 export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewProps) => {
   const content = file.content || '';
+  const [sqliteTables, setSqliteTables] = useState<SqliteTableData[]>([]);
+  const [sqliteError, setSqliteError] = useState<string | null>(null);
+  const [sqliteLoading, setSqliteLoading] = useState(false);
 
   // Parse CSV data
   const csvData = useMemo(() => {
     if (previewType !== 'csv') return [];
     return parseCSV(content);
+  }, [content, previewType]);
+
+  useEffect(() => {
+    const loadSqlite = async () => {
+      if (previewType !== 'sqlite') return;
+      if (!content.trim()) {
+        setSqliteTables([]);
+        setSqliteError('No database data available.');
+        return;
+      }
+
+      setSqliteLoading(true);
+      setSqliteError(null);
+      try {
+        const SQL = await import('sql.js');
+        const initSqlJs = SQL.default;
+        const wasmUrl = new URL('sql.js/dist/sql-wasm.wasm', import.meta.url).toString();
+        const sqlite = await initSqlJs({ locateFile: () => wasmUrl });
+
+        let bytes: Uint8Array;
+        if (content.startsWith('data:')) {
+          const b64 = content.includes(',') ? content.split(',')[1] : content;
+          const bin = atob(b64);
+          bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        } else {
+          const bin = atob(content);
+          bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        }
+
+        const db = new sqlite.Database(bytes);
+        const tableResults = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+        const tableNames = (tableResults[0]?.values || []).map((r) => String(r[0]));
+        const collected: SqliteTableData[] = [];
+
+        for (const tableName of tableNames) {
+          const safeTable = tableName.replace(/"/g, '""');
+          const rowsResult = db.exec(`SELECT * FROM "${safeTable}" LIMIT 100`);
+          const first = rowsResult[0];
+          collected.push({
+            name: tableName,
+            columns: first?.columns || [],
+            rows: (first?.values || []).map((row) => row.map((v) => (v == null ? '' : String(v)))),
+          });
+        }
+
+        db.close();
+        setSqliteTables(collected);
+      } catch (err) {
+        setSqliteTables([]);
+        setSqliteError(err instanceof Error ? err.message : 'Unable to open SQLite database.');
+      } finally {
+        setSqliteLoading(false);
+      }
+    };
+
+    void loadSqlite();
   }, [content, previewType]);
 
   if (previewType === 'image') {
@@ -271,6 +338,56 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
             <span>{file.name}</span>
           </div>
           <span>CSV Preview</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (previewType === 'sqlite') {
+    return (
+      <div className="flex-1 flex flex-col bg-editor overflow-hidden">
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-3">
+            <div className="flex items-center gap-2 text-foreground font-medium">
+              <Database className="w-4 h-4" />
+              SQLite Viewer: {file.name}
+            </div>
+            {sqliteLoading && <p className="text-sm text-muted-foreground">Loading database…</p>}
+            {sqliteError && !sqliteLoading && <p className="text-sm text-destructive">{sqliteError}</p>}
+            {!sqliteLoading && !sqliteError && sqliteTables.length === 0 && (
+              <p className="text-sm text-muted-foreground">No user tables found in this database.</p>
+            )}
+            {!sqliteLoading && !sqliteError && sqliteTables.map((table) => (
+              <div key={table.name} className="rounded-lg border border-border overflow-hidden">
+                <div className="px-3 py-2 bg-muted/40 text-sm font-semibold">{table.name} ({table.rows.length} rows shown)</div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-muted/20">
+                      {table.columns.map((col) => (
+                        <th key={col} className="px-3 py-2 text-left border-b border-border">{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {table.rows.map((row, idx) => (
+                      <tr key={idx} className="hover:bg-muted/20">
+                        {table.columns.map((_, i) => (
+                          <td key={i} className="px-3 py-2 border-b border-border/50 text-muted-foreground">{row[i] || ''}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+        <div className="flex items-center justify-between px-4 py-2 bg-background border-t border-border text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Database className="w-4 h-4" />
+            <span>{file.name}</span>
+          </div>
+          <span>SQLite Preview</span>
         </div>
       </div>
     );
