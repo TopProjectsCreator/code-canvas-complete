@@ -38,6 +38,7 @@ interface SlideElement {
 interface SlideData {
   elements: SlideElement[];
   transition?: 'none' | 'fade' | 'push';
+  speakerNotes?: string;
 }
 
 interface PowerPointEditorProps {
@@ -251,11 +252,12 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               { id: newId(), type: 'text', x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400, color: '#1A1A1A' },
             );
           }
-          parsed.push({ elements, transition: 'none' });
+          parsed.push({ elements, transition: 'none', speakerNotes: '' });
         }
         if (parsed.length === 0) {
           parsed.push({
             transition: 'none',
+            speakerNotes: '',
             elements: [
               { id: newId(), type: 'text', x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700, color: '#1A1A1A' },
               { id: newId(), type: 'text', x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400, color: '#1A1A1A' },
@@ -334,6 +336,9 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             type: transition,
             duration: 1,
           };
+        }
+        if (slideData.speakerNotes?.trim()) {
+          (slide as unknown as { addNotes?: (notes: string) => void }).addNotes?.(slideData.speakerNotes.trim());
         }
 
         slideData.elements.forEach((el) => {
@@ -478,6 +483,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     commitSlides(prev => {
       const next = [...prev, {
         transition: 'none' as const,
+        speakerNotes: '',
         elements: [
           { id: newId(), type: 'text' as const, x: 30, y: 30, width: 660, height: 60, content: 'Click to add title', fontSize: 28, fontWeight: 700, color: '#1A1A1A' },
           { id: newId(), type: 'text' as const, x: 30, y: 120, width: 660, height: 50, content: 'Click to add subtitle', fontSize: 16, fontWeight: 400, color: '#1A1A1A' },
@@ -503,7 +509,11 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const duplicateSlide = (idx: number) => {
     commitSlides(prev => {
       const next = [...prev];
-      const cloned: SlideData = { elements: prev[idx].elements.map(el => ({ ...el, id: newId() })) };
+      const cloned: SlideData = {
+        transition: prev[idx].transition || 'none',
+        speakerNotes: prev[idx].speakerNotes || '',
+        elements: prev[idx].elements.map(el => ({ ...el, id: newId() }))
+      };
       next.splice(idx + 1, 0, cloned);
       return next;
     });
@@ -700,6 +710,10 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const setActiveSlideTransition = (value: 'none' | 'fade' | 'push') => {
     setTransitionType(value);
     commitSlides(prev => prev.map((slide, idx) => idx === activeSlide ? { ...slide, transition: value } : slide));
+  };
+
+  const setActiveSlideSpeakerNotes = (value: string) => {
+    commitSlides(prev => prev.map((slide, idx) => idx === activeSlide ? { ...slide, speakerNotes: value } : slide));
   };
 
   const exportPresentation = async () => {
@@ -940,6 +954,15 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 ))}
               </div>
             </ScrollArea>
+            <div className="border-t border-border p-2 space-y-1.5">
+              <p className="text-[11px] font-medium text-muted-foreground">Speaker notes</p>
+              <textarea
+                value={currentSlide?.speakerNotes || ''}
+                onChange={(e) => setActiveSlideSpeakerNotes(e.target.value)}
+                placeholder="Add notes for this slide..."
+                className="h-24 w-full resize-none rounded border border-border bg-background px-2 py-1 text-xs"
+              />
+            </div>
           </div>
 
           {/* Slide canvas */}
