@@ -23,6 +23,8 @@ Ready to build? Get productive in minutes:
 Code Canvas combines the best of cloud IDEs, AI generators, and specialized engineering tools into a single workspace.
 <details>
 <summary><b>View Chart</b></summary>
+
+    
 | Feature | Code Canvas | Replit | Lovable | Bolt.new | Bolt | Cursor | v0 | Codeium Superposition | Windsurf | Zed | CodeSandbox | Gitpod | Firebase | Trae |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | **Development Environment** |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
@@ -73,6 +75,9 @@ Code Canvas combines the best of cloud IDEs, AI generators, and specialized engi
 | Low-end device support | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ | ⚠️ | ❌ | ❌ | ⚠️ | ✅ | ⚠️ | ❌ |
 
 *Legend: ✅ Supported | ⚠️ Partial/Limited | ❌ Not Available*
+
+
+
 </details>
 
 Code Canvas provides a professional development environment entirely in your browser, powered by the WebContainers API and Supabase for backend services.
