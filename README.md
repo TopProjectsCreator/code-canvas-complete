@@ -22,7 +22,7 @@ Ready to build? Get productive in minutes:
 
 Code Canvas combines the best of cloud IDEs, AI generators, and specialized engineering tools into a single workspace.
 
-| Feature | CC | Rep | Lov | B44 | Bolt | Cur | v0 | CSP | Win | Zed | CSB | Gpd | Fbs | Tra |
+|Feature|Code Canvas|Replit|Lovable|Bolt.new|Bolt|Cursor|v0|Codeium|Superposition|Windsurf|Zed|CodeSandbox|Gitpod|Firebase|Trae|
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Development Environment** | | | | | | | | | | | | | | |
 | Full browser IDE | ✅ | ✅ | ⚠️ | ❌ | ⚠️ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
