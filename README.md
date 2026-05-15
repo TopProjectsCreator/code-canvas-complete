@@ -22,56 +22,56 @@ Ready to build? Get productive in minutes:
 
 Code Canvas combines the best of cloud IDEs, AI generators, and specialized engineering tools into a single workspace.
 
-Feature,Code Canvas,Replit,Lovable,Bolt.new,Bolt,Cursor,v0,Codeium Superposition,Windsurf,Zed,CodeSandbox,Gitpod,Firebase,Trae
-Development Environment,,,,,,,,,,,,,,
-Full browser IDE,✅,✅,⚠️,❌,⚠️,❌,❌,✅,❌,❌,✅,✅,✅,❌
-Local install available,❌,❌,❌,❌,❌,✅,❌,✅,✅,✅,❌,❌,❌,✅
-Multi-file editing,✅,✅,✅,❌,✅,✅,❌,✅,✅,✅,✅,✅,✅,✅
-Syntax highlighting,✅,✅,⚠️,❌,✅,✅,❌,✅,✅,✅,✅,✅,✅,✅
-Find & replace project,✅,✅,❌,❌,❌,✅,❌,✅,✅,✅,✅,✅,✅,✅
-Visual canvas / whiteboard,✅,⚠️,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌
-Terminal & Runtime,,,,,,,,,,,,,,
-Full PTY terminal,✅,✅,❌,❌,⚠️,✅,❌,✅,✅,✅,✅,✅,✅,✅
-Run code in browser,✅,✅,✅,✅,✅,❌,❌,✅,❌,❌,✅,✅,✅,❌
-Live app preview,✅,✅,✅,✅,✅,❌,⚠️,✅,❌,❌,✅,✅,✅,❌
-Package installation,✅,✅,⚠️,❌,✅,✅,❌,✅,✅,✅,✅,✅,✅,✅
-AI Capabilities,,,,,,,,,,,,,,
-Multi-provider AI,✅,⚠️,❌,❌,❌,⚠️,❌,⚠️,❌,⚠️,❌,❌,❌,⚠️
-AI chat with context,✅,✅,✅,✅,✅,✅,❌,✅,✅,✅,✅,❌,✅,✅
-AI image generation,✅,⚠️,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,⚠️,❌
-AI video generation,✅,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌,❌
-Bring your own API key,✅,❌,❌,❌,❌,✅,❌,✅,✅,✅,❌,❌,❌,✅
-Inline autocomplete,⚠️,✅,❌,❌,❌,✅,❌,✅,✅,✅,⚠️,⚠️,✅,✅
-Collaboration,,,,,,,,,,,,,,
-Real-time multiplayer,✅,✅,❌,❌,❌,❌,❌,❌,❌,✅,✅,❌,❌,❌
-Public sharing / forking,✅,✅,⚠️,❌,❌,❌,⚠️,❌,❌,❌,✅,✅,❌,❌
-Live chat & video rooms,✅,❌,❌,❌,❌,❌,❌,❌,❌,⚠️,❌,❌,❌,❌
-Deployment & Hosting,,,,,,,,,,,,,,
-One-click publish,✅,✅,✅,✅,✅,❌,✅,❌,❌,❌,✅,❌,✅,❌
-Custom domain support,✅,✅,✅,✅,⚠️,❌,✅,❌,❌,❌,✅,❌,✅,❌
-Static site hosting,✅,✅,✅,✅,✅,❌,✅,❌,❌,❌,✅,❌,✅,❌
-Edge functions / Serverless,❌,✅,✅,✅,❌,❌,✅,❌,❌,❌,❌,❌,✅,❌
-Deployment Types (Cloud Production),,,,,,,,,,,,,,
-Autoscale infrastructure,❌,✅,✅,✅,❌,❌,✅,❌,❌,❌,⚠️,❌,✅,❌
-Live Container Server / Dedicated VM,❌,✅,❌,❌,❌,❌,❌,❌,❌,❌,✅,✅,❌,❌
-Scheduled Deployments (Cron),❌,✅,❌,❌,❌,❌,❌,❌,❌,❌,❌,⚠️,✅,❌
-Backend & Data Integration,,,,,,,,,,,,,,
-Built-in / Managed Database,❌,✅,✅,✅,❌,❌,❌,❌,❌,❌,❌,❌,✅,❌
-Managed Auth System,❌,✅,✅,✅,❌,❌,❌,❌,❌,❌,❌,❌,✅,❌
-File / Blob Storage Orchestration,❌,✅,✅,✅,❌,❌,❌,❌,❌,❌,❌,❌,✅,❌
-Security & Privacy,,,,,,,,,,,,,,
-Open source,✅,❌,❌,❌,⚠️,❌,❌,❌,❌,✅,❌,⚠️,❌,❌
-Self-hostable,✅,❌,❌,❌,❌,❌,❌,❌,❌,✅,⚠️,✅,❌,❌
-Offline / PWA mode,✅,❌,❌,❌,❌,✅,❌,❌,✅,✅,❌,❌,❌,✅
-Passkey / WebAuthn,✅,❌,❌,❌,❌,❌,❌,✅,❌,❌,❌,❌,❌,❌
-Granular team policies,✅,⚠️,❌,⚠️,❌,❌,❌,✅,❌,❌,⚠️,✅,⚠️,❌
-Performance & Speed,,,,,,,,,,,,,,
-Instant startup,✅,✅,✅,✅,✅,✅,✅,❌,✅,✅,⚠️,❌,❌,✅
-Native-speed editor,✅,⚠️,✅,❌,⚠️,✅,❌,⚠️,✅,✅,⚠️,⚠️,⚠️,✅
-Low-end device support,✅,✅,✅,✅,⚠️,❌,✅,⚠️,❌,❌,⚠️,✅,⚠️,❌
+| Feature | Code Canvas | Replit | Lovable | Bolt.new | Bolt | Cursor | v0 | Codeium Superposition | Windsurf | Zed | CodeSandbox | Gitpod | Firebase | Trae |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **Development Environment** |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| Full browser IDE | ✅ | ✅ | ⚠️ | ❌ | ⚠️ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| Local install available | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| Multi-file editing | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Syntax highlighting | ✅ | ✅ | ⚠️ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Find & replace project | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Visual canvas / whiteboard | ✅ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| **Terminal & Runtime** |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| Full PTY terminal | ✅ | ✅ | ❌ | ❌ | ⚠️ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Run code in browser | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| Live app preview | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ⚠️ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| Package installation | ✅ | ✅ | ⚠️ | ❌ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **AI Capabilities** |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| Multi-provider AI | ✅ | ⚠️ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ⚠️ | ❌ | ⚠️ | ❌ | ❌ | ❌ | ⚠️ |
+| AI chat with context | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ |
+| AI image generation | ✅ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ |
+| AI video generation | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Bring your own API key | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| Inline autocomplete | ⚠️ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ✅ | ✅ |
+| **Collaboration** |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| Real-time multiplayer | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Public sharing / forking | ✅ | ✅ | ⚠️ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Live chat & video rooms | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ❌ | ❌ |
+| **Deployment & Hosting** |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| One-click publish | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| Custom domain support | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| Static site hosting | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| Edge functions / Serverless | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **Deployment Types (Cloud Production)** |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| Autoscale infrastructure | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ✅ | ❌ |
+| Live Container Server / Dedicated VM | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
+| Scheduled Deployments (Cron) | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ✅ | ❌ |
+| **Backend & Data Integration** |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| Built-in / Managed Database | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Managed Auth System | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| File / Blob Storage Orchestration | ❌ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| **Security & Privacy** |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| Open source | ✅ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ⚠️ | ❌ | ❌ |
+| Self-hostable | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ⚠️ | ✅ | ❌ | ❌ |
+| Offline / PWA mode | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| Passkey / WebAuthn | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Granular team policies | ✅ | ⚠️ | ❌ | ⚠️ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ | ⚠️ | ✅ | ⚠️ | ❌ |
+| **Performance & Speed** |  |  |  |  |  |  |  |  |  |  |  |  |  |  |
+| Instant startup | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ | ✅ | ⚠️ | ❌ | ❌ | ✅ |
+| Native-speed editor | ✅ | ⚠️ | ✅ | ❌ | ⚠️ | ✅ | ❌ | ⚠️ | ✅ | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ |
+| Low-end device support | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ | ⚠️ | ❌ | ❌ | ⚠️ | ✅ | ⚠️ | ❌ |
 
-*Legend: CC=CodeCanvas | Rep=Replit | Lov=Lovable | B44=Base44 | Bolt=Bolt | Cur=Cursor | v0=v0 | CSP=Codespaces | Win=Windsurf | Zed=Zed | CSB=CodeSandbox | Gpd=Gitpod | Fbs=Firebase Studio | Tra=Trae*
-*✅ Supported | ⚠️ Partial/Limited | ❌ Not Available*
+*Legend: ✅ Supported | ⚠️ Partial/Limited | ❌ Not Available*
 
 Code Canvas provides a professional development environment entirely in your browser, powered by the WebContainers API and Supabase for backend services.
 
