@@ -84,6 +84,33 @@ const WELCOME_MESSAGE: AgentMessage = {
 };
 
 const chatStorageKey = (projectId?: string | null) => `canvas-agent-chat:${projectId || 'default'}`;
+const SIMPLE_MATH_PATTERN = /^[\d\s+\-*/%^().,]+$/;
+const QUADRATIC_PATTERN = /^\s*([+-]?\d*)x\^2\s*([+-]\s*\d*)x\s*([+-]\s*\d+)\s*=\s*0\s*$/i;
+
+const detectMathShortcut = (input: string): { explanation?: string; solution?: string; expression: string } | null => {
+  const normalized = input.trim();
+  if (!normalized) return null;
+  const quadMatch = normalized.replace(/\s+/g, '').match(QUADRATIC_PATTERN);
+  if (quadMatch) {
+    const a = Number(quadMatch[1] === '' || quadMatch[1] === '+' ? 1 : quadMatch[1] === '-' ? -1 : quadMatch[1]);
+    const b = Number((quadMatch[2] || '').replace(/\s+/g, ''));
+    const c = Number((quadMatch[3] || '').replace(/\s+/g, ''));
+    const discriminant = b * b - 4 * a * c;
+    if (discriminant >= 0) {
+      const root1 = (-b + Math.sqrt(discriminant)) / (2 * a);
+      const root2 = (-b - Math.sqrt(discriminant)) / (2 * a);
+      return {
+        expression: normalized,
+        explanation: `Use the quadratic formula x = (-b ± √(b² - 4ac)) / 2a with a=${a}, b=${b}, c=${c}.`,
+        solution: `x = ${Number(root1.toFixed(6))} and x = ${Number(root2.toFixed(6))}`
+      };
+    }
+  }
+  if (SIMPLE_MATH_PATTERN.test(normalized) || /\b(what is|calculate|solve)\b/i.test(normalized)) {
+    return { expression: normalized.replace(/^.*?(?=\d|\()/i, '') || normalized };
+  }
+  return null;
+};
 
 const loadPersistedMessages = (projectId?: string | null): AgentMessage[] => {
   if (typeof window === 'undefined') return [WELCOME_MESSAGE];
@@ -891,6 +918,29 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   ) => {
     if (!messageContent.trim() || isLoading) return;
     executedActionsRef.current.clear();
+
+    const mathShortcut = detectMathShortcut(messageContent);
+    if (mathShortcut) {
+      const userMessage: AgentMessage = { id: generateId(), role: 'user', content: messageContent };
+      const assistantMessage: AgentMessage = {
+        id: generateId(),
+        role: 'assistant',
+        content: mathShortcut.explanation
+          ? 'I detected a math problem and opened the calculator with a walkthrough and answer.'
+          : 'I detected a math problem and opened the calculator instantly.',
+        widgets: [{
+          id: generateId(),
+          type: 'calculator',
+          config: {
+            expression: mathShortcut.expression,
+            explanation: mathShortcut.explanation,
+            solution: mathShortcut.solution,
+          }
+        }]
+      };
+      setMessages(prev => [...prev, userMessage, assistantMessage]);
+      return;
+    }
 
     const { session } = await createAuthProvider().getSession();
     
