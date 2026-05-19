@@ -1361,7 +1361,7 @@ export const AIChat = ({
                   {message.widgets && message.widgets.length > 0 && (
                     <div className="space-y-2">
                       {message.widgets.map(w => (
-                        <ChatWidgetRenderer key={w.id} widget={w} onChangeTemplate={onChangeTemplate} />
+                        <ChatWidgetRenderer key={w.id} widget={w} onChangeTemplate={onChangeTemplate} onSendToAI={(message) => setInput(message)} />
                       ))}
                     </div>
                   )}

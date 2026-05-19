@@ -137,8 +137,11 @@ const DiceRollWidget = ({ widget }: { widget: ChatWidget }) => {
 };
 
 // ─── Calculator Widget ───
-const CalculatorWidget = () => {
-  const [display, setDisplay] = useState('0');
+const CalculatorWidget = ({ widget, onSendToAI }: { widget: ChatWidget; onSendToAI?: (message: string) => void }) => {
+  const initialExpression = String(widget.config?.expression || widget.config?.preset || '0');
+  const explanation = typeof widget.config?.explanation === 'string' ? widget.config.explanation : '';
+  const solution = typeof widget.config?.solution === 'string' ? widget.config.solution : '';
+  const [display, setDisplay] = useState(initialExpression);
   const [prev, setPrev] = useState<number | null>(null);
   const [op, setOp] = useState<string | null>(null);
   const [fresh, setFresh] = useState(true);
@@ -191,6 +194,12 @@ const CalculatorWidget = () => {
         <span className="text-xs font-medium text-foreground">Calculator</span>
       </div>
       <div className="p-3 space-y-2" style={{ maxWidth: 220 }}>
+        {(explanation || solution) && (
+          <div className="rounded-md border border-primary/20 bg-primary/5 p-2 text-[11px] text-muted-foreground space-y-1">
+            {explanation && <p>{explanation}</p>}
+            {solution && <p className="font-medium text-foreground">Answer: {solution}</p>}
+          </div>
+        )}
         <div className="bg-background border border-border rounded-md px-3 py-2 text-right text-lg font-mono text-foreground truncate">
           {display}
         </div>
@@ -210,6 +219,14 @@ const CalculatorWidget = () => {
           {btn('', () => {}, 'num')}
           {btn('=', equals, 'eq')}
         </div>
+        {onSendToAI && (
+          <button
+            onClick={() => onSendToAI(`Help me with this math problem: ${display}`)}
+            className="w-full rounded-md bg-primary/15 hover:bg-primary/25 text-primary text-xs font-medium py-1.5 transition-colors"
+          >
+            Give to AI
+          </button>
+        )}
       </div>
     </div>
   );
@@ -735,16 +752,18 @@ const RegexTesterWidget = () => {
 // ─── Main renderer ───
 export const ChatWidgetRenderer = ({ 
   widget, 
-  onChangeTemplate 
+  onChangeTemplate,
+  onSendToAI
 }: { 
   widget: ChatWidget; 
   onChangeTemplate?: (template: string) => void;
+  onSendToAI?: (message: string) => void;
 }) => {
   switch (widget.type) {
     case 'color_picker': return <ColorPickerWidget widget={widget} />;
     case 'coin_flip': return <CoinFlipWidget widget={widget} />;
     case 'dice_roll': return <DiceRollWidget widget={widget} />;
-    case 'calculator': return <CalculatorWidget />;
+    case 'calculator': return <CalculatorWidget widget={widget} onSendToAI={onSendToAI} />;
     case 'spinner': return <SpinnerWidget widget={widget} />;
     case 'stock': return <StockWidget widget={widget} />;
     case 'change_template': return <TemplateChangeWidget widget={widget} onChangeTemplate={onChangeTemplate} />;
