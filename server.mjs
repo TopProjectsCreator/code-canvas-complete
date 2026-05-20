@@ -134,6 +134,24 @@ app.get(/^\/api\/proxy\/unpkg\/(.*)/, (req, res) => {
   proxyRequest(targetUrl, req, res);
 });
 
+// Backward/hosted compatibility aliases.
+// Some deployments only expose /api/replit/* routes to the browser,
+// so mirror the model proxy endpoints there as well.
+app.get(/^\/api\/replit\/proxy\/hf\/(.*)/, (req, res) => {
+  const targetUrl = `https://huggingface.co/${req.params[0]}`;
+  proxyRequest(targetUrl, req, res);
+});
+
+app.get(/^\/api\/replit\/proxy\/jsdelivr\/(.*)/, (req, res) => {
+  const targetUrl = `https://cdn.jsdelivr.net/${req.params[0]}`;
+  proxyRequest(targetUrl, req, res);
+});
+
+app.get(/^\/api\/replit\/proxy\/unpkg\/(.*)/, (req, res) => {
+  const targetUrl = `https://unpkg.com/${req.params[0]}`;
+  proxyRequest(targetUrl, req, res);
+});
+
 // ---------------------------------------------------------------------------
 // AI proxy — self-contained, calls AI provider APIs directly from the server
 // so no Supabase session is needed. BYOK keys are stored per-user in memory
