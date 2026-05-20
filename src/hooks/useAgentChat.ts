@@ -671,8 +671,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     return { steps, cleanContent: cleanContent.trim() };
   };
 
-  const processAgentResponse = (rawContent: string): { 
-    content: string; 
+  const processAgentResponse = useCallback((rawContent: string): {
+    content: string;
     steps: AgentStep[];
     hasCodeChanges: boolean;
     hasWorkflowChanges: boolean;
@@ -687,11 +687,11 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   } => {
     let content = rawContent;
     const allSteps: AgentStep[] = [];
-    
+
     const { steps: thinkingSteps, cleanContent: afterThinking } = parseThinkingBlocks(content);
     allSteps.push(...thinkingSteps);
     content = afterThinking;
-    
+
     const { toolCalls, cleanContent: afterTools } = parseToolCalls(content);
     toolCalls.forEach(tc => {
       allSteps.push({ id: tc.id, type: 'tool_call', content: `Running ${tc.name}...`, timestamp: new Date(), toolCall: tc });
@@ -709,7 +709,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       });
     });
     content = afterAutomation;
-    
+
     const { codeChanges: inlineCodeChanges, cleanContent: afterCode } = parseCodeChanges(content);
     const { codeChanges: generatedTests, cleanContent: afterGeneratedTests } = parseGenerateTestsTags(afterCode);
     const codeChanges = [...inlineCodeChanges, ...generatedTests];
@@ -719,7 +719,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       if (onCodeChange && !executedActionsRef.current.has(ccKey)) { executedActionsRef.current.add(ccKey); onCodeChange(cc); }
     });
     content = afterGeneratedTests;
-    
+
     const { workflowActions, cleanContent: afterWorkflows } = parseWorkflowCommands(content);
     workflowActions.forEach(wa => {
       allSteps.push({ id: generateId(), type: 'tool_call', content: `Creating workflow: ${wa.name}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'create_workflow', arguments: { ...wa } as Record<string, unknown>, status: 'completed' } });
@@ -727,7 +727,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       if (onCreateWorkflow && !executedActionsRef.current.has(wfKey)) { executedActionsRef.current.add(wfKey); onCreateWorkflow({ name: wa.name, type: wa.type, command: wa.command, description: wa.description, trigger: wa.trigger }); }
     });
     content = afterWorkflows;
-    
+
     const { packages, cleanContent: afterPackages } = parsePackageInstalls(content);
     packages.forEach(pkg => {
       allSteps.push({ id: generateId(), type: 'tool_call', content: `Installing package: ${pkg}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'install_package', arguments: { name: pkg }, status: 'completed' } });
@@ -911,8 +911,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       automationQueries,
       isDone,
     };
-  };
-
+  }, [onCodeChange, onCreateWorkflow, onInstallPackage, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, canUseShellOnPlatform]);
 
   const downloadOfflineModel = useCallback(async (model: string) => {
     setIsDownloadingOfflineModel(true);
@@ -1391,7 +1390,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       setCurrentStep(null);
       abortControllerRef.current = null;
     }
-  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, workflows, aiProvider]);
+  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, chatOnlyMode, autonomyConfig, processAgentResponse, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, workflows, aiProvider]);
 
   const applyCodeChange = useCallback((change: CodeChange) => {
     if (onApplyCode) {
