@@ -9,6 +9,7 @@ import { createAIProvider } from '@/integrations/ai/provider';
 import { isPotentiallyDestructiveShellCommand } from '@/lib/agentSafety';
 import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 import { generatePresentationPptx, parsePptxSpec, type PptxSpec } from '@/lib/pptxGenerator';
+import { getOfflineModeEnabled, getSavedOfflineModel, offlineLLM, preloadOfflineModel, setOfflineModeEnabled, setSavedOfflineModel } from '@/services/offlineLLM';
 
 const _agentChatPlatform = detectDeploymentPlatform();
 const canUseShellOnPlatform = isReplitLikePlatform(_agentChatPlatform);
@@ -153,6 +154,11 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const [selectedModel, setSelectedModel] = useState<AIModel>('flash');
   const [byokProvider, setByokProvider] = useState<string | null>(null);
   const [byokModel, setByokModel] = useState<string | null>(null);
+  const [offlineModeEnabled, setOfflineModeEnabledState] = useState<boolean>(() => getOfflineModeEnabled());
+  const [offlineModelId, setOfflineModelIdState] = useState<string>(() => getSavedOfflineModel());
+  const [offlineDownloadProgress, setOfflineDownloadProgress] = useState(0);
+  const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<string>('');
+  const [isDownloadingOfflineModel, setIsDownloadingOfflineModel] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const executedActionsRef = useRef<Set<string>>(new Set());
   const shellSessionIdRef = useRef<string | null>(null);
@@ -903,6 +909,25 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     };
   };
 
+
+  const downloadOfflineModel = useCallback(async (model: string) => {
+    setIsDownloadingOfflineModel(true);
+    setOfflineDownloadProgress(0);
+    setOfflineDownloadStatus('Starting download...');
+    try {
+      await preloadOfflineModel(
+        model,
+        (status) => setOfflineDownloadStatus(status),
+        (progress, label) => {
+          setOfflineDownloadProgress(progress);
+          if (label) setOfflineDownloadStatus(label);
+        }
+      );
+    } finally {
+      setIsDownloadingOfflineModel(false);
+    }
+  }, []);
+
   const sendMessage = useCallback(async (
     messageContent: string,
     context: {
@@ -940,6 +965,24 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       };
       setMessages(prev => [...prev, userMessage, assistantMessage]);
       return;
+    }
+
+    if (offlineModeEnabled) {
+      try {
+        setCurrentStep('Loading offline model...');
+        await offlineLLM.initialize(offlineModelId, setCurrentStep);
+        setCurrentStep('Generating locally...');
+        const localReply = await offlineLLM.chat(messageContent);
+        setMessages(prev => [...prev, { id: generateId(), role: 'assistant', content: localReply || 'Local model returned an empty response.' }]);
+        setIsLoading(false);
+        setCurrentStep(null);
+        return;
+      } catch (error) {
+        setMessages(prev => [...prev, { id: generateId(), role: 'assistant', content: `❌ Offline mode error: ${error instanceof Error ? error.message : 'Unknown error'}` }]);
+        setIsLoading(false);
+        setCurrentStep(null);
+        return;
+      }
     }
 
     const { session } = await createAuthProvider().getSession();
@@ -1335,7 +1378,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       setCurrentStep(null);
       abortControllerRef.current = null;
     }
-  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, workflows, aiProvider]);
+  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, workflows, aiProvider]);
 
   const applyCodeChange = useCallback((change: CodeChange) => {
     if (onApplyCode) {
@@ -1380,6 +1423,14 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     setByokProvider,
     byokModel,
     setByokModel,
+    offlineModeEnabled,
+    setOfflineModeEnabled: (enabled: boolean) => { setOfflineModeEnabledState(enabled); setOfflineModeEnabled(enabled); },
+    offlineModelId,
+    setOfflineModelId: (model: string) => { setOfflineModelIdState(model); setSavedOfflineModel(model); },
+    isDownloadingOfflineModel,
+    offlineDownloadProgress,
+    offlineDownloadStatus,
+    downloadOfflineModel,
     sendMessage,
     applyCodeChange,
     stopGeneration,
