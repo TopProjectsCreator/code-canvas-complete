@@ -48,7 +48,7 @@ self.onmessage = async (event) => {
       // Configure env to use our local proxy for model files
       const origin = self.location.origin;
       env.allowLocalModels = false;
-      env.remoteHost = origin;
+      env.remoteHost = origin.endsWith('/') ? origin : `${origin}/`;
       env.remotePathTemplate = 'api/proxy/hf/{model}/resolve/{revision}/{file}';
       
       console.log(`[Worker] env.remoteHost set to: ${env.remoteHost}`);
