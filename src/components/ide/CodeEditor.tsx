@@ -83,6 +83,8 @@ interface SyntaxToken {
 
 const tokenize = (code: string, language: string): SyntaxToken[][] => {
   const lines = code.split("\n");
+  const normalizedLanguage = (language || "text").toLowerCase();
+  const isPython = ["py", "python"].includes(normalizedLanguage);
   const jsKeywords = [
     "const",
     "let",
@@ -112,16 +114,54 @@ const tokenize = (code: string, language: string): SyntaxToken[][] => {
   ];
   const cssKeywords = ["@import", "@media", "@keyframes", "@font-face"];
 
+  let activePythonTripleQuote: `"""` | `'''` | null = null;
+
   return lines.map((line) => {
     const tokens: SyntaxToken[] = [];
     let remaining = line;
 
+    if (isPython && activePythonTripleQuote) {
+      const endIdx = remaining.indexOf(activePythonTripleQuote);
+      if (endIdx >= 0) {
+        const stringChunk = remaining.slice(0, endIdx + 3);
+        tokens.push({ type: "string", value: stringChunk });
+        remaining = remaining.slice(endIdx + 3);
+        activePythonTripleQuote = null;
+      } else {
+        tokens.push({ type: "string", value: remaining });
+        return tokens;
+      }
+    }
+
     while (remaining.length > 0) {
       let matched = false;
+
+      if (isPython && remaining.startsWith("#")) {
+        tokens.push({ type: "comment", value: remaining });
+        break;
+      }
 
       if (remaining.startsWith("//") || remaining.startsWith("/*") || remaining.startsWith("<!--")) {
         tokens.push({ type: "comment", value: remaining });
         break;
+      }
+
+      if (isPython && (remaining.startsWith(`"""`) || remaining.startsWith(`'''`))) {
+        const quote = remaining.startsWith(`"""`) ? `"""` : `'''`;
+        const closingIdx = remaining.indexOf(quote, 3);
+
+        if (closingIdx >= 0) {
+          const tripleQuoted = remaining.slice(0, closingIdx + 3);
+          tokens.push({ type: "string", value: tripleQuoted });
+          remaining = remaining.slice(closingIdx + 3);
+        } else {
+          tokens.push({ type: "string", value: remaining });
+          activePythonTripleQuote = quote;
+          break;
+        }
+
+        matched = true;
+        continue;
       }
 
       const stringMatch = remaining.match(/^(['"`])(?:[^\\]|\\.)*?\1/);
@@ -446,17 +486,11 @@ export const CodeEditor = ({
     const el = editorRef.current;
     if (!el) return;
 
-    const lines: string[] = [];
-    el.childNodes.forEach((child) => {
-      if (child.nodeType === Node.ELEMENT_NODE) {
-        lines.push((child as HTMLElement).textContent || "");
-      } else if (child.nodeType === Node.TEXT_NODE) {
-        const text = child.textContent || "";
-        if (text.length > 0) text.split("\n").forEach((line) => lines.push(line));
-      }
-    });
-
-    const nextContent = lines.join("\n");
+    // Read directly from rendered text so browser-inserted wrapper nodes
+    // (e.g. extra <div><br></div> blocks) don't create random blank lines.
+    // innerText can include a trailing newline in contentEditable roots,
+    // so trim one terminal line break to preserve exact file content.
+    const nextContent = el.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
     setContent(nextContent);
     if (file) onContentChange(file.id, nextContent);
   }, [file, onContentChange]);
