@@ -110,7 +110,8 @@ export function OfflineModelManager({
           </DialogTitle>
           <DialogDescription>
             Download and manage language models that run entirely in your browser.
-            No data leaves your machine when using offline mode.
+            Models are downloaded once (~500MB to 2.5GB) and then cached for offline use.
+            Ensure you have a stable internet connection for the initial download.
           </DialogDescription>
         </DialogHeader>
 

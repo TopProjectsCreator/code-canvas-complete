@@ -50,11 +50,11 @@ self.onmessage = async (event) => {
     }
   } catch (error) {
     const reason = error?.message || 'Worker error';
-    if (reason === 'Failed to fetch') {
+    if (reason === 'Failed to fetch' || reason.includes('fetch')) {
       self.postMessage({
         type: 'error',
         error:
-          'Failed to fetch model/runtime files. Check your internet or firewall and ensure jsdelivr/unpkg + Hugging Face are reachable.'
+          'Network error: Failed to fetch model/runtime files. This IDE runs models locally in your browser, but it must download them first. Please check your internet connection and ensure jsdelivr.net, unpkg.com, and huggingface.co are not blocked by a firewall or VPN.'
       });
       return;
     }
