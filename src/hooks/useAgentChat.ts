@@ -9,6 +9,7 @@ import { createAIProvider } from '@/integrations/ai/provider';
 import { isPotentiallyDestructiveShellCommand } from '@/lib/agentSafety';
 import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 import { generatePresentationPptx, parsePptxSpec, type PptxSpec } from '@/lib/pptxGenerator';
+import { parseAIErrorResponse } from '@/lib/aiErrorParsing';
 import { 
   getOfflineModeEnabled, getSavedOfflineModel, offlineLLM, preloadOfflineModel, 
   setOfflineModeEnabled as setOfflineEnabledService, setSavedOfflineModel, 

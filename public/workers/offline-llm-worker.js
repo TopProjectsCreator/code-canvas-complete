@@ -6,10 +6,10 @@ const HF_REMOTE_PATH_TEMPLATES = [
 ];
 
 const TRANSFORMERS_IMPORT_URLS = [
-  `${self.location.origin}/api/replit/proxy/jsdelivr/npm/@xenova/transformers@2.17.2`,
-  `${self.location.origin}/api/replit/proxy/unpkg/@xenova/transformers@2.17.2`,
-  `${self.location.origin}/api/proxy/jsdelivr/npm/@xenova/transformers@2.17.2`,
-  `${self.location.origin}/api/proxy/unpkg/@xenova/transformers@2.17.2`
+  `${self.location.origin}/api/replit/proxy/jsdelivr/npm/@xenova/transformers@2.17.2/+esm`,
+  `${self.location.origin}/api/proxy/jsdelivr/npm/@xenova/transformers@2.17.2/+esm`,
+  `${self.location.origin}/api/replit/proxy/unpkg/@xenova/transformers@2.17.2?module`,
+  `${self.location.origin}/api/proxy/unpkg/@xenova/transformers@2.17.2?module`
 ];
 
 const loadTransformers = async () => {
@@ -17,7 +17,11 @@ const loadTransformers = async () => {
   for (const url of TRANSFORMERS_IMPORT_URLS) {
     try {
       console.log(`[Worker] Attempting to load transformers from: ${url}`);
-      return await import(url);
+      const mod = await import(url);
+      if (!mod?.pipeline || !mod?.env) {
+        throw new Error(`Invalid transformers module shape from ${url}`);
+      }
+      return mod;
     } catch (error) {
       lastError = error;
       console.error(`[Worker] Failed to load from ${url}:`, error);
@@ -40,6 +44,9 @@ const loadTransformers = async () => {
 
 const normalizeOfflineError = (error) => {
   const raw = error?.message || String(error || 'Worker error');
+  if (/is not defined/.test(raw)) {
+    return 'Offline runtime module failed to initialize in this browser context. Retrying with bridge-compatible module endpoints may help; please try downloading the model again.';
+  }
   if (HTML_RESPONSE_ERROR_RE.test(raw)) {
     return 'Offline runtime request returned HTML instead of JavaScript/JSON. This usually means a proxy, ad-blocker, VPN, or firewall rewrote the model request. Disable content filtering for this site and allow jsdelivr.net, unpkg.com, and huggingface.co.';
   }
