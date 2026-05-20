@@ -9,6 +9,7 @@ import { createAIProvider } from '@/integrations/ai/provider';
 import { isPotentiallyDestructiveShellCommand } from '@/lib/agentSafety';
 import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 import { generatePresentationPptx, parsePptxSpec, type PptxSpec } from '@/lib/pptxGenerator';
+import { parseAIErrorResponse } from '@/lib/aiErrorParsing';
 import { 
   getOfflineModeEnabled, getSavedOfflineModel, offlineLLM, preloadOfflineModel, 
   setOfflineModeEnabled as setOfflineEnabledService, setSavedOfflineModel, 
@@ -1037,8 +1038,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to get response');
+        const responseText = await response.text();
+        throw new Error(parseAIErrorResponse(response.status, responseText));
       }
 
       if (!response.body) throw new Error('No response body');
