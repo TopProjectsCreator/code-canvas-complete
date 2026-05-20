@@ -11,10 +11,11 @@ const loadTransformers = async () => {
   let lastError = null;
   for (const url of TRANSFORMERS_IMPORT_URLS) {
     try {
-      // If using the local proxy, we might need to handle CORS or content-type
+      console.log(`[Worker] Attempting to load transformers from: ${url}`);
       return await import(url);
     } catch (error) {
       lastError = error;
+      console.error(`[Worker] Failed to load from ${url}:`, error);
       try {
         const hostname = new URL(url).hostname;
         self.postMessage({
@@ -24,7 +25,7 @@ const loadTransformers = async () => {
       } catch {
         self.postMessage({
           type: 'status',
-          text: `Could not load runtime from proxy, trying fallback...`
+          text: `Could not load runtime from local proxy, trying fallback...`
         });
       }
     }
@@ -38,13 +39,20 @@ self.onmessage = async (event) => {
     if (type === 'init') {
       const [modelId, quant = 'q4'] = String(model || '').split('@');
       self.postMessage({ type: 'status', text: `Preparing ${modelId} (${quant})...` });
-      const { pipeline: createPipeline, env } = await loadTransformers();
+      
+      const transformers = await loadTransformers();
+      const { pipeline: createPipeline, env } = transformers;
+      
+      console.log('[Worker] Transformers loaded. Configuring environment...');
       
       // Configure env to use our local proxy for model files
       const origin = self.location.origin;
       env.allowLocalModels = false;
-      env.remoteHost = `${origin}/api/proxy/hf/`;
-      env.remotePathTemplate = '{model}/resolve/{revision}/{file}';
+      env.remoteHost = origin;
+      env.remotePathTemplate = 'api/proxy/hf/{model}/resolve/{revision}/{file}';
+      
+      console.log(`[Worker] env.remoteHost set to: ${env.remoteHost}`);
+      console.log(`[Worker] env.remotePathTemplate set to: ${env.remotePathTemplate}`);
       
       pipeline = await createPipeline('text-generation', modelId, {
         dtype: quant === 'fp16' ? 'fp16' : quant === 'q8' ? 'q8' : 'q4',

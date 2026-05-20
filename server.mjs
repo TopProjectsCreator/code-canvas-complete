@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
 import https from 'https';
+import http from 'http';
 import { spawn } from 'child_process';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, rmSync } from 'fs';
@@ -67,9 +68,11 @@ app.get('/api/replit/signout', (req, res) => res.json({ ok: true }));
 // ---------------------------------------------------------------------------
 
 function proxyRequest(targetUrl, req, res, redirects = 0) {
-  if (redirects > 5) {
+  if (redirects > 10) {
     return res.status(502).send('Too many redirects');
   }
+
+  // console.log(`[Proxy] ${req.method} ${targetUrl} (redirects: ${redirects})`);
 
   const parsedUrl = new URL(targetUrl);
   const options = {
@@ -77,17 +80,18 @@ function proxyRequest(targetUrl, req, res, redirects = 0) {
     headers: { ...req.headers },
     hostname: parsedUrl.hostname,
     path: parsedUrl.pathname + parsedUrl.search,
-    port: parsedUrl.port || 443,
+    port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
   };
 
   // Strip headers that should not be forwarded
   delete options.headers.host;
   delete options.headers.connection;
   delete options.headers.referer;
-  delete options.headers['content-length']; // We'll re-pipe if needed
+  delete options.headers['content-length'];
 
-  const proxyReq = https.request(options, (proxyRes) => {
-    // Handle redirects
+  const protocol = parsedUrl.protocol === 'https:' ? https : http;
+  const proxyReq = protocol.request(options, (proxyRes) => {
+    // Handle redirects (HuggingFace often redirects to S3)
     if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
       let nextUrl = proxyRes.headers.location;
       if (!nextUrl.startsWith('http')) {
@@ -104,11 +108,10 @@ function proxyRequest(targetUrl, req, res, redirects = 0) {
   proxyReq.on('error', (err) => {
     console.error(`Proxy error for ${targetUrl}:`, err.message);
     if (!res.headersSent) {
-      res.status(500).send('Proxy error: ' + err.message);
+      res.status(502).json({ error: 'Proxy failed to reach target', message: err.message, target: targetUrl });
     }
   });
 
-  // For GET requests, we don't need to pipe the request body
   if (req.method === 'GET') {
     proxyReq.end();
   } else {
@@ -116,21 +119,18 @@ function proxyRequest(targetUrl, req, res, redirects = 0) {
   }
 }
 
-app.get('/api/proxy/hf/*', (req, res) => {
-  const targetPath = req.params[0];
-  const targetUrl = `https://huggingface.co/${targetPath}`;
+app.get('/api/proxy/hf/:path(*)', (req, res) => {
+  const targetUrl = `https://huggingface.co/${req.params.path}`;
   proxyRequest(targetUrl, req, res);
 });
 
-app.get('/api/proxy/jsdelivr/*', (req, res) => {
-  const targetPath = req.params[0];
-  const targetUrl = `https://cdn.jsdelivr.net/${targetPath}`;
+app.get('/api/proxy/jsdelivr/:path(*)', (req, res) => {
+  const targetUrl = `https://cdn.jsdelivr.net/${req.params.path}`;
   proxyRequest(targetUrl, req, res);
 });
 
-app.get('/api/proxy/unpkg/*', (req, res) => {
-  const targetPath = req.params[0];
-  const targetUrl = `https://unpkg.com/${targetPath}`;
+app.get('/api/proxy/unpkg/:path(*)', (req, res) => {
+  const targetUrl = `https://unpkg.com/${req.params.path}`;
   proxyRequest(targetUrl, req, res);
 });
 
