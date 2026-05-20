@@ -25,6 +25,7 @@ import { useAttachments, ChatAttachment } from '@/hooks/useAttachments';
 import { ChatWidgetRenderer } from './ChatWidgets';
 import { useAutonomyMode, type AutonomyPreset, type AutonomyConfig } from '@/hooks/useAutonomyMode';
 import { Switch } from '@/components/ui/switch';
+import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { WhileYouWaitArcade } from './WhileYouWaitArcade';
 import { CalmDownDialog } from './CalmDownDialog';
@@ -731,6 +732,14 @@ export const AIChat = ({
     setByokProvider,
     byokModel,
     setByokModel,
+    offlineModeEnabled,
+    setOfflineModeEnabled,
+    offlineModelId,
+    setOfflineModelId,
+    isDownloadingOfflineModel,
+    offlineDownloadProgress,
+    offlineDownloadStatus,
+    downloadOfflineModel,
     sendMessage, 
     applyCodeChange,
     stopGeneration,
@@ -1440,6 +1449,63 @@ export const AIChat = ({
               {/* Divider */}
               {connectedProviders.length > 0 && (
                 <div className="w-px h-4 bg-border mx-0.5" />
+              )}
+
+              <div className="w-px h-4 bg-border mx-0.5" />
+              <button
+                onClick={() => setOfflineModeEnabled(!offlineModeEnabled)}
+                className={cn(
+                  'px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1',
+                  offlineModeEnabled ? 'bg-emerald-600 text-white' : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
+                )}
+                title="Run chat model locally in your browser"
+              >
+                <WifiOff className="w-3 h-3" /> Offline
+              </button>
+              {offlineModeEnabled && (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    className="h-6 rounded border border-border bg-background px-1 text-[10px]"
+                    onChange={(e) => setOfflineModelId(e.target.value)}
+                    value={offlineModelId.includes('@') ? offlineModelId.split('@')[0] : offlineModelId}
+                  >
+                    <option value="Xenova/Phi-3-mini-4k-instruct">Phi-3 Mini</option>
+                    <option value="Xenova/TinyLlama-1.1B-Chat-v1.0">TinyLlama 1.1B</option>
+                    <option value="Xenova/gemma-2-2b-it">Gemma 2 2B</option>
+                    <option value="custom">Custom...</option>
+                  </select>
+                  <select
+                    className="h-6 rounded border border-border bg-background px-1 text-[10px]"
+                    defaultValue="q4"
+                    onChange={(e) => {
+                      const base = offlineModelId.includes('@') ? offlineModelId.split('@')[0] : offlineModelId;
+                      setOfflineModelId(`${base}@${e.target.value}`);
+                    }}
+                  >
+                    <option value="q4">Q4</option>
+                    <option value="q8">Q8</option>
+                    <option value="fp16">FP16</option>
+                  </select>
+                  <input
+                    value={offlineModelId}
+                    onChange={(e) => setOfflineModelId(e.target.value)}
+                    className="h-6 w-44 rounded border border-border bg-background px-2 text-[10px]"
+                    placeholder="HF model id (or custom)"
+                  />
+                  <button
+                    onClick={() => downloadOfflineModel(offlineModelId)}
+                    disabled={isDownloadingOfflineModel}
+                    className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-600 text-white disabled:opacity-60"
+                  >
+                    {isDownloadingOfflineModel ? 'Downloading...' : 'Download'}
+                  </button>
+                </div>
+              )}
+              {offlineModeEnabled && (
+                <div className="w-full mt-1">
+                  <Progress value={Math.round(offlineDownloadProgress * 100)} className="h-1.5" />
+                  <p className="text-[10px] text-muted-foreground mt-1">{offlineDownloadStatus || 'Choose a model and click Download. You can keep chatting/coding while it downloads.'}</p>
+                </div>
               )}
 
               {/* BYOK provider buttons */}
