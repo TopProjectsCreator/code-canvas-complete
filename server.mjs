@@ -2,6 +2,7 @@ import express from 'express';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
+import https from 'https';
 import { spawn } from 'child_process';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, rmSync } from 'fs';
@@ -59,6 +60,79 @@ app.get('/api/replit/auth', (req, res) => {
 });
 
 app.get('/api/replit/signout', (req, res) => res.json({ ok: true }));
+
+// ---------------------------------------------------------------------------
+// Model Proxy — allows downloading models from HuggingFace/CDNs via our server
+// to bypass strict client-side firewalls or VPNs.
+// ---------------------------------------------------------------------------
+
+function proxyRequest(targetUrl, req, res, redirects = 0) {
+  if (redirects > 5) {
+    return res.status(502).send('Too many redirects');
+  }
+
+  const parsedUrl = new URL(targetUrl);
+  const options = {
+    method: req.method,
+    headers: { ...req.headers },
+    hostname: parsedUrl.hostname,
+    path: parsedUrl.pathname + parsedUrl.search,
+    port: parsedUrl.port || 443,
+  };
+
+  // Strip headers that should not be forwarded
+  delete options.headers.host;
+  delete options.headers.connection;
+  delete options.headers.referer;
+  delete options.headers['content-length']; // We'll re-pipe if needed
+
+  const proxyReq = https.request(options, (proxyRes) => {
+    // Handle redirects
+    if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400 && proxyRes.headers.location) {
+      let nextUrl = proxyRes.headers.location;
+      if (!nextUrl.startsWith('http')) {
+        nextUrl = new URL(nextUrl, targetUrl).href;
+      }
+      return proxyRequest(nextUrl, req, res, redirects + 1);
+    }
+
+    // Forward the response
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error(`Proxy error for ${targetUrl}:`, err.message);
+    if (!res.headersSent) {
+      res.status(500).send('Proxy error: ' + err.message);
+    }
+  });
+
+  // For GET requests, we don't need to pipe the request body
+  if (req.method === 'GET') {
+    proxyReq.end();
+  } else {
+    req.pipe(proxyReq, { end: true });
+  }
+}
+
+app.get('/api/proxy/hf/*', (req, res) => {
+  const targetPath = req.params[0];
+  const targetUrl = `https://huggingface.co/${targetPath}`;
+  proxyRequest(targetUrl, req, res);
+});
+
+app.get('/api/proxy/jsdelivr/*', (req, res) => {
+  const targetPath = req.params[0];
+  const targetUrl = `https://cdn.jsdelivr.net/${targetPath}`;
+  proxyRequest(targetUrl, req, res);
+});
+
+app.get('/api/proxy/unpkg/*', (req, res) => {
+  const targetPath = req.params[0];
+  const targetUrl = `https://unpkg.com/${targetPath}`;
+  proxyRequest(targetUrl, req, res);
+});
 
 // ---------------------------------------------------------------------------
 // AI proxy — self-contained, calls AI provider APIs directly from the server

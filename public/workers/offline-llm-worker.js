@@ -1,6 +1,8 @@
 let pipeline = null;
 
 const TRANSFORMERS_IMPORT_URLS = [
+  `${self.location.origin}/api/proxy/jsdelivr/npm/@xenova/transformers@2.17.2`,
+  `${self.location.origin}/api/proxy/unpkg/@xenova/transformers@2.17.2`,
   'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2',
   'https://unpkg.com/@xenova/transformers@2.17.2'
 ];
@@ -9,13 +11,22 @@ const loadTransformers = async () => {
   let lastError = null;
   for (const url of TRANSFORMERS_IMPORT_URLS) {
     try {
+      // If using the local proxy, we might need to handle CORS or content-type
       return await import(url);
     } catch (error) {
       lastError = error;
-      self.postMessage({
-        type: 'status',
-        text: `Could not load runtime from ${new URL(url).hostname}, trying fallback...`
-      });
+      try {
+        const hostname = new URL(url).hostname;
+        self.postMessage({
+          type: 'status',
+          text: `Could not load runtime from ${hostname}, trying fallback...`
+        });
+      } catch {
+        self.postMessage({
+          type: 'status',
+          text: `Could not load runtime from proxy, trying fallback...`
+        });
+      }
     }
   }
   throw lastError || new Error('Unable to load transformers runtime');
@@ -28,7 +39,13 @@ self.onmessage = async (event) => {
       const [modelId, quant = 'q4'] = String(model || '').split('@');
       self.postMessage({ type: 'status', text: `Preparing ${modelId} (${quant})...` });
       const { pipeline: createPipeline, env } = await loadTransformers();
+      
+      // Configure env to use our local proxy for model files
+      const origin = self.location.origin;
       env.allowLocalModels = false;
+      env.remoteHost = `${origin}/api/proxy/hf/`;
+      env.remotePathTemplate = '{model}/resolve/{revision}/{file}';
+      
       pipeline = await createPipeline('text-generation', modelId, {
         dtype: quant === 'fp16' ? 'fp16' : quant === 'q8' ? 'q8' : 'q4',
         progress_callback: (progress) => {
