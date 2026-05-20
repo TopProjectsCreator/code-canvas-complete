@@ -11,7 +11,8 @@ import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 import { generatePresentationPptx, parsePptxSpec, type PptxSpec } from '@/lib/pptxGenerator';
 import { 
   getOfflineModeEnabled, getSavedOfflineModel, offlineLLM, preloadOfflineModel, 
-  setOfflineModeEnabled, setSavedOfflineModel, getChatOnlyMode, setChatOnlyMode 
+  setOfflineModeEnabled as setOfflineEnabledService, setSavedOfflineModel, 
+  getChatOnlyMode, setChatOnlyMode as setChatOnlyEnabledService 
 } from '@/services/offlineLLM';
 
 const _agentChatPlatform = detectDeploymentPlatform();
@@ -1436,11 +1437,11 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     byokModel,
     setByokModel,
     offlineModeEnabled,
-    setOfflineModeEnabled: (enabled: boolean) => { setOfflineModeEnabledState(enabled); setOfflineModeEnabled(enabled); },
+    setOfflineModeEnabled: (enabled: boolean) => { setOfflineModeEnabledState(enabled); setOfflineEnabledService(enabled); },
     offlineModelId,
     setOfflineModelId: (model: string) => { setOfflineModelIdState(model); setSavedOfflineModel(model); },
     chatOnlyMode,
-    setChatOnlyMode: (enabled: boolean) => { setChatOnlyModeState(enabled); setChatOnlyMode(enabled); },
+    setChatOnlyMode: (enabled: boolean) => { setChatOnlyModeState(enabled); setChatOnlyEnabledService(enabled); },
     isDownloadingOfflineModel,
     offlineDownloadProgress,
     offlineDownloadStatus,
