@@ -15,10 +15,10 @@ interface ZipEditorProps {
   onContentChange: (fileId: string, content: string) => void;
 }
 
-type ZipPreviewType = 'text' | 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'office' | 'binary';
+type ZipPreviewType = 'text' | 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'office' | 'binary' | 'mermaid';
 
 const textExtensions = new Set([
-  'txt', 'md', 'markdown', 'js', 'ts', 'tsx', 'jsx', 'json', 'html', 'css', 'scss', 'xml', 'yml', 'yaml', 'csv', 'env', 'gitignore', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'rs', 'go', 'php', 'rb', 'sh', 'sql',
+  'txt', 'md', 'markdown', 'js', 'ts', 'tsx', 'jsx', 'json', 'html', 'css', 'scss', 'xml', 'yml', 'yaml', 'csv', 'env', 'gitignore', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'rs', 'go', 'php', 'rb', 'sh', 'sql', 'mmd', 'mermaid',
 ]);
 
 const extOf = (path: string) => path.split('.').pop()?.toLowerCase() || '';
@@ -26,6 +26,7 @@ const extOf = (path: string) => path.split('.').pop()?.toLowerCase() || '';
 const getPreviewType = (path: string): ZipPreviewType => {
   const ext = extOf(path);
   if (ext === 'svg') return 'svg';
+  if (ext === 'mmd' || ext === 'mermaid') return 'mermaid';
   if (ext === 'md' || ext === 'markdown') return 'markdown';
   if (ext === 'csv') return 'csv';
   if (['docx', 'xlsx', 'pptx'].includes(ext)) return 'office';
@@ -201,7 +202,7 @@ export const ZipEditor = ({ file, onContentChange }: ZipEditorProps) => {
             {entryLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
             <span className="truncate">{selectedPath || 'Select a file'}</span>
           </div>
-          {(selectedPreviewType === 'text' || selectedPreviewType === 'markdown' || selectedPreviewType === 'svg' || selectedPreviewType === 'csv') && (
+          {(selectedPreviewType === 'text' || selectedPreviewType === 'markdown' || selectedPreviewType === 'svg' || selectedPreviewType === 'csv' || selectedPreviewType === 'mermaid') && (
             <Button size="sm" onClick={() => void updateAndSave(selectedContent)} disabled={saving} className="gap-1">
               <Save className="w-3.5 h-3.5" />
               {saving ? `Saving… ${Math.round(saveProgress * 100)}%` : 'Save ZIP'}
@@ -217,8 +218,8 @@ export const ZipEditor = ({ file, onContentChange }: ZipEditorProps) => {
         {selectedPath && !entryLoading && selectedPreviewType === 'text' ? (
           <Textarea value={selectedContent} onChange={(e) => setSelectedContent(e.target.value)} className="flex-1 rounded-none border-0 focus-visible:ring-0 font-mono text-xs resize-none" />
         ) : null}
-        {selectedPath && !entryLoading && ['markdown', 'svg', 'csv', 'image', 'video', 'audio'].includes(selectedPreviewType || '') ? (
-          <FilePreview file={selectedFile} previewType={selectedPreviewType as 'markdown' | 'svg' | 'csv' | 'image' | 'video' | 'audio'} onContentChange={(_, c) => void updateAndSave(c)} />
+        {selectedPath && !entryLoading && ['markdown', 'svg', 'csv', 'image', 'video', 'audio', 'mermaid'].includes(selectedPreviewType || '') ? (
+          <FilePreview file={selectedFile} previewType={selectedPreviewType as 'markdown' | 'svg' | 'csv' | 'image' | 'video' | 'audio' | 'mermaid'} onContentChange={(_, c) => void updateAndSave(c)} />
         ) : null}
         {selectedPath && !entryLoading && selectedPreviewType === 'office' ? (
           <OfficeEditor file={selectedFile} onContentChange={(_, c) => void updateAndSave(c)} />
