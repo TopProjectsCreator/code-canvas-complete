@@ -23,6 +23,10 @@ export default defineConfig(({ mode }) => ({
         changeOrigin: true,
         ws: true,
       },
+      '/api/proxy': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
   plugins: [
