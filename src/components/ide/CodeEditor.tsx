@@ -41,7 +41,7 @@ interface CodeEditorProps {
 
 const getPreviewType = (
   fileName: string,
-): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite" | null => {
+): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite" | "mermaid" | null => {
   const ext = fileName.split(".").pop()?.toLowerCase();
   const imageExtensions = ["png", "jpg", "jpeg", "gif", "webp", "ico", "bmp"];
   const videoExtensions = ["mp4", "webm", "mov", "avi", "mkv", "ogv", "ogg"];
@@ -50,6 +50,7 @@ const getPreviewType = (
 
   if (ext === "rtf") return "rtf";
   if (ext === "svg") return "svg";
+  if (ext === "mmd" || ext === "mermaid") return "mermaid";
   if (ext === "md" || ext === "markdown") return "markdown";
   if (ext === "csv") return "csv";
   if (imageExtensions.includes(ext || "")) return "image";
@@ -559,7 +560,7 @@ export const CodeEditor = ({
   if (previewType === "cad") return <CADEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "zip") return <ZipEditor file={file} onContentChange={onContentChange} />;
   if (previewType && !isTextPreviewable)
-    return <FilePreview file={file} previewType={previewType as "image" | "csv" | "markdown" | "svg" | "sqlite"} onContentChange={onContentChange} />;
+    return <FilePreview file={file} previewType={previewType as "image" | "csv" | "markdown" | "svg" | "sqlite" | "mermaid"} onContentChange={onContentChange} />;
 
   if (isTextPreviewable && markdownPreview) {
     return (
