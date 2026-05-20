@@ -756,20 +756,35 @@ export const CodeEditor = ({
                     autoCorrect="off"
                     dangerouslySetInnerHTML={{ __html: buildHighlightedHtml() }}
                   />
-                  <div className="pointer-events-none absolute inset-x-3 top-2 z-20 space-y-1">
+                  <div className="pointer-events-none absolute inset-0 z-20 font-mono text-sm leading-6">
                     {activePresence
                       .filter((entry) => entry.cursorLine)
-                      .slice(0, 4)
-                      .map((entry) => (
-                        <div
-                          key={`presence-${entry.userId}`}
-                          className="absolute right-4 flex items-center gap-2 rounded-full border border-border bg-background/90 px-2 py-0.5 text-[11px] shadow-sm"
-                          style={{ top: `${((entry.cursorLine || 1) - 1) * 24 + 40}px` }}
-                        >
-                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                          {entry.displayName}
-                        </div>
-                      ))}
+                      .slice(0, 8)
+                      .map((entry) => {
+                        const line = entry.cursorLine || 1;
+                        const col = Math.max(1, entry.cursorCol || 1);
+                        const top = (line - 1) * 24 + 2;
+                        // pl-[6px] on editor + (col-1) chars of mono width
+                        const left = `calc(6px + ${col - 1}ch)`;
+                        return (
+                          <div
+                            key={`caret-${entry.userId}`}
+                            className="absolute transition-all duration-100 ease-out"
+                            style={{ top: `${top}px`, left }}
+                          >
+                            <div
+                              className="h-6 w-[2px] rounded-sm"
+                              style={{ backgroundColor: entry.color }}
+                            />
+                            <div
+                              className="absolute left-0 top-0 -translate-y-full whitespace-nowrap rounded-sm rounded-bl-none px-1.5 py-0.5 text-[10px] font-medium leading-tight text-white shadow-sm"
+                              style={{ backgroundColor: entry.color }}
+                            >
+                              {entry.displayName}
+                            </div>
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
               </div>
