@@ -1,10 +1,15 @@
 let pipeline = null;
+const HTML_RESPONSE_ERROR_RE = /Unexpected token '<'|"<!doctype "|<html/i;
+const HF_REMOTE_PATH_TEMPLATES = [
+  'api/replit/proxy/hf/{model}/resolve/{revision}',
+  'api/proxy/hf/{model}/resolve/{revision}'
+];
 
 const TRANSFORMERS_IMPORT_URLS = [
+  `${self.location.origin}/api/replit/proxy/jsdelivr/npm/@xenova/transformers@2.17.2`,
+  `${self.location.origin}/api/replit/proxy/unpkg/@xenova/transformers@2.17.2`,
   `${self.location.origin}/api/proxy/jsdelivr/npm/@xenova/transformers@2.17.2`,
-  `${self.location.origin}/api/proxy/unpkg/@xenova/transformers@2.17.2`,
-  'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2',
-  'https://unpkg.com/@xenova/transformers@2.17.2'
+  `${self.location.origin}/api/proxy/unpkg/@xenova/transformers@2.17.2`
 ];
 
 const loadTransformers = async () => {
@@ -33,6 +38,14 @@ const loadTransformers = async () => {
   throw lastError || new Error('Unable to load transformers runtime');
 };
 
+const normalizeOfflineError = (error) => {
+  const raw = error?.message || String(error || 'Worker error');
+  if (HTML_RESPONSE_ERROR_RE.test(raw)) {
+    return 'Offline runtime request returned HTML instead of JavaScript/JSON. This usually means a proxy, ad-blocker, VPN, or firewall rewrote the model request. Disable content filtering for this site and allow jsdelivr.net, unpkg.com, and huggingface.co.';
+  }
+  return raw;
+};
+
 self.onmessage = async (event) => {
   const { type, model, prompt } = event.data || {};
   try {
@@ -49,18 +62,32 @@ self.onmessage = async (event) => {
       const origin = self.location.origin;
       env.allowLocalModels = false;
       env.remoteHost = origin.endsWith('/') ? origin : `${origin}/`;
-      env.remotePathTemplate = 'api/proxy/hf/{model}/resolve/{revision}/{file}';
+      // Prefer same-origin server bridge routes so client networks can block
+      // huggingface.co while the deployment server still fetches files.
+      env.remotePathTemplate = HF_REMOTE_PATH_TEMPLATES[0];
       
       console.log(`[Worker] env.remoteHost set to: ${env.remoteHost}`);
       console.log(`[Worker] env.remotePathTemplate set to: ${env.remotePathTemplate}`);
       
-      pipeline = await createPipeline('text-generation', modelId, {
-        dtype: quant === 'fp16' ? 'fp16' : quant === 'q8' ? 'q8' : 'q4',
-        progress_callback: (progress) => {
-          const pct = typeof progress?.progress === 'number' ? Math.max(0, Math.min(1, progress.progress)) : 0;
-          self.postMessage({ type: 'progress', progress: pct, text: progress?.file || progress?.status || 'Downloading...' });
+      let lastInitError = null;
+      for (const template of HF_REMOTE_PATH_TEMPLATES) {
+        try {
+          env.remotePathTemplate = template;
+          self.postMessage({ type: 'status', text: `Downloading model via ${template.includes('/replit/') ? 'server bridge' : 'proxy fallback'}...` });
+          pipeline = await createPipeline('text-generation', modelId, {
+            dtype: quant === 'fp16' ? 'fp16' : quant === 'q8' ? 'q8' : 'q4',
+            progress_callback: (progress) => {
+              const pct = typeof progress?.progress === 'number' ? Math.max(0, Math.min(1, progress.progress)) : 0;
+              self.postMessage({ type: 'progress', progress: pct, text: progress?.file || progress?.status || 'Downloading...' });
+            }
+          });
+          break;
+        } catch (err) {
+          lastInitError = err;
+          pipeline = null;
         }
-      });
+      }
+      if (!pipeline && lastInitError) throw lastInitError;
       self.postMessage({ type: 'progress', progress: 1, text: 'Download complete' });
       self.postMessage({ type: 'ready', model: `${modelId}@${quant}` });
       return;
@@ -74,7 +101,7 @@ self.onmessage = async (event) => {
       return;
     }
   } catch (error) {
-    const reason = error?.message || 'Worker error';
+    const reason = normalizeOfflineError(error);
     if (reason === 'Failed to fetch' || reason.includes('fetch')) {
       self.postMessage({
         type: 'error',
