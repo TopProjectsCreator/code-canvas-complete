@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { 
   Download, Trash2, CheckCircle2, AlertCircle, Info, 
-  Search, ExternalLink, Cpu, HardDrive, Zap
+  Search, ExternalLink, Cpu, HardDrive, Zap, Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
