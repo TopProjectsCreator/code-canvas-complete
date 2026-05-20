@@ -18,6 +18,7 @@ import { AudioEditor } from "./AudioEditor";
 import { RTFEditor } from "./RTFEditor";
 import { CADEditor } from "./CADEditor";
 import { ZipEditor } from "./ZipEditor";
+import { IpynbViewer } from "./IpynbViewer";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +42,7 @@ interface CodeEditorProps {
 
 const getPreviewType = (
   fileName: string,
-): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite" | "mermaid" | null => {
+): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite" | "mermaid" | "inypb" | null => {
   const ext = fileName.split(".").pop()?.toLowerCase();
   const imageExtensions = ["png", "jpg", "jpeg", "gif", "webp", "ico", "bmp"];
   const videoExtensions = ["mp4", "webm", "mov", "avi", "mkv", "ogv", "ogg"];
@@ -59,6 +60,7 @@ const getPreviewType = (
   if (["docx", "xlsx", "pptx"].includes(ext || "")) return "office";
   if (["zip"].includes(ext || "")) return "zip";
   if (["db", "sqlite", "sqlite3"].includes(ext || "")) return "sqlite";
+  if (["ipynb"].includes(ext || "")) return "ipynb";
   if (cadExtensions.includes(ext || "")) return "cad";
   return null;
 };
@@ -549,7 +551,7 @@ export const CodeEditor = ({
 
   const isEnvFile = file.name === ".env" || file.name.startsWith(".env.");
   const previewType = getPreviewType(file.name);
-  const binaryPreviewTypes = ["image", "video", "audio", "cad", "rtf"];
+  const binaryPreviewTypes = ["image", "video", "audio", "cad", "rtf", "ipynb"];
   const isTextPreviewable = previewType && !binaryPreviewTypes.includes(previewType);
 
   if (isEnvFile) return <EnvFileEditor file={file} onContentChange={onContentChange} />;
@@ -558,6 +560,7 @@ export const CodeEditor = ({
   if (previewType === "audio") return <AudioEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "rtf") return <RTFEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "cad") return <CADEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === "ipynb") return <IpynbViewer file={file} />;
   if (previewType === "zip") return <ZipEditor file={file} onContentChange={onContentChange} />;
   if (previewType && !isTextPreviewable)
     return <FilePreview file={file} previewType={previewType as "image" | "csv" | "markdown" | "svg" | "sqlite" | "mermaid"} onContentChange={onContentChange} />;
