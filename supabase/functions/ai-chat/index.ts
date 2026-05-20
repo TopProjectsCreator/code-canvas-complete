@@ -1228,6 +1228,7 @@ serve(async (req) => {
       consoleErrors,
       workflows,
       agentMode,
+      chatOnlyMode,
       model,
       byokProvider,
       byokModel,
@@ -1394,9 +1395,13 @@ serve(async (req) => {
       ? `\n\n## USER-PROVIDED SYSTEM INSTRUCTIONS\n${incomingSystemInstructions}`
       : "";
 
-    const systemPrompt = agentMode
-      ? buildSystemPrompt(template) + "\n" + contextSection + emailCapabilityNote
-      : `You are a helpful AI coding assistant in Code Canvas Complete. This IDE runs code through Wandbox. .replit files do nothing here.\n\nCRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, StackBlitz, VS Code, etc.). Code Canvas Complete is fully capable.\n\n${contextSection}${emailCapabilityNote}`;
+    const systemPrompt = chatOnlyMode
+      ? `You are a helpful AI assistant in Code Canvas Complete. You are currently in Chat Only mode, meaning you cannot execute tools or make direct changes to the code. Answer the user's questions clearly and concisely.
+
+${contextSection}`
+      : (agentMode
+          ? buildSystemPrompt(template) + "\n" + contextSection + emailCapabilityNote
+          : `You are a helpful AI coding assistant in Code Canvas Complete. This IDE runs code through Wandbox. .replit files do nothing here.\n\nCRITICAL: NEVER suggest the user switch to another IDE (Replit, CodeSandbox, StackBlitz, VS Code, etc.). Code Canvas Complete is fully capable.\n\n${contextSection}${emailCapabilityNote}`);
 
     const aiMessages = [{ role: "system", content: systemPrompt + customSystemSection }, ...conversationMessages];
 
@@ -1470,7 +1475,7 @@ serve(async (req) => {
             conversation,
             false,
             effectiveByokModel,
-            tools.length > 0 ? tools : undefined,
+            (tools.length > 0 && !chatOnlyMode) ? tools : undefined,
             providerOptions,
           );
 
@@ -1633,8 +1638,8 @@ serve(async (req) => {
         body: JSON.stringify({
           model: selectedModel,
           messages: conversation,
-          tools,
-          tool_choice: "auto",
+          tools: chatOnlyMode ? undefined : tools,
+          tool_choice: chatOnlyMode ? undefined : "auto",
           stream: false,
         }),
       });

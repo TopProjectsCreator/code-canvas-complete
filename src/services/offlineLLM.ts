@@ -67,11 +67,14 @@ export const offlineLLM = new OfflineLLMManager();
 
 export const offlineModelStorageKey = 'canvas-offline-model';
 export const offlineModeEnabledKey = 'canvas-offline-mode-enabled';
+export const chatOnlyModeKey = 'canvas-chat-only-mode';
 
 export const getSavedOfflineModel = () => localStorage.getItem(offlineModelStorageKey) || 'Xenova/Phi-3-mini-4k-instruct';
 export const setSavedOfflineModel = (model: string) => localStorage.setItem(offlineModelStorageKey, model);
 export const getOfflineModeEnabled = () => localStorage.getItem(offlineModeEnabledKey) === '1';
 export const setOfflineModeEnabled = (enabled: boolean) => localStorage.setItem(offlineModeEnabledKey, enabled ? '1' : '0');
+export const getChatOnlyMode = () => localStorage.getItem(chatOnlyModeKey) === '1';
+export const setChatOnlyMode = (enabled: boolean) => localStorage.setItem(chatOnlyModeKey, enabled ? '1' : '0');
 
 export const preloadOfflineModel = async (
   model: string,

@@ -30,6 +30,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { WhileYouWaitArcade } from './WhileYouWaitArcade';
 import { CalmDownDialog } from './CalmDownDialog';
 import { detectFrustration } from '@/lib/frustrationDetector';
+import { OfflineModelManager } from './OfflineModelManager';
 
 interface QuickAction {
   id: string;
@@ -736,6 +737,8 @@ export const AIChat = ({
     setOfflineModeEnabled,
     offlineModelId,
     setOfflineModelId,
+    chatOnlyMode,
+    setChatOnlyMode,
     isDownloadingOfflineModel,
     offlineDownloadProgress,
     offlineDownloadStatus,
@@ -783,6 +786,7 @@ export const AIChat = ({
     currentProjectId,
   });
 
+  const [showOfflineManager, setShowOfflineManager] = useState(false);
   const { apiKeys, fetchApiKeys: refetchApiKeys } = useApiKeys();
   const connectedProviders = apiKeys.map(k => k.provider).filter((provider) => CHAT_BYOK_PROVIDERS.has(provider));
 
@@ -1462,49 +1466,33 @@ export const AIChat = ({
               >
                 <WifiOff className="w-3 h-3" /> Offline
               </button>
+              
+              <button
+                onClick={() => setChatOnlyMode(!chatOnlyMode)}
+                className={cn(
+                  'px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1',
+                  chatOnlyMode ? 'bg-blue-600 text-white' : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
+                )}
+                title="Disable agent tools for small models"
+              >
+                <MessageCircleQuestion className="w-3 h-3" /> Chat Only
+              </button>
+
               {offlineModeEnabled && (
-                <div className="flex items-center gap-1.5">
-                  <select
-                    className="h-6 rounded border border-border bg-background px-1 text-[10px]"
-                    onChange={(e) => setOfflineModelId(e.target.value)}
-                    value={offlineModelId.includes('@') ? offlineModelId.split('@')[0] : offlineModelId}
-                  >
-                    <option value="Xenova/Phi-3-mini-4k-instruct">Phi-3 Mini</option>
-                    <option value="Xenova/TinyLlama-1.1B-Chat-v1.0">TinyLlama 1.1B</option>
-                    <option value="Xenova/gemma-2-2b-it">Gemma 2 2B</option>
-                    <option value="custom">Custom...</option>
-                  </select>
-                  <select
-                    className="h-6 rounded border border-border bg-background px-1 text-[10px]"
-                    defaultValue="q4"
-                    onChange={(e) => {
-                      const base = offlineModelId.includes('@') ? offlineModelId.split('@')[0] : offlineModelId;
-                      setOfflineModelId(`${base}@${e.target.value}`);
-                    }}
-                  >
-                    <option value="q4">Q4</option>
-                    <option value="q8">Q8</option>
-                    <option value="fp16">FP16</option>
-                  </select>
-                  <input
-                    value={offlineModelId}
-                    onChange={(e) => setOfflineModelId(e.target.value)}
-                    className="h-6 w-44 rounded border border-border bg-background px-2 text-[10px]"
-                    placeholder="HF model id (or custom)"
-                  />
-                  <button
-                    onClick={() => downloadOfflineModel(offlineModelId)}
-                    disabled={isDownloadingOfflineModel}
-                    className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-600 text-white disabled:opacity-60"
-                  >
-                    {isDownloadingOfflineModel ? 'Downloading...' : 'Download'}
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowOfflineManager(true)}
+                  className="px-2 py-0.5 rounded text-[10px] font-medium bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent flex items-center gap-1"
+                >
+                  <Settings className="w-3 h-3" /> 
+                  {offlineModelId.split('/').pop()?.split('@')[0] || 'Select Model'}
+                  {isDownloadingOfflineModel && <Loader2 className="w-3 h-3 animate-spin" />}
+                </button>
               )}
-              {offlineModeEnabled && (
-                <div className="w-full mt-1">
-                  <Progress value={Math.round(offlineDownloadProgress * 100)} className="h-1.5" />
-                  <p className="text-[10px] text-muted-foreground mt-1">{offlineDownloadStatus || 'Choose a model and click Download. You can keep chatting/coding while it downloads.'}</p>
+
+              {isDownloadingOfflineModel && (
+                <div className="flex items-center gap-2 min-w-[100px]">
+                  <Progress value={Math.round(offlineDownloadProgress * 100)} className="h-1 flex-1" />
+                  <span className="text-[8px] text-muted-foreground whitespace-nowrap">{Math.round(offlineDownloadProgress * 100)}%</span>
                 </div>
               )}
 
@@ -1743,6 +1731,17 @@ export const AIChat = ({
           </>
         )}
       </div>
+
+      <OfflineModelManager
+        isOpen={showOfflineManager}
+        onClose={() => setShowOfflineManager(false)}
+        currentModelId={offlineModelId}
+        onSelectModel={setOfflineModelId}
+        downloadProgress={offlineDownloadProgress}
+        downloadStatus={offlineDownloadStatus}
+        isDownloading={isDownloadingOfflineModel}
+        onDownload={downloadOfflineModel}
+      />
     </div>
   );
 };
