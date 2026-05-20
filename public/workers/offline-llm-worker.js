@@ -1,12 +1,33 @@
 let pipeline = null;
 
+const TRANSFORMERS_IMPORT_URLS = [
+  'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2',
+  'https://unpkg.com/@xenova/transformers@2.17.2'
+];
+
+const loadTransformers = async () => {
+  let lastError = null;
+  for (const url of TRANSFORMERS_IMPORT_URLS) {
+    try {
+      return await import(url);
+    } catch (error) {
+      lastError = error;
+      self.postMessage({
+        type: 'status',
+        text: `Could not load runtime from ${new URL(url).hostname}, trying fallback...`
+      });
+    }
+  }
+  throw lastError || new Error('Unable to load transformers runtime');
+};
+
 self.onmessage = async (event) => {
   const { type, model, prompt } = event.data || {};
   try {
     if (type === 'init') {
       const [modelId, quant = 'q4'] = String(model || '').split('@');
       self.postMessage({ type: 'status', text: `Preparing ${modelId} (${quant})...` });
-      const { pipeline: createPipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+      const { pipeline: createPipeline, env } = await loadTransformers();
       env.allowLocalModels = false;
       pipeline = await createPipeline('text-generation', modelId, {
         dtype: quant === 'fp16' ? 'fp16' : quant === 'q8' ? 'q8' : 'q4',
@@ -28,6 +49,15 @@ self.onmessage = async (event) => {
       return;
     }
   } catch (error) {
-    self.postMessage({ type: 'error', error: error?.message || 'Worker error' });
+    const reason = error?.message || 'Worker error';
+    if (reason === 'Failed to fetch') {
+      self.postMessage({
+        type: 'error',
+        error:
+          'Failed to fetch model/runtime files. Check your internet or firewall and ensure jsdelivr/unpkg + Hugging Face are reachable.'
+      });
+      return;
+    }
+    self.postMessage({ type: 'error', error: reason });
   }
 };
