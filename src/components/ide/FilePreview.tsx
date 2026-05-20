@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FileNode } from '@/types/ide';
-import { Image, FileText, Code2, Video, Music, Table, Database } from 'lucide-react';
+import { Image, FileText, Code2, Video, Music, Table, Database, Workflow } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useMemo } from 'react';
@@ -8,7 +8,7 @@ import { MediaGenerationPanel } from './MediaGenerationPanel';
 
 interface FilePreviewProps {
   file: FileNode;
-  previewType: 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'sqlite';
+  previewType: 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'sqlite' | 'mermaid';
   onContentChange: (fileId: string, content: string) => void;
 }
 
@@ -108,6 +108,9 @@ const ImagePreview = ({ file, content, onContentChange }: { file: FileNode; cont
 
 export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewProps) => {
   const content = file.content || '';
+  const [mermaidSvg, setMermaidSvg] = useState<string>('');
+  const [mermaidError, setMermaidError] = useState<string | null>(null);
+  const [mermaidLoading, setMermaidLoading] = useState(false);
   const [sqliteTables, setSqliteTables] = useState<SqliteTableData[]>([]);
   const [sqliteError, setSqliteError] = useState<string | null>(null);
   const [sqliteLoading, setSqliteLoading] = useState(false);
@@ -117,6 +120,54 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
     if (previewType !== 'csv') return [];
     return parseCSV(content);
   }, [content, previewType]);
+
+  useEffect(() => {
+    const renderMermaid = async () => {
+      if (previewType !== 'mermaid') return;
+      if (!content.trim()) {
+        setMermaidSvg('');
+        setMermaidError('No Mermaid diagram source found.');
+        return;
+      }
+
+      setMermaidLoading(true);
+      setMermaidError(null);
+      try {
+        const mermaidModule = await import('mermaid');
+        const mermaid = mermaidModule.default;
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'strict',
+          theme: 'base',
+          deterministicIds: true,
+          fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, sans-serif',
+          flowchart: {
+            curve: 'basis',
+            htmlLabels: true,
+            useMaxWidth: false,
+          },
+        });
+
+        const valid = await mermaid.parse(content);
+        if (!valid) {
+          setMermaidSvg('');
+          setMermaidError('Invalid Mermaid diagram syntax.');
+          return;
+        }
+
+        const id = `mermaid-preview-${file.id}-${Date.now()}`;
+        const result = await mermaid.render(id, content);
+        setMermaidSvg(result.svg);
+      } catch (err) {
+        setMermaidSvg('');
+        setMermaidError(err instanceof Error ? err.message : 'Unable to render Mermaid diagram.');
+      } finally {
+        setMermaidLoading(false);
+      }
+    };
+
+    void renderMermaid();
+  }, [content, file.id, previewType]);
 
   useEffect(() => {
     const loadSqlite = async () => {
@@ -456,6 +507,38 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
             <span>{file.name}</span>
           </div>
           <span>Markdown Preview</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (previewType === 'mermaid') {
+    return (
+      <div className="flex-1 flex flex-col bg-editor overflow-hidden">
+        <div className="flex-1 overflow-auto bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:18px_18px]">
+          <div className="min-h-full p-6 flex items-start justify-center">
+            {mermaidLoading && (
+              <div className="text-sm text-muted-foreground">Rendering Mermaid diagram…</div>
+            )}
+            {!mermaidLoading && mermaidError && (
+              <div className="max-w-2xl w-full rounded-lg border border-destructive/40 bg-destructive/10 text-destructive p-4">
+                <p className="font-semibold mb-1">Unable to render Mermaid diagram</p>
+                <p className="text-sm whitespace-pre-wrap">{mermaidError}</p>
+              </div>
+            )}
+            {!mermaidLoading && !mermaidError && mermaidSvg && (
+              <div className="rounded-xl border border-border bg-background shadow-2xl p-4 max-w-full overflow-auto">
+                <div className="[&_svg]:max-w-none [&_svg]:h-auto [&_svg]:text-foreground" dangerouslySetInnerHTML={{ __html: mermaidSvg }} />
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center justify-between px-4 py-2 bg-background border-t border-border text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Workflow className="w-4 h-4" />
+            <span>{file.name}</span>
+          </div>
+          <span>Mermaid Preview</span>
         </div>
       </div>
     );
