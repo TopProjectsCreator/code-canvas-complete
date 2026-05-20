@@ -9,7 +9,10 @@ import { createAIProvider } from '@/integrations/ai/provider';
 import { isPotentiallyDestructiveShellCommand } from '@/lib/agentSafety';
 import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 import { generatePresentationPptx, parsePptxSpec, type PptxSpec } from '@/lib/pptxGenerator';
-import { getOfflineModeEnabled, getSavedOfflineModel, offlineLLM, preloadOfflineModel, setOfflineModeEnabled, setSavedOfflineModel } from '@/services/offlineLLM';
+import { 
+  getOfflineModeEnabled, getSavedOfflineModel, offlineLLM, preloadOfflineModel, 
+  setOfflineModeEnabled, setSavedOfflineModel, getChatOnlyMode, setChatOnlyMode 
+} from '@/services/offlineLLM';
 
 const _agentChatPlatform = detectDeploymentPlatform();
 const canUseShellOnPlatform = isReplitLikePlatform(_agentChatPlatform);
@@ -156,6 +159,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const [byokModel, setByokModel] = useState<string | null>(null);
   const [offlineModeEnabled, setOfflineModeEnabledState] = useState<boolean>(() => getOfflineModeEnabled());
   const [offlineModelId, setOfflineModelIdState] = useState<string>(() => getSavedOfflineModel());
+  const [chatOnlyMode, setChatOnlyModeState] = useState<boolean>(() => getChatOnlyMode());
   const [offlineDownloadProgress, setOfflineDownloadProgress] = useState(0);
   const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<string>('');
   const [isDownloadingOfflineModel, setIsDownloadingOfflineModel] = useState(false);
@@ -1019,7 +1023,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         currentFile: context.currentFile ? { name: context.currentFile.name, language: context.currentFile.language, content: context.currentFile.content?.slice(0, 10000) } : null,
         consoleErrors: context.consoleErrors || null,
         workflows: context.workflows || workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
-        agentMode: true,
+        agentMode: chatOnlyMode ? false : true,
+        chatOnlyMode,
         model: selectedModel,
         byokProvider: aiProvider.allowsBYOK ? (byokProvider || undefined) : undefined,
         byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
@@ -1070,7 +1075,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
               else if (fullContent.includes('<generate_pptx')) { setCurrentStep('Preparing presentation...'); }
               else { setCurrentStep(null); }
               
-              const processed = processAgentResponse(fullContent);
+              const processed = chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent);
               setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, ...processed, isStreaming: true } : m));
             }
           } catch {
@@ -1081,8 +1086,16 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       }
 
       // Final processing
-      const processed = processAgentResponse(fullContent);
-      setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: processed.content, steps: processed.steps, hasCodeChanges: processed.hasCodeChanges, questions: processed.questions, widgets: processed.widgets, isStreaming: false } : m));
+      const processed = chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent);
+      setMessages(prev => prev.map(m => m.id === assistantId ? { 
+        ...m, 
+        content: processed.content, 
+        steps: processed.steps || [], 
+        hasCodeChanges: processed.hasCodeChanges || false, 
+        questions: processed.questions || [], 
+        widgets: processed.widgets || [], 
+        isStreaming: false 
+      } : m));
 
       // Handle image generation requests
       if (processed.imagePrompts && processed.imagePrompts.length > 0) {
@@ -1427,6 +1440,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     setOfflineModeEnabled: (enabled: boolean) => { setOfflineModeEnabledState(enabled); setOfflineModeEnabled(enabled); },
     offlineModelId,
     setOfflineModelId: (model: string) => { setOfflineModelIdState(model); setSavedOfflineModel(model); },
+    chatOnlyMode,
+    setChatOnlyMode: (enabled: boolean) => { setChatOnlyModeState(enabled); setChatOnlyMode(enabled); },
     isDownloadingOfflineModel,
     offlineDownloadProgress,
     offlineDownloadStatus,
