@@ -69,7 +69,7 @@ export const offlineModelStorageKey = 'canvas-offline-model';
 export const offlineModeEnabledKey = 'canvas-offline-mode-enabled';
 export const chatOnlyModeKey = 'canvas-chat-only-mode';
 
-export const getSavedOfflineModel = () => localStorage.getItem(offlineModelStorageKey) || 'Xenova/Phi-3-mini-4k-instruct';
+export const getSavedOfflineModel = () => localStorage.getItem(offlineModelStorageKey) || 'Xenova/Qwen2.5-0.5B-Instruct';
 export const setSavedOfflineModel = (model: string) => localStorage.setItem(offlineModelStorageKey, model);
 export const getOfflineModeEnabled = () => localStorage.getItem(offlineModeEnabledKey) === '1';
 export const setOfflineModeEnabled = (enabled: boolean) => localStorage.setItem(offlineModeEnabledKey, enabled ? '1' : '0');
