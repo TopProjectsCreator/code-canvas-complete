@@ -1,4 +1,5 @@
 let pipeline = null;
+const HTML_RESPONSE_ERROR_RE = /Unexpected token '<'|"<!doctype "|<html/i;
 
 const TRANSFORMERS_IMPORT_URLS = [
   `${self.location.origin}/api/proxy/jsdelivr/npm/@xenova/transformers@2.17.2`,
@@ -31,6 +32,14 @@ const loadTransformers = async () => {
     }
   }
   throw lastError || new Error('Unable to load transformers runtime');
+};
+
+const normalizeOfflineError = (error) => {
+  const raw = error?.message || String(error || 'Worker error');
+  if (HTML_RESPONSE_ERROR_RE.test(raw)) {
+    return 'Offline runtime request returned HTML instead of JavaScript/JSON. This usually means a proxy, ad-blocker, VPN, or firewall rewrote the model request. Disable content filtering for this site and allow jsdelivr.net, unpkg.com, and huggingface.co.';
+  }
+  return raw;
 };
 
 self.onmessage = async (event) => {
@@ -74,7 +83,7 @@ self.onmessage = async (event) => {
       return;
     }
   } catch (error) {
-    const reason = error?.message || 'Worker error';
+    const reason = normalizeOfflineError(error);
     if (reason === 'Failed to fetch' || reason.includes('fetch')) {
       self.postMessage({
         type: 'error',
