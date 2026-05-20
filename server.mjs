@@ -119,18 +119,18 @@ function proxyRequest(targetUrl, req, res, redirects = 0) {
   }
 }
 
-app.get('/api/proxy/hf/:path(*)', (req, res) => {
-  const targetUrl = `https://huggingface.co/${req.params.path}`;
+app.get(/^\/api\/proxy\/hf\/(.*)/, (req, res) => {
+  const targetUrl = `https://huggingface.co/${req.params[0]}`;
   proxyRequest(targetUrl, req, res);
 });
 
-app.get('/api/proxy/jsdelivr/:path(*)', (req, res) => {
-  const targetUrl = `https://cdn.jsdelivr.net/${req.params.path}`;
+app.get(/^\/api\/proxy\/jsdelivr\/(.*)/, (req, res) => {
+  const targetUrl = `https://cdn.jsdelivr.net/${req.params[0]}`;
   proxyRequest(targetUrl, req, res);
 });
 
-app.get('/api/proxy/unpkg/:path(*)', (req, res) => {
-  const targetUrl = `https://unpkg.com/${req.params.path}`;
+app.get(/^\/api\/proxy\/unpkg\/(.*)/, (req, res) => {
+  const targetUrl = `https://unpkg.com/${req.params[0]}`;
   proxyRequest(targetUrl, req, res);
 });
 
