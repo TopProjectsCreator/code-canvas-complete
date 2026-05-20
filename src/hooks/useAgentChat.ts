@@ -1039,7 +1039,21 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
       if (!response.ok) {
         const responseText = await response.text();
-        throw new Error(parseAIErrorResponse(response.status, responseText));
+        let errorMessage = `Failed to get response (${response.status})`;
+
+        try {
+          const error = JSON.parse(responseText);
+          errorMessage = error?.error || error?.message || errorMessage;
+        } catch {
+          const trimmed = responseText.trim();
+          if (/^<!doctype html>/i.test(trimmed) || /^<html[\s>]/i.test(trimmed)) {
+            errorMessage = 'Server returned HTML instead of JSON. Check API endpoint/proxy configuration.';
+          } else if (trimmed) {
+            errorMessage = trimmed.slice(0, 200);
+          }
+        }
+
+        throw new Error(errorMessage);
       }
 
       if (!response.body) throw new Error('No response body');

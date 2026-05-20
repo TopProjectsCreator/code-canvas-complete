@@ -65,7 +65,8 @@ self.onmessage = async (event) => {
       
       console.log('[Worker] Transformers loaded. Configuring environment...');
       
-      // Configure env to use our local proxy for model files
+      // Configure env to use our local proxy for model 
+      s
       const origin = self.location.origin;
       env.allowLocalModels = false;
       env.remoteHost = origin.endsWith('/') ? origin : `${origin}/`;
