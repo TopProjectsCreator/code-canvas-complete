@@ -1,17 +1,15 @@
 let pipeline = null;
 const HTML_RESPONSE_ERROR_RE = /Unexpected token '<'|"<!doctype "|<html/i;
 const HF_REMOTE_PATH_TEMPLATES = [
-  'api/replit/proxy/hf/{model}/resolve/{revision}/{file}',
-  'api/proxy/hf/{model}/resolve/{revision}/{file}'
+  'api/replit/proxy/hf/{model}/resolve/{revision}',
+  'api/proxy/hf/{model}/resolve/{revision}'
 ];
 
 const TRANSFORMERS_IMPORT_URLS = [
   `${self.location.origin}/api/replit/proxy/jsdelivr/npm/@xenova/transformers@2.17.2`,
   `${self.location.origin}/api/replit/proxy/unpkg/@xenova/transformers@2.17.2`,
   `${self.location.origin}/api/proxy/jsdelivr/npm/@xenova/transformers@2.17.2`,
-  `${self.location.origin}/api/proxy/unpkg/@xenova/transformers@2.17.2`,
-  'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2',
-  'https://unpkg.com/@xenova/transformers@2.17.2'
+  `${self.location.origin}/api/proxy/unpkg/@xenova/transformers@2.17.2`
 ];
 
 const loadTransformers = async () => {
@@ -60,7 +58,8 @@ self.onmessage = async (event) => {
       
       console.log('[Worker] Transformers loaded. Configuring environment...');
       
-      // Configure env to use our local proxy for model files
+      // Configure env to use our local proxy for model 
+      s
       const origin = self.location.origin;
       env.allowLocalModels = false;
       env.remoteHost = origin.endsWith('/') ? origin : `${origin}/`;
