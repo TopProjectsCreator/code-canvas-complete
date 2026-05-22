@@ -170,7 +170,7 @@ const supabaseProvider: DataProvider = {
     if (baseUrl) record.base_url = baseUrl;
     const { error } = await supabase
       .from('user_api_keys')
-      .upsert(record, { onConflict: 'user_id,provider' });
+      .upsert(record as any, { onConflict: 'user_id,provider' });
     if (error) throw error;
   },
   async deleteApiKey(userId, provider) {
