@@ -11,6 +11,8 @@ interface ChatPayload {
   consoleErrors: string | null;
   workflows: Array<{ name: string; type: string; command: string }> | null;
   agentMode: boolean;
+  chatOnlyMode?: boolean;
+
   model: string;
   byokProvider?: string;
   byokModel?: string;
