@@ -1104,7 +1104,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       }
 
       // Final processing
-      const processed = chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent);
+      const processed = (chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent)) as ReturnType<typeof processAgentResponse>;
       setMessages(prev => prev.map(m => m.id === assistantId ? { 
         ...m, 
         content: processed.content, 
