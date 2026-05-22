@@ -20,7 +20,45 @@ let loadPromise: Promise<any> | null = null;
 let state: PyodideState = { status: 'idle', error: null };
 
 const PYODIDE_VERSION = '0.29.3';
-const PYODIDE_INDEX_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+const DEFAULT_PYODIDE_INDEX_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+
+/**
+ * Resolve the Pyodide index URL. Users can override the source via the
+ * `ide.pyodideSource` localStorage key — useful for forks/mirrors.
+ *
+ * Accepted formats:
+ *   - GitHub repo:  https://github.com/owner/repo  (optionally @branch or @tag)
+ *                   github.com/owner/repo
+ *                   owner/repo
+ *     → resolved to https://cdn.jsdelivr.net/gh/owner/repo@<ref>/
+ *   - Direct URL ending in `/` (must host pyodide.mjs at that root)
+ */
+export const resolvePyodideIndexUrl = (raw?: string | null): string => {
+  const value = (raw ?? '').trim();
+  if (!value) return DEFAULT_PYODIDE_INDEX_URL;
+
+  // Direct URL — just make sure it ends with /
+  if (/^https?:\/\//i.test(value) && !/github\.com\//i.test(value)) {
+    return value.endsWith('/') ? value : value + '/';
+  }
+
+  // GitHub repo formats
+  const ghMatch = value.match(/^(?:https?:\/\/)?(?:www\.)?github\.com\/([^\/\s]+)\/([^\/\s@#?]+)(?:@([^\/\s]+))?\/?$/i)
+    || value.match(/^([^\/\s@]+)\/([^\/\s@]+)(?:@([^\/\s]+))?$/);
+  if (ghMatch) {
+    const [, owner, repo, ref] = ghMatch;
+    const cleanRepo = repo.replace(/\.git$/i, '');
+    return `https://cdn.jsdelivr.net/gh/${owner}/${cleanRepo}@${ref || 'main'}/`;
+  }
+
+  // Fallback — treat as URL
+  return value.endsWith('/') ? value : value + '/';
+};
+
+const PYODIDE_INDEX_URL = resolvePyodideIndexUrl(
+  typeof window !== 'undefined' ? window.localStorage.getItem('ide.pyodideSource') : null
+);
+
 
 const setState = (next: PyodideState) => {
   state = next;
