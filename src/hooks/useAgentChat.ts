@@ -1092,7 +1092,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
               else if (fullContent.includes('<generate_pptx')) { setCurrentStep('Preparing presentation...'); }
               else { setCurrentStep(null); }
               
-              const processed = chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent);
+              const processed = (chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent)) as ReturnType<typeof processAgentResponse>;
+
               setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, ...processed, isStreaming: true } : m));
             }
           } catch {
@@ -1103,7 +1104,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       }
 
       // Final processing
-      const processed = chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent);
+      const processed = (chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent)) as ReturnType<typeof processAgentResponse>;
       setMessages(prev => prev.map(m => m.id === assistantId ? { 
         ...m, 
         content: processed.content, 
