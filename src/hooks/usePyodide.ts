@@ -55,9 +55,11 @@ export const resolvePyodideIndexUrl = (raw?: string | null): string => {
   return value.endsWith('/') ? value : value + '/';
 };
 
-const PYODIDE_INDEX_URL = resolvePyodideIndexUrl(
+const getPyodideIndexUrl = () => resolvePyodideIndexUrl(
   typeof window !== 'undefined' ? window.localStorage.getItem('ide.pyodideSource') : null
 );
+
+
 
 
 
@@ -95,8 +97,11 @@ const loadPyodideInternal = async () => {
 
   setState({ status: 'loading', error: null });
   loadPromise = (async () => {
+    const indexUrl = getPyodideIndexUrl();
     // Dynamic import keeps Pyodide out of the main bundle.
-    const { loadPyodide } = await import(/* @vite-ignore */ `${PYODIDE_INDEX_URL}pyodide.mjs`);
+    const { loadPyodide } = await import(/* @vite-ignore */ `${indexUrl}pyodide.mjs`);
+    const py = await loadPyodide({ indexURL: indexUrl });
+
     const py = await loadPyodide({ indexURL: PYODIDE_INDEX_URL });
     pyodideInstance = py;
     setState({ status: 'ready', error: null });
