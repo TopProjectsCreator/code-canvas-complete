@@ -102,7 +102,7 @@ const loadPyodideInternal = async () => {
     const { loadPyodide } = await import(/* @vite-ignore */ `${indexUrl}pyodide.mjs`);
     const py = await loadPyodide({ indexURL: indexUrl });
 
-    const py = await loadPyodide({ indexURL: PYODIDE_INDEX_URL });
+
     pyodideInstance = py;
     setState({ status: 'ready', error: null });
     return py;
