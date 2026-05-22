@@ -123,6 +123,12 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
     return saved === 'pyodide' || saved === 'container' ? saved : 'auto';
   });
 
+  const [pyodideSource, setPyodideSource] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return window.localStorage.getItem('ide.pyodideSource') || '';
+  });
+
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem('ide.shellExecutorMode', shellExecutorMode);
@@ -759,7 +765,37 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                     Auto runs simple scripts in-browser via Pyodide and falls back to the cloud container for pip/uv or system imports.
                   </p>
                 </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-muted-foreground">Pyodide source</span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={pyodideSource}
+                        onChange={(e) => setPyodideSource(e.target.value)}
+                        placeholder="default (pyodide/pyodide)"
+                        className="bg-background border border-border rounded px-2 py-1 text-xs text-foreground w-56"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = pyodideSource.trim();
+                          if (val) window.localStorage.setItem('ide.pyodideSource', val);
+                          else window.localStorage.removeItem('ide.pyodideSource');
+                          window.location.reload();
+                        }}
+                        className="px-2 py-1 text-xs rounded bg-primary text-primary-foreground hover:opacity-90"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Override the Pyodide distribution. Accepts <code>owner/repo</code>, <code>owner/repo@ref</code>, a full GitHub URL, or a direct CDN URL that hosts <code>pyodide.mjs</code>. Example: <code>techsmartkids/pyodide</code>. Reloads the page on apply.
+                  </p>
+                </div>
               </div>
+
 
               <div className="border-t border-border pt-4">
                 <h4 className="text-sm font-medium mb-3">Keyboard Shortcuts</h4>
