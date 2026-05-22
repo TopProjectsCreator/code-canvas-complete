@@ -27,12 +27,15 @@ export type AIProvider =
   | 'kling'
   | 'higgsfield'
   | 'luma'
-  | 'pika';
+  | 'pika'
+  | 'groq'
+  | 'openai-compatible';
 
 export interface UserApiKey {
   id: string;
   provider: AIProvider;
   api_key: string;
+  base_url?: string;
   created_at: string;
 }
 
@@ -67,6 +70,8 @@ export const PROVIDER_INFO: Record<AIProvider, { label: string; placeholder: str
   higgsfield: { label: 'Higgsfield (Video)', placeholder: '...', docsUrl: 'https://higgsfield.ai' },
   luma: { label: 'Luma (Video)', placeholder: '...', docsUrl: 'https://lumalabs.ai/dream-machine/api' },
   pika: { label: 'Pika (Video)', placeholder: '...', docsUrl: 'https://pika.art' },
+  groq: { label: 'Groq', placeholder: 'gsk_...', docsUrl: 'https://console.groq.com/keys' },
+  'openai-compatible': { label: 'OpenAI Compatible', placeholder: 'sk-... or (optional)', docsUrl: '' },
 };
 
 export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]> = {
@@ -316,6 +321,19 @@ export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]
   pika: [
     { id: 'pika-v2.2', label: 'Pika v2.2' },
   ],
+  groq: [
+    { id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile' },
+    { id: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
+    { id: 'mixtral-8x7b-32768', label: 'Mixtral 8x7B' },
+    { id: 'gemma2-9b-it', label: 'Gemma 2 9B' },
+    { id: 'deepseek-r1-distill-qwen-32b', label: 'DeepSeek R1 Distill Qwen 32B' },
+    { id: 'llama3-70b-8192', label: 'Llama 3 70B' },
+    { id: 'llama3-8b-8192', label: 'Llama 3 8B' },
+    { id: 'llama-guard-3-8b', label: 'Llama Guard 3 8B' },
+  ],
+  'openai-compatible': [
+    { id: 'custom-model', label: 'Custom Model' },
+  ],
 };
 
 const DAILY_LIMITS: Record<string, number> = {
@@ -361,11 +379,11 @@ export const useApiKeys = () => {
     }
   }, [user, fetchApiKeys, fetchUsage]);
 
-  const saveApiKey = useCallback(async (provider: AIProvider, apiKey: string) => {
+  const saveApiKey = useCallback(async (provider: AIProvider, apiKey: string, baseUrl?: string) => {
     if (!user) return false;
     setLoading(true);
     try {
-      await dataProvider.upsertApiKey(user.id, provider, apiKey);
+      await dataProvider.upsertApiKey(user.id, provider, apiKey, baseUrl);
       toast({ title: 'API key saved', description: `${PROVIDER_INFO[provider].label} key saved successfully.` });
       await fetchApiKeys();
       return true;

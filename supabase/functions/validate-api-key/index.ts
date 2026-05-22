@@ -137,6 +137,11 @@ const PROVIDER_TESTS: Record<string, { url: string; method: string; headers: (ke
     headers: (key) => ({ Authorization: `Key ${key}`, "Content-Type": "application/json" }),
     body: JSON.stringify({ prompt: "test" }),
   },
+  groq: {
+    url: "https://api.groq.com/openai/v1/models",
+    method: "GET",
+    headers: (key) => ({ Authorization: `Bearer ${key}` }),
+  },
 };
 
 serve(async (req) => {
@@ -145,12 +150,36 @@ serve(async (req) => {
   }
 
   try {
-    const { provider, apiKey } = await req.json();
+    const { provider, apiKey, baseUrl } = await req.json();
 
     if (!provider || !apiKey) {
       return new Response(JSON.stringify({ valid: false, error: "Missing provider or apiKey" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // OpenAI-compatible: validate against the user-provided base URL
+    if (provider === "openai-compatible") {
+      if (!baseUrl) {
+        return new Response(JSON.stringify({ valid: false, error: "Base URL is required for openai-compatible providers" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        const resp = await fetch(baseUrl, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "test", messages: [{ role: "user", content: "hi" }], max_tokens: 1 }),
+        });
+        const valid = resp.ok || resp.status === 400 || resp.status === 401 || resp.status === 403;
+        return new Response(JSON.stringify({ valid }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch {
+        return new Response(JSON.stringify({ valid: false, error: "Could not reach the provided base URL" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const config = PROVIDER_TESTS[provider];

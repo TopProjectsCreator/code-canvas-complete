@@ -165,6 +165,14 @@ let _aiKeys = {};
 try {
   if (fs.existsSync(AI_KEYS_FILE)) {
     _aiKeys = JSON.parse(fs.readFileSync(AI_KEYS_FILE, 'utf8'));
+    // Migrate old format to new object format
+    for (const uid of Object.keys(_aiKeys)) {
+      for (const provider of Object.keys(_aiKeys[uid])) {
+        if (typeof _aiKeys[uid][provider] === 'string') {
+          _aiKeys[uid][provider] = { api_key: _aiKeys[uid][provider], base_url: '' };
+        }
+      }
+    }
   }
 } catch { _aiKeys = {}; }
 
@@ -211,12 +219,16 @@ const BYOK_PROVIDERS = {
   cohere:      { url: 'https://api.cohere.com/v2/chat',                                      authHeader: 'Bearer' },
   openrouter:  { url: 'https://openrouter.ai/api/v1/chat/completions',                       authHeader: 'Bearer' },
   github:      { url: 'https://models.inference.ai.azure.com/chat/completions',              authHeader: 'Bearer' },
+  groq:        { url: 'https://api.groq.com/openai/v1/chat/completions',                     authHeader: 'Bearer' },
+  'openai-compatible': { url: '',                                                           authHeader: 'Bearer' },
 };
 
 const BYOK_DEFAULT_MODELS = {
   openai: 'gpt-4o', anthropic: 'claude-3-5-sonnet-latest', gemini: 'gemini-2.5-flash',
   perplexity: 'sonar', deepseek: 'deepseek-chat', xai: 'grok-3-fast',
   cohere: 'command-r-plus', openrouter: 'openai/gpt-4o', github: 'gpt-4o',
+  groq: 'llama-3.3-70b-versatile',
+  'openai-compatible': 'custom-model',
 };
 
 // BYOK key management endpoints
@@ -225,7 +237,8 @@ app.get('/api/replit/ai/keys', (req, res) => {
   if (!uid) return res.status(401).json({ error: 'Not authenticated' });
   const userKeys = _aiKeys[uid] || {};
   const sanitized = Object.keys(userKeys).map(provider => ({
-    id: `${uid}-${provider}`, provider, api_key: userKeys[provider],
+    id: `${uid}-${provider}`, provider, api_key: userKeys[provider].api_key,
+    base_url: userKeys[provider].base_url || null,
     created_at: new Date().toISOString(), updated_at: new Date().toISOString(), user_id: uid,
   }));
   res.json(sanitized);
@@ -234,10 +247,10 @@ app.get('/api/replit/ai/keys', (req, res) => {
 app.put('/api/replit/ai/keys', (req, res) => {
   const uid = getReplitUserId(req);
   if (!uid) return res.status(401).json({ error: 'Not authenticated' });
-  const { provider, api_key } = req.body || {};
+  const { provider, api_key, base_url } = req.body || {};
   if (!provider || !api_key) return res.status(400).json({ error: 'provider and api_key required' });
   if (!_aiKeys[uid]) _aiKeys[uid] = {};
-  _aiKeys[uid][provider] = api_key;
+  _aiKeys[uid][provider] = { api_key, base_url: base_url || '' };
   saveAiKeys();
   res.json({ ok: true });
 });
@@ -853,17 +866,20 @@ app.post('/api/replit/ai/chat', async (req, res) => {
   const uid = getReplitUserId(req);
   if (!uid) return sseError(res, 401, 'Not authenticated with Replit');
 
-  const { messages, currentFile, consoleErrors, workflows, model, byokProvider, byokModel, enableMCP } = req.body || {};
+  const { messages, currentFile, consoleErrors, workflows, model, byokProvider, byokModel, byokBaseUrl, enableMCP } = req.body || {};
 
   // Determine which API key and provider to use
   const userKeys = _aiKeys[uid] || {};
   let provider = byokProvider || null;
-  let apiKey = provider ? userKeys[provider] : null;
+  let keyData = provider ? userKeys[provider] : null;
+  let apiKey = keyData ? keyData.api_key : null;
+  let baseUrl = keyData ? keyData.base_url : (byokBaseUrl || '');
 
-  // If no explicit provider, find the first saved key
+  // If no explicit provider, find the first saved key (skip openai-compatible which needs a base URL)
   if (!provider || !apiKey) {
     for (const p of Object.keys(BYOK_PROVIDERS)) {
-      if (userKeys[p]) { provider = p; apiKey = userKeys[p]; break; }
+      if (p === 'openai-compatible') continue;
+      if (userKeys[p]) { provider = p; keyData = userKeys[p]; apiKey = keyData.api_key; break; }
     }
   }
 
@@ -873,8 +889,9 @@ app.post('/api/replit/ai/chat', async (req, res) => {
     );
   }
 
-  const cfg = BYOK_PROVIDERS[provider];
-  if (!cfg) return sseError(res, 400, `Unsupported provider: ${provider}`);
+  const isOpenAICompatible = provider === 'openai-compatible';
+  const cfg = isOpenAICompatible ? { url: baseUrl, authHeader: 'Bearer' } : BYOK_PROVIDERS[provider];
+  if (!cfg || !cfg.url) return sseError(res, 400, `Unsupported provider: ${provider}`);
 
   const effectiveModel = byokModel || BYOK_DEFAULT_MODELS[provider] || 'gpt-4o';
 
@@ -904,7 +921,7 @@ app.post('/api/replit/ai/image', async (req, res) => {
   if (!prompt) return res.status(400).json({ error: 'prompt required' });
 
   const userKeys = _aiKeys[uid] || {};
-  const openaiKey = userKeys['openai'];
+  const openaiKey = userKeys['openai']?.api_key;
   if (!openaiKey) {
     return res.status(503).json({ error: 'Image generation requires an OpenAI API key. Add one in API Keys settings.' });
   }
@@ -1094,7 +1111,7 @@ app.post('/api/replit/ai/media', async (req, res) => {
   if (!mode || !prompt || !provider || !model) return res.status(400).json({ error: 'Missing required fields' });
 
   const userKeys = _aiKeys[uid] || {};
-  const apiKey = userKeys[provider];
+  const apiKey = userKeys[provider]?.api_key;
   if (!apiKey) return res.status(400).json({ error: `No ${provider} API key configured. Add one in the API Keys settings.` });
 
   try {
@@ -1283,7 +1300,7 @@ app.post('/api/replit/ai/3d', async (req, res) => {
   if (!taskId && !prompt) return res.status(400).json({ error: 'prompt required' });
 
   const userKeys = _aiKeys[uid] || {};
-  const apiKey = userKeys[provider];
+  const apiKey = userKeys[provider]?.api_key;
   if (!apiKey) return res.status(400).json({ error: `No ${provider} API key configured. Add one in the API Keys settings.` });
 
   try {
