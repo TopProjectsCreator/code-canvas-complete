@@ -42,7 +42,7 @@ interface CodeEditorProps {
 
 const getPreviewType = (
   fileName: string,
-): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite" | "mermaid" | "inypb" | null => {
+): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite" | "mermaid" | "ipynb" | null => {
   const ext = fileName.split(".").pop()?.toLowerCase();
   const imageExtensions = ["png", "jpg", "jpeg", "gif", "webp", "ico", "bmp"];
   const videoExtensions = ["mp4", "webm", "mov", "avi", "mkv", "ogv", "ogg"];
