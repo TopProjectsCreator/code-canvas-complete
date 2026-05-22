@@ -14,7 +14,7 @@ interface ApiKeysDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'stability', 'ideogram', 'replicate', 'runway', 'kling', 'higgsfield', 'luma', 'pika', 'meshy', 'sloyd', 'tripo', 'modelslab', 'fal', 'neural4d'];
+const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'groq', 'openai-compatible', 'stability', 'ideogram', 'replicate', 'runway', 'kling', 'higgsfield', 'luma', 'pika', 'meshy', 'sloyd', 'tripo', 'modelslab', 'fal', 'neural4d'];
 
 // Format validation rules per provider
 const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; label: string }> = {
@@ -42,6 +42,8 @@ const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; lab
   luma: { minLength: 12, label: '12+ characters' },
   pika: { minLength: 12, label: '12+ characters' },
   mistral: { minLength: 20, label: '20+ characters' },
+  groq: { prefix: ['gsk_'], minLength: 20, label: 'gsk_...' },
+  'openai-compatible': { minLength: 1, label: 'Any key' },
 };
 
 function validateKeyFormat(provider: AIProvider, key: string): string | null {
@@ -65,6 +67,7 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
   const { apiKeys, saveApiKey, deleteApiKey, loading, getUsageForTier } = useApiKeys();
   const [editingProvider, setEditingProvider] = useState<AIProvider | null>(null);
   const [keyInput, setKeyInput] = useState('');
+  const [baseUrlInput, setBaseUrlInput] = useState('');
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [validation, setValidation] = useState<ValidationState>('idle');
   const [validationError, setValidationError] = useState<string>('');
@@ -79,7 +82,7 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
 
     try {
       const { data, error } = await supabase.functions.invoke('validate-api-key', {
-        body: { provider, apiKey: key },
+        body: { provider, apiKey: key, baseUrl: baseUrlInput.trim() || undefined },
       });
 
       if (error) {
@@ -103,7 +106,6 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
     setValidationError('');
     
     const result = await validateKey(editingProvider, keyInput.trim());
-    
     if (!result.valid) {
       setValidation('invalid');
       setValidationError(result.error || 'Key validation failed');
@@ -111,11 +113,12 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
     }
     
     setValidation('valid');
-    const success = await saveApiKey(editingProvider, keyInput.trim());
+    const success = await saveApiKey(editingProvider, keyInput.trim(), baseUrlInput.trim() || undefined);
     if (success) {
       setTimeout(() => {
         setEditingProvider(null);
         setKeyInput('');
+        setBaseUrlInput('');
         setValidation('idle');
         setValidationError('');
       }, 800);
@@ -125,6 +128,7 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
   const handleCancel = () => {
     setEditingProvider(null);
     setKeyInput('');
+    setBaseUrlInput('');
     setValidation('idle');
     setValidationError('');
   };
@@ -214,7 +218,7 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
                         </>
                       ) : (
                         <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" 
-                          onClick={() => { setEditingProvider(provider); setKeyInput(''); setValidation('idle'); setValidationError(''); }}>
+                          onClick={() => { setEditingProvider(provider); setKeyInput(''); setBaseUrlInput(''); setValidation('idle'); setValidationError(''); }}>
                           Add Key
                         </Button>
                       )}
@@ -229,11 +233,19 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
 
                   {isEditing && (
                     <div className="mt-2 space-y-1.5">
+                      {provider === 'openai-compatible' && (
+                        <Input
+                          value={baseUrlInput}
+                          onChange={e => { setBaseUrlInput(e.target.value); setValidation('idle'); setValidationError(''); }}
+                          placeholder="https://api.example.com/v1/chat/completions"
+                          className="h-7 text-xs font-mono"
+                        />
+                      )}
                       <div className="flex gap-1.5">
                         <Input 
                           value={keyInput} 
                           onChange={e => { setKeyInput(e.target.value); setValidation('idle'); setValidationError(''); }}
-                          placeholder={info.placeholder}
+                          placeholder={provider === 'openai-compatible' ? 'API Key (use dummy if not required)' : info.placeholder}
                           className="h-7 text-xs font-mono"
                           type="password"
                         />
@@ -241,7 +253,7 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
                           size="sm" 
                           className="h-7 text-xs px-3" 
                           onClick={handleSave} 
-                          disabled={loading || !keyInput.trim() || validation === 'validating'}
+                          disabled={loading || validation === 'validating' || !keyInput.trim() || (provider === 'openai-compatible' && !baseUrlInput.trim())}
                         >
                           {validation === 'validating' ? (
                             <Loader2 className="w-3 h-3 animate-spin" />

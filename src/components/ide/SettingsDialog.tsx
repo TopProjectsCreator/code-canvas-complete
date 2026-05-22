@@ -37,7 +37,7 @@ interface SettingsDialogProps {
   defaultTab?: string;
 }
 
-const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'mistral', 'stability', 'ideogram', 'replicate', 'runway', 'kling', 'higgsfield', 'luma', 'pika', 'meshy', 'sloyd', 'tripo', 'modelslab', 'fal', 'neural4d'];
+const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'mistral', 'groq', 'openai-compatible', 'stability', 'ideogram', 'replicate', 'runway', 'kling', 'higgsfield', 'luma', 'pika', 'meshy', 'sloyd', 'tripo', 'modelslab', 'fal', 'neural4d'];
 
 const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; label: string }> = {
   openai: { prefix: ['sk-'], minLength: 30, label: 'sk-...' },
@@ -64,6 +64,8 @@ const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; lab
   higgsfield: { minLength: 12, label: '12+ characters' },
   luma: { minLength: 12, label: '12+ characters' },
   pika: { minLength: 12, label: '12+ characters' },
+  groq: { prefix: ['gsk_'], minLength: 20, label: 'gsk_...' },
+  'openai-compatible': { minLength: 1, label: 'Any key' },
 };
 
 function validateKeyFormat(provider: AIProvider, key: string): string | null {
@@ -96,6 +98,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
   // API Keys state
   const [editingProvider, setEditingProvider] = useState<AIProvider | null>(null);
   const [keyInput, setKeyInput] = useState('');
+  const [baseUrlInput, setBaseUrlInput] = useState('');
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [validation, setValidation] = useState<ValidationState>('idle');
   const [validationError, setValidationError] = useState<string>('');
@@ -200,7 +203,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
 
     try {
       const { data, error } = await supabase.functions.invoke('validate-api-key', {
-        body: { provider, apiKey: key },
+        body: { provider, apiKey: key, baseUrl: baseUrlInput.trim() || undefined },
       });
 
       if (error) return { valid: false, error: 'Validation service error' };
@@ -218,7 +221,6 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
     setValidationError('');
     
     const result = await validateKey(editingProvider, keyInput.trim());
-    
     if (!result.valid) {
       setValidation('invalid');
       setValidationError(result.error || 'Key validation failed');
@@ -226,11 +228,12 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
     }
     
     setValidation('valid');
-    const success = await saveApiKey(editingProvider, keyInput.trim());
+    const success = await saveApiKey(editingProvider, keyInput.trim(), baseUrlInput.trim() || undefined);
     if (success) {
       setTimeout(() => {
         setEditingProvider(null);
         setKeyInput('');
+        setBaseUrlInput('');
         setValidation('idle');
         setValidationError('');
       }, 800);
@@ -240,6 +243,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
   const handleCancelKey = () => {
     setEditingProvider(null);
     setKeyInput('');
+    setBaseUrlInput('');
     setValidation('idle');
     setValidationError('');
   };
@@ -438,7 +442,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                               </>
                             ) : (
                               <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" 
-                                onClick={() => { setEditingProvider(provider); setKeyInput(''); setValidation('idle'); setValidationError(''); }}>
+                                onClick={() => { setEditingProvider(provider); setKeyInput(''); setBaseUrlInput(''); setValidation('idle'); setValidationError(''); }}>
                                 Add Key
                               </Button>
                             )}
@@ -452,20 +456,28 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                         )}
 
                         {isEditing && (
-                          <div className="mt-2 space-y-1.5">
-                            <div className="flex gap-1.5">
-                              <Input 
-                                value={keyInput} 
-                                onChange={e => { setKeyInput(e.target.value); setValidation('idle'); setValidationError(''); }}
-                                placeholder={info.placeholder}
-                                className="h-7 text-xs font-mono"
-                                type="password"
-                              />
+                            <div className="mt-2 space-y-1.5">
+                              {provider === 'openai-compatible' && (
+                                <Input
+                                  value={baseUrlInput}
+                                  onChange={e => { setBaseUrlInput(e.target.value); setValidation('idle'); setValidationError(''); }}
+                                  placeholder="https://api.example.com/v1/chat/completions"
+                                  className="h-7 text-xs font-mono"
+                                />
+                              )}
+                              <div className="flex gap-1.5">
+                                <Input 
+                                  value={keyInput} 
+                                  onChange={e => { setKeyInput(e.target.value); setValidation('idle'); setValidationError(''); }}
+                                  placeholder={provider === 'openai-compatible' ? 'API Key (use dummy if not required)' : info.placeholder}
+                                  className="h-7 text-xs font-mono"
+                                  type="password"
+                                />
                               <Button 
                                 size="sm" 
                                 className="h-7 text-xs px-3" 
                                 onClick={handleSaveKey} 
-                                disabled={apiLoading || !keyInput.trim() || validation === 'validating'}
+                                disabled={apiLoading || validation === 'validating' || !keyInput.trim() || (provider === 'openai-compatible' && !baseUrlInput.trim())}
                               >
                                 {validation === 'validating' ? (
                                   <Loader2 className="w-3 h-3 animate-spin" />

@@ -23,6 +23,7 @@ export interface ApiKeyRecord {
   user_id: string;
   provider: string;
   api_key: string;
+  base_url?: string;
   created_at: string;
   updated_at: string;
 }
@@ -73,7 +74,7 @@ export interface DataProvider {
   createStar: (projectId: string, userId: string) => Promise<void>;
   deleteStarById: (starId: string) => Promise<void>;
   listApiKeys: (userId: string) => Promise<ApiKeyRecord[]>;
-  upsertApiKey: (userId: string, provider: string, apiKey: string) => Promise<void>;
+  upsertApiKey: (userId: string, provider: string, apiKey: string, baseUrl?: string) => Promise<void>;
   deleteApiKey: (userId: string, provider: string) => Promise<void>;
   listUsageForDate: (userId: string, date: string) => Promise<UsageRecord[]>;
 }
@@ -164,10 +165,12 @@ const supabaseProvider: DataProvider = {
     if (error) throw error;
     return (data || []) as unknown as ApiKeyRecord[];
   },
-  async upsertApiKey(userId, provider, apiKey) {
+  async upsertApiKey(userId, provider, apiKey, baseUrl?) {
+    const record: Record<string, string> = { user_id: userId, provider, api_key: apiKey };
+    if (baseUrl) record.base_url = baseUrl;
     const { error } = await supabase
       .from('user_api_keys')
-      .upsert({ user_id: userId, provider, api_key: apiKey }, { onConflict: 'user_id,provider' });
+      .upsert(record, { onConflict: 'user_id,provider' });
     if (error) throw error;
   },
   async deleteApiKey(userId, provider) {
@@ -207,8 +210,8 @@ const createReplitDataProvider = (): DataProvider => {
     ...supabaseProvider,
     platform: 'replit',
     listApiKeys: (_userId) => keyCall<ApiKeyRecord[]>('/keys'),
-    upsertApiKey: (_userId, provider, apiKey) =>
-      keyCall<void>('/keys', { method: 'PUT', body: JSON.stringify({ provider, api_key: apiKey }) }),
+    upsertApiKey: (_userId, provider, apiKey, baseUrl?) =>
+      keyCall<void>('/keys', { method: 'PUT', body: JSON.stringify({ provider, api_key: apiKey, base_url: baseUrl }) }),
     deleteApiKey: (_userId, provider) =>
       keyCall<void>(`/keys?provider=${encodeURIComponent(provider)}`, { method: 'DELETE' }),
     listUsageForDate: async (_userId, _date) => [],
@@ -260,7 +263,7 @@ const createManagedDataProvider = (platform: 'replit' | 'lovable'): DataProvider
     createStar: (projectId, userId) => call<void>('/project-stars', { method: 'POST', body: JSON.stringify({ project_id: projectId, user_id: userId }) }),
     deleteStarById: (starId) => call<void>(`/project-stars/${starId}`, { method: 'DELETE' }),
     listApiKeys: (userId) => call<ApiKeyRecord[]>(`/user-api-keys?user_id=${encodeURIComponent(userId)}`),
-    upsertApiKey: (userId, provider, apiKey) => call<void>('/user-api-keys', { method: 'PUT', body: JSON.stringify({ user_id: userId, provider, api_key: apiKey }) }),
+    upsertApiKey: (userId, provider, apiKey, baseUrl?) => call<void>('/user-api-keys', { method: 'PUT', body: JSON.stringify({ user_id: userId, provider, api_key: apiKey, base_url: baseUrl }) }),
     deleteApiKey: (userId, provider) => call<void>(`/user-api-keys?user_id=${encodeURIComponent(userId)}&provider=${encodeURIComponent(provider)}`, { method: 'DELETE' }),
     listUsageForDate: (userId, date) => call<UsageRecord[]>(`/ai-usage?user_id=${encodeURIComponent(userId)}&usage_date=${encodeURIComponent(date)}`),
   };

@@ -960,7 +960,7 @@ const BYOK_DEFAULT_MODELS: Record<string, string> = {
   openrouter: "openai/gpt-4o",
   github: "gpt-4o",
   mistral: "mistral-large-latest",
-  github: "gpt-4o",
+  groq: "llama-3.3-70b-versatile",
 };
 
 const BYOK_PROVIDERS: Record<string, { url: string; headerKey: string }> = {
@@ -974,6 +974,7 @@ const BYOK_PROVIDERS: Record<string, { url: string; headerKey: string }> = {
   openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", headerKey: "Bearer" },
   github: { url: "https://models.inference.ai.azure.com/chat/completions", headerKey: "Bearer" },
   mistral: { url: "https://api.mistral.ai/v1/chat/completions", headerKey: "Bearer" },
+  groq: { url: "https://api.groq.com/openai/v1/chat/completions", headerKey: "Bearer" },
 };
 
 async function executeWebSearch(query: string, apiKey: string): Promise<string> {
@@ -1107,7 +1108,7 @@ async function executeMCPCall(serverName: string, method: string, params: any, m
   }
 }
 
-async function callBYOKProvider(
+  async function callBYOKProvider(
   provider: string,
   apiKey: string,
   messages: any[],
@@ -1115,9 +1116,11 @@ async function callBYOKProvider(
   requestedModel?: string,
   tools?: any[],
   options?: { temperature?: number; maxTokens?: number; thinkingBudget?: number },
+  customUrl?: string,
 ): Promise<Response> {
-  const config = BYOK_PROVIDERS[provider];
-  if (!config) throw new Error(`Unknown provider: ${provider}`);
+  const isOpenAICompatible = provider === "openai-compatible";
+  const config = isOpenAICompatible ? { url: customUrl || "", headerKey: "Bearer" } : BYOK_PROVIDERS[provider];
+  if (!config || !config.url) throw new Error(`Unknown provider: ${provider}`);
 
   const model = requestedModel || BYOK_DEFAULT_MODELS[provider] || "gpt-4o";
   const temperature = options?.temperature ?? 0.7;
@@ -1232,6 +1235,7 @@ serve(async (req) => {
       model,
       byokProvider,
       byokModel,
+      byokBaseUrl,
       temperature: reqTemperature,
       maxTokens: reqMaxTokens,
       thinkingBudget: reqThinkingBudget,
@@ -1246,11 +1250,13 @@ serve(async (req) => {
     // Check if user has a custom API key for the selected BYOK provider
     let userApiKey: string | null = null;
     let selectedProvider: string | null = null;
+    let userBaseUrl: string | null = null;
 
-    if (byokProvider && BYOK_PROVIDERS[byokProvider]) {
+    const isOpenAICompatible = byokProvider === "openai-compatible";
+    if (byokProvider && (BYOK_PROVIDERS[byokProvider] || isOpenAICompatible)) {
       const { data: keyData } = await supabase
         .from("user_api_keys")
-        .select("api_key")
+        .select("api_key, base_url")
         .eq("user_id", userId)
         .eq("provider", byokProvider)
         .single();
@@ -1258,7 +1264,18 @@ serve(async (req) => {
       if (keyData) {
         userApiKey = (keyData as any).api_key;
         selectedProvider = byokProvider;
+        if (isOpenAICompatible) {
+          userBaseUrl = (keyData as any).base_url || byokBaseUrl || null;
+        }
       }
+    }
+
+    // If a specific BYOK provider was requested but no key found, error out
+    if (byokProvider && !userApiKey) {
+      return new Response(
+        JSON.stringify({ error: `No API key found for ${byokProvider}. Please add one in API Keys settings.` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     // If no BYOK, check for any user key to bypass limits
@@ -1456,7 +1473,7 @@ ${contextSection}`
     }
 
     // === BYOK path: call external provider with tool support ===
-    if (userApiKey && selectedProvider && !BYOK_PROVIDERS[selectedProvider]) {
+    if (userApiKey && selectedProvider && !BYOK_PROVIDERS[selectedProvider] && selectedProvider !== "openai-compatible") {
       console.warn(`BYOK provider "${selectedProvider}" not supported for chat. Falling back to Lovable AI.`);
       selectedProvider = null;
       userApiKey = null;
@@ -1477,6 +1494,7 @@ ${contextSection}`
             effectiveByokModel,
             (tools.length > 0 && !chatOnlyMode) ? tools : undefined,
             providerOptions,
+            userBaseUrl || undefined,
           );
 
           if (!byokResponse.ok) {

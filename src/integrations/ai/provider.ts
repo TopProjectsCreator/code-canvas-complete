@@ -14,6 +14,7 @@ interface ChatPayload {
   model: string;
   byokProvider?: string;
   byokModel?: string;
+  byokBaseUrl?: string;
   template?: string;
   automationConfig?: string | null;
   projectId?: string | null;

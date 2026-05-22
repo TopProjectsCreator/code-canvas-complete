@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAgentChat } from '@/hooks/useAgentChat';
 import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion } from '@/types/agent';
 import { useApiKeys, PROVIDER_MODELS, PROVIDER_INFO } from '@/hooks/useApiKeys';
-const CHAT_BYOK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'mistral']);
+const CHAT_BYOK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'mistral', 'groq', 'openai-compatible']);
 
 import { SettingsDialog } from './SettingsDialog';
 import { getDiffLines } from '@/lib/diffUtils';
@@ -733,6 +733,8 @@ export const AIChat = ({
     setByokProvider,
     byokModel,
     setByokModel,
+    byokBaseUrl,
+    setByokBaseUrl,
     offlineModeEnabled,
     setOfflineModeEnabled,
     offlineModelId,
@@ -1504,6 +1506,10 @@ export const AIChat = ({
                     setByokProvider(provider);
                     setByokModel(PROVIDER_MODELS[provider]?.[0]?.id || null);
                     setByokModelFilter('');
+                    if (provider === 'openai-compatible') {
+                      const keyRecord = apiKeys.find(k => k.provider === provider);
+                      setByokBaseUrl(keyRecord?.base_url || '');
+                    }
                   }}
                   className={cn(
                     'px-2 py-0.5 rounded text-[10px] font-medium transition-all',
@@ -1605,6 +1611,17 @@ export const AIChat = ({
             {/* BYOK model picker */}
             {byokProvider && PROVIDER_MODELS[byokProvider] && (
               <div className="space-y-2 mb-2">
+                {byokProvider === 'openai-compatible' && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-muted-foreground shrink-0">Base URL:</span>
+                    <input
+                      value={byokBaseUrl || ''}
+                      onChange={e => setByokBaseUrl(e.target.value)}
+                      placeholder="https://api.example.com/v1/chat/completions"
+                      className="flex-1 rounded border border-border bg-input px-2 py-1 text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary font-mono"
+                    />
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-muted-foreground">Filter models:</span>
                   <input

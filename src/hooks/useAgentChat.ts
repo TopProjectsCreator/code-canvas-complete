@@ -159,6 +159,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const [selectedModel, setSelectedModel] = useState<AIModel>('flash');
   const [byokProvider, setByokProvider] = useState<string | null>(null);
   const [byokModel, setByokModel] = useState<string | null>(null);
+  const [byokBaseUrl, setByokBaseUrl] = useState<string | null>(null);
   const [offlineModeEnabled, setOfflineModeEnabledState] = useState<boolean>(() => getOfflineModeEnabled());
   const [offlineModelId, setOfflineModelIdState] = useState<string>(() => getSavedOfflineModel());
   const [chatOnlyMode, setChatOnlyModeState] = useState<boolean>(() => getChatOnlyMode());
@@ -1029,6 +1030,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         model: selectedModel,
         byokProvider: aiProvider.allowsBYOK ? (byokProvider || undefined) : undefined,
         byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
+        byokBaseUrl: aiProvider.allowsBYOK ? (byokBaseUrl || undefined) : undefined,
         template: context.template,
         automationConfig: context.automationConfig || null,
         projectId: context.projectId || null,
@@ -1337,6 +1339,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           model: selectedModel,
           byokProvider: aiProvider.allowsBYOK ? (byokProvider || undefined) : undefined,
           byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
+          byokBaseUrl: aiProvider.allowsBYOK ? (byokBaseUrl || undefined) : undefined,
           projectId: context.projectId || null,
         }, {
           accessToken: session.access_token,
@@ -1451,6 +1454,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     setByokProvider,
     byokModel,
     setByokModel,
+    byokBaseUrl,
+    setByokBaseUrl,
     offlineModeEnabled,
     setOfflineModeEnabled: (enabled: boolean) => { setOfflineModeEnabledState(enabled); setOfflineEnabledService(enabled); },
     offlineModelId,
