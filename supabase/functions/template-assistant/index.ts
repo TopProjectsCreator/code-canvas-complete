@@ -64,18 +64,55 @@ const TEMPLATES: { id: string; desc: string }[] = [
 
 const templateList = TEMPLATES.map((t) => `- ${t.id}: ${t.desc}`).join("\n");
 
-const SYSTEM_PROMPT = `You are a helpful assistant embedded in an online IDE that is for Code Canvas Complete. This is a custom-built online IDE experience. Your job is to help users pick the right programming template for their project.
+type Platform = "lovable" | "replit" | "github_codespaces" | "generic";
+
+function detectPlatform(req: Request, bodyPlatform?: string): Platform {
+  if (bodyPlatform === "lovable" || bodyPlatform === "replit" || bodyPlatform === "github_codespaces" || bodyPlatform === "generic") {
+    return bodyPlatform;
+  }
+  const origin = (req.headers.get("origin") || req.headers.get("referer") || "").toLowerCase();
+  if (origin.includes(".lovable.app") || origin.includes(".lovable.dev") || origin.includes("lovableproject.com")) return "lovable";
+  if (origin.includes(".replit.dev") || origin.includes(".repl.co") || origin.includes(".replit.app")) return "replit";
+  if (origin.includes(".github.dev") || origin.includes(".githubpreview.dev") || origin.includes("codespaces")) return "github_codespaces";
+  return "generic";
+}
+
+function buildExecutionFacts(platform: Platform): string {
+  const common = [
+    "- WebContainers (in-browser Node.js) run JS/TS/React projects, dev servers, npm scripts, and a real shell — fully client-side.",
+    "- Pyodide (in-browser CPython via WebAssembly) runs Python with most of the stdlib and many pure-Python packages via micropip — no server round-trip.",
+  ];
+  if (platform === "lovable") {
+    return [
+      "- Code execution is fully in-browser on this Lovable-hosted deployment:",
+      ...common.map((l) => "  " + l.slice(2)),
+      "  - Compiled languages (C/C++, Rust, Go, Java, etc.) run via a remote compile sandbox since no persistent server is available here.",
+    ].join("\n");
+  }
+  if (platform === "replit" || platform === "github_codespaces") {
+    const name = platform === "replit" ? "Replit" : "GitHub Codespaces";
+    return [
+      `- Code execution is hybrid on this ${name}-hosted deployment:`,
+      ...common.map((l) => "  " + l.slice(2)),
+      `  - A persistent backend server (running on ${name}) handles compiled languages (C/C++, Rust, Go, Java, etc.) and anything WebContainers/Pyodide can't do, with a real filesystem and shell.`,
+    ].join("\n");
+  }
+  return [
+    "- Code execution is hybrid and chosen automatically based on language and host:",
+    ...common.map((l) => "  " + l.slice(2)),
+    "  - A persistent backend server handles compiled languages (C/C++, Rust, Go, Java, etc.) with a real filesystem and shell.",
+  ].join("\n");
+}
+
+function buildSystemPrompt(platform: Platform): string {
+  return `You are a helpful assistant embedded in an online IDE that is for Code Canvas Complete. This is a custom-built online IDE experience. Your job is to help users pick the right programming template for their project.
 
 IMPORTANT PLATFORM FACTS:
-- This platform is Code Canvas Complete (not Replit).
-- Code execution is hybrid and chosen automatically based on language and host:
-  - WebContainers (in-browser Node.js) run JS/TS/React projects, dev servers, npm scripts, and a real shell — fully client-side.
-  - Pyodide (in-browser CPython via WebAssembly) runs Python with most of the stdlib and many pure-Python packages via micropip — no server round-trip.
-  - A persistent server runtime (only when NOT hosted on Lovable) handles compiled languages (C/C++, Rust, Go, Java, etc.) and anything WebContainers/Pyodide can't do. On Lovable-hosted previews this server is unavailable, so those languages fall back to a remote compile sandbox.
+- This platform is Code Canvas Complete (not Replit). Currently deployed on: ${platform}.
+${buildExecutionFacts(platform)}
 - .replit files do absolutely nothing here. Never suggest them.
 - nix configuration files do nothing here.
 - For HTML/CSS/JS and React, code runs in-browser (WebContainers or the lightweight Babel Standalone preview).
-
 
 Users may attach images, PDFs, or other files to show you what they want to build (e.g. screenshots, mockups, documents). Analyze them and recommend the best template.
 
@@ -85,6 +122,7 @@ ${templateList}
 When recommending a template, always include the template ID in your response wrapped like this: [template:id] (e.g. [template:python]).
 Keep responses concise (2-3 sentences max). Be friendly and helpful. If the user describes what they want to build, recommend the best template and explain why briefly.
 If users ask about .replit files or nix, remind them those do not work in Code Canvas Complete.`;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -93,7 +131,9 @@ serve(async (req) => {
 
   try {
     // Public endpoint — runs on the language picker before sign-in.
-    const { messages } = await req.json();
+    const { messages, platform: bodyPlatform } = await req.json();
+    const platform = detectPlatform(req, bodyPlatform);
+    const SYSTEM_PROMPT = buildSystemPrompt(platform);
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
