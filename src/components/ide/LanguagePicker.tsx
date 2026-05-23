@@ -185,6 +185,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
         },
         body: JSON.stringify({
           messages: [...allMessages.slice(0, -1).map((m) => ({ role: m.role, content: m.content })), apiMessage],
+          platform: (await import("@/lib/platform")).detectDeploymentPlatform(),
         }),
       });
 
