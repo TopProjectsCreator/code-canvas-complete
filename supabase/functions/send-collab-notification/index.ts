@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,7 +32,6 @@ async function sendViaResend(req: EmailRequest): Promise<Response> {
 }
 
 async function sendViaMailgun(req: EmailRequest): Promise<Response> {
-  // API key format: key-xxx or domain:key-xxx
   const parts = req.apiKey.split(':');
   let domain = 'sandbox.mailgun.org';
   let key = req.apiKey;
@@ -48,9 +48,7 @@ async function sendViaMailgun(req: EmailRequest): Promise<Response> {
 
   return fetch(`https://api.mailgun.net/v3/${domain}/messages`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Basic ${btoa(`api:${key}`)}`,
-    },
+    headers: { 'Authorization': `Basic ${btoa(`api:${key}`)}` },
     body: form,
   });
 }
@@ -73,7 +71,6 @@ async function sendViaPostmark(req: EmailRequest): Promise<Response> {
 }
 
 async function sendViaTwilio(req: EmailRequest): Promise<Response> {
-  // Twilio SendGrid API
   return fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
     headers: {
@@ -95,6 +92,28 @@ serve(async (req) => {
   }
 
   try {
+    // Require authentication to prevent abuse as an open email relay.
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claims, error: authError } = await supabase.auth.getClaims(token);
+    if (authError || !claims?.claims) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const body: EmailRequest = await req.json();
     const { provider, apiKey, from, to, subject, html } = body;
 
@@ -124,7 +143,7 @@ serve(async (req) => {
     const responseBody = await response.text();
 
     if (!response.ok && response.status !== 202) {
-      console.error(`Email send failed [${response.status}]:`, responseBody);
+      console.error(`Email send failed [${response.status}]`);
       return new Response(JSON.stringify({ error: `Provider returned ${response.status}`, details: responseBody.slice(0, 200) }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
