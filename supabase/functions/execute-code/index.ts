@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -365,7 +364,6 @@ serve(async (req) => {
 
   try {
     // Public endpoint — this IDE is account-less by design.
-
 
     const { code, language, stdin, sessionId, platformHint } = await req.json() as ExecuteRequest;
 
