@@ -41,6 +41,7 @@ interface HeaderProps {
   onShare: () => void;
   onGitImport: () => void;
   onCollab: () => void;
+  onOpenTaskBoard: () => void;
   presence: PresenceState[];
   isStarred: boolean;
   isForking: boolean;
@@ -67,6 +68,7 @@ export const Header = ({
   onShare,
   onGitImport,
   onCollab,
+  onOpenTaskBoard,
   presence,
   isStarred,
   isForking,
@@ -238,6 +240,20 @@ export const Header = ({
         >
           <Star className={cn("w-4 h-4", isStarred && "fill-current")} />
           {starsCount > 0 && <span>{starsCount}</span>}
+        </button>
+
+        {/* Task Board button */}
+        <button
+          onClick={onOpenTaskBoard}
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
+          title="Task Board"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+          </svg>
         </button>
 
         {/* Presence avatars */}

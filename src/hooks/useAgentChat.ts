@@ -636,6 +636,49 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     return { shellCommands, cleanContent: cleanContent.trim() };
   };
 
+  const parsePlanFeature = (content: string): { features: Array<{ featureName: string; tasks: string[] }>; cleanContent: string } => {
+    const features: Array<{ featureName: string; tasks: string[] }> = [];
+    let cleanContent = content;
+    const regex = /<plan_feature\s+name="([^"]+)"?>([\s\S]*?)<\/plan_feature>/g;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      const featureName = match[1];
+      const taskLines = match[2].trim().split('\n').map(s => s.trim()).filter(Boolean);
+      features.push({ featureName, tasks: taskLines });
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+    return { features, cleanContent: cleanContent.trim() };
+  };
+
+  const parseGetTaskBoard = (content: string): { hasGetTaskBoard: boolean; cleanContent: string } => {
+    const hasGetTaskBoard = /<get_task_board\s*\/?>/.test(content);
+    const cleanContent = content.replace(/<get_task_board\s*\/?>/g, '');
+    return { hasGetTaskBoard, cleanContent: cleanContent.trim() };
+  };
+
+  const parseUpdateTask = (content: string): { taskUpdates: Array<{ id: string; updates: Record<string, unknown> }>; cleanContent: string } => {
+    const taskUpdates: Array<{ id: string; updates: Record<string, unknown> }> = [];
+    let cleanContent = content;
+    const regex = /<update_task\s+([^>]*?)\s*\/?>/g;
+    let match;
+    while ((match = regex.exec(content)) !== null) {
+      const attrs = match[1];
+      const idMatch = attrs.match(/id="([^"]+)"/);
+      const statusMatch = attrs.match(/status="([^"]+)"/);
+      const priorityMatch = attrs.match(/priority="([^"]+)"/);
+      const titleMatch = attrs.match(/title="([^"]+)"/);
+      if (idMatch) {
+        const updates: Record<string, unknown> = {};
+        if (statusMatch) updates.status = statusMatch[1];
+        if (priorityMatch) updates.priority = priorityMatch[1];
+        if (titleMatch) updates.title = titleMatch[1];
+        taskUpdates.push({ id: idMatch[1], updates });
+      }
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+    return { taskUpdates, cleanContent: cleanContent.trim() };
+  };
+
   const parseAgentDone = (content: string): { isDone: boolean, cleanContent: string } => {
     const cleanContent = content.replace(/<agent_done\s*\/>/g, '');
     return { isDone: content.includes('<agent_done'), cleanContent: cleanContent.trim() };
@@ -899,6 +942,39 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
     const { isDone, cleanContent: afterDone } = parseAgentDone(content);
     content = afterDone;
+
+    // Parse task board features
+    const { features, cleanContent: afterFeatures } = parsePlanFeature(content);
+    features.forEach(f => {
+      allSteps.push({ id: generateId(), type: 'tool_call', content: `Planning feature: ${f.featureName}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'plan_feature', arguments: { featureName: f.featureName, tasks: f.tasks }, status: 'completed' } });
+      window.dispatchEvent(new CustomEvent('taskboard:plan_feature', { detail: { featureName: f.featureName, tasks: f.tasks } }));
+    });
+    content = afterFeatures;
+
+    const { hasGetTaskBoard, cleanContent: afterGetBoard } = parseGetTaskBoard(content);
+    if (hasGetTaskBoard) {
+      allSteps.push({ id: generateId(), type: 'tool_call', content: 'Reading task board', timestamp: new Date(), toolCall: { id: generateId(), name: 'get_task_board', arguments: {}, status: 'completed' } });
+      const allTasks = (() => {
+        try {
+          const raw = localStorage.getItem('taskboard_tasks');
+          if (raw) return JSON.parse(raw);
+        } catch {}
+        return [];
+      })();
+      const summary = allTasks.map((t: any) => ({
+        id: t.id, title: t.title, status: t.status, priority: t.priority, description: t.description?.slice(0, 100)
+      }));
+      content = afterGetBoard + `\n\n\`\`\`json\n${JSON.stringify(summary, null, 2)}\n\`\`\``;
+    } else {
+      content = afterGetBoard;
+    }
+
+    const { taskUpdates, cleanContent: afterUpdates } = parseUpdateTask(content);
+    taskUpdates.forEach(u => {
+      allSteps.push({ id: generateId(), type: 'tool_call', content: `Updating task: ${u.id}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'update_task', arguments: { id: u.id, ...u.updates }, status: 'completed' } });
+      window.dispatchEvent(new CustomEvent('taskboard:update_task', { detail: { id: u.id, updates: u.updates } }));
+    });
+    content = afterUpdates;
 
     return {
       content,

@@ -13,7 +13,7 @@ class OfflineLLMManager {
 
   private ensureWorker() {
     if (this.worker) return this.worker;
-    this.worker = new Worker('/workers/offline-llm-worker.js');
+    this.worker = new Worker('/workers/offline-llm-worker.js', { type: 'module' });
     return this.worker;
   }
 

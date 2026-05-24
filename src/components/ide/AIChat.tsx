@@ -841,7 +841,7 @@ export const AIChat = ({
       return;
     }
 
-    if (!user) {
+    if (!user && !offlineModeEnabled) {
       return;
     }
 
@@ -1422,21 +1422,14 @@ export const AIChat = ({
 
       {/* Input */}
       <div className="p-3 border-t border-border">
-        {!user ? (
-          <div className="flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground">
-            <AlertCircle className="w-4 h-4" />
-            <span>Sign in to use AI assistant</span>
-          </div>
-        ) : (
-          <>
-            {/* Model selector row */}
-            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-              {/* Built-in tiers */}
-              {([
-                { id: 'lite' as AIModel, label: 'Lite', icon: '⚡', sub: 'FREE' },
-                { id: 'flash' as AIModel, label: 'Flash', icon: '🔥', sub: '10/day' },
-                { id: 'pro' as AIModel, label: 'Pro', icon: '💎', sub: '5/day' },
-              ]).map(m => (
+        {/* Toolbar — always visible so offline button is accessible */}
+        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+          {/* Built-in tiers */}
+          {([
+            { id: 'lite' as AIModel, label: 'Lite', icon: '⚡', sub: 'FREE' },
+            { id: 'flash' as AIModel, label: 'Flash', icon: '🔥', sub: '10/day' },
+            { id: 'pro' as AIModel, label: 'Pro', icon: '💎', sub: '5/day' },
+          ]).map(m => (
                 <button
                   key={m.id}
                   onClick={() => { setSelectedModel(m.id); setByokProvider(null); setByokModel(null); }}
@@ -1692,61 +1685,73 @@ export const AIChat = ({
               </div>
             ) : (
               <>
-                {/* Text input + attach + send */}
-                {recentErrors && (
-                  <button
-                    onClick={handleFixLatestError}
-                    className="mb-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
-                  >
-                    <AlertCircle className="w-3 h-3" />
-                    Fix this error
-                  </button>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={openFilePicker}
-                    disabled={isLoading}
-                    className="p-2.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                    title="Attach file (image, video, audio, PDF)"
-                  >
-                    <Paperclip className="w-4 h-4" />
-                  </button>
-                  <textarea
-                    ref={inputRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={currentFile ? `Ask about ${currentFile.name}...` : 'Ask me anything...'}
-                    className="flex-1 resize-none bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary min-h-[40px] max-h-[120px]"
-                    rows={1}
-                  />
-                  {isLoading ? (
-                    <button
-                      onClick={stopGeneration}
-                      className="p-2.5 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
-                      title="Stop generating"
-                    >
-                      <StopCircle className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleSend}
-                      disabled={!input.trim() && attachments.length === 0}
-                      className={cn(
-                        'p-2.5 rounded-lg transition-colors',
-                        (input.trim() || attachments.length > 0)
-                          ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                          : 'bg-muted text-muted-foreground cursor-not-allowed'
+                {!user && !offlineModeEnabled ? (
+                  <div className="mb-1 flex items-center justify-center rounded-lg border border-border bg-muted/30 px-6 py-6 text-center">
+                    <div className="space-y-2">
+                      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                        <Bot className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm font-medium text-foreground">Sign in to use AI Assistant</p>
+                      <p className="text-xs text-muted-foreground">Enable offline mode or sign in to chat with the AI.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Text input + attach + send */}
+                    {recentErrors && (
+                      <button
+                        onClick={handleFixLatestError}
+                        className="mb-2 inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
+                      >
+                        <AlertCircle className="w-3 h-3" />
+                        Fix this error
+                      </button>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={openFilePicker}
+                        disabled={isLoading}
+                        className="p-2.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                        title="Attach file (image, video, audio, PDF)"
+                      >
+                        <Paperclip className="w-4 h-4" />
+                      </button>
+                      <textarea
+                        ref={inputRef}
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder={currentFile ? `Ask about ${currentFile.name}...` : 'Ask me anything...'}
+                        className="flex-1 resize-none bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary min-h-[40px] max-h-[120px]"
+                        rows={1}
+                      />
+                      {isLoading ? (
+                        <button
+                          onClick={stopGeneration}
+                          className="p-2.5 rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                          title="Stop generating"
+                        >
+                          <StopCircle className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleSend}
+                          disabled={!input.trim() && attachments.length === 0}
+                          className={cn(
+                            'p-2.5 rounded-lg transition-colors',
+                            (input.trim() || attachments.length > 0)
+                              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                              : 'bg-muted text-muted-foreground cursor-not-allowed'
+                          )}
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
                       )}
-                    >
-                      <Send className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+                    </div>
+                  </>
+                )}
               </>
             )}
-          </>
-        )}
       </div>
 
       <OfflineModelManager

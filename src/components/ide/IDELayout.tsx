@@ -41,6 +41,7 @@ import { useOfflineProject } from "@/hooks/useOfflineProject";
 import { AutomationTemplatePane, type AutomationBlockInstance, serializeAutomationConfig, parseAutomationConfig } from "@/components/ide/AutomationTemplatePane";
 import { DatabaseDesignerPane } from "@/components/ide/DatabaseDesignerPane";
 import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
+import { TaskBoardModal } from "@/components/tasks/TaskBoardModal";
 
 const platform = detectDeploymentPlatform();
 
@@ -280,6 +281,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [showGitImportDialog, setShowGitImportDialog] = useState(false);
   const [showCollabDialog, setShowCollabDialog] = useState(false);
   const [showPartsInventory, setShowPartsInventory] = useState(false);
+  const [showTaskBoard, setShowTaskBoard] = useState(false);
   const [partsInventoryPlatform, setPartsInventoryPlatform] = useState<"ftc" | "arduino" | "general" | undefined>(undefined);
   const [partsInventoryInitialTab, setPartsInventoryInitialTab] = useState<"inventory" | "add" | "catalog">("inventory");
   const [partsInventoryIdentifyWithImage, setPartsInventoryIdentifyWithImage] = useState(false);
@@ -2266,6 +2268,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         onShare={() => setShowShareDialog(true)}
         onGitImport={() => setShowGitImportDialog(true)}
         onCollab={() => setShowCollabDialog(true)}
+        onOpenTaskBoard={() => setShowTaskBoard(true)}
         presence={collab.presence}
         isStarred={isStarred}
         isForking={isForking}
@@ -2318,6 +2321,11 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           initialTab={partsInventoryInitialTab}
           identifyWithImage={partsInventoryIdentifyWithImage}
         />
+
+      <TaskBoardModal
+        open={showTaskBoard}
+        onOpenChange={setShowTaskBoard}
+      />
 
       <GitProviderImportDialog
         open={showGitImportDialog}
