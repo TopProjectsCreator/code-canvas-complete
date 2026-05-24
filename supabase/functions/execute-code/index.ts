@@ -364,6 +364,28 @@ serve(async (req) => {
   }
 
   try {
+    // Require authentication — prevents anonymous abuse of the code execution sandbox.
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', output: [] }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+    const authClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claims, error: authError } = await authClient.auth.getClaims(token);
+    if (authError || !claims?.claims) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized', output: [] }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     const { code, language, stdin, sessionId, platformHint } = await req.json() as ExecuteRequest;
 
     if (!code || !code.trim()) {
