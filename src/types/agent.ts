@@ -41,7 +41,10 @@ export type ToolName =
   | 'duplicate_file'
   | 'move_file'
   | 'open_file'
-  | 'append_file';
+  | 'append_file'
+  | 'plan_feature'
+  | 'get_task_board'
+  | 'update_task';
 
 export type AIModel = 'flash' | 'pro' | 'lite';
 
@@ -342,6 +345,49 @@ export const AGENT_TOOLS = [
           query: { type: 'string', description: 'What to search for in the automation structure' }
         },
         required: ['query']
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'plan_feature',
+      description: 'Plan a feature by creating tasks on the task board. The first line is the feature name, subsequent lines are task titles.',
+      parameters: {
+        type: 'object',
+        properties: {
+          featureName: { type: 'string', description: 'Name of the feature to plan' },
+          tasks: { type: 'array', items: { type: 'string' }, description: 'List of task titles for this feature' }
+        },
+        required: ['featureName', 'tasks']
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'get_task_board',
+      description: 'Get all tasks from the task board to see what needs to be done',
+      parameters: {
+        type: 'object',
+        properties: {}
+      }
+    }
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'update_task',
+      description: 'Update a task on the task board',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'The task ID' },
+          title: { type: 'string', description: 'New title (optional)' },
+          status: { type: 'string', enum: ['todo', 'in_progress', 'done'], description: 'New status (optional)' },
+          priority: { type: 'string', enum: ['low', 'medium', 'high'], description: 'New priority (optional)' }
+        },
+        required: ['id']
       }
     }
   }
