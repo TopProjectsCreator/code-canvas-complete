@@ -448,9 +448,12 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
     return (
       <div className="flex-1 flex flex-col bg-editor overflow-hidden">
         <div className="flex-1 flex items-center justify-center p-8 overflow-auto bg-[repeating-conic-gradient(#80808020_0%_25%,transparent_0%_50%)] bg-[length:20px_20px]">
-          <div 
-            className="max-w-full max-h-[70vh] p-4"
-            dangerouslySetInnerHTML={{ __html: content }}
+          {/* Render SVG in a sandboxed iframe so embedded <script> or event handlers cannot execute in the IDE origin. */}
+          <iframe
+            title={`SVG preview: ${file.name}`}
+            sandbox=""
+            className="max-w-full max-h-[70vh] w-full h-[70vh] bg-transparent border-0"
+            srcDoc={`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;display:flex;align-items:center;justify-content:center;background:transparent;}svg{max-width:100%;max-height:100%;}</style></head><body>${content}</body></html>`}
           />
         </div>
         <div className="flex items-center justify-between px-4 py-2 bg-background border-t border-border text-xs text-muted-foreground">
