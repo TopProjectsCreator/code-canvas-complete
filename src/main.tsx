@@ -9,7 +9,8 @@ const isInIframe = (() => {
 })();
 const isPreviewHost =
   window.location.hostname.includes("id-preview--") ||
-  window.location.hostname.includes("lovableproject.com");
+  window.location.hostname.includes("lovableproject.com") ||
+  window.location.hostname.includes("replit.dev");
 
 const previewCacheResetKey = "lovable-preview-cache-reset";
 
@@ -34,7 +35,20 @@ if (isPreviewHost || isInIframe) {
   });
 } else {
   if ("serviceWorker" in navigator) {
-    void navigator.serviceWorker.register("/sw.js");
+    void (async () => {
+      try {
+        const swHead = await fetch("/sw.js", { method: "HEAD" });
+        const contentType = swHead.headers.get("content-type") ?? "";
+
+        if (!swHead.ok || !contentType.toLowerCase().includes("javascript")) {
+          return;
+        }
+
+        await navigator.serviceWorker.register("/sw.js");
+      } catch {
+        // Ignore service worker registration failures so app boot is unaffected.
+      }
+    })();
   }
 }
 
