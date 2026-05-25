@@ -1,0 +1,8 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "buildAptPackages": ["python3", "make", "g++", "node-gyp"],
+  "deploy": {
+    "startCommand": "node server.mjs"
+  },
+  "noSpa": true
+}
