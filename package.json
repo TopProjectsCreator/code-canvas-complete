@@ -14,6 +14,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "postinstall": "npm rebuild node-pty",
     "bridge:arduino": "node tools/arduino-bridge/server.mjs"
   },
   "overrides": {
