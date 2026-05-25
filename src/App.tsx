@@ -64,7 +64,7 @@ const App = () => (
           <Sonner />
           <OfflineDialog />
           <InboxNotifier />
-          <BrowserRouter>
+          <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <Routes>
               <Route path="/" element={<RootRoute />} />
               <Route path="/landing" element={<Landing />} />

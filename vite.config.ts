@@ -4,8 +4,21 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
 
+function getBasePath(): string {
+  if (process.env.VITE_BASE_PATH) {
+    return process.env.VITE_BASE_PATH.endsWith('/') ? process.env.VITE_BASE_PATH : process.env.VITE_BASE_PATH + '/';
+  }
+  if (process.env.GITHUB_REPOSITORY?.includes('/')) {
+    return `/${process.env.GITHUB_REPOSITORY.split('/')[1]}/`;
+  }
+  return '/';
+}
+
+const basePath = getBasePath();
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  base: basePath,
   server: {
     host: "0.0.0.0",
     port: 5000,
@@ -60,7 +73,7 @@ export default defineConfig(({ mode }) => ({
         theme_color: "#1a1d27",
         background_color: "#1a1d27",
         display: "standalone",
-        start_url: "/",
+        start_url: basePath,
         icons: [
           { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
           { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },

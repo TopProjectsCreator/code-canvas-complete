@@ -65,7 +65,7 @@ export function WarmMomentum() {
             <span style={{ fontSize: 12, fontWeight: 600, color: "#92400e" }}>{online.toLocaleString()} online</span>
           </div>
           <button style={{ background: "none", border: "none", color: "#78716c", fontSize: 14, cursor: "pointer", padding: "8px 16px" }}>Compare</button>
-          <button onClick={() => window.location.href = '/editor'} style={{
+          <button onClick={() => window.location.href = `${import.meta.env.BASE_URL}editor`} style={{
             background: "linear-gradient(135deg, #f59e0b 0%, #ec4899 100%)",
             border: "none", color: "#fff", fontWeight: 700, fontSize: 14,
             padding: "10px 24px", borderRadius: 10, cursor: "pointer",
@@ -106,7 +106,7 @@ export function WarmMomentum() {
             </p>
 
             <div style={{ display: "flex", gap: 14, marginBottom: 48, flexWrap: "wrap" }}>
-              <button onClick={() => window.location.href = '/editor'} style={{
+              <button onClick={() => window.location.href = `${import.meta.env.BASE_URL}editor`} style={{
                 background: "linear-gradient(135deg, #f59e0b 0%, #ec4899 100%)",
                 border: "none", color: "#fff", fontWeight: 700, fontSize: 16,
                 padding: "16px 36px", borderRadius: 12, cursor: "pointer",

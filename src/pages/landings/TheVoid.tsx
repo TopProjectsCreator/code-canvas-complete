@@ -232,7 +232,7 @@ export function TheVoid() {
         </p>
 
         <div style={{ marginTop: 48, display: "flex", gap: 16, alignItems: "center" }}>
-          <button onClick={() => window.location.href = '/editor'} style={{
+          <button onClick={() => window.location.href = `${import.meta.env.BASE_URL}editor`} style={{
             background: "#ff6b00", border: "none", color: "#000",
             fontWeight: 700, fontSize: 15, padding: "15px 36px",
             borderRadius: 8, cursor: "pointer", letterSpacing: "-0.01em",

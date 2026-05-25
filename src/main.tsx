@@ -34,7 +34,8 @@ if (isPreviewHost || isInIframe) {
   });
 } else {
   if ("serviceWorker" in navigator) {
-    void navigator.serviceWorker.register("/sw.js");
+    const swUrl = `${import.meta.env.BASE_URL}sw.js`;
+    void navigator.serviceWorker.register(swUrl);
   }
 }
 

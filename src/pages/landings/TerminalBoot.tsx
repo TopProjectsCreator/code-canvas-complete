@@ -155,7 +155,7 @@ export function TerminalBoot() {
               display: "flex", gap: 12, alignItems: "center",
               animation: "fadeIn 0.5s ease",
             }}>
-              <button onClick={() => window.location.href = '/editor'} style={{
+              <button onClick={() => window.location.href = `${import.meta.env.BASE_URL}editor`} style={{
                 background: "#ff6b00", border: "none", color: "#000",
                 fontWeight: 700, fontSize: 13, padding: "10px 24px",
                 borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
