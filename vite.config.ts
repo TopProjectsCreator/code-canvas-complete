@@ -13,6 +13,9 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    watch: {
+      ignored: ["**/.cache/**"],
+    },
     headers: {
       'Cross-Origin-Embedder-Policy': 'credentialless',
       'Cross-Origin-Opener-Policy': 'same-origin',
