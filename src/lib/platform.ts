@@ -2,6 +2,9 @@ export type DeploymentPlatform = 'replit' | 'lovable' | 'generic' | 'github_code
 
 const REPLIT_HOST_PATTERNS = ['.replit.dev', '.repl.co', '.replit.app'];
 const LOVABLE_HOST_PATTERNS = ['.lovable.app', '.lovable.dev'];
+// Railway and custom domains that point to a long-running Node server with pty support.
+// Same architecture as Replit (server + WS /api/replit/pty), so map them to 'replit'.
+const REPLIT_LIKE_HOST_PATTERNS = ['.up.railway.app', '.railway.app', '.codecanvas.app'];
 
 const getHostPlatform = (host: string): DeploymentPlatform | null => {
   const normalizedHost = host.toLowerCase();
