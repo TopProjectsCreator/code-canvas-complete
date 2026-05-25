@@ -23,6 +23,16 @@ const getHostPlatform = (host: string): DeploymentPlatform | null => {
   return null;
 };
 
+export const isPreviewLikeHostname = (host: string): boolean => {
+  const normalizedHost = host.toLowerCase();
+  if (!normalizedHost) return false;
+
+  return normalizedHost.includes('id-preview--')
+    || normalizedHost.includes('preview--')
+    || normalizedHost.includes('lovableproject.com')
+    || REPLIT_HOST_PATTERNS.some((pattern) => normalizedHost.endsWith(pattern));
+};
+
 export const detectDeploymentPlatform = (): DeploymentPlatform => {
   const explicit = import.meta.env.VITE_DEPLOY_PLATFORM as string | undefined;
   if (explicit === 'replit' || explicit === 'lovable' || explicit === 'generic' || explicit === 'github_codespaces') {

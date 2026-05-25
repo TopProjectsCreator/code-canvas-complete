@@ -1,16 +1,14 @@
 import { createRoot } from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
 import App from "./App.tsx";
+import { isPreviewLikeHostname } from "@/lib/platform";
 import "./index.css";
 
 // PWA: prevent service worker from interfering in iframe / preview contexts
 const isInIframe = (() => {
   try { return window.self !== window.top; } catch { return true; }
 })();
-const isPreviewHost =
-  window.location.hostname.includes("id-preview--") ||
-  window.location.hostname.includes("lovableproject.com") ||
-  window.location.hostname.includes("replit.dev");
+const isPreviewHost = isPreviewLikeHostname(window.location.hostname);
 
 const previewCacheResetKey = "lovable-preview-cache-reset";
 
