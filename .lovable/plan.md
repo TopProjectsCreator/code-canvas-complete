@@ -1,35 +1,46 @@
-# Fix template-assistant platform description
+## Root cause of Render deployment error:
 
-The template-assistant edge function's system prompt currently tells users "Code execution uses Wandbox" — that's outdated. Today the IDE picks a runtime based on language and host: WebContainers for JS/TS, Pyodide for Python, and a persistent server for compiled languages when running outside Lovable (with a remote sandbox fallback on Lovable-hosted previews).
+The Canvas Shell renders only when `isReplitLikePlatform(platform)` returns `false`. Since you've set `VITE_DEPLOY_PLATFORM=replit` and you're still seeing Canvas Shell, the value baked into the bundle is `generic`. Two reasons this happens on Railway:
 
-## Change
+1. `**VITE_*` is evaluated at build time, not runtime.** If Railway ran `npm run build` before you added the variable (or in a build phase that didn't expose service variables), the compiled JS contains the old value forever — restarting won't help, only a redeploy.
+2. **No hostname fallback for Railway.** `src/lib/platform.ts` only matches `.replit.dev`, `.repl.co`, `.replit.app`, `.lovable.app`, `.lovable.dev`. `*.up.railway.app` falls through to `generic`.
 
-Single edit to `supabase/functions/template-assistant/index.ts`, lines 69-75 (the `IMPORTANT PLATFORM FACTS` block inside `SYSTEM_PROMPT`).
+## Fix (one change, robust to both causes)
 
-Replace:
+Add Railway/custom-domain hostname detection to `src/lib/platform.ts` so the platform resolves correctly even when the env var didn't make it into the bundle. This is the same pattern already used for Replit.
 
-```
-- This platform is Code Canvas Complete (not Replit).
-- Code execution uses Wandbox, a remote compilation sandbox.
-- .replit files do absolutely nothing here. Never suggest them.
-- nix configuration files do nothing here.
-- Only standard library modules are available (no pip/npm install at runtime).
-- For HTML/CSS/JS and React, code runs in-browser via Babel Standalone.
-```
+### `src/lib/platform.ts` change
 
-With:
+- Add a new constant alongside `REPLIT_HOST_PATTERNS`:
+  ```ts
+  const RAILWAY_HOST_PATTERNS = ['.up.railway.app', '.railway.app'];
+  ```
+- In `getHostPlatform`, after the Replit check, add:
+  ```ts
+  if (RAILWAY_HOST_PATTERNS.some((p) => normalizedHost.endsWith(p))) {
+    return 'replit'; // same architecture: long-running server + pty
+  }
+  ```
+- (Optional) also add `'.codecanvas.app'` to the same list so any custom domain you point at the Railway service is detected too.
 
-```
-- This platform is Code Canvas Complete (not Replit).
-- Code execution is hybrid and chosen automatically based on language and host:
-  - WebContainers (in-browser Node.js) run JS/TS/React projects, dev servers, npm scripts, and a real shell — fully client-side.
-  - Pyodide (in-browser CPython via WebAssembly) runs Python with most of the stdlib and many pure-Python packages — no server round-trip.
-  - A persistent server runtime (only when NOT hosted on Lovable) handles compiled languages (C/C++, Rust, Go, Java, etc.) and anything WebContainers/Pyodide can't do. On Lovable-hosted previews this server is unavailable, so those languages fall back to a remote compile sandbox.
-- .replit files do absolutely nothing here. Never suggest them.
-- nix configuration files do nothing here.
-- For HTML/CSS/JS and React, code runs in-browser (WebContainers or the lightweight Babel Standalone preview).
-```
+### Why this works
 
-Also drop the "Only standard library modules are available" line — it's no longer true (WebContainers supports `npm install`, Pyodide supports `micropip`).
+- `XTerminal` reaches `wss://<host>/api/replit/pty`. Your Railway service already listens on port 3001 and Railway is proxying its public domain to that port (per your screenshot). So the WS will succeed as soon as the React side decides to render `XTerminal` instead of Canvas Shell.
+- `server.mjs` already serves `dist/`, handles `/api/replit/*`, and upgrades `/api/replit/pty`. No server change needed since you've matched the port.
 
-No other files change; the edge function redeploys automatically.
+## Verification after redeploy
+
+1. Open the Railway URL, hard-refresh (Cmd-Shift-R) to bust the SW cache.
+2. In DevTools console: `localStorage; new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/api/replit/pty')` — should emit `onopen`.
+3. The bottom panel should show xterm.js with the `project$` prompt instead of the green "Welcome to Canvas Shell!" banner.
+
+## If it still shows Canvas Shell after redeploy
+
+- Confirm the bundle actually rebuilt: check Railway build logs for `vite build` running after the variable was added.
+- Quick sanity check in browser console: paste `Object.keys(import.meta)` won't work (stripped), so instead inspect the source — search the deployed JS for the string `replit` near `getHostPlatform`. If the new patterns aren't there, the build didn't pick up your latest commit.
+
+## Notes / scope
+
+- No server changes, no UI changes, no behavior changes for Replit or local dev.
+- I'll leave `VITE_DEPLOY_PLATFORM` as a respected override so you can still force `generic` for testing.
+- Not touching `server.mjs` PORT logic since target port 3001 already matches what Railway expects.
