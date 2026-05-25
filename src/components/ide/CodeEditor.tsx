@@ -387,6 +387,8 @@ export const CodeEditor = ({
     return stored === 'true';
   });
   const isComposingRef = useRef(false);
+  const lastBeforeInputTypeRef = useRef<string | null>(null);
+  const isHandlingPasteRef = useRef(false);
   const contentRef = useRef(content);
   const cursorOffsetRef = useRef<number | null>(null);
   const prevContentRef = useRef(content);
@@ -491,9 +493,27 @@ export const CodeEditor = ({
     // innerText can include a trailing newline in contentEditable roots,
     // so trim one terminal line break to preserve exact file content.
     const nextContent = el.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
+
+    const previous = contentRef.current;
+    const previousLineCount = previous ? previous.split("\n").length : 0;
+    const nextLineCount = nextContent ? nextContent.split("\n").length : 0;
+    const lineGrowth = nextLineCount - previousLineCount;
+    const charGrowth = nextContent.length - previous.length;
+    const inputType = lastBeforeInputTypeRef.current;
+    const looksLikePaste = isHandlingPasteRef.current || inputType === "insertFromPaste";
+
+    // Guard against sporadic contentEditable explosions that can inject
+    // hundreds/thousands of lines in a single non-paste event.
+    if (!looksLikePaste && lineGrowth > 200 && charGrowth > 5000) {
+      el.innerHTML = buildHighlightedHtml();
+      return;
+    }
+
     setContent(nextContent);
     if (file) onContentChange(file.id, nextContent);
-  }, [file, onContentChange]);
+    lastBeforeInputTypeRef.current = null;
+    isHandlingPasteRef.current = false;
+  }, [file, onContentChange, buildHighlightedHtml]);
 
   const handleEditorKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Tab") {
@@ -504,6 +524,7 @@ export const CodeEditor = ({
 
   const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
     event.preventDefault();
+    isHandlingPasteRef.current = true;
     document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
   }, []);
 
@@ -779,6 +800,9 @@ export const CodeEditor = ({
                     contentEditable
                     suppressContentEditableWarning
                     onInput={handleInput}
+                    onBeforeInput={(event) => {
+                      lastBeforeInputTypeRef.current = event.nativeEvent.inputType || null;
+                    }}
                     onKeyDown={handleEditorKeyDown}
                     onPaste={handlePaste}
                     onCompositionStart={() => {
