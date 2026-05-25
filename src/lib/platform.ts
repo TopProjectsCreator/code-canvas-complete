@@ -19,6 +19,10 @@ const getHostPlatform = (host: string): DeploymentPlatform | null => {
     return 'replit';
   }
 
+  if (REPLIT_LIKE_HOST_PATTERNS.some((pattern) => normalizedHost.endsWith(pattern))) {
+    return 'replit';
+  }
+
   if (LOVABLE_HOST_PATTERNS.some((pattern) => normalizedHost.endsWith(pattern))) {
     return 'lovable';
   }
