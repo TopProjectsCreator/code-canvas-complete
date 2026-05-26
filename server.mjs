@@ -88,6 +88,14 @@ function proxyRequest(targetUrl, req, res, redirects = 0) {
   delete options.headers.connection;
   delete options.headers.referer;
   delete options.headers['content-length'];
+  delete options.headers.cookie;
+  delete options.headers.authorization;
+  delete options.headers['set-cookie'];
+  // Hugging Face can require a User-Agent and now requires auth for all downloads
+  options.headers['user-agent'] = 'CanvasIDE/1.0';
+  if (process.env.HF_TOKEN) {
+    options.headers['Authorization'] = `Bearer ${process.env.HF_TOKEN}`;
+  }
 
   const protocol = parsedUrl.protocol === 'https:' ? https : http;
   const proxyReq = protocol.request(options, (proxyRes) => {
@@ -1481,6 +1489,84 @@ app.post('/api/replit/execute', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Preview proxy — forwards requests to user project dev servers
+// (e.g. npm run dev, python -m http.server, etc.)
+// Security: only proxies to localhost, restricted port range.
+// Also rewrites HTML responses to fix root-relative asset paths (Vite etc.).
+// ---------------------------------------------------------------------------
+
+const PREVIEW_PORT_MIN = 1024;
+const PREVIEW_PORT_MAX = 65535;
+
+function handlePreviewProxy(req, res, port, targetPath) {
+  const query = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+
+  const proxyReq = http.request(
+    {
+      hostname: 'localhost',
+      port,
+      path: targetPath + query,
+      method: req.method,
+      headers: {
+        ...req.headers,
+        host: `localhost:${port}`,
+      },
+    },
+    (proxyRes) => {
+      const ct = proxyRes.headers['content-type'] || '';
+      if (ct.includes('text/html') && proxyRes.statusCode === 200) {
+        let body = '';
+        proxyRes.on('data', (chunk) => { body += chunk.toString(); });
+        proxyRes.on('end', () => {
+          const prefix = `/api/preview/${port}`;
+          const rewritten = body.replace(
+            /((?:src|href|action|data-src|poster)\s*=\s*)"\//gi,
+            (_a, attr) => `${attr}"${prefix}/`
+          );
+          const headers = { ...proxyRes.headers };
+          delete headers['content-length'];
+          delete headers['content-encoding'];
+          delete headers['transfer-encoding'];
+          res.writeHead(proxyRes.statusCode, headers);
+          res.end(rewritten);
+        });
+        return;
+      }
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    },
+  );
+
+  proxyReq.on('error', (err) => {
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Preview server not reachable', message: err.message });
+    }
+  });
+
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    req.pipe(proxyReq);
+  } else {
+    proxyReq.end();
+  }
+}
+
+// Match any /api/preview/:port[/...] path using a simple middleware
+// (Express 5 / path-to-regexp v8 does not support bare `*` in route patterns)
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/preview/')) return next();
+  const m = req.path.match(/^\/api\/preview\/(\d{2,5})(\/.*)?$/);
+  if (!m) return next();
+
+  const port = parseInt(m[1], 10);
+  if (isNaN(port) || port < PREVIEW_PORT_MIN || port > PREVIEW_PORT_MAX) {
+    return res.status(403).json({ error: `Port ${port} is not allowed (must be ${PREVIEW_PORT_MIN}-${PREVIEW_PORT_MAX})` });
+  }
+
+  const targetPath = m[2] || '/';
+  handlePreviewProxy(req, res, port, targetPath);
+});
+
+// ---------------------------------------------------------------------------
 // Static file serving (production build)
 // ---------------------------------------------------------------------------
 
@@ -1508,6 +1594,35 @@ httpServer.on('upgrade', (request, socket, head) => {
     wss.handleUpgrade(request, socket, head, (ws) => {
       wss.emit('connection', ws, request);
     });
+  } else if (url.pathname.startsWith('/api/preview/')) {
+    // Preview proxy WebSocket (HMR support for Vite etc.)
+    const m = url.pathname.match(/^\/api\/preview\/(\d{2,5})(?:\/|$)/);
+    if (!m) { socket.destroy(); return; }
+    const port = parseInt(m[1], 10);
+    if (isNaN(port) || port < PREVIEW_PORT_MIN || port > PREVIEW_PORT_MAX) { socket.destroy(); return; }
+    const wsPath = url.pathname.replace(/^\/api\/preview\/\d+/, '') + (url.search || '') || '/';
+    const proxyReq = http.request({
+      hostname: 'localhost',
+      port,
+      path: wsPath,
+      method: 'GET',
+      headers: {
+        'Connection': 'Upgrade',
+        'Upgrade': 'websocket',
+        'Host': `localhost:${port}`,
+        'Sec-WebSocket-Key': request.headers['sec-websocket-key'] || '',
+        'Sec-WebSocket-Version': request.headers['sec-websocket-version'] || '13',
+        'Sec-WebSocket-Extensions': request.headers['sec-websocket-extensions'] || '',
+        'Sec-WebSocket-Protocol': request.headers['sec-websocket-protocol'] || '',
+        'Origin': request.headers['origin'] || '',
+      },
+    });
+    proxyReq.on('upgrade', (_proxyRes, proxySocket, proxyHead) => {
+      socket.write(proxyHead);
+      socket.pipe(proxySocket).pipe(socket);
+    });
+    proxyReq.on('error', () => socket.destroy());
+    proxyReq.end();
   } else {
     socket.destroy();
   }

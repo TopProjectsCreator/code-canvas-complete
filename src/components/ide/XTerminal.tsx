@@ -29,9 +29,10 @@ const URL_RE =
 const PROMPT_RE = /\$\s$/;
 
 function remapToPublic(url: string): string {
+  const base = `${window.location.protocol}//${window.location.host}`;
   return url.replace(
-    /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d+)/i,
-    (_m, port) => `${window.location.protocol}//${window.location.hostname}:${port}`
+    /https?:\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0):(\d+)([^\s"'<>)\]]*)/gi,
+    (_m, port, path) => `${base}/api/preview/${port}${path || '/'}`
   );
 }
 
