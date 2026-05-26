@@ -1,8 +1,11 @@
 let pipeline = null;
 const HTML_RESPONSE_ERROR_RE = /Unexpected token '<'|"<!doctype "|<html/i;
-const HF_REMOTE_PATH_TEMPLATES = [
-  'api/replit/proxy/hf/{model}/resolve/{revision}',
-  'api/proxy/hf/{model}/resolve/{revision}'
+const HF_REMOTE_CONFIGS = [
+  // Try direct from Hugging Face first (works when browser can reach HF)
+  { host: 'https://huggingface.co/', path: '{model}/resolve/{revision}' },
+  // Fall back to same-origin proxy bridge
+  { host: null, path: 'api/replit/proxy/hf/{model}/resolve/{revision}' },
+  { host: null, path: 'api/proxy/hf/{model}/resolve/{revision}' },
 ];
 
 const TRANSFORMERS_IMPORT_URLS = [
@@ -50,6 +53,9 @@ const normalizeOfflineError = (error) => {
   if (HTML_RESPONSE_ERROR_RE.test(raw)) {
     return 'Offline runtime request returned HTML instead of JavaScript/JSON. This usually means a proxy, ad-blocker, VPN, or firewall rewrote the model request. Disable content filtering for this site and allow jsdelivr.net, unpkg.com, and huggingface.co.';
   }
+  if (/unauthorized|403|401|gated|invalid username|access denied|password/i.test(raw)) {
+    return `Hugging Face download rejected — all Hugging Face downloads now require authentication (even public models). Ask your deployment admin to set the HF_TOKEN environment variable, or try a different model.\n\nDetails: ${raw}`;
+  }
   return raw;
 };
 
@@ -66,20 +72,16 @@ self.onmessage = async (event) => {
       console.log('[Worker] Transformers loaded. Configuring environment...');
       
       const origin = self.location.origin;
+      const originUrl = origin.endsWith('/') ? origin : `${origin}/`;
       env.allowLocalModels = false;
-      env.remoteHost = origin.endsWith('/') ? origin : `${origin}/`;
-      // Prefer same-origin server bridge routes so client networks can block
-      // huggingface.co while the deployment server still fetches files.
-      env.remotePathTemplate = HF_REMOTE_PATH_TEMPLATES[0];
-      
-      console.log(`[Worker] env.remoteHost set to: ${env.remoteHost}`);
-      console.log(`[Worker] env.remotePathTemplate set to: ${env.remotePathTemplate}`);
       
       let lastInitError = null;
-      for (const template of HF_REMOTE_PATH_TEMPLATES) {
+      for (const config of HF_REMOTE_CONFIGS) {
         try {
-          env.remotePathTemplate = template;
-          self.postMessage({ type: 'status', text: `Downloading model via ${template.includes('/replit/') ? 'server bridge' : 'proxy fallback'}...` });
+          env.remoteHost = config.host || originUrl;
+          env.remotePathTemplate = config.path;
+          const label = config.host ? 'Hugging Face' : config.path.includes('/replit/') ? 'server bridge' : 'proxy fallback';
+          self.postMessage({ type: 'status', text: `Downloading model via ${label}...` });
           pipeline = await createPipeline('text-generation', modelId, {
             dtype: quant === 'fp16' ? 'fp16' : quant === 'q8' ? 'q8' : 'q4',
             progress_callback: (progress) => {
