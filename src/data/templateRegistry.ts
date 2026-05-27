@@ -54,7 +54,8 @@ export type LanguageTemplate =
   | "audio"
   | "rtf"
   | "cad"
-  | "ftc";
+  | "ftc"
+  | "whiteboard";
 
 export interface TemplateMeta {
   id: LanguageTemplate;
@@ -286,6 +287,12 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "FTC Robotics",
     description: "FIRST Tech Challenge robot programming (Java/Kotlin)",
     aiDescription: "FTC robotics OpMode development with cloud build & ADB upload",
+  },
+  {
+    id: "whiteboard",
+    name: "Whiteboard",
+    description: "Freeform drawing with Excalidraw canvas",
+    aiDescription: "Visual drawing and diagramming with Excalidraw",
   },
 ];
 

@@ -8,6 +8,7 @@ import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { EditorTabs } from "./EditorTabs";
 import { CodeEditor } from "./CodeEditor";
+import { DrawEditor } from "./DrawEditor";
 import { Terminal } from "./Terminal";
 import type { ProjectFile as ShellProjectFile } from "./XTerminal";
 import { Preview } from "./Preview";
@@ -391,6 +392,16 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         }
       } catch {
         toast({ title: "Clone failed", description: "Using default template files", variant: "destructive" });
+      }
+    }
+
+    // Auto-open main.draw for whiteboard template
+    if (template === "whiteboard") {
+      const drawFile = findFileById(templateFiles, "main-draw");
+      if (drawFile) {
+        const newTab: Tab = { id: generateId(), name: drawFile.name, fileId: drawFile.id, isModified: false };
+        setOpenTabs([newTab]);
+        setActiveTabId(newTab.id);
       }
     }
   }, [gitProviderImport, toast]);
@@ -2444,7 +2455,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             // Mobile: Single panel view with bottom nav switcher
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Editor Panel */}
-              {mobileActivePanel === "editor" && selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && (
+              {mobileActivePanel === "editor" && selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && selectedTemplate !== "whiteboard" && (
                 <div className="h-full flex flex-col">
                   <EditorTabs
                     tabs={openTabs}
@@ -2494,6 +2505,12 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         onStop={handleStop}
                       />
                     </Suspense>
+                  ) : selectedTemplate === "whiteboard" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading whiteboard...</div>}>
+                      {activeFileWithContent && (
+                        <DrawEditor file={activeFileWithContent} onContentChange={handleContentChange} />
+                      )}
+                    </Suspense>
                   ) : (
                     <Preview
                       htmlContent={htmlContent}
@@ -2530,7 +2547,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             // Desktop: Resizable panels
             <ResizablePanelGroup direction="horizontal" className="flex-1">
               {/* Editor panel - hidden for scratch and automation templates */}
-              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && !(isAIChatOpen || mobileActivePanel === "ai") && (
+              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && selectedTemplate !== "whiteboard" && !(isAIChatOpen || mobileActivePanel === "ai") && (
                 <>
                   <ResizablePanel defaultSize={54} minSize={34}>
                     <div className="h-full flex flex-col">
@@ -2564,7 +2581,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               )}
 
               {/* Preview panel or Arduino/Scratch/Automation panel */}
-              <ResizablePanel defaultSize={selectedTemplate === "scratch" || selectedTemplate === "automation" || selectedTemplate === "database" ? 100 : 46} minSize={24}>
+              <ResizablePanel defaultSize={selectedTemplate === "scratch" || selectedTemplate === "automation" || selectedTemplate === "database" || selectedTemplate === "whiteboard" ? 100 : 46} minSize={24}>
                 {selectedTemplate === "arduino" ? (
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
                     <ArduinoPanel
@@ -2597,6 +2614,12 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       onRun={() => setIsRunning(true)}
                       onStop={handleStop}
                     />
+                  </Suspense>
+                ) : selectedTemplate === "whiteboard" ? (
+                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading whiteboard...</div>}>
+                    {activeFileWithContent && (
+                      <DrawEditor file={activeFileWithContent} onContentChange={handleContentChange} />
+                    )}
                   </Suspense>
                 ) : (
                   <Preview
@@ -3045,6 +3068,14 @@ function getDefaultContent(filename: string): string {
     case "js":
     case "ts":
       return `// ${filename}\n`;
+    case "draw":
+      return JSON.stringify({
+        type: "excalidraw",
+        version: 2,
+        source: "opencode",
+        elements: [],
+        appState: { viewBackgroundColor: "#1e1e2e" },
+      });
     case "json":
       return `{\n  \n}`;
     case "md":

@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { RichTextComposer } from "./RichTextComposer";
 import { AdvancedWorkbench } from "./AdvancedWorkbench";
 import { EnvFileEditor } from "./EnvFileEditor";
+import { DrawEditor } from "./DrawEditor";
 import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
 import { useCollaboration } from "@/hooks/useCollaboration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -42,13 +43,14 @@ interface CodeEditorProps {
 
 const getPreviewType = (
   fileName: string,
-): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite" | "mermaid" | "ipynb" | null => {
+): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite" | "mermaid" | "ipynb" | "draw" | null => {
   const ext = fileName.split(".").pop()?.toLowerCase();
   const imageExtensions = ["png", "jpg", "jpeg", "gif", "webp", "ico", "bmp"];
   const videoExtensions = ["mp4", "webm", "mov", "avi", "mkv", "ogv", "ogg"];
   const audioExtensions = ["mp3", "wav", "flac", "aac", "m4a"];
   const cadExtensions = ["stl", "obj"];
 
+  if (ext === "draw") return "draw";
   if (ext === "rtf") return "rtf";
   if (ext === "svg") return "svg";
   if (ext === "mmd" || ext === "mermaid") return "mermaid";
@@ -585,10 +587,11 @@ export const CodeEditor = ({
 
   const isEnvFile = file.name === ".env" || file.name.startsWith(".env.");
   const previewType = getPreviewType(file.name);
-  const binaryPreviewTypes = ["image", "video", "audio", "cad", "rtf", "ipynb"];
+  const binaryPreviewTypes = ["image", "video", "audio", "cad", "rtf", "ipynb", "draw"];
   const isTextPreviewable = previewType && !binaryPreviewTypes.includes(previewType);
 
   if (isEnvFile) return <EnvFileEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === "draw") return <DrawEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "office") return <OfficeEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "video") return <VideoEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "audio") return <AudioEditor file={file} onContentChange={onContentChange} />;

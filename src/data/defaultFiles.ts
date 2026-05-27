@@ -55,6 +55,7 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   rtf: "Rich Text",
   cad: "3D CAD Viewer",
   ftc: "FTC Robotics",
+  whiteboard: "Whiteboard",
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
@@ -220,6 +221,9 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case "ftc":
       baseTemplate = ftcTemplate;
+      break;
+    case "whiteboard":
+      baseTemplate = whiteboardTemplate;
       break;
     default:
       baseTemplate = htmlTemplate;
@@ -1142,6 +1146,7 @@ export const getFileLanguage = (filename: string): string => {
     sc: "scala",
     vim: "vim",
     lazy: "lazyk",
+    draw: "draw",
   };
   return languageMap[ext || ""] || "text";
 };
@@ -2433,6 +2438,47 @@ Upload \`.stl\` or \`.obj\` files to view 3D models.
 - Model info (vertices, faces)
 - Color customization
 - Drag & drop upload
+`,
+      },
+    ],
+  },
+];
+
+const whiteboardTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "whiteboard-project",
+    type: "folder",
+    children: [
+      {
+        id: "main-draw",
+        name: "main.draw",
+        type: "file",
+        language: "draw",
+        content: JSON.stringify({
+          type: "excalidraw",
+          version: 2,
+          source: "opencode",
+          elements: [],
+          appState: { viewBackgroundColor: "#1e1e2e" },
+        }),
+      },
+      {
+        id: "readme-md",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
+        content: `# Whiteboard Project
+
+This project contains an Excalidraw whiteboard. Click on \`main.draw\` to open the drawing canvas.
+
+## Features
+- Freehand drawing
+- Shapes: rectangle, ellipse, diamond, line, arrow
+- Text tool
+- Images (drag & drop or paste)
+- Undo/redo
+- Export to PNG/SVG
 `,
       },
     ],
