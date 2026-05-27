@@ -694,6 +694,7 @@ export const FileIcon = ({ name, type, isOpen = false, className = '' }: FileIco
     'keynote': { icon: MonitorPlay, color: 'text-blue-400' },
     
     // Design
+    'draw': { icon: Brush, color: 'text-pink-400' },
     'afdesign': { icon: PenTool, color: 'text-cyan-400' },
     'afphoto': { icon: Brush, color: 'text-purple-400' },
     'afpub': { icon: Frame, color: 'text-red-400' },

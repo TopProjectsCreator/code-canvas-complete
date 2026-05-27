@@ -482,7 +482,7 @@ export const Sidebar = ({
                   multiple
                   className="hidden"
                   onChange={handleFileUpload}
-                  accept=".js,.ts,.jsx,.tsx,.html,.css,.json,.md,.txt,.py,.go,.rs,.java,.cpp,.c,.h,.xml,.yaml,.yml,.toml,.env,.gitignore,.png,.jpg,.jpeg,.gif,.webp,.ico,.bmp,.svg,.sb3,.sb2,.sb"
+                  accept=".js,.ts,.jsx,.tsx,.html,.css,.json,.md,.txt,.py,.go,.rs,.java,.cpp,.c,.h,.xml,.yaml,.yml,.toml,.env,.gitignore,.png,.jpg,.jpeg,.gif,.webp,.ico,.bmp,.svg,.draw,.sb3,.sb2,.sb"
                 />
               </div>
             </div>
