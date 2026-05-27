@@ -3,7 +3,6 @@ import {
   Play, 
   Square, 
   Share2, 
-  Zap,
   Menu,
   GitFork,
   Star,
@@ -94,7 +93,7 @@ export const Header = ({
         {/* Logo - Replit style */}
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
-            <Zap className="w-4 h-4 text-primary-foreground" />
+            <img src="/favicon.svg" alt="CodeCanvas" className="w-5 h-5" />
           </div>
         </div>
 
