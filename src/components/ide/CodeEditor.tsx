@@ -19,6 +19,8 @@ import { RTFEditor } from "./RTFEditor";
 import { CADEditor } from "./CADEditor";
 import { ZipEditor } from "./ZipEditor";
 import { IpynbViewer } from "./IpynbViewer";
+import { PDFEditor } from "./PDFEditor";
+import { TexEditor } from "./TexEditor";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -44,13 +46,15 @@ interface CodeEditorProps {
 
 const getPreviewType = (
   fileName: string,
-): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite" | "mermaid" | "ipynb" | "draw" | null => {
+): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite" | "mermaid" | "ipynb" | "draw" | "pdf" | "tex" | null => {
   const ext = fileName.split(".").pop()?.toLowerCase();
   const imageExtensions = ["png", "jpg", "jpeg", "gif", "webp", "ico", "bmp"];
   const videoExtensions = ["mp4", "webm", "mov", "avi", "mkv", "ogv", "ogg"];
   const audioExtensions = ["mp3", "wav", "flac", "aac", "m4a"];
   const cadExtensions = ["stl", "obj"];
 
+  if (ext === "pdf") return "pdf";
+  if (ext === "tex" || ext === "latex" || ext === "ltx") return "tex";
   if (ext === "draw") return "draw";
   if (ext === "rtf") return "rtf";
   if (ext === "svg") return "svg";
@@ -388,6 +392,8 @@ export const CodeEditor = ({
   if (isEnvFile) return <EnvFileEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "draw") return <DrawEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "office") return <OfficeEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === "pdf") return <PDFEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === "tex") return <TexEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "video") return <VideoEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "audio") return <AudioEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "rtf") return <RTFEditor file={file} onContentChange={onContentChange} />;
