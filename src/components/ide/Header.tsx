@@ -92,7 +92,7 @@ export const Header = ({
         
         {/* Logo - Replit style */}
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
+          <div className="w-7 h-7 rounded-md flex items-center justify-center">
             <img src="/favicon.svg" alt="CodeCanvas" className="w-5 h-5" />
           </div>
         </div>
