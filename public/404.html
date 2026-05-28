@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Redirecting...</title>
+  <script>
+    (function() {
+      var path = window.location.pathname + window.location.search;
+      var p = window.location.pathname;
+      var idx = p.lastIndexOf('/404.html');
+      var base = idx > 0 ? p.substring(0, idx) : '';
+      sessionStorage.setItem('gh-pages-redirect', path);
+      window.location.replace(base + '/');
+    })();
+  </script>
+</head>
+<body></body>
+</html>

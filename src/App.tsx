@@ -25,6 +25,7 @@ import { MonochromePrecision } from "./pages/landings/MonochromePrecision";
 import { WarmMomentum } from "./pages/landings/WarmMomentum";
 import { TerminalVerdict } from "./pages/landings/TerminalVerdict";
 import { isPublishedHost } from "./lib/publishing";
+import { getGitHubPagesBasename } from "./lib/github-pages";
 import { OfflineDialog } from "@/components/ide/OfflineDialog";
 import { InboxNotifier } from "@/components/ide/InboxNotifier";
 
@@ -64,7 +65,7 @@ const App = () => (
           <Sonner />
           <OfflineDialog />
           <InboxNotifier />
-          <BrowserRouter>
+          <BrowserRouter basename={getGitHubPagesBasename()}>
             <Routes>
               <Route path="/" element={<RootRoute />} />
               <Route path="/landing" element={<Landing />} />

@@ -1587,6 +1587,112 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     [addHistoryEntry],
   );
 
+  const handleInstallPackage = useCallback(
+    async (packageName: string) => {
+      const fileList = files;
+      const hasFile = (name: string) => {
+        const walk = (nodes: FileNode[]): boolean =>
+          nodes.some(
+            (n) => n.name === name || (n.children && walk(n.children)),
+          );
+        return walk(fileList);
+      };
+
+      let command: string | null = null;
+
+      if (hasFile("package.json")) {
+        command = `npm install ${packageName}`;
+      } else if (hasFile("requirements.txt") || hasFile("pyproject.toml") || hasFile("Pipfile")) {
+        command = `pip install ${packageName}`;
+      } else if (hasFile("Cargo.toml")) {
+        command = `cargo add ${packageName}`;
+      } else if (hasFile("go.mod")) {
+        command = `go get ${packageName}`;
+      } else if (hasFile("Gemfile")) {
+        command = `gem install ${packageName}`;
+      } else if (hasFile("composer.json")) {
+        command = `composer require ${packageName}`;
+      } else {
+        const template = selectedTemplate || "javascript";
+        if (["javascript", "typescript"].includes(template)) {
+          command = `npm install ${packageName}`;
+        } else if (template === "python") {
+          command = `pip install ${packageName}`;
+        } else if (template === "rust") {
+          command = `cargo add ${packageName}`;
+        } else if (template === "go") {
+          command = `go get ${packageName}`;
+        } else if (template === "ruby") {
+          command = `gem install ${packageName}`;
+        } else if (template === "php") {
+          command = `composer require ${packageName}`;
+        }
+      }
+
+      if (!command) {
+        toast({
+          title: "Cannot install package",
+          description: `No package manager detected for "${selectedTemplate || "current"}" project type.`,
+          variant: "destructive",
+        });
+        setTerminalHistory((prev) => [
+          ...prev,
+          {
+            id: generateId(),
+            type: "error",
+            content: `❌ Cannot install "${packageName}": unsupported project type.`,
+            timestamp: new Date(),
+          },
+        ]);
+        return;
+      }
+
+      setTerminalHistory((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          type: "info",
+          content: `📦 Installing ${packageName}...`,
+          timestamp: new Date(),
+        },
+      ]);
+
+      const result = await executeShellCommand(command);
+
+      setTerminalHistory((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          type: result.error ? "error" : "output",
+          content: result.error
+            ? `❌ Failed to install "${packageName}": ${result.error}`
+            : `✅ Package "${packageName}" installed successfully`,
+          timestamp: new Date(),
+        },
+        ...result.output.map((line) => ({
+          id: generateId(),
+          type: "output" as const,
+          content: line,
+          timestamp: new Date(),
+        })),
+      ]);
+
+      if (result.error) {
+        toast({
+          title: "Installation failed",
+          description: `"${packageName}" could not be installed.`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Package installed",
+          description: `"${packageName}" has been installed.`,
+        });
+      }
+    },
+    [executeShellCommand, files, selectedTemplate, setTerminalHistory, toast],
+  );
+
   const handleRun = useCallback(async () => {
     // Auto-detect the main entry point file based on language conventions
     const findFileByName = (nodes: FileNode[], fileName: string): FileNode | null => {
@@ -2392,6 +2498,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                   toast({ title: "Rolled back", description: `Restored state from "${entry.label}"` });
                 }}
                 onInvite={() => setShowShareDialog(true)}
+                onInstallPackage={handleInstallPackage}
               />
             </SheetContent>
           </Sheet>
@@ -2445,6 +2552,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                 toast({ title: "Rolled back", description: `Restored state from "${entry.label}"` });
               }}
               onInvite={() => setShowShareDialog(true)}
+              onInstallPackage={handleInstallPackage}
             />
           </div>
         )}
@@ -2712,25 +2820,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             onCreateWorkflow={handleCreateWorkflow}
             onRunWorkflow={handleRunWorkflow}
             onLoadingChange={setIsAILoading}
-            onInstallPackage={(packageName) => {
-              // Add to installed packages list and show terminal feedback
-              setTerminalHistory((prev) => [
-                ...prev,
-                {
-                  id: generateId(),
-                  type: "info",
-                  content: `📦 Installing package: ${packageName}...`,
-                  timestamp: new Date(),
-                },
-                {
-                  id: generateId(),
-                  type: "output",
-                  content: `✅ Package "${packageName}" added successfully`,
-                  timestamp: new Date(),
-                },
-              ]);
-              toast({ title: `Package installed`, description: `"${packageName}" has been added.` });
-            }}
+            onInstallPackage={handleInstallPackage}
             onSetTheme={(themeName) => {
               // Import and use theme context - we need to trigger theme change
               document.documentElement.setAttribute("data-theme", themeName);

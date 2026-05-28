@@ -2,6 +2,15 @@ import { createRoot } from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
 import App from "./App.tsx";
 import "./index.css";
+import { setGithubPagesRedirectPath } from "./lib/github-pages";
+
+// GitHub Pages SPA redirect: restore the original URL saved by 404.html
+const ghRedirect = sessionStorage.getItem("gh-pages-redirect");
+if (ghRedirect) {
+  sessionStorage.removeItem("gh-pages-redirect");
+  setGithubPagesRedirectPath(ghRedirect);
+  history.replaceState(null, "", ghRedirect);
+}
 
 // PWA: prevent service worker from interfering in iframe / preview contexts
 const isInIframe = (() => {
@@ -10,6 +19,7 @@ const isInIframe = (() => {
 const isPreviewHost =
   window.location.hostname.includes("id-preview--") ||
   window.location.hostname.includes("lovableproject.com");
+const isGitHubPages = window.location.hostname.endsWith(".github.io");
 
 const previewCacheResetKey = "lovable-preview-cache-reset";
 
@@ -32,7 +42,7 @@ if (isPreviewHost || isInIframe) {
 
     window.sessionStorage.removeItem(previewCacheResetKey);
   });
-} else {
+} else if (!isGitHubPages) {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   }

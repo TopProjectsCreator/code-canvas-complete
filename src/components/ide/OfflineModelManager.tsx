@@ -32,28 +32,28 @@ interface OfflineModel {
 
 const RECOMMENDED_MODELS: OfflineModel[] = [
   {
-    id: 'Xenova/Phi-3-mini-4k-instruct',
-    name: 'Phi-3 Mini',
-    description: 'Microsoft\'s powerful 3.8B model, optimized for efficiency and high performance.',
-    size: '~2.2 GB',
-    provider: 'Microsoft'
+    id: 'onnx-community/gemma-4-E2B-it-ONNX',
+    name: 'Gemma 4 E2B',
+    description: 'Google\'s latest Gemma 4 ONNX model. Optimized for WebGPU with exceptional instruction following.',
+    size: '~800 MB',
+    provider: 'Google'
   },
   {
-    id: 'Xenova/Llama-3.2-1B-Instruct',
+    id: 'onnx-community/Llama-3.2-1B-Instruct',
     name: 'Llama 3.2 1B',
     description: 'Meta\'s compact Llama 3.2 model, great for fast local responses.',
     size: '~1.3 GB',
     provider: 'Meta'
   },
   {
-    id: 'Xenova/gemma-2-2b-it',
-    name: 'Gemma 2 2B',
-    description: 'Google\'s open weights model, excellent at following instructions.',
-    size: '~1.8 GB',
-    provider: 'Google'
+    id: 'onnx-community/Phi-3-mini-4k-instruct',
+    name: 'Phi-3 Mini',
+    description: 'Microsoft\'s powerful 3.8B model, optimized for efficiency and high performance.',
+    size: '~2.2 GB',
+    provider: 'Microsoft'
   },
   {
-    id: 'Xenova/Qwen2.5-0.5B-Instruct',
+    id: 'onnx-community/Qwen2.5-0.5B-Instruct',
     name: 'Qwen 2.5 0.5B',
     description: 'Alibaba\'s ultra-lightweight model. Very fast, suitable for basic tasks.',
     size: '~450 MB',
@@ -90,11 +90,11 @@ export function OfflineModelManager({
   onDownload
 }: OfflineModelManagerProps) {
   const [customModelId, setCustomModelId] = useState('');
-  const [selectedQuant, setSelectedQuant] = useState('q4');
+  const [selectedQuant, setSelectedQuant] = useState('q4f16');
 
   const [baseId, currentQuant] = currentModelId.includes('@') 
     ? currentModelId.split('@') 
-    : [currentModelId, 'q4'];
+    : [currentModelId, 'q4f16'];
 
   const handleDownload = (id: string) => {
     onDownload(`${id}@${selectedQuant}`);
@@ -140,8 +140,8 @@ export function OfflineModelManager({
                   <SelectValue placeholder="Select quality" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="q4">Q4 (Smallest, Fastest)</SelectItem>
-                  <SelectItem value="q8">Q8 (Medium Quality)</SelectItem>
+                  <SelectItem value="q4f16">Q4 (Smallest, Fastest)</SelectItem>
+                  <SelectItem value="q8f16">Q8 (Medium Quality)</SelectItem>
                   <SelectItem value="fp16">FP16 (Highest Quality, Large)</SelectItem>
                 </SelectContent>
               </Select>
@@ -218,7 +218,7 @@ export function OfflineModelManager({
             </h3>
             <div className="flex gap-2">
               <Input 
-                placeholder="e.g. Xenova/phi-1_5" 
+                placeholder="e.g. onnx-community/gemma-4-E2B-it-ONNX" 
                 value={customModelId}
                 onChange={(e) => setCustomModelId(e.target.value)}
                 className="text-sm"

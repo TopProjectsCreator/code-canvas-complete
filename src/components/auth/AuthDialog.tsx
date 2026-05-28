@@ -27,7 +27,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
   const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<null | 'google' | 'replit'>(null);
+  const [oauthLoading, setOauthLoading] = useState<null | 'google'>(null);
   const { signIn, signUp, resetPassword, signInWithOAuth, availableOAuthProviders, platform } = useAuth();
   const { toast } = useToast();
 
@@ -76,7 +76,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
     }
   };
 
-  const handleOAuthSignIn = async (provider: 'google' | 'replit') => {
+  const handleOAuthSignIn = async (provider: 'google') => {
     setOauthLoading(provider);
     try {
       const { error } = await signInWithOAuth(provider);
@@ -131,20 +131,6 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
         {/* OAuth Sign-In */}
         {mode !== 'forgot' && availableOAuthProviders.length > 0 && (
           <>
-            {availableOAuthProviders.includes('replit') && (
-              <Button
-                variant="outline"
-                className="w-full gap-2"
-                onClick={() => handleOAuthSignIn('replit')}
-                disabled={oauthLoading !== null || !isOnline}
-              >
-                {oauthLoading === 'replit' ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : null}
-                Continue with Replit
-              </Button>
-            )}
-
             {availableOAuthProviders.includes('google') && (
               <Button
                 variant="outline"

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 interface PackagePanelProps {
   files: FileNode[];
   currentLanguage: string;
+  onInstallPackage?: (packageName: string) => void;
 }
 
 interface DetectedPackage {
@@ -321,7 +322,7 @@ const stdLibPackages: Record<string, string[]> = {
   php: ['Exception', 'Error', 'stdClass', 'DateTime', 'DateTimeImmutable', 'ArrayObject'],
 };
 
-export const PackagePanel = ({ files, currentLanguage }: PackagePanelProps) => {
+export const PackagePanel = ({ files, currentLanguage, onInstallPackage }: PackagePanelProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [installedPackages, setInstalledPackages] = useState<string[]>([]);
 
@@ -387,6 +388,7 @@ export const PackagePanel = ({ files, currentLanguage }: PackagePanelProps) => {
     if (!installedPackages.includes(name)) {
       setInstalledPackages([...installedPackages, name]);
     }
+    onInstallPackage?.(name);
     setSearchQuery('');
   };
 

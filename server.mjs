@@ -31,38 +31,6 @@ app.use((req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
-// Auth endpoints
-// ---------------------------------------------------------------------------
-
-app.get('/api/replit/me', (req, res) => {
-  const userId = req.headers['x-replit-user-id'];
-  const userName = req.headers['x-replit-user-name'];
-  const userRoles = req.headers['x-replit-user-roles'];
-  if (!userId) return res.json({ user: null });
-  res.json({
-    user: {
-      id: String(userId),
-      name: String(userName || ''),
-      roles: String(userRoles || '').split(',').filter(Boolean),
-    },
-  });
-});
-
-app.get('/api/replit/auth', (req, res) => {
-  // Always use the public Replit dev domain so the auth callback comes back
-  // to a URL the browser can actually reach (not localhost:3001).
-  const domain =
-    process.env.REPLIT_DEV_DOMAIN ||
-    process.env.REPLIT_DOMAINS ||
-    req.headers['x-forwarded-host'] ||
-    req.headers.host ||
-    '';
-  res.redirect(`https://replit.com/auth_with_repl_site?domain=${domain}`);
-});
-
-app.get('/api/replit/signout', (req, res) => res.json({ ok: true }));
-
-// ---------------------------------------------------------------------------
 // Model Proxy — allows downloading models from HuggingFace/CDNs via our server
 // to bypass strict client-side firewalls or VPNs.
 // ---------------------------------------------------------------------------
@@ -1658,12 +1626,16 @@ function isBlockedCommand(line) {
   return BLOCKED.some((re) => re.test(cmd));
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   let ptyProcess = null;
 
   // Per-connection fallback ID — guarantees the shell never starts in the
   // workspace root even if the client sends no projectId.
   const connSessionId = `conn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  // Only show the sudo override message on .replit.dev hosts
+  const host = req?.headers?.host || '';
+  const isReplitDev = host.endsWith('.replit.dev');
 
   // Tracks characters typed on the current line so we can inspect the full
   // command before forwarding the Enter key to bash.
@@ -1735,18 +1707,23 @@ wss.on('connection', (ws) => {
             '  done',
             '  command kill "$@"',
             '}',
-            '# Override sudo message — replace "Replit" branding with CodeCanvas',
-            'sudo() {',
-            '  if [[ ! -f ~/.sudo_motd ]]; then',
-            '    echo -e "\\t\\033[93mYou don\'t need sudo in CodeCanvas, all files that\\033[0m" >&2',
-            '    echo -e "\\t\\033[93mcan be modified already have the correct permissions.\\033[0m" >&2',
-            '    echo -e "" >&2',
-            '    touch ~/.sudo_motd',
-            '  fi',
-            '  command sudo "$@"',
-            '}',
-          ].join('\n') + '\n';
-          fs.writeFileSync(path.join(projectDir, '.bashrc'), bashrc, 'utf8');
+          ];
+          if (isReplitDev) {
+            bashrc.push(
+              '# Override sudo message — only on Replit',
+              'sudo() {',
+              '  if [[ ! -f ~/.sudo_motd ]]; then',
+              '    echo -e "\\t\\033[93mYou don\'t need sudo in CodeCanvas, all files that\\033[0m" >&2',
+              '    echo -e "\\t\\033[93mcan be modified already have the correct permissions.\\033[0m" >&2',
+              '    echo -e "" >&2',
+              '    touch ~/.sudo_motd',
+              '  fi',
+              '  command sudo "$@"',
+              '}',
+            );
+          }
+          const bashrcContent = bashrc.join('\n') + '\n';
+          fs.writeFileSync(path.join(projectDir, '.bashrc'), bashrcContent, 'utf8');
         } catch (e) {
           console.error('Failed to write project files:', e.message);
         }

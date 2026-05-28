@@ -1,4 +1,4 @@
-export type DeploymentPlatform = 'replit' | 'lovable' | 'generic' | 'github_codespaces';
+export type DeploymentPlatform = 'replit' | 'lovable' | 'generic' | 'github_codespaces' | 'github_pages';
 
 const REPLIT_HOST_PATTERNS = ['.replit.dev', '.repl.co', '.replit.app'];
 const LOVABLE_HOST_PATTERNS = ['.lovable.app', '.lovable.dev'];
@@ -27,12 +27,16 @@ const getHostPlatform = (host: string): DeploymentPlatform | null => {
     return 'lovable';
   }
 
+  if (normalizedHost.endsWith('.github.io')) {
+    return 'github_pages';
+  }
+
   return null;
 };
 
 export const detectDeploymentPlatform = (): DeploymentPlatform => {
   const explicit = import.meta.env.VITE_DEPLOY_PLATFORM as string | undefined;
-  if (explicit === 'replit' || explicit === 'lovable' || explicit === 'generic' || explicit === 'github_codespaces') {
+  if (explicit === 'replit' || explicit === 'lovable' || explicit === 'generic' || explicit === 'github_codespaces' || explicit === 'github_pages') {
     return explicit;
   }
 

@@ -68,6 +68,7 @@ interface SidebarProps {
   historyEntries: HistoryEntry[];
   onRestoreEntry?: (entry: HistoryEntry) => void;
   onInvite: () => void;
+  onInstallPackage?: (packageName: string) => void;
 }
 
 type SidebarTab = 'files' | 'search' | 'git' | 'packages' | 'workflows' | 'tools' | 'vulnerabilities' | 'history';
@@ -101,6 +102,7 @@ export const Sidebar = ({
   historyEntries,
   onRestoreEntry,
   onInvite,
+  onInstallPackage,
 }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('files');
   const [requestedBuiltinExtensionSlug, setRequestedBuiltinExtensionSlug] = useState<string | null>(null);
@@ -584,7 +586,7 @@ export const Sidebar = ({
         )}
 
         {activeTab === 'packages' && (
-          <PackagePanel files={files} currentLanguage={currentLanguage} />
+          <PackagePanel files={files} currentLanguage={currentLanguage} onInstallPackage={onInstallPackage} />
         )}
 
         {activeTab === 'workflows' && (

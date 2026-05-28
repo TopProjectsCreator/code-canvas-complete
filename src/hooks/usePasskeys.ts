@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { isReplitLikePlatform } from '@/lib/platform';
 
 interface PasskeyCredential {
   id: string;
@@ -34,16 +33,11 @@ export const usePasskeys = () => {
   const isSupported = typeof window !== 'undefined' &&
     !!window.PublicKeyCredential &&
     typeof window.PublicKeyCredential === 'function';
-  const isReplit = isReplitLikePlatform();
 
   const fetchCredentials = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      if (isReplit) {
-        setCredentials([]);
-        return;
-      }
       const { data } = await supabase.functions.invoke('webauthn-register', {
         body: { action: 'list' },
       });
@@ -59,7 +53,7 @@ export const usePasskeys = () => {
   }, [fetchCredentials]);
 
   const register = async (deviceName?: string) => {
-    if (!user || !isSupported || isReplit) return { error: 'WebAuthn is not supported on Replit' };
+    if (!user || !isSupported) return { error: 'WebAuthn is not supported' };
     setRegistering(true);
 
     try {
@@ -145,7 +139,6 @@ export const usePasskeys = () => {
 
   const remove = async (credentialId: string) => {
     try {
-      if (isReplit) return { error: 'WebAuthn is not supported on Replit' };
       await supabase.functions.invoke('webauthn-register', {
         body: { action: 'delete', credentialId },
       });

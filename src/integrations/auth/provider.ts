@@ -1,10 +1,9 @@
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
-import { DeploymentPlatform, detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
-import { replitNativeProvider } from './replit-native-provider';
+import { DeploymentPlatform, detectDeploymentPlatform } from '@/lib/platform';
 
-export type OAuthProvider = 'google' | 'replit';
+export type OAuthProvider = 'google';
 
 export interface AuthProvider {
   platform: DeploymentPlatform;
@@ -98,7 +97,6 @@ export const createAuthProvider = (): AuthProvider => {
   const platform = detectDeploymentPlatform();
 
   if (platform === 'lovable') return lovableProvider;
-  if (isReplitLikePlatform(platform)) return replitNativeProvider;
 
   return supabaseProvider;
 };
