@@ -107,6 +107,8 @@ const templateVisuals: Record<LanguageTemplate, { icon: React.ReactNode; color: 
   cad: { icon: <Cpu className="w-8 h-8" />, color: "from-teal-500 to-cyan-600" },
   ftc: { icon: <Cpu className="w-8 h-8" />, color: "from-orange-500 to-red-600" },
   whiteboard: { icon: <PenTool className="w-8 h-8" />, color: "from-pink-400 to-rose-500" },
+  latex: { icon: <FileText className="w-8 h-8" />, color: "from-green-600 to-teal-600" },
+  mermaid: { icon: <Workflow className="w-8 h-8" />, color: "from-pink-500 to-rose-600" },
 };
 
 // Derive languages array from registry + visuals

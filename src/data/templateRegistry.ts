@@ -55,7 +55,9 @@ export type LanguageTemplate =
   | "rtf"
   | "cad"
   | "ftc"
-  | "whiteboard";
+  | "whiteboard"
+  | "latex"
+  | "mermaid";
 
 export interface TemplateMeta {
   id: LanguageTemplate;
@@ -293,6 +295,18 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "Whiteboard",
     description: "Freeform drawing with Excalidraw canvas",
     aiDescription: "Visual drawing and diagramming with Excalidraw",
+  },
+  {
+    id: "latex",
+    name: "LaTeX",
+    description: "Typesetting with LaTeX and KaTeX live preview",
+    aiDescription: "LaTeX document preparation with KaTeX rendering",
+  },
+  {
+    id: "mermaid",
+    name: "Mermaid",
+    description: "Diagram as code with Mermaid.js live preview",
+    aiDescription: "Mermaid diagramming and charting (.mmd)",
   },
 ];
 

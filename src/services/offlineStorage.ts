@@ -30,6 +30,7 @@ export const OFFLINE_CAPABLE_TEMPLATES = [
   'automation', 'secureops',
   'arduino', 'ftc', 'rtf', 'word', 'powerpoint', 'excel',
   'video', 'audio', 'cad', 'scratch',
+  'latex', 'mermaid',
 ] as const;
 
 export function isOfflineCapable(template: string): boolean {

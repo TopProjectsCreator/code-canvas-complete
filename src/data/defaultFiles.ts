@@ -56,6 +56,8 @@ const tutorialTitles: Record<LanguageTemplate, string> = {
   cad: "3D CAD Viewer",
   ftc: "FTC Robotics",
   whiteboard: "Whiteboard",
+  latex: "LaTeX",
+  mermaid: "Mermaid",
 };
 
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
@@ -224,6 +226,12 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
       break;
     case "whiteboard":
       baseTemplate = whiteboardTemplate;
+      break;
+    case "latex":
+      baseTemplate = latexTemplate;
+      break;
+    case "mermaid":
+      baseTemplate = mermaidTemplate;
       break;
     default:
       baseTemplate = htmlTemplate;
@@ -1134,6 +1142,9 @@ export const getFileLanguage = (filename: string): string => {
     r: "r",
     hs: "haskell",
     swift: "swift",
+    tex: "latex",
+    mmd: "mermaid",
+    mermaid: "mermaid",
     cr: "crystal",
     ex: "elixir",
     exs: "elixir",
@@ -2520,6 +2531,158 @@ This project contains a video editor. Upload \`.mp4\`, \`.webm\`, or \`.ogg\` fi
 1. Use "Upload Files" in the file tree to add a video
 2. Click the video file to open the editor
 3. Use the timeline to scrub and trim
+`,
+      },
+    ],
+  },
+];
+
+const latexTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-latex-doc",
+    type: "folder",
+    children: [
+      {
+        id: "main-tex",
+        name: "main.tex",
+        type: "file",
+        language: "latex",
+        content: `\\documentclass{article}
+
+\\title{My LaTeX Document}
+\\author{Code Canvas User}
+\\date{\\today}
+
+\\begin{document}
+
+\\maketitle
+
+\\section{Introduction}
+
+This is a sample LaTeX document. You can edit the source on the left
+and see the rendered output on the right, powered by \\texttt{KaTeX}.
+
+\\section{Mathematics}
+
+LaTeX excels at typesetting mathematics. Here are some examples:
+
+\\subsection{Inline Math}
+
+Einstein's famous equation: $E = mc^2$
+
+The quadratic formula: $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$
+
+\\subsection{Display Math}
+
+\\begin{equation}
+  \\int_{0}^{\\infty} e^{-x^2} \\, dx = \\frac{\\sqrt{\\pi}}{2}
+\\end{equation}
+
+\\begin{equation}
+  \\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}
+\\end{equation}
+
+\\section{Lists}
+
+\\begin{itemize}
+  \\item First item in an unordered list
+  \\item Second item
+  \\item Third item
+\\end{itemize}
+
+\\begin{enumerate}
+  \\item First item in an ordered list
+  \\item Second item
+  \\item Third item
+\\end{enumerate}
+
+\\end{document}
+`,
+      },
+      {
+        id: "readme-latex",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
+        content: `# LaTeX Document Project
+
+This project contains a LaTeX document with live preview.
+
+## How to use
+1. Click on \`main.tex\` to open the LaTeX editor
+2. Edit the source on the left panel
+3. See the rendered output update live on the right
+4. The preview uses KaTeX for fast client-side rendering
+
+## Features
+- Live preview as you type
+- Support for math expressions (\\(...\\) and \\[...\\])
+- Common environments: equation, align, gather, itemize, enumerate
+- Preamble parsing (title, author, date)
+
+## Limitations
+- The preview is a best-effort rendering via KaTeX
+- Not all LaTeX packages or commands are supported
+- For full LaTeX compilation, use a local TeX distribution
+`,
+      },
+    ],
+  },
+];
+
+const mermaidTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-mermaid-diagram",
+    type: "folder",
+    children: [
+      {
+        id: "main-mmd",
+        name: "main.mmd",
+        type: "file",
+        language: "mermaid",
+        content: `flowchart TD
+  A[Start] --> B{Is it working?}
+  B -->|Yes| C[Great!]
+  B -->|No| D[Debug]
+  D --> E[Fix it]
+  E --> F[Test]
+  F --> B
+`,
+      },
+      {
+        id: "readme-mermaid",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
+        content: `# Mermaid Diagram Project
+
+This project contains a Mermaid.js diagram with live preview.
+
+## How to use
+1. Click on \`main.mmd\` to open the diagram
+2. Edit the Mermaid syntax on the left
+3. See the rendered diagram update live on the right
+
+## Diagram types
+- \`flowchart\` — Flowcharts and process diagrams
+- \`sequenceDiagram\` — Sequence/interaction diagrams
+- \`classDiagram\` — Class/object-oriented diagrams
+- \`stateDiagram\` — State machine diagrams
+- \`erDiagram\` — Entity-relationship diagrams
+- \`gantt\` — Gantt charts
+- \`pie\` — Pie charts
+- \`graph\` — Generic graph (deprecated, use flowchart)
+
+## Example: Sequence Diagram
+
+\`\`\`mermaid
+sequenceDiagram
+    Alice->>John: Hello John, how are you?
+    John-->>Alice: Great!
+    Alice-)John: See you later!
+\`\`\`
 `,
       },
     ],
