@@ -53,3 +53,10 @@ verify_jwt = false
 
 [functions.generate-extension]
 verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
+
+[functions.cleanup-expired-deletions]
+verify_jwt = false
+schedule = "0 0 * * *"

@@ -30,6 +30,16 @@ import { NotificationSettings } from './NotificationSettings';
 import { AIComparisonPanel } from './AIComparisonPanel';
 import { AIUsageStats } from './AIUsageStats';
 import { PasskeySettings } from './PasskeySettings';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface SettingsDialogProps {
   open: boolean;
@@ -83,7 +93,7 @@ function validateKeyFormat(provider: AIProvider, key: string): string | null {
 type ValidationState = 'idle' | 'validating' | 'valid' | 'invalid';
 
 export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: SettingsDialogProps) => {
-  const { user, profile, updateProfile, signOut } = useAuth();
+  const { user, profile, updateProfile, signOut, scheduleDeletion, cancelDeletion } = useAuth();
   const { theme, setTheme, customThemes, addCustomTheme, deleteCustomTheme, updateCustomTheme } = useTheme();
   const { toast } = useToast();
   const { apiKeys, saveApiKey, deleteApiKey, loading: apiLoading, getUsageForTier, fetchApiKeys } = useApiKeys();
@@ -127,6 +137,12 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
     if (typeof window === 'undefined') return '';
     return window.localStorage.getItem('ide.pyodideSource') || '';
   });
+
+  // Delete account state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
 
   useEffect(() => {
@@ -196,6 +212,25 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
     setUploading(false);
     toast({ title: 'Avatar updated' });
     e.target.value = '';
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE' || !deletePassword) return;
+    setDeleting(true);
+    const { error, scheduledDeletion } = await scheduleDeletion(deletePassword);
+    setDeleting(false);
+    if (error || !scheduledDeletion) {
+      toast({ title: 'Error', description: error?.message || 'Failed to schedule deletion', variant: 'destructive' });
+      return;
+    }
+    setShowDeleteDialog(false);
+    setDeleteConfirmText('');
+    setDeletePassword('');
+    toast({
+      title: 'Deletion scheduled',
+      description: `Your account will be permanently deleted on ${new Date(scheduledDeletion).toLocaleDateString()}. Log in within 30 days to cancel.`,
+      duration: 8000,
+    });
   };
 
   // API Keys handlers
@@ -366,16 +401,52 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
 
               <div className="border-t border-border pt-4">
                 <h4 className="text-sm font-medium text-destructive mb-2">Danger Zone</h4>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    signOut();
-                    onOpenChange(false);
-                  }}
-                >
-                  Sign Out
-                </Button>
+                <div className="space-y-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      signOut();
+                      onOpenChange(false);
+                    }}
+                  >
+                    Sign Out
+                  </Button>
+
+                  {profile?.deletion_scheduled_at ? (
+                    <div className="pt-2 space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Account deletion scheduled for{' '}
+                        {new Date(profile.deletion_scheduled_at).toLocaleDateString()}.
+                        Log in within 30 days to cancel.
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          const { error } = await cancelDeletion();
+                          if (error) {
+                            toast({ title: 'Error', description: error.message, variant: 'destructive' });
+                          } else {
+                            toast({ title: 'Deletion cancelled' });
+                          }
+                        }}
+                      >
+                        Cancel Deletion
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="pt-2">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setShowDeleteDialog(true)}
+                      >
+                        Delete Account
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </TabsContent>
 
@@ -830,6 +901,57 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
           </div>
         </Tabs>
       </DialogContent>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Delete Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your account and all associated data, including
+              projects, messages, API keys, uploaded files, and settings.
+              You have <strong>30 days</strong> to cancel by logging in again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <label className="text-xs font-medium">
+                Type <span className="font-mono text-destructive">DELETE</span> to confirm
+              </label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Enter your password</label>
+              <Input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Password"
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteConfirmText('');
+                setDeletePassword('');
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteConfirmText !== 'DELETE' || !deletePassword || deleting}
+              onClick={handleDeleteAccount}
+            >
+              {deleting ? 'Scheduling...' : 'Schedule Deletion'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };

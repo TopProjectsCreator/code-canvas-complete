@@ -11,6 +11,7 @@ interface Profile {
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+  deletion_scheduled_at: string | null;
 }
 
 interface AuthContextType {
@@ -26,6 +27,8 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<Pick<Profile, 'display_name' | 'avatar_url'>>) => Promise<{ error: Error | null }>;
+  scheduleDeletion: (password: string) => Promise<{ error: Error | null; scheduledDeletion: string | null }>;
+  cancelDeletion: () => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,6 +50,8 @@ export const useAuth = () => {
       resetPassword: async () => ({ error: new Error('Auth is not ready') }),
       signOut: async () => {},
       updateProfile: async () => ({ error: new Error('Auth is not ready') }),
+      scheduleDeletion: async () => ({ error: new Error('Auth is not ready'), scheduledDeletion: null }),
+      cancelDeletion: async () => ({ error: new Error('Auth is not ready') }),
     };
   }
   return context;
@@ -65,19 +70,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isReplitPlatform = isReplitLikePlatform(authProvider.platform);
 
   useEffect(() => {
-    const subscription = authProvider.onAuthStateChange(async (_event, nextSession) => {
+    const subscription = authProvider.onAuthStateChange(async (event, nextSession) => {
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
 
       if (nextSession?.user && !isReplitPlatform) {
-        setTimeout(async () => {
-          const { data: profileData } = await supabase
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', nextSession.user.id)
+          .single();
+
+        // Auto-cancel scheduled deletion on explicit sign-in
+        if (event === 'SIGNED_IN' && profileData?.deletion_scheduled_at) {
+          await supabase
             .from('profiles')
-            .select('*')
-            .eq('user_id', nextSession.user.id)
-            .single();
-          setProfile(profileData);
-        }, 0);
+            .update({ deletion_scheduled_at: null })
+            .eq('user_id', nextSession.user.id);
+          profileData.deletion_scheduled_at = null;
+        }
+
+        setProfile(profileData);
       } else if (nextSession?.user && isReplitPlatform) {
         setProfile({
           id: nextSession.user.id,
@@ -86,6 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           avatar_url: nextSession.user.user_metadata?.avatar_url ?? null,
           created_at: nextSession.user.created_at,
           updated_at: nextSession.user.created_at,
+          deletion_scheduled_at: null,
         });
       } else {
         setProfile(null);
@@ -148,6 +162,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
+  const scheduleDeletion = async (password: string) => {
+    if (!user) return { error: new Error('No user logged in'), scheduledDeletion: null as string | null };
+
+    const { data, error } = await supabase.functions.invoke('delete-account', {
+      body: { password },
+    });
+
+    if (error) return { error: new Error(error.message), scheduledDeletion: null };
+    if (data?.error) return { error: new Error(data.error), scheduledDeletion: null };
+
+    if (data?.scheduledDeletion && profile) {
+      setProfile({ ...profile, deletion_scheduled_at: data.scheduledDeletion });
+    }
+
+    return { error: null, scheduledDeletion: data?.scheduledDeletion ?? null };
+  };
+
+  const cancelDeletion = async () => {
+    if (!user) return { error: new Error('No user logged in') };
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ deletion_scheduled_at: null })
+      .eq('user_id', user.id);
+
+    if (!error && profile) {
+      setProfile({ ...profile, deletion_scheduled_at: null });
+    }
+
+    return { error };
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -163,6 +209,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         resetPassword: authProvider.resetPassword,
         signOut,
         updateProfile,
+        scheduleDeletion,
+        cancelDeletion,
       }}
     >
       {children}
