@@ -177,7 +177,8 @@ export const useCodeExecution = () => {
     try {
       // =======================================================================
       // REPLIT: route everything directly to the local backend (server.mjs).
-      // Skip Pyodide, WebContainer, and the Supabase edge function entirely.
+      // Skip WebContainer and Supabase edge function entirely.
+      // Pyodide is used as offline fallback for Python.
       // =======================================================================
       if (isReplitLikePlatform(platform)) {
         const isShell = ['shell', 'bash', 'sh'].includes(normalizedLanguage);
@@ -208,6 +209,25 @@ export const useCodeExecution = () => {
 
         // All other languages (python, javascript, …) — fresh process per run,
         // with stdin piped so input() / readline work.
+
+        // When offline on Replit, try Pyodide for Python first (browser-based,
+        // no server dependency). Skip if code uses system imports Pyodide can't handle.
+        if ((normalizedLanguage === 'python' || normalizedLanguage === 'py') && !navigator.onLine) {
+          const unsupported = detectUnsupportedPyodideUsage(code);
+          if (!unsupported) {
+            try {
+              const result = await runPyodide(code, stdin);
+              return {
+                output: ['🐍 Offline — running in Pyodide (browser Python).', ...result.stdout, ...result.stderr],
+                error: result.exitCode === 0 ? null : 'Python execution failed',
+                executedAt: new Date().toISOString(),
+              };
+            } catch {
+              // Pyodide failed — fall through to Replit backend
+            }
+          }
+        }
+
         return await replitExecute(code, normalizedLanguage, stdin);
       }
       // =======================================================================
