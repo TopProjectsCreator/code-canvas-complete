@@ -19,3 +19,4 @@ export { GitProviderImportDialog } from './GitProviderImportDialog';
 export { SettingsDialog } from './SettingsDialog';
 
 export { AdvancedWorkbench } from './AdvancedWorkbench';
+export { IpynbViewer } from './IpynbViewer';

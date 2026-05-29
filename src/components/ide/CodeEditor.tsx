@@ -398,7 +398,7 @@ export const CodeEditor = ({
   if (previewType === "audio") return <AudioEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "rtf") return <RTFEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "cad") return <CADEditor file={file} onContentChange={onContentChange} />;
-  if (previewType === "ipynb") return <IpynbViewer file={file} />;
+  if (previewType === "ipynb") return <IpynbViewer file={file} onContentChange={onContentChange} />;
   if (previewType === "zip") return <ZipEditor file={file} onContentChange={onContentChange} />;
   if (previewType && !isTextPreviewable)
     return <FilePreview file={file} previewType={previewType as "image" | "csv" | "markdown" | "svg" | "sqlite" | "mermaid"} onContentChange={onContentChange} />;

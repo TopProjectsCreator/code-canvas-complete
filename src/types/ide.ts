@@ -118,6 +118,36 @@ export interface BreadboardCircuit {
   code: string;
 }
 
+// Notebook types
+export interface NbOutput {
+  output_type?: string;
+  text?: string[] | string;
+  data?: Record<string, unknown>;
+  ename?: string;
+  evalue?: string;
+  traceback?: string[];
+  name?: string;
+  execution_count?: number | null;
+}
+
+export interface NotebookCell {
+  id: string;
+  cell_type: "markdown" | "code" | "raw";
+  source: string;
+  execution_count?: number | null;
+  outputs?: NbOutput[];
+}
+
+export interface NotebookDoc {
+  nbformat?: number;
+  nbformat_minor?: number;
+  metadata?: {
+    kernelspec?: Record<string, unknown>;
+    language_info?: Record<string, unknown>;
+  };
+  cells?: NotebookCell[];
+}
+
 export interface IDEState {
   files: FileNode[];
   openTabs: Tab[];
