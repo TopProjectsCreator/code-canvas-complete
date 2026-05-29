@@ -23,6 +23,7 @@ import {
   Workflow,
   Database,
   PenTool,
+  Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -109,6 +110,7 @@ const templateVisuals: Record<LanguageTemplate, { icon: React.ReactNode; color: 
   whiteboard: { icon: <PenTool className="w-8 h-8" />, color: "from-pink-400 to-rose-500" },
   latex: { icon: <FileText className="w-8 h-8" />, color: "from-green-600 to-teal-600" },
   mermaid: { icon: <Workflow className="w-8 h-8" />, color: "from-pink-500 to-rose-600" },
+  design: { icon: <Palette className="w-8 h-8" />, color: "from-violet-500 to-purple-600" },
 };
 
 // Derive languages array from registry + visuals

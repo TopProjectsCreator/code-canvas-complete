@@ -34,6 +34,7 @@ export const tokenize = (code: string, language: string): SyntaxToken[][] => {
   const lines = code.split("\n");
   const normalizedLanguage = (language || "text").toLowerCase();
   const isPython = ["py", "python"].includes(normalizedLanguage);
+  const isLatex = ["tex", "latex"].includes(normalizedLanguage);
 
   let activePythonTripleQuote: `"""` | `'''` | null = null;
 
@@ -124,6 +125,72 @@ export const tokenize = (code: string, language: string): SyntaxToken[][] => {
         if (selectorMatch) {
           tokens.push({ type: "function", value: selectorMatch[0] });
           remaining = remaining.slice(selectorMatch[0].length);
+          matched = true;
+          continue;
+        }
+      }
+
+      if (isLatex) {
+        if (remaining.startsWith("%")) {
+          tokens.push({ type: "comment", value: remaining });
+          break;
+        }
+
+        if (remaining.startsWith("\\")) {
+          const cmdMatch = remaining.match(/^\\([a-zA-Z*]+)/);
+          if (cmdMatch) {
+            tokens.push({ type: "keyword", value: `\\${cmdMatch[1]}` });
+            remaining = remaining.slice(cmdMatch[0].length);
+            matched = true;
+            continue;
+          }
+          const symMatch = remaining.match(/^\\([^a-zA-Z])/);
+          if (symMatch) {
+            tokens.push({ type: "operator", value: `\\${symMatch[1]}` });
+            remaining = remaining.slice(symMatch[0].length);
+            matched = true;
+            continue;
+          }
+        }
+
+        if (remaining.startsWith("$$")) {
+          const end = remaining.indexOf("$$", 2);
+          if (end >= 0) {
+            tokens.push({ type: "string", value: remaining.slice(0, end + 2) });
+            remaining = remaining.slice(end + 2);
+          } else {
+            tokens.push({ type: "string", value: remaining });
+            break;
+          }
+          matched = true;
+          continue;
+        }
+
+        if (remaining.startsWith("$")) {
+          const end = remaining.indexOf("$", 1);
+          if (end >= 0 && remaining[end - 1] !== "\\") {
+            tokens.push({ type: "string", value: remaining.slice(0, end + 1) });
+            remaining = remaining.slice(end + 1);
+          } else {
+            tokens.push({ type: "operator", value: "$" });
+            remaining = remaining.slice(1);
+          }
+          matched = true;
+          continue;
+        }
+
+        const braceMatch = remaining.match(/^[{}]/);
+        if (braceMatch) {
+          tokens.push({ type: "operator", value: braceMatch[0] });
+          remaining = remaining.slice(1);
+          matched = true;
+          continue;
+        }
+
+        const latexOpMatch = remaining.match(/^[&_^#~]/);
+        if (latexOpMatch) {
+          tokens.push({ type: "operator", value: latexOpMatch[0] });
+          remaining = remaining.slice(1);
           matched = true;
           continue;
         }

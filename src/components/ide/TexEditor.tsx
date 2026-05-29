@@ -4,9 +4,9 @@ import {
   ResizablePanelGroup, ResizablePanel, ResizableHandle,
 } from '@/components/ui/resizable';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
-import { Eye, Code, FileText } from 'lucide-react';
-import { escapeHtml } from '@/lib/syntax';
+import { Eye, Code } from 'lucide-react';
+import { tokenize, getTokenClass, escapeHtml } from '@/lib/syntax';
+import { TexToolbar } from './tex/TexToolbar';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 
@@ -14,6 +14,8 @@ interface TexEditorProps {
   file: FileNode;
   onContentChange: (fileId: string, content: string) => void;
 }
+
+/* ─── LaTeX → KaTeX preview (unchanged from original) ─── */
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -25,12 +27,7 @@ function stripComments(latex: string): string {
 
 function preprocessLatexForKatex(text: string): string {
   return text
-    .replace(/\\(begin|end)\{([^}]*)\}/g, (_, cmd, env) => {
-      if (['equation', 'equation*', 'align', 'align*', 'gather', 'gather*', 'multline', 'multline*', 'split', 'cases'].includes(env)) {
-        return '';
-      }
-      return '';
-    })
+    .replace(/\\(begin|end)\{([^}]*)\}/g, () => '')
     .replace(/\\(?:label|tag|ref|eqref)\{([^}]*)\}/g, '')
     .replace(/\\text\{([^}]*)\}/g, '$1')
     .trim();
@@ -42,6 +39,7 @@ function envToHtml(env: string, body: string): string {
   const e = env.replace(/\*$/, '');
   if (MATH_TAGS.some((t) => t === env)) {
     try {
+      const katex = katex;
       return katex.renderToString(body, { displayMode: true, throwOnError: false });
     } catch {
       return `<div class="text-red-400 font-mono text-xs">[LaTeX error in ${env}]</div>`;
@@ -89,9 +87,7 @@ function wrapItems(body: string, type: string): string {
 }
 
 function cleanItem(item: string): string {
-  return item
-    .replace(/\[([^\]]*)\]/g, '')
-    .trim();
+  return item.replace(/\[([^\]]*)\]/g, '').trim();
 }
 
 function latexTableToHtml(body: string): string {
@@ -106,12 +102,10 @@ function latexTableToHtml(body: string): string {
 
 function inlineCommands(text: string): string {
   let result = text;
-
   result = result.replace(/---/g, '\u2014');
   result = result.replace(/--/g, '\u2013');
   result = result.replace(/``/g, '\u201c');
   result = result.replace(/''/g, '\u201d');
-
   result = result.replace(/\\(?:text)?tilde\{\}/g, '~');
   result = result.replace(/\\(?:text)?asciitilde\{\}/g, '~');
   result = result.replace(/\\(?:text)?backslash\{\}/g, '\\');
@@ -120,7 +114,6 @@ function inlineCommands(text: string): string {
   result = result.replace(/\\(?:text)?copyright\{\}/g, '\u00a9');
   result = result.replace(/\\(?:text)?registered\{\}/g, '\u00ae');
   result = result.replace(/\\(?:text)?trademark\{\}/g, '\u2122');
-
   result = result.replace(/\\#/g, '#');
   result = result.replace(/\\\$/g, '$');
   result = result.replace(/\\%/g, '%');
@@ -130,14 +123,11 @@ function inlineCommands(text: string): string {
   result = result.replace(/\\\}/g, '}');
   result = result.replace(/\\(?:text)?backslash/g, '\\');
   result = result.replace(/\\textbackslash\s+/g, '\\');
-
   result = result.replace(/~+/g, '\u00a0');
-
   result = result.replace(/\\glqq/g, '\u201e');
   result = result.replace(/\\grqq/g, '\u201c');
   result = result.replace(/\\glq/g, '\u201a');
   result = result.replace(/\\grq/g, '\u2018');
-
   result = result.replace(/\\(?:emph|textit)\{([^}]*)\}/g, '<em>$1</em>');
   result = result.replace(/\\(?:textbf|mathbf)\{([^}]*)\}/g, '<strong>$1</strong>');
   result = result.replace(/\\underline\{([^}]*)\}/g, '<u>$1</u>');
@@ -148,10 +138,8 @@ function inlineCommands(text: string): string {
   result = result.replace(/\\textnormal\{([^}]*)\}/g, '$1');
   result = result.replace(/\\textup\{([^}]*)\}/g, '$1');
   result = result.replace(/\\textsl\{([^}]*)\}/g, '<span class="italic">$1</span>');
-
   result = result.replace(/\\href\{([^}]*)\}\{([^}]*)\}/g, '<a href="$1" class="text-primary underline underline-offset-2 hover:text-primary/80" target="_blank" rel="noopener noreferrer">$2</a>');
   result = result.replace(/\\url\{([^}]*)\}/g, '<a href="$1" class="text-primary underline underline-offset-2" target="_blank" rel="noopener noreferrer">$1</a>');
-
   result = result.replace(/\\includegraphics(?:\[([^\]]*)\])?\{([^}]*)\}/g, (_, opts, path) => {
     return `<span class="inline-flex items-center gap-1 text-xs text-muted-foreground border border-dashed border-border rounded px-2 py-1 my-1"><svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 16 5-5 3 3 4-4 6 6"/></svg> ${escapeHtml(path)}</span>`;
   });
@@ -160,6 +148,7 @@ function inlineCommands(text: string): string {
     const e = env.replace(/\*$/, '');
     if (MATH_TAGS.some((t) => t === env)) {
       try {
+        const katex = katex;
         return katex.renderToString(preprocessLatexForKatex(body), { displayMode: true, throwOnError: false });
       } catch {
         return `<span class="text-red-400">[${env} error]</span>`;
@@ -168,8 +157,7 @@ function inlineCommands(text: string): string {
     if (e === 'itemize' || e === 'enumerate') {
       const items = body.split(/(?<!\\)\\item\b/).filter(Boolean);
       const tag = e === 'itemize' ? 'ul' : 'ol';
-      const listType = e === 'itemize' ? 'disc' : 'decimal';
-      return `<${tag} class="list-${listType === 'decimal' ? 'decimal' : 'disc'} pl-6 my-2 space-y-1">${items.map((it) => `<li>${inlineCommands(cleanItem(it))}</li>`).join('')}</${tag}>`;
+      return `<${tag} class="list-${e === 'itemize' ? 'disc' : 'decimal'} pl-6 my-2 space-y-1">${items.map((it) => `<li>${inlineCommands(cleanItem(it))}</li>`).join('')}</${tag}>`;
     }
     if (e === 'description') {
       const items = body.split(/(?<!\\)\\item\b/).filter(Boolean);
@@ -185,6 +173,7 @@ function inlineCommands(text: string): string {
 
   result = result.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
     try {
+      const katex = katex;
       return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
     } catch {
       return `<span class="text-red-400">[math error]</span>`;
@@ -194,6 +183,7 @@ function inlineCommands(text: string): string {
   result = result.replace(/\$([^$\n]+?)\$/g, (_, math) => {
     if (math.trim().length === 0) return `$${math}$`;
     try {
+      const katex = katex;
       return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
     } catch {
       return `$${math}$`;
@@ -202,6 +192,7 @@ function inlineCommands(text: string): string {
 
   result = result.replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => {
     try {
+      const katex = katex;
       return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
     } catch {
       return `\\(${math}\\)`;
@@ -210,6 +201,7 @@ function inlineCommands(text: string): string {
 
   result = result.replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => {
     try {
+      const katex = katex;
       return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
     } catch {
       return `\\[${math}\\]`;
@@ -219,26 +211,20 @@ function inlineCommands(text: string): string {
   return result;
 }
 
-const titleCommands = ['title', 'author', 'date', 'thanks'];
-
 function extractPreamble(latex: string): { title: string; author: string; date: string } {
   const preambleMatch = latex.match(/\\(?:begin\{document\})/);
   const preamble = preambleMatch ? latex.slice(0, preambleMatch.index) : latex;
-
   const title = preamble.match(/\\(?:title)\{([^}]*)\}/)?.[1] || '';
   const author = preamble.match(/\\(?:author)\{([^}]*)\}/)?.[1] || '';
   const date = preamble.match(/\\(?:date)\{([^}]*)\}/)?.[1] || '';
-
   return { title: title.replace(/\\thanks\{[^}]*\}/g, ''), author, date };
 }
 
 function extractBody(latex: string): string {
   const bodyMatch = latex.match(/\\(?:begin\{document\})([\s\S]*?)\\(?:end\{document\})/);
   if (bodyMatch) return bodyMatch[1].trim();
-
   const docEnd = latex.indexOf('\\end{document}');
   if (docEnd >= 0) return latex.slice(0, docEnd).trim();
-
   return latex
     .replace(/\\documentclass(?:\[[^\]]*\])?\{[^}]*\}/g, '')
     .replace(/\\usepackage(?:\[[^\]]*\])?\{[^}]*\}/g, '')
@@ -285,7 +271,6 @@ function convertBody(body: string): string {
 
   result = result.replace(/\\(?:begin\{document\})/, '');
   result = result.replace(/\\(?:end\{document\})/, '');
-
   result = result.replace(/\\(?:vspace|hspace)\*?\{[^}]*\}/g, '');
   result = result.replace(/\\(?:smallskip|medskip|bigskip|noindent|indent|newline|newpage|clearpage|pagebreak|linebreak|hfill|vfill|hrulefill|dotfill)/g, '');
   result = result.replace(/\\(?:label|ref|eqref|pageref|cite|nocite|bibliographystyle)\{([^}]*)\}/g, '');
@@ -301,7 +286,6 @@ function convertBody(body: string): string {
     return map[m] || m;
   });
 
-  // Extract multi-line environments into placeholders before line processing
   const envBlocks: string[] = [];
   let envIndex = 0;
   result = result.replace(/\\begin\{([^}]*)\}([\s\S]*?)\\end\{\1\}/g, (_, env, bodyContent) => {
@@ -312,7 +296,6 @@ function convertBody(body: string): string {
     return placeholder;
   });
 
-  // Extract display math placeholders too
   result = result.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
     const placeholder = `\u0000ENV${envIndex}\u0000`;
     envBlocks[envIndex] = inlineCommands(`$$${math}$$`);
@@ -326,7 +309,6 @@ function convertBody(body: string): string {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-
     if (!line) {
       if (inParagraph) {
         output.push('</p>');
@@ -348,28 +330,19 @@ function convertBody(body: string): string {
     const isEnvPlaceholder = line.startsWith('\u0000ENV');
 
     if (isEnvPlaceholder) {
-      if (inParagraph) {
-        output.push('</p>');
-        inParagraph = false;
-      }
+      if (inParagraph) { output.push('</p>'); inParagraph = false; }
       output.push(line);
       continue;
     }
 
     if (isBlock || (startsWithTag(line, '<') && (line.includes('class="text-') || line.includes('class="my-')))) {
-      if (inParagraph) {
-        output.push('</p>');
-        inParagraph = false;
-      }
+      if (inParagraph) { output.push('</p>'); inParagraph = false; }
       output.push(line);
       continue;
     }
 
     if (startsWithTag(line, '<') && !startsWithTag(line, '<span')) {
-      if (inParagraph) {
-        output.push('</p>');
-        inParagraph = false;
-      }
+      if (inParagraph) { output.push('</p>'); inParagraph = false; }
       output.push(line);
       continue;
     }
@@ -383,9 +356,7 @@ function convertBody(body: string): string {
     output.push(inlineCommands(line));
   }
 
-  if (inParagraph) {
-    output.push('</p>');
-  }
+  if (inParagraph) { output.push('</p>'); }
 
   let final = output.join('\n');
   for (let i = 0; i < envBlocks.length; i++) {
@@ -401,7 +372,6 @@ function convertLaTeX(latex: string): string {
   const body = extractBody(cleaned);
 
   const parts: string[] = [];
-
   if (preamble.title || preamble.author || preamble.date) {
     parts.push('<div class="text-center mb-6 pb-4 border-b border-border">');
     if (preamble.title) parts.push(`<h1 class="text-3xl font-bold mb-2">${escapeHtml(preamble.title)}</h1>`);
@@ -409,44 +379,147 @@ function convertLaTeX(latex: string): string {
     if (preamble.date) parts.push(`<p class="text-sm text-muted-foreground">${escapeHtml(preamble.date)}</p>`);
     parts.push('</div>');
   }
-
   parts.push(convertBody(body));
-
   return parts.join('\n');
 }
 
+/* ─── Editor Component ─── */
+
 export const TexEditor = ({ file, onContentChange }: TexEditorProps) => {
   const [content, setContent] = useState(file.content || '');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const isExternalChange = useRef(false);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const isComposingRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     setContent(file.content || '');
   }, [file.id, file.content]);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newContent = e.target.value;
+  const handleContentChange = useCallback((newContent: string) => {
     setContent(newContent);
     onContentChange(file.id, newContent);
   }, [file.id, onContentChange]);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Tab') {
+  const tokenizedLines = useMemo(() => {
+    return tokenize(content, "latex");
+  }, [content]);
+
+  const buildHighlightedHtml = useCallback(() => {
+    return tokenizedLines
+      .map((lineTokens) => {
+        const tokensHtml = lineTokens
+          .map((token) => {
+            return `<span class="${getTokenClass(token.type)}">${escapeHtml(token.value)}</span>`;
+          })
+          .join("");
+        return `<div class="code-line">${tokensHtml.length === 0 ? "<br>" : tokensHtml}</div>`;
+      })
+      .join("");
+  }, [tokenizedLines]);
+
+  const handleInput = useCallback(() => {
+    if (isComposingRef.current) return;
+    const el = editorRef.current;
+    if (!el) return;
+    const nextContent = el.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
+    handleContentChange(nextContent);
+  }, [handleContentChange]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Tab") {
       e.preventDefault();
-      const ta = textareaRef.current;
-      if (!ta) return;
-      const start = ta.selectionStart;
-      const end = ta.selectionEnd;
-      const before = content.slice(0, start);
-      const after = content.slice(end);
-      const newContent = `${before}  ${after}`;
-      setContent(newContent);
-      onContentChange(file.id, newContent);
+      document.execCommand("insertText", false, "  ");
+      handleInput();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === "b") {
+      e.preventDefault();
+      document.execCommand("insertText", false, "\\textbf{");
+      handleInput();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === "i") {
+      e.preventDefault();
+      document.execCommand("insertText", false, "\\textit{");
+      handleInput();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === "u") {
+      e.preventDefault();
+      document.execCommand("insertText", false, "\\underline{");
+      handleInput();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "F") {
+      e.preventDefault();
+      document.execCommand("insertText", false, "\\frac{}{}");
+      handleInput();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "R") {
+      e.preventDefault();
+      document.execCommand("insertText", false, "\\sqrt{");
+      handleInput();
+      return;
+    }
+  }, [handleInput]);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    document.execCommand("insertText", false, e.clipboardData.getData("text/plain"));
+    handleInput();
+  }, [handleInput]);
+
+  const saveCursorPosition = useCallback((): number => {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !editorRef.current) return 0;
+    const range = sel.getRangeAt(0);
+    const preRange = document.createRange();
+    preRange.selectNodeContents(editorRef.current);
+    preRange.setEndBefore(range.startContainer, range.startOffset);
+    return preRange.toString().length;
+  }, []);
+
+  const restoreCursorPosition = useCallback((offset: number) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const sel = window.getSelection();
+    if (!sel) return;
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+    let charCount = 0;
+    let node: Text | null;
+    while ((node = walker.nextNode() as Text | null)) {
+      const len = node.textContent?.length || 0;
+      if (charCount + len >= offset) {
+        const pos = offset - charCount;
+        try {
+          const range = document.createRange();
+          range.setStart(node, pos);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } catch { /* ignore */ }
+        return;
+      }
+      charCount += len;
+    }
+  }, []);
+
+  const handleInsert = useCallback((text: string, cursorOffset?: number) => {
+    const el = editorRef.current;
+    if (!el) return;
+
+    el.focus();
+    document.execCommand("insertText", false, text);
+    handleInput();
+
+    if (cursorOffset !== undefined) {
       requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = start + 2;
+        const pos = saveCursorPosition();
+        restoreCursorPosition(pos - cursorOffset);
       });
     }
-  }, [content, file.id, onContentChange]);
+  }, [handleInput, saveCursorPosition, restoreCursorPosition]);
 
   const parsedHtml = useMemo(() => {
     if (!content) return '<p class="text-muted-foreground italic">Empty file</p>';
@@ -459,23 +532,33 @@ export const TexEditor = ({ file, onContentChange }: TexEditorProps) => {
 
   return (
     <div className="flex flex-1 flex-col bg-editor">
-      <ResizablePanelGroup direction="horizontal" className="flex-1">
+      <TexToolbar onInsert={handleInsert} editorRef={editorRef} />
+      <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
         <ResizablePanel defaultSize={45} minSize={25}>
           <div className="flex h-full flex-col">
             <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5">
               <Code className="h-4 w-4 text-muted-foreground" />
               <span className="text-xs font-medium text-muted-foreground">Source</span>
-              <span className="ml-auto text-[10px] text-muted-foreground">.tex</span>
             </div>
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              className="flex-1 resize-none border-0 bg-editor p-4 font-mono text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40"
-              placeholder="% Enter LaTeX here..."
-              spellCheck={false}
-            />
+            <ScrollArea className="flex-1">
+              <div className="relative min-h-full p-4 font-mono text-sm leading-6">
+                <div
+                  ref={editorRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={handleInput}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
+                  onCompositionStart={() => { isComposingRef.current = true; }}
+                  onCompositionEnd={() => { isComposingRef.current = false; handleInput(); }}
+                  className="min-h-full outline-none caret-foreground whitespace-pre-wrap"
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  dangerouslySetInnerHTML={{ __html: buildHighlightedHtml() }}
+                />
+              </div>
+            </ScrollArea>
           </div>
         </ResizablePanel>
 

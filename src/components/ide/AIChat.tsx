@@ -703,6 +703,8 @@ export const AIChat = ({
   onDuplicateFile,
   onOpenFile,
   onAppendToFile,
+  onGenerateUI,
+  onModifyUI,
   currentTemplate,
   automationConfig,
   currentProjectId,
