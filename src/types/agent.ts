@@ -44,7 +44,8 @@ export type ToolName =
   | 'append_file'
   | 'plan_feature'
   | 'get_task_board'
-  | 'update_task';
+  | 'update_task'
+  | 'generate_ui';
 
 export type AIModel = 'flash' | 'pro' | 'lite';
 
@@ -54,6 +55,14 @@ export interface ToolCall {
   arguments: Record<string, unknown>;
   status: 'pending' | 'running' | 'completed' | 'failed';
   result?: unknown;
+}
+
+export interface UIAction {
+  type: 'generate' | 'modify';
+  description?: string;
+  nodes?: any[];
+  selector?: string;
+  props?: Record<string, any>;
 }
 
 export interface CodeChange {

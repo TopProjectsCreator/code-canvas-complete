@@ -372,6 +372,7 @@ If users ask for deliverables like Word docs, PowerPoints, spreadsheets, videos,
 - Use \`<change_template template="video" />\` for video editing projects
 - Use \`<change_template template="audio" />\` for audio editing projects
 - Use \`<change_template template="rtf" />\` for rich text documents
+- Use \`<change_template template="design" />\` for the visual UI designer (drag-and-drop shadcn components)
 
 When helpful, combine template switching with concrete file actions (create/rename/update files) so users immediately get usable outputs.
 
@@ -392,6 +393,8 @@ Diff only: <code_diff file="name.ts" lang="typescript" desc="description">unifie
 <generate_image prompt="description" />
 <generate_music prompt="genre description" />
 <generate_pptx filename="my-slides.pptx" prompt="topic summary">{"title":"Presentation Title","theme":"blue","slides":[{"title":"Slide Title","subtitle":"Optional subtitle"},{"title":"Content Slide","bullets":["Point one","Point two","Point three"]},{"title":"Two Columns","layout":"two-col","colLeft":["Left A","Left B"],"colRight":["Right A","Right B"]},{"title":"Conclusion","content":"Closing paragraph text here."}]}</generate_pptx>
+<generate_ui>[{"componentType":"ui/card","props":{"className":"w-full max-w-md"},"children":[...]}]</generate_ui> — Generate a UI component tree. Provide a JSON array of UINode objects. Each node has: componentType (e.g. "ui/button", "ui/card", "ui/input", "html/div"), props (object of prop values), children (array of nested UINodes). Works best with the "UI Designer" template.
+<modify_ui selector="node-id-or-component-type" description="change the button label to Click Me">{"props":{"children":"Click Me"}}</modify_ui> — Modify a specific component's props in the current design. The selector is either the node's id or its component type (e.g. "ui/button"). The props object contains the new values to merge into the node's existing props.
 — Generate a real .pptx file saved directly to the file tree. Use theme values: blue, dark, green, orange, purple, teal, red, slate. Each slide can have: title (required), subtitle, content (text block), bullets (string[]), layout ("title"|"content"|"two-col"). Always provide rich, detailed slide content relevant to the user's request — never use placeholder text. Combine with <change_template template="powerpoint" /> if the user needs a fresh PowerPoint project.
 <git_init /> <git_commit message="msg" /> <git_create_branch name="branch" /> <git_import url="url" />
 <make_public /> <make_private /> <get_project_link />
@@ -597,6 +600,71 @@ The file must conform to this structure:
 - Make sure \`next\`/\`parent\` links form valid chains.
 `;
 
+const DESIGN_SECTION = `
+## UI DESIGNER MODE
+
+You are designing a React UI using the visual UI builder. Instead of writing code directly, output a **UINode tree** as JSON inside a \`<generate_ui>\` block.
+
+### Available components
+- **Layout**: \`html/div\` (Container), \`ui/card\`, \`ui/card-header\`, \`ui/card-content\`, \`ui/card-footer\`
+- **Form**: \`ui/button\`, \`ui/input\`, \`ui/textarea\`, \`ui/label\`, \`ui/checkbox\`, \`ui/switch\`, \`ui/slider\`
+- **Display**: \`ui/card-title\`, \`ui/badge\`, \`ui/separator\`
+- **Feedback**: \`ui/alert\`
+
+### Example
+\`\`\`
+<generate_ui>[
+  {
+    "componentType": "ui/card",
+    "props": { "className": "w-full max-w-md" },
+    "children": [
+      {
+        "componentType": "ui/card-header",
+        "props": {},
+        "children": [
+          {
+            "componentType": "ui/card-title",
+            "props": { "children": "Login" },
+            "children": []
+          }
+        ]
+      },
+      {
+        "componentType": "ui/card-content",
+        "props": { "className": "space-y-4" },
+        "children": [
+          {
+            "componentType": "ui/input",
+            "props": { "placeholder": "Email", "type": "email" },
+            "children": []
+          },
+          {
+            "componentType": "ui/input",
+            "props": { "placeholder": "Password", "type": "password" },
+            "children": []
+          }
+        ]
+      },
+      {
+        "componentType": "ui/card-footer",
+        "props": {},
+        "children": [
+          {
+            "componentType": "ui/button",
+            "props": { "variant": "default", "children": "Sign In" },
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+]
+</generate_ui>
+\`\`\`
+
+Always output the FULL component tree — the builder will render it exactly as specified.
+`;
+
 const DATABASE_SECTION = `
 ## DATABASE DESIGNER (ERD + SQL EXPORT)
 When the user is working with the Database template, they have a visual ERD canvas + SQL exporter. You can **edit \`erd.schema.json\` directly** to add/remove tables, columns, relationships, and update the canvas layout. The visual canvas, SQL preview, and constraints doc all sync from this single source of truth.
@@ -673,6 +741,9 @@ function buildSystemPrompt(template?: string): string {
   }
   if (template === 'database') {
     prompt = prompt.replace('## CODE CHANGES', DATABASE_SECTION + '\n## CODE CHANGES');
+  }
+  if (template === 'design') {
+    prompt = prompt.replace('## CODE CHANGES', DESIGN_SECTION + '\n## CODE CHANGES');
   }
   return prompt;
 }

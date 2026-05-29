@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import type { AutonomyConfig } from '@/hooks/useAutonomyMode';
 import { supabase } from '@/integrations/supabase/client';
 import { createAuthProvider } from '@/integrations/auth/provider';
-import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, GeneratedVideo, GeneratedPresentation, AIModel, InteractiveQuestion, QuestionOption, ChatWidget, ChatWidgetType } from '@/types/agent';
+import { AgentMessage, AgentStep, CodeChange, ToolCall, WorkflowAction, GeneratedImage, GeneratedAudio, GeneratedVideo, GeneratedPresentation, AIModel, InteractiveQuestion, QuestionOption, ChatWidget, ChatWidgetType, UIAction } from '@/types/agent';
 import { Workflow } from '@/types/ide';
 import { CustomThemeColors } from '@/contexts/ThemeContext';
 import { createAIProvider } from '@/integrations/ai/provider';
@@ -48,7 +48,7 @@ interface PresentationAction {
   spec?: PptxSpec;
 }
 
-interface UseAgentChatProps {
+export interface UseAgentChatProps {
   onCodeChange?: (change: CodeChange) => void;
   onApplyCode?: (code: string, fileName: string) => void;
   onCreateWorkflow?: (workflow: Omit<Workflow, 'id'>) => void;
@@ -78,6 +78,8 @@ interface UseAgentChatProps {
   onDuplicateFile?: (sourceName: string, targetName: string) => void;
   onOpenFile?: (name: string) => void;
   onAppendToFile?: (name: string, content: string) => void;
+  onGenerateUI?: (nodes: any[], description?: string) => void;
+  onModifyUI?: (selector: string, props: Record<string, any>, description?: string) => void;
   workflows?: Workflow[];
   autonomyConfig?: AutonomyConfig;
   currentProjectId?: string | null;
@@ -132,7 +134,7 @@ const loadPersistedMessages = (projectId?: string | null): AgentMessage[] => {
   }
 };
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, workflows = [], autonomyConfig, currentProjectId }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI, workflows = [], autonomyConfig, currentProjectId }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>(() => loadPersistedMessages(currentProjectId));
 
   // Reload messages when project changes
@@ -373,6 +375,50 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     }
 
     return { presentationActions, cleanContent: cleanContent.trim() };
+  };
+
+  const parseUIActions = (content: string): { uiActions: UIAction[], cleanContent: string } => {
+    const uiActions: UIAction[] = [];
+    let cleanContent = content;
+
+    // Block form: <generate_ui>[JSON array of UINodes]</generate_ui>
+    const blockRegex = /<generate_ui>([\s\S]*?)<\/generate_ui>/g;
+    let match;
+    while ((match = blockRegex.exec(content)) !== null) {
+      try {
+        const body = match[1].trim();
+        const nodes = JSON.parse(body);
+        uiActions.push({ type: 'generate', nodes: Array.isArray(nodes) ? nodes : [nodes] });
+      } catch {
+        uiActions.push({ type: 'generate', description: match[1].trim() });
+      }
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    // Self-closing form: <generate_ui description="..." />
+    const selfClosingRegex = /<generate_ui\s+description="([^"]+)"\s*\/>/g;
+    while ((match = selfClosingRegex.exec(content)) !== null) {
+      const alreadyCaptured = uiActions.some(a => a.description === match![1]);
+      if (!alreadyCaptured) {
+        uiActions.push({ type: 'generate', description: match[1] });
+      }
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    // Modify form: <modify_ui selector="..." description="...">{"props":{...}}</modify_ui>
+    const modifyRegex = /<modify_ui\s+selector="([^"]+)"(?:\s+description="([^"]*)")?\s*>([\s\S]*?)<\/modify_ui>/g;
+    while ((match = modifyRegex.exec(content)) !== null) {
+      try {
+        const body = match[3].trim();
+        const parsed = JSON.parse(body);
+        uiActions.push({ type: 'modify', selector: match[1], props: parsed.props || parsed, description: match[2] || `Modify ${match[1]}` });
+      } catch {
+        uiActions.push({ type: 'modify', selector: match[1], description: match[2] || `Modify ${match[1]}` });
+      }
+      cleanContent = cleanContent.replace(match[0], '');
+    }
+
+    return { uiActions, cleanContent: cleanContent.trim() };
   };
 
   const parseGitCommands = (content: string): { gitActions: GitAction[], cleanContent: string } => {
@@ -725,6 +771,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     imagePrompts: string[];
     musicActions: MusicAction[];
     presentationActions: PresentationAction[];
+    uiActions: UIAction[];
     questions: InteractiveQuestion[];
     widgets: ChatWidget[];
     shellCommands: string[];
@@ -808,6 +855,17 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       allSteps.push({ id: generateId(), type: 'tool_call', content: `Generating presentation: ${action.prompt}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'generate_pptx', arguments: { prompt: action.prompt }, status: 'pending' } });
     });
     content = afterPresentations;
+
+    const { uiActions, cleanContent: afterUI } = parseUIActions(content);
+    uiActions.forEach(action => {
+      allSteps.push({ id: generateId(), type: 'tool_call', content: `UI action: ${action.type === 'generate' ? 'Generating UI' : 'Modifying UI'}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'generate_ui', arguments: { type: action.type, description: action.description }, status: 'completed' } });
+      if (action.type === 'generate' && onGenerateUI) {
+        onGenerateUI(action.nodes || [], action.description);
+      } else if (action.type === 'modify' && onModifyUI) {
+        onModifyUI(action.selector || '', action.props || {}, action.description);
+      }
+    });
+    content = afterUI;
 
     const { gitActions, cleanContent: afterGit } = parseGitCommands(content);
     gitActions.forEach(action => {
@@ -984,13 +1042,14 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       imagePrompts,
       musicActions,
       presentationActions,
+      uiActions,
       questions: parsedQuestions,
       widgets: parsedWidgets,
       shellCommands,
       automationQueries,
       isDone,
     };
-  }, [onCodeChange, onCreateWorkflow, onInstallPackage, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, canUseShellOnPlatform]);
+  }, [onCodeChange, onCreateWorkflow, onInstallPackage, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, canUseShellOnPlatform, onGenerateUI, onModifyUI]);
 
   const downloadOfflineModel = useCallback(async (model: string) => {
     setIsDownloadingOfflineModel(true);
@@ -1486,7 +1545,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       setCurrentStep(null);
       abortControllerRef.current = null;
     }
-  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, chatOnlyMode, autonomyConfig, processAgentResponse, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, workflows, aiProvider]);
+  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, chatOnlyMode, autonomyConfig, processAgentResponse, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI, workflows, aiProvider]);
 
   const applyCodeChange = useCallback((change: CodeChange) => {
     if (onApplyCode) {

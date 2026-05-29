@@ -78,6 +78,8 @@ interface AIChatProps {
   onDuplicateFile?: (sourceName: string, targetName: string) => void;
   onOpenFile?: (name: string) => void;
   onAppendToFile?: (name: string, content: string) => void;
+  onGenerateUI?: (nodes: any[], description?: string) => void;
+  onModifyUI?: (selector: string, props: Record<string, any>, description?: string) => void;
   currentTemplate?: string;
   automationConfig?: string | null;
   currentProjectId?: string | null;
@@ -783,6 +785,8 @@ export const AIChat = ({
     onDuplicateFile,
     onOpenFile,
     onAppendToFile,
+    onGenerateUI,
+    onModifyUI,
     workflows,
     autonomyConfig,
     currentProjectId,

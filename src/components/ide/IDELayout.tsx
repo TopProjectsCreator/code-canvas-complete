@@ -41,6 +41,7 @@ import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/colla
 import { useOfflineProject } from "@/hooks/useOfflineProject";
 import { AutomationTemplatePane, type AutomationBlockInstance, serializeAutomationConfig, parseAutomationConfig } from "@/components/ide/AutomationTemplatePane";
 import { DatabaseDesignerPane } from "@/components/ide/DatabaseDesignerPane";
+import { BuilderLayout } from "@/components/builder/BuilderLayout";
 import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
 import { TaskBoardModal } from "@/components/tasks/TaskBoardModal";
 
@@ -400,6 +401,16 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       const drawFile = findFileById(templateFiles, "main-draw");
       if (drawFile) {
         const newTab: Tab = { id: generateId(), name: drawFile.name, fileId: drawFile.id, isModified: false };
+        setOpenTabs([newTab]);
+        setActiveTabId(newTab.id);
+      }
+    }
+
+    // Auto-open main.design.json for design template
+    if (template === "design") {
+      const designFile = findFileById(templateFiles, "main-design-json");
+      if (designFile) {
+        const newTab: Tab = { id: generateId(), name: designFile.name, fileId: designFile.id, isModified: false };
         setOpenTabs([newTab]);
         setActiveTabId(newTab.id);
       }
@@ -2563,7 +2574,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             // Mobile: Single panel view with bottom nav switcher
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Editor Panel */}
-              {mobileActivePanel === "editor" && selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && selectedTemplate !== "whiteboard" && (
+              {mobileActivePanel === "editor" && selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && selectedTemplate !== "whiteboard" && selectedTemplate !== "design" && (
                 <div className="h-full flex flex-col">
                   <EditorTabs
                     tabs={openTabs}
@@ -2619,6 +2630,12 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         <DrawEditor file={activeFileWithContent} onContentChange={handleContentChange} />
                       )}
                     </Suspense>
+                  ) : selectedTemplate === "design" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading UI Designer...</div>}>
+                      {activeFileWithContent && (
+                        <BuilderLayout file={activeFileWithContent} onContentChange={handleContentChange} />
+                      )}
+                    </Suspense>
                   ) : (
                     <Preview
                       htmlContent={htmlContent}
@@ -2655,7 +2672,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
             // Desktop: Resizable panels
             <ResizablePanelGroup direction="horizontal" className="flex-1">
               {/* Editor panel - hidden for scratch and automation templates */}
-              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && selectedTemplate !== "whiteboard" && !(isAIChatOpen || mobileActivePanel === "ai") && (
+              {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && selectedTemplate !== "whiteboard" && selectedTemplate !== "design" && !(isAIChatOpen || mobileActivePanel === "ai") && (
                 <>
                   <ResizablePanel defaultSize={54} minSize={34}>
                     <div className="h-full flex flex-col">
@@ -2689,7 +2706,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               )}
 
               {/* Preview panel or Arduino/Scratch/Automation panel */}
-              <ResizablePanel defaultSize={selectedTemplate === "scratch" || selectedTemplate === "automation" || selectedTemplate === "database" || selectedTemplate === "whiteboard" ? 100 : 46} minSize={24}>
+              <ResizablePanel defaultSize={selectedTemplate === "scratch" || selectedTemplate === "automation" || selectedTemplate === "database" || selectedTemplate === "whiteboard" || selectedTemplate === "design" ? 100 : 46} minSize={24}>
                 {selectedTemplate === "arduino" ? (
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
                     <ArduinoPanel
@@ -2727,6 +2744,12 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                   <Suspense fallback={<div className="p-4 text-muted-foreground">Loading whiteboard...</div>}>
                     {activeFileWithContent && (
                       <DrawEditor file={activeFileWithContent} onContentChange={handleContentChange} />
+                    )}
+                  </Suspense>
+                ) : selectedTemplate === "design" ? (
+                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading UI Designer...</div>}>
+                    {activeFileWithContent && (
+                      <BuilderLayout file={activeFileWithContent} onContentChange={handleContentChange} />
                     )}
                   </Suspense>
                 ) : (
@@ -3116,6 +3139,64 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                   });
                 return appendToTarget(prev);
               });
+            }}
+            onGenerateUI={(nodes, description) => {
+              const findDesignFile = (fileList: FileNode[]): FileNode | null => {
+                for (const f of fileList) {
+                  if (f.type === "file" && f.name === "main.design.json") return f;
+                  if (f.children) {
+                    const found = findDesignFile(f.children);
+                    if (found) return found;
+                  }
+                }
+                return null;
+              };
+              const designFile = findDesignFile(files);
+              if (designFile) {
+                const updatedContent = JSON.stringify({ version: 1, rootNodes: nodes }, null, 2);
+                handleContentChange(designFile.id, updatedContent);
+                toast({
+                  title: "UI generated",
+                  description: description ? `Design applied: ${description}` : "New UI design applied",
+                });
+              }
+            }}
+            onModifyUI={(selector, props, description) => {
+              const findDesignFile = (fileList: FileNode[]): FileNode | null => {
+                for (const f of fileList) {
+                  if (f.type === "file" && f.name === "main.design.json") return f;
+                  if (f.children) {
+                    const found = findDesignFile(f.children);
+                    if (found) return found;
+                  }
+                }
+                return null;
+              };
+              const designFile = findDesignFile(files);
+              if (designFile) {
+                try {
+                  const data = JSON.parse(designFile.content || "{}");
+                  const nodes = data.rootNodes || [];
+                  const applyModify = (nodeList: any[]) => {
+                    for (const node of nodeList) {
+                      if (node.id === selector || node.componentType === selector) {
+                        node.props = { ...node.props, ...props };
+                        return true;
+                      }
+                      if (node.children && applyModify(node.children)) return true;
+                    }
+                    return false;
+                  };
+                  if (applyModify(nodes)) {
+                    const updatedContent = JSON.stringify({ version: 1, rootNodes: nodes }, null, 2);
+                    handleContentChange(designFile.id, updatedContent);
+                    toast({
+                      title: "UI modified",
+                      description: description || `Updated ${selector}`,
+                    });
+                  }
+                } catch {}
+              }
             }}
             currentTemplate={selectedTemplate || undefined}
             automationConfig={selectedTemplate === "automation" ? getAutomationConfigContent() : null}

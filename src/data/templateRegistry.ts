@@ -56,6 +56,7 @@ export type LanguageTemplate =
   | "cad"
   | "ftc"
   | "whiteboard"
+  | "design"
   | "latex"
   | "mermaid";
 
@@ -295,6 +296,12 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "Whiteboard",
     description: "Freeform drawing with Excalidraw canvas",
     aiDescription: "Visual drawing and diagramming with Excalidraw",
+  },
+  {
+    id: "design",
+    name: "UI Designer",
+    description: "Drag-and-drop UI builder with shadcn components",
+    aiDescription: "Visual UI builder for React components with drag-and-drop canvas",
   },
   {
     id: "latex",
