@@ -46,14 +46,18 @@ const parseCSV = (content: string): string[][] => {
 const ImagePreview = ({ file, content, onContentChange }: { file: FileNode; content: string; onContentChange: (fileId: string, content: string) => void }) => {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
 
-  if (!content.trim()) {
+  const isPlaceholder = /^\/\/ Binary file:/.test(content.trim());
+
+  if (!content.trim() || isPlaceholder) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-editor text-muted-foreground gap-4">
         <Image className="w-16 h-16 opacity-50" />
         <div className="text-center">
           <p className="text-lg font-medium mb-1">Image Preview</p>
           <p className="text-sm">{file.name}</p>
-          <p className="text-xs mt-2 text-muted-foreground/70">No image data available</p>
+          <p className="text-xs mt-2 text-muted-foreground/70">
+            {isPlaceholder ? 'Binary file was not imported — image data is missing' : 'No image data available'}
+          </p>
           <p className="text-xs mt-1 text-muted-foreground/50">Use "Upload Files" in the file tree to import images</p>
         </div>
         <MediaGenerationPanel mode="image" onGenerated={(value) => onContentChange(file.id, value)} />

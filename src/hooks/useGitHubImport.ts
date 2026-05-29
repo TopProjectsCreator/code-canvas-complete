@@ -42,12 +42,55 @@ const BINARY_EXTENSIONS = new Set([
   '.db', '.sqlite', '.sqlite3',
 ]);
 
+const VIEWABLE_BINARY_EXTENSIONS = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp',
+  '.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.wma',
+  '.mp4', '.avi', '.mov', '.mkv', '.webm', '.wmv', '.flv',
+]);
+
+const EXT_TO_MIME: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  bmp: 'image/bmp',
+  ico: 'image/x-icon',
+  webp: 'image/webp',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  flac: 'audio/flac',
+  aac: 'audio/aac',
+  m4a: 'audio/mp4',
+  wma: 'audio/x-ms-wma',
+  mp4: 'video/mp4',
+  avi: 'video/x-msvideo',
+  mov: 'video/quicktime',
+  mkv: 'video/x-matroska',
+  webm: 'video/webm',
+  wmv: 'video/x-ms-wmv',
+  flv: 'video/x-flv',
+};
+
 const isLikelyTextFile = (name: string) => {
   const lower = name.toLowerCase();
   const lastDot = lower.lastIndexOf('.');
   if (lastDot === -1) return true;
   const extension = lower.slice(lastDot);
   return !BINARY_EXTENSIONS.has(extension);
+};
+
+const isViewableBinaryFile = (name: string) => {
+  const lower = name.toLowerCase();
+  const lastDot = lower.lastIndexOf('.');
+  if (lastDot === -1) return false;
+  const ext = lower.slice(lastDot);
+  return VIEWABLE_BINARY_EXTENSIONS.has(ext);
+};
+
+const getMimeType = (name: string): string => {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  return EXT_TO_MIME[ext] || 'application/octet-stream';
 };
 
 export const useGitHubImport = () => {
@@ -117,7 +160,8 @@ export const useGitHubImport = () => {
     owner: string,
     repo: string,
     path: string,
-    branch: string
+    branch: string,
+    asDataUrl?: boolean
   ): Promise<string> => {
     const response = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`
@@ -129,7 +173,12 @@ export const useGitHubImport = () => {
     const data: GitHubFileContentResponse = await response.json();
 
     if (data.encoding === 'base64' && typeof data.content === 'string') {
-      return atob(data.content.replace(/\n/g, ''));
+      const rawBase64 = data.content.replace(/\n/g, '');
+      if (asDataUrl) {
+        const mime = getMimeType(path);
+        return `data:${mime};base64,${rawBase64}`;
+      }
+      return atob(rawBase64);
     }
 
     if (typeof data.content === 'string') {
@@ -191,8 +240,29 @@ export const useGitHubImport = () => {
             // Skip files that fail to fetch
             console.warn(`Skipped ${item.name}: failed to fetch`);
           }
+        } else if (isViewableBinaryFile(item.name)) {
+          setImportProgress(`Fetching ${item.name}...`);
+          try {
+            const content = await fetchFileContent(owner, repo, item.path, branch, true);
+            nodes.push({
+              id: generateId(),
+              name: item.name,
+              type: 'file',
+              language: getFileLanguage(item.name),
+              content,
+            });
+          } catch {
+            console.warn(`Skipped ${item.name}: failed to fetch binary content`);
+            nodes.push({
+              id: generateId(),
+              name: item.name,
+              type: 'file',
+              language: getFileLanguage(item.name),
+              content: `// Binary file: ${item.name}\n// This file type is not editable in the browser.`,
+            });
+          }
         } else {
-          // Add non-text files without content
+          // Add non-text, non-viewable binary files without content
           nodes.push({
             id: generateId(),
             name: item.name,

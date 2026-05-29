@@ -42,12 +42,55 @@ const BINARY_EXTENSIONS = new Set([
   '.db', '.sqlite', '.sqlite3',
 ]);
 
+const VIEWABLE_BINARY_EXTENSIONS = new Set([
+  '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp',
+  '.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.wma',
+  '.mp4', '.avi', '.mov', '.mkv', '.webm', '.wmv', '.flv',
+]);
+
+const EXT_TO_MIME: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  bmp: 'image/bmp',
+  ico: 'image/x-icon',
+  webp: 'image/webp',
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  ogg: 'audio/ogg',
+  flac: 'audio/flac',
+  aac: 'audio/aac',
+  m4a: 'audio/mp4',
+  wma: 'audio/x-ms-wma',
+  mp4: 'video/mp4',
+  avi: 'video/x-msvideo',
+  mov: 'video/quicktime',
+  mkv: 'video/x-matroska',
+  webm: 'video/webm',
+  wmv: 'video/x-ms-wmv',
+  flv: 'video/x-flv',
+};
+
 const isTextFile = (name: string) => {
   const lower = name.toLowerCase();
   const lastDot = lower.lastIndexOf('.');
   if (lastDot === -1) return true; // No extension = likely text (Makefile, Dockerfile, etc.)
   const ext = lower.slice(lastDot);
   return !BINARY_EXTENSIONS.has(ext);
+};
+
+const isViewableBinaryFile = (name: string) => {
+  const lower = name.toLowerCase();
+  const lastDot = lower.lastIndexOf('.');
+  if (lastDot === -1) return false;
+  const ext = lower.slice(lastDot);
+  return VIEWABLE_BINARY_EXTENSIONS.has(ext);
+};
+
+const getMimeType = (name: string): string => {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  return EXT_TO_MIME[ext] || 'application/octet-stream';
 };
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.git', '__pycache__', 'venv', '.venv', 'vendor', 'target', '.next', '.nuxt', 'coverage']);
@@ -143,6 +186,13 @@ const github = {
     if (d.content !== undefined) return d.content;
     throw new Error(`Failed to fetch ${path}`);
   },
+  async fetchBinaryContent(owner: string, repo: string, path: string, branch: string): Promise<string> {
+    const d = await ghProxy({ action: 'binary-file-content', owner, repo, path, branch });
+    if (d.content !== undefined && d.encoding === 'base64') {
+      return `data:${getMimeType(path)};base64,${d.content.replace(/\n/g, '')}`;
+    }
+    throw new Error(`Failed to fetch binary content for ${path}`);
+  },
   async searchRepos(query: string): Promise<SearchResult[]> {
     const d = await ghProxy({ action: 'search', query });
     return (d.items || []).map((i: any) => ({ name: i.name, full_name: i.full_name, description: i.description, stargazers_count: i.stargazers_count, language: i.language }));
@@ -189,6 +239,19 @@ const gitlab = {
     if (!r.ok) throw new Error(`Failed to fetch ${path}`);
     return r.text();
   },
+  async fetchBinaryContent(owner: string, repo: string, path: string, branch: string): Promise<string> {
+    const id = encodeURIComponent(`${owner}/${repo}`);
+    const filePath = encodeURIComponent(path);
+    const r = await fetch(`https://gitlab.com/api/v4/projects/${id}/repository/files/${filePath}/raw?ref=${branch}`);
+    if (!r.ok) throw new Error(`Failed to fetch ${path}`);
+    const buffer = await r.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000) as unknown as number[]);
+    }
+    return `data:${getMimeType(path)};base64,${btoa(binary)}`;
+  },
   async searchRepos(query: string): Promise<SearchResult[]> {
     const r = await fetch(`https://gitlab.com/api/v4/projects?search=${encodeURIComponent(query)}&order_by=stars&per_page=10&visibility=public`);
     if (!r.ok) return [];
@@ -233,6 +296,17 @@ const bitbucket = {
     const r = await fetch(`https://api.bitbucket.org/2.0/repositories/${owner}/${repo}/src/${branch}/${path}`);
     if (!r.ok) throw new Error(`Failed to fetch ${path}`);
     return r.text();
+  },
+  async fetchBinaryContent(owner: string, repo: string, path: string, branch: string): Promise<string> {
+    const r = await fetch(`https://api.bitbucket.org/2.0/repositories/${owner}/${repo}/src/${branch}/${path}`);
+    if (!r.ok) throw new Error(`Failed to fetch ${path}`);
+    const buffer = await r.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000) as unknown as number[]);
+    }
+    return `data:${getMimeType(path)};base64,${btoa(binary)}`;
   },
   async searchRepos(query: string): Promise<SearchResult[]> {
     const r = await fetch(`https://api.bitbucket.org/2.0/repositories?q=name~"${encodeURIComponent(query)}"&pagelen=10&sort=-updated_on`);
@@ -335,6 +409,14 @@ const replit = {
     if (!file) throw new Error(`File not found in zip: ${path}`);
     return file.async('string');
   },
+  async fetchBinaryContent(_owner: string, _repo: string, path: string, _branch: string): Promise<string> {
+    const zip = (replit as any)._lastZip;
+    if (!zip) throw new Error('Zip not loaded');
+    const file = zip.file(path);
+    if (!file) throw new Error(`File not found in zip: ${path}`);
+    const base64 = await file.async('base64');
+    return `data:${getMimeType(path)};base64,${base64}`;
+  },
   searchRepos: github.searchRepos,
 };
 
@@ -355,6 +437,9 @@ const bolt = {
   async fetchFileContent(owner: string, repo: string, path: string, branch: string) {
     return github.fetchFileContent(owner, repo, path, branch);
   },
+  async fetchBinaryContent(owner: string, repo: string, path: string, branch: string) {
+    return github.fetchBinaryContent(owner, repo, path, branch);
+  },
   searchRepos: github.searchRepos,
 };
 
@@ -374,6 +459,9 @@ const firebase = {
   },
   async fetchFileContent(owner: string, repo: string, path: string, branch: string) {
     return github.fetchFileContent(owner, repo, path, branch);
+  },
+  async fetchBinaryContent(owner: string, repo: string, path: string, branch: string) {
+    return github.fetchBinaryContent(owner, repo, path, branch);
   },
   searchRepos: github.searchRepos,
 };
@@ -503,12 +591,15 @@ export const useGitProviderImport = () => {
       setImportProgress('Fetching file tree...');
       const tree = await adapter.fetchFullTree(owner, repo, repoInfo.default_branch);
 
-      // Identify text files to fetch content for
+      // Identify text files and viewable binary files to fetch content for
       const textFiles = tree.filter(t => t.type === 'blob' && isTextFile(t.path));
+      const viewableBinaryFiles = tree.filter(t => t.type === 'blob' && isViewableBinaryFile(t.path));
       const fileContents = new Map<string, string>();
 
       // Fetch file contents in batches of 5 to avoid rate limiting
       const BATCH_SIZE = 5;
+
+      // Fetch text files
       for (let i = 0; i < textFiles.length; i += BATCH_SIZE) {
         const batch = textFiles.slice(i, i + BATCH_SIZE);
         setImportProgress(`Fetching files... (${Math.min(i + BATCH_SIZE, textFiles.length)}/${textFiles.length})`);
@@ -530,6 +621,31 @@ export const useGitProviderImport = () => {
 
         // Small delay between batches
         if (i + BATCH_SIZE < textFiles.length) {
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+
+      // Fetch viewable binary files (images, video, audio)
+      for (let i = 0; i < viewableBinaryFiles.length; i += BATCH_SIZE) {
+        const batch = viewableBinaryFiles.slice(i, i + BATCH_SIZE);
+        setImportProgress(`Fetching media files... (${Math.min(i + BATCH_SIZE, viewableBinaryFiles.length)}/${viewableBinaryFiles.length})`);
+
+        const results = await Promise.allSettled(
+          batch.map(async f => {
+            const content = await adapter.fetchBinaryContent(owner, repo, f.path, repoInfo.default_branch);
+            return { path: f.path, content };
+          })
+        );
+
+        for (const r of results) {
+          if (r.status === 'fulfilled') {
+            fileContents.set(r.value.path, r.value.content);
+          } else {
+            console.warn('Binary file fetch failed:', r.reason?.message || r.reason);
+          }
+        }
+
+        if (i + BATCH_SIZE < viewableBinaryFiles.length) {
           await new Promise(r => setTimeout(r, 100));
         }
       }

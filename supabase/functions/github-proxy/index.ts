@@ -60,6 +60,39 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      case "binary-file-content": {
+        // Fetch binary file content as base64 (for images, video, audio, etc.)
+        const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path}`;
+        const rawResp = await fetch(rawUrl, { headers: { "User-Agent": "Lovable-IDE" } });
+        if (!rawResp.ok) {
+          // Fallback to contents API (which returns base64 for binary files)
+          const encodedPath = path.split('/').map((s: string) => encodeURIComponent(s)).join('/');
+          const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${branch}`;
+          headers["Accept"] = "application/vnd.github.v3+json";
+          const apiResp = await fetch(apiUrl, { headers });
+          if (!apiResp.ok) {
+            return new Response(JSON.stringify({ error: `Failed to fetch ${path}: ${apiResp.status}` }), {
+              status: apiResp.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          const apiData = await apiResp.json();
+          return new Response(JSON.stringify({ content: apiData.content, encoding: "base64" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        // Convert raw bytes to base64 (chunked to avoid O(n²) string concatenation)
+        const buffer = await rawResp.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        const CHUNK = 0x8000;
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK) as unknown as number[]);
+        }
+        const base64 = btoa(binary);
+        return new Response(JSON.stringify({ content: base64, encoding: "base64" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       case "search":
         url = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&per_page=10&sort=stars`;
         break;
