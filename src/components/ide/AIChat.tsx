@@ -80,6 +80,7 @@ interface AIChatProps {
   onAppendToFile?: (name: string, content: string) => void;
   onGenerateUI?: (nodes: any[], description?: string) => void;
   onModifyUI?: (selector: string, props: Record<string, any>, description?: string) => void;
+  onOpenPreview?: (config: { html?: string; port?: number }) => void;
   currentTemplate?: string;
   automationConfig?: string | null;
   currentProjectId?: string | null;
@@ -705,6 +706,7 @@ export const AIChat = ({
   onAppendToFile,
   onGenerateUI,
   onModifyUI,
+  onOpenPreview,
   currentTemplate,
   automationConfig,
   currentProjectId,
@@ -1382,7 +1384,7 @@ export const AIChat = ({
                   {message.widgets && message.widgets.length > 0 && (
                     <div className="space-y-2">
                       {message.widgets.map(w => (
-                        <ChatWidgetRenderer key={w.id} widget={w} onChangeTemplate={onChangeTemplate} onSendToAI={(message) => setInput(message)} />
+                        <ChatWidgetRenderer key={w.id} widget={w} onChangeTemplate={onChangeTemplate} onSendToAI={(message) => setInput(message)} onOpenPreview={onOpenPreview} />
                       ))}
                     </div>
                   )}

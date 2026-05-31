@@ -15,6 +15,7 @@ interface XTerminalProps {
   projectName?: string;
   isActive?: boolean;
   onFilesUpdate?: (files: ProjectFile[]) => void;
+  onPortDetected?: (port: number) => void;
 }
 
 // Strip ANSI/VT escape sequences from a string so we can regex-scan plain text.
@@ -47,10 +48,12 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
   const projectNameRef = useRef(projectName);
   const projectFilesRef = useRef(projectFiles);
   const onFilesUpdateRef = useRef(onFilesUpdate);
+  const onPortDetectedRef = useRef(onPortDetected);
   useEffect(() => { projectIdRef.current = projectId; }, [projectId]);
   useEffect(() => { projectNameRef.current = projectName; }, [projectName]);
   useEffect(() => { projectFilesRef.current = projectFiles; }, [projectFiles]);
   useEffect(() => { onFilesUpdateRef.current = onFilesUpdate; }, [onFilesUpdate]);
+  useEffect(() => { onPortDetectedRef.current = onPortDetected; }, [onPortDetected]);
 
   // True after the first init message has been sent to the server.
   const initSentRef = useRef(false);
@@ -65,6 +68,7 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
   // Detected server URL to display as a clickable link.
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const detectedPortsRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     if (!initSentRef.current) return;
@@ -180,6 +184,11 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
           const public_url = remapToPublic(match[0]);
           setServerUrl(public_url);
           setDismissed(false);
+          const port = parseInt(match[1], 10);
+          if (port && !detectedPortsRef.current.has(port)) {
+            detectedPortsRef.current.add(port);
+            onPortDetectedRef.current?.(port);
+          }
         }
 
         // Detect shell prompt returning after a command — request file listing

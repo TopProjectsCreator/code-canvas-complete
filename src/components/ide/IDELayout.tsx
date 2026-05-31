@@ -266,6 +266,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     },
   ]);
   const [isRunning, setIsRunning] = useState(false);
+  const [serverPort, setServerPort] = useState<number | null>(null);
   const [isTerminalMinimized, setIsTerminalMinimized] = useState(false);
   const [stdinPrompt, setStdinPrompt] = useState<{ prompts: string[]; code: string; language: string } | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -1052,6 +1053,37 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     }
     return rawHtmlContent;
   })();
+
+  const isTemplateWithCustomPanel = selectedTemplate && ['arduino', 'ftc', 'scratch', 'automation', 'database', 'whiteboard', 'design'].includes(selectedTemplate);
+  const hasWebContent = !!htmlContent || !!cssContent || !!jsContent || !!serverPort;
+  const showPreview = isTemplateWithCustomPanel || isRunning || hasWebContent || (selectedTemplate === 'html') || (selectedTemplate === 'react') || (selectedTemplate === 'nodejs');
+  const previewUrl = serverPort ? `/api/preview/${serverPort}/` : undefined;
+
+  const handlePortDetected = useCallback((port: number) => {
+    setServerPort(port);
+    setIsRunning(true);
+  }, []);
+
+  const handleOpenPreview = useCallback((config: { html?: string; port?: number }) => {
+    if (config.port) {
+      setServerPort(config.port);
+      setIsRunning(true);
+    }
+  }, []);
+
+  const handleStop = useCallback(() => {
+    setServerPort(null);
+    setIsRunning(false);
+    setTerminalHistory((prev) => [
+      ...prev,
+      {
+        id: generateId(),
+        type: "info",
+        content: "⏹ Stopped.",
+        timestamp: new Date(),
+      },
+    ]);
+  }, []);
 
   const handleFileSelect = useCallback(
     (file: FileNode) => {
@@ -2015,19 +2047,6 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     [stdinPrompt, executeCode],
   );
 
-  const handleStop = useCallback(() => {
-    setIsRunning(false);
-    setTerminalHistory((prev) => [
-      ...prev,
-      {
-        id: generateId(),
-        type: "info",
-        content: "⏹ Stopped.",
-        timestamp: new Date(),
-      },
-    ]);
-  }, []);
-
   // Handle selecting a project from the dialog
   const handleSelectProject = useCallback(
     (project: Project) => {
@@ -2636,14 +2655,16 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         <BuilderLayout file={activeFileWithContent} onContentChange={handleContentChange} />
                       )}
                     </Suspense>
-                  ) : (
+                  ) : (showPreview && !isTemplateWithCustomPanel) ? (
                     <Preview
                       htmlContent={htmlContent}
                       cssContent={cssContent}
                       jsContent={jsContent}
                       isRunning={isReplitLikePlatform(platform) ? (isRunning && !!htmlContent) : isRunning}
+                      previewUrl={previewUrl}
+                      onStop={handleStop}
                     />
-                  )}
+                  ) : null}
                 </div>
               )}
 
@@ -2662,6 +2683,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     projectId={currentProject?.id}
                     projectName={currentProject?.name}
                     onFilesUpdate={handleShellFilesUpdate}
+                    onPortDetected={handlePortDetected}
                   />
                 </div>
               )}
@@ -2671,96 +2693,102 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           ) : (
             // Desktop: Resizable panels
             <ResizablePanelGroup direction="horizontal" className="flex-1">
-              {/* Editor panel - hidden for scratch and automation templates */}
+              {/* Editor panel - hidden for scratch/automation/database/whiteboard/design */}
               {selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && selectedTemplate !== "whiteboard" && selectedTemplate !== "design" && !(isAIChatOpen || mobileActivePanel === "ai") && (
-                <>
-                  <ResizablePanel defaultSize={54} minSize={34}>
-                    <div className="h-full flex flex-col">
-                      <EditorTabs
-                        tabs={openTabs}
-                        activeTabId={activeTabId}
-                        onTabClick={handleTabClick}
-                        onTabClose={handleTabClose}
+                <ResizablePanel defaultSize={showPreview ? 54 : 100} minSize={showPreview ? 34 : 100}>
+                  <div className="h-full flex flex-col">
+                    <EditorTabs
+                      tabs={openTabs}
+                      activeTabId={activeTabId}
+                      onTabClick={handleTabClick}
+                      onTabClose={handleTabClose}
+                    />
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                      <CodeEditor file={activeFileWithContent} allFiles={filesWithContent} currentFilePath={activeFilePath} onContentChange={handleContentChange} onCreateOrUpdateFile={handleCreateOrUpdateFile} collab={collab} />
+                      <Terminal
+                        history={terminalHistory}
+                        onCommand={handleCommand}
+                        isMinimized={isTerminalMinimized}
+                        onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
+                        stdinPrompt={stdinPrompt}
+                        onStdinSubmit={handleStdinSubmit}
+                        onNewShell={resetReplitShell}
+                        projectFiles={flattenedProjectFiles}
+                        projectId={currentProject?.id}
+                        projectName={currentProject?.name}
+                        onFilesUpdate={handleShellFilesUpdate}
+                        onPortDetected={handlePortDetected}
                       />
-                      <div className="flex-1 flex flex-col overflow-hidden">
-                        <CodeEditor file={activeFileWithContent} allFiles={filesWithContent} currentFilePath={activeFilePath} onContentChange={handleContentChange} onCreateOrUpdateFile={handleCreateOrUpdateFile} collab={collab} />
-                        <Terminal
-                          history={terminalHistory}
-                          onCommand={handleCommand}
-                          isMinimized={isTerminalMinimized}
-                          onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
-                          stdinPrompt={stdinPrompt}
-                          onStdinSubmit={handleStdinSubmit}
-                          onNewShell={resetReplitShell}
-                          projectFiles={flattenedProjectFiles}
-                          projectId={currentProject?.id}
-                          projectName={currentProject?.name}
-                          onFilesUpdate={handleShellFilesUpdate}
-                        />
-                      </div>
                     </div>
-                  </ResizablePanel>
+                  </div>
+                </ResizablePanel>
+              )}
 
-                  <ResizableHandle withHandle className="bg-border" />
-                </>
+              {/* Handle between editor and preview (only when both visible) */}
+              {showPreview && selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database" && selectedTemplate !== "whiteboard" && selectedTemplate !== "design" && !(isAIChatOpen || mobileActivePanel === "ai") && (
+                <ResizableHandle withHandle className="bg-border" />
               )}
 
               {/* Preview panel or Arduino/Scratch/Automation panel */}
-              <ResizablePanel defaultSize={selectedTemplate === "scratch" || selectedTemplate === "automation" || selectedTemplate === "database" || selectedTemplate === "whiteboard" || selectedTemplate === "design" ? 100 : 46} minSize={24}>
-                {selectedTemplate === "arduino" ? (
-                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
-                    <ArduinoPanel
-                      files={filesWithContent}
-                      onFileUpdate={handleContentChange}
-                      onAddFile={addFile}
-                      currentTemplate={selectedTemplate}
-                    />
-                  </Suspense>
-                ) : selectedTemplate === "ftc" ? (
-                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading {selectedTemplate.toUpperCase()} panel...</div>}>
-                    <FTCPanel
-                      files={filesWithContent}
-                      onFileUpdate={handleContentChange}
-                    />
-                  </Suspense>
-                ) : selectedTemplate === "automation" ? (
-                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
-                    <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} syncVersion={automationSyncVersion} />
-                  </Suspense>
-                  ) : selectedTemplate === "database" ? (
-                    <DatabaseDesignerPane files={filesWithContent} onFileUpdate={handleContentChange} />
-                  ) : selectedTemplate === "scratch" ? (
-                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
-                    <ScratchPanel
-                      archive={scratchArchive}
-                      onArchiveChange={setScratchArchive}
-                      onProjectJsonUpdate={handleScratchProjectJsonUpdate}
-                      isRunning={isRunning}
-                      onRun={() => setIsRunning(true)}
+              {showPreview && (
+                <ResizablePanel defaultSize={isTemplateWithCustomPanel ? 100 : 46} minSize={24}>
+                  {selectedTemplate === "arduino" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Arduino panel...</div>}>
+                      <ArduinoPanel
+                        files={filesWithContent}
+                        onFileUpdate={handleContentChange}
+                        onAddFile={addFile}
+                        currentTemplate={selectedTemplate}
+                      />
+                    </Suspense>
+                  ) : selectedTemplate === "ftc" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading {selectedTemplate.toUpperCase()} panel...</div>}>
+                      <FTCPanel
+                        files={filesWithContent}
+                        onFileUpdate={handleContentChange}
+                      />
+                    </Suspense>
+                  ) : selectedTemplate === "automation" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Automation Canvas...</div>}>
+                      <AutomationTemplatePane initialBlocks={automationBlocks} onBlocksChange={handleAutomationBlocksChange} syncVersion={automationSyncVersion} />
+                    </Suspense>
+                    ) : selectedTemplate === "database" ? (
+                      <DatabaseDesignerPane files={filesWithContent} onFileUpdate={handleContentChange} />
+                    ) : selectedTemplate === "scratch" ? (
+                      <Suspense fallback={<div className="p-4 text-muted-foreground">Loading Scratch panel...</div>}>
+                      <ScratchPanel
+                        archive={scratchArchive}
+                        onArchiveChange={setScratchArchive}
+                        onProjectJsonUpdate={handleScratchProjectJsonUpdate}
+                        isRunning={isRunning}
+                        onRun={() => setIsRunning(true)}
+                        onStop={handleStop}
+                      />
+                    </Suspense>
+                  ) : selectedTemplate === "whiteboard" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading whiteboard...</div>}>
+                      {activeFileWithContent && (
+                        <DrawEditor file={activeFileWithContent} onContentChange={handleContentChange} />
+                      )}
+                    </Suspense>
+                  ) : selectedTemplate === "design" ? (
+                    <Suspense fallback={<div className="p-4 text-muted-foreground">Loading UI Designer...</div>}>
+                      {activeFileWithContent && (
+                        <BuilderLayout file={activeFileWithContent} onContentChange={handleContentChange} />
+                      )}
+                    </Suspense>
+                  ) : (
+                    <Preview
+                      htmlContent={htmlContent}
+                      cssContent={cssContent}
+                      jsContent={jsContent}
+                      isRunning={isReplitLikePlatform(platform) ? (isRunning && !!htmlContent) : isRunning}
+                      previewUrl={previewUrl}
                       onStop={handleStop}
                     />
-                  </Suspense>
-                ) : selectedTemplate === "whiteboard" ? (
-                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading whiteboard...</div>}>
-                    {activeFileWithContent && (
-                      <DrawEditor file={activeFileWithContent} onContentChange={handleContentChange} />
-                    )}
-                  </Suspense>
-                ) : selectedTemplate === "design" ? (
-                  <Suspense fallback={<div className="p-4 text-muted-foreground">Loading UI Designer...</div>}>
-                    {activeFileWithContent && (
-                      <BuilderLayout file={activeFileWithContent} onContentChange={handleContentChange} />
-                    )}
-                  </Suspense>
-                ) : (
-                  <Preview
-                    htmlContent={htmlContent}
-                    cssContent={cssContent}
-                    jsContent={jsContent}
-                    isRunning={isReplitLikePlatform(platform) ? (isRunning && !!htmlContent) : isRunning}
-                  />
-                )}
-              </ResizablePanel>
+                  )}
+                </ResizablePanel>
+              )}
             </ResizablePanelGroup>
           )}
 
@@ -3198,6 +3226,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                 } catch {}
               }
             }}
+            onOpenPreview={handleOpenPreview}
             currentTemplate={selectedTemplate || undefined}
             automationConfig={selectedTemplate === "automation" ? getAutomationConfigContent() : null}
           />
@@ -3208,7 +3237,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           <MobileBottomNav
             activePanel={mobileActivePanel}
             onPanelChange={setMobileActivePanel}
-            showPreview={selectedTemplate !== "typescript" && selectedTemplate !== "python"}
+            showPreview={showPreview}
             showTerminal={selectedTemplate !== "scratch" && selectedTemplate !== "automation" && selectedTemplate !== "database"}
           />
         )}

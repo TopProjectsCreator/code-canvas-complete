@@ -3,7 +3,8 @@ import { cn } from '@/lib/utils';
 import { 
   Palette, Coins, Dices, Calculator as CalcIcon, Loader2, 
   TrendingUp, TrendingDown, RotateCw, FileCode, ArrowRight,
-  BookOpen, Timer, Key, ArrowLeftRight, ListChecks, Braces, RegexIcon, WandSparkles
+  BookOpen, Timer, Key, ArrowLeftRight, ListChecks, Braces, RegexIcon, WandSparkles,
+  Monitor, Play, Globe
 } from 'lucide-react';
 import type { ChatWidget } from '@/types/agent';
 
@@ -749,15 +750,56 @@ const RegexTesterWidget = () => {
   );
 };
 
+// ─── Viewport Preview Widget ───
+const ViewportPreviewWidget = ({ widget, onOpenPreview }: { widget: ChatWidget; onOpenPreview?: (config: { html?: string; port?: number }) => void }) => {
+  const port = widget.config?.port ? Number(widget.config.port) : undefined;
+  const html = widget.config?.html as string | undefined;
+  const url = widget.config?.url as string | undefined;
+  const label = (widget.config?.label as string) || 'Preview';
+
+  return (
+    <SimpleInfoWidget title={label} icon={<Monitor className="w-3.5 h-3.5 text-primary" />}>
+      <div className="space-y-2">
+        {port && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Globe className="w-3 h-3" />
+            <span>Server on port <span className="font-mono text-foreground">{port}</span></span>
+          </div>
+        )}
+        {url && !port && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Globe className="w-3 h-3" />
+            <span className="truncate font-mono text-foreground">{url}</span>
+          </div>
+        )}
+        {html && !port && (
+          <div className="text-xs text-muted-foreground line-clamp-3">
+            <span>HTML content ({html.length} chars)</span>
+          </div>
+        )}
+        <button
+          onClick={() => onOpenPreview?.({ html, port })}
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+        >
+          <Play className="w-3 h-3" />
+          Open Webview
+        </button>
+      </div>
+    </SimpleInfoWidget>
+  );
+};
+
 // ─── Main renderer ───
 export const ChatWidgetRenderer = ({ 
   widget, 
   onChangeTemplate,
-  onSendToAI
+  onSendToAI,
+  onOpenPreview,
 }: { 
   widget: ChatWidget; 
   onChangeTemplate?: (template: string) => void;
   onSendToAI?: (message: string) => void;
+  onOpenPreview?: (config: { html?: string; port?: number }) => void;
 }) => {
   switch (widget.type) {
     case 'color_picker': return <ColorPickerWidget widget={widget} />;
@@ -776,10 +818,11 @@ export const ChatWidgetRenderer = ({
     case 'progress_tracker': return <ProgressTrackerWidget widget={widget} />;
     case 'json_viewer': return <JsonViewerWidget widget={widget} />;
     case 'regex_tester': return <RegexTesterWidget />;
+    case 'viewport_preview':
+      return <ViewportPreviewWidget widget={widget} onOpenPreview={onOpenPreview} />;
     case 'project_stats':
     case 'logic_visualizer':
     case 'asset_search':
-    case 'viewport_preview':
     case 'a11y_audit':
     case 'todo_tracker':
     case 'dependency_visualizer':

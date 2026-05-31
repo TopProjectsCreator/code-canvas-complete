@@ -27,6 +27,8 @@ interface PreviewProps {
   cssContent: string;
   jsContent: string;
   isRunning: boolean;
+  previewUrl?: string;
+  onStop?: () => void;
 }
 
 type DeviceType = 'desktop' | 'tablet' | 'mobile';
@@ -48,7 +50,7 @@ interface NetworkEntry {
   timestamp: Date;
 }
 
-export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: PreviewProps) => {
+export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, previewUrl, onStop }: PreviewProps) => {
   const [device, setDevice] = useState<DeviceType>('desktop');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [key, setKey] = useState(0);
@@ -536,13 +538,17 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
           <button
+            onClick={() => { if (previewUrl) window.open(previewUrl, '_blank'); }}
             className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             title="Open in new tab"
           >
             <ExternalLink className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={() => setIsWebviewClosed(true)}
+            onClick={() => {
+              if (previewUrl && onStop) { onStop(); }
+              else { setIsWebviewClosed(true); }
+            }}
             className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             title="Close webview"
           >
@@ -554,9 +560,9 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
       {/* URL bar */}
       <div className="px-2 py-1.5 border-b border-border bg-card">
         <div className="flex items-center gap-2 px-2.5 py-1 bg-background rounded-md text-xs">
-          <span className="text-success">●</span>
+          <span className={cn(previewUrl ? "text-success animate-pulse" : "text-success")}>●</span>
           <span className="text-muted-foreground flex-1 truncate font-mono">
-            https://my-canvas.codecanvas.app
+            {previewUrl || 'https://my-canvas.codecanvas.app'}
           </span>
         </div>
       </div>
@@ -592,9 +598,10 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning }: Previ
               <iframe
                 ref={iframeRef}
                 key={key}
-                srcDoc={createPreviewDocument()}
+                src={previewUrl || undefined}
+                srcDoc={previewUrl ? undefined : createPreviewDocument()}
                 className="w-full h-full border-0"
-                sandbox="allow-scripts allow-modals"
+                sandbox={previewUrl ? "allow-scripts allow-modals allow-same-origin allow-forms" : "allow-scripts allow-modals"}
                 title="Preview"
               />
             </div>

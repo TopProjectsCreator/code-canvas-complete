@@ -34,12 +34,14 @@ interface TerminalProps {
   projectName?: string;
   onFilesUpdate?: (files: ProjectFile[]) => void;
   onProjectFilesChange?: (files: ProjectFile[]) => void;
+  onPortDetected?: (port: number) => void;
 }
 
 export const Terminal = ({
   history, onCommand, isMinimized, onToggleMinimize,
   stdinPrompt, onStdinSubmit, onNewShell,
   projectFiles, projectId, projectName, onFilesUpdate, onProjectFilesChange,
+  onPortDetected,
 }: TerminalProps) => {
   const [input, setInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
@@ -411,6 +413,7 @@ export const Terminal = ({
                     projectName={projectName}
                     isActive={activePane === shell.id}
                     onFilesUpdate={onFilesUpdate}
+                    onPortDetected={onPortDetected}
                   />
                 </div>
               ))}
