@@ -236,6 +236,9 @@ export const getTemplateFiles = (template: LanguageTemplate): FileNode[] => {
     case "mermaid":
       baseTemplate = mermaidTemplate;
       break;
+    case "jupyter":
+      baseTemplate = jupyterTemplate;
+      break;
     default:
       baseTemplate = htmlTemplate;
       break;
@@ -2739,6 +2742,81 @@ sequenceDiagram
     John-->>Alice: Great!
     Alice-)John: See you later!
 \`\`\`
+`,
+      },
+    ],
+  },
+];
+
+const jupyterTemplate: FileNode[] = [
+  {
+    id: "root",
+    name: "my-notebook",
+    type: "folder",
+    children: [
+      {
+        id: "main-ipynb",
+        name: "main.ipynb",
+        type: "file",
+        language: "json",
+        content: JSON.stringify({
+          nbformat: 4,
+          nbformat_minor: 5,
+          metadata: {
+            kernelspec: { display_name: "Python 3", language: "python", name: "python3" },
+            language_info: { name: "python", version: "3.12.0" },
+          },
+          cells: [
+            {
+              cell_type: "markdown",
+              source: ["# My Jupyter Notebook\n", "\n", "Welcome! This is an interactive notebook. Each cell can contain code, markdown text, or raw content.\n"],
+              metadata: {},
+            },
+            {
+              cell_type: "code",
+              source: ["print('Hello, Jupyter!')\n"],
+              outputs: [],
+              execution_count: null,
+              metadata: {},
+            },
+            {
+              cell_type: "markdown",
+              source: ["## Getting Started\n", "\n", "Run the cell above by selecting it and pressing **Shift+Enter**.\n"],
+              metadata: {},
+            },
+          ],
+        }, null, 2),
+      },
+      {
+        id: "readme-jupyter",
+        name: "README.md",
+        type: "file",
+        language: "markdown",
+        content: `# Jupyter Notebook Project
+
+This project contains a Jupyter notebook with live editing.
+
+## How to use
+1. Click on \`main.ipynb\` to open the notebook editor
+2. Edit cells directly in the visual editor
+3. Run code cells with the Run button or \`Shift+Enter\`
+4. Add new cells with the **+ Add cell** button
+5. Use the **Raw JSON** toggle to edit the underlying notebook format
+
+## Cell types
+- **Code** — Write and execute code
+- **Markdown** — Write formatted text with Markdown
+- **Raw** — Raw content without formatting
+
+## Keyboard shortcuts
+- \`Shift+Enter\` — Run cell and advance
+- \`Alt+Enter\` — Run cell and insert below
+- \`A\` — Insert cell above
+- \`B\` — Insert cell below
+- \`D\` — Delete cell
+- \`M\` — Change to Markdown
+- \`Y\` — Change to Code
+- \`↑/↓\` — Navigate cells
 `,
       },
     ],

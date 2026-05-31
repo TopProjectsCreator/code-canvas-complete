@@ -37,7 +37,7 @@ function remapToPublic(url: string): string {
   );
 }
 
-export const XTerminal = ({ projectFiles, projectId, projectName, isActive = true, onFilesUpdate }: XTerminalProps) => {
+export const XTerminal = ({ projectFiles, projectId, projectName, isActive = true, onFilesUpdate, onPortDetected }: XTerminalProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const termRef = useRef<Terminal | null>(null);
@@ -54,6 +54,24 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
   useEffect(() => { projectFilesRef.current = projectFiles; }, [projectFiles]);
   useEffect(() => { onFilesUpdateRef.current = onFilesUpdate; }, [onFilesUpdate]);
   useEffect(() => { onPortDetectedRef.current = onPortDetected; }, [onPortDetected]);
+
+  // True after we've auto-cd'd so the effect below doesn't duplicate.
+  const autoCdSentRef = useRef(false);
+
+  // When project files appear after the shell is already running,
+  // auto-cd into the root folder.
+  useEffect(() => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN || !initSentRef.current || autoCdSentRef.current) return;
+    const rootFolder =
+      projectFiles && projectFiles.length > 0
+        ? projectFiles[0].path.split('/')[0]
+        : '';
+    if (rootFolder) {
+      autoCdSentRef.current = true;
+      ws.send(`cd "${rootFolder}"\r`);
+    }
+  }, [projectFiles]);
 
   // True after the first init message has been sent to the server.
   const initSentRef = useRef(false);
@@ -145,15 +163,26 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
 
     ws.onopen = () => {
       fitAddon.fit();
+      const files = projectFilesRef.current ?? [];
       ws.send(JSON.stringify({
         type: 'init',
         projectId: projectIdRef.current ?? null,
         projectName: projectNameRef.current ?? null,
-        files: projectFilesRef.current ?? [],
+        files,
         cols: term.cols,
         rows: term.rows,
       }));
       initSentRef.current = true;
+
+      // Auto-cd into the project root folder (e.g. "my-canvas") so the shell
+      // starts inside it.  The brief timeout lets bash finish initializing.
+      if (files.length > 0) {
+        autoCdSentRef.current = true;
+        const rootFolder = files[0].path.split('/')[0];
+        setTimeout(() => {
+          if (ws.readyState === WebSocket.OPEN) ws.send(`cd "${rootFolder}"\r`);
+        }, 150);
+      }
     };
 
     ws.onmessage = (event) => {

@@ -58,7 +58,8 @@ export type LanguageTemplate =
   | "whiteboard"
   | "design"
   | "latex"
-  | "mermaid";
+  | "mermaid"
+  | "jupyter";
 
 export interface TemplateMeta {
   id: LanguageTemplate;
@@ -314,6 +315,12 @@ export const TEMPLATES: TemplateMeta[] = [
     name: "Mermaid",
     description: "Diagram as code with Mermaid.js live preview",
     aiDescription: "Mermaid diagramming and charting (.mmd)",
+  },
+  {
+    id: "jupyter",
+    name: "Jupyter Notebook",
+    description: "Interactive computing with Python, R, and Julia using Jupyter notebooks (.ipynb)",
+    aiDescription: "Jupyter notebook for interactive computing",
   },
 ];
 

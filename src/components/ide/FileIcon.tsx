@@ -376,6 +376,7 @@ export const FileIcon = ({ name, type, isOpen = false, className = '' }: FileIco
     'odt': { icon: FileText, color: 'text-blue-400' },
     'tex': { icon: FileText, color: 'text-green-500' },
     'latex': { icon: FileText, color: 'text-green-500' },
+    'ltx': { icon: FileText, color: 'text-green-500' },
     'rst': { icon: FileText, color: 'text-gray-400' },
     'adoc': { icon: FileText, color: 'text-red-400' },
     'org': { icon: FileText, color: 'text-teal-400' },
@@ -613,6 +614,10 @@ export const FileIcon = ({ name, type, isOpen = false, className = '' }: FileIco
     // Jupyter/Notebooks
     'ipynb': { icon: Notebook, color: 'text-orange-500' },
     'qmd': { icon: Notebook, color: 'text-blue-400' },
+    
+    // Diagrams (Mermaid)
+    'mmd': { icon: Workflow, color: 'text-emerald-500' },
+    'mermaid': { icon: Workflow, color: 'text-emerald-500' },
     
     // Game dev
     'unity': { icon: Cuboid, color: 'text-gray-300' },

@@ -34,6 +34,7 @@ import {
   Search,
   Terminal,
   FileJson,
+  FileText,
   X,
   Plus,
   Trash2,
@@ -48,6 +49,12 @@ import {
   Eye,
   Clock,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -327,7 +334,7 @@ function serializeNotebook(
     metadata,
     cells: cells.map((c) => ({
       cell_type: c.cell_type,
-      source: c.source.split(/(?<=\n)/) || [c.source],
+      source: c.source.split(/(?<=\n)/),
       execution_count: c.execution_count ?? null,
       outputs: c.outputs || [],
     })),
@@ -370,7 +377,7 @@ function SortableCell({
   onUpdate: (id: string, updates: Partial<NotebookCell>) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
-  onAddBelow: (id: string) => void;
+  onAddBelow: (id: string, type: "code" | "markdown" | "raw") => void;
   onMoveUp: (id: string) => void;
   onMoveDown: (id: string) => void;
   onRun: (cell: NotebookCell) => void;
@@ -722,12 +729,27 @@ function SortableCell({
 
         {/* Add cell below button */}
         <div className="flex justify-center border-t border-border/30 py-1.5">
-          <button
-            onClick={(e) => { e.stopPropagation(); onAddBelow(cell.id); }}
-            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-3 py-0.5 rounded hover:bg-muted/40"
-          >
-            <Plus className="w-3 h-3" /> Add cell below
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-3 py-0.5 rounded hover:bg-muted/40"
+              >
+                <Plus className="w-3 h-3" /> Add cell below
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="min-w-[140px]">
+              <DropdownMenuItem className="text-xs gap-2" onClick={() => onAddBelow(cell.id, "code")}>
+                <Terminal className="w-3.5 h-3.5" /> Code
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs gap-2" onClick={() => onAddBelow(cell.id, "markdown")}>
+                <FileText className="w-3.5 h-3.5" /> Markdown
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs gap-2" onClick={() => onAddBelow(cell.id, "raw")}>
+                <Code2 className="w-3.5 h-3.5" /> Raw
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </section>
@@ -746,8 +768,13 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
   const [runningCells, setRunningCells] = useState<Set<string>>(new Set());
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [executionTimes, setExecutionTimes] = useState<Record<string, number>>({});
+  const [showRawJson, setShowRawJson] = useState(false);
+  const [rawJsonContent, setRawJsonContent] = useState("");
+  const [showRawPaste, setShowRawPaste] = useState(false);
   const initRef = useRef(file.content);
   const notebookRef = useRef<HTMLDivElement>(null);
+  const cellsRef = useRef(cells);
+  cellsRef.current = cells;
   const { runCell, kernel, isExecuting } = useNotebookKernel();
 
   const sensors = useSensors(
@@ -763,6 +790,7 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
       setMetadata(parseMetadata(file.content));
       setSelectedCellId(null);
       setExecutionTimes({});
+      setShowRawJson(false);
     }
   }, [file.content, file.id]);
 
@@ -788,6 +816,30 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
     if (li && typeof li.name === "string") return String(li.name);
     return "unknown";
   }, [metadata]);
+
+  const currentKernel = useMemo(() => {
+    const ks = metadata?.kernelspec as Record<string, unknown> | undefined;
+    return ks && typeof ks.name === "string" ? ks.name : "";
+  }, [metadata]);
+
+  const KERNEL_OPTIONS: Array<{ label: string; kernel: string; language: string }> = useMemo(() => [
+    { label: "Python 3", kernel: "python3", language: "python" },
+    { label: "Python 2", kernel: "python2", language: "python" },
+    { label: "R", kernel: "ir", language: "R" },
+    { label: "Julia", kernel: "julia-1.9", language: "julia" },
+    { label: "Node.js", kernel: "nodejs", language: "javascript" },
+    { label: "Ruby", kernel: "iruby", language: "ruby" },
+  ], []);
+
+  const handleKernelChange = useCallback((label: string, kernel: string, language: string) => {
+    const newMeta = {
+      ...metadata,
+      kernelspec: { display_name: label, language, name: kernel },
+      language_info: { name: language, version: "" },
+    };
+    setMetadata(newMeta);
+    saveNotebook(cells, newMeta);
+  }, [metadata, cells, saveNotebook]);
 
   // Find cell index by id (safer than indexOf with object references)
   const findCellIndex = useCallback((id: string) => {
@@ -831,10 +883,10 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
   );
 
   const handleAddBelow = useCallback(
-    (id: string) => {
+    (id: string, type: "code" | "markdown" | "raw" = "code") => {
       const idx = findCellIndex(id);
       if (idx < 0) return;
-      handleAddCell(idx, "code");
+      handleAddCell(idx, type);
     },
     [findCellIndex, handleAddCell],
   );
@@ -921,7 +973,7 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
       setRunningCells((prev) => new Set(prev).add(cell.id));
       const startTime = performance.now();
       try {
-        const { outputs, executionCount } = await runCell(cell.source, file.id);
+        const { outputs, executionCount } = await runCell(cell.source, language);
         const elapsed = performance.now() - startTime;
         setExecutionTimes((prev) => ({ ...prev, [cell.id]: elapsed }));
         setCells((prev) => {
@@ -946,10 +998,10 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
     async (cell: NotebookCell) => {
       await handleRun(cell);
       const idx = findCellIndex(cell.id);
-      if (idx >= 0 && idx < cells.length - 1) {
-        setSelectedCellId(cells[idx + 1].id);
+      const cur = cellsRef.current;
+      if (idx >= 0 && idx < cur.length - 1) {
+        setSelectedCellId(cur[idx + 1].id);
       } else if (idx >= 0) {
-        // Insert new cell after the last one and select it
         const newCell: NotebookCell = {
           id: generateCellId(),
           cell_type: "code",
@@ -957,11 +1009,11 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
           execution_count: null,
           outputs: [],
         };
-        insertCellAt(cells.length, newCell);
+        insertCellAt(cur.length, newCell);
         setSelectedCellId(newCell.id);
       }
     },
-    [handleRun, findCellIndex, cells, insertCellAt],
+    [handleRun, findCellIndex, insertCellAt],
   );
 
   const handleRunAndInsert = useCallback(
@@ -1136,9 +1188,9 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
   if (!file.content) {
     return (
       <div className="h-full w-full p-8 flex items-center justify-center">
-        <div className="max-w-xl w-full rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-destructive">
-          <div className="flex items-center gap-2 font-semibold mb-2"><AlertTriangle className="w-4 h-4" /> Empty notebook</div>
-          <p className="text-xs">The notebook file is empty or could not be read.</p>
+        <div className="max-w-xl w-full rounded-xl border border-border/60 bg-muted/10 p-6 text-center">
+          <Code2 className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
+          <p className="text-sm text-muted-foreground">Notebook file is empty. Add content to get started.</p>
         </div>
       </div>
     );
@@ -1185,15 +1237,25 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
           >
             <Square className="w-3 h-3" /> Restart kernel
           </Button>
-          {/* Add code cell */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={() => handleAddCell(cells.length - 1, "code")}
-          >
-            <Plus className="w-3 h-3" /> Add cell
-          </Button>
+          {/* Add cell */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
+                <Plus className="w-3 h-3" /> Add cell
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="min-w-[140px]">
+              <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(cells.length - 1, "code")}>
+                <Terminal className="w-3.5 h-3.5" /> Code
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(cells.length - 1, "markdown")}>
+                <FileText className="w-3.5 h-3.5" /> Markdown
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(cells.length - 1, "raw")}>
+                <Code2 className="w-3.5 h-3.5" /> Raw
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {/* Search */}
           <Button
             variant="ghost"
@@ -1204,8 +1266,43 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
           >
             <Search className="w-3.5 h-3.5" />
           </Button>
+          {/* Raw JSON toggle */}
+          <Button
+            variant={showRawJson ? "default" : "ghost"}
+            size="sm"
+            className="h-7 text-xs gap-1"
+            onClick={() => {
+              if (showRawJson) {
+                setShowRawJson(false);
+              } else {
+                setRawJsonContent(serializeNotebook(cells, metadata));
+                setShowRawJson(true);
+              }
+            }}
+            title="Edit notebook as raw JSON"
+          >
+            <FileJson className="w-3.5 h-3.5" /> {showRawJson ? "Visual" : "Raw JSON"}
+          </Button>
 
-          <Badge variant="secondary" className="text-[10px]">{kernelName}</Badge>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Badge variant="secondary" className="text-[10px] cursor-pointer hover:bg-secondary/80 transition-colors">{kernelName}</Badge>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="min-w-[160px]">
+              {KERNEL_OPTIONS.map((opt) => (
+                <DropdownMenuItem
+                  key={opt.kernel}
+                  className="text-xs gap-2"
+                  onClick={() => handleKernelChange(opt.label, opt.kernel, opt.language)}
+                >
+                  {currentKernel === opt.kernel
+                    ? <CheckCircle2 className="w-3 h-3 text-primary" />
+                    : <div className="w-3 h-3" />}
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Badge variant="outline" className="text-[10px]">{cells.length} cells</Badge>
 
           {/* Kernel status */}
@@ -1271,32 +1368,186 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
         </div>
       )}
 
-      {/* Cell list */}
-      <ScrollArea className="flex-1">
+      {/* Raw JSON editor */}
+      {showRawJson ? (
+        <div className="flex-1 flex flex-col p-4 gap-3">
+          <div className="flex items-center justify-between shrink-0">
+            <span className="text-sm font-medium flex items-center gap-2">
+              <FileJson className="w-4 h-4" /> Raw Notebook JSON
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setShowRawJson(false)}
+              >
+                <X className="w-3 h-3" /> Cancel
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={() => {
+                  try {
+                    const parsed = JSON.parse(rawJsonContent);
+                    if (!parsed.cells || !Array.isArray(parsed.cells)) {
+                      throw new Error("Missing 'cells' array");
+                    }
+                    const newCells = parseCells(rawJsonContent);
+                    const newMeta = parseMetadata(rawJsonContent);
+                    setCells(newCells);
+                    setMetadata(newMeta);
+                    saveNotebook(newCells, newMeta);
+      setShowRawJson(false);
+      setShowRawPaste(false);
+      setRawJsonContent("");
+                  } catch (err) {
+                    alert("Invalid JSON: " + (err instanceof Error ? err.message : String(err)));
+                  }
+                }}
+              >
+                <CheckCircle2 className="w-3 h-3" /> Apply
+              </Button>
+            </div>
+          </div>
+          <textarea
+            value={rawJsonContent}
+            onChange={(e) => setRawJsonContent(e.target.value)}
+            className="flex-1 w-full bg-muted/20 border border-border/60 rounded-lg p-4 text-xs font-mono resize-none focus:outline-none focus:ring-1 focus:ring-primary/40 leading-5"
+            spellCheck={false}
+          />
+        </div>
+      ) : (
+        <ScrollArea className="flex-1">
         <div className="p-6 max-w-5xl mx-auto space-y-4">
           {cells.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <Code2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p className="text-sm mb-2">Empty notebook</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs gap-1"
-                onClick={() => {
-                  const newCell: NotebookCell = {
-                    id: generateCellId(),
-                    cell_type: "code",
-                    source: "",
-                    execution_count: null,
-                    outputs: [],
-                  };
-                  setCells([newCell]);
-                  saveNotebook([newCell]);
-                  setSelectedCellId(newCell.id);
-                }}
-              >
-                <Plus className="w-3 h-3" /> Add your first cell
-              </Button>
+              <div className="flex items-center justify-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> Add cell
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="min-w-[140px]">
+                    <DropdownMenuItem
+                      className="text-xs gap-2"
+                      onClick={() => {
+                        const newCell: NotebookCell = {
+                          id: generateCellId(),
+                          cell_type: "code",
+                          source: "",
+                          execution_count: null,
+                          outputs: [],
+                        };
+                        setCells([newCell]);
+                        saveNotebook([newCell]);
+                        setSelectedCellId(newCell.id);
+                      }}
+                    >
+                      <Terminal className="w-3.5 h-3.5" /> Code
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-xs gap-2"
+                      onClick={() => {
+                        const newCell: NotebookCell = {
+                          id: generateCellId(),
+                          cell_type: "markdown",
+                          source: "",
+                          execution_count: null,
+                          outputs: [],
+                        };
+                        setCells([newCell]);
+                        saveNotebook([newCell]);
+                        setSelectedCellId(newCell.id);
+                      }}
+                    >
+                      <FileText className="w-3.5 h-3.5" /> Markdown
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-xs gap-2"
+                      onClick={() => {
+                        const newCell: NotebookCell = {
+                          id: generateCellId(),
+                          cell_type: "raw",
+                          source: "",
+                          execution_count: null,
+                          outputs: [],
+                        };
+                        setCells([newCell]);
+                        saveNotebook([newCell]);
+                        setSelectedCellId(newCell.id);
+                      }}
+                    >
+                      <Code2 className="w-3.5 h-3.5" /> Raw
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {!showRawPaste && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs gap-1"
+                    onClick={() => {
+                      setRawJsonContent("");
+                      setShowRawPaste(true);
+                    }}
+                  >
+                    <FileJson className="w-3 h-3" /> Raw
+                  </Button>
+                )}
+              </div>
+              {showRawPaste && (
+                <div className="mt-4 max-w-xl mx-auto space-y-2">
+                  <textarea
+                    value={rawJsonContent}
+                    onChange={(e) => setRawJsonContent(e.target.value)}
+                    className="w-full min-h-[120px] bg-background border border-border/60 rounded-lg p-3 text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-primary/40 leading-5"
+                    placeholder='Paste raw notebook JSON (e.g. {"nbformat":4,"cells":[...]})'
+                  />
+                  <div className="flex gap-2 justify-center">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => {
+                        try {
+                          const parsed = JSON.parse(rawJsonContent);
+                          if (!parsed.cells || !Array.isArray(parsed.cells)) {
+                            throw new Error("Missing 'cells' array");
+                          }
+                          const newCells = parseCells(rawJsonContent);
+                          const newMeta = parseMetadata(rawJsonContent);
+                          setCells(newCells);
+                          setMetadata(newMeta);
+                          saveNotebook(newCells, newMeta);
+                          setShowRawPaste(false);
+                        } catch (err) {
+                          alert("Invalid JSON: " + (err instanceof Error ? err.message : String(err)));
+                        }
+                      }}
+                      disabled={!rawJsonContent.trim()}
+                    >
+                      <CheckCircle2 className="w-3 h-3" /> Load
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setShowRawPaste(false)}
+                    >
+                      <X className="w-3 h-3" /> Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1319,12 +1570,24 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
                         {/* Add cell above (first cell) */}
                         {realIndex === 0 && (
                           <div className="flex justify-center mb-3">
-                            <button
-                              onClick={() => handleAddCell(-1, "code")}
-                              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-3 py-0.5 rounded hover:bg-muted/40"
-                            >
-                              <Plus className="w-3 h-3" /> Add cell
-                            </button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-3 py-0.5 rounded hover:bg-muted/40">
+                                  <Plus className="w-3 h-3" /> Add cell
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="center" className="min-w-[140px]">
+                                <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(-1, "code")}>
+                                  <Terminal className="w-3.5 h-3.5" /> Code
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(-1, "markdown")}>
+                                  <FileText className="w-3.5 h-3.5" /> Markdown
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(-1, "raw")}>
+                                  <Code2 className="w-3.5 h-3.5" /> Raw
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         )}
 
@@ -1358,6 +1621,7 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
           </DndContext>
         </div>
       </ScrollArea>
+      )}
     </div>
   );
 }

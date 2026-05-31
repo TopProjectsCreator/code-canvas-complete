@@ -112,6 +112,7 @@ export const Header = ({
       {/* Center section - Run button - Replit's prominent green button */}
       <div className="absolute left-1/2 -translate-x-1/2 flex items-center hidden sm:flex">
         <button
+          data-onboarding="run-btn"
           onClick={isRunning ? onStop : onRun}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
@@ -165,6 +166,7 @@ export const Header = ({
 
         {/* AI Chat Toggle - Replit style */}
         <button 
+          data-onboarding="ai-chat"
           onClick={onToggleAIChat}
           className={cn(
             'relative flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors',

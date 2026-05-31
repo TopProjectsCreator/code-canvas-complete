@@ -251,6 +251,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [openTabs, setOpenTabs] = useState<Tab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [sessionKey, setSessionKey] = useState(0);
   const [terminalHistory, setTerminalHistory] = useState<TerminalLine[]>([
     {
       id: "1",
@@ -2354,13 +2355,16 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       setActiveTabId(null);
       setFileContents({});
       setHasUnsavedChanges(true);
+      setTerminalHistory([]);
+      setSessionKey((prev) => prev + 1);
+      resetReplitShell();
       addHistoryEntry("template-change", `Changed template to ${template}`);
       toast({
         title: "Template changed",
         description: `Switched to ${template} template`,
       });
     },
-    [handleSelectTemplate, toast, addHistoryEntry],
+    [handleSelectTemplate, toast, addHistoryEntry, resetReplitShell],
   );
 
   // On mobile, sync mobile panel state with AI chat
@@ -2534,6 +2538,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           </Sheet>
         ) : (
           <div
+            data-onboarding="file-tree"
             className={cn(
               "hidden md:block transition-all duration-200 border-r border-border overflow-hidden",
               isSidebarOpen ? "w-[22rem] xl:w-[24rem]" : "w-0",
@@ -2671,7 +2676,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               {/* Terminal Panel */}
               {mobileActivePanel === "terminal" && (
                 <div className="h-full flex flex-col">
-                  <Terminal
+                   <Terminal
                     history={terminalHistory}
                     onCommand={handleCommand}
                     isMinimized={false}
@@ -2684,6 +2689,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     projectName={currentProject?.name}
                     onFilesUpdate={handleShellFilesUpdate}
                     onPortDetected={handlePortDetected}
+                    sessionKey={sessionKey}
                   />
                 </div>
               )}
@@ -2704,21 +2710,26 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                       onTabClose={handleTabClose}
                     />
                     <div className="flex-1 flex flex-col overflow-hidden">
-                      <CodeEditor file={activeFileWithContent} allFiles={filesWithContent} currentFilePath={activeFilePath} onContentChange={handleContentChange} onCreateOrUpdateFile={handleCreateOrUpdateFile} collab={collab} />
-                      <Terminal
-                        history={terminalHistory}
-                        onCommand={handleCommand}
-                        isMinimized={isTerminalMinimized}
-                        onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
-                        stdinPrompt={stdinPrompt}
-                        onStdinSubmit={handleStdinSubmit}
-                        onNewShell={resetReplitShell}
-                        projectFiles={flattenedProjectFiles}
-                        projectId={currentProject?.id}
-                        projectName={currentProject?.name}
-                        onFilesUpdate={handleShellFilesUpdate}
-                        onPortDetected={handlePortDetected}
-                      />
+                      <div data-onboarding="code-editor" className="flex-1 overflow-hidden">
+                        <CodeEditor file={activeFileWithContent} allFiles={filesWithContent} currentFilePath={activeFilePath} onContentChange={handleContentChange} onCreateOrUpdateFile={handleCreateOrUpdateFile} collab={collab} />
+                      </div>
+                      <div data-onboarding="terminal">
+                        <Terminal
+                          history={terminalHistory}
+                          onCommand={handleCommand}
+                          isMinimized={isTerminalMinimized}
+                          onToggleMinimize={() => setIsTerminalMinimized(!isTerminalMinimized)}
+                          stdinPrompt={stdinPrompt}
+                          onStdinSubmit={handleStdinSubmit}
+                          onNewShell={resetReplitShell}
+                          projectFiles={flattenedProjectFiles}
+                          projectId={currentProject?.id}
+                          projectName={currentProject?.name}
+                          onFilesUpdate={handleShellFilesUpdate}
+                          onPortDetected={handlePortDetected}
+                          sessionKey={sessionKey}
+                        />
+                      </div>
                     </div>
                   </div>
                 </ResizablePanel>

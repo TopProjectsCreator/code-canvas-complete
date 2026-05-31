@@ -13,9 +13,27 @@ import 'katex/dist/katex.min.css';
 interface TexEditorProps {
   file: FileNode;
   onContentChange: (fileId: string, content: string) => void;
+  allFiles?: FileNode[];
 }
 
-/* ─── LaTeX → KaTeX preview (unchanged from original) ─── */
+/* ─── File lookup helper ─── */
+
+function findFileContent(files: FileNode[] | undefined, name: string): string | null {
+  if (!files) return null;
+  const searchName = name.endsWith('.tex') || name.includes('.') ? name : `${name}.tex`;
+  for (const node of files) {
+    if (node.type === 'file' && (node.name === searchName || node.name === name)) {
+      return node.content ?? null;
+    }
+    if (node.children) {
+      const found = findFileContent(node.children, name);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/* ─── LaTeX → KaTeX preview ─── */
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -28,7 +46,7 @@ function stripComments(latex: string): string {
 function preprocessLatexForKatex(text: string): string {
   return text
     .replace(/\\(begin|end)\{([^}]*)\}/g, () => '')
-    .replace(/\\(?:label|tag|ref|eqref)\{([^}]*)\}/g, '')
+    .replace(/\\(?:label|tag)\{([^}]*)\}/g, '')
     .replace(/\\text\{([^}]*)\}/g, '$1')
     .trim();
 }
@@ -77,6 +95,34 @@ function envToHtml(env: string, body: string): string {
   }
   if (e === 'minipage') {
     return `<div class="my-2">${body}</div>`;
+  }
+  if (e === 'figure') {
+    return `<div class="my-4 text-center">${inlineCommands(body)}</div>`;
+  }
+  if (e === 'table') {
+    return `<div class="my-4">${inlineCommands(body)}</div>`;
+  }
+  if (e === 'lstlisting' || e === 'minted') {
+    return `<pre class="my-2 p-3 rounded bg-muted font-mono text-sm overflow-x-auto">${escapeHtml(body)}</pre>`;
+  }
+  const theoremEnvs = ['theorem', 'lemma', 'corollary', 'proposition', 'conjecture', 'claim'];
+  if (theoremEnvs.includes(e)) {
+    return `<div class="my-3 p-3 border-l-2 border-blue-500/50 bg-blue-50/5 italic"><strong class="not-italic text-blue-600 capitalize">${e}.</strong> ${inlineCommands(body)}</div>`;
+  }
+  if (e === 'proof') {
+    return `<div class="my-3 p-3 border-l-2 border-green-500/50 bg-green-50/5">${inlineCommands(body)}<span class="ml-1">∎</span></div>`;
+  }
+  if (e === 'definition') {
+    return `<div class="my-3 p-3 border-l-2 border-orange-500/50 bg-orange-50/5"><strong class="not-italic text-orange-600 capitalize">Definition.</strong> ${inlineCommands(body)}</div>`;
+  }
+  if (e === 'example') {
+    return `<div class="my-3 p-3 border-l-2 border-purple-500/50 bg-purple-50/5"><strong class="not-italic text-purple-600 capitalize">Example.</strong> ${inlineCommands(body)}</div>`;
+  }
+  if (e === 'remark') {
+    return `<div class="my-3 p-3 border-l-2 border-gray-400/50 bg-gray-50/5 text-sm"><strong class="not-italic text-gray-500 capitalize">Remark.</strong> ${inlineCommands(body)}</div>`;
+  }
+  if (e === 'note') {
+    return `<div class="my-3 p-3 border-l-2 border-yellow-500/50 bg-yellow-50/5"><strong class="not-italic text-yellow-700 capitalize">Note.</strong> ${inlineCommands(body)}</div>`;
   }
   return body;
 }
@@ -140,8 +186,57 @@ function inlineCommands(text: string): string {
   result = result.replace(/\\textsl\{([^}]*)\}/g, '<span class="italic">$1</span>');
   result = result.replace(/\\href\{([^}]*)\}\{([^}]*)\}/g, '<a href="$1" class="text-primary underline underline-offset-2 hover:text-primary/80" target="_blank" rel="noopener noreferrer">$2</a>');
   result = result.replace(/\\url\{([^}]*)\}/g, '<a href="$1" class="text-primary underline underline-offset-2" target="_blank" rel="noopener noreferrer">$1</a>');
+  result = result.replace(/\\today\b/g, new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
+  result = result.replace(/\\TeX\b/g, 'T<sub>E</sub>X');
+  result = result.replace(/\\LaTeXe\b/g, 'L<sub>A</sub>T<sub>E</sub>X 2<sub>\u03b5</sub>');
+  result = result.replace(/\\LaTeX\b/g, 'L<sub>A</sub>T<sub>E</sub>X');
   result = result.replace(/\\includegraphics(?:\[([^\]]*)\])?\{([^}]*)\}/g, (_, opts, path) => {
     return `<span class="inline-flex items-center gap-1 text-xs text-muted-foreground border border-dashed border-border rounded px-2 py-1 my-1"><svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 16 5-5 3 3 4-4 6 6"/></svg> ${escapeHtml(path)}</span>`;
+  });
+
+  const toCssColor = (model: string | undefined, color: string) => {
+    if (!model) return escapeHtml(color);
+    if (model === 'rgb') return `rgb(${escapeHtml(color)})`;
+    if (model === 'gray') {
+      const grayVal = Math.round(parseFloat(color) * 255);
+      return `rgb(${grayVal},${grayVal},${grayVal})`;
+    }
+    return escapeHtml(color);
+  };
+  result = result.replace(/\\textcolor(?:\[([^\]]*)\])?\{([^}]*)\}\{([^}]*)\}/g, (_, model, color, text) => {
+    return `<span style="color:${toCssColor(model, color)}">${inlineCommands(text)}</span>`;
+  });
+  result = result.replace(/\\colorbox(?:\[([^\]]*)\])?\{([^}]*)\}\{([^}]*)\}/g, (_, model, color, text) => {
+    return `<span style="background:${toCssColor(model, color)};padding:1px 4px;border-radius:2px">${inlineCommands(text)}</span>`;
+  });
+  result = result.replace(/\\fcolorbox\{([^}]*)\}\{([^}]*)\}\{([^}]*)\}/g, (_, border, fill, text) => {
+    return `<span style="border:1px solid ${escapeHtml(border)};background:${escapeHtml(fill)};padding:1px 4px;border-radius:2px;display:inline-block">${inlineCommands(text)}</span>`;
+  });
+  result = result.replace(/\\fbox\{([^}]*)\}/g, (_, text) => {
+    return `<span class="inline-block border border-border rounded px-1.5 py-0.5">${inlineCommands(text)}</span>`;
+  });
+  result = result.replace(/\\framebox(?:\[([^\]]*)\])?(?:\[([^\]]*)\])?\{([^}]*)\}/g, (_, _w, _p, text) => {
+    return `<span class="inline-block border border-border rounded px-1.5 py-0.5">${inlineCommands(text)}</span>`;
+  });
+  result = result.replace(/\\sout\{([^}]*)\}/g, '<s>$1</s>');
+  result = result.replace(/\\rotatebox(?:\[([^\]]*)\])?\{([^}]*)\}\{([^}]*)\}/g, (_, _opts, angle, text) => {
+    return `<span style="display:inline-block;transform:rotate(${angle}deg);transform-origin:center">${inlineCommands(text)}</span>`;
+  });
+  result = result.replace(/\\scalebox\{([^}]*)\}\{([^}]*)\}/g, (_, factor, text) => {
+    return `<span style="display:inline-block;transform:scale(${factor});transform-origin:top left">${inlineCommands(text)}</span>`;
+  });
+  result = result.replace(/\\raisebox(?:\[([^\]]*)\])?(?:\[([^\]]*)\])?\{([^}]*)\}\{([^}]*)\}/g, (_, _h, _d, distance, text) => {
+    return `<span style="position:relative;top:${distance.startsWith('-') ? distance.slice(1) : '-' + distance};display:inline-block">${inlineCommands(text)}</span>`;
+  });
+  result = result.replace(/\\parbox(?:\[([^\]]*)\])?(?:\[([^\]]*)\])?(?:\[([^\]]*)\])?\{([^}]*)\}\{([^}]*)\}/g, (_, align, _h, _i, width, text) => {
+    const va = align === 'b' ? 'bottom' : align === 'c' ? 'middle' : 'top';
+    return `<div style="display:inline-block;width:${escapeHtml(width)};vertical-align:${va}">${inlineCommands(text)}</div>`;
+  });
+  result = result.replace(/\\rule(?:\[([^\]]*)\])?\{([^}]*)\}\{([^}]*)\}/g, (_, raise, width, height) => {
+    return `<span style="display:inline-block;width:${escapeHtml(width)};height:${escapeHtml(height)};background:currentColor;${raise ? `vertical-align:${parseFloat(raise) > 0 ? 'top' : 'bottom'};` : 'vertical-align:middle;'}"></span>`;
+  });
+  result = result.replace(/\\caption(?:\[([^\]]*)\])?\{([^}]*)\}/g, (_, _short, text) => {
+    return `<div class="text-sm text-muted-foreground mt-1">${inlineCommands(text)}</div>`;
   });
 
   result = result.replace(/\\begin\{([^}]*)\}([\s\S]*?)\\end\{\1\}/g, (_, env, body) => {
@@ -216,7 +311,7 @@ function extractPreamble(latex: string): { title: string; author: string; date: 
   const preamble = preambleMatch ? latex.slice(0, preambleMatch.index) : latex;
   const title = preamble.match(/\\(?:title)\{([^}]*)\}/)?.[1] || '';
   const author = preamble.match(/\\(?:author)\{([^}]*)\}/)?.[1] || '';
-  const date = preamble.match(/\\(?:date)\{([^}]*)\}/)?.[1] || '';
+  const date = (preamble.match(/\\(?:date)\{([^}]*)\}/)?.[1] || '').replace(/\\today\b/g, new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
   return { title: title.replace(/\\thanks\{[^}]*\}/g, ''), author, date };
 }
 
@@ -247,8 +342,87 @@ function startsWithTag(line: string, tag: string): boolean {
   return line.startsWith(tag);
 }
 
-function convertBody(body: string): string {
+/* ─── Label / cross-reference registry ─── */
+
+function buildLabelRegistry(text: string, allFiles?: FileNode[], visited?: Set<string>): Map<string, string> {
+  const registry = new Map<string, string>();
+  const seen = visited ?? new Set<string>();
+
+  if (allFiles) {
+    text = text.replace(/\\(?:include|input)\{([^}]*)\}/g, (_, file) => {
+      if (seen.has(file)) return '';
+      seen.add(file);
+      const content = findFileContent(allFiles, file);
+      if (content) {
+        const sub = buildLabelRegistry(content, allFiles, seen);
+        sub.forEach((v, k) => registry.set(k, v));
+      }
+      return '';
+    });
+  }
+
+  const sec = [0, 0, 0, 0, 0];
+  const secLevel: Record<string, number> = {
+    chapter: 0, section: 0, subsection: 1, subsubsection: 2, paragraph: 3, subparagraph: 4,
+  };
+  let eq = 0, fig = 0, tbl = 0;
+  let cx = '';
+
+  const re = /\\begin\{([^}]*)\}|\\end\{([^}]*)\}|\\label\{([^}]*)\}|\\(chapter|section|subsection|subsubsection|paragraph|subparagraph)(\*?)(?:\[([^\]]*)\])?\{([^}]*)\}|\\appendix\b/g;
+  let m: RegExpExecArray | null;
+
+  while ((m = re.exec(text)) !== null) {
+    if (m[1]) {
+      const env = m[1].replace(/\*$/, '');
+      if (MATH_TAGS.includes(m[1])) { eq++; cx = 'eq'; }
+      else if (env === 'figure') { fig++; cx = 'fig'; }
+      else if (env === 'table') { tbl++; cx = 'tbl'; }
+    } else if (m[2]) {
+      const env = m[2].replace(/\*$/, '');
+      if (MATH_TAGS.includes(m[2]) || env === 'figure' || env === 'table') cx = '';
+    } else if (m[3]) {
+      if (cx === 'eq') registry.set(m[3], String(eq));
+      else if (cx === 'fig') registry.set(m[3], String(fig));
+      else if (cx === 'tbl') registry.set(m[3], String(tbl));
+      else registry.set(m[3], cx || '0');
+    } else if (m[4]) {
+      if (!m[5]) {
+        const idx = secLevel[m[4]];
+        sec[idx]++;
+        for (let i = idx + 1; i < sec.length; i++) sec[i] = 0;
+        cx = sec.filter(s => s > 0).join('.');
+      }
+    } else if (m[0] === '\\appendix') {
+      sec.fill(0);
+    }
+  }
+
+  return registry;
+}
+
+function convertBody(body: string, allFiles?: FileNode[], labelRegistry?: Map<string, string>, visited?: Set<string>): string {
   let result = body;
+  const registry = labelRegistry ?? buildLabelRegistry(body, allFiles);
+
+  /* ─── TOC generation ─── */
+  const tocEntries: { level: number; title: string }[] = [];
+  const tocSectionRe = /\\(?:section|subsection|subsubsection|chapter)\*?(?:\[([^\]]*)\])?\{([^}]*)\}/g;
+  let tocMatch: RegExpExecArray | null;
+  while ((tocMatch = tocSectionRe.exec(result)) !== null) {
+    const cmd = tocMatch[0].startsWith('\\chapter') ? 1
+      : tocMatch[0].startsWith('\\section') ? 1
+      : tocMatch[0].startsWith('\\subsection') ? 2
+      : tocMatch[0].startsWith('\\subsubsection') ? 3 : 1;
+    tocEntries.push({ level: cmd, title: tocMatch[2] });
+  }
+  if (tocEntries.length > 0) {
+    const tocHtml = `<div class="my-4 p-4 border border-border rounded"><h2 class="text-xl font-bold mb-3">Contents</h2><nav>${tocEntries.map(e =>
+      `<div class="${e.level === 1 ? 'font-medium' : e.level === 2 ? 'ml-4 text-sm' : 'ml-8 text-sm text-muted-foreground'} py-0.5">${inlineCommands(e.title)}</div>`
+    ).join('')}</nav></div>`;
+    result = result.replace(/\\tableofcontents\b/g, tocHtml);
+  } else {
+    result = result.replace(/\\tableofcontents\b/g, '');
+  }
 
   result = result.replace(/\\(?:part)\*?(?:\[([^\]]*)\])?\{([^}]*)\}/g,
     '<div class="text-3xl font-bold mt-8 mb-4 text-center">$2</div>');
@@ -269,12 +443,37 @@ function convertBody(body: string): string {
     });
   }
 
+  result = result.replace(/\\(?:appendix)\b/g, '<div class="text-2xl font-bold mt-8 mb-4 border-t pt-4">Appendix</div>');
+  result = result.replace(/\\(?:maketitle)\b/g, '');
   result = result.replace(/\\(?:begin\{document\})/, '');
   result = result.replace(/\\(?:end\{document\})/, '');
   result = result.replace(/\\(?:vspace|hspace)\*?\{[^}]*\}/g, '');
   result = result.replace(/\\(?:smallskip|medskip|bigskip|noindent|indent|newline|newpage|clearpage|pagebreak|linebreak|hfill|vfill|hrulefill|dotfill)/g, '');
-  result = result.replace(/\\(?:label|ref|eqref|pageref|cite|nocite|bibliographystyle)\{([^}]*)\}/g, '');
+  result = result.replace(/\\(?:label)\{([^}]*)\}/g, '');
+  result = result.replace(/\\(?:ref)\{([^}]*)\}/g, (_, key) => registry.get(key) || '??');
+  result = result.replace(/\\(?:eqref)\{([^}]*)\}/g, (_, key) => `(${registry.get(key) || '??'})`);
+  result = result.replace(/\\(?:pageref)\{([^}]*)\}/g, '1');
+  result = result.replace(/\\(?:cite)\{([^}]*)\}/g, '[?]');
+  result = result.replace(/\\(?:nocite|bibliographystyle)\{([^}]*)\}/g, '');
   result = result.replace(/\\(?:footnote)\{([^}]*)\}/g, '<sup class="text-xs text-muted-foreground">[$1]</sup>');
+
+  /* ─── File-based commands ─── */
+  result = result.replace(/\\(?:include|input)\{([^}]*)\}/g, (_, file) => {
+    const seen = visited ?? new Set<string>();
+    if (seen.has(file)) return '';
+    seen.add(file);
+    const content = findFileContent(allFiles, file);
+    return content ? convertBody(content, allFiles, registry, seen) : '';
+  });
+  result = result.replace(/\\bibliography\{([^}]*)\}/g, (_, file) => {
+    return `<div class="my-4"><h2 class="text-xl font-bold mb-3">References</h2><p class="text-muted-foreground italic text-sm">Bibliography from: ${escapeHtml(file)}</p></div>`;
+  });
+  result = result.replace(/\\lstinputlisting(?:\[([^\]]*)\])?\{([^}]*)\}/g, (_, opts, file) => {
+    const content = findFileContent(allFiles, file);
+    return content
+      ? `<pre class="my-2 p-3 rounded bg-muted font-mono text-sm overflow-x-auto">${escapeHtml(content)}</pre>`
+      : '';
+  });
 
   result = result.replace(/\\(?:today|TeX|LaTeX|LaTeXe)\b/g, (m) => {
     const map: Record<string, string> = {
@@ -366,7 +565,7 @@ function convertBody(body: string): string {
   return final;
 }
 
-function convertLaTeX(latex: string): string {
+function convertLaTeX(latex: string, allFiles?: FileNode[]): string {
   const cleaned = stripComments(latex);
   const preamble = extractPreamble(cleaned);
   const body = extractBody(cleaned);
@@ -379,13 +578,13 @@ function convertLaTeX(latex: string): string {
     if (preamble.date) parts.push(`<p class="text-sm text-muted-foreground">${escapeHtml(preamble.date)}</p>`);
     parts.push('</div>');
   }
-  parts.push(convertBody(body));
+  parts.push(convertBody(body, allFiles));
   return parts.join('\n');
 }
 
 /* ─── Editor Component ─── */
 
-export const TexEditor = ({ file, onContentChange }: TexEditorProps) => {
+export const TexEditor = ({ file, onContentChange, allFiles }: TexEditorProps) => {
   const [content, setContent] = useState(file.content || '');
   const editorRef = useRef<HTMLDivElement>(null);
   const isComposingRef = useRef(false);
@@ -524,11 +723,11 @@ export const TexEditor = ({ file, onContentChange }: TexEditorProps) => {
   const parsedHtml = useMemo(() => {
     if (!content) return '<p class="text-muted-foreground italic">Empty file</p>';
     try {
-      return convertLaTeX(content);
+      return convertLaTeX(content, allFiles);
     } catch (err) {
       return `<p class="text-red-400">Error rendering LaTeX: ${err instanceof Error ? err.message : 'Unknown error'}</p>`;
     }
-  }, [content]);
+  }, [content, allFiles]);
 
   return (
     <div className="flex flex-1 flex-col bg-editor">

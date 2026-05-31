@@ -188,6 +188,7 @@ export const CodeEditor = ({
     return stored === 'true';
   });
   const isComposingRef = useRef(false);
+  const skipCursorSaveRef = useRef(false);
   const contentRef = useRef(content);
   const cursorOffsetRef = useRef<number | null>(null);
   const prevContentRef = useRef(content);
@@ -282,26 +283,48 @@ export const CodeEditor = ({
     setSelectedLine(firstLine);
   }, [fileComments, selectedLine]);
 
+  const getContentFromDom = useCallback(() => {
+    const el = editorRef.current;
+    if (!el) return "";
+    const lines = el.querySelectorAll(".code-line");
+    return Array.from(lines)
+      .map((line) => (line as HTMLElement).textContent || "")
+      .join("\n");
+  }, []);
+
   const handleInput = useCallback(() => {
     if (isComposingRef.current) return;
-    const el = editorRef.current;
-    if (!el) return;
-
-    // Read directly from rendered text so browser-inserted wrapper nodes
-    // (e.g. extra <div><br></div> blocks) don't create random blank lines.
-    // innerText can include a trailing newline in contentEditable roots,
-    // so trim one terminal line break to preserve exact file content.
-    const nextContent = el.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
+    const nextContent = getContentFromDom();
     setContent(nextContent);
     if (file) onContentChange(file.id, nextContent);
-  }, [file, onContentChange]);
+  }, [file, onContentChange, getContentFromDom]);
 
   const handleEditorKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Tab") {
       event.preventDefault();
       document.execCommand("insertText", false, "  ");
+      return;
     }
-  }, []);
+    if (event.key === "Enter") {
+      if (isComposingRef.current) return;
+      event.preventDefault();
+      const el = editorRef.current;
+      if (!el) return;
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed) {
+        document.execCommand("delete", false);
+      }
+      const cursorOffset = saveCursorPosition(el);
+      const currentContent = getContentFromDom();
+      const before = currentContent.slice(0, cursorOffset);
+      const after = currentContent.slice(cursorOffset);
+      const newContent = before + "\n" + after;
+      skipCursorSaveRef.current = true;
+      cursorOffsetRef.current = cursorOffset + 1;
+      setContent(newContent);
+      if (file) onContentChange(file.id, newContent);
+    }
+  }, [file, onContentChange, getContentFromDom]);
 
   const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -346,7 +369,8 @@ export const CodeEditor = ({
 
   if (content !== prevContentRef.current) {
     const el = editorRef.current;
-    if (el && document.activeElement === el) cursorOffsetRef.current = saveCursorPosition(el);
+    if (el && document.activeElement === el && !skipCursorSaveRef.current) cursorOffsetRef.current = saveCursorPosition(el);
+    skipCursorSaveRef.current = false;
     prevContentRef.current = content;
   }
 
@@ -393,7 +417,7 @@ export const CodeEditor = ({
   if (previewType === "draw") return <DrawEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "office") return <OfficeEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "pdf") return <PDFEditor file={file} onContentChange={onContentChange} />;
-  if (previewType === "tex") return <TexEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === "tex") return <TexEditor file={file} onContentChange={onContentChange} allFiles={allFiles} />;
   if (previewType === "video") return <VideoEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "audio") return <AudioEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "rtf") return <RTFEditor file={file} onContentChange={onContentChange} />;

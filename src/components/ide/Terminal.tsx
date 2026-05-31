@@ -35,13 +35,14 @@ interface TerminalProps {
   onFilesUpdate?: (files: ProjectFile[]) => void;
   onProjectFilesChange?: (files: ProjectFile[]) => void;
   onPortDetected?: (port: number) => void;
+  sessionKey?: number;
 }
 
 export const Terminal = ({
   history, onCommand, isMinimized, onToggleMinimize,
   stdinPrompt, onStdinSubmit, onNewShell,
   projectFiles, projectId, projectName, onFilesUpdate, onProjectFilesChange,
-  onPortDetected,
+  onPortDetected, sessionKey,
 }: TerminalProps) => {
   const [input, setInput] = useState('');
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
@@ -408,6 +409,7 @@ export const Terminal = ({
                   style={{ visibility: activePane === shell.id ? 'visible' : 'hidden' }}
                 >
                   <XTerminal
+                    key={`${shell.id}-${sessionKey ?? 0}`}
                     projectFiles={projectFiles}
                     projectId={projectId}
                     projectName={projectName}

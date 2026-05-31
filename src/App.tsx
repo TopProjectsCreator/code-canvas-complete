@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { OnboardingProvider } from "@/contexts/OnboardingContext";
+import { OnboardingManager } from "@/components/onboarding/OnboardingManager";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -60,11 +62,13 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <ThemeProvider>
+        <OnboardingProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <OfflineDialog />
           <InboxNotifier />
+          <OnboardingManager />
           <BrowserRouter basename={getGitHubPagesBasename()}>
             <Routes>
               <Route path="/" element={<RootRoute />} />
@@ -96,6 +100,7 @@ const App = () => (
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
+        </OnboardingProvider>
       </ThemeProvider>
     </AuthProvider>
   </QueryClientProvider>

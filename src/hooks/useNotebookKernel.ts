@@ -13,14 +13,14 @@ export function useNotebookKernel() {
   const executionCountRef = useRef(0);
 
   const runCell = useCallback(
-    async (code: string, kernelId: string): Promise<{ outputs: NbOutput[]; executionCount: number }> => {
+    async (code: string, language: string): Promise<{ outputs: NbOutput[]; executionCount: number }> => {
       setKernel({ status: "running", error: null });
       executionCountRef.current += 1;
       const count = executionCountRef.current;
       const outputs: NbOutput[] = [];
 
       try {
-        const result = await executeCode(code, "python");
+        const result = await executeCode(code, language);
         if (result.error) {
           outputs.push({
             output_type: "error",
