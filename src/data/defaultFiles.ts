@@ -1130,6 +1130,7 @@ export const getFileLanguage = (filename: string): string => {
     json: "json",
     sb3: "binary",
     md: "markdown",
+    mdx: "markdown",
     py: "python",
     rb: "ruby",
     go: "go",

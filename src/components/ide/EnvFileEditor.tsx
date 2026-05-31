@@ -5,9 +5,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardList,
+  Eye,
+  EyeOff,
+  Search,
+  X,
+} from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { icons, LucideIcon, FolderPlus, Plus, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface EnvFileEditorProps {
   file: FileNode;
@@ -49,6 +61,8 @@ const createId = () => {
   }
   return `env-${Math.random().toString(36).slice(2, 10)}`;
 };
+
+const isValidKey = (key: string): boolean => /^[A-Za-z0-9_]+$/.test(key);
 
 const parseEnvFile = (content: string): { folders: EnvFolder[]; secrets: EnvSecret[] } => {
   const lines = content.split('\n');
@@ -138,6 +152,11 @@ const iconForName = (name: string): LucideIcon => {
 export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => {
   const [folders, setFolders] = useState<EnvFolder[]>([]);
   const [secrets, setSecrets] = useState<EnvSecret[]>([]);
+  const [maskedIds, setMaskedIds] = useState<Set<string>>(new Set());
+  const [duplicateWarnings, setDuplicateWarnings] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showPasteOverlay, setShowPasteOverlay] = useState(false);
+  const [pasteContent, setPasteContent] = useState('');
 
   useEffect(() => {
     const parsed = parseEnvFile(file.content || '');
@@ -145,10 +164,53 @@ export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => 
     setSecrets(parsed.secrets);
   }, [file.id, file.content]);
 
+  useEffect(() => {
+    const keys = secrets.map(s => s.key);
+    const seen = new Map<string, number>();
+    const dupes = new Set<string>();
+    keys.forEach(k => {
+      const i = seen.get(k) || 0;
+      if (i >= 1) dupes.add(k);
+      seen.set(k, i + 1);
+    });
+    setDuplicateWarnings(dupes);
+  }, [secrets]);
+
   const persist = (nextFolders: EnvFolder[], nextSecrets: EnvSecret[]) => {
     setFolders(nextFolders);
     setSecrets(nextSecrets);
     onContentChange(file.id, serializeEnvFile(nextFolders, nextSecrets));
+  };
+
+  const handleBulkPaste = () => {
+    const lines = pasteContent.split('\n').filter(line => line.trim() && line.includes('='));
+    const nextSecrets = [...secrets];
+
+    lines.forEach(line => {
+      const eqIdx = line.indexOf('=');
+      const key = line.slice(0, eqIdx).trim();
+      const value = line.slice(eqIdx + 1);
+      if (!key) return;
+
+      const idx = nextSecrets.findIndex(s => s.key === key);
+      if (idx !== -1) {
+        nextSecrets[idx] = { ...nextSecrets[idx], value };
+      } else {
+        nextSecrets.push({
+          id: createId(),
+          key,
+          value,
+          name: key,
+          color: '#64748b',
+          icon: 'Key',
+          folderId: DEFAULT_FOLDER_ID,
+        });
+      }
+    });
+
+    persist(folders, nextSecrets);
+    setShowPasteOverlay(false);
+    setPasteContent('');
   };
 
   const folderOptions = useMemo(
@@ -156,16 +218,27 @@ export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => 
     [folders],
   );
 
+  const filteredSecrets = useMemo(
+    () => secrets.filter(s =>
+      !searchQuery ||
+      s.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.name.toLowerCase().includes(searchQuery.toLowerCase())
+    ),
+    [secrets, searchQuery],
+  );
+
   const groupedSecrets = useMemo(() => {
     const groups = new Map<string, EnvSecret[]>();
-    secrets.forEach((secret) => {
+    filteredSecrets.forEach((secret) => {
       const key = secret.folderId || DEFAULT_FOLDER_ID;
       const existing = groups.get(key) || [];
       existing.push(secret);
       groups.set(key, existing);
     });
     return groups;
-  }, [secrets]);
+  }, [filteredSecrets]);
+
+  const hasFilteredResults = filteredSecrets.length > 0;
 
   const addFolder = () => {
     const nextFolders = [
@@ -192,20 +265,73 @@ export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => 
   };
 
   return (
+    <TooltipProvider>
     <div className="flex h-full flex-col gap-4 overflow-hidden bg-editor p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-semibold">.env Visual Manager</h3>
-          <p className="text-xs text-muted-foreground">Add key/value secrets with labels, icons, colors, and folders.</p>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold">.env Visual Manager</h3>
+            <p className="text-xs text-muted-foreground">Add key/value secrets with labels, icons, colors, and folders.</p>
+          </div>
+          <div className="flex gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search..."
+                className="h-8 w-40 pl-7 pr-7 text-xs"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setShowPasteOverlay(true)} className="gap-1.5">
+              <ClipboardList className="h-3.5 w-3.5" /> Paste
+            </Button>
+            <Button size="sm" variant="outline" onClick={addFolder} className="gap-1.5">
+              <FolderPlus className="h-3.5 w-3.5" /> Folder
+            </Button>
+            <Button size="sm" onClick={addSecret} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> Secret
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={addFolder} className="gap-1.5">
-            <FolderPlus className="h-3.5 w-3.5" /> Folder
-          </Button>
-          <Button size="sm" onClick={addSecret} className="gap-1.5">
-            <Plus className="h-3.5 w-3.5" /> Secret
-          </Button>
-        </div>
+
+        {showPasteOverlay && (
+          <Card className="border-primary/50">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm">Paste .env entries</CardTitle>
+              <button
+                onClick={() => { setShowPasteOverlay(false); setPasteContent(''); }}
+                className="rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </CardHeader>
+            <CardContent>
+              <textarea
+                value={pasteContent}
+                onChange={(e) => setPasteContent(e.target.value)}
+                placeholder={'KEY=VALUE\nANOTHER_KEY=some_value'}
+                className="w-full h-28 rounded border border-border bg-background p-2 text-xs font-mono resize-none"
+              />
+              <div className="flex justify-end gap-2 mt-2">
+                <Button size="sm" variant="outline" onClick={() => { setShowPasteOverlay(false); setPasteContent(''); }}>
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleBulkPaste}>
+                  Merge
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[300px_1fr]">
@@ -341,29 +467,63 @@ export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => 
                               <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
                                 <div className="space-y-1">
                                   <Label className="text-[10px] text-muted-foreground">Key</Label>
-                                  <Input
-                                    value={secret.key}
-                                    onChange={(e) => {
-                                      const nextSecrets = secrets.map((item) =>
-                                        item.id === secret.id ? { ...item, key: e.target.value.toUpperCase().replace(/\s+/g, '_') } : item,
-                                      );
-                                      persist(folders, nextSecrets);
-                                    }}
-                                    className="h-8 font-mono text-xs"
-                                  />
+                                  <div className="relative">
+                                    <Input
+                                      value={secret.key}
+                                      onChange={(e) => {
+                                        const nextSecrets = secrets.map((item) =>
+                                          item.id === secret.id ? { ...item, key: e.target.value.toUpperCase().replace(/\s+/g, '_') } : item,
+                                        );
+                                        persist(folders, nextSecrets);
+                                      }}
+                                      className={cn("h-8 font-mono text-xs pl-7 pr-8", duplicateWarnings.has(secret.key) && "border-amber-500")}
+                                    />
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2">
+                                      {isValidKey(secret.key) ? (
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                                      ) : (
+                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                      )}
+                                    </span>
+                                    {duplicateWarnings.has(secret.key) && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <AlertCircle className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-amber-500" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" className="text-xs">Duplicate key</TooltipContent>
+                                      </Tooltip>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="space-y-1">
                                   <Label className="text-[10px] text-muted-foreground">Value</Label>
-                                  <Input
-                                    value={secret.value}
-                                    onChange={(e) => {
-                                      const nextSecrets = secrets.map((item) =>
-                                        item.id === secret.id ? { ...item, value: e.target.value } : item,
-                                      );
-                                      persist(folders, nextSecrets);
-                                    }}
-                                    className="h-8 font-mono text-xs"
-                                  />
+                                  <div className="flex gap-1">
+                                    <div className="relative flex-1">
+                                      <Input
+                                        type={maskedIds.has(secret.id) ? 'password' : 'text'}
+                                        value={secret.value}
+                                        onChange={(e) => {
+                                          const nextSecrets = secrets.map((item) =>
+                                            item.id === secret.id ? { ...item, value: e.target.value } : item,
+                                          );
+                                          persist(folders, nextSecrets);
+                                        }}
+                                        className="h-8 font-mono text-xs pr-8"
+                                      />
+                                      <button
+                                        onClick={() => {
+                                          setMaskedIds((prev) => {
+                                            const next = new Set(prev);
+                                            if (next.has(secret.id)) next.delete(secret.id); else next.add(secret.id);
+                                            return next;
+                                          });
+                                        }}
+                                        className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                                      >
+                                        {maskedIds.has(secret.id) ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                      </button>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
 
@@ -430,12 +590,17 @@ export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => 
                   );
                 })}
 
-                {secrets.length === 0 && <p className="text-xs text-muted-foreground">No secrets yet. Click Secret to add your first entry.</p>}
+                {!hasFilteredResults && (
+                  <p className="text-xs text-muted-foreground">
+                    {searchQuery ? 'No secrets match your search.' : 'No secrets yet. Click Secret to add your first entry.'}
+                  </p>
+                )}
               </div>
             </ScrollArea>
           </CardContent>
         </Card>
       </div>
     </div>
+    </TooltipProvider>
   );
 };

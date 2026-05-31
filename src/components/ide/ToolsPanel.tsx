@@ -302,7 +302,7 @@ const getFileExtension = (fileName: string) => {
 const mediaInputExtensions = new Set(['m3u8', 'mp4', 'mov', 'webm', 'mkv', 'avi', 'mpg', 'mpeg', 'ts', 'm2ts', 'flv', '3gp', 'mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac', 'aiff', 'opus', 'wma']);
 const imageInputExtensions = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg']);
 const pdfInputExtensions = new Set(['pdf']);
-const textInputExtensions = new Set(['txt', 'md', 'json', 'csv', 'xml', 'html', 'css', 'js', 'ts', 'tsx', 'jsx', 'yaml', 'yml']);
+const textInputExtensions = new Set(['txt', 'md', 'mdx', 'json', 'csv', 'xml', 'html', 'css', 'js', 'ts', 'tsx', 'jsx', 'yaml', 'yml']);
 
 const getMimeTypeFromExtension = (extension: string) => {
   const mimeMap: Record<string, string> = {

@@ -1,17 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import JSZip from 'jszip';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import UnderlineExt from '@tiptap/extension-underline';
+import Link from '@tiptap/extension-link';
+import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
+import TextAlign from '@tiptap/extension-text-align';
+import Placeholder from '@tiptap/extension-placeholder';
+import ImageExt from '@tiptap/extension-image';
 import { FileNode } from '@/types/ide';
 import {
-  FileText, Save, Bold, Italic, Underline, Strikethrough,
+  FileText, Save, Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Undo, Redo, Type, Minus, Plus,
-  Loader2, Table, Image, Link, Columns,
-  BookOpen, CheckSquare, MessageSquare, Eye, LayoutGrid,
+  Loader2, Table as TableIcon, Image, Link as LinkIcon, Columns,
   Heading1, Heading2, Quote, Code, SeparatorHorizontal,
-  FileImage, Film, Bookmark, Search, Replace, SpellCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -28,46 +33,37 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(100);
-  const [activeTab, setActiveTab] = useState<'home' | 'insert' | 'layout' | 'references' | 'review' | 'view'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'insert'>('home');
   const [wordCount, setWordCount] = useState(0);
-  const [pageMargin, setPageMargin] = useState(72);
-  const [isLandscape, setIsLandscape] = useState(false);
   const [paperSize, setPaperSize] = useState<'letter' | 'a4'>('letter');
-  const [columnCount, setColumnCount] = useState(1);
-  const [trackChanges, setTrackChanges] = useState(false);
-  const editorRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
-  const initialHtmlRef = useRef('');
-  // Track the file id we loaded so we only set innerHTML once per file
-  const loadedFileIdRef = useRef<string | null>(null);
   // Track last saved ZIP bytes so save() doesn't read stale file.content
   const lastZipBytesRef = useRef<Uint8Array | null>(null);
-  const { toast } = useToast();
-  const historyRef = useRef<string[]>([]);
-  const redoRef = useRef<string[]>([]);
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m] || m));
-  const sanitizeUrl = (raw: string) => {
-    try {
-      const u = new URL(raw);
-      return ['http:', 'https:', 'mailto:'].includes(u.protocol) ? u.toString() : null;
-    } catch {
-      return null;
-    }
-  };
-  const insertSafeHtml = (html: string) => exec('insertHTML', html);
-  const scheduleSave = () => {
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = setTimeout(() => { save(); }, 500);
-  };
-  const pushHistory = () => {
-    const current = editorRef.current?.innerHTML || '';
-    if (historyRef.current[historyRef.current.length - 1] !== current) historyRef.current.push(current);
-    if (historyRef.current.length > 100) historyRef.current.shift();
-    redoRef.current = [];
-  };
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2] },
+      }),
+      Underline,
+      Link.configure({ openOnClick: false }),
+      Table.configure({ resizable: true }),
+      TableRow, TableCell, TableHeader,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      ImageExt,
+      Placeholder.configure({ placeholder: 'Start typing…' }),
+    ],
+    editorProps: {
+      attributes: {
+        class: 'prose prose-sm dark:prose-invert max-w-none focus:outline-none min-h-[200px] px-8 py-6',
+      },
+    },
+    onUpdate: ({ editor: ed }) => {
+      const text = ed.state.doc.textContent || '';
+      setWordCount(text.split(/\s+/).filter(Boolean).length);
+    },
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -84,14 +80,59 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
         const xml = await zip.file('word/document.xml')?.async('string');
         if (!xml) throw new Error('Missing word/document.xml');
         const doc = parseXml(xml);
+        
+        // Enhanced parsing: extract formatting and alignment
         const pNodes = Array.from(doc.getElementsByTagNameNS('*', 'p'));
         const paras = pNodes.map(p => {
-          const tNodes = Array.from(p.getElementsByTagNameNS('*', 't'));
-          return tNodes.map(t => t.textContent || '').join('');
+          let html = '';
+          
+          // Get alignment from w:pPr/w:jc
+          const pPr = p.getElementsByTagNameNS('*', 'pPr')[0];
+          let alignClass = '';
+          if (pPr) {
+            const jc = pPr.getElementsByTagNameNS('*', 'jc')[0];
+            if (jc) {
+              const val = jc.getAttribute('w:val');
+              if (val === 'center') alignClass = ' style="text-align: center;"';
+              else if (val === 'right') alignClass = ' style="text-align: right;"';
+              else if (val === 'justify') alignClass = ' style="text-align: justify;"';
+              else if (val === 'left') alignClass = ' style="text-align: left;"';
+            }
+          }
+          
+          html += `<p${alignClass}>`;
+          
+          // Extract runs (w:r) with their formatting
+          const runs = p.getElementsByTagNameNS('*', 'r');
+          runs.forEach(r => {
+            let runHtml = '';
+            
+            // Check for bold (w:b), italic (w:i), underline (w:u) in w:rPr
+            const rPr = r.getElementsByTagNameNS('*', 'rPr')[0];
+            const isBold = rPr && rPr.getElementsByTagNameNS('*', 'b').length > 0;
+            const isItalic = rPr && rPr.getElementsByTagNameNS('*', 'i').length > 0;
+            const isUnderline = rPr && rPr.getElementsByTagNameNS('*', 'u').length > 0;
+            
+            // Get text content
+            const tNodes = r.getElementsByTagNameNS('*', 't');
+            const text = Array.from(tNodes).map(t => t.textContent || '').join('');
+            
+            if (text) {
+              if (isBold) runHtml = `<strong>${text}</strong>`;
+              else if (isItalic) runHtml = `<em>${text}</em>`;
+              else if (isUnderline) runHtml = `<u>${text}</u>`;
+              else runHtml = text;
+              
+              html += runHtml;
+            }
+          });
+          
+          html += '</p>';
+          return html;
         });
-        const lines = paras.length ? paras : [''];
-        initialHtmlRef.current = lines.map(p => `<p>${p || '<br>'}</p>`).join('');
-        loadedFileIdRef.current = file.id;
+        
+        const content = paras.length ? paras.join('') : '<p></p>';
+        if (editor) editor.commands.setContent(content);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to open document');
       } finally {
@@ -100,207 +141,143 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     };
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file.id]); // Only reload when file ID changes
-
-  // Set innerHTML only once after loading
-  useEffect(() => {
-    if (!loading && !error && editorRef.current && loadedFileIdRef.current === file.id) {
-      editorRef.current.innerHTML = initialHtmlRef.current;
-      updateWordCount();
-    }
-  }, [loading, error, file.id]);
-
-  const updateWordCount = () => {
-    if (!editorRef.current) return;
-    const text = editorRef.current.innerText || '';
-    setWordCount(text.split(/\s+/).filter(Boolean).length);
-  };
-
-  const getEditorParagraphs = (): string[] => {
-    if (!editorRef.current) return [''];
-    const text = editorRef.current.innerText || '';
-    return text.split('\n');
-  };
+  }, [file.id]);
 
   const save = useCallback(async () => {
-    const paragraphs = getEditorParagraphs();
+    if (!editor) return;
+    const html = editor.getHTML();
     const baseBytes = lastZipBytesRef.current || (await buildNewDocx());
     const zip = await JSZip.loadAsync(baseBytes);
-    const content = paragraphs
-      .map(line => `<w:p><w:r><w:t xml:space="preserve">${xmlEncode(line)}</w:t></w:r></w:p>`)
-      .join('');
+
+    const htmlToDocxXml = (html: string): string => {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const body = doc.body;
+      let xml = '';
+      
+      body.childNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as HTMLElement;
+          let pXml = '<w:p>';
+          
+          // Preserve alignment from inline styles
+          const align = el.style.textAlign;
+          if (align) {
+            pXml += `<w:pPr><w:jc w:val="${align}"/></w:pPr>`;
+          }
+          
+          // Recursively traverse and build runs with formatting
+          const traverse = (n: Node): string => {
+            let content = '';
+            n.childNodes.forEach((child) => {
+              if (child.nodeType === Node.TEXT_NODE) {
+                if (child.textContent) {
+                  content += `<w:r><w:t xml:space="preserve">${xmlEncode(child.textContent)}</w:t></w:r>`;
+                }
+              } else if (child.nodeType === Node.ELEMENT_NODE) {
+                const cEl = child as HTMLElement;
+                const tag = cEl.tagName.toLowerCase();
+                
+                // Handle formatting elements
+                if (tag === 'strong' || tag === 'b') {
+                  const innerText = cEl.textContent || '';
+                  content += `<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">${xmlEncode(innerText)}</w:t></w:r>`;
+                } else if (tag === 'em' || tag === 'i') {
+                  const innerText = cEl.textContent || '';
+                  content += `<w:r><w:rPr><w:i/></w:rPr><w:t xml:space="preserve">${xmlEncode(innerText)}</w:t></w:r>`;
+                } else if (tag === 'u') {
+                  const innerText = cEl.textContent || '';
+                  content += `<w:r><w:rPr><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">${xmlEncode(innerText)}</w:t></w:r>`;
+                } else if (tag === 's' || tag === 'strike') {
+                  const innerText = cEl.textContent || '';
+                  content += `<w:r><w:rPr><w:strike/></w:rPr><w:t xml:space="preserve">${xmlEncode(innerText)}</w:t></w:r>`;
+                } else {
+                  // For other elements, recurse
+                  content += traverse(child);
+                }
+              }
+            });
+            return content;
+          };
+          
+          pXml += traverse(el);
+          pXml += '</w:p>';
+          xml += pXml;
+        }
+      });
+      return xml;
+    };
+
+    const bodyXml = htmlToDocxXml(html);
+
     zip.file('word/document.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${content || '<w:p><w:r><w:t></w:t></w:r></w:p>'}</w:body></w:document>`);
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
+xmlns:v="urn:schemas-microsoft-com:vml"
+xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing"
+xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+xmlns:w10="urn:schemas-microsoft-com:office:word"
+xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"
+xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"
+xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk"
+xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml"
+xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+mc:Ignorable="w14 wp14"><w:body>${bodyXml}</w:body></w:document>`);
+
     const out = new Uint8Array(await zip.generateAsync({ type: 'uint8array' }));
     lastZipBytesRef.current = out;
     onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.wordprocessingml.document', out));
-  }, [file.id, onContentChange]);
+    toast({ title: 'Saved', description: 'Document saved successfully.' });
+  }, [file.id, onContentChange, toast, editor]);
 
+  useEffect(() => {
+    if (loading || !editor) return;
+    const timer = setTimeout(() => { save(); }, 2000);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor?.state.doc.content]);
 
-  // Auto-save on editor input (debounced)
-  const handleEditorInput = () => {
-    updateWordCount();
-    scheduleSave();
-    pushHistory();
+  const exec = (fn: () => void) => {
+    fn();
+    editor?.chain().focus().run();
   };
 
-  // --- execCommand helpers ---
-  const exec = (command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    editorRef.current?.focus();
-  };
-
-  // --- Insert actions ---
   const insertTable = () => {
-    const rows = 3, cols = 3;
-    let html = '<table style="border-collapse:collapse;width:100%;margin:8px 0">';
-    for (let r = 0; r < rows; r++) {
-      html += '<tr>';
-      for (let c = 0; c < cols; c++) {
-        html += `<td style="border:1px solid hsl(var(--border));padding:6px 8px;min-width:60px" contenteditable="true">&nbsp;</td>`;
-      }
-      html += '</tr>';
-    }
-    html += '</table><p><br></p>';
-    exec('insertHTML', html);
+    if (!editor) return;
+    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
   };
 
-  const handleImageUpload = () => fileInputRef.current?.click();
-
-  const onImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        exec('insertHTML', `<img src="${reader.result}" style="max-width:100%;border-radius:4px;margin:8px 0" />`);
-      }
+  const insertImage = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file || !editor) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          editor.chain().focus().setImage({ src: reader.result }).run();
+        }
+      };
+      reader.readAsDataURL(file);
     };
-    reader.readAsDataURL(f);
-    e.target.value = '';
+    input.click();
   };
 
   const insertLink = () => {
-    const url = prompt('Enter URL:');
-    if (url) {
-      const sel = window.getSelection();
-      const text = sel && sel.toString() ? sel.toString() : url;
-      const safeUrl = sanitizeUrl(url);
-      if (!safeUrl) return;
-      insertSafeHtml(`<a href="${safeUrl}" rel="noopener noreferrer" style="color:hsl(217,91%,60%);text-decoration:underline" target="_blank">${escapeHtml(text)}</a>`);
-    }
-  };
-
-  const insertBookmark = () => {
-    const name = prompt('Bookmark name:');
-    if (name) {
-      insertSafeHtml(`<span style="background:hsl(48,96%,89%);padding:0 4px;border-radius:2px;font-size:0.85em" data-bookmark="${escapeHtml(name)}">🔖 ${escapeHtml(name)}</span>`);
-    }
-  };
-
-  const insertHeader = () => {
-    insertSafeHtml(`<div style="border-bottom:1px solid hsl(var(--border));padding-bottom:8px;margin-bottom:12px;color:hsl(var(--muted-foreground));font-size:0.85em">Header — ${escapeHtml(file.name)}</div>`);
-  };
-
-  const insertFooter = () => {
-    exec('insertHTML', `<div style="border-top:1px solid hsl(var(--border));padding-top:8px;margin-top:12px;color:hsl(var(--muted-foreground));font-size:0.85em">Footer — Page 1</div>`);
-  };
-
-  const insertPageNumber = () => {
-    exec('insertHTML', `<span style="color:hsl(var(--muted-foreground));font-size:0.85em">— Page 1 —</span>`);
-  };
-
-  const insertVideo = () => {
-    // Offer choice: URL or file upload
-    const choice = prompt('Enter video URL (YouTube/Vimeo), or type "file" to upload an .mp4:');
-    if (!choice) return;
-    if (choice.toLowerCase().trim() === 'file') {
-      videoInputRef.current?.click();
-    } else {
-      const safeUrl = sanitizeUrl(choice);
-      if (!safeUrl) return;
-      insertSafeHtml(`<div style="margin:8px 0;padding:12px;background:hsl(var(--muted));border-radius:6px;text-align:center"><span style="font-size:0.85em">🎬 Video: <a href="${safeUrl}" rel="noopener noreferrer" target="_blank" style="color:hsl(217,91%,60%)">${escapeHtml(safeUrl)}</a></span></div>`);
-    }
-  };
-
-  const onVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        exec('insertHTML', `<div style="margin:8px 0"><video controls style="max-width:100%;border-radius:6px" src="${reader.result}"></video></div>`);
-      }
-    };
-    reader.readAsDataURL(f);
-    e.target.value = '';
-  };
-
-  const insertHeading = (level: 1 | 2) => {
-    const tag = `h${level}`;
-    const size = level === 1 ? '1.5em' : '1.25em';
-    exec('insertHTML', `<${tag} style="font-size:${size};font-weight:bold;margin:12px 0 4px">Heading ${level}</${tag}>`);
+    if (!editor) return;
+    const url = window.prompt('Enter URL:');
+    if (url) editor.chain().focus().setLink({ href: url }).run();
   };
 
   const insertHorizontalRule = () => {
-    exec('insertHTML', '<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0" /><p><br></p>');
-  };
-
-  const insertQuote = () => {
-    exec('insertHTML', '<blockquote style="border-left:3px solid hsl(var(--border));padding-left:12px;margin:8px 0;color:hsl(var(--muted-foreground));font-style:italic">Quote</blockquote><p><br></p>');
-  };
-
-  const insertCodeBlock = () => {
-    exec('insertHTML', '<pre style="background:hsl(var(--muted));padding:12px;border-radius:6px;font-family:monospace;font-size:0.9em;margin:8px 0;overflow-x:auto">code</pre><p><br></p>');
-  };
-
-  const toggleMargins = () => setPageMargin(m => m === 72 ? 54 : 72);
-  const toggleOrientation = () => setIsLandscape(v => !v);
-  const togglePaperSize = () => setPaperSize(v => v === 'letter' ? 'a4' : 'letter');
-  const toggleColumns = () => setColumnCount(c => c === 1 ? 2 : 1);
-
-  const insertTableOfContents = () => {
-    if (!editorRef.current) return;
-    const headings = Array.from(editorRef.current.querySelectorAll('h1, h2'))
-      .map((el, idx) => `${idx + 1}. ${(el.textContent || '').trim()}`)
-      .filter(Boolean);
-    const content = headings.length ? headings.join('<br/>') : 'No headings found';
-    exec('insertHTML', `<div style="margin:8px 0;padding:10px;border:1px solid hsl(var(--border));border-radius:4px"><strong>Table of Contents</strong><div style="margin-top:6px">${content}</div></div><p><br></p>`);
-  };
-
-  const insertFootnote = () => exec('insertHTML', '<sup>[1]</sup><span style="font-size:0.85em;color:hsl(var(--muted-foreground))"> Footnote text</span>');
-  const insertEndnote = () => exec('insertHTML', '<p style="font-size:0.85em;color:hsl(var(--muted-foreground));margin-top:12px">[Endnote] Add endnote here.</p>');
-  const insertBibliography = () => exec('insertHTML', '<h3 style="margin-top:12px">Bibliography</h3><p>[1] Author, Title, Year.</p>');
-
-  const runSpellingCheck = () => {
-    const text = editorRef.current?.innerText || '';
-    const repeated = (text.match(/\b(\w+)\s+\1\b/gi) || []).length;
-    toast({ title: 'Spelling scan complete', description: repeated ? `Found ${repeated} repeated word(s).` : 'No repeated words detected.' });
-  };
-
-  const insertComment = () => {
-    const comment = prompt('Comment text:')?.trim();
-    if (!comment) return;
-    insertSafeHtml(`<span style="background:hsl(48,96%,89%);padding:0 4px;border-radius:2px" data-comment="${escapeHtml(comment)}">💬 ${escapeHtml(comment)}</span>`);
-  };
-
-  const doFind = () => {
-    const term = prompt('Find text:')?.trim();
-    if (!term || !editorRef.current) return;
-    const html = editorRef.current.innerHTML;
-    const idx = html.toLowerCase().indexOf(term.toLowerCase());
-    if (idx < 0) return;
-    const match = html.slice(idx, idx + term.length);
-    editorRef.current.innerHTML = `${html.slice(0, idx)}<mark>${match}</mark>${html.slice(idx + term.length)}`;
-  };
-
-  const doReplace = () => {
-    const findText = prompt('Find text:')?.trim();
-    if (!findText || !editorRef.current) return;
-    const replaceText = prompt('Replace with:') ?? '';
-    const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-    editorRef.current.innerHTML = editorRef.current.innerHTML.replace(regex, replaceText);
-    handleEditorInput();
+    if (!editor) return;
+    editor.chain().focus().setHorizontalRule().run();
   };
 
   if (loading) {
@@ -318,81 +295,144 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
 
   return (
     <TooltipProvider>
-      <div className="flex-1 flex flex-col bg-[#f3f3f3] dark:bg-[#1e1e1e] overflow-hidden">
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onImageFileChange} />
-        <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,video/ogg" className="hidden" onChange={onVideoFileChange} />
+      <div className="flex-1 flex flex-col bg-background overflow-hidden">
         {/* Title bar */}
-        <div className="bg-[#185abd] dark:bg-[#1b3a6b] text-white">
+        <div className="bg-[#1856a8] dark:bg-[#143d7a] text-white">
           <div className="flex items-center justify-between px-3 py-1.5">
             <div className="flex items-center gap-2">
               <FileText className="w-5 h-5" />
               <span className="text-sm font-semibold">{file.name}</span>
+              <span className="text-[10px] text-white/60 ml-2">{wordCount} words</span>
             </div>
-            <Button size="sm" variant="ghost" className="text-white hover:bg-white/20 h-7" onClick={save}>
+            <Button size="sm" variant="ghost" className="text-white hover:bg-white/20 h-7" onClick={() => { save(); }}>
               <Save className="w-4 h-4 mr-1" /> Save
             </Button>
           </div>
-
-          {/* Ribbon tabs */}
-          <div className="flex items-center gap-1 px-2 text-xs bg-[#185abd]/80 dark:bg-[#1b3a6b]/80">
-            {(['home', 'insert', 'layout', 'references', 'review', 'view'] as const).map(tab => (
+          <div className="flex items-center gap-1 px-2 text-xs bg-[#1856a8]/80 dark:bg-[#143d7a]/80">
+            {(['home', 'insert'] as const).map(tab => (
               <span
                 key={tab}
-                className={cn(
-                  "px-3 py-1 rounded-t cursor-pointer capitalize",
-                  activeTab === tab ? "bg-white/20 font-medium" : "hover:bg-white/10"
-                )}
+                className={cn("px-3 py-1 rounded-t cursor-pointer capitalize", activeTab === tab ? "bg-white/20 font-medium" : "hover:bg-white/10")}
                 onClick={() => setActiveTab(tab)}
               >
-                {tab === 'references' ? 'References' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
               </span>
             ))}
+            <div className="flex-1" />
+            <div className="flex items-center gap-1">
+              <Button size="icon" variant="ghost" className="h-5 w-5 text-white/60 hover:text-white" onClick={() => setZoom(z => Math.max(50, z - 10))}>
+                <Minus className="w-3 h-3" />
+              </Button>
+              <span className="text-[10px] w-8 text-center">{zoom}%</span>
+              <Button size="icon" variant="ghost" className="h-5 w-5 text-white/60 hover:text-white" onClick={() => setZoom(z => Math.min(200, z + 10))}>
+                <Plus className="w-3 h-3" />
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Ribbon content */}
-        <div className="bg-background border-b border-border flex items-center gap-1 px-3 py-1.5 min-h-[40px] flex-wrap">
+        {/* Ribbon */}
+        <div className="flex items-center gap-1 px-3 py-1 border-b border-border bg-muted/10 flex-wrap min-h-9">
+          {/* Common buttons across all tabs */}
+          <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+            <Tooltip><TooltipTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().undo())}>
+                <Undo className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
+            <Tooltip><TooltipTrigger asChild>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().redo())}>
+                <Redo className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
+          </div>
+
           {activeTab === 'home' && (
             <>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { const prev = historyRef.current.pop(); if (!prev || !editorRef.current) return; redoRef.current.push(editorRef.current.innerHTML); editorRef.current.innerHTML = prev; }}><Undo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Undo</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { const next = redoRef.current.pop(); if (!next || !editorRef.current) return; historyRef.current.push(editorRef.current.innerHTML); editorRef.current.innerHTML = next; }}><Redo className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Redo</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().toggleBold().run())}>
+                    <Bold className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Bold (Ctrl+B)</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().toggleItalic().run())}>
+                    <Italic className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Italic (Ctrl+I)</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().toggleUnderline().run())}>
+                    <UnderlineIcon className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Underline (Ctrl+U)</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().toggleStrike().run())}>
+                    <Strikethrough className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Strikethrough</TooltipContent></Tooltip>
               </div>
-              <div className="flex items-center gap-1 pr-2 border-r border-border">
-                <Select defaultValue="calibri" onValueChange={(v) => exec('fontName', v)}>
-                  <SelectTrigger className="h-7 w-28 text-xs"><SelectValue /></SelectTrigger>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Select value={'p'} onValueChange={(v) => {
+                  if (!editor) return;
+                  if (v === 'p') editor.chain().focus().setParagraph().run();
+                  else if (v === 'h1') editor.chain().focus().toggleHeading({ level: 1 }).run();
+                  else if (v === 'h2') editor.chain().focus().toggleHeading({ level: 2 }).run();
+                  else if (v === 'pre') editor.chain().focus().toggleCodeBlock().run();
+                }}>
+                  <SelectTrigger className="h-7 w-24 text-xs">
+                    <SelectValue placeholder="Paragraph" />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="calibri">Calibri</SelectItem>
-                    <SelectItem value="arial">Arial</SelectItem>
-                    <SelectItem value="times">Times New Roman</SelectItem>
-                    <SelectItem value="georgia">Georgia</SelectItem>
-                    <SelectItem value="courier">Courier New</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select defaultValue="3" onValueChange={(v) => exec('fontSize', v)}>
-                  <SelectTrigger className="h-7 w-14 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[{l:'8',v:'1'},{l:'10',v:'2'},{l:'11',v:'3'},{l:'12',v:'3'},{l:'14',v:'4'},{l:'18',v:'5'},{l:'24',v:'6'},{l:'36',v:'7'}].map(s => (
-                      <SelectItem key={s.l} value={s.v}>{s.l}</SelectItem>
-                    ))}
+                    <SelectItem value="p" className="text-xs">Paragraph</SelectItem>
+                    <SelectItem value="h1" className="text-xs">Heading 1</SelectItem>
+                    <SelectItem value="h2" className="text-xs">Heading 2</SelectItem>
+                    <SelectItem value="pre" className="text-xs">Code Block</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('bold')}><Bold className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('italic')}><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('underline')}><Underline className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('strikeThrough')}><Strikethrough className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Strikethrough</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().setTextAlign('left').run())}>
+                    <AlignLeft className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().setTextAlign('center').run())}>
+                    <AlignCenter className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().setTextAlign('right').run())}>
+                    <AlignRight className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().setTextAlign('justify').run())}>
+                    <AlignJustify className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Justify</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('justifyLeft')}><AlignLeft className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('justifyCenter')}><AlignCenter className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('justifyRight')}><AlignRight className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('justifyFull')}><AlignJustify className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Justify</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-0.5">
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('insertUnorderedList')}><List className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bullets</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec('insertOrderedList')}><ListOrdered className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Numbering</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().toggleBulletList().run())}>
+                    <List className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Bullet List</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().toggleOrderedList().run())}>
+                    <ListOrdered className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Numbered List</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().toggleBlockquote().run())}>
+                    <Quote className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Quote</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => exec(() => editor?.chain().toggleCode().run())}>
+                    <Code className="w-3.5 h-3.5" />
+                  </Button>
+                </TooltipTrigger><TooltipContent>Inline Code</TooltipContent></Tooltip>
               </div>
             </>
           )}
@@ -400,145 +440,46 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
           {activeTab === 'insert' && (
             <>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertTable}><Table className="w-3.5 h-3.5" /> Table</Button></TooltipTrigger><TooltipContent>Insert 3×3 Table</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={handleImageUpload}><Image className="w-3.5 h-3.5" /> Picture</Button></TooltipTrigger><TooltipContent>Insert Picture</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertVideo}><Film className="w-3.5 h-3.5" /> Video</Button></TooltipTrigger><TooltipContent>Insert Video Link</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertLink}><Link className="w-3.5 h-3.5" /> Link</Button></TooltipTrigger><TooltipContent>Insert Hyperlink</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertBookmark}><Bookmark className="w-3.5 h-3.5" /> Bookmark</Button></TooltipTrigger><TooltipContent>Insert Bookmark</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertHeading(1)}><Heading1 className="w-3.5 h-3.5" /> H1</Button></TooltipTrigger><TooltipContent>Heading 1</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertHeading(2)}><Heading2 className="w-3.5 h-3.5" /> H2</Button></TooltipTrigger><TooltipContent>Heading 2</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertQuote}><Quote className="w-3.5 h-3.5" /> Quote</Button></TooltipTrigger><TooltipContent>Block Quote</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertCodeBlock}><Code className="w-3.5 h-3.5" /> Code</Button></TooltipTrigger><TooltipContent>Code Block</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertHorizontalRule}><SeparatorHorizontal className="w-3.5 h-3.5" /> Rule</Button></TooltipTrigger><TooltipContent>Horizontal Rule</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-0.5">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertHeader}><Heading1 className="w-3.5 h-3.5" /> Header</Button></TooltipTrigger><TooltipContent>Document Header</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertFooter}><SeparatorHorizontal className="w-3.5 h-3.5" /> Footer</Button></TooltipTrigger><TooltipContent>Document Footer</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertPageNumber}><Type className="w-3.5 h-3.5" /> Page #</Button></TooltipTrigger><TooltipContent>Page Number</TooltipContent></Tooltip>
-              </div>
-            </>
-          )}
-
-          {activeTab === 'layout' && (
-            <>
-              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={toggleMargins}><LayoutGrid className="w-3.5 h-3.5" /> Margins</Button></TooltipTrigger><TooltipContent>Page Margins</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={toggleOrientation}><FileImage className="w-3.5 h-3.5" /> Orientation</Button></TooltipTrigger><TooltipContent>Page Orientation</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={togglePaperSize}><Type className="w-3.5 h-3.5" /> Size</Button></TooltipTrigger><TooltipContent>Paper Size</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={toggleColumns}><Columns className="w-3.5 h-3.5" /> Columns</Button></TooltipTrigger><TooltipContent>Columns</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-0.5">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertHorizontalRule}><SeparatorHorizontal className="w-3.5 h-3.5" /> Breaks</Button></TooltipTrigger><TooltipContent>Page Breaks</TooltipContent></Tooltip>
-              </div>
-            </>
-          )}
-
-          {activeTab === 'references' && (
-            <>
-              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertTableOfContents}><BookOpen className="w-3.5 h-3.5" /> Table of Contents</Button></TooltipTrigger><TooltipContent>Table of Contents</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertFootnote}><Quote className="w-3.5 h-3.5" /> Footnote</Button></TooltipTrigger><TooltipContent>Insert Footnote</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertEndnote}><Code className="w-3.5 h-3.5" /> Endnote</Button></TooltipTrigger><TooltipContent>Insert Endnote</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-0.5">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertBibliography}><Bookmark className="w-3.5 h-3.5" /> Bibliography</Button></TooltipTrigger><TooltipContent>Bibliography</TooltipContent></Tooltip>
-              </div>
-            </>
-          )}
-
-          {activeTab === 'review' && (
-            <>
-              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={runSpellingCheck}><SpellCheck className="w-3.5 h-3.5" /> Spelling</Button></TooltipTrigger><TooltipContent>Spelling & Grammar</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertComment}><MessageSquare className="w-3.5 h-3.5" /> Comment</Button></TooltipTrigger><TooltipContent>New Comment</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setTrackChanges(v => !v)}><CheckSquare className="w-3.5 h-3.5" /> Track Changes</Button></TooltipTrigger><TooltipContent>Track Changes</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-0.5">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={doFind}><Search className="w-3.5 h-3.5" /> Find</Button></TooltipTrigger><TooltipContent>Find</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={doReplace}><Replace className="w-3.5 h-3.5" /> Replace</Button></TooltipTrigger><TooltipContent>Replace</TooltipContent></Tooltip>
-              </div>
-            </>
-          )}
-
-          {activeTab === 'view' && (
-            <>
-              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setZoom(120)}><Eye className="w-3.5 h-3.5" /> Reading</Button></TooltipTrigger><TooltipContent>Reading View</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setZoom(100)}><LayoutGrid className="w-3.5 h-3.5" /> Print Layout</Button></TooltipTrigger><TooltipContent>Print Layout</TooltipContent></Tooltip>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-muted-foreground">Zoom:</span>
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setZoom(z => Math.max(50, z - 10))}><Minus className="w-3 h-3" /></Button>
-                <span className="text-xs w-8 text-center">{zoom}%</span>
-                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setZoom(z => Math.min(200, z + 10))}><Plus className="w-3 h-3" /></Button>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertTable}>
+                    <TableIcon className="w-3.5 h-3.5" /> Table
+                  </Button>
+                </TooltipTrigger><TooltipContent>Insert Table</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertImage}>
+                    <Image className="w-3.5 h-3.5" /> Image
+                  </Button>
+                </TooltipTrigger><TooltipContent>Insert Image</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertLink}>
+                    <LinkIcon className="w-3.5 h-3.5" /> Link
+                  </Button>
+                </TooltipTrigger><TooltipContent>Insert Link</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild>
+                  <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={insertHorizontalRule}>
+                    <SeparatorHorizontal className="w-3.5 h-3.5" /> HR
+                  </Button>
+                </TooltipTrigger><TooltipContent>Horizontal Rule</TooltipContent></Tooltip>
               </div>
             </>
           )}
         </div>
 
-        {/* Ruler (decorative) */}
-        <div className="h-6 bg-background border-b border-border flex items-center px-12">
-          <div className="flex-1 h-px bg-muted-foreground/20 relative">
-            {[0, 1, 2, 3, 4, 5, 6].map(i => (
-              <div key={i} className="absolute top-0 -translate-y-2" style={{ left: `${i * 16.66}%` }}>
-                <div className="w-px h-2 bg-muted-foreground/40" />
-                <span className="text-[8px] text-muted-foreground/50 -translate-x-1/2 block">{i}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Document canvas */}
-        <ScrollArea className="flex-1 bg-[#e8e8e8] dark:bg-[#1a1a1a]">
+        {/* Document area */}
+        <ScrollArea className="flex-1 bg-[#f5f5f0] dark:bg-[#1a1a1a]">
           <div className="flex justify-center py-8">
             <div
-              className="bg-white dark:bg-[#2d2d2d] shadow-lg rounded-sm"
+              className="bg-card shadow-xl rounded-sm"
               style={{
-                width: Math.round((isLandscape ? 792 : 612) * (zoom / 100)),
-                minHeight: Math.round((isLandscape ? 612 : 792) * (zoom / 100)),
-                padding: `${Math.round(pageMargin * (zoom / 100))}px ${Math.round(pageMargin * (zoom / 100))}px`,
+                width: paperSize === 'letter' ? '816px' : '794px',
+                transform: `scale(${zoom / 100})`,
+                transformOrigin: 'top center',
               }}
             >
-              <div
-                ref={editorRef}
-                contentEditable
-                suppressContentEditableWarning
-                className="outline-none min-h-[200px] text-sm leading-relaxed"
-                style={{ fontSize: Math.round(11 * (zoom / 100)), columnCount, columnGap: columnCount > 1 ? '24px' : undefined, borderLeft: trackChanges ? '2px solid hsl(var(--primary))' : undefined, paddingLeft: trackChanges ? '8px' : undefined }}
-                onInput={handleEditorInput}
-              />
+              {editor && <EditorContent editor={editor} />}
             </div>
           </div>
         </ScrollArea>
-
-        {/* Status bar */}
-        <div className="flex items-center justify-between px-3 py-1 bg-[#185abd] dark:bg-[#1b3a6b] text-white text-xs">
-          <div className="flex items-center gap-4">
-            <span>Page 1 of 1</span>
-            <span>{wordCount} words</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button size="icon" variant="ghost" className="h-5 w-5 text-white hover:bg-white/20" onClick={() => setZoom(z => Math.max(50, z - 10))}>
-              <Minus className="w-3 h-3" />
-            </Button>
-            <span>{zoom}%</span>
-            <Button size="icon" variant="ghost" className="h-5 w-5 text-white hover:bg-white/20" onClick={() => setZoom(z => Math.min(200, z + 10))}>
-              <Plus className="w-3 h-3" />
-            </Button>
-          </div>
-        </div>
       </div>
     </TooltipProvider>
   );

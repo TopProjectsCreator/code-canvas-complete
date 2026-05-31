@@ -2928,256 +2928,79 @@ const pdfParams: APIParameter[] = [
   ]},
 ];
 
+// ============ Shared Cloud / Platform API Params (for unique expanded catalog entries) ============
 
-
-const expandedApiCatalog: Array<[string, AutomationAuthType, string, APIParameter[]]> = [
-  ['Google Calendar', 'free', 'Google Calendar API (events.list/events.insert).', [{ name: 'calendar_id', displayName: 'Calendar ID', type: 'string', required: true, placeholder: 'primary' }, { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'events.list', options: [{ label: 'List events', value: 'events.list' }, { label: 'Create event', value: 'events.insert' }] }, { name: 'time_min', displayName: 'Time Min (RFC3339)', type: 'string', placeholder: '2026-05-01T00:00:00Z' }]],
-  ['Google Tasks', 'free', 'Google Tasks API (tasks.list/tasks.insert).', [{ name: 'tasklist_id', displayName: 'Task List ID', type: 'string', required: true, placeholder: '@default' }, { name: 'operation', displayName: 'Operation', type: 'select', default: 'tasks.list', options: [{ label: 'List tasks', value: 'tasks.list' }, { label: 'Create task', value: 'tasks.insert' }] }, { name: 'title', displayName: 'Task Title', type: 'string' }]],
-  ['Google People', 'free', 'Google People endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Docs', 'free', 'Google Docs endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Slides', 'free', 'Google Slides endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Forms', 'free', 'Google Forms endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Photos', 'free', 'Google Photos endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['YouTube Data', 'free', 'YouTube Data endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['YouTube Analytics', 'free', 'YouTube Analytics endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Search Console', 'free', 'Google Search Console endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Business Profile', 'free', 'Google Business Profile endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Admin SDK', 'free', 'Google Admin SDK endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Classroom', 'free', 'Google Classroom endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Books', 'free', 'Google Books endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Translate', 'free', 'Google Translate endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Vision', 'free', 'Google Vision endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Natural Language', 'free', 'Google Natural Language endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google BigQuery', 'free', 'Google BigQuery endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Pub/Sub', 'free', 'Google Pub/Sub endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Google Cloud Run Admin', 'free', 'Google Cloud Run Admin endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['AWS Lambda', 'api_key', 'AWS Lambda endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['AWS EventBridge', 'api_key', 'AWS EventBridge endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['AWS DynamoDB', 'api_key', 'AWS DynamoDB endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['AWS SQS', 'api_key', 'AWS SQS endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['AWS SNS', 'api_key', 'AWS SNS endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['AWS Step Functions', 'api_key', 'AWS Step Functions endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['AWS CloudWatch', 'api_key', 'AWS CloudWatch endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['AWS Rekognition', 'api_key', 'AWS Rekognition endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['AWS Comprehend', 'api_key', 'AWS Comprehend endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['AWS Textract', 'api_key', 'AWS Textract endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Azure OpenAI', 'api_key', 'Azure OpenAI endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Azure Cognitive Search', 'api_key', 'Azure Cognitive Search endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Azure Cosmos DB', 'api_key', 'Azure Cosmos DB endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Azure Service Bus', 'api_key', 'Azure Service Bus endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Azure Event Grid', 'api_key', 'Azure Event Grid endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Azure Monitor', 'api_key', 'Azure Monitor endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Azure DevOps Boards', 'api_key', 'Azure DevOps Boards endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Microsoft Graph Mail', 'free', 'Microsoft Graph Mail endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Microsoft Graph Calendar', 'free', 'Microsoft Graph Calendar endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Microsoft Graph OneDrive', 'free', 'Microsoft Graph OneDrive endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Microsoft Planner', 'api_key', 'Microsoft Planner endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Microsoft To Do', 'api_key', 'Microsoft To Do endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Microsoft SharePoint', 'api_key', 'Microsoft SharePoint endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Microsoft Intune', 'api_key', 'Microsoft Intune endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Notion Search', 'free', 'Notion Search endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Notion Pages', 'free', 'Notion Pages endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Airtable Records', 'free', 'Airtable Records endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Coda Docs', 'free', 'Coda Docs endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Asana Tasks', 'free', 'Asana Tasks endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  
-  ['ClickUp Tasks', 'free', 'ClickUp Tasks endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Linear Issues', 'free', 'Linear Issues endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Jira Service Management', 'api_key', 'Jira Service Management endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['GitHub Issues', 'free', 'GitHub Issues endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['GitHub Actions', 'free', 'GitHub Actions endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['GitHub Packages', 'free', 'GitHub Packages endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['GitLab Merge Requests', 'free', 'GitLab Merge Requests endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Bitbucket Pipelines', 'free', 'Bitbucket Pipelines endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['PagerDuty Incidents', 'api_key', 'PagerDuty Incidents endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Opsgenie Alerts', 'api_key', 'Opsgenie Alerts endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Datadog Metrics', 'free', 'Datadog Metrics endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Sentry Events', 'free', 'Sentry Events endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['New Relic NerdGraph', 'api_key', 'New Relic NerdGraph endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Snowflake SQL API', 'api_key', 'Snowflake SQL API endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['BigQuery Data Transfer', 'api_key', 'BigQuery Data Transfer endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Redshift Data API', 'api_key', 'Redshift Data API endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Postgres HTTP API', 'api_key', 'Postgres HTTP API endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['MongoDB Data API', 'api_key', 'MongoDB Data API endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Elasticsearch Query', 'free', 'Elasticsearch Query endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Meilisearch Index', 'free', 'Meilisearch Index endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Algolia Search API', 'api_key', 'Algolia Search API endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Pinecone Vector API', 'api_key', 'Pinecone Vector API endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Weaviate GraphQL API', 'free', 'Weaviate GraphQL API endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Qdrant Collections', 'free', 'Qdrant Collections endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Stripe Checkout', 'api_key', 'Stripe Checkout endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Stripe Billing', 'api_key', 'Stripe Billing endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['PayPal Orders', 'api_key', 'PayPal Orders endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Square Payments', 'api_key', 'Square Payments endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Braintree Transactions', 'api_key', 'Braintree Transactions endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Adyen Payments', 'api_key', 'Adyen Payments endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Shopify Admin', 'api_key', 'Shopify Admin endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['WooCommerce REST', 'free', 'WooCommerce REST endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Salesforce REST', 'api_key', 'Salesforce REST endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['HubSpot CRM', 'free', 'HubSpot CRM endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Pipedrive Deals', 'api_key', 'Pipedrive Deals endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Zendesk Tickets', 'api_key', 'Zendesk Tickets endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Freshdesk Tickets', 'free', 'Freshdesk Tickets endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Intercom Conversations', 'free', 'Intercom Conversations endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Twilio Verify', 'api_key', 'Twilio Verify endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Twilio Conversations', 'api_key', 'Twilio Conversations endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Vonage Messages', 'api_key', 'Vonage Messages endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['SendGrid Marketing', 'api_key', 'SendGrid Marketing endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Mailchimp Marketing', 'api_key', 'Mailchimp Marketing endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Brevo Contacts', 'api_key', 'Brevo Contacts endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Klaviyo Profiles', 'api_key', 'Klaviyo Profiles endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Segment Track', 'api_key', 'Segment Track endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Mixpanel Events', 'api_key', 'Mixpanel Events endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Amplitude HTTP API', 'api_key', 'Amplitude HTTP API endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['PostHog Capture', 'free', 'PostHog Capture endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
-  ['Cloudflare Workers API', 'api_key', 'Cloudflare Workers API endpoint-driven integration with provider-specific route and payload expectations.', [{ name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'See provider docs' }, { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/create/update/delete' }, { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"example":true}' }]],
+const cloudApiParams: APIParameter[] = [
+  { name: 'resource', displayName: 'Resource Path', type: 'string', required: true, placeholder: 'projects/my-project/locations/us-central1' },
+  { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/get/create/update/delete' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"key": "value"}' },
 ];
 
-
-const calendlyParams: APIParameter[] = [
-  { name: 'organization_uri', displayName: 'Organization URI', type: 'string', required: true, placeholder: 'https://api.calendly.com/organizations/...' },
-  { name: 'operation', displayName: 'Operation', type: 'select', default: 'list_events', options: [{ label: 'List Scheduled Events', value: 'list_events' }, { label: 'List Event Invitees', value: 'list_invitees' }] },
-  { name: 'min_start_time', displayName: 'Min Start Time (RFC3339)', type: 'string' },
+const awsApiParams: APIParameter[] = [
+  { name: 'region', displayName: 'AWS Region', type: 'string', default: 'us-east-1' },
+  { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'ListFunctions/Invoke/CreateFunction' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea', placeholder: '{"FunctionName":"my-func"}' },
 ];
-const outlookCalendarParams: APIParameter[] = [
-  { name: 'user_id', displayName: 'User ID', type: 'string', default: 'me' },
+
+const azureApiParams: APIParameter[] = [
+  { name: 'resource_group', displayName: 'Resource Group', type: 'string', required: true },
+  { name: 'operation', displayName: 'Operation', type: 'string', required: true },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea' },
+];
+
+const msGraphApiParams: APIParameter[] = [
+  { name: 'tenant_id', displayName: 'Tenant ID', type: 'string', required: true, placeholder: 'common' },
+  { name: 'resource', displayName: 'Resource', type: 'string', required: true, placeholder: 'users/user-id/messages' },
+  { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/get/create/update' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea' },
+];
+
+const databaseQueryParams: APIParameter[] = [
+  { name: 'connection_string', displayName: 'Connection String', type: 'password', required: true },
+  { name: 'query', displayName: 'SQL / Query', type: 'textarea', required: true },
+  { name: 'params', displayName: 'Parameters (JSON)', type: 'textarea', placeholder: '{"param1":"value1"}' },
+];
+
+const calendarApiParams: APIParameter[] = [
   { name: 'calendar_id', displayName: 'Calendar ID', type: 'string', default: 'primary' },
-  { name: 'operation', displayName: 'Operation', type: 'select', default: 'list_events', options: [{ label: 'List Events', value: 'list_events' }, { label: 'Create Event', value: 'create_event' }] },
+  { name: 'operation', displayName: 'Operation', type: 'select', default: 'list_events', options: [
+    { label: 'List Events', value: 'list_events' },
+    { label: 'Create Event', value: 'create_event' },
+    { label: 'Update Event', value: 'update_event' },
+    { label: 'Delete Event', value: 'delete_event' },
+  ]},
+  { name: 'time_min', displayName: 'Time Min (RFC3339)', type: 'string', placeholder: '2026-01-01T00:00:00Z' },
+  { name: 'time_max', displayName: 'Time Max (RFC3339)', type: 'string', placeholder: '2026-12-31T23:59:59Z' },
 ];
-const asanaTasksApiParams: APIParameter[] = [{ name:'workspace_gid',displayName:'Workspace GID',type:'string',required:true },{ name:'project_gid',displayName:'Project GID',type:'string' },{ name:'operation',displayName:'Operation',type:'select',default:'tasks.search',options:[{label:'Search Tasks',value:'tasks.search'},{label:'Create Task',value:'tasks.create'}]}];
-const linearGraphqlParams: APIParameter[] = [{ name:'team_id',displayName:'Team ID',type:'string'},{ name:'query',displayName:'GraphQL Query',type:'textarea',required:true},{ name:'variables',displayName:'Variables (JSON)',type:'textarea'}];
-const clickupV2Params: APIParameter[] = [{ name:'list_id',displayName:'List ID',type:'string',required:true},{ name:'operation',displayName:'Operation',type:'select',default:'get_tasks',options:[{label:'Get Tasks',value:'get_tasks'},{label:'Create Task',value:'create_task'}]},{ name:'task_name',displayName:'Task Name',type:'string'}];
-const trelloCardsApiParams: APIParameter[] = [{ name:'board_id',displayName:'Board ID',type:'string',required:true},{ name:'list_id',displayName:'List ID',type:'string'},{ name:'operation',displayName:'Operation',type:'select',default:'list_cards',options:[{label:'List Cards',value:'list_cards'},{label:'Create Card',value:'create_card'}]}];
-const discordBotApiParams: APIParameter[] = [{ name:'channel_id',displayName:'Channel ID',type:'string',required:true},{ name:'content',displayName:'Message Content',type:'textarea',required:true},{ name:'tts',displayName:'Text To Speech',type:'boolean',default:false}];
-const msTeamsGraphParams: APIParameter[] = [{ name:'team_id',displayName:'Team ID',type:'string',required:true},{ name:'channel_id',displayName:'Channel ID',type:'string',required:true},{ name:'message',displayName:'Message',type:'textarea',required:true}];
 
-const sendgridMailSendParams: APIParameter[] = [{ name:'from_email',displayName:'From Email',type:'email',required:true},{ name:'to_email',displayName:'To Email',type:'email',required:true},{ name:'subject',displayName:'Subject',type:'string',required:true},{ name:'html_content',displayName:'HTML Content',type:'textarea'}];
-const mailgunMessagesParams: APIParameter[] = [{ name:'domain',displayName:'Domain',type:'string',required:true},{ name:'to',displayName:'To',type:'email',required:true},{ name:'subject',displayName:'Subject',type:'string',required:true},{ name:'text',displayName:'Text Body',type:'textarea'}];
-const postmarkServerParams: APIParameter[] = [{ name:'from',displayName:'From',type:'email',required:true},{ name:'to',displayName:'To',type:'email',required:true},{ name:'subject',displayName:'Subject',type:'string',required:true},{ name:'html_body',displayName:'HTML Body',type:'textarea'}];
-const resendEmailsParams: APIParameter[] = [{ name:'from',displayName:'From',type:'email',required:true},{ name:'to',displayName:'To (comma)',type:'string',required:true},{ name:'subject',displayName:'Subject',type:'string',required:true},{ name:'react_or_html',displayName:'Body',type:'textarea'}];
-const brevoTransactionalParams: APIParameter[] = [{ name:'sender_email',displayName:'Sender Email',type:'email',required:true},{ name:'recipient_email',displayName:'Recipient Email',type:'email',required:true},{ name:'template_id',displayName:'Template ID',type:'number'},{ name:'params_json',displayName:'Params (JSON)',type:'textarea'}];
-const amazonSesV2Params: APIParameter[] = [{ name:'from_email',displayName:'From',type:'email',required:true},{ name:'destination_to',displayName:'To',type:'string',required:true},{ name:'subject',displayName:'Subject',type:'string',required:true},{ name:'body_text',displayName:'Body Text',type:'textarea'}];
-const codeRepoParams: APIParameter[] = [{ name:'workspace',displayName:'Workspace/Project',type:'string'},{ name:'repo_slug',displayName:'Repository Slug',type:'string',required:true},{ name:'operation',displayName:'Operation',type:'select',default:'list_repos',options:[{label:'List Repositories',value:'list_repos'},{label:'List Pipelines',value:'list_pipelines'}]}];
-const cicdParams: APIParameter[] = [{ name:'project_slug',displayName:'Project Slug',type:'string',required:true},{ name:'branch',displayName:'Branch',type:'string',default:'main'},{ name:'operation',displayName:'Operation',type:'select',default:'trigger_pipeline',options:[{label:'Trigger Pipeline',value:'trigger_pipeline'},{label:'Get Pipeline Status',value:'pipeline_status'}]}];
-const llmGenericParams: APIParameter[] = [{ name:'model',displayName:'Model ID',type:'string',required:true},{ name:'messages_json',displayName:'Messages (JSON)',type:'textarea',required:true},{ name:'max_tokens',displayName:'Max Tokens',type:'number',default:1024}];
-const mediaGenParams: APIParameter[] = [{ name:'prompt',displayName:'Prompt',type:'textarea',required:true},{ name:'aspect_ratio',displayName:'Aspect Ratio',type:'select',default:'1:1',options:[{label:'1:1',value:'1:1'},{label:'16:9',value:'16:9'}]},{ name:'num_outputs',displayName:'Number of Outputs',type:'number',default:1}];
-const audioParams: APIParameter[] = [{ name:'input_audio_url',displayName:'Input Audio URL',type:'url'},{ name:'text',displayName:'Text Input',type:'textarea'},{ name:'language',displayName:'Language',type:'string',default:'en'},{ name:'output_format',displayName:'Output Format',type:'select',default:'mp3',options:[{label:'MP3',value:'mp3'},{label:'WAV',value:'wav'}]}];
-const meetingParams: APIParameter[] = [{ name:'agenda',displayName:'Agenda/Topic',type:'string',required:true},{ name:'start_time',displayName:'Start Time (ISO8601)',type:'string',required:true},{ name:'duration_minutes',displayName:'Duration Minutes',type:'number',default:30},{ name:'timezone',displayName:'Timezone',type:'string',default:'UTC'}];
-const driveParams: APIParameter[] = [{ name:'folder_id',displayName:'Folder ID',type:'string'},{ name:'operation',displayName:'Operation',type:'select',default:'list_files',options:[{label:'List Files',value:'list_files'},{label:'Upload by URL',value:'upload_by_url'},{label:'Share Link',value:'create_share_link'}]},{ name:'file_id',displayName:'File ID',type:'string'},{ name:'source_url',displayName:'Source File URL',type:'url'}];
-const expandedApiCatalogV2: Array<[string, AutomationAuthType, string, APIParameter[]]> = [
-  ['Airtable Metadata', 'api_key', 'Airtable Metadata API for bases/tables schema discovery.', analyticsParams],
-  ['Calendly Scheduling', 'api_key', 'Calendly Scheduling API for events and invitees.', calendlyParams],
-  ['HubSpot CRM v3', 'api_key', 'HubSpot CRM v3 objects/search endpoints.', hubspotParams],
-  ['Salesforce REST', 'api_key', 'Salesforce REST API for sObjects/query.', salesforceParams],
-  ['Notion Search', 'free', 'Notion API search/pages/databases.', notionParams],
-  ['Asana Tasks API', 'free', 'Asana tasks and projects endpoints.', asanaTasksApiParams],
-  ['Linear GraphQL', 'api_key', 'Linear GraphQL API for issues/projects.', linearGraphqlParams],
-  ['Jira Cloud v3', 'api_key', 'Jira Cloud REST API v3 for issues/workflows.', jiraParams],
-  ['ClickUp v2', 'api_key', 'ClickUp v2 API for tasks/lists.', clickupV2Params],
-  ['Monday Work OS', 'api_key', 'monday.com GraphQL API for boards/items.', mondayComParams],
-  ['Trello Cards API', 'free', 'Trello API for cards/lists/boards.', trelloCardsApiParams],
-  ['Todoist REST v2', 'free', 'Todoist REST API v2 for tasks/projects.', todoistParams],
-  ['Slack Web API', 'api_key', 'Slack Web API chat.postMessage and conversations.list.', slackParams],
-  ['Discord Bot API', 'api_key', 'Discord bot API for channels/messages.', discordBotApiParams],
-  ['Microsoft Teams Graph', 'api_key', 'Microsoft Graph API for Teams messages/chats.', msTeamsGraphParams],
-  ['Twilio Conversations', 'api_key', 'Twilio Conversations API for SMS/chat threads.', twilioParams],
-  ['Vonage Messages API', 'api_key', 'Vonage Messages API for omnichannel messaging.', twilioParams],
-  ['SendGrid Mail Send', 'api_key', 'Twilio SendGrid Mail Send API.', sendgridMailSendParams],
-  ['Mailgun Messages', 'api_key', 'Mailgun Messages API for transactional email.', mailgunMessagesParams],
-  ['Postmark Server API', 'api_key', 'Postmark email send/templates API.', postmarkServerParams],
-  ['Resend Emails API', 'api_key', 'Resend API for send/broadcast emails.', resendEmailsParams],
-  ['Brevo Transactional', 'api_key', 'Brevo SMTP/API transactional endpoints.', brevoTransactionalParams],
-  ['Amazon SES v2', 'api_key', 'Amazon SES v2 email sending endpoints.', amazonSesV2Params],
-  ['Stripe PaymentIntents', 'api_key', 'Stripe PaymentIntents API create/confirm/capture.', stripeParams],
-  ['PayPal Orders v2', 'api_key', 'PayPal Orders v2 capture/authorize flows.', paypalParams],
-  ['Square Payments', 'api_key', 'Square Payments API create/list refunds.', squareParams],
-  ['Adyen Checkout', 'api_key', 'Adyen Checkout API payments/sessions.', paymentGatewayParams],
-  ['Braintree Transactions', 'api_key', 'Braintree transaction and customer APIs.', paymentGatewayParams],
-  ['Paddle Billing', 'api_key', 'Paddle subscriptions/pricing API.', paymentGatewayParams],
-  ['Razorpay Orders', 'api_key', 'Razorpay orders/payments/refunds APIs.', paymentGatewayParams],
-  ['Shopify Admin', 'api_key', 'Shopify Admin REST/GraphQL APIs.', shopifyParams],
-  ['WooCommerce REST', 'free', 'WooCommerce REST API products/orders.', woocommerceParams],
-  ['BigCommerce V3', 'api_key', 'BigCommerce v3 catalog/orders APIs.', storefrontParams],
-  ['Etsy Open API', 'api_key', 'Etsy API for listings/shops/orders.', storefrontParams],
-  ['Gumroad API', 'free', 'Gumroad API for products/sales.', storefrontParams],
-  ['Printful API', 'api_key', 'Printful API orders/shipping endpoints.', storefrontParams],
-  ['Shippo API', 'api_key', 'Shippo labels/tracking/rates APIs.', logisticsParams],
-  ['EasyPost API', 'api_key', 'EasyPost shipments/trackers APIs.', logisticsParams],
-  ['AfterShip Tracking', 'api_key', 'AfterShip tracking and webhook APIs.', logisticsParams],
-  ['FedEx Track API', 'api_key', 'FedEx tracking/rate APIs.', logisticsParams],
-  ['UPS Shipping API', 'api_key', 'UPS shipping/rates/tracking API.', logisticsParams],
-  ['USPS Web Tools', 'free', 'USPS tracking/address APIs.', logisticsParams],
-  ['Google Maps Platform', 'api_key', 'Maps Geocoding/Places/Directions APIs.', weatherParams],
-  ['Mapbox APIs', 'free', 'Mapbox geocoding/directions/static APIs.', weatherParams],
-  ['OpenWeather One Call', 'free', 'OpenWeather One Call API forecasts/alerts.', weatherParams],
-  ['Tomorrow.io Weather', 'free', 'Tomorrow.io timelines and realtime APIs.', weatherParams],
-  ['AccuWeather API', 'api_key', 'AccuWeather forecasts/current conditions APIs.', weatherParams],
-  ['AirVisual API', 'api_key', 'IQAir AirVisual air quality APIs.', weatherParams],
-  ['Algolia Search', 'api_key', 'Algolia search/indexing API.', searchParams],
-  ['Meilisearch API', 'free', 'Meilisearch indexes/documents/search endpoints.', searchParams],
-  ['Elasticsearch API', 'free', 'Elasticsearch query/index APIs.', searchParams],
-  ['Typesense API', 'free', 'Typesense collections/search APIs.', searchParams],
-  ['Pinecone Vector API', 'api_key', 'Pinecone vectors/upsert/query APIs.', searchParams],
-  ['Weaviate API', 'free', 'Weaviate objects/graphql search APIs.', searchParams],
-  ['Qdrant API', 'free', 'Qdrant points/collections/search APIs.', searchParams],
-  ['Chroma API', 'free', 'Chroma collections/query APIs.', searchParams],
-  ['Google Analytics Data', 'api_key', 'Google Analytics Data API runReport.', analyticsParams],
-  ['Plausible Stats API', 'free', 'Plausible stats/timeseries endpoints.', analyticsParams],
-  ['PostHog API', 'free', 'PostHog events/insights APIs.', analyticsParams],
-  ['Looker API', 'api_key', 'Looker API for queries/dashboards.', analyticsParams],
-  ['Tableau REST API', 'api_key', 'Tableau REST API for sites/workbooks.', analyticsParams],
-  ['Metabase API', 'free', 'Metabase cards/dashboards/query APIs.', analyticsParams],
-  ['Grafana HTTP API', 'free', 'Grafana dashboards/alerts APIs.', analyticsParams],
-  ['Sentry Issues API', 'free', 'Sentry issues/events API.', sentryParams],
-  ['Datadog Metrics API', 'api_key', 'Datadog metrics/events APIs.', datadogParams],
-  ['New Relic NerdGraph', 'api_key', 'New Relic NerdGraph for entities/query.', monitoringParams],
-  ['Honeycomb API', 'free', 'Honeycomb datasets/queries APIs.', monitoringParams],
-  ['Pingdom API', 'api_key', 'Pingdom checks/results APIs.', monitoringParams],
-  ['UptimeRobot API', 'free', 'UptimeRobot monitors/alerts API.', uptimeRobotParams],
-  ['Vercel API', 'free', 'Vercel deployments/projects APIs.', vercelParams],
-  ['Netlify API', 'free', 'Netlify sites/deploys/functions API.', netlifyParams],
-  ['Cloudflare API', 'free', 'Cloudflare zones/dns/workers APIs.', securityParams],
-  ['GitHub REST v3', 'api_key', 'GitHub REST v3 repos/issues/pulls endpoints.', githubParams],
-  ['GitLab API v4', 'api_key', 'GitLab projects/merge_requests API.', gitlabParams],
-  ['Bitbucket API 2.0', 'api_key', 'Bitbucket repositories/pipelines API.', codeRepoParams],
-  ['CircleCI API v2', 'api_key', 'CircleCI pipelines/workflows APIs.', cicdParams],
-  ['Jenkins API', 'api_key', 'Jenkins build/job REST endpoints.', cicdParams],
-  ['Docker Hub API', 'free', 'Docker Hub repos/tags APIs.', dockerhubParams],
-  ['OpenAI Responses API', 'api_key', 'OpenAI Responses API text/tools calls.', openaiParams],
-  ['Anthropic Messages', 'api_key', 'Anthropic Messages API for Claude models.', llmGenericParams],
-  ['Cohere Generate', 'api_key', 'Cohere Generate/Embed APIs.', llmGenericParams],
-  ['Mistral API', 'api_key', 'Mistral chat/embeddings APIs.', llmGenericParams],
-  ['Perplexity API', 'api_key', 'Perplexity chat completions API.', llmGenericParams],
-  ['Replicate API', 'api_key', 'Replicate predictions/models API.', mediaGenParams],
-  ['Stability AI API', 'api_key', 'Stability text-to-image APIs.', mediaGenParams],
-  ['Runway API', 'api_key', 'Runway media generation APIs.', mediaGenParams],
-  ['ElevenLabs API', 'api_key', 'ElevenLabs text-to-speech/voices APIs.', audioParams],
-  ['AssemblyAI API', 'api_key', 'AssemblyAI transcription/summarization APIs.', audioParams],
-  ['Deepgram API', 'api_key', 'Deepgram speech-to-text APIs.', audioParams],
-  ['Zoom API', 'api_key', 'Zoom meetings/webinars APIs.', meetingParams],
-  ['Google Meet API', 'api_key', 'Google Meet spaces/conference APIs.', meetingParams],
-  ['Microsoft Graph Mail', 'api_key', 'Microsoft Graph mail/send APIs.', outlookParams],
-  ['Outlook Calendar Graph', 'api_key', 'Microsoft Graph calendar events APIs.', outlookCalendarParams],
-  ['Dropbox API v2', 'api_key', 'Dropbox files/list/upload APIs.', driveParams],
-  ['Google Drive API v3', 'free', 'Google Drive files/permissions APIs.', driveParams],
-  ['OneDrive Graph API', 'api_key', 'OneDrive file APIs via Microsoft Graph.', driveParams],
-  ['Box API', 'api_key', 'Box files/folders/collab APIs.', driveParams],
-  ['Airtable Records API', 'api_key', 'Airtable records list/create/update APIs.', spreadsheetParams],
-  ['Smartsheet API', 'api_key', 'Smartsheet sheets/rows APIs.', spreadsheetParams],
-  ['Coda API', 'api_key', 'Coda docs/tables/rows APIs.', spreadsheetParams],
-  ['QuickBooks Online API', 'api_key', 'QuickBooks accounting entities APIs.', financeParams],
-  ['Xero Accounting API', 'api_key', 'Xero invoices/contacts APIs.', financeParams],
-  ['Plaid API', 'api_key', 'Plaid link/accounts/transactions APIs.', financeParams],
-  ['Wise API', 'api_key', 'Wise quotes/transfers APIs.', financeParams],
-  ['DocuSign eSignature', 'api_key', 'DocuSign envelopes/recipients APIs.', eSignParams],
-  ['Dropbox Sign API', 'api_key', 'Dropbox Sign signature request APIs.', eSignParams],
-  ['PandaDoc API', 'api_key', 'PandaDoc documents/templates APIs.', eSignParams],
-  ['Twilio Verify API', 'api_key', 'Twilio Verify OTP verification API.', identityParams],
-  ['Auth0 Management API', 'free', 'Auth0 users/roles/client APIs.', identityParams],
-  ['Okta API', 'api_key', 'Okta users/groups/apps APIs.', identityParams],
-  ['VirusTotal API', 'free', 'VirusTotal file/url intelligence API.', securityParams],
-  ['Shodan API', 'api_key', 'Shodan host/search APIs.', securityParams],
-  ['HaveIBeenPwned API', 'api_key', 'HIBP breached account/password APIs.', securityParams],
+const googleServiceParams: APIParameter[] = [
+  { name: 'project_id', displayName: 'Project ID', type: 'string', required: true },
+  { name: 'operation', displayName: 'Operation', type: 'string', required: true, placeholder: 'list/get/create' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea' },
+];
+
+const mailchimpMarketingParams: APIParameter[] = [
+  { name: 'audience_id', displayName: 'Audience ID', type: 'string', required: true },
+  { name: 'operation', displayName: 'Operation', type: 'select', default: 'add_member', options: [
+    { label: 'Add Member', value: 'add_member' },
+    { label: 'Create Campaign', value: 'create_campaign' },
+    { label: 'Send Campaign', value: 'send_campaign' },
+    { label: 'Get Reports', value: 'get_reports' },
+  ]},
+  { name: 'email', displayName: 'Email Address', type: 'email' },
+  { name: 'payload', displayName: 'Payload (JSON)', type: 'textarea' },
+];
+
+const klaviyoParams: APIParameter[] = [
+  { name: 'operation', displayName: 'Operation', type: 'select', default: 'track_event', options: [
+    { label: 'Track Event', value: 'track_event' },
+    { label: 'Identify Profile', value: 'identify_profile' },
+    { label: 'Get Profiles', value: 'get_profiles' },
+    { label: 'Create List', value: 'create_list' },
+  ]},
+  { name: 'event_name', displayName: 'Event Name', type: 'string', placeholder: 'Placed Order' },
+  { name: 'customer_properties', displayName: 'Customer Properties (JSON)', type: 'textarea', placeholder: '{"$email":"user@example.com"}' },
+  { name: 'properties', displayName: 'Event Properties (JSON)', type: 'textarea', placeholder: '{"value":29.99}' },
 ];
 
 const stripeRadarApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
@@ -3188,21 +3011,7 @@ const zendeskTicketsApiParams: APIParameter[] = [{ name: 'operation', displayNam
 const intercomContactsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const notionBlocksApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const airtableWebApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const googleSheetsValuesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const slackConversationsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const discordInteractionsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const twilioVerifyV2ApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const sendgridContactsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const mailchimpMarketingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const shopifyStorefrontApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const woocommerceOrdersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const bigcommerceCatalogApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const amazonSpApiOrdersParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const etsyShopApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const stripeBillingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const paypalPayoutsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const squareCatalogApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const razorpaySubscriptionsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+
 const adyenTransfersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const braintreeVaultApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const fedexRatesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
@@ -3281,168 +3090,30 @@ const novuEventsApiParams: APIParameter[] = [{ name: 'operation', displayName: '
 const courierSendApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const knockWorkflowsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 
-const expandedApiCatalogV3: Array<[string, AutomationAuthType, string, APIParameter[]]> = [
-  ['Stripe Radar API', 'api_key', 'Stripe Radar fraud review endpoints.', stripeRadarApiParams],
-  ['Plaid Transactions API', 'api_key', 'Plaid transactions/sync endpoints.', plaidTransactionsApiParams],
-  ['HubSpot Marketing API', 'api_key', 'HubSpot marketing emails/campaigns API.', hubspotMarketingApiParams],
-  ['Salesforce Bulk API 2.0', 'api_key', 'Salesforce Bulk API 2.0 ingest/query jobs.', salesforceBulkApi2Params],
-  ['Zendesk Tickets API', 'api_key', 'Zendesk tickets/search endpoints.', zendeskTicketsApiParams],
-  ['Intercom Contacts API', 'api_key', 'Intercom contacts/conversations endpoints.', intercomContactsApiParams],
-  ['Notion Blocks API', 'api_key', 'Notion blocks append/retrieve endpoints.', notionBlocksApiParams],
-  ['Airtable Web API', 'api_key', 'Airtable records create/update/list endpoints.', airtableWebApiParams],
-  ['Google Sheets Values API', 'api_key', 'Google Sheets values get/update/batchUpdate.', googleSheetsValuesApiParams],
-  ['Slack Conversations API', 'api_key', 'Slack conversations.history/replies API.', slackConversationsApiParams],
-  ['Discord Interactions API', 'api_key', 'Discord interactions callbacks API.', discordInteractionsApiParams],
-  ['Twilio Verify V2 API', 'api_key', 'Twilio Verify v2 verification checks.', twilioVerifyV2ApiParams],
-  ['SendGrid Contacts API', 'api_key', 'SendGrid marketing contacts endpoints.', sendgridContactsApiParams],
-  ['Mailchimp Marketing API', 'api_key', 'Mailchimp audiences/campaigns endpoints.', mailchimpMarketingApiParams],
-  ['Shopify Storefront API', 'api_key', 'Shopify Storefront GraphQL API.', shopifyStorefrontApiParams],
-  ['WooCommerce Orders API', 'api_key', 'WooCommerce order create/list/update API.', woocommerceOrdersApiParams],
-  ['BigCommerce Catalog API', 'api_key', 'BigCommerce catalog products endpoints.', bigcommerceCatalogApiParams],
-  ['Amazon SP-API Orders', 'api_key', 'Amazon Selling Partner Orders API.', amazonSpApiOrdersParams],
-  ['Etsy Shop API', 'api_key', 'Etsy shop listings/receipts endpoints.', etsyShopApiParams],
-  ['Stripe Billing API', 'api_key', 'Stripe subscriptions/invoices endpoints.', stripeBillingApiParams],
-  ['PayPal Payouts API', 'api_key', 'PayPal Payouts create/batch status API.', paypalPayoutsApiParams],
-  ['Square Catalog API', 'api_key', 'Square catalog objects/search endpoints.', squareCatalogApiParams],
-  ['Razorpay Subscriptions API', 'api_key', 'Razorpay subscriptions/invoices endpoints.', razorpaySubscriptionsApiParams],
-  ['Adyen Transfers API', 'api_key', 'Adyen transfers/balance platform API.', adyenTransfersApiParams],
-  ['Braintree Vault API', 'api_key', 'Braintree customer/payment method vault API.', braintreeVaultApiParams],
-  ['FedEx Rates API', 'api_key', 'FedEx rates and transit times API.', fedexRatesApiParams],
-  ['UPS Tracking API', 'api_key', 'UPS tracking details endpoints.', upsTrackingApiParams],
-  ['USPS Address API', 'api_key', 'USPS address verification endpoints.', uspsAddressApiParams],
-  ['Shippo Shipments API', 'api_key', 'Shippo shipments and labels API.', shippoShipmentsApiParams],
-  ['EasyPost Tracker API', 'api_key', 'EasyPost trackers create/retrieve API.', easypostTrackerApiParams],
-  ['OpenWeather Geocoding API', 'api_key', 'OpenWeather geocoding direct/reverse API.', openweatherGeocodingApiParams],
-  ['Mapbox Geocoding API', 'api_key', 'Mapbox geocoding endpoints.', mapboxGeocodingApiParams],
-  ['Google Maps Routes API', 'api_key', 'Google Maps Routes computeRoutes API.', googleMapsRoutesApiParams],
-  ['TomTom Search API', 'api_key', 'TomTom search and reverse geocode API.', tomtomSearchApiParams],
-  ['Here Geocoding API', 'api_key', 'HERE geocoding and autosuggest API.', hereGeocodingApiParams],
-  ['Algolia Recommend API', 'api_key', 'Algolia recommend related products API.', algoliaRecommendApiParams],
-  ['Elasticsearch SQL API', 'api_key', 'Elasticsearch SQL query endpoint.', elasticsearchSqlApiParams],
-  ['Meilisearch Tasks API', 'api_key', 'Meilisearch task status endpoints.', meilisearchTasksApiParams],
-  ['Typesense Documents API', 'api_key', 'Typesense documents import/search API.', typesenseDocumentsApiParams],
-  ['Pinecone Inference API', 'api_key', 'Pinecone inference rerank/embed endpoints.', pineconeInferenceApiParams],
-  ['Weaviate Batch API', 'api_key', 'Weaviate batch objects endpoints.', weaviateBatchApiParams],
-  ['Qdrant Collections API', 'api_key', 'Qdrant collections management API.', qdrantCollectionsApiParams],
-  ['Google Analytics Admin API', 'api_key', 'GA Admin properties/dataStreams endpoints.', googleAnalyticsAdminApiParams],
-  ['PostHog Feature Flags API', 'api_key', 'PostHog feature flags endpoints.', posthogFeatureFlagsApiParams],
-  ['Plausible Sites API', 'api_key', 'Plausible sites and goals API.', plausibleSitesApiParams],
-  ['Datadog Logs API', 'api_key', 'Datadog logs query endpoints.', datadogLogsApiParams],
-  ['New Relic Logs API', 'api_key', 'New Relic logs/events query API.', newRelicLogsApiParams],
-  ['Sentry Releases API', 'api_key', 'Sentry releases deploy endpoints.', sentryReleasesApiParams],
-  ['Grafana Alerting API', 'api_key', 'Grafana alert rules endpoints.', grafanaAlertingApiParams],
-  ['Cloudflare Workers API', 'api_key', 'Cloudflare Workers scripts/routes API.', cloudflareWorkersApiParams],
-  ['GitHub Checks API', 'api_key', 'GitHub check-runs/check-suites API.', githubChecksApiParams],
-  ['GitLab Merge Requests API', 'api_key', 'GitLab merge requests endpoints.', gitlabMergeRequestsApiParams],
-  ['Bitbucket Pipelines API', 'api_key', 'Bitbucket pipelines trigger/status API.', bitbucketPipelinesApiParams],
-  ['CircleCI Insights API', 'api_key', 'CircleCI insights metrics endpoints.', circleciInsightsApiParams],
-  ['Jenkins Crumb API', 'api_key', 'Jenkins crumb issuer and build trigger.', jenkinsCrumbApiParams],
-  ['Docker Hub Repos API', 'api_key', 'Docker Hub repositories/tags API.', dockerHubReposApiParams],
-  ['OpenAI Files API', 'api_key', 'OpenAI files upload/list/delete endpoints.', openaiFilesApiParams],
-  ['Anthropic Batches API', 'api_key', 'Anthropic message batches API.', anthropicBatchesApiParams],
-  ['Mistral OCR API', 'api_key', 'Mistral OCR document parsing API.', mistralOcrApiParams],
-  ['Cohere Embed API', 'api_key', 'Cohere embed endpoint.', cohereEmbedApiParams],
-  ['Perplexity Search API', 'api_key', 'Perplexity online search API.', perplexitySearchApiParams],
-  ['Replicate Predictions API', 'api_key', 'Replicate predictions create/get API.', replicatePredictionsApiParams],
-  ['Runway Tasks API', 'api_key', 'Runway tasks generation API.', runwayTasksApiParams],
-  ['Stability Image API', 'api_key', 'Stability image generation/edit API.', stabilityImageApiParams],
-  ['ElevenLabs Voices API', 'api_key', 'ElevenLabs voices and TTS API.', elevenlabsVoicesApiParams],
-  ['AssemblyAI Transcript API', 'api_key', 'AssemblyAI transcript create/get API.', assemblyaiTranscriptApiParams],
-  ['Deepgram Listen API', 'api_key', 'Deepgram listen transcribe API.', deepgramListenApiParams],
-  ['Zoom Recordings API', 'api_key', 'Zoom cloud recordings endpoints.', zoomRecordingsApiParams],
-  ['Google Meet Spaces API', 'api_key', 'Google Meet spaces API.', googleMeetSpacesApiParams],
-  ['Microsoft Graph Users API', 'api_key', 'Microsoft Graph users and mailfolders API.', microsoftGraphUsersApiParams],
-  ['Outlook Mail API', 'api_key', 'Outlook messages send/list API.', outlookMailApiParams],
-  ['Dropbox Files API', 'api_key', 'Dropbox files upload/download/list API.', dropboxFilesApiParams],
-  ['Google Drive Permissions API', 'api_key', 'Google Drive permissions create/list API.', googleDrivePermissionsApiParams],
-  ['OneDrive Items API', 'api_key', 'OneDrive driveItems endpoints.', oneDriveItemsApiParams],
-  ['Box Folders API', 'api_key', 'Box folders and items API.', boxFoldersApiParams],
-  ['Airtable Metadata API V3', 'api_key', 'Airtable metadata API schema endpoints.', airtableMetadataApiV3Params],
-  ['Smartsheet Sheets API', 'api_key', 'Smartsheet sheets rows API.', smartsheetSheetsApiParams],
-  ['Coda Rows API', 'api_key', 'Coda tables rows upsert/list API.', codaRowsApiParams],
-  ['QuickBooks Invoices API', 'api_key', 'QuickBooks invoices endpoints.', quickbooksInvoicesApiParams],
-  ['Xero Contacts API', 'api_key', 'Xero contacts and invoices API.', xeroContactsApiParams],
-  ['Wise Transfers API', 'api_key', 'Wise quote and transfer API.', wiseTransfersApiParams],
-  ['DocuSign Envelopes API', 'api_key', 'DocuSign envelopes create/status API.', docusignEnvelopesApiParams],
-  ['Dropbox Sign Requests API', 'api_key', 'Dropbox Sign signature requests API.', dropboxSignRequestsApiParams],
-  ['PandaDoc Documents API', 'api_key', 'PandaDoc documents/send API.', pandadocDocumentsApiParams],
-  ['Auth0 Users API', 'api_key', 'Auth0 Management users API.', auth0UsersApiParams],
-  ['Okta Groups API', 'api_key', 'Okta groups list/assign API.', oktaGroupsApiParams],
-  ['Clerk Users API', 'api_key', 'Clerk users endpoints.', clerkUsersApiParams],
-  ['Stytch Magic Links API', 'api_key', 'Stytch magic links email API.', stytchMagicLinksApiParams],
-  ['Kinde OAuth API', 'api_key', 'Kinde OAuth token/introspection API.', kindeOauthApiParams],
-  ['VirusTotal URLs API', 'api_key', 'VirusTotal URL scan/report API.', virustotalUrlsApiParams],
-  ['Shodan Host API', 'api_key', 'Shodan host lookup API.', shodanHostApiParams],
-  ['HaveIBeenPwned Breach API', 'api_key', 'HIBP breach lookup API.', haveibeenpwnedBreachApiParams],
-  ['CrowdStrike Alerts API', 'api_key', 'CrowdStrike alerts query API.', crowdstrikeAlertsApiParams],
-  ['Splunk Search API', 'api_key', 'Splunk search jobs endpoints.', splunkSearchApiParams],
-  ['PagerDuty Incidents API', 'api_key', 'PagerDuty incidents create/list API.', pagerdutyIncidentsApiParams],
-  ['Opsgenie Alerts API', 'api_key', 'Opsgenie alerts endpoints.', opsgenieAlertsApiParams],
-  ['Statuspage Components API', 'api_key', 'Statuspage components/incidents API.', statuspageComponentsApiParams],
-  ['Novu Events API', 'api_key', 'Novu events trigger API.', novuEventsApiParams],
-  ['Courier Send API', 'api_key', 'Courier notifications send API.', courierSendApiParams],
-  ['Knock Workflows API', 'api_key', 'Knock workflows trigger API.', knockWorkflowsApiParams],
-];
-
-
-const asanaTasksV4ApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Asana tasks create/list/update endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const mondayGraphqlApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Monday.com boards/items GraphQL operations.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const clickupTasksApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'ClickUp task and list endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const linearIssuesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Linear issues and workflow states API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const jiraAgileApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Jira Agile boards/sprints/issues endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const confluenceContentApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Confluence content pages/blogpost API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const notionSearchApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Notion search and database query API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const ahaRoadmapsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Aha! initiatives/features REST endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-
-const basecamp3ApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Basecamp projects/todolists/messages API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const freshdeskTicketsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Freshdesk tickets and contacts API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const freshserviceApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Freshservice incidents and assets endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const servicenowTableApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'ServiceNow table records query/update API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const zohoDeskApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Zoho Desk tickets/articles endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const helpscoutApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Help Scout conversations and mailbox API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const intercomConversationsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Intercom conversations and tags API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const kustomerApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Kustomer customers/timeline endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const frontApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Front conversations/messages API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const gorgiasApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Gorgias tickets and customers endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const kayakoApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Kayako cases and conversations API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const snowflakeSqlApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Snowflake SQL API statement execution.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const bigqueryJobsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'BigQuery jobs insert/get/query endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const redshiftDataApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Redshift Data API statement execution.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const databricksSqlApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Databricks SQL warehouses/statements API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const clickhouseHttpApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'ClickHouse query and insert HTTP API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const mongodbDataApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'MongoDB Data API find/insert/update.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const supabaseRestApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Supabase PostgREST table endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const planetscaleApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'PlanetScale branches/deploy requests API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const neonApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Neon projects/branches/endpoints API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const faunaApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Fauna document and FQL query API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const nylasApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Nylas calendars/messages/webhooks API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const calendlyApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Calendly scheduling links and events API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const googleCalendarApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Google Calendar events and calendars API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const msGraphCalendarApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Microsoft Graph calendar events API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const cronofyApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Cronofy availability and scheduling API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const acuityApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Acuity appointments and clients API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const calcomApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Cal.com bookings and event types API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const youcanbookmeApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'YouCanBookMe bookings API endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const savvycalApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'SavvyCal links and events API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const oncehubApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'OnceHub meetings and contacts API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const stripeTreasuryApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Stripe Treasury financial accounts API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const plaidIdentityApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Plaid identity verification endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const paypalOrdersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'PayPal orders create/capture API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const squarePaymentsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Square payments and refunds API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const adyenCheckoutApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Adyen checkout payments/details API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const checkoutcomPaymentsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Checkout.com payments and sessions API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const mollieApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Mollie payments/subscriptions endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const klarnaPaymentsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Klarna payments sessions/orders API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const wiseBorderlessApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Wise account balances and statements API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const mercuryBankingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Mercury accounts and transactions API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const shipbobApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'ShipBob orders/inventory/fulfillment API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const shipstationApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'ShipStation shipments/orders API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const delhiveryApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Delhivery waybill and tracking API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const dhlParcelApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'DHL parcel create/track endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const aftershipApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'AfterShip trackers and notifications API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const easyshipApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'EasyShip rates and shipments API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const bringgApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Bringg tasks and driver dispatch API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const onfleetApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Onfleet tasks/teams/workers API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const onfleetApiParams: APIParameter[] = [
+  { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'create_task', options: [
+    { label: 'Create Task', value: 'create_task' },
+    { label: 'List Tasks', value: 'list_tasks' },
+    { label: 'Get Task', value: 'get_task' },
+    { label: 'Create Destination', value: 'create_destination' },
+    { label: 'List Teams', value: 'list_teams' },
+    { label: 'List Workers', value: 'list_workers' },
+  ]},
+  { name: 'task_id', displayName: 'Task ID', type: 'string', description: 'The unique task ID for get/update operations.' },
+  { name: 'destination_address', displayName: 'Destination Address', type: 'textarea', description: 'Full address string (e.g. "1 Warriors Way, San Francisco, CA").' },
+  { name: 'recipient_name', displayName: 'Recipient Name', type: 'string', description: 'Name of the delivery recipient.' },
+  { name: 'recipient_phone', displayName: 'Recipient Phone', type: 'string', description: 'Phone number of the recipient.' },
+  { name: 'notes', displayName: 'Notes', type: 'textarea', description: 'Delivery/pickup notes for the task.' },
+  { name: 'complete_after', displayName: 'Complete After (Unix ms)', type: 'string', description: 'Earliest completion time in milliseconds.' },
+  { name: 'complete_before', displayName: 'Complete Before (Unix ms)', type: 'string', description: 'Latest completion time in milliseconds.' },
+  { name: 'quantity', displayName: 'Quantity', type: 'number', description: 'Number of items for this task.' },
+];
 const project44ApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'project44 shipment visibility API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const fourkitesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'FourKites tracking and milestones API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const weatherapiComApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'WeatherAPI forecast/current/history endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
@@ -3457,258 +3128,140 @@ const openChargeMapApiParams: APIParameter[] = [{ name: 'operation', displayName
 const nrelAltFuelApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'NREL alternative fueling station API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const cloudinaryAdminApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Cloudinary assets and transformations API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const imgixManagementApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Imgix sources and rendering API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const muxVideoApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Mux assets/live streams API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+const muxVideoApiParams: APIParameter[] = [
+  { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'create_asset', options: [
+    { label: 'Create Asset', value: 'create_asset' },
+    { label: 'Get Asset', value: 'get_asset' },
+    { label: 'Create Playback ID', value: 'create_playback_id' },
+    { label: 'List Assets', value: 'list_assets' },
+    { label: 'Create Upload URL', value: 'create_upload_url' },
+  ]},
+  { name: 'asset_id', displayName: 'Asset ID', type: 'string', description: 'The unique Mux asset ID.' },
+  { name: 'input_url', displayName: 'Input Video URL', type: 'url', description: 'Public URL of the video to ingest.' },
+  { name: 'playback_policy', displayName: 'Playback Policy', type: 'select', default: 'public', options: [
+    { label: 'Public', value: 'public' },
+    { label: 'Signed', value: 'signed' },
+    { label: 'DRM', value: 'drm' },
+  ]},
+  { name: 'video_quality', displayName: 'Video Quality', type: 'select', default: 'basic', options: [
+    { label: 'Basic', value: 'basic' },
+    { label: 'Plus', value: 'plus' },
+    { label: 'Premium', value: 'premium' },
+  ]},
+];
 const vimeoApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Vimeo videos/showcases API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const youtubeDataApiV3Params: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'YouTube channels/playlists/videos API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const tiktokBusinessApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'TikTok campaign and creative API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const metaMarketingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Meta ads campaigns/adsets API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const linkedinMarketingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'LinkedIn ads and conversions API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const pinterestApiV5Params: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Pinterest boards/pins/ad accounts API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const snapMarketingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Snapchat marketing campaign API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const onesignalApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'OneSignal notifications and segments API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const firebaseCloudMessagingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'FCM send and topic messaging API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const airshipApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Airship push and audience API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const brazeApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Braze users/campaigns/messages API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const iterableApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Iterable events and journeys API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const customerIoApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Customer.io people and campaigns API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const segmentHttpApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Segment track/identify HTTP API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const rudderstackApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'RudderStack sources/events API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const mixpanelEngageApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Mixpanel profile and event import API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const amplitudeHttpApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Amplitude event ingestion API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const huggingFaceInferenceApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Hugging Face inference endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const togetherAiApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Together AI chat/images/embeddings API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const groqApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Groq chat completions and models API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const fireworksAiApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Fireworks inference and chat API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const openrouterApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'OpenRouter chat completions API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const ai21StudioApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'AI21 text and chat endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const nvidiaNimApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'NVIDIA NIM inference endpoints.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const voyageAiApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Voyage embeddings and rerank API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const jinaAiApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Jina embeddings and search API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const cerebrasInferenceApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Cerebras model inference API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 
-const expandedApiCatalogV4: Array<[string, AutomationAuthType, string, APIParameter[]]> = [
-  ['Asana Tasks API', 'api_key', 'Asana tasks create/list/update endpoints.', asanaTasksV4ApiParams],
-  ['Monday.com GraphQL API', 'api_key', 'Monday.com boards/items GraphQL operations.', mondayGraphqlApiParams],
-  ['ClickUp Tasks API', 'api_key', 'ClickUp task and list endpoints.', clickupTasksApiParams],
-  ['Linear Issues API', 'api_key', 'Linear issues and workflow states API.', linearIssuesApiParams],
-  ['Jira Agile API', 'api_key', 'Jira Agile boards/sprints/issues endpoints.', jiraAgileApiParams],
-  ['Confluence Content API', 'api_key', 'Confluence content pages/blogpost API.', confluenceContentApiParams],
-  ['Notion Search API', 'api_key', 'Notion search and database query API.', notionSearchApiParams],
-  ['Aha! Roadmaps API', 'api_key', 'Aha! initiatives/features REST endpoints.', ahaRoadmapsApiParams],
-  
-  ['Basecamp 3 API', 'api_key', 'Basecamp projects/todolists/messages API.', basecamp3ApiParams],
-  ['Freshdesk Tickets API', 'api_key', 'Freshdesk tickets and contacts API.', freshdeskTicketsApiParams],
-  ['Freshservice API', 'api_key', 'Freshservice incidents and assets endpoints.', freshserviceApiParams],
-  ['ServiceNow Table API', 'api_key', 'ServiceNow table records query/update API.', servicenowTableApiParams],
-  ['Zoho Desk API', 'api_key', 'Zoho Desk tickets/articles endpoints.', zohoDeskApiParams],
-  ['Help Scout API', 'api_key', 'Help Scout conversations and mailbox API.', helpscoutApiParams],
-  ['Intercom Conversations API', 'api_key', 'Intercom conversations and tags API.', intercomConversationsApiParams],
-  ['Kustomer API', 'api_key', 'Kustomer customers/timeline endpoints.', kustomerApiParams],
-  ['Front API', 'api_key', 'Front conversations/messages API.', frontApiParams],
-  ['Gorgias API', 'api_key', 'Gorgias tickets and customers endpoints.', gorgiasApiParams],
-  ['Kayako API', 'api_key', 'Kayako cases and conversations API.', kayakoApiParams],
-  ['Snowflake SQL API', 'api_key', 'Snowflake SQL API statement execution.', snowflakeSqlApiParams],
-  ['BigQuery Jobs API', 'api_key', 'BigQuery jobs insert/get/query endpoints.', bigqueryJobsApiParams],
-  ['Redshift Data API', 'api_key', 'Redshift Data API statement execution.', redshiftDataApiParams],
-  ['Databricks SQL API', 'api_key', 'Databricks SQL warehouses/statements API.', databricksSqlApiParams],
-  ['ClickHouse HTTP API', 'api_key', 'ClickHouse query and insert HTTP API.', clickhouseHttpApiParams],
-  ['MongoDB Data API', 'api_key', 'MongoDB Data API find/insert/update.', mongodbDataApiParams],
-  ['Supabase REST API', 'api_key', 'Supabase PostgREST table endpoints.', supabaseRestApiParams],
-  ['PlanetScale API', 'api_key', 'PlanetScale branches/deploy requests API.', planetscaleApiParams],
-  ['Neon API', 'api_key', 'Neon projects/branches/endpoints API.', neonApiParams],
-  ['Fauna API', 'api_key', 'Fauna document and FQL query API.', faunaApiParams],
-  ['Nylas API', 'api_key', 'Nylas calendars/messages/webhooks API.', nylasApiParams],
-  ['Calendly API', 'api_key', 'Calendly scheduling links and events API.', calendlyApiParams],
-  ['Google Calendar API', 'api_key', 'Google Calendar events and calendars API.', googleCalendarApiParams],
-  ['Microsoft Graph Calendar API', 'api_key', 'Microsoft Graph calendar events API.', msGraphCalendarApiParams],
-  ['Cronofy API', 'api_key', 'Cronofy availability and scheduling API.', cronofyApiParams],
-  ['Acuity Scheduling API', 'api_key', 'Acuity appointments and clients API.', acuityApiParams],
-  ['Cal.com API', 'api_key', 'Cal.com bookings and event types API.', calcomApiParams],
-  ['YouCanBookMe API', 'api_key', 'YouCanBookMe bookings API endpoints.', youcanbookmeApiParams],
-  ['SavvyCal API', 'api_key', 'SavvyCal links and events API.', savvycalApiParams],
-  ['OnceHub API', 'api_key', 'OnceHub meetings and contacts API.', oncehubApiParams],
-  ['Stripe Treasury API', 'api_key', 'Stripe Treasury financial accounts API.', stripeTreasuryApiParams],
-  ['Plaid Identity API', 'api_key', 'Plaid identity verification endpoints.', plaidIdentityApiParams],
-  ['PayPal Orders API', 'api_key', 'PayPal orders create/capture API.', paypalOrdersApiParams],
-  ['Square Payments API', 'api_key', 'Square payments and refunds API.', squarePaymentsApiParams],
-  ['Adyen Checkout API', 'api_key', 'Adyen checkout payments/details API.', adyenCheckoutApiParams],
-  ['Checkout.com Payments API', 'api_key', 'Checkout.com payments and sessions API.', checkoutcomPaymentsApiParams],
-  ['Mollie API', 'api_key', 'Mollie payments/subscriptions endpoints.', mollieApiParams],
-  ['Klarna Payments API', 'api_key', 'Klarna payments sessions/orders API.', klarnaPaymentsApiParams],
-  ['Wise Borderless API', 'api_key', 'Wise account balances and statements API.', wiseBorderlessApiParams],
-  ['Mercury Banking API', 'api_key', 'Mercury accounts and transactions API.', mercuryBankingApiParams],
-  ['ShipBob API', 'api_key', 'ShipBob orders/inventory/fulfillment API.', shipbobApiParams],
-  ['ShipStation API', 'api_key', 'ShipStation shipments/orders API.', shipstationApiParams],
-  ['Delhivery API', 'api_key', 'Delhivery waybill and tracking API.', delhiveryApiParams],
-  ['DHL Parcel API', 'api_key', 'DHL parcel create/track endpoints.', dhlParcelApiParams],
-  ['AfterShip API', 'api_key', 'AfterShip trackers and notifications API.', aftershipApiParams],
-  ['EasyShip API', 'api_key', 'EasyShip rates and shipments API.', easyshipApiParams],
-  ['Bringg API', 'api_key', 'Bringg tasks and driver dispatch API.', bringgApiParams],
-  ['Onfleet API', 'api_key', 'Onfleet tasks/teams/workers API.', onfleetApiParams],
-  ['Project44 API', 'api_key', 'project44 shipment visibility API.', project44ApiParams],
-  ['FourKites API', 'api_key', 'FourKites tracking and milestones API.', fourkitesApiParams],
-  ['WeatherAPI.com API', 'api_key', 'WeatherAPI forecast/current/history endpoints.', weatherapiComApiParams],
-  ['Open-Meteo API', 'api_key', 'Open-Meteo weather and geocoding API.', openMeteoApiParams],
-  ['Tomorrow.io API', 'api_key', 'Tomorrow.io timelines and realtime API.', tomorrowIoApiParams],
-  ['Visual Crossing API', 'api_key', 'Visual Crossing weather timelines API.', visualCrossingApiParams],
-  ['AviationStack API', 'api_key', 'AviationStack flights/airports API.', aviationstackApiParams],
-  ['Amadeus Travel API', 'api_key', 'Amadeus flights/hotels/travel APIs.', amadeusTravelApiParams],
-  ['Skyscanner API', 'api_key', 'Skyscanner flight search API.', skyscannerApiParams],
-  ['Rome2Rio API', 'api_key', 'Rome2Rio routes and transport API.', rome2rioApiParams],
-  ['OpenChargeMap API', 'api_key', 'OpenChargeMap charging locations API.', openChargeMapApiParams],
-  ['NREL Alt Fuel API', 'api_key', 'NREL alternative fueling station API.', nrelAltFuelApiParams],
-  ['Cloudinary Admin API', 'api_key', 'Cloudinary assets and transformations API.', cloudinaryAdminApiParams],
-  ['Imgix Management API', 'api_key', 'Imgix sources and rendering API.', imgixManagementApiParams],
-  ['Mux Video API', 'api_key', 'Mux assets/live streams API.', muxVideoApiParams],
-  ['Vimeo API', 'api_key', 'Vimeo videos/showcases API.', vimeoApiParams],
-  ['YouTube Data API v3', 'api_key', 'YouTube channels/playlists/videos API.', youtubeDataApiV3Params],
-  ['TikTok Business API', 'api_key', 'TikTok campaign and creative API.', tiktokBusinessApiParams],
-  ['Meta Marketing API', 'api_key', 'Meta ads campaigns/adsets API.', metaMarketingApiParams],
-  ['LinkedIn Marketing API', 'api_key', 'LinkedIn ads and conversions API.', linkedinMarketingApiParams],
-  ['Pinterest API v5', 'api_key', 'Pinterest boards/pins/ad accounts API.', pinterestApiV5Params],
-  ['Snap Marketing API', 'api_key', 'Snapchat marketing campaign API.', snapMarketingApiParams],
-  ['OneSignal API', 'api_key', 'OneSignal notifications and segments API.', onesignalApiParams],
-  ['Firebase Cloud Messaging API', 'api_key', 'FCM send and topic messaging API.', firebaseCloudMessagingApiParams],
-  ['Airship API', 'api_key', 'Airship push and audience API.', airshipApiParams],
-  ['Braze API', 'api_key', 'Braze users/campaigns/messages API.', brazeApiParams],
-  ['Iterable API', 'api_key', 'Iterable events and journeys API.', iterableApiParams],
-  ['Customer.io API', 'api_key', 'Customer.io people and campaigns API.', customerIoApiParams],
-  ['Segment HTTP API', 'api_key', 'Segment track/identify HTTP API.', segmentHttpApiParams],
-  ['RudderStack API', 'api_key', 'RudderStack sources/events API.', rudderstackApiParams],
-  ['Mixpanel Engage API', 'api_key', 'Mixpanel profile and event import API.', mixpanelEngageApiParams],
-  ['Amplitude HTTP API', 'api_key', 'Amplitude event ingestion API.', amplitudeHttpApiParams],
-  ['Hugging Face Inference API', 'api_key', 'Hugging Face inference endpoints.', huggingFaceInferenceApiParams],
-  ['Together AI API', 'api_key', 'Together AI chat/images/embeddings API.', togetherAiApiParams],
-  ['Groq API', 'api_key', 'Groq chat completions and models API.', groqApiParams],
-  ['Fireworks AI API', 'api_key', 'Fireworks inference and chat API.', fireworksAiApiParams],
-  ['OpenRouter API', 'api_key', 'OpenRouter chat completions API.', openrouterApiParams],
-  ['AI21 Studio API', 'api_key', 'AI21 text and chat endpoints.', ai21StudioApiParams],
-  ['NVIDIA NIM API', 'api_key', 'NVIDIA NIM inference endpoints.', nvidiaNimApiParams],
-  ['Voyage AI API', 'api_key', 'Voyage embeddings and rerank API.', voyageAiApiParams],
-  ['Jina AI API', 'api_key', 'Jina embeddings and search API.', jinaAiApiParams],
-  ['Cerebras Inference API', 'api_key', 'Cerebras model inference API.', cerebrasInferenceApiParams],
+const s3StorageParams: APIParameter[] = [
+  { name: 'bucket', displayName: 'Bucket Name', type: 'string', required: true, description: 'The S3-compatible bucket name.' },
+  { name: 'region', displayName: 'Region', type: 'string', description: 'Storage region endpoint.' },
+  { name: 'object_key', displayName: 'Object Key', type: 'string', description: 'Path/key of the object within the bucket.' },
+  { name: 'operation', displayName: 'Operation', type: 'select', default: 'list_buckets', options: [
+    { label: 'List Buckets', value: 'list_buckets' },
+    { label: 'List Objects', value: 'list_objects' },
+    { label: 'Upload Object', value: 'upload_object' },
+    { label: 'Download Object', value: 'download_object' },
+    { label: 'Delete Object', value: 'delete_object' },
+  ]},
+];
+const s3StorageCredentials: APIParameter[] = [
+  { name: 'access_key', displayName: 'Access Key ID', type: 'password', required: true },
+  { name: 'secret_key', displayName: 'Secret Access Key', type: 'password', required: true },
 ];
 
-const docsCompliantRestApiParams: APIParameter[] = [
-  { name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Use operation names exactly as documented by the provider.' },
-  { name: 'resource_id', displayName: 'Resource ID', type: 'string', description: 'Required for update/get/delete operations when provider docs specify it.' },
-  { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea', description: 'JSON body must match provider schema and required fields.' },
+const cdnPullZoneParams: APIParameter[] = [
+  { name: 'pull_zone_id', displayName: 'Pull Zone ID', type: 'string', description: 'The numeric ID of the pull zone.' },
+  { name: 'name', displayName: 'Zone Name', type: 'string', required: true, description: 'Name of the CDN pull zone.' },
+  { name: 'origin_url', displayName: 'Origin URL', type: 'url', description: 'Origin server URL for the pull zone.' },
+  { name: 'operation', displayName: 'Operation', type: 'select', default: 'list_pull_zones', options: [
+    { label: 'List Pull Zones', value: 'list_pull_zones' },
+    { label: 'Add Pull Zone', value: 'add_pull_zone' },
+    { label: 'Purge Cache', value: 'purge_cache' },
+    { label: 'Get Statistics', value: 'get_statistics' },
+  ]},
 ];
 
-const expandedApiCatalogV5: Array<[string, AutomationAuthType, string, APIParameter[]]> = [
-  ['Anthropic Messages API', 'api_key', 'Anthropic messages endpoint with documented model/tool parameters.', docsCompliantRestApiParams],
-  ['Mistral API', 'api_key', 'Mistral chat/embeddings endpoints per official docs.', docsCompliantRestApiParams],
-  ['Cohere API', 'api_key', 'Cohere generate/embed/rerank endpoints per docs.', docsCompliantRestApiParams],
-  ['Perplexity API', 'api_key', 'Perplexity chat/completions endpoints per docs.', docsCompliantRestApiParams],
-  ['DeepL API', 'api_key', 'DeepL translate/document endpoints per docs.', docsCompliantRestApiParams],
-  ['ElevenLabs API', 'api_key', 'ElevenLabs text-to-speech/voices endpoints per docs.', docsCompliantRestApiParams],
-  ['AssemblyAI API', 'api_key', 'AssemblyAI transcription/summarization endpoints.', docsCompliantRestApiParams],
-  ['Deepgram API', 'api_key', 'Deepgram speech-to-text/text-to-speech endpoints.', docsCompliantRestApiParams],
-  ['Twilio Conversations API', 'api_key', 'Twilio Conversations messaging endpoints.', docsCompliantRestApiParams],
-  ['Vonage API', 'api_key', 'Vonage SMS/voice/verify endpoints.', docsCompliantRestApiParams],
-  ['Mailgun API', 'api_key', 'Mailgun messages/events endpoints.', docsCompliantRestApiParams],
-  ['Resend API', 'api_key', 'Resend emails/domains/audiences endpoints.', docsCompliantRestApiParams],
-  ['Postmark API', 'api_key', 'Postmark email send/templates endpoints.', docsCompliantRestApiParams],
-  ['SendGrid Marketing API', 'api_key', 'SendGrid marketing contacts/campaign endpoints.', docsCompliantRestApiParams],
-  ['Campaign Monitor API', 'api_key', 'Campaign Monitor subscribers/campaigns endpoints.', docsCompliantRestApiParams],
-  ['HubSpot CRM API', 'api_key', 'HubSpot CRM objects/associations endpoints.', docsCompliantRestApiParams],
-  ['Pipedrive API', 'api_key', 'Pipedrive deals/persons/organizations endpoints.', docsCompliantRestApiParams],
-  ['Copper API', 'api_key', 'Copper people/companies/opportunities endpoints.', docsCompliantRestApiParams],
-  ['Insightly API', 'api_key', 'Insightly records/pipelines endpoints.', docsCompliantRestApiParams],
-  ['Salesloft API', 'api_key', 'Salesloft people/cadence endpoints.', docsCompliantRestApiParams],
-  ['Outreach API', 'api_key', 'Outreach prospects/sequences endpoints.', docsCompliantRestApiParams],
-  ['Apollo API', 'api_key', 'Apollo enrichment/prospecting endpoints.', docsCompliantRestApiParams],
-  ['ZoomInfo API', 'api_key', 'ZoomInfo enrichment/search endpoints.', docsCompliantRestApiParams],
-  ['Clearbit API', 'api_key', 'Clearbit enrichment/company endpoints.', docsCompliantRestApiParams],
-  ['People Data Labs API', 'api_key', 'People Data Labs person/company endpoints.', docsCompliantRestApiParams],
-  ['DocuWare API', 'api_key', 'DocuWare documents/workflows endpoints.', docsCompliantRestApiParams],
-  ['Box API', 'api_key', 'Box files/folders/collaborations endpoints.', docsCompliantRestApiParams],
-  ['Dropbox API', 'api_key', 'Dropbox files/sharing endpoints.', docsCompliantRestApiParams],
-  ['Egnyte API', 'api_key', 'Egnyte file system/users/permissions endpoints.', docsCompliantRestApiParams],
-  ['Miro API', 'api_key', 'Miro boards/items/comments endpoints.', docsCompliantRestApiParams],
-  ['Lucid API', 'api_key', 'Lucid documents/collaboration endpoints.', docsCompliantRestApiParams],
-  ['Airtable Metadata API', 'api_key', 'Airtable base/table metadata endpoints.', docsCompliantRestApiParams],
-  ['Smartsheet API', 'api_key', 'Smartsheet sheets/rows/attachments endpoints.', docsCompliantRestApiParams],
-  ['Coda API', 'api_key', 'Coda docs/tables/rows endpoints.', docsCompliantRestApiParams],
-  ['Todoist API', 'api_key', 'Todoist projects/tasks/comments endpoints.', docsCompliantRestApiParams],
-  ['Remember The Milk API', 'api_key', 'Remember The Milk tasks/lists endpoints.', docsCompliantRestApiParams],
-  ['Bitbucket Cloud API', 'api_key', 'Bitbucket repositories/pipelines endpoints.', docsCompliantRestApiParams],
-  ['GitLab API', 'api_key', 'GitLab projects/issues/merge requests endpoints.', docsCompliantRestApiParams],
-  ['Sentry API', 'api_key', 'Sentry issues/events/releases endpoints.', docsCompliantRestApiParams],
-  ['Datadog API', 'api_key', 'Datadog metrics/logs/monitors endpoints.', docsCompliantRestApiParams],
-  ['New Relic API', 'api_key', 'New Relic entities/queries/alerts endpoints.', docsCompliantRestApiParams],
-  ['PagerTree API', 'api_key', 'PagerTree alerts/escalations endpoints.', docsCompliantRestApiParams],
-  ['Splunk API', 'api_key', 'Splunk search/jobs/data inputs endpoints.', docsCompliantRestApiParams],
-  ['Elastic Cloud API', 'api_key', 'Elastic deployments/indices/search endpoints.', docsCompliantRestApiParams],
-  ['Cloudflare API', 'api_key', 'Cloudflare zones/dns/workers endpoints.', docsCompliantRestApiParams],
-  ['Fastly API', 'api_key', 'Fastly services/backends/purges endpoints.', docsCompliantRestApiParams],
-  ['Akamai API', 'api_key', 'Akamai property/delivery/security endpoints.', docsCompliantRestApiParams],
-  ['Vercel API', 'api_key', 'Vercel projects/deployments/domains endpoints.', docsCompliantRestApiParams],
-  ['Netlify API', 'api_key', 'Netlify sites/deploys/functions endpoints.', docsCompliantRestApiParams],
-  ['Render API', 'api_key', 'Render services/deploys/jobs endpoints.', docsCompliantRestApiParams],
-  ['Railway API', 'api_key', 'Railway projects/environments/deploys endpoints.', docsCompliantRestApiParams],
-  ['Fly.io API', 'api_key', 'Fly apps/machines/volumes endpoints.', docsCompliantRestApiParams],
-  ['DigitalOcean API', 'api_key', 'DigitalOcean droplets/databases/k8s endpoints.', docsCompliantRestApiParams],
-  ['Linode API', 'api_key', 'Linode instances/volumes/networking endpoints.', docsCompliantRestApiParams],
-  ['Heroku Platform API', 'api_key', 'Heroku apps/add-ons/config vars endpoints.', docsCompliantRestApiParams],
-  ['Oracle Cloud API', 'api_key', 'OCI compute/storage/network endpoints.', docsCompliantRestApiParams],
-  ['IBM Cloud API', 'api_key', 'IBM Cloud resources/functions endpoints.', docsCompliantRestApiParams],
-  ['OpenStack API', 'api_key', 'OpenStack compute/network/object storage endpoints.', docsCompliantRestApiParams],
-  ['Kubernetes API', 'api_key', 'Kubernetes core/apps/batch resources endpoints.', docsCompliantRestApiParams],
-  ['HashiCorp Vault API', 'api_key', 'Vault secrets/auth/policies endpoints.', docsCompliantRestApiParams],
-  ['Terraform Cloud API', 'api_key', 'Terraform workspaces/runs/variables endpoints.', docsCompliantRestApiParams],
-  ['Pulumi API', 'api_key', 'Pulumi stacks/deployments/esc endpoints.', docsCompliantRestApiParams],
-  ['OpenTelemetry Collector API', 'api_key', 'Collector config/pipeline control endpoints.', docsCompliantRestApiParams],
-  ['Okta API', 'api_key', 'Okta users/groups/apps/policies endpoints.', docsCompliantRestApiParams],
-  ['Auth0 Management API', 'api_key', 'Auth0 users/roles/clients endpoints.', docsCompliantRestApiParams],
-  ['Clerk API', 'api_key', 'Clerk users/sessions/organizations endpoints.', docsCompliantRestApiParams],
-  ['WorkOS API', 'api_key', 'WorkOS directory/audit/admin portal endpoints.', docsCompliantRestApiParams],
-  ['OneLogin API', 'api_key', 'OneLogin users/roles/apps endpoints.', docsCompliantRestApiParams],
-  ['Keycloak Admin API', 'api_key', 'Keycloak realms/users/clients endpoints.', docsCompliantRestApiParams],
-  ['PingOne API', 'api_key', 'PingOne identity/group/population endpoints.', docsCompliantRestApiParams],
-  ['SailPoint API', 'api_key', 'SailPoint identities/access request endpoints.', docsCompliantRestApiParams],
-  ['ServiceTitan API', 'api_key', 'ServiceTitan customers/jobs/invoices endpoints.', docsCompliantRestApiParams],
-  ['Toast API', 'api_key', 'Toast restaurants/orders/menu endpoints.', docsCompliantRestApiParams],
-  ['Lightspeed API', 'api_key', 'Lightspeed retail/inventory/sales endpoints.', docsCompliantRestApiParams],
-  ['Square POS API', 'api_key', 'Square catalog/orders/customers endpoints.', docsCompliantRestApiParams],
-  ['Vend API', 'api_key', 'Vend products/sales/customers endpoints.', docsCompliantRestApiParams],
-  ['Shopware API', 'api_key', 'Shopware products/orders/customers endpoints.', docsCompliantRestApiParams],
-  ['PrestaShop API', 'api_key', 'PrestaShop resources via webservice API.', docsCompliantRestApiParams],
-  ['OpenCart API', 'api_key', 'OpenCart catalog/order/customer endpoints.', docsCompliantRestApiParams],
-  ['WooCommerce REST API', 'api_key', 'WooCommerce products/orders/coupons endpoints.', docsCompliantRestApiParams],
-  ['Contentful CMA API', 'api_key', 'Contentful entries/assets/content models endpoints.', docsCompliantRestApiParams],
-  ['Sanity API', 'api_key', 'Sanity datasets/documents/query endpoints.', docsCompliantRestApiParams],
-  ['Storyblok API', 'api_key', 'Storyblok stories/components/spaces endpoints.', docsCompliantRestApiParams],
-  ['Prismic API', 'api_key', 'Prismic documents and custom types endpoints.', docsCompliantRestApiParams],
-  ['Hygraph API', 'api_key', 'Hygraph GraphQL content operations.', docsCompliantRestApiParams],
-  ['DatoCMS API', 'api_key', 'DatoCMS items/uploads/schema endpoints.', docsCompliantRestApiParams],
-  ['WordPress REST API', 'api_key', 'WordPress posts/pages/media/users endpoints.', docsCompliantRestApiParams],
-  ['Ghost Admin API', 'api_key', 'Ghost posts/tags/members endpoints.', docsCompliantRestApiParams],
-  ['Discourse API', 'api_key', 'Discourse topics/posts/users endpoints.', docsCompliantRestApiParams],
-  ['Zendesk API', 'api_key', 'Zendesk tickets/users/help center endpoints.', docsCompliantRestApiParams],
-  ['Genesys Cloud API', 'api_key', 'Genesys users/conversations/routing endpoints.', docsCompliantRestApiParams],
-  ['Five9 API', 'api_key', 'Five9 contacts/campaign/agent endpoints.', docsCompliantRestApiParams],
-  ['Talkdesk API', 'api_key', 'Talkdesk calls/contacts/automation endpoints.', docsCompliantRestApiParams],
-  ['RingCentral API', 'api_key', 'RingCentral messaging/telephony endpoints.', docsCompliantRestApiParams],
-  ['Aircall API', 'api_key', 'Aircall numbers/calls/contacts endpoints.', docsCompliantRestApiParams],
-  ['Calendaring API', 'api_key', 'General calendaring integration requiring provider doc-compliant payloads.', docsCompliantRestApiParams],
-  ['OpenFDA API', 'api_key', 'OpenFDA drugs/devices/food enforcement endpoints.', docsCompliantRestApiParams],
-  ['FHIR API', 'api_key', 'FHIR patient/observation/encounter resource endpoints.', docsCompliantRestApiParams],
-  ['WHO Data API', 'api_key', 'WHO datasets and indicator endpoints.', docsCompliantRestApiParams],
-  ['CDC Data API', 'api_key', 'CDC public dataset query endpoints.', docsCompliantRestApiParams],
-  ['US Census API', 'api_key', 'US Census dataset and geography endpoints.', docsCompliantRestApiParams],
-  ['World Bank API', 'api_key', 'World Bank indicators/countries/topics endpoints.', docsCompliantRestApiParams],
-  ['IMF Data API', 'api_key', 'IMF financial/economic dataset endpoints.', docsCompliantRestApiParams],
-  ['OECD API', 'api_key', 'OECD SDMX dataset query endpoints.', docsCompliantRestApiParams],
-  ['FRED API', 'api_key', 'FRED series/releases/categories endpoints.', docsCompliantRestApiParams],
+const mailerSendParams: APIParameter[] = [
+  { name: 'from_email', displayName: 'From Email', type: 'email', required: true, description: 'Verified sender email address.' },
+  { name: 'from_name', displayName: 'From Name', type: 'string', description: 'Display name of the sender.' },
+  { name: 'to_email', displayName: 'To Email', type: 'email', required: true, description: 'Recipient email address.' },
+  { name: 'to_name', displayName: 'To Name', type: 'string', description: 'Display name of the recipient.' },
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true, description: 'Email subject line.' },
+  { name: 'html', displayName: 'HTML Body', type: 'textarea', description: 'HTML version of the email (required if no text or template_id).' },
+  { name: 'text', displayName: 'Text Body', type: 'textarea', description: 'Plain text version of the email (required if no html or template_id).' },
+  { name: 'template_id', displayName: 'Template ID', type: 'string', description: 'Pre-built template ID for the email.' },
 ];
 
-const expandedApiCatalogV5Productivity = expandedApiCatalogV5.slice(0, 25);
-const expandedApiCatalogV5PlatformInfra = expandedApiCatalogV5.slice(25, 50);
-const expandedApiCatalogV5CommerceData = expandedApiCatalogV5.slice(50, 75);
-const expandedApiCatalogV5OperationsVertical = expandedApiCatalogV5.slice(75);
+const imageTransformParams: APIParameter[] = [
+  { name: 'source_id', displayName: 'Source ID', type: 'string', description: 'Imgix source ID.' },
+  { name: 'source_path', displayName: 'Image Path', type: 'string', required: true, description: 'Path to the image in the source.' },
+  { name: 'width', displayName: 'Width (px)', type: 'number', description: 'Output image width.' },
+  { name: 'height', displayName: 'Height (px)', type: 'number', description: 'Output image height.' },
+  { name: 'fit', displayName: 'Fit Mode', type: 'select', default: 'clip', options: [
+    { label: 'Clip', value: 'clip' },
+    { label: 'Crop', value: 'crop' },
+    { label: 'Scale', value: 'scale' },
+    { label: 'Fill', value: 'fill' },
+    { label: 'Fill Max', value: 'fillmax' },
+  ]},
+  { name: 'format', displayName: 'Output Format', type: 'select', default: 'auto', options: [
+    { label: 'Auto', value: 'auto' },
+    { label: 'WebP', value: 'webp' },
+    { label: 'JPEG', value: 'jpeg' },
+    { label: 'PNG', value: 'png' },
+    { label: 'AVIF', value: 'avif' },
+  ]},
+  { name: 'quality', displayName: 'Quality', type: 'number', default: 75, description: 'Compression quality (1-100).' },
+  { name: 'operation', displayName: 'Operation', type: 'select', default: 'render_image', options: [
+    { label: 'Render Image', value: 'render_image' },
+    { label: 'List Sources', value: 'list_sources' },
+    { label: 'Purge Cache', value: 'purge_cache' },
+  ]},
+];
 
+const nylasEmailParams: APIParameter[] = [
+  { name: 'grant_id', displayName: 'Grant ID', type: 'string', required: true, description: 'Nylas grant ID or /me/ for token-scoped access.' },
+  { name: 'to_email', displayName: 'To Email', type: 'email', required: true, description: 'Recipient email address.' },
+  { name: 'to_name', displayName: 'To Name', type: 'string', description: 'Display name of the recipient.' },
+  { name: 'subject', displayName: 'Subject', type: 'string', required: true, description: 'Email subject line.' },
+  { name: 'body', displayName: 'Body', type: 'textarea', description: 'Message body (HTML supported unless is_plaintext).' },
+  { name: 'is_plaintext', displayName: 'Is Plain Text', type: 'boolean', description: 'When true, body is sent as plain text.' },
+  { name: 'cc_email', displayName: 'CC Email', type: 'email', description: 'CC recipient email address.' },
+  { name: 'bcc_email', displayName: 'BCC Email', type: 'email', description: 'BCC recipient email address.' },
+  { name: 'send_at', displayName: 'Send At (Unix timestamp)', type: 'string', description: 'Schedule delivery at a future Unix timestamp.' },
+  { name: 'operation', displayName: 'Operation', type: 'select', default: 'send_message', options: [
+    { label: 'Send Message', value: 'send_message' },
+    { label: 'List Messages', value: 'list_messages' },
+    { label: 'List Calendars', value: 'list_calendars' },
+    { label: 'List Contacts', value: 'list_contacts' },
+  ]},
+];
 
+const freshsalesParams: APIParameter[] = [
+  { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'create_contact', options: [
+    { label: 'Create Contact', value: 'create_contact' },
+    { label: 'List Contacts', value: 'list_contacts' },
+    { label: 'Get Contact', value: 'get_contact' },
+    { label: 'Create Deal', value: 'create_deal' },
+    { label: 'List Deals', value: 'list_deals' },
+  ]},
+  { name: 'contact_id', displayName: 'Contact ID', type: 'number', description: 'The unique contact ID for get/update operations.' },
+  { name: 'first_name', displayName: 'First Name', type: 'string', description: 'Contact first name.' },
+  { name: 'last_name', displayName: 'Last Name', type: 'string', description: 'Contact last name.' },
+  { name: 'email', displayName: 'Email', type: 'email', description: 'Contact email address.' },
+  { name: 'mobile_number', displayName: 'Mobile Number', type: 'string', description: 'Contact mobile phone number.' },
+  { name: 'deal_name', displayName: 'Deal Name', type: 'string', description: 'Name of the deal.' },
+  { name: 'deal_amount', displayName: 'Deal Amount', type: 'string', description: 'Monetary value of the deal.' },
+];
+
+const oracleNetworkParams: APIParameter[] = [
+  { name: 'contract_address', displayName: 'Contract Address', type: 'string', description: 'On-chain oracle contract address.' },
+  { name: 'job_id', displayName: 'Job ID', type: 'string', description: 'Chainlink job specification ID.' },
+  { name: 'operation', displayName: 'Operation', type: 'select', default: 'query_price_feed', options: [
+    { label: 'Query Price Feed', value: 'query_price_feed' },
+    { label: 'Request Randomness', value: 'request_randomness' },
+    { label: 'Check Oracle Status', value: 'check_oracle_status' },
+  ]},
+];
 
 export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
   {
@@ -3732,6 +3285,10 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Yahoo Business', 'api_key', undefined, yahooBusinessParams],
         ['FastMail', 'api_key', undefined, fastmailParams, fastmailCredentials],
         ['Mailchimp Transactional', 'api_key', undefined, mailchimpTransactionalParams, mailchimpTransactionalCredentials],
+        ['Microsoft Graph Mail', 'api_key', 'Microsoft Graph email send/list API.', msGraphApiParams],
+        ['Mailchimp Marketing', 'api_key', undefined, mailchimpMarketingParams],
+        ['MailerSend', 'api_key', 'MailerSend transactional email API with personalization/templates.', mailerSendParams],
+        ['Nylas', 'api_key', 'Nylas unified email/calendar/contacts API via a single integration.', nylasEmailParams],
       ]),
       withBlocks('team-chat', 'Team Chat & Collaboration', [
         ['Slack', 'free', undefined, slackParams, slackCredentials],
@@ -3746,6 +3303,10 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Rocket.Chat', 'free', undefined, rocketdiscordBotApiParams],
         ['Google Chat', 'free', undefined, googleChatParams],
         ['Twist', 'free', undefined, twistParams],
+        ['Flock', 'free', undefined, discordParams],
+        ['Chanty', 'api_key', undefined, discordParams],
+        ['Sendbird', 'api_key', 'Sendbird in-app chat/messaging API.', discordParams],
+        ['Stream Chat', 'api_key', 'Stream Chat API for messaging and feeds.', discordParams],
       ]),
       withBlocks('sms-voice', 'SMS, Voice & Mobile Push', [
         ['Twilio', 'api_key', undefined, twilioParams, twilioCredentials],
@@ -3762,6 +3323,9 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['ClickSend', 'api_key', undefined, clickSendParams],
         ['Bandwidth', 'api_key', undefined, bandwidthParams],
         ['RingCentral', 'api_key', undefined, ringCentralParams],
+        ['TextMagic', 'api_key', 'TextMagic SMS messaging API.', twilioParams],
+        ['Clickatell', 'api_key', 'Clickatell SMS/chat API.', twilioParams],
+        ['Alibaba Cloud SMS', 'api_key', 'Alibaba Cloud SMS notification service.', cloudApiParams],
       ]),
       withBlocks('video-conferencing', 'Video Conferencing & Webinars', [
         ['Zoom', 'free', undefined, zoomParams, zoomCredentials],
@@ -3774,6 +3338,10 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Livestorm', 'api_key', undefined, livestormParams],
         ['Riverside.fm', 'api_key', undefined, riversideParams],
         ['Whereby', 'free', undefined, wherebyParams],
+        ['Google Calendar', 'free', 'Google Calendar events list/create/update API.', calendarApiParams],
+        ['Microsoft Graph Calendar', 'api_key', 'Microsoft Graph Calendar events API.', calendarApiParams],
+        ['BlueJeans', 'api_key', 'BlueJeans video conferencing API.', zoomParams],
+        ['GoToMeeting', 'api_key', 'GoToMeeting webinar/scheduling API.', zoomParams],
       ]),
     ],
   },
@@ -3795,6 +3363,14 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Replicate', 'api_key', undefined, replicateParams, replicateCredentials],
         ['DeepSeek', 'api_key', undefined, deepSeekParams],
         ['Ollama', 'local', undefined, ollamaParams],
+        ['Google Translate', 'free', 'Google Cloud Translation API.', googleServiceParams],
+        ['Google Natural Language', 'free', 'Google Natural Language processing API.', googleServiceParams],
+        ['AWS Comprehend', 'api_key', 'AWS Comprehend NLP API.', awsApiParams],
+        ['Azure OpenAI', 'api_key', 'Azure OpenAI Service chat/completions API.', azureApiParams],
+        ['xAI', 'api_key', 'xAI Grok chat/completions API.', openaiParams],
+        ['Amazon Bedrock', 'api_key', 'AWS Bedrock foundation model inference API.', awsApiParams],
+        ['IBM watsonx', 'api_key', 'IBM watsonx.ai model inference API.', cloudApiParams],
+        ['AI21 Labs', 'api_key', 'AI21 Jurassic/Jamba model API.', openaiParams],
       ]),
       withBlocks('image-video-3d', 'Image, Video & 3D Generation', [
         ['DALL-E', 'api_key', undefined, dalleParams],
@@ -3807,6 +3383,12 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Adobe Firefly', 'api_key', undefined, fireflyParams],
         ['Luma AI', 'api_key', undefined, lumaParams],
         ['Spline 3D', 'api_key', undefined, splineParams],
+        ['Google Vision', 'free', 'Google Cloud Vision AI image analysis API.', googleServiceParams],
+        ['AWS Rekognition', 'api_key', 'AWS Rekognition image/video analysis API.', awsApiParams],
+        ['AWS Textract', 'api_key', 'AWS Textract document text extraction API.', awsApiParams],
+        ['Ideogram', 'api_key', 'Ideogram text-to-image generation API.', dalleParams],
+        ['Krea', 'api_key', 'Krea AI image/video generation API.', stableParams],
+        ['Recraft', 'api_key', 'Recraft AI vector/icon/image generation API.', stableParams],
       ]),
       withBlocks('audio-voice-music', 'Audio, Voice & Music AI', [
         ['ElevenLabs', 'api_key', undefined, elevenLabsParams, elevenLabsCredentials],
@@ -3839,6 +3421,19 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Neo4j', 'api_key', undefined, graphDatabaseParams],
         ['SurrealDB', 'free', undefined, surrealDBParams],
         ['Turso', 'free', undefined, tursoParams],
+        ['Google BigQuery', 'api_key', 'Google BigQuery data warehouse SQL query API.', databaseQueryParams],
+        ['AWS DynamoDB', 'api_key', 'AWS DynamoDB NoSQL database API.', awsApiParams],
+        ['Azure Cosmos DB', 'api_key', 'Azure Cosmos DB multi-model database API.', azureApiParams],
+        ['Snowflake SQL API', 'api_key', 'Snowflake SQL query execution API.', databaseQueryParams],
+        ['BigQuery Data Transfer', 'api_key', 'Google BigQuery Data Transfer API.', googleServiceParams],
+        ['Redshift Data API', 'api_key', 'AWS Redshift Data API SQL execution.', awsApiParams],
+        ['Postgres HTTP API', 'api_key', 'Generic PostgreSQL HTTP/REST API.', databaseQueryParams],
+        ['Cloudflare D1', 'api_key', 'Cloudflare D1 edge SQLite database API.', sqlDatabaseParams],
+        ['TimescaleDB', 'api_key', 'TimescaleDB time-series SQL database API.', sqlDatabaseParams],
+        ['DuckDB', 'free', 'DuckDB in-process analytical database API.', sqlDatabaseParams],
+        ['InfluxDB', 'api_key', 'InfluxDB time-series database query API.', databaseQueryParams],
+        ['SingleStore', 'api_key', 'SingleStore distributed SQL database API.', sqlDatabaseParams],
+        ['ClickHouse', 'free', 'ClickHouse column-oriented analytics database HTTP API.', databaseQueryParams],
       ]),
       withBlocks('cloud-storage-cdn', 'Cloud File Storage & CDN', [
         ['Google Drive', 'free', undefined, googledriveParams],
@@ -3854,6 +3449,11 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['ImageKit', 'free', undefined, imageKitParams],
         ['Fastly', 'api_key', undefined, cdnControlParams],
         ['Akamai', 'api_key', undefined, cdnControlParams],
+        ['Google Photos', 'free', 'Google Photos library/media items API.', googleServiceParams],
+        ['Wasabi', 'api_key', 'Wasabi S3-compatible cloud storage buckets/objects API.', s3StorageParams, s3StorageCredentials],
+        ['MinIO', 'api_key', 'MinIO S3-compatible object storage for private cloud.', s3StorageParams, s3StorageCredentials],
+        ['Bunny.net', 'api_key', 'Bunny.net CDN pull zones, storage zones and cache purge API.', cdnPullZoneParams],
+        ['imgix', 'api_key', 'Imgix image CDN rendering pipeline and source management API.', imageTransformParams],
       ]),
       withBlocks('spreadsheets', 'Spreadsheets & Productive Databases', [
         ['Airtable', 'free', undefined, airtableParams, airtableCredentials],
@@ -3861,10 +3461,11 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Excel Online', 'free', undefined, spreadsheetParams],
         ['Smartsheet', 'api_key', undefined, spreadsheetParams],
         ['Coda', 'free', undefined, spreadsheetParams],
-        ['Notion', 'free', undefined, notionParams, notionCredentials],
         ['Baserow', 'free', undefined, spreadsheetParams],
         ['SeaTable', 'free', undefined, spreadsheetParams],
         ['Grist', 'free', undefined, spreadsheetParams],
+        ['NocoDB', 'free', 'NocoDB open source Airtable alternative API.', spreadsheetParams],
+        ['Rows', 'free', 'Rows spreadsheet with API integrations.', spreadsheetParams],
       ]),
     ],
   },
@@ -3882,6 +3483,14 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Travis CI', 'api_key', undefined, devOpsParams],
         ['Jenkins', 'free', undefined, jenkinsParams, jenkinsCredentials],
         ['SonarQube', 'free', undefined, devOpsParams],
+        ['AWS Lambda', 'api_key', 'AWS Lambda serverless function invocation API.', awsApiParams],
+        ['AWS Step Functions', 'api_key', 'AWS Step Functions workflow execution API.', awsApiParams],
+        ['Terraform Cloud', 'api_key', 'Terraform Cloud workspaces/runs/variables API.', devOpsParams],
+        ['Pulumi', 'api_key', 'Pulumi stacks/deployments/ESC API.', devOpsParams],
+        ['Ansible', 'api_key', 'Ansible Automation Platform job/playbook API.', devOpsParams],
+        ['Railway', 'free', 'Railway deploy platform projects/environments API.', vercelParams],
+        ['Render', 'free', 'Render services/deploys/jobs HTTP API.', vercelParams],
+        ['Fly.io', 'api_key', 'Fly.io apps/machines/volumes API.', vercelParams],
       ]),
       withBlocks('monitoring', 'Monitoring & Infrastructure', [
         ['Sentry', 'free', undefined, sentryParams, sentryCredentials],
@@ -3895,6 +3504,17 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Vercel', 'free', undefined, vercelParams],
         ['Netlify', 'free', undefined, netlifyParams],
         ['Docker Hub', 'free', undefined, dockerhubParams],
+        ['Google Admin SDK', 'free', 'Google Admin SDK directory/reports API.', googleServiceParams],
+        ['Google Pub/Sub', 'free', 'Google Pub/Sub messaging and eventing API.', googleServiceParams],
+        ['Google Cloud Run Admin', 'free', 'Google Cloud Run services/revisions API.', googleServiceParams],
+        ['AWS EventBridge', 'api_key', 'AWS EventBridge event bus/scheduler API.', awsApiParams],
+        ['AWS SQS', 'api_key', 'AWS SQS message queue API.', awsApiParams],
+        ['AWS CloudWatch', 'api_key', 'AWS CloudWatch metrics/logs/alarms API.', awsApiParams],
+        ['Azure Service Bus', 'api_key', 'Azure Service Bus messaging API.', azureApiParams],
+        ['Azure Event Grid', 'api_key', 'Azure Event Grid event routing API.', azureApiParams],
+        ['Azure Monitor', 'api_key', 'Azure Monitor metrics/logs query API.', azureApiParams],
+        ['Checkly', 'api_key', 'Checkly browser/API checks monitoring API.', monitoringParams],
+        ['Zabbix', 'api_key', 'Zabbix monitoring platform API.', monitoringParams],
       ]),
     ],
   },
@@ -3913,6 +3533,9 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Mollie', 'api_key', undefined, paymentGatewayParams],
         ['Razorpay', 'api_key', undefined, paymentGatewayParams],
         ['Authorize.net', 'api_key', undefined, paymentGatewayParams],
+        ['Checkout.com', 'api_key', 'Checkout.com payments/sessions/refunds API.', paymentGatewayParams],
+        ['Klarna', 'api_key', 'Klarna payments/settlements/customer tokens API.', paymentGatewayParams],
+        ['GoCardless', 'api_key', 'GoCardless direct debit payment API.', paymentGatewayParams],
       ]),
       withBlocks('storefronts', 'E-commerce & Storefronts', [
         ['Shopify', 'api_key', undefined, shopifyParams, shopifyCredentials],
@@ -3925,6 +3548,8 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Wix Stores', 'api_key', undefined, storefrontParams],
         ['Squarespace', 'api_key', undefined, storefrontParams],
         ['Printful', 'api_key', undefined, storefrontParams],
+        ['Faire', 'api_key', 'Faire wholesale marketplace orders/inventory API.', storefrontParams],
+        ['Trove', 'api_key', 'Trove branded goods e-commerce API.', storefrontParams],
       ]),
     ],
   },
@@ -3941,6 +3566,9 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Intercom', 'api_key', undefined, intercomParams, intercomCredentials],
         ['Kustomer', 'api_key', undefined, kustomerParams, kustomerCredentials],
         ['Gladly', 'api_key', undefined, gladlyParams, gladlyCredentials],
+        ['Zoho Desk', 'free', 'Zoho Desk tickets/contacts/articles API.', supportParams],
+        ['Re:amaze', 'api_key', 'Re:amaze customer messaging API.', supportParams],
+        ['Tidio', 'free', 'Tidio live chat/chatbot API.', supportParams],
       ]),
       withBlocks('live-chat', 'Live Chat & Chatbots', [
         ['Crisp', 'free', undefined, crispParams, crispCredentials], ['Tawk.to', 'free', undefined, tawkToParams, tawkToCredentials], ['Drift', 'api_key', undefined, driftParams, driftCredentials], ['ManyChat', 'free', undefined, manyChatParams, manyChatCredentials], ['Chatbase', 'api_key', undefined, chatbaseParams, chatbaseCredentials],
@@ -3949,6 +3577,7 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
       withBlocks('surveys', 'Surveys & User Feedback', [
         ['Typeform', 'free', undefined, typeformParams, typeformCredentials], ['Jotform', 'free', undefined, jotformParams, jotformCredentials], ['Tally.so', 'free', undefined, tallyParams, tallyCredentials], ['SurveyMonkey', 'api_key', undefined, surveyMonkeyParams, surveyMonkeyCredentials], ['Hotjar', 'free'],
         ['UserTesting', 'api_key', undefined, userTestingParams, userTestingCredentials], ['Qualtrics', 'api_key', undefined, qualtricsParams, qualtricsCredentials],
+        ['Google Forms', 'free', 'Google Forms responses retrieval API.', googleServiceParams],
       ]),
     ],
   },
@@ -3967,10 +3596,18 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Attio', 'free', undefined, attioParams, attioCredentials],
         ['Folk', 'free', undefined, folkParams, folkCredentials],
         ['Apollo.io', 'api_key', undefined, apolloParams, apolloCredentials],
+        ['Freshsales', 'api_key', 'Freshworks CRM contacts/deals/accounts management API.', freshsalesParams],
+        ['Google People', 'free', 'Google People API contacts management.', googleServiceParams],
+        ['Google Business Profile', 'free', 'Google Business Profile locations/reviews API.', googleServiceParams],
       ]),
       withBlocks('ads-growth', 'Ads & Growth', [
         ['Google Ads', 'api_key', undefined, googleadsParams, googleadsCredentials], ['Meta Ads', 'api_key', undefined, metaadsParams, metaadsCredentials], ['LinkedIn Ads', 'api_key', undefined, linkedInAdsParams, linkedInAdsCredentials], ['TikTok Ads', 'api_key', undefined, tiktokAdsParams, tiktokAdsCredentials],
-        ['Mixpanel', 'free', undefined, mixpanelParams, mixpanelCredentials], ['Amplitude', 'free', undefined, amplitudeParams, amplitudeCredentials], ['Segment', 'free', undefined, segmentParams, segmentCredentials], ['Clearbit', 'api_key', undefined, clearbitParams, clearbitCredentials],
+        ['Mixpanel', 'free', undefined, mixpanelParams, mixpanelCredentials], ['Amplitude', 'free', undefined, amplitudeParams, amplitudeCredentials], ['Segment', 'free', undefined, segmentParams, segmentCredentials],         ['Clearbit', 'api_key', undefined, clearbitParams, clearbitCredentials],
+        ['Klaviyo', 'api_key', 'Klaviyo marketing automation profiles/events API.', klaviyoParams],
+        ['ConvertKit', 'api_key', 'ConvertKit email marketing subscribers/tags API.', mailchimpMarketingParams],
+        ['ActiveCampaign', 'api_key', 'ActiveCampaign marketing automation contacts/campaigns API.', mailchimpMarketingParams],
+        ['MailerLite', 'api_key', 'MailerLite email marketing subscribers/campaigns API.', mailchimpMarketingParams],
+        ['Customer.io', 'api_key', 'Customer.io messaging/segments API.', mailchimpMarketingParams],
       ]),
     ],
   },
@@ -3980,7 +3617,13 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     subcategories: [
       withBlocks('tasks', 'Task Management', [
         ['Asana', 'free'], ['Trello', 'free'], ['ClickUp', 'free'], ['Linear', 'free'], ['Monday.com', 'api_key', undefined, mondayComParams, mondayComCredentials],
-        ['Jira', 'api_key', undefined, jiraParams, jiraCredentials], ['Basecamp', 'api_key', undefined, basecampParams, basecampCredentials], ['Todoist', 'free', undefined, todoistParams, todoistCredentials], ['TickTick', 'api_key', undefined, ticktickParams, ticktickCredentials],
+        ['Jira', 'api_key', undefined, jiraParams, jiraCredentials], ['Basecamp', 'api_key', undefined, basecampParams, basecampCredentials], ['Todoist', 'free', undefined, todoistParams, todoistCredentials],         ['TickTick', 'api_key', undefined, ticktickParams, ticktickCredentials],
+        ['Google Tasks', 'free', 'Google Tasks list/create/update API.', calendarApiParams],
+        ['Microsoft Planner', 'api_key', 'Microsoft Planner tasks/plans API.', msGraphApiParams],
+        ['Microsoft To Do', 'api_key', 'Microsoft To Do tasks/lists API.', msGraphApiParams],
+        ['Shortcut', 'api_key', 'Shortcut (Clubhouse) stories/epics API.', jiraParams],
+        ['Wrike', 'api_key', 'Wrike project management tasks/workspaces API.', jiraParams],
+        ['Height', 'free', 'Height project management API.', clickupParams],
       ]),
       withBlocks('notes-wiki', 'Notes & Wiki', [
         ['Notion', 'free', undefined, notionParams, notionCredentials], ['Obsidian Sync', 'api_key'], ['Confluence', 'api_key', undefined, confluenceParams, confluenceCredentials], ['Slite', 'free', undefined, sliteParams, sliteCredentials], ['GitBook', 'free', undefined, gitbookParams, gitbookCredentials],
@@ -3994,11 +3637,16 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     subcategories: [
       withBlocks('chains-wallets', 'Chains & Wallets', [
         ['Ethereum/Alchemy', 'free', undefined, web3Params], ['Solana/Helius', 'free', undefined, web3Params], ['Polygon', 'free', undefined, web3Params], ['WalletConnect', 'free', undefined, web3Params],
-        ['Coinbase Cloud', 'api_key', undefined, web3Params], ['Infura', 'free', undefined, web3Params], ['Moralis', 'free', undefined, web3Params],
+        ['Coinbase Cloud', 'api_key', undefined, web3Params], ['Infura', 'free', undefined, web3Params],         ['Moralis', 'free', undefined, web3Params],
+        ['Alchemy', 'free', 'Alchemy blockchain API node/WebSocket provider.', web3Params],
+        ['Thirdweb', 'api_key', 'Thirdweb smart contract deployment SDK API.', web3Params],
+        ['The Graph', 'api_key', 'The Graph subgraph query/studio API.', web3Params],
       ]),
       withBlocks('markets-nft', 'Market Data & NFTs', [
         ['CoinGecko', 'free', undefined, marketDataParams], ['CoinMarketCap', 'api_key', undefined, marketDataParams], ['OpenSea', 'api_key', undefined, marketDataParams], ['Magic Eden', 'api_key', undefined, marketDataParams],
         ['Etherscan', 'free', undefined, marketDataParams], ['Rarible', 'api_key', undefined, marketDataParams],
+        ['Chainlink', 'api_key', 'Chainlink oracle network price feeds and randomness API.', oracleNetworkParams],
+        ['QuickNode', 'free', 'QuickNode blockchain RPC node and API gateway.', web3Params],
       ]),
     ],
   },
@@ -4009,10 +3657,14 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
       withBlocks('identity', 'Identity & Access', [
         ['Okta', 'api_key'], ['Auth0', 'free', undefined, identityParams], ['Clerk', 'free', undefined, identityParams], ['Stytch', 'api_key', undefined, identityParams], ['Kinde', 'free', undefined, identityParams],
         ['1Password', 'api_key', undefined, identityParams], ['Dashlane', 'api_key', undefined, identityParams],
+        ['Microsoft Intune', 'api_key', 'Microsoft Intune device management API.', msGraphApiParams],
+        ['Descope', 'api_key', 'Descope user authentication/flows API.', identityParams],
+        ['WorkOS', 'api_key', 'WorkOS SSO/directory/audit log API.', identityParams],
       ]),
       withBlocks('threat-intel', 'Threat Intel & Security', [
         ['VirusTotal', 'free', undefined, securityParams], ['HaveIBeenPwned', 'api_key', undefined, securityParams], ['Shodan', 'api_key', undefined, securityParams], ['Cloudflare Security', 'free', undefined, securityParams],
         ['CrowdStrike', 'api_key', undefined, securityParams], ['Splunk', 'api_key', undefined, securityParams],
+        ['Wazuh', 'api_key', 'Wazuh open source security monitoring/XDR agents/alerts API.', securityParams],
       ]),
     ],
   },
@@ -4098,17 +3750,23 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Instagram', 'api_key', undefined, socialPostParams], ['Facebook Pages', 'api_key', undefined, socialPostParams], ['LinkedIn', 'api_key', undefined, socialPostParams],
         ['TikTok', 'api_key', undefined, socialPostParams], ['Pinterest', 'api_key', undefined, socialPostParams], ['Reddit', 'api_key', undefined, socialPostParams],
         ['YouTube', 'api_key', undefined, socialPostParams], ['Mastodon', 'free', undefined, socialPostParams], ['Bluesky', 'free', undefined, socialPostParams],
-        ['Threads', 'api_key', undefined, socialPostParams], ['Tumblr', 'api_key', undefined, socialPostParams],
+        ['Threads', 'api_key', undefined, socialPostParams],         ['Tumblr', 'api_key', undefined, socialPostParams],
+        ['Snapchat', 'api_key', 'Snapchat stories/ads/business API.', socialPostParams],
+        ['Twitch', 'api_key', 'Twitch streams/channels/users API.', socialPostParams],
       ]),
       withBlocks('social-management', 'Social Management & Scheduling', [
         ['Buffer', 'api_key', undefined, socialManagementParams], ['Hootsuite', 'api_key', undefined, socialManagementParams], ['Later', 'api_key', undefined, socialManagementParams],
         ['Sprout Social', 'api_key', undefined, socialManagementParams], ['SocialBee', 'api_key', undefined, socialManagementParams], ['Publer', 'api_key', undefined, socialManagementParams],
+        ['CoSchedule', 'api_key', 'CoSchedule marketing calendar/social scheduling projects API.', socialManagementParams],
       ]),
       withBlocks('content-cms', 'Content & CMS', [
         ['WordPress', 'api_key', undefined, cmsParams], ['Ghost', 'api_key', undefined, cmsParams], ['Strapi', 'free', undefined, cmsParams],
         ['Contentful', 'api_key', undefined, cmsParams], ['Sanity', 'free', undefined, cmsParams], ['Prismic', 'api_key', undefined, cmsParams],
         ['Webflow', 'api_key', undefined, cmsParams], ['Medium', 'free', undefined, cmsParams], ['Hashnode', 'free', undefined, cmsParams],
         ['Dev.to', 'free', undefined, cmsParams], ['Substack', 'api_key', undefined, cmsParams],
+        ['Google Docs', 'free', 'Google Docs document creation/editing API.', googleServiceParams],
+        ['Google Slides', 'free', 'Google Slides presentation creation API.', googleServiceParams],
+        ['Microsoft SharePoint', 'api_key', 'Microsoft SharePoint sites/lists/files API.', msGraphApiParams],
       ]),
       withBlocks('news-media', 'News & Media APIs', [
         ['NewsAPI', 'api_key', undefined, newsapiParams],
@@ -4116,6 +3774,7 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
       ]),
       withBlocks('audio-video-editing', 'Audio & Video Editing APIs', [
         ['Descript', 'api_key', undefined, descriptParams],
+        ['Mux Video', 'api_key', 'Mux video encoding/streaming assets and playback IDs API.', muxVideoApiParams],
       ]),
     ],
   },
@@ -4125,11 +3784,14 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     subcategories: [
       withBlocks('hr', 'HR & Recruiting', [
         ['Workday', 'api_key', undefined, hrParams], ['BambooHR', 'api_key', undefined, hrParams], ['Greenhouse', 'api_key', undefined, hrParams], ['Lever', 'api_key', undefined, hrParams], ['Ashby', 'api_key', undefined, hrParams],
-        ['HiBob', 'api_key', undefined, hrParams], ['Gusto', 'api_key', undefined, hrParams], ['Rippling', 'api_key', undefined, hrParams], ['Deel', 'api_key', undefined, hrParams], ['Remote.com', 'api_key', undefined, hrParams],
+        ['HiBob', 'api_key', undefined, hrParams], ['Gusto', 'api_key', undefined, hrParams], ['Rippling', 'api_key', undefined, hrParams], ['Deel', 'api_key', undefined, hrParams],         ['Remote.com', 'api_key', undefined, hrParams],
+        ['Personio', 'api_key', 'Personio HR platform employees/absences API.', hrParams],
+        ['Oyster HR', 'api_key', 'Oyster HR global employment platform API.', hrParams],
       ]),
       withBlocks('edtech', 'Education (EdTech)', [
         ['Canvas', 'free', undefined, trainingParams], ['Moodle', 'free', undefined, trainingParams], ['Teachable', 'api_key', undefined, trainingParams], ['Kajabi', 'api_key', undefined, trainingParams], ['Coursera', 'api_key', undefined, trainingParams], ['Duolingo', 'api_key', undefined, trainingParams],
-        ['Udemy', 'api_key', undefined, trainingParams], ['Thinkific', 'api_key', undefined, trainingParams], ['Podia', 'api_key', undefined, trainingParams],
+        ['Udemy', 'api_key', undefined, trainingParams], ['Thinkific', 'api_key', undefined, trainingParams],         ['Podia', 'api_key', undefined, trainingParams],
+        ['Google Classroom', 'free', 'Google Classroom courses/assignments API.', googleServiceParams],
       ]),
       withBlocks('legal', 'Legal & E-Signature', [
         ['DocuSign', 'api_key', undefined, eSignParams], ['Dropbox Sign', 'api_key', undefined, eSignParams], ['Ironclad', 'api_key', undefined, eSignParams], ['Clio', 'api_key', undefined, eSignParams], ['PandaDoc', 'api_key', undefined, eSignParams],
@@ -4142,10 +3804,13 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
       withBlocks('logistics-real-estate', 'Logistics & Real Estate', [
         ['AfterShip', 'api_key', undefined, logisticsParams], ['Shippo', 'api_key', undefined, logisticsParams], ['EasyPost', 'api_key', undefined, logisticsParams], ['Zillow', 'api_key', undefined, logisticsParams], ['Airbnb', 'api_key', undefined, logisticsParams], ['Uber', 'api_key', undefined, logisticsParams],
         ['DoorDash', 'api_key', undefined, logisticsParams], ['FedEx', 'api_key', undefined, logisticsParams], ['UPS', 'api_key', undefined, logisticsParams], ['USPS', 'free', undefined, logisticsParams],
+        ['Onfleet', 'api_key', 'Onfleet last-mile delivery task/driver/destination management API.', onfleetApiParams],
       ]),
       withBlocks('accounting', 'Accounting & Finance', [
         ['QuickBooks', 'api_key', undefined, financeParams], ['Xero', 'api_key', undefined, financeParams], ['FreshBooks', 'api_key', undefined, financeParams], ['Wave', 'free', undefined, financeParams],
         ['Plaid', 'api_key', undefined, financeParams], ['Wise', 'api_key', undefined, financeParams], ['Mercury', 'api_key', undefined, financeParams],
+        ['Bill.com', 'api_key', 'Bill.com B2B payments and accounts payable automation API.', financeParams],
+        ['Tipalti', 'api_key', 'Tipalti global mass payables/AP automation platform API.', financeParams],
       ]),
       withBlocks('design', 'Design & Creative', [
         ['Figma', 'api_key', undefined, designParams], ['Canva', 'api_key', undefined, designParams], ['Adobe Creative Cloud', 'api_key', undefined, designParams],
@@ -4158,13 +3823,16 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
     title: 'Notifications & Alerts',
     subcategories: [
       withBlocks('push-notify', 'Push Notifications', [
-        ['Firebase Cloud Messaging', 'free', undefined, notificationParams], ['OneSignal', 'free', undefined, notificationParams], ['Pusher Beams', 'api_key', undefined, notificationParams],
+        ['Pusher Beams', 'api_key', undefined, notificationParams],
         ['Novu', 'free', undefined, notificationParams], ['Knock', 'api_key', undefined, notificationParams], ['MagicBell', 'api_key', undefined, notificationParams],
         ['Courier', 'api_key', undefined, notificationParams], ['Engagespot', 'free', undefined, notificationParams],
+        ['AWS SNS', 'api_key', 'AWS SNS push notification/topic publish API.', awsApiParams],
       ]),
       withBlocks('alerts', 'Alerting & Incident', [
         ['PagerDuty', 'api_key', undefined, alertParams], ['OpsGenie', 'api_key', undefined, alertParams], ['VictorOps', 'api_key', undefined, alertParams],
-        ['StatusPage', 'api_key', undefined, alertParams], ['Instatus', 'free', undefined, alertParams], ['Cachet', 'free', undefined, alertParams],
+        ['StatusPage', 'api_key', undefined, alertParams], ['Instatus', 'free', undefined, alertParams],         ['Cachet', 'free', undefined, alertParams],
+        ['Incident.io', 'api_key', 'Incident.io incident management API.', alertParams],
+        ['xMatters', 'api_key', 'xMatters on-call/alerting API.', alertParams],
       ]),
     ],
   },
@@ -4176,28 +3844,19 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Algolia', 'api_key', undefined, searchParams], ['Elasticsearch', 'free', undefined, searchParams], ['Meilisearch', 'free', undefined, searchParams],
         ['Typesense', 'free', undefined, searchParams], ['Pinecone', 'api_key', undefined, searchParams], ['Weaviate', 'free', undefined, searchParams],
         ['Qdrant', 'free', undefined, searchParams], ['ChromaDB', 'free', undefined, searchParams],
+        ['Google Books', 'free', 'Google Books search/volumes API.', searchParams],
+        ['Azure Cognitive Search', 'api_key', 'Azure Cognitive Search indexing/query API.', azureApiParams],
       ]),
       withBlocks('analytics-bi', 'Analytics & BI', [
         ['Google Analytics', 'api_key', undefined, analyticsParams], ['Plausible', 'free', undefined, analyticsParams], ['PostHog', 'free', undefined, analyticsParams],
         ['Metabase', 'free', undefined, analyticsParams], ['Looker', 'api_key', undefined, analyticsParams], ['Tableau', 'api_key', undefined, analyticsParams],
-        ['Apache Superset', 'free', undefined, analyticsParams], ['Grafana', 'free', undefined, analyticsParams],
+        ['Apache Superset', 'free', undefined, analyticsParams],         ['Grafana', 'free', undefined, analyticsParams],
+        ['YouTube Analytics', 'api_key', 'YouTube Analytics/channel reports API.', analyticsParams],
+        ['Google Search Console', 'free', 'Google Search Console site performance API.', googleServiceParams],
+        ['Domo', 'api_key', 'Domo business analytics platform API.', analyticsParams],
+        ['Sigma', 'api_key', 'Sigma Computing cloud analytics API.', analyticsParams],
       ]),
-      withBlocks('productivity-apis', 'Productivity & Collaboration APIs', [
-        ...expandedApiCatalog,
-        ...expandedApiCatalogV5Productivity,
-      ]),
-      withBlocks('platform-infra-apis', 'Platform, Cloud & DevOps APIs', [
-        ...expandedApiCatalogV2,
-        ...expandedApiCatalogV5PlatformInfra,
-      ]),
-      withBlocks('commerce-finance-apis', 'Commerce, Payments & Data APIs', [
-        ...expandedApiCatalogV3,
-        ...expandedApiCatalogV5CommerceData,
-      ]),
-      withBlocks('operations-vertical-apis', 'Operations & Vertical APIs', [
-        ...expandedApiCatalogV4,
-        ...expandedApiCatalogV5OperationsVertical,
-      ]),
+
     ],
   },
 ];

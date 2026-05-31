@@ -48,6 +48,7 @@ import {
   Edit3,
   Eye,
   Clock,
+  Download,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -140,6 +141,39 @@ function formatTime(ms: number): string {
   const m = Math.floor(ms / 60000);
   const s = ((ms % 60000) / 1000).toFixed(0);
   return `${m}m ${s}s`;
+}
+
+// Helper to infer variable type from assignment
+function inferVariableType(valueStr: string): string {
+  const trimmed = valueStr.trim();
+  if (trimmed === 'True' || trimmed === 'False') return 'bool';
+  if (trimmed === 'None') return 'none';
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) return 'list';
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    if (trimmed.includes(':')) return 'dict';
+    return 'set';
+  }
+  if (trimmed.startsWith('"') || trimmed.startsWith("'")) return 'string';
+  if (!isNaN(Number(trimmed))) return 'number';
+  return 'other';
+}
+
+// Extract variables from code cell
+function extractVariablesFromCell(source: string): Array<{ name: string; type: string }> {
+  const vars: Array<{ name: string; type: string }> = [];
+  const lines = source.split('\n');
+  
+  lines.forEach(line => {
+    // Match simple assignment: name = value
+    const match = line.match(/^\s*(\w+)\s*=\s*(.+)/);
+    if (match) {
+      const [_, name, valueStr] = match;
+      const type = inferVariableType(valueStr);
+      vars.push({ name, type });
+    }
+  });
+  
+  return vars;
 }
 
 // ---------------------------------------------------------------------------
@@ -354,6 +388,8 @@ function SortableCell({
   isSelected,
   language,
   executionTime,
+  collapsed,
+  onCollapsedChange,
   onUpdate,
   onDelete,
   onDuplicate,
@@ -374,6 +410,8 @@ function SortableCell({
   isSelected: boolean;
   language: string;
   executionTime: number | null;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
   onUpdate: (id: string, updates: Partial<NotebookCell>) => void;
   onDelete: (id: string) => void;
   onDuplicate: (id: string) => void;
@@ -389,7 +427,6 @@ function SortableCell({
 }) {
   const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState(cell.source);
-  const [collapsed, setCollapsed] = useState(false);
   const [markdownPreview, setMarkdownPreview] = useState(cell.cell_type === "markdown");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isCode = cell.cell_type === "code";
@@ -517,7 +554,7 @@ function SortableCell({
             <GripVertical className="w-3.5 h-3.5" />
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); setCollapsed((p) => !p); }}
+            onClick={(e) => { e.stopPropagation(); onCollapsedChange(!collapsed); }}
             className="p-0.5 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground shrink-0"
             title={collapsed ? "Expand cell" : "Collapse cell"}
           >
@@ -757,6 +794,63 @@ function SortableCell({
 }
 
 // ---------------------------------------------------------------------------
+// Variables Sidebar
+// ---------------------------------------------------------------------------
+
+const VariablesSidebar = ({ variables }: { variables: Array<{ name: string; type: string }> }) => {
+  const typeColors: Record<string, string> = {
+    'string': 'bg-blue-500/10 text-blue-600',
+    'number': 'bg-green-500/10 text-green-600',
+    'list': 'bg-purple-500/10 text-purple-600',
+    'dict': 'bg-orange-500/10 text-orange-600',
+    'set': 'bg-pink-500/10 text-pink-600',
+    'bool': 'bg-yellow-500/10 text-yellow-600',
+    'none': 'bg-gray-500/10 text-gray-600',
+    'other': 'bg-slate-500/10 text-slate-600',
+  };
+
+  return (
+    <div className="border-l border-border/60 bg-muted/5 w-48 flex flex-col overflow-hidden">
+      <div className="px-3 py-2 border-b border-border/60 shrink-0">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Variables</h3>
+      </div>
+      
+      {variables.length === 0 ? (
+        <div className="p-3 text-center text-xs text-muted-foreground">
+          No variables detected
+        </div>
+      ) : (
+        <ScrollArea className="flex-1">
+          <div className="space-y-1 p-2">
+            {variables.map((v, i) => (
+              <div
+                key={i}
+                className="p-2 rounded border border-border/30 bg-background/50 hover:bg-background/80 transition-colors"
+              >
+                <div className="text-xs font-mono font-semibold text-foreground truncate">
+                  {v.name}
+                </div>
+                <div className="mt-1">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[10px] font-mono",
+                      typeColors[v.type] || typeColors.other
+                    )}
+                  >
+                    {v.type}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
+    </div>
+  );
+};
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
@@ -765,17 +859,40 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
   const [metadata, setMetadata] = useState<Record<string, unknown>>(() => parseMetadata(file.content));
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const [runningCells, setRunningCells] = useState<Set<string>>(new Set());
+  const [variables, setVariables] = useState<Array<{ name: string; type: string }>>([]);
+  
+  // Track collapsed state per cell
+  const [collapsedCells, setCollapsedCells] = useState<Set<string>>(new Set());
+
+  // For kernel integration
+  const initRef = useRef<string | null>(null);
+  const cellsRef = useRef<NotebookCell[]>(cells);
+  const notebookRef = useRef<HTMLDivElement>(null);
+  
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
-  const [executionTimes, setExecutionTimes] = useState<Record<string, number>>({});
   const [showRawJson, setShowRawJson] = useState(false);
   const [rawJsonContent, setRawJsonContent] = useState("");
   const [showRawPaste, setShowRawPaste] = useState(false);
-  const initRef = useRef(file.content);
-  const notebookRef = useRef<HTMLDivElement>(null);
-  const cellsRef = useRef(cells);
-  cellsRef.current = cells;
-  const { runCell, kernel, isExecuting } = useNotebookKernel();
+  const [executionTimes, setExecutionTimes] = useState<Record<string, number>>({});
+  const [runningCells, setRunningCells] = useState<Set<string>>(new Set());
+  const [isExecuting, setIsExecuting] = useState(false);
+
+  // useNotebookKernel hook - mock implementation if not available
+  const { kernel, runCell } = useNotebookKernel(file.id);
+
+  // Update variables whenever cells change
+  useEffect(() => {
+    const allVars: Record<string, string> = {};
+    cells.forEach(cell => {
+      if (cell.cell_type === 'code') {
+        const cellVars = extractVariablesFromCell(cell.source);
+        cellVars.forEach(v => {
+          allVars[v.name] = v.type;
+        });
+      }
+    });
+    setVariables(Object.entries(allVars).map(([name, type]) => ({ name, type })));
+  }, [cells]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -791,8 +908,14 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
       setSelectedCellId(null);
       setExecutionTimes({});
       setShowRawJson(false);
+      setCollapsedCells(new Set());
     }
   }, [file.content, file.id]);
+
+  // Update cellsRef
+  useEffect(() => {
+    cellsRef.current = cells;
+  }, [cells]);
 
   const saveNotebook = useCallback(
     (updatedCells?: NotebookCell[], updatedMetadata?: Record<string, unknown>) => {
@@ -991,7 +1114,7 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
         });
       }
     },
-    [runCell, file.id, saveNotebook],
+    [runCell, language, saveNotebook],
   );
 
   const handleRunAndAdvance = useCallback(
@@ -1036,10 +1159,15 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
   );
 
   const handleRunAll = useCallback(async () => {
-    for (const cell of cells) {
-      if (cell.cell_type === "code" && cell.source.trim()) {
-        await handleRun(cell);
+    setIsExecuting(true);
+    try {
+      for (const cell of cells) {
+        if (cell.cell_type === "code" && cell.source.trim()) {
+          await handleRun(cell);
+        }
       }
+    } finally {
+      setIsExecuting(false);
     }
   }, [cells, handleRun]);
 
@@ -1196,432 +1324,535 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
     );
   }
 
+  const exportIpynb = () => {
+    const json = serializeNotebook(cells, metadata);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name.replace(/\.ipynb$/i, '.ipynb');
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPy = () => {
+    const lines: string[] = [];
+    for (const cell of cells) {
+      if (cell.cell_type === 'markdown') {
+        lines.push('# %% [markdown]');
+        lines.push(`# ${cell.source.replace(/\n/g, '\n# ')}`);
+        lines.push('');
+      } else {
+        lines.push('# %%');
+        lines.push(cell.source);
+        lines.push('');
+      }
+    }
+    const blob = new Blob([lines.join('\n')], { type: 'text/x-python' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name.replace(/\.ipynb$/i, '.py');
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportHtml = () => {
+    const renderedCells = cells.map((cell, i) => {
+      if (cell.cell_type === 'markdown') {
+        return `<div class="cell markdown">${cell.source}</div>`;
+      }
+      const outputs = (cell.outputs || []).map((o) => {
+        const text = o.text ? (Array.isArray(o.text) ? o.text.join('') : o.text) : '';
+        return `<pre class="output">${escapeHtml(text)}</pre>`;
+      }).join('');
+      return `<div class="cell code"><pre class="code">${escapeHtml(cell.source)}</pre>${outputs}</div>`;
+    });
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>${escapeHtml(file.name)}</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:2rem;background:#fff;color:#1a1a1a}
+.cell{margin:1rem 0;padding:1rem;border-radius:8px;border:1px solid #e5e7eb}
+.code{background:#f3f4f6;padding:1rem;overflow-x:auto;border-radius:4px;font-family:monospace}
+.output{background:#f9fafb;padding:0.75rem;margin-top:0.5rem;border-left:3px solid #3b82f6;font-family:monospace;white-space:pre-wrap}
+.markdown{background:#fff}
+h1,h2,h3{color:#111}
+</style>
+</head>
+<body>${renderedCells.join('\n')}</body></html>`;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name.replace(/\.ipynb$/i, '.html');
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div
-      ref={notebookRef}
-      tabIndex={0}
-      className="h-full w-full bg-background flex flex-col outline-none"
-    >
-      {/* Top toolbar */}
-      <div className="border-b border-border/60 px-4 py-2 flex items-center justify-between gap-4 shrink-0">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Code2 className="w-4 h-4" />
-          <span>Jupyter Notebook Editor</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {/* Run all */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={handleRunAll}
-            disabled={isExecuting}
-          >
-            <Play className="w-3 h-3" /> Run all
-          </Button>
-          {/* Clear all outputs */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={handleClearAllOutputs}
-          >
-            <RotateCcw className="w-3 h-3" /> Clear all
-          </Button>
-          {/* Restart kernel */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={handleRestartKernel}
-          >
-            <Square className="w-3 h-3" /> Restart kernel
-          </Button>
-          {/* Add cell */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
-                <Plus className="w-3 h-3" /> Add cell
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="min-w-[140px]">
-              <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(cells.length - 1, "code")}>
-                <Terminal className="w-3.5 h-3.5" /> Code
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(cells.length - 1, "markdown")}>
-                <FileText className="w-3.5 h-3.5" /> Markdown
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(cells.length - 1, "raw")}>
-                <Code2 className="w-3.5 h-3.5" /> Raw
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {/* Search */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 p-0"
-            onClick={() => setShowSearch((p) => !p)}
-            title="Search cells (Ctrl+Shift+F)"
-          >
-            <Search className="w-3.5 h-3.5" />
-          </Button>
-          {/* Raw JSON toggle */}
-          <Button
-            variant={showRawJson ? "default" : "ghost"}
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={() => {
-              if (showRawJson) {
-                setShowRawJson(false);
-              } else {
-                setRawJsonContent(serializeNotebook(cells, metadata));
-                setShowRawJson(true);
-              }
-            }}
-            title="Edit notebook as raw JSON"
-          >
-            <FileJson className="w-3.5 h-3.5" /> {showRawJson ? "Visual" : "Raw JSON"}
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Badge variant="secondary" className="text-[10px] cursor-pointer hover:bg-secondary/80 transition-colors">{kernelName}</Badge>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="min-w-[160px]">
-              {KERNEL_OPTIONS.map((opt) => (
-                <DropdownMenuItem
-                  key={opt.kernel}
-                  className="text-xs gap-2"
-                  onClick={() => handleKernelChange(opt.label, opt.kernel, opt.language)}
-                >
-                  {currentKernel === opt.kernel
-                    ? <CheckCircle2 className="w-3 h-3 text-primary" />
-                    : <div className="w-3 h-3" />}
-                  {opt.label}
+    <div className="h-full w-full bg-background flex flex-col outline-none">
+      <div
+        ref={notebookRef}
+        tabIndex={0}
+        className="flex-1 flex flex-col outline-none overflow-hidden"
+      >
+        {/* Top toolbar */}
+        <div className="border-b border-border/60 px-4 py-2 flex items-center justify-between gap-4 shrink-0">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Code2 className="w-4 h-4" />
+            <span>Jupyter Notebook Editor</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {/* Run all */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={handleRunAll}
+              disabled={isExecuting}
+            >
+              <Play className="w-3 h-3" /> Run all
+            </Button>
+            {/* Clear all outputs */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={handleClearAllOutputs}
+            >
+              <RotateCcw className="w-3 h-3" /> Clear all
+            </Button>
+            {/* Restart kernel */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={handleRestartKernel}
+            >
+              <Square className="w-3 h-3" /> Restart kernel
+            </Button>
+            {/* Add cell */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
+                  <Plus className="w-3 h-3" /> Add cell
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="min-w-[140px]">
+                <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(cells.length - 1, "code")}>
+                  <Terminal className="w-3.5 h-3.5" /> Code
                 </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Badge variant="outline" className="text-[10px]">{cells.length} cells</Badge>
+                <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(cells.length - 1, "markdown")}>
+                  <FileText className="w-3.5 h-3.5" /> Markdown
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(cells.length - 1, "raw")}>
+                  <Code2 className="w-3.5 h-3.5" /> Raw
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {/* Search */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0"
+              onClick={() => setShowSearch((p) => !p)}
+              title="Search cells (Ctrl+Shift+F)"
+            >
+              <Search className="w-3.5 h-3.5" />
+            </Button>
+            {/* Raw JSON toggle */}
+            <Button
+              variant={showRawJson ? "default" : "ghost"}
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={() => {
+                if (showRawJson) {
+                  setShowRawJson(false);
+                } else {
+                  setRawJsonContent(serializeNotebook(cells, metadata));
+                  setShowRawJson(true);
+                }
+              }}
+              title="Edit notebook as raw JSON"
+            >
+              <FileJson className="w-3.5 h-3.5" /> {showRawJson ? "Visual" : "Raw JSON"}
+            </Button>
+            {/* Export */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
+                  <Download className="w-3 h-3" /> Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[120px]">
+                <DropdownMenuItem className="text-xs gap-2" onClick={exportIpynb}>
+                  <FileJson className="w-3.5 h-3.5" /> .ipynb
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-xs gap-2" onClick={exportPy}>
+                  <Terminal className="w-3.5 h-3.5" /> .py
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-xs gap-2" onClick={exportHtml}>
+                  <FileText className="w-3.5 h-3.5" /> HTML
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Kernel status */}
-          <Badge
-            variant="outline"
-            className={cn(
-              "text-[10px]",
-              kernel.status === "running" && "text-yellow-500 border-yellow-500/30",
-              kernel.status === "error" && "text-red-500 border-red-500/30",
-              kernel.status === "ready" && "text-emerald-500 border-emerald-500/30",
-            )}
-          >
-            {kernel.status === "idle" && "Kernel idle"}
-            {kernel.status === "running" && "Running..."}
-            {kernel.status === "ready" && "Ready"}
-            {kernel.status === "error" && "Error"}
-          </Badge>
-        </div>
-      </div>
-
-      {/* Help bar for selected cell */}
-      {selectedCellId && (
-        <div className="px-4 py-1 border-b border-border/30 bg-muted/10 shrink-0">
-          <p className="text-[10px] text-muted-foreground">
-            <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">Shift+Enter</kbd> run &amp; advance{' '}
-            <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">Alt+Enter</kbd> run &amp; insert{' '}
-            <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">A</kbd> insert above{' '}
-            <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">B</kbd> insert below{' '}
-            <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">D</kbd> delete{' '}
-            <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">M</kbd> markdown{' '}
-            <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">Y</kbd> code{' '}
-            <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">↑↓</kbd> navigate
-          </p>
-        </div>
-      )}
-
-      {/* Search bar */}
-      {showSearch && (
-        <div className="px-4 py-2 border-b border-border/60 shrink-0">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Search cells..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 pl-8 pr-8 text-sm"
-              autoFocus
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          {searchQuery && (
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {filteredCells.length} / {cells.length} cells match
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Raw JSON editor */}
-      {showRawJson ? (
-        <div className="flex-1 flex flex-col p-4 gap-3">
-          <div className="flex items-center justify-between shrink-0">
-            <span className="text-sm font-medium flex items-center gap-2">
-              <FileJson className="w-4 h-4" /> Raw Notebook JSON
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setShowRawJson(false)}
-              >
-                <X className="w-3 h-3" /> Cancel
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                className="h-7 text-xs gap-1"
-                onClick={() => {
-                  try {
-                    const parsed = JSON.parse(rawJsonContent);
-                    if (!parsed.cells || !Array.isArray(parsed.cells)) {
-                      throw new Error("Missing 'cells' array");
-                    }
-                    const newCells = parseCells(rawJsonContent);
-                    const newMeta = parseMetadata(rawJsonContent);
-                    setCells(newCells);
-                    setMetadata(newMeta);
-                    saveNotebook(newCells, newMeta);
-      setShowRawJson(false);
-      setShowRawPaste(false);
-      setRawJsonContent("");
-                  } catch (err) {
-                    alert("Invalid JSON: " + (err instanceof Error ? err.message : String(err)));
-                  }
-                }}
-              >
-                <CheckCircle2 className="w-3 h-3" /> Apply
-              </Button>
-            </div>
-          </div>
-          <textarea
-            value={rawJsonContent}
-            onChange={(e) => setRawJsonContent(e.target.value)}
-            className="flex-1 w-full bg-muted/20 border border-border/60 rounded-lg p-4 text-xs font-mono resize-none focus:outline-none focus:ring-1 focus:ring-primary/40 leading-5"
-            spellCheck={false}
-          />
-        </div>
-      ) : (
-        <ScrollArea className="flex-1">
-        <div className="p-6 max-w-5xl mx-auto space-y-4">
-          {cells.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">
-              <Code2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm mb-2">Empty notebook</p>
-              <div className="flex items-center justify-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 text-xs gap-1"
-                    >
-                      <Plus className="w-3 h-3" /> Add cell
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="center" className="min-w-[140px]">
-                    <DropdownMenuItem
-                      className="text-xs gap-2"
-                      onClick={() => {
-                        const newCell: NotebookCell = {
-                          id: generateCellId(),
-                          cell_type: "code",
-                          source: "",
-                          execution_count: null,
-                          outputs: [],
-                        };
-                        setCells([newCell]);
-                        saveNotebook([newCell]);
-                        setSelectedCellId(newCell.id);
-                      }}
-                    >
-                      <Terminal className="w-3.5 h-3.5" /> Code
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-xs gap-2"
-                      onClick={() => {
-                        const newCell: NotebookCell = {
-                          id: generateCellId(),
-                          cell_type: "markdown",
-                          source: "",
-                          execution_count: null,
-                          outputs: [],
-                        };
-                        setCells([newCell]);
-                        saveNotebook([newCell]);
-                        setSelectedCellId(newCell.id);
-                      }}
-                    >
-                      <FileText className="w-3.5 h-3.5" /> Markdown
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="text-xs gap-2"
-                      onClick={() => {
-                        const newCell: NotebookCell = {
-                          id: generateCellId(),
-                          cell_type: "raw",
-                          source: "",
-                          execution_count: null,
-                          outputs: [],
-                        };
-                        setCells([newCell]);
-                        saveNotebook([newCell]);
-                        setSelectedCellId(newCell.id);
-                      }}
-                    >
-                      <Code2 className="w-3.5 h-3.5" /> Raw
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                {!showRawPaste && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-xs gap-1"
-                    onClick={() => {
-                      setRawJsonContent("");
-                      setShowRawPaste(true);
-                    }}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Badge variant="secondary" className="text-[10px] cursor-pointer hover:bg-secondary/80 transition-colors">{kernelName}</Badge>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" className="min-w-[160px]">
+                {KERNEL_OPTIONS.map((opt) => (
+                  <DropdownMenuItem
+                    key={opt.kernel}
+                    className="text-xs gap-2"
+                    onClick={() => handleKernelChange(opt.label, opt.kernel, opt.language)}
                   >
-                    <FileJson className="w-3 h-3" /> Raw
-                  </Button>
-                )}
-              </div>
-              {showRawPaste && (
-                <div className="mt-4 max-w-xl mx-auto space-y-2">
-                  <textarea
-                    value={rawJsonContent}
-                    onChange={(e) => setRawJsonContent(e.target.value)}
-                    className="w-full min-h-[120px] bg-background border border-border/60 rounded-lg p-3 text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-primary/40 leading-5"
-                    placeholder='Paste raw notebook JSON (e.g. {"nbformat":4,"cells":[...]})'
-                  />
-                  <div className="flex gap-2 justify-center">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="h-7 text-xs gap-1"
-                      onClick={() => {
-                        try {
-                          const parsed = JSON.parse(rawJsonContent);
-                          if (!parsed.cells || !Array.isArray(parsed.cells)) {
-                            throw new Error("Missing 'cells' array");
-                          }
-                          const newCells = parseCells(rawJsonContent);
-                          const newMeta = parseMetadata(rawJsonContent);
-                          setCells(newCells);
-                          setMetadata(newMeta);
-                          saveNotebook(newCells, newMeta);
-                          setShowRawPaste(false);
-                        } catch (err) {
-                          alert("Invalid JSON: " + (err instanceof Error ? err.message : String(err)));
-                        }
-                      }}
-                      disabled={!rawJsonContent.trim()}
-                    >
-                      <CheckCircle2 className="w-3 h-3" /> Load
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={() => setShowRawPaste(false)}
-                    >
-                      <X className="w-3 h-3" /> Cancel
-                    </Button>
-                  </div>
-                </div>
+                    {currentKernel === opt.kernel
+                      ? <CheckCircle2 className="w-3 h-3 text-primary" />
+                      : <div className="w-3 h-3" />}
+                    {opt.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Badge variant="outline" className="text-[10px]">{cells.length} cells</Badge>
+
+            {/* Kernel status */}
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px]",
+                kernel.status === "running" && "text-yellow-500 border-yellow-500/30",
+                kernel.status === "error" && "text-red-500 border-red-500/30",
+                kernel.status === "ready" && "text-emerald-500 border-emerald-500/30",
               )}
-            </div>
-          )}
-
-          {filteredCells.length === 0 && searchQuery && (
-            <div className="text-center py-12 text-muted-foreground">
-              <Search className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">No cells match &ldquo;{searchQuery}&rdquo;</p>
-              <button onClick={() => setSearchQuery("")} className="text-xs text-primary hover:underline mt-1">Clear search</button>
-            </div>
-          )}
-
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={cells.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-              {filteredCells.length > 0 && (
-                <div className="space-y-3">
-                  {filteredCells.map((cell) => {
-                    const realIndex = cells.findIndex((c) => c.id === cell.id);
-                    return (
-                      <div key={cell.id}>
-                        {/* Add cell above (first cell) */}
-                        {realIndex === 0 && (
-                          <div className="flex justify-center mb-3">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-3 py-0.5 rounded hover:bg-muted/40">
-                                  <Plus className="w-3 h-3" /> Add cell
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="center" className="min-w-[140px]">
-                                <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(-1, "code")}>
-                                  <Terminal className="w-3.5 h-3.5" /> Code
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(-1, "markdown")}>
-                                  <FileText className="w-3.5 h-3.5" /> Markdown
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(-1, "raw")}>
-                                  <Code2 className="w-3.5 h-3.5" /> Raw
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        )}
-
-                        <SortableCell
-                          cell={cell}
-                          index={realIndex}
-                          totalCells={cells.length}
-                          isRunning={runningCells.has(cell.id)}
-                          isSelected={selectedCellId === cell.id}
-                          language={language}
-                          executionTime={executionTimes[cell.id] ?? null}
-                          onUpdate={handleUpdate}
-                          onDelete={handleDelete}
-                          onDuplicate={handleDuplicate}
-                          onAddBelow={handleAddBelow}
-                          onMoveUp={(id) => handleMove(id, "up")}
-                          onMoveDown={(id) => handleMove(id, "down")}
-                          onRun={handleRun}
-                          onRunAndAdvance={handleRunAndAdvance}
-                          onRunAndInsert={handleRunAndInsert}
-                          onClearOutputs={handleClearOutputs}
-                          onChangeType={handleChangeType}
-                          onSelect={setSelectedCellId}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </SortableContext>
-          </DndContext>
+            >
+              {kernel.status === "idle" && "Kernel idle"}
+              {kernel.status === "running" && "Running..."}
+              {kernel.status === "ready" && "Ready"}
+              {kernel.status === "error" && "Error"}
+            </Badge>
+          </div>
         </div>
-      </ScrollArea>
-      )}
+
+        {/* Help bar for selected cell */}
+        {selectedCellId && (
+          <div className="px-4 py-1 border-b border-border/30 bg-muted/10 shrink-0">
+            <p className="text-[10px] text-muted-foreground">
+              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">Shift+Enter</kbd> run &amp; advance{' '}
+              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">Alt+Enter</kbd> run &amp; insert{' '}
+              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">A</kbd> insert above{' '}
+              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">B</kbd> insert below{' '}
+              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">D</kbd> delete{' '}
+              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">M</kbd> markdown{' '}
+              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">Y</kbd> code{' '}
+              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">↑↓</kbd> navigate
+            </p>
+          </div>
+        )}
+
+        {/* Search bar */}
+        {showSearch && (
+          <div className="px-4 py-2 border-b border-border/60 shrink-0">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search cells..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 pl-8 pr-8 text-sm"
+                autoFocus
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {searchQuery && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {filteredCells.length} / {cells.length} cells match
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Main content: Raw JSON editor or notebook viewer with sidebar */}
+        {showRawJson ? (
+          <div className="flex-1 flex flex-col p-4 gap-3">
+            <div className="flex items-center justify-between shrink-0">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <FileJson className="w-4 h-4" /> Raw Notebook JSON
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setShowRawJson(false)}
+                >
+                  <X className="w-3 h-3" /> Cancel
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => {
+                    try {
+                      const parsed = JSON.parse(rawJsonContent);
+                      if (!parsed.cells || !Array.isArray(parsed.cells)) {
+                        throw new Error("Missing 'cells' array");
+                      }
+                      const newCells = parseCells(rawJsonContent);
+                      const newMeta = parseMetadata(rawJsonContent);
+                      setCells(newCells);
+                      setMetadata(newMeta);
+                      saveNotebook(newCells, newMeta);
+                      setShowRawJson(false);
+                      setShowRawPaste(false);
+                      setRawJsonContent("");
+                    } catch (err) {
+                      alert("Invalid JSON: " + (err instanceof Error ? err.message : String(err)));
+                    }
+                  }}
+                >
+                  <CheckCircle2 className="w-3 h-3" /> Apply
+                </Button>
+              </div>
+            </div>
+            <textarea
+              value={rawJsonContent}
+              onChange={(e) => setRawJsonContent(e.target.value)}
+              className="flex-1 w-full bg-muted/20 border border-border/60 rounded-lg p-4 text-xs font-mono resize-none focus:outline-none focus:ring-1 focus:ring-primary/40 leading-5"
+              spellCheck={false}
+            />
+          </div>
+        ) : (
+          <div className="flex-1 flex overflow-hidden">
+            {/* Notebook area */}
+            <ScrollArea className="flex-1">
+              <div className="p-6 max-w-5xl mx-auto space-y-4">
+                {cells.length === 0 && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Code2 className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm mb-2">Empty notebook</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs gap-1"
+                          >
+                            <Plus className="w-3 h-3" /> Add cell
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="center" className="min-w-[140px]">
+                          <DropdownMenuItem
+                            className="text-xs gap-2"
+                            onClick={() => {
+                              const newCell: NotebookCell = {
+                                id: generateCellId(),
+                                cell_type: "code",
+                                source: "",
+                                execution_count: null,
+                                outputs: [],
+                              };
+                              setCells([newCell]);
+                              saveNotebook([newCell]);
+                              setSelectedCellId(newCell.id);
+                            }}
+                          >
+                            <Terminal className="w-3.5 h-3.5" /> Code
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-xs gap-2"
+                            onClick={() => {
+                              const newCell: NotebookCell = {
+                                id: generateCellId(),
+                                cell_type: "markdown",
+                                source: "",
+                                execution_count: null,
+                                outputs: [],
+                              };
+                              setCells([newCell]);
+                              saveNotebook([newCell]);
+                              setSelectedCellId(newCell.id);
+                            }}
+                          >
+                            <FileText className="w-3.5 h-3.5" /> Markdown
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-xs gap-2"
+                            onClick={() => {
+                              const newCell: NotebookCell = {
+                                id: generateCellId(),
+                                cell_type: "raw",
+                                source: "",
+                                execution_count: null,
+                                outputs: [],
+                              };
+                              setCells([newCell]);
+                              saveNotebook([newCell]);
+                              setSelectedCellId(newCell.id);
+                            }}
+                          >
+                            <Code2 className="w-3.5 h-3.5" /> Raw
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      {!showRawPaste && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-xs gap-1"
+                          onClick={() => {
+                            setRawJsonContent("");
+                            setShowRawPaste(true);
+                          }}
+                        >
+                          <FileJson className="w-3 h-3" /> Raw
+                        </Button>
+                      )}
+                    </div>
+                    {showRawPaste && (
+                      <div className="mt-4 max-w-xl mx-auto space-y-2">
+                        <textarea
+                          value={rawJsonContent}
+                          onChange={(e) => setRawJsonContent(e.target.value)}
+                          className="w-full min-h-[120px] bg-background border border-border/60 rounded-lg p-3 text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-primary/40 leading-5"
+                          placeholder='Paste raw notebook JSON (e.g. {"nbformat":4,"cells":[...]})'
+                        />
+                        <div className="flex gap-2 justify-center">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="h-7 text-xs gap-1"
+                            onClick={() => {
+                              try {
+                                const parsed = JSON.parse(rawJsonContent);
+                                if (!parsed.cells || !Array.isArray(parsed.cells)) {
+                                  throw new Error("Missing 'cells' array");
+                                }
+                                const newCells = parseCells(rawJsonContent);
+                                const newMeta = parseMetadata(rawJsonContent);
+                                setCells(newCells);
+                                setMetadata(newMeta);
+                                saveNotebook(newCells, newMeta);
+                                setShowRawPaste(false);
+                              } catch (err) {
+                                alert("Invalid JSON: " + (err instanceof Error ? err.message : String(err)));
+                              }
+                            }}
+                            disabled={!rawJsonContent.trim()}
+                          >
+                            <CheckCircle2 className="w-3 h-3" /> Load
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setShowRawPaste(false)}
+                          >
+                            <X className="w-3 h-3" /> Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {filteredCells.length === 0 && searchQuery && (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <Search className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">No cells match &ldquo;{searchQuery}&rdquo;</p>
+                    <button onClick={() => setSearchQuery("")} className="text-xs text-primary hover:underline mt-1">Clear search</button>
+                  </div>
+                )}
+
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={cells.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+                    {filteredCells.length > 0 && (
+                      <div className="space-y-3">
+                        {filteredCells.map((cell) => {
+                          const realIndex = cells.findIndex((c) => c.id === cell.id);
+                          return (
+                            <div key={cell.id}>
+                              {/* Add cell above (first cell) */}
+                              {realIndex === 0 && (
+                                <div className="flex justify-center mb-3">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-3 py-0.5 rounded hover:bg-muted/40">
+                                        <Plus className="w-3 h-3" /> Add cell
+                                      </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="center" className="min-w-[140px]">
+                                      <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(-1, "code")}>
+                                        <Terminal className="w-3.5 h-3.5" /> Code
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(-1, "markdown")}>
+                                        <FileText className="w-3.5 h-3.5" /> Markdown
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem className="text-xs gap-2" onClick={() => handleAddCell(-1, "raw")}>
+                                        <Code2 className="w-3.5 h-3.5" /> Raw
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              )}
+
+                              <SortableCell
+                                cell={cell}
+                                index={realIndex}
+                                totalCells={cells.length}
+                                isRunning={runningCells.has(cell.id)}
+                                isSelected={selectedCellId === cell.id}
+                                language={language}
+                                executionTime={executionTimes[cell.id] ?? null}
+                                collapsed={collapsedCells.has(cell.id)}
+                                onCollapsedChange={(collapsed) => {
+                                  const newSet = new Set(collapsedCells);
+                                  if (collapsed) {
+                                    newSet.add(cell.id);
+                                  } else {
+                                    newSet.delete(cell.id);
+                                  }
+                                  setCollapsedCells(newSet);
+                                }}
+                                onUpdate={handleUpdate}
+                                onDelete={handleDelete}
+                                onDuplicate={handleDuplicate}
+                                onAddBelow={handleAddBelow}
+                                onMoveUp={(id) => handleMove(id, "up")}
+                                onMoveDown={(id) => handleMove(id, "down")}
+                                onRun={handleRun}
+                                onRunAndAdvance={handleRunAndAdvance}
+                                onRunAndInsert={handleRunAndInsert}
+                                onClearOutputs={handleClearOutputs}
+                                onChangeType={handleChangeType}
+                                onSelect={setSelectedCellId}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </SortableContext>
+                </DndContext>
+              </div>
+            </ScrollArea>
+
+            {/* Variables Sidebar */}
+            <VariablesSidebar variables={variables} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

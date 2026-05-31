@@ -6,13 +6,17 @@ import {
   AlignLeft, AlignCenter, AlignRight, Undo, Redo,
   Plus, Loader2, ChevronDown, Table, Image, Link,
   BarChart3, Filter, SortAsc, SortDesc, Search,
-  Eye, Columns, ArrowDownUp, Calculator, Sigma
+  Eye, Columns, ArrowDownUp, Calculator, Sigma,
+  Percent, DollarSign, Calendar, X, Maximize2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { decodeDataUrl, encodeDataUrl, parseXml, xmlEncode, buildNewXlsx } from './officeUtils';
+import { useVirtualizer } from '@tanstack/react-virtual';
+import { Parser } from 'hot-formula-parser';
 
 interface ExcelEditorProps {
   file: FileNode;
@@ -24,6 +28,21 @@ interface CellStyle {
   fontStyle?: 'normal' | 'italic';
   textDecoration?: 'none' | 'underline';
   textAlign?: 'left' | 'center' | 'right';
+  numberFormat?: 'general' | 'number' | 'currency' | 'percent' | 'date';
+}
+
+interface CellMerge {
+  fromRow: number;
+  fromCol: number;
+  toRow: number;
+  toCol: number;
+}
+
+interface Sheet {
+  name: string;
+  grid: string[][];
+  styles: CellStyle[][];
+  mergedCells: CellMerge[];
 }
 
 const colLabel = (idx: number): string => {
@@ -36,8 +55,8 @@ const colLabel = (idx: number): string => {
   return label;
 };
 
-const DEFAULT_ROWS = 50;
-const DEFAULT_COLS = 26;
+const DEFAULT_ROWS = 100;
+const DEFAULT_COLS = 100;
 
 const isFormula = (value: string) => value.trim().startsWith("=");
 const isNumericLiteral = (value: string) => /^-?\d+(\.\d+)?$/.test(value.trim());
@@ -45,20 +64,83 @@ const isNumericLiteral = (value: string) => /^-?\d+(\.\d+)?$/.test(value.trim())
 export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [grid, setGrid] = useState<string[][]>([]);
+  const [sheets, setSheets] = useState<Sheet[]>([{ 
+    name: 'Sheet1', 
+    grid: Array.from({ length: DEFAULT_ROWS }, () => Array(DEFAULT_COLS).fill('')), 
+    styles: Array.from({ length: DEFAULT_ROWS }, () => Array(DEFAULT_COLS).fill({ textAlign: 'left', numberFormat: 'general' })),
+    mergedCells: []
+  }]);
+  const [activeSheetIdx, setActiveSheetIdx] = useState(0);
   const [selectedCell, setSelectedCell] = useState<[number, number]>([0, 0]);
+  const [selectedRange, setSelectedRange] = useState<[[number, number], [number, number]] | null>(null);
   const [editingCell, setEditingCell] = useState<[number, number] | null>(null);
-  const [cellStyles, setCellStyles] = useState<CellStyle[][]>(Array.from({ length: DEFAULT_ROWS }, () => Array.from({ length: DEFAULT_COLS }, () => ({ textAlign: 'left' }))));
   const [formulaBarValue, setFormulaBarValue] = useState('');
-  const [sheets] = useState(['Sheet1']);
-  const [activeSheet] = useState(0);
-  const [colWidths] = useState<number[]>(Array(DEFAULT_COLS).fill(80));
+  const [colWidths, setColWidths] = useState<number[]>(Array(DEFAULT_COLS).fill(80));
   const [ribbonTab, setRibbonTab] = useState<'home' | 'insert' | 'formulas' | 'data' | 'review' | 'view'>('home');
+  const [renamingSheetIdx, setRenamingSheetIdx] = useState<number | null>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
+  const grid = sheets[activeSheetIdx].grid;
+  const cellStyles = sheets[activeSheetIdx].styles;
+  const mergedCells = sheets[activeSheetIdx].mergedCells;
+
+  const setGrid = (updater: (prev: string[][]) => string[][]) => {
+    setSheets(prev => prev.map((s, idx) => idx === activeSheetIdx ? { ...s, grid: updater(s.grid) } : s));
+  };
+  
+  const setCellStyles = (updater: (prev: CellStyle[][]) => CellStyle[][]) => {
+    setSheets(prev => prev.map((s, idx) => idx === activeSheetIdx ? { ...s, styles: updater(s.styles) } : s));
+  };
+
+  const setMergedCells = (updater: (prev: CellMerge[]) => CellMerge[]) => {
+    setSheets(prev => prev.map((s, idx) => idx === activeSheetIdx ? { ...s, mergedCells: updater(s.mergedCells) } : s));
+  };
+
+  const addSheet = () => {
+    setSheets([...sheets, { 
+      name: `Sheet${sheets.length + 1}`, 
+      grid: Array.from({ length: DEFAULT_ROWS }, () => Array(DEFAULT_COLS).fill('')), 
+      styles: Array.from({ length: DEFAULT_ROWS }, () => Array(DEFAULT_COLS).fill({ textAlign: 'left', numberFormat: 'general' })),
+      mergedCells: []
+    }]);
+    setActiveSheetIdx(sheets.length);
+  };
+  
+  const renameSheet = (idx: number, newName: string) => {
+    if (newName.trim()) {
+      setSheets(prev => prev.map((s, i) => i === idx ? { ...s, name: newName.trim() } : s));
+    }
+    setRenamingSheetIdx(null);
+  };
+
+  const deleteSheet = (idx: number) => {
+    if (sheets.length <= 1) return;
+    setSheets(prev => prev.filter((_, i) => i !== idx));
+    if (activeSheetIdx >= idx && activeSheetIdx > 0) {
+      setActiveSheetIdx(activeSheetIdx - 1);
+    }
+  };
+
   const gridRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<string[][][]>([]);
   const redoRef = useRef<string[][][]>([]);
-  // Track last saved ZIP bytes so save() doesn't read stale file.content
+  const parentRef = useRef<HTMLDivElement>(null);
   const lastZipBytesRef = useRef<Uint8Array | null>(null);
+
+  const rowVirtualizer = useVirtualizer({
+    count: DEFAULT_ROWS,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 28,
+    overscan: 10,
+  });
+
+  const colVirtualizer = useVirtualizer({
+    count: DEFAULT_COLS,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => (colWidths[0] || 80),
+    horizontal: true,
+    overscan: 5,
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -108,7 +190,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     };
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file.id]); // Only reload when file ID changes
+  }, [file.id]);
 
   useEffect(() => {
     setFormulaBarValue(grid[selectedCell[0]]?.[selectedCell[1]] || '');
@@ -149,7 +231,6 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     zip.file('xl/worksheets/sheet1.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rowsXml}</sheetData></worksheet>`);
 
-    // Ensure workbook relationships include sharedStrings
     zip.folder('xl')?.folder('_rels')?.file('workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>`);
 
@@ -158,7 +239,6 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', out));
   }, [file.id, grid, onContentChange]);
 
-  // Auto-save when grid changes
   const initialLoadDone = useRef(false);
   useEffect(() => {
     if (loading || grid.length === 0) return;
@@ -185,6 +265,50 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
   const applyStyle = (update: (s: CellStyle) => CellStyle) => {
     const [row, col] = selectedCell;
     setCellStyles(prev => prev.map((r, ri) => ri === row ? r.map((c, ci) => ci === col ? update(c || {}) : c) : r));
+  };
+
+  const mergeCells = () => {
+    if (!selectedRange) return;
+    const [[r1, c1], [r2, c2]] = selectedRange;
+    const minR = Math.min(r1, r2);
+    const maxR = Math.max(r1, r2);
+    const minC = Math.min(c1, c2);
+    const maxC = Math.max(c1, c2);
+
+    if (minR === maxR && minC === maxC) return;
+
+    setMergedCells(prev => [
+      ...prev,
+      { fromRow: minR, fromCol: minC, toRow: maxR, toCol: maxC }
+    ]);
+
+    const mainValue = grid[minR]?.[minC] || '';
+    setGrid(prev => {
+      const next = prev.map(r => [...r]);
+      for (let r = minR; r <= maxR; r++) {
+        for (let c = minC; c <= maxC; c++) {
+          if (r === minR && c === minC) next[r][c] = mainValue;
+          else next[r][c] = '';
+        }
+      }
+      return next;
+    });
+  };
+
+  const unmergeCells = () => {
+    const [row, col] = selectedCell;
+    const mergeIdx = mergedCells.findIndex(m => 
+      row >= m.fromRow && row <= m.toRow && col >= m.fromCol && col <= m.toCol
+    );
+    if (mergeIdx >= 0) {
+      setMergedCells(prev => prev.filter((_, idx) => idx !== mergeIdx));
+    }
+  };
+
+  const isCellMerged = (row: number, col: number): CellMerge | null => {
+    return mergedCells.find(m => 
+      row >= m.fromRow && row <= m.toRow && col >= m.fromCol && col <= m.toCol
+    ) || null;
   };
 
   const undo = () => {
@@ -231,7 +355,6 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
       setEditingCell([row, col]);
     }
   };
-
 
   const addTableBlock = () => {
     const [row, col] = selectedCell;
@@ -306,6 +429,52 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     updateCell(row, col, String(Number(value.toFixed(4))));
   };
 
+  const getCellDisplayValue = (value: string, style?: CellStyle): string => {
+    if (isFormula(value)) {
+      try {
+        const parser = new Parser();
+        const parserResult = parser.parse(value.trim().slice(1));
+        if (parserResult.error) return '#ERR';
+        const result = parser.evaluate(parserResult.result, (id: string) => {
+          const match = id.match(/^([A-Z]+)(\d+)$/i);
+          if (!match) return undefined;
+          const col = match[1].toUpperCase().split('').reduce((acc, ch) => acc * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+          const row = parseInt(match[2]) - 1;
+          const cellVal = grid[row]?.[col] || '';
+          return isNumericLiteral(cellVal) ? parseFloat(cellVal) : cellVal;
+        });
+        if (typeof result === 'number') {
+          return formatNumber(result, style?.numberFormat);
+        }
+        return String(result ?? '#ERR');
+      } catch { return '#ERR'; }
+    }
+    if (style?.numberFormat && style.numberFormat !== 'general' && isNumericLiteral(value)) {
+      return formatNumber(parseFloat(value), style.numberFormat);
+    }
+    return value;
+  };
+
+  const formatNumber = (num: number, fmt?: string): string => {
+    switch (fmt) {
+      case 'currency': return `$${num.toFixed(2)}`;
+      case 'percent': return `${(num * 100).toFixed(1)}%`;
+      case 'date': {
+        const d = new Date((num - 25569) * 86400 * 1000);
+        if (isNaN(d.getTime())) return String(num);
+        return d.toLocaleDateString();
+      }
+      default: return String(num);
+    }
+  };
+
+  const applyNumberFormat = (fmt: string) => {
+    const [row, col] = selectedCell;
+    setCellStyles(prev => prev.map((r, ri) =>
+      ri === row ? r.map((c, ci) => ci === col ? { ...c, numberFormat: fmt as CellStyle['numberFormat'] } : c) : r
+    ));
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground gap-2">
@@ -362,10 +531,28 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
                 <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => applyStyle(s => ({ ...s, fontStyle: s.fontStyle === 'italic' ? 'normal' : 'italic' }))}><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
                 <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => applyStyle(s => ({ ...s, textDecoration: s.textDecoration === 'underline' ? 'none' : 'underline' }))}><Underline className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
               </div>
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
+                <Select value={cellStyles[selectedCell[0]]?.[selectedCell[1]]?.numberFormat || 'general'} onValueChange={applyNumberFormat}>
+                  <SelectTrigger className="h-7 w-24 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general" className="text-xs">General</SelectItem>
+                    <SelectItem value="number" className="text-xs">Number</SelectItem>
+                    <SelectItem value="currency" className="text-xs">Currency</SelectItem>
+                    <SelectItem value="percent" className="text-xs">Percent</SelectItem>
+                    <SelectItem value="date" className="text-xs">Date</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-0.5 pr-2 border-r border-border">
                 <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => applyStyle(s => ({ ...s, textAlign: 'left' }))}><AlignLeft className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
                 <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => applyStyle(s => ({ ...s, textAlign: 'center' }))}><AlignCenter className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Center</TooltipContent></Tooltip>
                 <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => applyStyle(s => ({ ...s, textAlign: 'right' }))}><AlignRight className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Right</TooltipContent></Tooltip>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={mergeCells}><Maximize2 className="w-3.5 h-3.5" /> Merge</Button></TooltipTrigger><TooltipContent>Merge Cells</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={unmergeCells}><X className="w-3.5 h-3.5" /> Unmerge</Button></TooltipTrigger><TooltipContent>Unmerge Cells</TooltipContent></Tooltip>
               </div>
             </>
           )}
@@ -459,52 +646,73 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
 
         {/* Grid */}
         <div
-          ref={gridRef}
+          ref={parentRef}
           className="flex-1 overflow-auto focus:outline-none"
           tabIndex={0}
           onKeyDown={handleGridKeyDown}
         >
-          <table className="border-collapse text-xs select-none" style={{ tableLayout: 'fixed' }}>
-            <thead className="sticky top-0 z-10">
-              <tr>
-                <th className="sticky left-0 z-20 w-10 min-w-10 bg-muted border border-border" />
-                {Array.from({ length: DEFAULT_COLS }, (_, i) => (
-                  <th
-                    key={i}
+          <div style={{ width: colVirtualizer.getTotalSize(), height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
+            {/* Column headers */}
+            <div className="sticky top-0 z-10 flex" style={{ height: 24 }}>
+              <div className="sticky left-0 z-20 w-10 shrink-0 bg-muted border border-border flex items-center justify-center text-xs text-muted-foreground" />
+              {colVirtualizer.getVirtualItems().map(col => (
+                <div
+                  key={col.key}
+                  className={cn(
+                    "border border-border bg-muted font-medium text-muted-foreground px-1 py-0.5 flex items-center text-xs shrink-0",
+                    selectedCell[1] === col.index && "bg-primary/10 text-primary font-semibold"
+                  )}
+                  style={{ width: colWidths[col.index], minWidth: colWidths[col.index], left: col.start, position: 'absolute', top: 0, height: 24 }}
+                >
+                  {colLabel(col.index)}
+                </div>
+              ))}
+            </div>
+            {/* Rows */}
+            {rowVirtualizer.getVirtualItems().map(row => {
+              const rowIdx = row.index;
+              const virtualCols = colVirtualizer.getVirtualItems();
+              return (
+                <div
+                  key={row.key}
+                  style={{ position: 'absolute', top: row.start + 24, left: 0, height: row.size, width: colVirtualizer.getTotalSize(), display: 'flex' }}
+                >
+                  <div
                     className={cn(
-                      "border border-border bg-muted font-medium text-muted-foreground px-1 py-0.5",
-                      selectedCell[1] === i && "bg-primary/10 text-primary font-semibold"
-                    )}
-                    style={{ width: colWidths[i], minWidth: colWidths[i] }}
-                  >
-                    {colLabel(i)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {grid.map((row, rowIdx) => (
-                <tr key={rowIdx}>
-                  <td
-                    className={cn(
-                      "sticky left-0 z-10 border border-border bg-muted text-center font-medium text-muted-foreground px-1 py-0",
+                      "sticky left-0 z-10 w-10 shrink-0 border border-border bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground",
                       selectedCell[0] === rowIdx && "bg-primary/10 text-primary font-semibold"
                     )}
+                    style={{ height: 28 }}
                   >
                     {rowIdx + 1}
-                  </td>
-                  {row.map((cell, colIdx) => {
+                  </div>
+                  {virtualCols.map(col => {
+                    const colIdx = col.index;
+                    const cell = grid[rowIdx]?.[colIdx] || '';
                     const isSelected = selectedCell[0] === rowIdx && selectedCell[1] === colIdx;
                     const isEditing = editingCell?.[0] === rowIdx && editingCell?.[1] === colIdx;
+                    const merge = isCellMerged(rowIdx, colIdx);
+                    const isMergeMain = merge && merge.fromRow === rowIdx && merge.fromCol === colIdx;
+
+                    if (merge && !(merge.fromRow === rowIdx && merge.fromCol === colIdx)) {
+                      return null;
+                    }
 
                     return (
-                      <td
-                        key={colIdx}
+                      <div
+                        key={col.key}
                         className={cn(
-                          "border border-border p-0 relative",
+                          "border border-border p-0 relative flex items-center shrink-0",
                           isSelected && "ring-2 ring-primary ring-inset z-[5]"
                         )}
-                        style={{ width: colWidths[colIdx], minWidth: colWidths[colIdx] }}
+                        style={{ 
+                          width: merge ? colWidths.slice(merge.fromCol, merge.toCol + 1).reduce((a, b) => a + b, 0) : colWidths[colIdx],
+                          minWidth: merge ? colWidths.slice(merge.fromCol, merge.toCol + 1).reduce((a, b) => a + b, 0) : colWidths[colIdx],
+                          height: merge ? (merge.toRow - merge.fromRow + 1) * 28 : 28,
+                          left: col.start,
+                          position: 'absolute',
+                          top: 0
+                        }}
                         onClick={() => {
                           setSelectedCell([rowIdx, colIdx]);
                           setEditingCell(null);
@@ -513,7 +721,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
                       >
                         {isEditing ? (
                           <input
-                            className="w-full h-full px-1 py-0.5 outline-none bg-white dark:bg-[#2d2d2d] text-xs font-mono absolute inset-0 z-10"
+                            className="w-full h-full px-1 py-0.5 outline-none bg-white dark:bg-[#2d2d2d] text-xs font-mono"
                             value={cell}
                             autoFocus
                             onChange={e => updateCell(rowIdx, colIdx, e.target.value)}
@@ -521,38 +729,92 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
                             onBlur={() => setEditingCell(null)}
                           />
                         ) : (
-                          <div className="px-1 py-0.5 truncate h-[22px] leading-[22px]" style={{ fontWeight: cellStyles[rowIdx]?.[colIdx]?.fontWeight, fontStyle: cellStyles[rowIdx]?.[colIdx]?.fontStyle, textDecoration: cellStyles[rowIdx]?.[colIdx]?.textDecoration, textAlign: cellStyles[rowIdx]?.[colIdx]?.textAlign }}>
-                            {cell}
+                          <div className="px-1 py-0.5 truncate w-full text-xs" style={{
+                            fontWeight: cellStyles[rowIdx]?.[colIdx]?.fontWeight,
+                            fontStyle: cellStyles[rowIdx]?.[colIdx]?.fontStyle,
+                            textDecoration: cellStyles[rowIdx]?.[colIdx]?.textDecoration,
+                            textAlign: cellStyles[rowIdx]?.[colIdx]?.textAlign
+                          }}>
+                            {getCellDisplayValue(cell, cellStyles[rowIdx]?.[colIdx])}
                           </div>
                         )}
-                      </td>
+                      </div>
                     );
                   })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Sheet tabs */}
-        <div className="flex items-center border-t border-border bg-background">
-          <div className="flex items-center">
-            <Button size="icon" variant="ghost" className="h-6 w-6 rounded-none" onClick={() => setGrid(Array.from({ length: DEFAULT_ROWS }, () => Array(DEFAULT_COLS).fill('')))}>
-              <Plus className="w-3 h-3" />
-            </Button>
-          </div>
-          <div className="flex items-center">
+        <div className="flex items-center border-t border-border bg-background h-8 overflow-x-auto">
+          <Button size="icon" variant="ghost" className="h-6 w-6 rounded-none flex-shrink-0" onClick={addSheet}>
+            <Plus className="w-3 h-3" />
+          </Button>
+          <div className="flex items-center gap-0">
             {sheets.map((sheet, idx) => (
               <div
                 key={idx}
                 className={cn(
-                  "px-4 py-1 text-xs border-r border-border cursor-pointer",
-                  idx === activeSheet
+                  "flex items-center gap-1 px-3 py-1 text-xs border-r border-border cursor-pointer flex-shrink-0 select-none group relative",
+                  idx === activeSheetIdx
                     ? "bg-background font-medium border-t-2 border-t-[#217346]"
                     : "bg-muted/50 text-muted-foreground hover:bg-muted"
                 )}
+                onClick={() => {
+                  setActiveSheetIdx(idx);
+                  setRenamingSheetIdx(null);
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  const action = window.confirm(`Delete sheet "${sheet.name}"?`) ? 'delete' : 'rename';
+                  if (action === 'delete') {
+                    deleteSheet(idx);
+                  } else {
+                    setRenamingSheetIdx(idx);
+                  }
+                }}
               >
-                {sheet}
+                {renamingSheetIdx === idx ? (
+                  <input
+                    ref={renameInputRef}
+                    type="text"
+                    value={sheet.name}
+                    onChange={(e) => {
+                      setSheets(prev => prev.map((s, i) => i === idx ? { ...s, name: e.target.value } : s));
+                    }}
+                    onBlur={() => {
+                      renameSheet(idx, sheet.name);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        renameSheet(idx, sheet.name);
+                      } else if (e.key === 'Escape') {
+                        setRenamingSheetIdx(null);
+                      }
+                    }}
+                    className="w-24 px-1 text-xs border border-border rounded"
+                    autoFocus
+                  />
+                ) : (
+                  <>
+                    <span>{sheet.name}</span>
+                    {idx === activeSheetIdx && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteSheet(idx);
+                        }}
+                      >
+                        <X className="w-2.5 h-2.5" />
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
             ))}
           </div>

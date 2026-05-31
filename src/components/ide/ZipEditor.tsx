@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import JSZip from 'jszip';
-import { Archive, FileText, Save, Loader2 } from 'lucide-react';
+import { Archive, FileText, Save, Loader2, Trash2, Pencil, Upload, Download } from 'lucide-react';
 import { FileNode } from '@/types/ide';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { FilePreview } from './FilePreview';
 import { OfficeEditor } from './OfficeEditor';
 import { bytesToBase64Async, decodeMaybeDataUrl } from '@/lib/binaryEncoding';
+import { getPreviewType as sharedGetPreviewType, TEXT_EXTENSIONS } from '@/lib/filePreviewTypes';
 
 interface ZipEditorProps {
   file: FileNode;
@@ -17,23 +18,20 @@ interface ZipEditorProps {
 
 type ZipPreviewType = 'text' | 'image' | 'markdown' | 'svg' | 'video' | 'audio' | 'csv' | 'office' | 'binary' | 'mermaid';
 
-const textExtensions = new Set([
-  'txt', 'md', 'markdown', 'js', 'ts', 'tsx', 'jsx', 'json', 'html', 'css', 'scss', 'xml', 'yml', 'yaml', 'csv', 'env', 'gitignore', 'py', 'java', 'c', 'cpp', 'h', 'hpp', 'rs', 'go', 'php', 'rb', 'sh', 'sql', 'mmd', 'mermaid',
-]);
-
 const extOf = (path: string) => path.split('.').pop()?.toLowerCase() || '';
 
 const getPreviewType = (path: string): ZipPreviewType => {
   const ext = extOf(path);
-  if (ext === 'svg') return 'svg';
-  if (ext === 'mmd' || ext === 'mermaid') return 'mermaid';
-  if (ext === 'md' || ext === 'markdown') return 'markdown';
-  if (ext === 'csv') return 'csv';
-  if (['docx', 'xlsx', 'pptx'].includes(ext)) return 'office';
-  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp'].includes(ext)) return 'image';
-  if (['mp4', 'webm', 'mov', 'avi', 'mkv', 'ogv', 'ogg'].includes(ext)) return 'video';
-  if (['mp3', 'wav', 'flac', 'aac', 'm4a'].includes(ext)) return 'audio';
-  if (textExtensions.has(ext) || !path.includes('.')) return 'text';
+  const shared = sharedGetPreviewType(path);
+  if (shared === 'svg') return 'svg';
+  if (shared === 'mermaid') return 'mermaid';
+  if (shared === 'markdown') return 'markdown';
+  if (shared === 'csv') return 'csv';
+  if (shared === 'office') return 'office';
+  if (shared === 'image') return 'image';
+  if (shared === 'video') return 'video';
+  if (shared === 'audio') return 'audio';
+  if (TEXT_EXTENSIONS.has(ext) || !path.includes('.')) return 'text';
   return 'binary';
 };
 
@@ -44,10 +42,38 @@ const formatBytes = (n: number): string => {
   return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
 };
 
-interface EntryMeta {
+interface TreeNode {
+  name: string;
   path: string;
-  size: number;
+  type: 'file' | 'folder';
+  children: TreeNode[];
+  size?: number;
 }
+
+const buildTree = (entries: EntryMeta[]) => {
+  const root: TreeNode = { name: '', path: '', type: 'folder', children: [] };
+  for (const entry of entries) {
+    const parts = entry.path.split('/');
+    let current = root;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isFile = i === parts.length - 1;
+      let child = current.children.find(c => c.name === part);
+      if (!child) {
+        child = {
+          name: part,
+          path: isFile ? entry.path : parts.slice(0, i + 1).join('/'),
+          type: isFile ? 'file' : 'folder',
+          children: [],
+          ...(isFile ? { size: entry.size } : {})
+        };
+        current.children.push(child);
+      }
+      current = child;
+    }
+  }
+  return root.children;
+};
 
 export const ZipEditor = ({ file, onContentChange }: ZipEditorProps) => {
   const [zip, setZip] = useState<JSZip | null>(null);
@@ -61,6 +87,85 @@ export const ZipEditor = ({ file, onContentChange }: ZipEditorProps) => {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0);
+  const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const downloadAll = async () => {
+    if (!zip) return;
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'archive.zip';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const deleteEntry = async (path: string) => {
+    if (!zip) return;
+    zip.remove(path);
+    const newEntries = entries.filter(e => e.path !== path);
+    setEntries(newEntries);
+    if (selectedPath === path) {
+      setSelectedPath('');
+      setSelectedContent('');
+    }
+    await saveZip(zip);
+  };
+
+  const renameEntry = async (oldPath: string, newPath: string) => {
+    if (!zip || !newPath.trim()) return;
+    const entry = zip.file(oldPath);
+    if (!entry) return;
+    const content = await entry.async('uint8array');
+    zip.file(newPath, content);
+    zip.remove(oldPath);
+    const newEntries = entries.map(e =>
+      e.path === oldPath ? { ...e, path: newPath } : e
+    );
+    setEntries(newEntries);
+    if (selectedPath === oldPath) setSelectedPath(newPath);
+    await saveZip(zip);
+    setRenamingPath(null);
+  };
+
+  const addFileToZip = async () => {
+    if (!zip) return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      zip.file(file.name, bytes);
+      const meta: EntryMeta[] = [];
+      zip.forEach((path, entry) => {
+        if (entry.dir) return;
+        const size = (entry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0;
+        meta.push({ path, size });
+      });
+      meta.sort((a, b) => a.path.localeCompare(b.path));
+      setEntries(meta);
+      await saveZip(zip);
+    };
+    input.click();
+  };
+
+  const saveZip = async (z: JSZip) => {
+    setSaving(true);
+    setSaveProgress(0);
+    try {
+      const bytes = await z.generateAsync(
+        { type: 'uint8array', compression: 'DEFLATE', streamFiles: true },
+        (meta) => setSaveProgress(meta.percent / 100),
+      );
+      const b64 = await bytesToBase64Async(bytes, setSaveProgress);
+      onContentChange(file.id, `data:application/zip;base64,${b64}`);
+    } finally {
+      setSaving(false);
+      setSaveProgress(0);
+    }
+  };
 
   const selectedPreviewType = selectedPath ? getPreviewType(selectedPath) : null;
 
@@ -127,10 +232,40 @@ export const ZipEditor = ({ file, onContentChange }: ZipEditorProps) => {
     }
   };
 
-  const visibleEntries = useMemo(
-    () => entries.filter((e) => e.path.toLowerCase().includes(filter.toLowerCase())),
-    [entries, filter],
-  );
+  const treeData = useMemo(() => buildTree(entries.filter((e) => e.path.toLowerCase().includes(filter.toLowerCase()))), [entries, filter]);
+
+  const renderTree = (nodes: TreeNode[]): JSX.Element[] => {
+    return nodes.map(node => (
+      <div key={node.path}>
+        {node.type === 'folder' ? (
+          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{node.name}/</div>
+        ) : (
+          <div className="group flex items-center">
+            <button
+              className={`flex-1 text-left px-2 py-1.5 rounded text-xs hover:bg-muted/50 flex items-center justify-between gap-2 ${selectedPath === node.path ? 'bg-muted' : ''}`}
+              onClick={() => void openEntry(node.path)}
+            >
+              <span className="truncate">{node.name}</span>
+              <span className="text-muted-foreground shrink-0">{node.size ? formatBytes(node.size) : ''}</span>
+            </button>
+            <div className="hidden group-hover:flex items-center gap-0.5 pr-1">
+              <button
+                onClick={() => { setRenamingPath(node.path); setRenameValue(node.path); }}
+                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                title="Rename"
+              ><Pencil className="w-3 h-3" /></button>
+              <button
+                onClick={() => { if (confirm(`Delete ${node.path}?`)) void deleteEntry(node.path); }}
+                className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/20"
+                title="Delete"
+              ><Trash2 className="w-3 h-3" /></button>
+            </div>
+          </div>
+        )}
+        {node.children.length > 0 && <div className="pl-4">{renderTree(node.children)}</div>}
+      </div>
+    ));
+  };
 
   const openEntry = async (path: string) => {
     if (!zip) return;
@@ -181,19 +316,52 @@ export const ZipEditor = ({ file, onContentChange }: ZipEditorProps) => {
         <div className="p-3 border-b border-border space-y-2">
           <div className="flex items-center justify-between text-sm font-medium">
             <span className="flex items-center gap-2"><Archive className="w-4 h-4" /> ZIP Contents</span>
-            <span className="text-xs text-muted-foreground">{entries.length} files</span>
+            <div className="flex items-center gap-1">
+              <button onClick={downloadAll} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60" title="Download All"><Download className="w-3.5 h-3.5" /></button>
+              <button onClick={addFileToZip} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60" title="Add file"><Upload className="w-3.5 h-3.5" /></button>
+              <span className="text-xs text-muted-foreground">{entries.length} files</span>
+            </div>
           </div>
           <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter files…" className="h-8" />
         </div>
         <ScrollArea className="flex-1"><div className="p-2 space-y-1">{visibleEntries.map((entry) => (
-          <button
-            key={entry.path}
-            className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-muted/50 flex items-center justify-between gap-2 ${selectedPath === entry.path ? 'bg-muted' : ''}`}
-            onClick={() => void openEntry(entry.path)}
-          >
-            <span className="truncate">{entry.path}</span>
-            <span className="text-muted-foreground shrink-0">{formatBytes(entry.size)}</span>
-          </button>
+          renamingPath === entry.path ? (
+            <div key={entry.path} className="flex items-center gap-1 px-2 py-1">
+              <Input
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                className="h-7 text-xs flex-1"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void renameEntry(entry.path, renameValue);
+                  if (e.key === 'Escape') setRenamingPath(null);
+                }}
+                onBlur={() => setRenamingPath(null)}
+              />
+            </div>
+          ) : (
+          <div key={entry.path} className="group flex items-center">
+            <button
+              className={`flex-1 text-left px-2 py-1.5 rounded text-xs hover:bg-muted/50 flex items-center justify-between gap-2 ${selectedPath === entry.path ? 'bg-muted' : ''}`}
+              onClick={() => void openEntry(entry.path)}
+            >
+              <span className="truncate">{entry.path}</span>
+              <span className="text-muted-foreground shrink-0">{formatBytes(entry.size)}</span>
+            </button>
+            <div className="hidden group-hover:flex items-center gap-0.5 pr-1">
+              <button
+                onClick={() => { setRenamingPath(entry.path); setRenameValue(entry.path); }}
+                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                title="Rename"
+              ><Pencil className="w-3 h-3" /></button>
+              <button
+                onClick={() => { if (confirm(`Delete ${entry.path}?`)) void deleteEntry(entry.path); }}
+                className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/20"
+                title="Delete"
+              ><Trash2 className="w-3 h-3" /></button>
+            </div>
+          </div>
+          )
         ))}</div></ScrollArea>
       </div>
       <div className="flex-1 flex flex-col min-w-0">

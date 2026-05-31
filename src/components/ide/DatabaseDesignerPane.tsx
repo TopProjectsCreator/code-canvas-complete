@@ -807,13 +807,13 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                 Upload PDF / Word / MD
                 <input
                   type="file"
-                  accept=".md,.markdown,.txt,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown,text/plain"
+                  accept=".md,.mdx,.markdown,.txt,.pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown,text/plain"
                   className="hidden"
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
                     const ext = file.name.split(".").pop()?.toLowerCase();
-                    if (ext === "md" || ext === "markdown" || ext === "txt") {
+                    if (ext === "md" || ext === "mdx" || ext === "markdown" || ext === "txt") {
                       const text = await file.text();
                       setConstraintsDoc((prev) => `${prev.trim()}\n\n## From ${file.name}\n\n${text}\n`);
                     } else {
@@ -843,7 +843,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
               >
                 <option value="">Link a canvas file…</option>
                 {flatFiles
-                  .filter((f) => /\.(md|markdown|txt|pdf|docx?|xlsx?|pptx?)$/i.test(f.name))
+                  .filter((f) => /\.(md|mdx|markdown|txt|pdf|docx?|xlsx?|pptx?)$/i.test(f.name))
                   .map((f) => (
                     <option key={f.id} value={f.name}>{f.name}</option>
                   ))}
@@ -1143,7 +1143,7 @@ const AttachmentCard = ({
   const isPdf = ext === "pdf" || att.href.startsWith("data:application/pdf");
   const isImage = ["png", "jpg", "jpeg", "gif", "webp", "svg", "img"].includes(ext) || att.href.startsWith("data:image/");
   const isWord = ["doc", "docx"].includes(ext) || /data:application\/vnd\.openxmlformats-officedocument\.wordprocessingml|data:application\/msword/i.test(att.href);
-  const isMd = ["md", "markdown", "txt"].includes(ext);
+  const isMd = ["md", "mdx", "markdown", "txt"].includes(ext);
 
   // Resolve workspace file content (data url or text)
   const workspaceFile = att.source === "workspace"

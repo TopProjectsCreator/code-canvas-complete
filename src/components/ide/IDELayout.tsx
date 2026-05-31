@@ -3289,8 +3289,9 @@ function getDefaultContent(filename: string): string {
       });
     case "json":
       return `{\n  \n}`;
+    case "mdx":
     case "md":
-      return `# ${filename.replace(/\.md$/, "")}\n`;
+      return `# ${filename.replace(/\.(md|mdx)$/, "")}\n`;
     default:
       return "";
   }

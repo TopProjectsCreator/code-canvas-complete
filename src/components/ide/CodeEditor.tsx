@@ -8,6 +8,8 @@ import {
   Sparkles,
   TestTube2,
   WandSparkles,
+  Blocks,
+  Upload,
 } from "lucide-react";
 import { FileNode } from "@/types/ide";
 import { FindReplace } from "./FindReplace";
@@ -19,6 +21,7 @@ import { RTFEditor } from "./RTFEditor";
 import { CADEditor } from "./CADEditor";
 import { ZipEditor } from "./ZipEditor";
 import { IpynbViewer } from "./IpynbViewer";
+import { MarkdownComposer } from "./MarkdownComposer";
 import { PDFEditor } from "./PDFEditor";
 import { TexEditor } from "./TexEditor";
 import { Button } from "@/components/ui/button";
@@ -29,11 +32,15 @@ import { RichTextComposer } from "./RichTextComposer";
 import { AdvancedWorkbench } from "./AdvancedWorkbench";
 import { EnvFileEditor } from "./EnvFileEditor";
 import { DrawEditor } from "./DrawEditor";
+import { getPreviewType } from "@/lib/filePreviewTypes";
 import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
 import { useCollaboration } from "@/hooks/useCollaboration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { extractScopeHeaders, generateUnitTestFile, getScopeForLine } from "@/lib/advancedWorkbench";
 import { SyntaxToken, tokenize, getTokenClass, escapeHtml } from "@/lib/syntax";
+import { ScratchPanel } from "@/components/scratch/ScratchPanel";
+import type { ScratchArchive } from "@/services/scratchSb3";
+import { importSb3, exportSb3 } from "@/services/scratchSb3";
 
 interface CodeEditorProps {
   file: FileNode | null;
@@ -43,34 +50,6 @@ interface CodeEditorProps {
   onCreateOrUpdateFile: (name: string, content: string, language?: string) => void;
   collab?: ReturnType<typeof useCollaboration>;
 }
-
-const getPreviewType = (
-  fileName: string,
-): "image" | "markdown" | "svg" | "video" | "audio" | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite" | "mermaid" | "ipynb" | "draw" | "pdf" | "tex" | null => {
-  const ext = fileName.split(".").pop()?.toLowerCase();
-  const imageExtensions = ["png", "jpg", "jpeg", "gif", "webp", "ico", "bmp"];
-  const videoExtensions = ["mp4", "webm", "mov", "avi", "mkv", "ogv", "ogg"];
-  const audioExtensions = ["mp3", "wav", "flac", "aac", "m4a"];
-  const cadExtensions = ["stl", "obj"];
-
-  if (ext === "pdf") return "pdf";
-  if (ext === "tex" || ext === "latex" || ext === "ltx") return "tex";
-  if (ext === "draw") return "draw";
-  if (ext === "rtf") return "rtf";
-  if (ext === "svg") return "svg";
-  if (ext === "mmd" || ext === "mermaid") return "mermaid";
-  if (ext === "md" || ext === "markdown") return "markdown";
-  if (ext === "csv") return "csv";
-  if (imageExtensions.includes(ext || "")) return "image";
-  if (videoExtensions.includes(ext || "")) return "video";
-  if (audioExtensions.includes(ext || "")) return "audio";
-  if (["docx", "xlsx", "pptx"].includes(ext || "")) return "office";
-  if (["zip"].includes(ext || "")) return "zip";
-  if (["db", "sqlite", "sqlite3"].includes(ext || "")) return "sqlite";
-  if (["ipynb"].includes(ext || "")) return "ipynb";
-  if (cadExtensions.includes(ext || "")) return "cad";
-  return null;
-};
 
 const saveCursorPosition = (el: HTMLElement): number => {
   const sel = window.getSelection();
@@ -160,6 +139,94 @@ const getLineCol = (text: string, offset: number): { line: number; col: number }
   return { line: lines.length, col: lines[lines.length - 1].length + 1 };
 };
 
+function ScratchProjectView({ file, onContentChange }: { file: FileNode; onContentChange: (fileId: string, content: string) => void }) {
+  const [archive, setArchive] = useState<ScratchArchive | null>(null);
+  const [running, setRunning] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  useEffect(() => {
+    if (hasLoaded || !file.content) return;
+    const tryLoadFromContent = async () => {
+      const c = file.content.trim();
+      if (c.startsWith('{') || c.startsWith('project.json')) {
+        setArchive({ projectJson: c.replace(/^project\.json\n/, ''), files: {}, fileNames: [] });
+        setHasLoaded(true);
+      } else if (c.startsWith('// Binary file:')) {
+        setHasLoaded(true);
+      } else if (c.length > 50) {
+        try {
+          const bytes = Uint8Array.from(atob(c), (ch) => ch.charCodeAt(0));
+          const result = await importSb3(bytes.buffer);
+          setArchive(result.archive);
+        } catch {
+          setHasLoaded(true);
+        }
+      } else {
+        setHasLoaded(true);
+      }
+    };
+    tryLoadFromContent();
+  }, [file.content, hasLoaded]);
+
+  const handleProjectJsonUpdate = useCallback((json: string) => {
+    if (!archive) return;
+    exportSb3(archive).then((bytes) => {
+      const base64 = btoa(String.fromCharCode(...bytes));
+      onContentChange(file.id, base64);
+    });
+  }, [archive, file.id, onContentChange]);
+
+  if (file.content && (file.content.startsWith('// Binary file:') || !file.content.trim())) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-editor text-muted-foreground gap-4">
+        <div className="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center">
+          <Blocks className="w-8 h-8 text-orange-500" />
+        </div>
+        <div className="text-center">
+          <p className="text-lg font-medium text-foreground mb-1">Scratch Project</p>
+          <p className="text-sm">{file.name}</p>
+          <p className="text-xs mt-2 text-muted-foreground/70">
+            Binary Scratch project file
+          </p>
+        </div>
+        <div className="flex gap-2 mt-2">
+          <label className="cursor-pointer inline-flex items-center gap-2 rounded bg-orange-500/10 border border-orange-500/30 px-4 py-2 text-xs font-medium text-orange-500 hover:bg-orange-500/20 transition-colors">
+            <Upload className="w-4 h-4" />
+            Import .sb3 file
+            <input
+              type="file"
+              accept=".sb3,.sb2,.sb"
+              className="hidden"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                try {
+                  const result = await importSb3(await f.arrayBuffer());
+                  setArchive(result.archive);
+                  handleProjectJsonUpdate(result.archive.projectJson);
+                } catch (err) {
+                  console.error('Failed to import Scratch project:', err);
+                }
+              }}
+            />
+          </label>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ScratchPanel
+      archive={archive}
+      onArchiveChange={setArchive}
+      onProjectJsonUpdate={handleProjectJsonUpdate}
+      isRunning={running}
+      onRun={() => setRunning(true)}
+      onStop={() => setRunning(false)}
+    />
+  );
+}
+
 export const CodeEditor = ({
   file,
   allFiles,
@@ -175,6 +242,8 @@ export const CodeEditor = ({
   const [searchMatches, setSearchMatches] = useState<{ start: number; end: number }[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
   const [markdownPreview, setMarkdownPreview] = useState(true);
+  const [splitPreview, setSplitPreview] = useState(false);
+  const [composerMode, setComposerMode] = useState(false);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
   const [newComment, setNewComment] = useState("");
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
@@ -424,10 +493,44 @@ export const CodeEditor = ({
   if (previewType === "cad") return <CADEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "ipynb") return <IpynbViewer file={file} onContentChange={onContentChange} />;
   if (previewType === "zip") return <ZipEditor file={file} onContentChange={onContentChange} />;
+
+  if (previewType === "scratch") {
+    return <ScratchProjectView file={file} onContentChange={onContentChange} />;
+  }
+
   if (previewType && !isTextPreviewable)
     return <FilePreview file={file} previewType={previewType as "image" | "csv" | "markdown" | "svg" | "sqlite" | "mermaid"} onContentChange={onContentChange} />;
 
-  if (isTextPreviewable && markdownPreview) {
+  if (isTextPreviewable && composerMode && previewType === "markdown") {
+    return (
+      <div className="flex flex-1 flex-col overflow-hidden bg-editor">
+        <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5">
+          <button
+            onClick={() => setComposerMode(false)}
+            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Edit
+          </button>
+          <span className="text-xs font-medium text-foreground">Compose</span>
+          <button
+            onClick={() => { setSplitPreview(true); setMarkdownPreview(true); setComposerMode(false); }}
+            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Split
+          </button>
+          <button
+            onClick={() => { setMarkdownPreview(true); setComposerMode(false); }}
+            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Preview
+          </button>
+        </div>
+        <MarkdownComposer content={content} onChange={(md) => onContentChange(file.id, md)} />
+      </div>
+    );
+  }
+
+  if (isTextPreviewable && markdownPreview && !splitPreview) {
     return (
       <div className="flex flex-1 flex-col overflow-hidden bg-editor">
         <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5">
@@ -437,9 +540,53 @@ export const CodeEditor = ({
           >
             Edit
           </button>
+          <button
+            onClick={() => { setSplitPreview(true); setMarkdownPreview(true); }}
+            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Split
+          </button>
           <span className="text-xs font-medium text-foreground">Preview</span>
         </div>
         <FilePreview file={{ ...file, content }} previewType={previewType} onContentChange={onContentChange} />
+      </div>
+    );
+  }
+
+  if (isTextPreviewable && splitPreview) {
+    return (
+      <div className="flex flex-1 flex-col overflow-hidden bg-editor">
+        <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5">
+          <button
+            onClick={() => { setSplitPreview(false); setMarkdownPreview(false); }}
+            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Edit
+          </button>
+          {previewType === "markdown" && (
+            <button
+              onClick={() => { setSplitPreview(false); setMarkdownPreview(false); setComposerMode(true); }}
+              className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Compose
+            </button>
+          )}
+          <span className="text-xs font-medium text-foreground">Split</span>
+          <button
+            onClick={() => { setSplitPreview(false); setMarkdownPreview(true); }}
+            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Preview
+          </button>
+        </div>
+        <div className="flex flex-1 min-h-0">
+          <div className="flex-1 min-w-0 overflow-hidden border-r border-border flex flex-col">
+            <div className="flex-1 overflow-auto font-mono text-sm leading-6 whitespace-pre p-4">{content}</div>
+          </div>
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <FilePreview file={{ ...file, content }} previewType={previewType} onContentChange={onContentChange} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -492,6 +639,20 @@ export const CodeEditor = ({
       {isTextPreviewable && (
         <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5">
           <span className="text-xs font-medium text-foreground">Edit</span>
+          {previewType === "markdown" && (
+            <button
+              onClick={() => setComposerMode(true)}
+              className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Compose
+            </button>
+          )}
+          <button
+            onClick={() => { setSplitPreview(true); setMarkdownPreview(true); }}
+            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Split
+          </button>
           <button
             onClick={() => setMarkdownPreview(true)}
             className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
@@ -515,7 +676,7 @@ export const CodeEditor = ({
 
 
       <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1">
           <div className="flex min-w-0 flex-1 overflow-auto ide-scrollbar">
             <div className="flex min-h-full min-w-full">
               <div className="sticky left-0 z-10 bg-editor pt-[2px] font-mono text-sm leading-6 text-muted-foreground">
@@ -570,9 +731,9 @@ export const CodeEditor = ({
                 })}
               </div>
 
-              <div className="relative min-w-0 flex-1">
+              <div className="relative min-w-0 flex-1 flex flex-col min-h-0">
                 {showStickyScope && (
-                <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/85 px-4 py-2 backdrop-blur-sm">
+                <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border bg-background/85 px-4 py-2 backdrop-blur-sm shrink-0">
                   <div>
                     <p className="text-sm font-semibold">{currentScope?.name || file.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -601,7 +762,7 @@ export const CodeEditor = ({
                     <div className="h-6 bg-primary/5" />
                   </div>
                 )}
-                <div className="relative">
+                <div className="relative flex-1 min-h-0 overflow-hidden">
                   <div
                     ref={editorRef}
                     contentEditable
@@ -616,7 +777,7 @@ export const CodeEditor = ({
                       isComposingRef.current = false;
                       handleInput();
                     }}
-                    className="relative z-10 min-w-0 flex-1 pl-[6px] pt-[2px] font-mono text-sm leading-6 caret-foreground outline-none"
+                    className="relative z-10 min-w-0 pl-[6px] pt-[2px] font-mono text-sm leading-6 caret-foreground outline-none"
                     spellCheck={false}
                     autoCapitalize="off"
                     autoCorrect="off"

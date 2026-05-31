@@ -45,6 +45,13 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
   const [showGuides, setShowGuides] = useState(true);
   const [theaterMode, setTheaterMode] = useState(false);
   const [viewportFit, setViewportFit] = useState<'contain' | 'cover'>('contain');
+  const [externalUrl, setExternalUrl] = useState('');
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [rendering, setRendering] = useState(false);
+  const [brightness, setBrightness] = useState(100);
+  const [contrast, setContrast] = useState(100);
+  const [grayscale, setGrayscale] = useState(0);
 
   // Build video source URL
   useEffect(() => {
@@ -212,6 +219,124 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
     if (f && f.type.startsWith('video/')) loadVideoFile(f);
   };
 
+  const loadUrl = () => {
+    if (!externalUrl.trim()) return;
+    setVideoSrc(externalUrl.trim());
+    setShowUrlInput(false);
+  };
+
+  const exportTrimmed = async () => {
+    const video = videoRef.current;
+    if (!video || !duration || trimStart >= trimEnd) return;
+
+    setExporting(true);
+    try {
+      const stream = (video as any).captureStream();
+      const mimeType = 'video/webm;codecs=vp9';
+      const recorder = new MediaRecorder(stream, MediaRecorder.isTypeSupported(mimeType) ? { mimeType } : {});
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      const done = new Promise<void>((resolve) => {
+        recorder.onstop = () => resolve();
+      });
+
+      recorder.start();
+      video.currentTime = trimStart;
+
+      const playPromise = video.play();
+      if (playPromise) await playPromise;
+
+      const checkTime = () => {
+        if (video.currentTime >= trimEnd || video.paused) {
+          video.pause();
+          recorder.stop();
+        } else {
+          requestAnimationFrame(checkTime);
+        }
+      };
+      checkTime();
+
+      await done;
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name.replace(/\.\w+$/, '_trimmed.webm');
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.warn('Export failed:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportRendered = async () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || !duration) return;
+
+    setRendering(true);
+    try {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const stream = canvas.captureStream(30);
+      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunks.push(e.data);
+      };
+
+      const done = new Promise<void>((resolve) => {
+        recorder.onstop = () => resolve();
+      });
+
+      recorder.start();
+      video.currentTime = trimStart;
+      video.play();
+
+      const renderLoop = () => {
+        if (!video.paused && !video.ended && video.currentTime < trimEnd) {
+          ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) grayscale(${grayscale}%)`;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          requestAnimationFrame(renderLoop);
+        } else {
+          video.pause();
+          recorder.stop();
+        }
+      };
+      renderLoop();
+
+      await done;
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = file.name.replace(/\.\w+$/, '_rendered.webm');
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.warn('Render failed:', err);
+    } finally {
+      setRendering(false);
+    }
+  };
+
+  const downloadOriginal = () => {
+    const a = document.createElement('a');
+    a.href = videoSrc;
+    a.download = file.name;
+    a.click();
+  };
+
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -287,6 +412,34 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
             <span className="hidden md:inline text-[11px] text-white/45">J/L skip · G guides · F fit/fill · T theater</span>
           </div>
           <div className="flex items-center gap-1">
+            {showUrlInput ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={externalUrl}
+                  onChange={(e) => setExternalUrl(e.target.value)}
+                  placeholder="Paste video URL…"
+                  className="h-7 w-48 text-xs bg-[#222] border border-[#444] rounded px-2 text-white outline-none focus:border-primary"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === 'Enter') loadUrl(); if (e.key === 'Escape') setShowUrlInput(false); }}
+                />
+                <Button size="sm" variant="ghost" className="h-7 text-[11px] text-white/70" onClick={loadUrl}>Load</Button>
+              </div>
+            ) : (
+              <Button size="sm" variant="ghost" className="h-7 text-[11px] text-white/70 hover:text-white hover:bg-white/10" onClick={() => setShowUrlInput(true)}>URL</Button>
+            )}
+            <Tooltip><TooltipTrigger asChild>
+              <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-white/70 hover:text-white hover:bg-white/10" onClick={downloadOriginal}>
+                <Download className="w-3.5 h-3.5" /> Download
+              </Button>
+            </TooltipTrigger><TooltipContent>Download original</TooltipContent></Tooltip>
+            {(trimStart > 0 || trimEnd < duration) && (
+              <Tooltip><TooltipTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-primary hover:text-primary hover:bg-primary/10" onClick={exportTrimmed} disabled={exporting}>
+                  <Scissors className="w-3.5 h-3.5" /> {exporting ? 'Exporting…' : 'Export'}
+                </Button>
+              </TooltipTrigger><TooltipContent>Export trimmed video as WebM</TooltipContent></Tooltip>
+            )}
             <Tooltip><TooltipTrigger asChild>
               <Button size="icon" variant="ghost" className="h-7 w-7 text-white/70 hover:text-white hover:bg-white/10" onClick={() => setShowInfo(!showInfo)}>
                 <Info className="w-3.5 h-3.5" />
@@ -316,6 +469,26 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
           </div>
         )}
 
+        {/* Filters panel */}
+        <div className="flex items-center gap-4 px-4 py-2 bg-[#1a1a1a] border-b border-[#333]">
+          <span className="text-xs text-white/70">Filters:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-white/50 w-12">Bright</span>
+            <Slider value={[brightness]} min={0} max={200} step={1} onValueChange={(v) => setBrightness(v[0])} className="w-24" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-white/50 w-12">Contrast</span>
+            <Slider value={[contrast]} min={0} max={200} step={1} onValueChange={(v) => setContrast(v[0])} className="w-24" />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-white/50 w-12">Gray</span>
+            <Slider value={[grayscale]} min={0} max={100} step={1} onValueChange={(v) => setGrayscale(v[0])} className="w-24" />
+          </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs ml-auto" onClick={exportRendered} disabled={rendering}>
+             {rendering ? 'Rendering…' : 'Render & Export'}
+          </Button>
+        </div>
+
         {/* Video viewport */}
         <div className={cn("flex-1 flex items-center justify-center bg-black min-h-0 overflow-hidden relative", theaterMode ? "px-0 py-0" : "px-4 py-3")}>
           <video
@@ -326,7 +499,10 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
             onTimeUpdate={handleTimeUpdate}
             onEnded={() => setPlaying(false)}
             onClick={togglePlay}
-            style={{ cursor: 'pointer' }}
+            style={{ 
+              cursor: 'pointer',
+              filter: `brightness(${brightness}%) contrast(${contrast}%) grayscale(${grayscale}%)`
+            }}
           />
           {showGuides && (
             <div className="pointer-events-none absolute inset-3 rounded border border-dashed border-white/20">

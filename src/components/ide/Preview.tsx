@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import html2canvas from 'html2canvas';
 import { 
   RefreshCw, 
   ExternalLink, 
@@ -19,6 +20,7 @@ import {
   Check,
   Download,
   FileJson,
+  Camera,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -302,6 +304,20 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
     setLiveHtml('');
   };
 
+  const takeScreenshot = useCallback(async () => {
+    if (!iframeRef.current) return;
+    try {
+      const canvas = await html2canvas(iframeRef.current.contentDocument?.body || iframeRef.current);
+      const dataUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `screenshot-${new Date().toISOString()}.png`;
+      a.click();
+    } catch (e) {
+      console.error('Screenshot failed', e);
+    }
+  }, []);
+
   const devices = [
     { id: 'desktop' as const, icon: Monitor, label: 'Desktop' },
     { id: 'tablet' as const, icon: Tablet, label: 'Tablet' },
@@ -522,6 +538,13 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
                 {errorCount > 9 ? '9+' : errorCount}
               </span>
             )}
+          </button>
+          <button
+            onClick={takeScreenshot}
+            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="Take Screenshot"
+          >
+            <Camera className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={handleRefresh}
