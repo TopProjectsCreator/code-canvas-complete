@@ -991,7 +991,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                         isSelected && "ring-2 ring-primary",
                         !isSelected && "hover:ring-1 hover:ring-muted-foreground/30"
                       )}
-                      style={{ left: el.x, top: el.y, width: el.width, height: el.height }}
+                      style={{ left: el.x, top: el.y, width: el.width, height: el.height, transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined }}
                       onClick={(e) => { e.stopPropagation(); setSelectedElement(el.id); }}
                       onDoubleClick={() => { if (el.type === 'text') setEditingElement(el.id); }}
                       onMouseDown={(e) => {
@@ -1053,6 +1053,21 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                               e.preventDefault();
                               e.stopPropagation();
                               setResizing({ id: el.id, startX: e.clientX, startY: e.clientY, elW: el.width, elH: el.height });
+                            }}
+                          />
+                          {/* Rotation handle */}
+                          <div
+                            className="absolute -top-3 left-1/2 -translate-x-1/2 w-2 h-2 bg-primary rounded-full cursor-grab"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const rect = (e.currentTarget.closest('[class*="absolute"]') as HTMLElement)?.getBoundingClientRect();
+                              if (rect) {
+                                const centerX = rect.left + rect.width / 2;
+                                const centerY = rect.top + rect.height / 2;
+                                const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
+                                setRotationDrag({ id: el.id, startAngle, elAngle: el.rotation || 0 });
+                              }
                             }}
                           />
                           {/* Delete button */}
