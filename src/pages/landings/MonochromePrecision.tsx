@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import BubbleField from "@/components/landing/BubbleField";
 
 const FEATURES = [
   { label: "AI Pair Programmer", sub: "9+ providers. Your codebase, fully understood." },
@@ -44,6 +45,7 @@ export function MonochromePrecision() {
       fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
       color: "#0a0a0a", position: "relative", overflow: "hidden",
     }}>
+      <BubbleField />
       {/* Thin horizontal rule accent */}
       <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "#0a0a0a" }} />
 

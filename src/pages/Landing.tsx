@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { PublicCanvasSearch } from "@/components/landing/PublicCanvasSearch";
 import { AnimatedCounter } from "@/components/landing/AnimatedCounter";
+import BubbleField from "@/components/landing/BubbleField";
 import { CodeCanvasLogo } from "@/components/brand/CodeCanvasLogo";
 import { useLandingStats } from "@/hooks/useLandingStats";
 
@@ -207,19 +208,7 @@ export default function Landing() {
         <div className="absolute left-1/2 top-[12%] h-[420px] w-[760px] -translate-x-1/2 rounded-full bg-info/20 blur-[150px] motion-safe:animate-aurora-shift" />
         <div className="absolute -left-20 top-[30%] h-72 w-72 rounded-full bg-info/20 blur-[130px]" />
         <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-primary/10 blur-[150px]" />
-        <div className="absolute right-[8%] top-[22%] h-28 w-28 rounded-full border border-primary/35 motion-safe:animate-orbit-ring" />
-        <div className="absolute left-[10%] top-[48%] h-16 w-16 rounded-full border border-info/40 motion-safe:animate-orbit-ring [animation-delay:1.6s]" />
-        {[...Array(16)].map((_, idx) => (
-          <span
-            key={`star-${idx}`}
-            className="absolute h-1 w-1 rounded-full bg-primary/60 motion-safe:animate-pulse"
-            style={{
-              left: `${6 + ((idx * 11) % 88)}%`,
-              top: `${8 + ((idx * 17) % 78)}%`,
-              animationDelay: `${(idx % 8) * 0.35}s`,
-            }}
-          />
-        ))}
+        <BubbleField />
       </div>
 
       <nav className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/70 backdrop-blur-xl">
@@ -523,15 +512,15 @@ export default function Landing() {
                   <span className="font-mono text-xs uppercase tracking-widest">Office & Media Assets</span>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground group-hover:text-foreground group-hover:border-info/30 transition-all">
+                  <Link to="/office" className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground hover:text-foreground hover:border-info/30 transition-all no-underline">
                     <span className="h-2 w-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></span> Word
-                  </span>
-                  <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground group-hover:text-foreground group-hover:border-green-500/30 transition-all">
+                  </Link>
+                  <Link to="/office" className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground hover:text-foreground hover:border-green-500/30 transition-all no-underline">
                     <span className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></span> excel
-                  </span>
-                  <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground group-hover:text-foreground group-hover:border-orange-500/30 transition-all">
+                  </Link>
+                  <Link to="/office" className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground hover:text-foreground hover:border-orange-500/30 transition-all no-underline">
                     <span className="h-2 w-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.5)]"></span> powerpoint
-                  </span>
+                  </Link>
                   <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/50 border border-border/40 text-sm text-muted-foreground group-hover:text-foreground group-hover:border-primary/30 transition-all">
                     <span className="h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]"></span> video & audio
                   </span>

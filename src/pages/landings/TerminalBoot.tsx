@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import BubbleField from "@/components/landing/BubbleField";
 
 const SCRIPT = [
   { delay: 0,    text: "$ codecanvas init",           type: "cmd" },
@@ -54,8 +55,9 @@ export function TerminalBoot() {
       background: "#0a0a0a",
       minHeight: "100vh",
       fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-      display: "flex", flexDirection: "column",
+      display: "flex", flexDirection: "column", position: "relative",
     }}>
+      <BubbleField />
       {/* Nav */}
       <nav style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import BubbleField from "@/components/landing/BubbleField";
 
 function useLiveCount(base: number, variance: number, ms: number) {
   const [v, setV] = useState(base);
@@ -40,8 +41,9 @@ export function WarmMomentum() {
     <div style={{
       background: "#fdf8f2", minHeight: "100vh",
       fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
-      color: "#1a0e00", position: "relative",
+      color: "#1a0e00", position: "relative", overflow: "hidden",
     }}>
+      <BubbleField />
       {/* Warm gradient top bar */}
       <div style={{ height: 3, background: "linear-gradient(90deg, #f59e0b 0%, #ec4899 50%, #8b5cf6 100%)" }} />
 

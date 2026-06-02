@@ -3,6 +3,7 @@ import { FileNode } from '@/types/ide';
 import { PowerPointEditor } from './office/PowerPointEditor';
 import { WordEditor } from './office/WordEditor';
 import { ExcelEditor } from './office/ExcelEditor';
+import { OfficeErrorBoundary } from './office/ErrorBoundary';
 
 type OfficeType = 'docx' | 'xlsx' | 'pptx';
 
@@ -22,9 +23,21 @@ const getOfficeType = (name: string): OfficeType | null => {
 export const OfficeEditor = ({ file, onContentChange }: OfficeEditorProps) => {
   const officeType = useMemo(() => getOfficeType(file.name), [file.name]);
 
-  if (officeType === 'pptx') return <PowerPointEditor file={file} onContentChange={onContentChange} />;
-  if (officeType === 'docx') return <WordEditor file={file} onContentChange={onContentChange} />;
-  if (officeType === 'xlsx') return <ExcelEditor file={file} onContentChange={onContentChange} />;
+  if (officeType === 'pptx') return (
+    <OfficeErrorBoundary name="PowerPoint">
+      <PowerPointEditor file={file} onContentChange={onContentChange} />
+    </OfficeErrorBoundary>
+  );
+  if (officeType === 'docx') return (
+    <OfficeErrorBoundary name="Word">
+      <WordEditor file={file} onContentChange={onContentChange} />
+    </OfficeErrorBoundary>
+  );
+  if (officeType === 'xlsx') return (
+    <OfficeErrorBoundary name="Excel">
+      <ExcelEditor file={file} onContentChange={onContentChange} />
+    </OfficeErrorBoundary>
+  );
 
   return null;
 };

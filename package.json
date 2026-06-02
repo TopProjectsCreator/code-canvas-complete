@@ -107,6 +107,7 @@
     "node-pty": "^1.1.0",
     "opentype.js": "^2.0.0",
     "pdfjs-dist": "^5.5.207",
+    "perfect-freehand": "^1.2.3",
     "pptxgenjs": "^4.0.1",
     "pyodide": "^0.29.3",
     "react": "^18.3.1",

@@ -34,6 +34,7 @@ import { AdvancedWorkbench } from "./AdvancedWorkbench";
 import { EnvFileEditor } from "./EnvFileEditor";
 import { DrawEditor } from "./DrawEditor";
 import { FontEditor } from "./FontEditor";
+import { SvgEditor } from "./svg-editor";
 import { getPreviewType } from "@/lib/filePreviewTypes";
 import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
 import { useCollaboration } from "@/hooks/useCollaboration";
@@ -481,7 +482,7 @@ export const CodeEditor = ({
 
   const isEnvFile = file.name === ".env" || file.name.startsWith(".env.");
   const previewType = getPreviewType(file.name);
-  const binaryPreviewTypes = ["image", "video", "audio", "cad", "rtf", "ipynb", "draw", "font"];
+  const binaryPreviewTypes = ["image", "video", "audio", "cad", "rtf", "ipynb", "draw", "font", "svg"];
   const isTextPreviewable = previewType && !binaryPreviewTypes.includes(previewType);
 
   if (isEnvFile) return <EnvFileEditor file={file} onContentChange={onContentChange} />;
@@ -497,6 +498,7 @@ export const CodeEditor = ({
   if (previewType === "ipynb") return <IpynbViewer file={file} onContentChange={onContentChange} />;
   if (previewType === "zip") return <ZipEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "font") return <FontEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === "svg") return <SvgEditor file={file} onContentChange={onContentChange} />;
 
   if (previewType === "scratch") {
     return <ScratchProjectView file={file} onContentChange={onContentChange} />;

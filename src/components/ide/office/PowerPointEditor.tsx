@@ -7,13 +7,23 @@ import {
   Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
   Type, Square, Image, Play, Undo, Redo, Loader2,
   Table, Film, Link, Palette, Wand2, Zap, RotateCcw,
-  Eye, SlidersHorizontal, Timer, Maximize, Move, GripVertical
+  Eye, SlidersHorizontal, Timer, Maximize, Move, GripVertical,
+  List,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { ShortcutsGuide } from './ShortcutsGuide';
 import { decodeDataUrl, encodeDataUrl, parseXml, buildNewPptx } from './officeUtils';
+
+const FONT_FAMILIES = [
+  'Calibri', 'Arial', 'Times New Roman', 'Georgia', 'Courier New',
+  'Verdana', 'Trebuchet MS', 'Comic Sans MS', 'Impact', 'Tahoma',
+];
+
+const FONT_SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 42, 48, 54, 60, 66, 72];
 
 interface SlideElement {
   id: string;
@@ -33,6 +43,10 @@ interface SlideElement {
   textAlign?: 'left' | 'center' | 'right';
   color?: string;
   fillColor?: string;
+  fontFamily?: string;
+  rotation?: number;
+  isBullet?: boolean;
+  shapeType?: 'rect' | 'ellipse' | 'triangle' | 'arrow';
 }
 
 interface SlideData {
@@ -88,6 +102,10 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const [ribbonTab, setRibbonTab] = useState<'home' | 'insert' | 'design' | 'transitions' | 'animations' | 'slideshow'>('home');
   const [dragging, setDragging] = useState<{ id: string; startX: number; startY: number; elX: number; elY: number } | null>(null);
   const [resizing, setResizing] = useState<{ id: string; startX: number; startY: number; elW: number; elH: number } | null>(null);
+  const [showGrid, setShowGrid] = useState(false);
+  const [rotationDrag, setRotationDrag] = useState<{ id: string; startAngle: number; elAngle: number } | null>(null);
+  // P7: Selected elements set for multi-select support
+  const [selectedElements, setSelectedElements] = useState<Set<string>>(new Set());
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const historyRef = useRef<SlideData[][]>([]);
@@ -273,7 +291,9 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
       }
     };
     load();
-  }, [file.id]); // Only reload when file ID changes, not content
+  // Only reload when file ID changes, not content (re-loading on every save would reset edits)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.id]);
 
 
 
@@ -304,10 +324,21 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
           } : s
         ));
       }
+      if (rotationDrag) {
+        setSlides(prev => prev.map((s, i) =>
+          i === activeSlide ? {
+            ...s,
+            elements: s.elements.map(el =>
+              el.id === rotationDrag.id ? { ...el, rotation: ((e.clientX - e.clientY) * 0.5 + rotationDrag.elAngle) % 360 } : el
+            )
+          } : s
+        ));
+      }
     };
     const handleMouseUp = () => {
       setDragging(null);
       setResizing(null);
+      setRotationDrag(null);
     };
     if (dragging || resizing) {
       window.addEventListener('mousemove', handleMouseMove);
@@ -317,7 +348,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [dragging, resizing, activeSlide]);
+  }, [dragging, resizing, activeSlide, rotationDrag]);
 
   const save = useCallback(async () => {
     try {
@@ -348,8 +379,16 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
           const h = toSlideH(el.height, slideHeightInches);
 
           if (el.type === 'shape') {
-            slide.addShape(pptx.ShapeType.rect, {
+            const shapeMap: Record<string, typeof pptx.ShapeType[keyof typeof pptx.ShapeType]> = {
+              rect: pptx.ShapeType.rect,
+              ellipse: pptx.ShapeType.ellipse,
+              triangle: pptx.ShapeType.triangle,
+              arrow: pptx.ShapeType.rightArrow,
+            };
+            const shapeType = shapeMap[el.shapeType || 'rect'] || pptx.ShapeType.rect;
+            slide.addShape(shapeType, {
               x, y, w, h,
+              rotate: el.rotation || 0,
               fill: { color: toPptxColor(el.fillColor || '#FFFFFF') },
               line: { color: toPptxColor(el.fillColor || '#FFFFFF'), transparency: 100, pt: 0 },
             });
@@ -362,6 +401,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               y,
               w,
               h,
+              rotate: el.rotation || 0,
               fill: { color: 'E5E7EB', transparency: 25 },
               line: { color: '6B7280', pt: 1 },
               rectRadius: 0.04,
@@ -386,6 +426,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               y,
               w,
               h,
+              rotate: el.rotation || 0,
               border: { type: 'solid', color: '6B7280', pt: 1 },
               color: toPptxColor(el.color),
               fontSize: Math.max(10, cssPixelsToPoints(el.fontSize || 12)),
@@ -396,28 +437,47 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
 
           if (el.type === 'image' && el.content?.startsWith('data:image/')) {
             try {
-              slide.addImage({ data: normalizeImageDataForPptx(el.content), x, y, w, h });
+              slide.addImage({ data: normalizeImageDataForPptx(el.content), x, y, w, h, rotate: el.rotation || 0 });
             } catch {
               // Skip invalid image payloads instead of failing whole save
             }
             return;
           }
 
-          slide.addText(el.content || '', {
-            x,
-            y,
-            w,
-            h,
-            fontSize: cssPixelsToPoints(el.fontSize || 16),
-            bold: (el.fontWeight || 400) >= 600,
-            italic: el.fontStyle === 'italic',
-            underline: el.textDecoration === 'underline' ? { style: 'sng' } : undefined,
-            align: el.textAlign || 'left',
-            valign: 'top',
-            breakLine: true,
-            color: toPptxColor(el.color),
-            hyperlink: el.placeholderType === 'link' && el.linkUrl ? { url: el.linkUrl } : undefined,
-          });
+          if (el.isBullet) {
+            const lines = (el.content || '').split('\n').filter(Boolean);
+            const textObjects = lines.map((line: string) => ({
+              text: line,
+              options: {
+                fontSize: cssPixelsToPoints(el.fontSize || 16),
+                fontFace: el.fontFamily || 'Calibri',
+                bold: (el.fontWeight || 400) >= 600,
+                italic: el.fontStyle === 'italic',
+                underline: el.textDecoration === 'underline' ? { style: 'sng' } : undefined,
+                color: toPptxColor(el.color),
+                bullet: { type: 'bullet' },
+              },
+            }));
+            slide.addText(textObjects, { x, y, w, h, rotate: el.rotation || 0, valign: 'top' });
+          } else {
+            slide.addText(el.content || '', {
+              x,
+              y,
+              w,
+              h,
+              rotate: el.rotation || 0,
+              fontSize: cssPixelsToPoints(el.fontSize || 16),
+              fontFace: el.fontFamily || 'Calibri',
+              bold: (el.fontWeight || 400) >= 600,
+              italic: el.fontStyle === 'italic',
+              underline: el.textDecoration === 'underline' ? { style: 'sng' } : undefined,
+              align: el.textAlign || 'left',
+              valign: 'top',
+              breakLine: true,
+              color: toPptxColor(el.color),
+              hyperlink: el.placeholderType === 'link' && el.linkUrl ? { url: el.linkUrl } : undefined,
+            });
+          }
         });
       });
 
@@ -455,9 +515,14 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   }, [slides, loading, save]);
 
 
+  const pushUndo = (prev: SlideData[]) => {
+    historyRef.current.push(JSON.parse(JSON.stringify(prev)));
+    if (historyRef.current.length > 50) historyRef.current.shift();
+  };
+
   const commitSlides = (updater: (prev: SlideData[]) => SlideData[]) => {
     setSlides(prev => {
-      historyRef.current.push(JSON.parse(JSON.stringify(prev)));
+      pushUndo(prev);
       redoRef.current = [];
       return updater(prev);
     });
@@ -468,13 +533,14 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     const prev = historyRef.current.pop();
     if (!prev) return;
     redoRef.current.push(JSON.parse(JSON.stringify(slides)));
+    if (redoRef.current.length > 50) redoRef.current.shift();
     setSlides(prev);
   };
 
   const redo = () => {
     const next = redoRef.current.pop();
     if (!next) return;
-    historyRef.current.push(JSON.parse(JSON.stringify(slides)));
+    pushUndo(JSON.parse(JSON.stringify(slides)));
     setSlides(next);
   };
 
@@ -589,7 +655,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
       : s));
   };
 
-  const insertPlaceholder = (label: string) => {
+  const insertPlaceholder = (label: string, shapeType?: SlideElement['shapeType']) => {
     const normalized = label.toLowerCase();
     const placeholderType: SlideElement['placeholderType'] =
       normalized === 'shape' ? 'shape'
@@ -610,8 +676,9 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
 
     const el: SlideElement = {
       id: newId(),
-      type: 'text',
+      type: placeholderType === 'shape' ? 'shape' : 'text',
       placeholderType,
+      shapeType: shapeType || (placeholderType === 'shape' ? 'rect' : undefined),
       linkUrl,
       tableRows: placeholderType === 'table'
         ? [
@@ -766,10 +833,17 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   };
 
   if (loading) {
+    const fileSize = new Blob([file.content || '']).size;
+    const showProgress = fileSize > 1024 * 1024;
     return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground gap-2">
+      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
+        {showProgress && (
+          <div className="w-64 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '60%' }} />
+          </div>
+        )}
         <Loader2 className="w-5 h-5 animate-spin" />
-        <span>Opening presentation…</span>
+        <span>Opening presentation{showProgress ? ` (${(fileSize / (1024 * 1024)).toFixed(1)} MB)` : ''}...</span>
       </div>
     );
   }
@@ -795,6 +869,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             <div className="flex items-center gap-1">
               <Button size="sm" variant="ghost" onClick={save}><Save className="w-4 h-4 mr-1" /> Save</Button>
               <Button size="sm" variant="outline" onClick={exportPresentation}>Export .pptx</Button>
+              <ShortcutsGuide />
             </div>
           </div>
 
@@ -817,6 +892,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, fontWeight: (el.fontWeight || 400) >= 600 ? 400 : 700 }))}><Bold className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, fontStyle: el.fontStyle === 'italic' ? 'normal' : 'italic' }))}><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, textDecoration: el.textDecoration === 'underline' ? 'none' : 'underline' }))}><UnderlineIcon className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant={((currentSlide?.elements.find(e => e.id === selectedElement) as SlideElement | undefined)?.isBullet) ? 'default' : 'ghost'} className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, isBullet: !el.isBullet }))}><List className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bullets</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, textAlign: 'left' }))}><AlignLeft className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>
@@ -838,6 +914,32 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                     </TooltipTrigger>
                     <TooltipContent>Text Color</TooltipContent>
                   </Tooltip>
+                  <Select
+                    value={String((currentSlide?.elements.find(e => e.id === selectedElement && e.type === 'text') as SlideElement | undefined)?.fontSize || 16)}
+                    onValueChange={(v) => updateSelectedTextElement(el => ({ ...el, fontSize: Number(v) }))}
+                  >
+                    <SelectTrigger className="h-7 w-16 text-xs">
+                      <SelectValue placeholder="Size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONT_SIZES.map(s => (
+                        <SelectItem key={s} value={String(s)} className="text-xs">{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={(currentSlide?.elements.find(e => e.id === selectedElement && e.type === 'text') as SlideElement | undefined)?.fontFamily || 'Calibri'}
+                    onValueChange={(v) => updateSelectedTextElement(el => ({ ...el, fontFamily: v }))}
+                  >
+                    <SelectTrigger className="h-7 w-24 text-xs">
+                      <SelectValue placeholder="Font" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONT_FAMILIES.map(f => (
+                        <SelectItem key={f} value={f} className="text-xs">{f}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={addTextBox}><Type className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Text Box</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={handleImageUpload}><Image className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Insert Image</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => insertPlaceholder('Shape')}><Square className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Shape</TooltipContent></Tooltip>
@@ -854,7 +956,10 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertPlaceholder('Video')}><Film className="w-3.5 h-3.5" /> Video</Button></TooltipTrigger><TooltipContent>Insert Video</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
-                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertPlaceholder('Shape')}><Square className="w-3.5 h-3.5" /> Shape</Button></TooltipTrigger><TooltipContent>Insert Shape</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertPlaceholder('Shape', 'rect')}><Square className="w-3.5 h-3.5" /> Rect</Button></TooltipTrigger><TooltipContent>Rectangle</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertPlaceholder('Shape', 'ellipse')}><Square className="w-3.5 h-3.5" /> Oval</Button></TooltipTrigger><TooltipContent>Ellipse</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertPlaceholder('Shape', 'triangle')}><Square className="w-3.5 h-3.5" /> Tri</Button></TooltipTrigger><TooltipContent>Triangle</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertPlaceholder('Shape', 'arrow')}><Square className="w-3.5 h-3.5" /> Arrow</Button></TooltipTrigger><TooltipContent>Arrow</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => insertPlaceholder('Table')}><Table className="w-3.5 h-3.5" /> Table</Button></TooltipTrigger><TooltipContent>Insert Table</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5">
@@ -867,6 +972,9 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setThemeTone(t => t === 'light' ? 'dark' : 'light')}><Palette className="w-3.5 h-3.5" /> Themes</Button></TooltipTrigger><TooltipContent>Slide Themes</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setSlideScale(s => s === 100 ? 90 : 100)}><SlidersHorizontal className="w-3.5 h-3.5" /> Variants</Button></TooltipTrigger><TooltipContent>Theme Variants</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild>
+                    <Button size="sm" variant={showGrid ? "default" : "ghost"} className="h-7 gap-1 text-xs" onClick={() => setShowGrid(g => !g)}><Eye className="w-3.5 h-3.5" /> Grid</Button>
+                  </TooltipTrigger><TooltipContent>Toggle Gridlines</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5">
                   <Tooltip><TooltipTrigger asChild><Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={() => setSlideScale(s => s === 100 ? 110 : 100)}><Maximize className="w-3.5 h-3.5" /> Slide Size</Button></TooltipTrigger><TooltipContent>Slide Size</TooltipContent></Tooltip>
@@ -934,13 +1042,20 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                     <div className="ml-3 aspect-[16/9] bg-white dark:bg-[#2d2d2d] rounded-sm p-1 overflow-hidden relative">
                       {slide.elements.map(el => (
                         el.type === 'shape' ? (
-                          <div key={el.id} style={{ position: 'absolute', left: el.x * 0.19, top: el.y * 0.19, width: el.width * 0.19, height: el.height * 0.19, backgroundColor: el.fillColor || '#FFFFFF' }} />
+                          <div key={el.id} style={{
+                            position: 'absolute', left: el.x * (124 / CANVAS_W), top: el.y * (124 / CANVAS_W),
+                            width: el.width * (124 / CANVAS_W), height: el.height * (124 / CANVAS_W),
+                            backgroundColor: el.fillColor || '#FFFFFF',
+                            borderRadius: el.shapeType === 'ellipse' ? '50%' : '0',
+                            clipPath: el.shapeType === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : el.shapeType === 'arrow' ? 'polygon(0% 40%, 60% 40%, 60% 0%, 100% 50%, 60% 100%, 60% 60%, 0% 60%)' : undefined,
+                            transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
+                          }} />
                         ) : el.type === 'text' ? (
-                          <p key={el.id} className="truncate text-[6px] text-muted-foreground" style={{ position: 'absolute', left: el.x * 0.19, top: el.y * 0.19, fontSize: (el.fontSize || 16) * 0.19, fontWeight: el.fontWeight }}>
+                          <p key={el.id} className="truncate text-[6px] text-muted-foreground" style={{ position: 'absolute', left: el.x * (124 / CANVAS_W), top: el.y * (124 / CANVAS_W), fontSize: (el.fontSize || 16) * (124 / CANVAS_W), fontWeight: el.fontWeight, fontFamily: el.fontFamily || 'Calibri', transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined }}>
                             {el.content || 'Text'}
                           </p>
                         ) : (
-                          <img key={el.id} src={el.content} className="object-cover" style={{ position: 'absolute', left: el.x * 0.19, top: el.y * 0.19, width: el.width * 0.19, height: el.height * 0.19 }} alt="" />
+                          <img key={el.id} src={el.content} className="object-cover" style={{ position: 'absolute', left: el.x * (124 / CANVAS_W), top: el.y * (124 / CANVAS_W), width: el.width * (124 / CANVAS_W), height: el.height * (124 / CANVAS_W), transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined }} alt="" />
                         )
                       ))}
                     </div>
@@ -971,7 +1086,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               <div
                 ref={canvasRef}
                 className="relative bg-white dark:bg-[#2d2d2d] shadow-xl rounded-sm select-none"
-                style={{ width: Math.round(720 * (slideScale / 100)), height: Math.round(405 * (slideScale / 100)), minWidth: Math.round(720 * (slideScale / 100)), background: themeTone === 'dark' ? '#1f2937' : undefined }}
+                style={{ width: Math.round(720 * (slideScale / 100)), height: Math.round(405 * (slideScale / 100)), minWidth: Math.round(720 * (slideScale / 100)), background: themeTone === 'dark' ? '#1f2937' : undefined, ...(showGrid ? { backgroundImage: 'linear-gradient(rgba(0,0,0,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.08) 1px, transparent 1px)', backgroundSize: '20px 20px' } : {}) }}
                 onClick={(e) => {
                   if (e.target === canvasRef.current) {
                     setSelectedElement(null);
@@ -1002,12 +1117,16 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                       }}
                     >
                       {el.type === 'shape' ? (
-                        <div className="w-full h-full" style={{ backgroundColor: el.fillColor || '#FFFFFF' }} />
+                        <div className="w-full h-full" style={{
+                          backgroundColor: el.fillColor || '#FFFFFF',
+                          borderRadius: el.shapeType === 'ellipse' ? '50%' : el.shapeType === 'triangle' ? '0' : '0',
+                          clipPath: el.shapeType === 'triangle' ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : el.shapeType === 'arrow' ? 'polygon(0% 40%, 60% 40%, 60% 0%, 100% 50%, 60% 100%, 60% 60%, 0% 60%)' : undefined,
+                        }} />
                       ) : el.type === 'text' ? (
                         isEditing ? (
                           <textarea
                             className="w-full h-full bg-transparent outline-none resize-none p-1"
-                            style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, color: el.color || '#1A1A1A' }}
+                            style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, color: el.color || '#1A1A1A', fontFamily: el.fontFamily || 'Calibri' }}
                             value={el.content}
                             autoFocus
                             onChange={(e) => updateElementContent(el.id, e.target.value)}
@@ -1016,7 +1135,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                             onMouseDown={(e) => e.stopPropagation()}
                           />
                         ) : (
-                          <div className="w-full h-full p-1 whitespace-pre-wrap overflow-hidden" style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle || 'normal', textDecoration: el.textDecoration || 'none', textAlign: el.textAlign || 'left', color: el.color || '#1A1A1A' }}>
+                          <div className="w-full h-full p-1 whitespace-pre-wrap overflow-hidden" style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle || 'normal', textDecoration: el.textDecoration || 'none', textAlign: el.textAlign || 'left', color: el.color || '#1A1A1A', fontFamily: el.fontFamily || 'Calibri' }}>
                             {el.placeholderType === 'shape' ? (
                               <div className="w-full h-full rounded-sm border border-slate-500/80 bg-slate-200/70 dark:bg-slate-700/55 flex items-center justify-center text-xs font-medium">
                                 {el.content || 'Shape'}
@@ -1035,6 +1154,12 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                                   ))}
                                 </tbody>
                               </table>
+                            ) : el.isBullet ? (
+                              <ul className="list-disc pl-4 m-0" style={{ fontSize: el.fontSize }}>
+                                {el.content.split('\n').filter(Boolean).map((line, i) => (
+                                  <li key={i}>{line}</li>
+                                ))}
+                              </ul>
                             ) : (
                               el.content || <span className="text-muted-foreground/40 italic">Click to add text</span>
                             )}
@@ -1107,6 +1232,8 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                     <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => moveSelectedElementLayer('forward')}>
                       Bring Front
                     </Button>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { if (!selectedElement) return; commitSlides(prev => prev.map((slide, idx) => { if (idx !== activeSlide) return slide; const elements = [...slide.elements]; const ci = elements.findIndex(e => e.id === selectedElement); if (ci < 0) return slide; const [entry] = elements.splice(ci, 1); elements.unshift(entry); return { ...slide, elements }; })); }}>To Back</Button>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => { if (!selectedElement) return; commitSlides(prev => prev.map((slide, idx) => { if (idx !== activeSlide) return slide; const elements = [...slide.elements]; const ci = elements.findIndex(e => e.id === selectedElement); if (ci < 0) return slide; const [entry] = elements.splice(ci, 1); elements.push(entry); return { ...slide, elements }; })); }}>To Front</Button>
                   </div>
                   <div className="flex-1" />
                   <Button size="sm" variant="ghost" className="h-6 text-xs text-destructive" onClick={() => deleteElement(selectedElement)}>
@@ -1187,11 +1314,18 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                     textDecoration: el.textDecoration || 'none',
                     textAlign: el.textAlign || 'left',
                     color: el.color || '#1A1A1A',
+                    fontFamily: el.fontFamily || 'Calibri',
                     whiteSpace: 'pre-wrap',
                   }}
                 >
                   {el.type === 'image' ? (
                     <img src={el.content} alt="" className="w-full h-full object-contain" />
+                  ) : el.isBullet ? (
+                    <ul style={{ listStyle: 'disc', paddingLeft: '1.5em', margin: 0 }}>
+                      {el.content.split('\n').filter(Boolean).map((line, i) => (
+                        <li key={i}>{line}</li>
+                      ))}
+                    </ul>
                   ) : (
                     el.content
                   )}

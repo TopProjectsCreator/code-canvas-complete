@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import BubbleField from "@/components/landing/BubbleField";
 
 const nodes = [
   { id: "headline", x: 180, y: 120, w: 460, h: 150 },
@@ -98,6 +99,7 @@ export function LivingGrid() {
 
   return (
     <div style={{ background: "#0f0f10", minHeight: "100vh", fontFamily: "'Inter', sans-serif", position: "relative", overflow: "hidden" }}>
+      <BubbleField />
       <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 80% 80% at 50% 50%, transparent 30%, #0f0f10 100%)", pointerEvents: "none", zIndex: 1 }} />
       <nav style={{ position: "relative", zIndex: 10, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 40px", borderBottom: "1px solid rgba(255,107,0,0.12)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ShortcutsGuide } from './ShortcutsGuide';
 import { decodeDataUrl, encodeDataUrl } from './officeUtils';
 import { htmlToDocx } from './htmlToDocx';
 import { cn } from '@/lib/utils';
@@ -77,6 +78,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   });
 
   useEffect(() => {
+    if (!editor) return;
     const load = async () => {
       setLoading(true);
       setError(null);
@@ -89,11 +91,9 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
             { arrayBuffer: slice },
             { styleMap: ['u => u'] },
           );
-          if (editor) {
-            editor.commands.setContent(result.value || '<p></p>');
-          }
+          editor.commands.setContent(result.value || '<p></p>');
         } else {
-          if (editor) editor.commands.setContent('<p></p>');
+          editor.commands.setContent('<p></p>');
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to open document');
@@ -102,8 +102,9 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
       }
     };
     load();
+  // file.content intentionally excluded: re-loading on every save would reset edits
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file.id]);
+  }, [editor, file.id]);
 
   const save = useCallback(async () => {
     if (!editor) return;
@@ -122,12 +123,19 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     }
   }, [file.id, onContentChange, toast, editor]);
 
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (loading || !editor) return;
-    const timer = setTimeout(() => { save(); }, 2000);
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor?.state.doc.content]);
+    const handleContentChange = () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => { save(); }, 2000);
+    };
+    editor.on('update', handleContentChange);
+    return () => {
+      editor.off('update', handleContentChange);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [loading, editor, save]);
 
   const exec = (fn: () => void) => {
     fn();
@@ -178,10 +186,17 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   };
 
   if (loading) {
+    const fileSize = new Blob([file.content || '']).size;
+    const showProgress = fileSize > 1024 * 1024;
     return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground gap-2">
+      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
+        {showProgress && (
+          <div className="w-64 h-1.5 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: '60%' }} />
+          </div>
+        )}
         <Loader2 className="w-5 h-5 animate-spin" />
-        <span>Opening document\u2026</span>
+        <span>Opening document{showProgress ? ` (${(fileSize / (1024 * 1024)).toFixed(1)} MB)` : ''}...</span>
       </div>
     );
   }
@@ -204,6 +219,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
             <Button size="sm" variant="ghost" className="text-white hover:bg-white/20 h-7" onClick={() => { save(); }}>
               <Save className="w-4 h-4 mr-1" /> Save
             </Button>
+            <ShortcutsGuide />
           </div>
           <div className="flex items-center gap-1 px-2 text-xs bg-[#1856a8]/80 dark:bg-[#143d7a]/80">
             {(['home', 'insert'] as const).map(tab => (

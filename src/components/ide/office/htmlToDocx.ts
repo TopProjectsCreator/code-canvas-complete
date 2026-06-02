@@ -2,6 +2,7 @@ import {
   Document, Paragraph, TextRun, HeadingLevel, AlignmentType,
   UnderlineType, ExternalHyperlink, ImageRun, LevelFormat,
   Table, TableRow, TableCell,
+  PageBreak,
 } from 'docx';
 import type { ParagraphChild } from 'docx';
 
@@ -339,10 +340,15 @@ function buildBlockElements(html: string): (Paragraph | Table)[] {
           indent: { left: 360 },
         }));
       }
-    } else if (tag === 'hr') {
+    } else     if (tag === 'hr') {
       result.push(new Paragraph({
         thematicBreak: true,
         spacing: { before: 160, after: 160 },
+      }));
+    } else if (tag === 'div' && el.classList.contains('page-break')) {
+      result.push(new Paragraph({
+        children: [new PageBreak()],
+        spacing: { before: 0, after: 0 },
       }));
     } else if (tag === 'div') {
       const inner = buildBlockElements(el.innerHTML);

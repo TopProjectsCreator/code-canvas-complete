@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import BubbleField from "@/components/landing/BubbleField";
 
 function useLiveCount(base: number, variance: number, interval: number) {
   const [value, setValue] = useState(base);
@@ -159,6 +160,7 @@ export function TheVoid() {
       display: "flex", flexDirection: "column", position: "relative",
       cursor: "default",
     }}>
+      <BubbleField />
       {/* Spotlight */}
       <div style={{
         position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1,

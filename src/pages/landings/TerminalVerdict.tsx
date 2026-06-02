@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import BubbleField from "@/components/landing/BubbleField";
 
 const BOOT_LINES = [
   "CodeCanvas v3.1.0 (linux/amd64)",
@@ -98,6 +99,7 @@ export function TerminalVerdict() {
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
       color: "#e6edf3", position: "relative", display: "flex", flexDirection: "column",
     }}>
+      <BubbleField />
       {/* Scanline overlay */}
       <div style={{
         position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, opacity: 0.03,
