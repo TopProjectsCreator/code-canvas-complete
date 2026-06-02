@@ -620,9 +620,13 @@ export const TexEditor = ({ file, onContentChange, allFiles }: TexEditorProps) =
     if (isComposingRef.current) return;
     const el = editorRef.current;
     if (!el) return;
+    const cursorPos = saveCursorPosition();
     const nextContent = el.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
     handleContentChange(nextContent);
-  }, [handleContentChange]);
+    requestAnimationFrame(() => {
+      restoreCursorPosition(cursorPos);
+    });
+  }, [handleContentChange, saveCursorPosition, restoreCursorPosition]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Tab") {
@@ -739,7 +743,7 @@ export const TexEditor = ({ file, onContentChange, allFiles }: TexEditorProps) =
               <Code className="h-4 w-4 text-muted-foreground" />
               <span className="text-xs font-medium text-muted-foreground">Source</span>
             </div>
-            <ScrollArea className="flex-1">
+            <div className="flex-1 overflow-auto">
               <div className="relative min-h-full p-4 font-mono text-sm leading-6">
                 <div
                   ref={editorRef}
@@ -757,7 +761,7 @@ export const TexEditor = ({ file, onContentChange, allFiles }: TexEditorProps) =
                   dangerouslySetInnerHTML={{ __html: buildHighlightedHtml() }}
                 />
               </div>
-            </ScrollArea>
+            </div>
           </div>
         </ResizablePanel>
 

@@ -4,7 +4,7 @@ import PptxGenJS from 'pptxgenjs';
 import { FileNode } from '@/types/ide';
 import {
   Presentation, Save, Plus, Trash2, Copy, ChevronUp, ChevronDown,
-  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
+  Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
   Type, Square, Image, Play, Undo, Redo, Loader2,
   Table, Film, Link, Palette, Wand2, Zap, RotateCcw,
   Eye, SlidersHorizontal, Timer, Maximize, Move, GripVertical
@@ -816,7 +816,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, fontWeight: (el.fontWeight || 400) >= 600 ? 400 : 700 }))}><Bold className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, fontStyle: el.fontStyle === 'italic' ? 'normal' : 'italic' }))}><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
-                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, textDecoration: el.textDecoration === 'underline' ? 'none' : 'underline' }))}><Underline className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
+                  <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, textDecoration: el.textDecoration === 'underline' ? 'none' : 'underline' }))}><UnderlineIcon className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
                 </div>
                 <div className="flex items-center gap-0.5 pr-3 border-r border-border">
                   <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateSelectedTextElement(el => ({ ...el, textAlign: 'left' }))}><AlignLeft className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Align Left</TooltipContent></Tooltip>

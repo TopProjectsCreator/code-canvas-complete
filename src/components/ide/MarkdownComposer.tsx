@@ -1,16 +1,17 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
+import UnderlineExt from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import Placeholder from '@tiptap/extension-placeholder';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import ImageExt from '@tiptap/extension-image';
 import { common, createLowlight } from 'lowlight';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bold, Italic, Underline as UnderlineIcon, Heading1, Heading2, Heading3, List, ListOrdered, Code2, Quote, Link as LinkIcon, Table as TableIcon, ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import TurndownService from 'turndown';
+import { marked } from 'marked';
 
 const lowlight = createLowlight(common);
 
@@ -40,6 +41,7 @@ interface MarkdownComposerProps {
 
 export function MarkdownComposer({ content, onChange, placeholder = 'Write your markdown here…' }: MarkdownComposerProps) {
   const prevContentRef = useRef(content);
+  const lastSyncedContentRef = useRef(content);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
@@ -49,13 +51,13 @@ export function MarkdownComposer({ content, onChange, placeholder = 'Write your 
   const [charCount, setCharCount] = useState(content.length);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
-  const editor = useEditor({
+  const editorOptions = useMemo(() => ({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         codeBlock: false,
       }),
-      Underline,
+      UnderlineExt,
       Link.configure({ openOnClick: false }),
       Table.configure({ resizable: true }),
       TableRow,
@@ -65,7 +67,7 @@ export function MarkdownComposer({ content, onChange, placeholder = 'Write your 
       CodeBlockLowlight.configure({ lowlight }),
       Placeholder.configure({ placeholder }),
     ],
-    content: parsed.body || content,
+    content: marked.parse(parsed.body || content),
     onUpdate: ({ editor: ed }) => {
       const html = ed.getHTML();
       let md = turndownService.turndown(html);
@@ -75,8 +77,11 @@ export function MarkdownComposer({ content, onChange, placeholder = 'Write your 
       }
       setCharCount(md.length);
       onChangeRef.current(md);
+      lastSyncedContentRef.current = md;
     },
-  });
+  }), []);
+
+  const editor = useEditor(editorOptions);
 
   useEffect(() => {
     if (editor && content !== prevContentRef.current) {
@@ -84,8 +89,9 @@ export function MarkdownComposer({ content, onChange, placeholder = 'Write your 
       const parsed = extractFrontmatter(content);
       frontmatterRef.current = parsed.frontmatter;
       setHasFrontmatter(!!parsed.frontmatter);
-      const newBody = parsed.body || content;
-      if (newBody !== turndownService.turndown(editor.getHTML())) {
+      const newBody = marked.parse(parsed.body || content);
+      const currentHtml = editor.getHTML();
+      if (newBody.trim() !== currentHtml.trim()) {
         editor.commands.setContent(newBody);
       }
     }

@@ -24,6 +24,7 @@ import { IpynbViewer } from "./IpynbViewer";
 import { MarkdownComposer } from "./MarkdownComposer";
 import { PDFEditor } from "./PDFEditor";
 import { TexEditor } from "./TexEditor";
+import { MermaidEditor } from "./MermaidEditor";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +33,7 @@ import { RichTextComposer } from "./RichTextComposer";
 import { AdvancedWorkbench } from "./AdvancedWorkbench";
 import { EnvFileEditor } from "./EnvFileEditor";
 import { DrawEditor } from "./DrawEditor";
+import { FontEditor } from "./FontEditor";
 import { getPreviewType } from "@/lib/filePreviewTypes";
 import { richTextToPlainText, sanitizeRichText } from "@/lib/richText";
 import { useCollaboration } from "@/hooks/useCollaboration";
@@ -479,7 +481,7 @@ export const CodeEditor = ({
 
   const isEnvFile = file.name === ".env" || file.name.startsWith(".env.");
   const previewType = getPreviewType(file.name);
-  const binaryPreviewTypes = ["image", "video", "audio", "cad", "rtf", "ipynb", "draw"];
+  const binaryPreviewTypes = ["image", "video", "audio", "cad", "rtf", "ipynb", "draw", "font"];
   const isTextPreviewable = previewType && !binaryPreviewTypes.includes(previewType);
 
   if (isEnvFile) return <EnvFileEditor file={file} onContentChange={onContentChange} />;
@@ -487,12 +489,14 @@ export const CodeEditor = ({
   if (previewType === "office") return <OfficeEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "pdf") return <PDFEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "tex") return <TexEditor file={file} onContentChange={onContentChange} allFiles={allFiles} />;
+  if (previewType === "mermaid") return <MermaidEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "video") return <VideoEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "audio") return <AudioEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "rtf") return <RTFEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "cad") return <CADEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "ipynb") return <IpynbViewer file={file} onContentChange={onContentChange} />;
   if (previewType === "zip") return <ZipEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === "font") return <FontEditor file={file} onContentChange={onContentChange} />;
 
   if (previewType === "scratch") {
     return <ScratchProjectView file={file} onContentChange={onContentChange} />;

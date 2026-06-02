@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import JSZip from 'jszip';
 import { FileNode } from '@/types/ide';
 import {
-  FileSpreadsheet, Save, Bold, Italic, Underline,
+  FileSpreadsheet, Save, Bold, Italic, Underline as UnderlineIcon,
   AlignLeft, AlignCenter, AlignRight, Undo, Redo,
   Plus, Loader2, ChevronDown, Table, Image, Link,
   BarChart3, Filter, SortAsc, SortDesc, Search,
@@ -529,7 +529,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
                 <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => applyStyle(s => ({ ...s, fontWeight: s.fontWeight === 'bold' ? 'normal' : 'bold' }))}><Bold className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
                 <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => applyStyle(s => ({ ...s, fontStyle: s.fontStyle === 'italic' ? 'normal' : 'italic' }))}><Italic className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
-                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => applyStyle(s => ({ ...s, textDecoration: s.textDecoration === 'underline' ? 'none' : 'underline' }))}><Underline className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => applyStyle(s => ({ ...s, textDecoration: s.textDecoration === 'underline' ? 'none' : 'underline' }))}><UnderlineIcon className="w-3.5 h-3.5" /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
                 <Select value={cellStyles[selectedCell[0]]?.[selectedCell[1]]?.numberFormat || 'general'} onValueChange={applyNumberFormat}>

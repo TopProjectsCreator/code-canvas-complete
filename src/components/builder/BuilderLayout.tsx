@@ -1,13 +1,27 @@
 import { useEffect, useRef, useCallback, useMemo, useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+} from "@dnd-kit/core";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { BuilderProvider, useBuilder } from "./useBuilderStore";
 import { ComponentPalette } from "./ComponentPalette";
-import { Canvas } from "./Canvas";
+import { Canvas, DragPreview, findNodeById, findContainerParent } from "./Canvas";
 import { ComponentTree } from "./ComponentTree";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { CodePreview } from "./CodePreview";
 import { useKeyboardShortcuts } from "./useKeyboardShortcuts";
+import { getRegistryEntry } from "./registry";
 import type { FileNode } from "@/types/ide";
+import type { UINode } from "./types";
 
 interface BuilderLayoutProps {
   file: FileNode;
@@ -61,6 +75,195 @@ function BuilderLayoutInner({ file, onContentChange }: BuilderLayoutProps) {
   useKeyboardShortcuts(shortcuts);
 
   const [viewMode, setViewMode] = useState<ViewMode>("design");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      const data = event.active.data.current;
+      let dragNode: { type: string; label: string } | null = null;
+      if (data?.from === "palette") {
+        const config = getRegistryEntry(data.type as string);
+        dragNode = { type: data.type as string, label: config?.label ?? data.type };
+      } else if (data?.from === "canvas" && data?.node) {
+        const config = getRegistryEntry((data.node as UINode).componentType);
+        dragNode = { type: (data.node as UINode).componentType, label: config?.label ?? (data.node as UINode).componentType };
+      }
+      dispatch({ type: "SET_DRAGGING", isDragging: true, dragNode });
+    },
+    [dispatch],
+  );
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over) {
+        dispatch({ type: "SET_DRAGGING", isDragging: false });
+        return;
+      }
+
+      const activeData = active.data.current;
+      if (activeData?.from === "palette") {
+        const componentType = activeData.type as string;
+        const overId = over.id as string;
+
+        let parentId: string | null = null;
+        let index = 0;
+
+        if (overId === "root") {
+          parentId = null;
+          index = state.rootNodes.length;
+        } else {
+          const overNode = findNodeById(state.rootNodes, overId);
+          if (overNode && overNode.children.length > 0 && getRegistryEntry(overNode.componentType)?.isContainer) {
+            parentId = overNode.id;
+            index = overNode.children.length;
+          } else {
+            const container = findContainerParent(state.rootNodes, overId);
+            if (container) {
+              parentId = container.id;
+              const idx = container.children.findIndex((c) => c.id === overId);
+              index = idx >= 0 ? idx + 1 : container.children.length;
+            } else {
+              parentId = null;
+              const idx = state.rootNodes.findIndex((n) => n.id === overId);
+              index = idx >= 0 ? idx + 1 : state.rootNodes.length;
+            }
+          }
+        }
+
+        dispatch({
+          type: "ADD_NODE",
+          componentType,
+          position: { parentId, index },
+        });
+      } else if (activeData?.from === "canvas") {
+        const nodeId = active.id as string;
+        const overId = over.id as string;
+
+        let parentId: string | null = null;
+        let index = 0;
+
+        if (overId === "root") {
+          parentId = null;
+          index = state.rootNodes.length;
+        } else {
+          const overNode = findNodeById(state.rootNodes, overId);
+          if (overNode && overNode.children.length > 0 && getRegistryEntry(overNode.componentType)?.isContainer) {
+            parentId = overNode.id;
+            index = overNode.children.length;
+          } else {
+            const container = findContainerParent(state.rootNodes, overId);
+            if (container) {
+              parentId = container.id;
+              const idx = container.children.findIndex((c) => c.id === overId);
+              index = idx >= 0 ? idx + 1 : container.children.length;
+            } else {
+              parentId = null;
+              const idx = state.rootNodes.findIndex((n) => n.id === overId);
+              index = idx >= 0 ? idx + 1 : state.rootNodes.length;
+            }
+          }
+        }
+
+        dispatch({
+          type: "MOVE_NODE",
+          nodeId,
+          position: { parentId, index },
+        });
+      }
+
+      dispatch({ type: "SET_DRAGGING", isDragging: false });
+      dispatch({ type: "SET_DROP_POSITION", position: null });
+    },
+    [dispatch, state.rootNodes],
+  );
+
+  const handleDragOver = useCallback(
+    (event: DragOverEvent) => {
+      const { over } = event;
+      if (!over) {
+        dispatch({ type: "SET_DROP_POSITION", position: null });
+        return;
+      }
+
+      const overId = over.id as string;
+      if (overId === "root") {
+        dispatch({
+          type: "SET_DROP_POSITION",
+          position: { parentId: null, index: state.rootNodes.length },
+        });
+      } else {
+        const overNode = findNodeById(state.rootNodes, overId);
+        if (overNode && overNode.children.length > 0 && getRegistryEntry(overNode.componentType)?.isContainer) {
+          dispatch({
+            type: "SET_DROP_POSITION",
+            position: { parentId: overNode.id, index: overNode.children.length },
+          });
+        } else {
+          const container = findContainerParent(state.rootNodes, overId);
+          if (container) {
+            const idx = container.children.findIndex((c) => c.id === overId);
+            dispatch({
+              type: "SET_DROP_POSITION",
+              position: { parentId: container.id, index: idx >= 0 ? idx + 1 : container.children.length },
+            });
+          }
+        }
+      }
+    },
+    [dispatch, state.rootNodes],
+  );
+
+  const dndContent = viewMode === "code" ? (
+    <CodePreview />
+  ) : (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+    >
+      <ResizablePanelGroup direction="horizontal">
+        {/* Left: Palette */}
+        <ResizablePanel defaultSize={18} minSize={12} maxSize={28}>
+          <ComponentPalette />
+        </ResizablePanel>
+
+        <ResizableHandle withHandle />
+
+        {/* Center: Canvas + Component Tree */}
+        <ResizablePanel defaultSize={55} minSize={30}>
+          <ResizablePanelGroup direction="vertical">
+            <ResizablePanel defaultSize={75} minSize={40}>
+              <Canvas />
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={25} minSize={15} maxSize={45}>
+              <ComponentTree />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </ResizablePanel>
+
+        <ResizableHandle withHandle />
+
+        {/* Right: Properties */}
+        <ResizablePanel defaultSize={27} minSize={15} maxSize={40}>
+          <PropertiesPanel />
+        </ResizablePanel>
+      </ResizablePanelGroup>
+
+      <DragOverlay>
+        {state.isDragging && state.activeDragNode ? (
+          <DragPreview type={state.activeDragNode.type} label={state.activeDragNode.label} />
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  );
 
   return (
     <div className="h-full w-full flex flex-col bg-background">
@@ -117,38 +320,7 @@ function BuilderLayoutInner({ file, onContentChange }: BuilderLayoutProps) {
 
       {/* Main layout */}
       <div className="flex-1 overflow-hidden">
-        {viewMode === "code" ? (
-          <CodePreview />
-        ) : (
-          <ResizablePanelGroup direction="horizontal">
-            {/* Left: Palette */}
-            <ResizablePanel defaultSize={18} minSize={12} maxSize={28}>
-              <ComponentPalette />
-            </ResizablePanel>
-
-            <ResizableHandle withHandle />
-
-            {/* Center: Canvas + Component Tree */}
-            <ResizablePanel defaultSize={55} minSize={30}>
-              <ResizablePanelGroup direction="vertical">
-                <ResizablePanel defaultSize={75} minSize={40}>
-                  <Canvas />
-                </ResizablePanel>
-                <ResizableHandle withHandle />
-                <ResizablePanel defaultSize={25} minSize={15} maxSize={45}>
-                  <ComponentTree />
-                </ResizablePanel>
-              </ResizablePanelGroup>
-            </ResizablePanel>
-
-            <ResizableHandle withHandle />
-
-            {/* Right: Properties */}
-            <ResizablePanel defaultSize={27} minSize={15} maxSize={40}>
-              <PropertiesPanel />
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        )}
+        {dndContent}
       </div>
     </div>
   );

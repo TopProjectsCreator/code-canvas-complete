@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { FileNode } from '@/types/ide';
 import {
-  FileText, Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
+  FileText, Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Upload, Download, Type, Palette, Undo, Redo, Image,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import UnderlineExt from '@tiptap/extension-underline';
 import Link from '@tiptap/extension-link';
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import TextAlign from '@tiptap/extension-text-align';
-import TextStyle from '@tiptap/extension-text-style';
+import { TextStyle } from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import FontFamily from '@tiptap/extension-font-family';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -426,7 +426,7 @@ export const RTFEditor = ({ file, onContentChange }: RTFEditorProps) => {
 
           <Tooltip><TooltipTrigger asChild>
             <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => editor?.chain().focus().toggleUnderline().run()}>
-              <Underline className="w-3.5 h-3.5" />
+              <UnderlineIcon className="w-3.5 h-3.5" />
             </Button>
           </TooltipTrigger><TooltipContent>Underline (Ctrl+U)</TooltipContent></Tooltip>
 

@@ -2,6 +2,15 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { MediaGenerationPanel } from './MediaGenerationPanel';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
+import { FileNode } from '@/types/ide';
+import {
+  Video, Music, Table, Search, X, BarChart3, Pencil, FileJson,
+  ArrowUp, ArrowDown, ArrowUpDown, Database, Code2, FileText,
+  Workflow, ZoomIn, ZoomOut, Download,
+} from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 
 interface FilePreviewProps {

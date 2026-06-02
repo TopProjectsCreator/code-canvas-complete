@@ -209,6 +209,7 @@ export const Sidebar = ({
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'svg'];
   const officeExtensions = ['docx', 'xlsx', 'pptx'];
   const binaryExtensions = ['zip', 'tar', 'gz', 'bz2', '7z', 'rar', 'xz', 'pdf', 'mp3', 'wav', 'flac', 'aac', 'm4a', 'mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg', 'ogv', 'ttf', 'otf', 'woff', 'woff2', 'wasm', 'bin', 'exe', 'dll', 'so', 'dylib'];
+  const supportedExtensions = ['js', 'ts', 'jsx', 'tsx', 'html', 'css', 'json', 'md', 'txt', 'py', 'go', 'rs', 'java', 'cpp', 'c', 'h', 'xml', 'yaml', 'yml', 'toml', 'env', 'gitignore', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'svg', 'draw', 'sb3', 'sb2', 'sb', ...officeExtensions];
 
   const isImageFile = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase() || '';
@@ -229,6 +230,8 @@ export const Sidebar = ({
     const lower = filename.toLowerCase();
     return lower.endsWith('.sb3') || lower.endsWith('.sb2') || lower.endsWith('.sb');
   };
+
+  const isSupportedFile = () => true;
 
   const LARGE_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -285,10 +288,17 @@ export const Sidebar = ({
     const uploadedFiles = event.target.files;
     if (!uploadedFiles || uploadedFiles.length === 0) return;
 
-    const scratchFiles = Array.from(uploadedFiles).filter((file) => isScratchArchiveFile(file.name));
+    const files = Array.from(uploadedFiles);
+
+    const unsupported = files.filter((file) => !isSupportedFile(file.name));
+    unsupported.forEach((file) => toast.error(`${file.name} is not supported`));
+
+    const supported = files.filter((file) => isSupportedFile(file.name));
+
+    const scratchFiles = supported.filter((file) => isScratchArchiveFile(file.name));
     scratchFiles.forEach((file) => onImportScratchProject?.(file));
 
-    const toRead = Array.from(uploadedFiles).filter((file) => !isScratchArchiveFile(file.name));
+    const toRead = supported.filter((file) => !isScratchArchiveFile(file.name));
 
     void readFilesSequentially(toRead).then((files) => {
       if (files.length > 0) onUploadFiles(files);
@@ -332,11 +342,17 @@ export const Sidebar = ({
     const droppedFiles = e.dataTransfer.files;
     if (!droppedFiles || droppedFiles.length === 0) return;
 
-    Array.from(droppedFiles)
+    const files = Array.from(droppedFiles);
+    const unsupported = files.filter((file) => !isSupportedFile(file.name));
+    unsupported.forEach((file) => toast.error(`${file.name} is not supported`));
+
+    const supported = files.filter((file) => isSupportedFile(file.name));
+
+    Array.from(supported)
       .filter((file) => isScratchArchiveFile(file.name))
       .forEach((file) => onImportScratchProject?.(file));
 
-    const toRead = Array.from(droppedFiles).filter((file) => !isScratchArchiveFile(file.name));
+    const toRead = Array.from(supported).filter((file) => !isScratchArchiveFile(file.name));
     void readFilesSequentially(toRead).then((files) => {
       if (files.length > 0) onUploadFiles(files);
     });
@@ -484,7 +500,7 @@ export const Sidebar = ({
                   multiple
                   className="hidden"
                   onChange={handleFileUpload}
-                  accept=".js,.ts,.jsx,.tsx,.html,.css,.json,.md,.txt,.py,.go,.rs,.java,.cpp,.c,.h,.xml,.yaml,.yml,.toml,.env,.gitignore,.png,.jpg,.jpeg,.gif,.webp,.ico,.bmp,.svg,.draw,.sb3,.sb2,.sb"
+
                 />
               </div>
             </div>

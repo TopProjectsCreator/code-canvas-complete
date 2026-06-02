@@ -3263,6 +3263,316 @@ const oracleNetworkParams: APIParameter[] = [
   ]},
 ];
 
+// ============ MISSING API PARAMS (batch additions) ============
+
+const cypressParams: APIParameter[] = [
+  { name: 'project_id', displayName: 'Cypress Project ID', type: 'string', required: true, placeholder: 'abc123' },
+  { name: 'spec', displayName: 'Spec Pattern', type: 'string', placeholder: 'cypress/e2e/**/*.cy.js' },
+  { name: 'branch', displayName: 'Branch', type: 'string', default: 'main' },
+  { name: 'commit', displayName: 'Commit SHA', type: 'string' },
+  { name: 'group', displayName: 'Group', type: 'string', placeholder: 'chrome' },
+  { name: 'record', displayName: 'Record Results', type: 'boolean', default: true },
+];
+
+const playwrightParams: APIParameter[] = [
+  { name: 'project', displayName: 'Project Name', type: 'string', placeholder: 'chromium' },
+  { name: 'test_file', displayName: 'Test File Pattern', type: 'string', placeholder: 'tests/**/*.spec.ts' },
+  { name: 'browser', displayName: 'Browser', type: 'select', default: 'chromium', options: [
+    { label: 'Chromium', value: 'chromium' }, { label: 'Firefox', value: 'firefox' }, { label: 'WebKit', value: 'webkit' },
+  ]},
+  { name: 'headed', displayName: 'Headed Mode', type: 'boolean', default: false },
+  { name: 'reporter', displayName: 'Reporter', type: 'string', placeholder: 'html' },
+];
+
+const browserstackParams: APIParameter[] = [
+  { name: 'browser', displayName: 'Browser', type: 'string', default: 'chrome', placeholder: 'chrome' },
+  { name: 'os', displayName: 'OS', type: 'string', default: 'Windows 11', placeholder: 'Windows 11' },
+  { name: 'device', displayName: 'Device', type: 'string', placeholder: 'iPhone 14' },
+  { name: 'url', displayName: 'Test URL', type: 'url', required: true, placeholder: 'https://example.com' },
+  { name: 'timeout', displayName: 'Timeout (s)', type: 'number', default: 60 },
+];
+const browserstackCredentials: APIParameter[] = [
+  { name: 'username', displayName: 'Username', type: 'password', required: true },
+  { name: 'access_key', displayName: 'Access Key', type: 'password', required: true },
+];
+
+const saucelabsParams: APIParameter[] = [
+  { name: 'browser_name', displayName: 'Browser', type: 'string', default: 'chrome' },
+  { name: 'browser_version', displayName: 'Browser Version', type: 'string', default: 'latest' },
+  { name: 'platform_name', displayName: 'Platform', type: 'string', default: 'Windows 11' },
+  { name: 'test_name', displayName: 'Test Name', type: 'string', placeholder: 'My Test' },
+  { name: 'url', displayName: 'Test URL', type: 'url', required: true },
+];
+const saucelabsCredentials: APIParameter[] = [
+  { name: 'username', displayName: 'Username', type: 'password', required: true },
+  { name: 'access_key', displayName: 'Access Key', type: 'password', required: true },
+];
+
+const testrailParams: APIParameter[] = [
+  { name: 'project_id', displayName: 'Project ID', type: 'number', required: true },
+  { name: 'suite_id', displayName: 'Suite ID', type: 'number' },
+  { name: 'section_id', displayName: 'Section ID', type: 'number' },
+  { name: 'title', displayName: 'Test Case Title', type: 'string', placeholder: 'Login works' },
+  { name: 'status_id', displayName: 'Status ID', type: 'number', placeholder: '1 = Passed' },
+];
+const testrailCredentials: APIParameter[] = [
+  { name: 'instance_url', displayName: 'Instance URL', type: 'url', required: true, placeholder: 'https://example.testrail.io' },
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const applitoolsParams: APIParameter[] = [
+  { name: 'app_name', displayName: 'Application Name', type: 'string', required: true },
+  { name: 'test_name', displayName: 'Test Name', type: 'string', required: true },
+  { name: 'batch_name', displayName: 'Batch Name', type: 'string' },
+  { name: 'viewport_width', displayName: 'Viewport Width', type: 'number', default: 1280 },
+  { name: 'viewport_height', displayName: 'Viewport Height', type: 'number', default: 800 },
+  { name: 'match_level', displayName: 'Match Level', type: 'select', default: 'strict', options: [
+    { label: 'Strict', value: 'strict' }, { label: 'Content', value: 'content' }, { label: 'Layout', value: 'layout' },
+  ]},
+];
+const applitoolsCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const langchainParams: APIParameter[] = [
+  { name: 'provider', displayName: 'LLM Provider', type: 'select', required: true, default: 'openai', options: [
+    { label: 'OpenAI', value: 'openai' }, { label: 'Anthropic', value: 'anthropic' }, { label: 'Google', value: 'google' },
+  ]},
+  { name: 'model', displayName: 'Model', type: 'string', required: true, placeholder: 'gpt-4' },
+  { name: 'prompt', displayName: 'Prompt Template', type: 'textarea', required: true, placeholder: 'Summarize: {text}' },
+  { name: 'input_variables', displayName: 'Input Variables (JSON)', type: 'textarea', placeholder: '{"text": "Hello world"}' },
+  { name: 'chain_type', displayName: 'Chain Type', type: 'select', default: 'llm_chain', options: [
+    { label: 'LLM Chain', value: 'llm_chain' }, { label: 'Retrieval QA', value: 'retrieval_qa' },
+    { label: 'Summarization', value: 'summarization' }, { label: 'Conversation', value: 'conversation' },
+  ]},
+  { name: 'temperature', displayName: 'Temperature', type: 'number', default: 0.7 },
+  { name: 'max_tokens', displayName: 'Max Tokens', type: 'number', default: 500 },
+];
+
+const wandbParams: APIParameter[] = [
+  { name: 'project', displayName: 'Project Name', type: 'string', required: true, placeholder: 'my-ml-project' },
+  { name: 'run_name', displayName: 'Run Name', type: 'string', placeholder: 'experiment-1' },
+  { name: 'config', displayName: 'Config (JSON)', type: 'textarea', placeholder: '{"learning_rate": 0.001}' },
+  { name: 'metrics', displayName: 'Metrics (JSON)', type: 'textarea', placeholder: '{"accuracy": 0.95}' },
+  { name: 'artifact_name', displayName: 'Artifact Name', type: 'string' },
+  { name: 'artifact_type', displayName: 'Artifact Type', type: 'string', placeholder: 'model' },
+];
+const wandbCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const launchdarklyParams: APIParameter[] = [
+  { name: 'project_key', displayName: 'Project Key', type: 'string', required: true, placeholder: 'default' },
+  { name: 'flag_key', displayName: 'Flag Key', type: 'string', required: true, placeholder: 'my-feature-flag' },
+  { name: 'environment', displayName: 'Environment', type: 'string', default: 'production' },
+  { name: 'variation', displayName: 'Variation Index', type: 'number', placeholder: '0 = on, 1 = off' },
+  { name: 'on', displayName: 'Flag On?', type: 'boolean', default: true },
+  { name: 'targeting_rules', displayName: 'Targeting Rules (JSON)', type: 'textarea' },
+];
+const launchdarklyCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'SDK Key', type: 'password', required: true },
+];
+
+const lokaliseParams: APIParameter[] = [
+  { name: 'project_id', displayName: 'Project ID', type: 'string', required: true },
+  { name: 'keys', displayName: 'Translation Keys (JSON)', type: 'textarea', placeholder: '["welcome_message", "button.save"]' },
+  { name: 'translations', displayName: 'Translations (JSON)', type: 'textarea', placeholder: '{"key": {"en": "Hello"}}' },
+  { name: 'source_lang', displayName: 'Source Language', type: 'string', default: 'en' },
+  { name: 'target_lang', displayName: 'Target Language', type: 'string', required: true, placeholder: 'fr' },
+];
+const lokaliseCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Token', type: 'password', required: true },
+];
+
+const ngrokParams: APIParameter[] = [
+  { name: 'tunnel_name', displayName: 'Tunnel Name', type: 'string', placeholder: 'my-tunnel' },
+  { name: 'port', displayName: 'Local Port', type: 'number', required: true, placeholder: '3000' },
+  { name: 'proto', displayName: 'Protocol', type: 'select', default: 'http', options: [
+    { label: 'HTTP', value: 'http' }, { label: 'TCP', value: 'tcp' }, { label: 'TLS', value: 'tls' },
+  ]},
+  { name: 'domain', displayName: 'Custom Domain', type: 'string', placeholder: 'my-app.ngrok.io' },
+  { name: 'basic_auth', displayName: 'Basic Auth (user:pass)', type: 'string', placeholder: 'admin:password' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'start', options: [
+    { label: 'Start Tunnel', value: 'start' }, { label: 'Stop Tunnel', value: 'stop' }, { label: 'List Tunnels', value: 'list' },
+  ]},
+];
+const ngrokCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'Auth Token', type: 'password', required: true },
+];
+
+const calendlyParams: APIParameter[] = [
+  { name: 'event_type', displayName: 'Event Type URI', type: 'string', required: true, placeholder: 'https://api.calendly.com/event_types/...' },
+  { name: 'invitee_email', displayName: 'Invitee Email', type: 'email', placeholder: 'guest@example.com' },
+  { name: 'invitee_name', displayName: 'Invitee Name', type: 'string', placeholder: 'John' },
+  { name: 'start_time', displayName: 'Start Time (ISO)', type: 'string', placeholder: '2026-06-01T10:00:00Z' },
+  { name: 'timezone', displayName: 'Timezone', type: 'string', default: 'America/New_York' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'create_event', options: [
+    { label: 'Create Event', value: 'create_event' }, { label: 'List Events', value: 'list_events' },
+    { label: 'Cancel Event', value: 'cancel_event' },
+  ]},
+];
+const calendlyCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'Personal Access Token', type: 'password', required: true },
+];
+
+const convexParams: APIParameter[] = [
+  { name: 'deployment_url', displayName: 'Deployment URL', type: 'url', required: true, placeholder: 'https://happy-otter-123.convex.cloud' },
+  { name: 'function_name', displayName: 'Function Name', type: 'string', required: true, placeholder: 'api.getTasks' },
+  { name: 'args', displayName: 'Arguments (JSON)', type: 'textarea', placeholder: '{"id": "abc123"}' },
+  { name: 'format', displayName: 'Result Format', type: 'select', default: 'json', options: [
+    { label: 'JSON', value: 'json' }, { label: 'Text', value: 'text' },
+  ]},
+];
+const convexCredentials: APIParameter[] = [
+  { name: 'deploy_key', displayName: 'Deploy Key', type: 'password', required: true },
+];
+
+const messengerParams: APIParameter[] = [
+  { name: 'page_id', displayName: 'Page ID', type: 'string', required: true },
+  { name: 'recipient_id', displayName: 'Recipient PSID', type: 'string', required: true, placeholder: '123456789' },
+  { name: 'message', displayName: 'Message Text', type: 'textarea', required: true, placeholder: 'Hello from automation!' },
+  { name: 'message_type', displayName: 'Message Type', type: 'select', default: 'RESPONSE', options: [
+    { label: 'Response', value: 'RESPONSE' }, { label: 'Update', value: 'UPDATE' }, { label: 'Tag', value: 'MESSAGE_TAG' },
+  ]},
+  { name: 'image_url', displayName: 'Image URL', type: 'url', placeholder: 'https://example.com/image.jpg' },
+];
+const messengerCredentials: APIParameter[] = [
+  { name: 'page_access_token', displayName: 'Page Access Token', type: 'password', required: true },
+];
+
+const signalParams: APIParameter[] = [
+  { name: 'phone', displayName: 'Recipient Phone', type: 'string', required: true, placeholder: '+12025551212' },
+  { name: 'message', displayName: 'Message', type: 'textarea', required: true, placeholder: 'Hello from automation!' },
+  { name: 'image_url', displayName: 'Image URL', type: 'url', placeholder: 'https://example.com/photo.png' },
+];
+const signalCredentials: APIParameter[] = [
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const puppeteerParams: APIParameter[] = [
+  { name: 'url', displayName: 'Page URL', type: 'url', required: true, placeholder: 'https://example.com' },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, default: 'screenshot', options: [
+    { label: 'Screenshot', value: 'screenshot' }, { label: 'PDF', value: 'pdf' },
+    { label: 'Extract Content', value: 'extract' }, { label: 'Click Element', value: 'click' },
+    { label: 'Fill Form', value: 'fill_form' }, { label: 'Run Script', value: 'script' },
+  ]},
+  { name: 'selector', displayName: 'CSS Selector', type: 'string', placeholder: '#main-content' },
+  { name: 'extract_script', displayName: 'Extract Script', type: 'textarea', placeholder: 'document.title' },
+  { name: 'wait_for', displayName: 'Wait For Selector', type: 'string', placeholder: '.loaded' },
+  { name: 'viewport_width', displayName: 'Viewport Width', type: 'number', default: 1280 },
+  { name: 'viewport_height', displayName: 'Viewport Height', type: 'number', default: 720 },
+  { name: 'full_page', displayName: 'Full Page', type: 'boolean', default: false },
+];
+
+const seleniumParams: APIParameter[] = [
+  { name: 'url', displayName: 'Test URL', type: 'url', required: true, placeholder: 'https://example.com' },
+  { name: 'command', displayName: 'Selenium Command', type: 'select', required: true, default: 'click', options: [
+    { label: 'Click', value: 'click' }, { label: 'Type', value: 'type' }, { label: 'Navigate', value: 'navigate' },
+    { label: 'Get Text', value: 'get_text' }, { label: 'Screenshot', value: 'screenshot' }, { label: 'Execute Script', value: 'execute_script' },
+  ]},
+  { name: 'selector', displayName: 'CSS Selector', type: 'string', placeholder: '#submit-btn' },
+  { name: 'value', displayName: 'Value / Text', type: 'string', placeholder: 'Text to type' },
+  { name: 'script', displayName: 'JavaScript', type: 'textarea', placeholder: 'return document.title' },
+  { name: 'implicit_wait', displayName: 'Implicit Wait (s)', type: 'number', default: 10 },
+];
+
+const appwriteParams: APIParameter[] = [
+  { name: 'database_id', displayName: 'Database ID', type: 'string', required: true },
+  { name: 'collection_id', displayName: 'Collection ID', type: 'string', required: true },
+  { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'list', options: [
+    { label: 'List Documents', value: 'list' }, { label: 'Create Document', value: 'create' },
+    { label: 'Get Document', value: 'get' }, { label: 'Update Document', value: 'update' },
+    { label: 'Delete Document', value: 'delete' },
+  ]},
+  { name: 'document_id', displayName: 'Document ID', type: 'string' },
+  { name: 'data', displayName: 'Data (JSON)', type: 'textarea', placeholder: '{"title": "Hello"}' },
+];
+const appwriteCredentials: APIParameter[] = [
+  { name: 'endpoint', displayName: 'API Endpoint', type: 'url', required: true },
+  { name: 'project_id', displayName: 'Project ID', type: 'string', required: true },
+  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
+];
+
+const postmanParams: APIParameter[] = [
+  { name: 'collection_id', displayName: 'Collection ID', type: 'string', required: true },
+  { name: 'environment_id', displayName: 'Environment ID', type: 'string' },
+  { name: 'folder_id', displayName: 'Folder ID', type: 'string' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'run_collection', options: [
+    { label: 'Run Collection', value: 'run_collection' }, { label: 'Create Collection', value: 'create_collection' },
+    { label: 'List Collections', value: 'list_collections' },
+  ]},
+  { name: 'variables', displayName: 'Variables (JSON)', type: 'textarea', placeholder: '{"base_url": "https://api.example.com"}' },
+];
+
+const apifyParams: APIParameter[] = [
+  { name: 'actor_id', displayName: 'Actor ID', type: 'string', required: true, placeholder: 'apify/web-scraper' },
+  { name: 'run_input', displayName: 'Run Input (JSON)', type: 'textarea', placeholder: '{"startUrls": [{"url": "https://example.com"}]}' },
+  { name: 'wait_for_finish', displayName: 'Wait For Finish', type: 'number', default: 60 },
+  { name: 'webhook_url', displayName: 'Webhook URL', type: 'url', placeholder: 'https://example.com/webhook' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'run', options: [
+    { label: 'Run Actor', value: 'run' }, { label: 'Get Dataset', value: 'get_dataset' },
+    { label: 'List Actors', value: 'list_actors' },
+  ]},
+];
+
+const fullstoryParams: APIParameter[] = [
+  { name: 'event_name', displayName: 'Event Name', type: 'string', required: true, placeholder: 'purchase_completed' },
+  { name: 'user_id', displayName: 'User ID', type: 'string' },
+  { name: 'session_url', displayName: 'Session URL', type: 'url', placeholder: 'https://app.fullstory.com/session/...' },
+  { name: 'properties', displayName: 'Properties (JSON)', type: 'textarea', placeholder: '{"revenue": 29.99}' },
+  { name: 'action', displayName: 'Action', type: 'select', default: 'track_event', options: [
+    { label: 'Track Event', value: 'track_event' }, { label: 'Identify User', value: 'identify' },
+    { label: 'Get Session', value: 'get_session' },
+  ]},
+];
+
+const matomoParams: APIParameter[] = [
+  { name: 'site_id', displayName: 'Site ID', type: 'number', required: true },
+  { name: 'method', displayName: 'API Method', type: 'select', required: true, default: 'VisitsSummary.get', options: [
+    { label: 'Visits Summary', value: 'VisitsSummary.get' },
+    { label: 'Actions', value: 'Actions.get' },
+    { label: 'Page URLs', value: 'Actions.getPageUrls' },
+    { label: 'Events', value: 'Events.getCategory' },
+    { label: 'Goals', value: 'Goals.get' },
+  ]},
+  { name: 'period', displayName: 'Period', type: 'select', default: 'month', options: [
+    { label: 'Day', value: 'day' }, { label: 'Week', value: 'week' }, { label: 'Month', value: 'month' }, { label: 'Year', value: 'year' },
+  ]},
+  { name: 'date', displayName: 'Date', type: 'string', default: 'today', placeholder: '2026-01-01' },
+  { name: 'format', displayName: 'Format', type: 'select', default: 'json', options: [
+    { label: 'JSON', value: 'json' }, { label: 'XML', value: 'xml' }, { label: 'CSV', value: 'csv' },
+  ]},
+];
+const matomoCredentials: APIParameter[] = [
+  { name: 'api_token', displayName: 'Auth Token', type: 'password', required: true },
+];
+
+const keycloakParams: APIParameter[] = [
+  { name: 'realm', displayName: 'Realm', type: 'string', required: true, placeholder: 'my-realm' },
+  { name: 'action', displayName: 'Action', type: 'select', required: true, default: 'create_user', options: [
+    { label: 'Create User', value: 'create_user' }, { label: 'List Users', value: 'list_users' },
+    { label: 'Get User', value: 'get_user' }, { label: 'Update User', value: 'update_user' },
+    { label: 'Delete User', value: 'delete_user' }, { label: 'Send Verify Email', value: 'send_verify_email' },
+  ]},
+  { name: 'user_id', displayName: 'User ID', type: 'string' },
+  { name: 'user_data', displayName: 'User Data (JSON)', type: 'textarea', placeholder: '{"username": "john", "email": "john@example.com"}' },
+];
+const keycloakCredentials: APIParameter[] = [
+  { name: 'base_url', displayName: 'Keycloak Base URL', type: 'url', required: true, placeholder: 'https://auth.example.com' },
+  { name: 'client_id', displayName: 'Client ID', type: 'string', required: true },
+  { name: 'client_secret', displayName: 'Client Secret', type: 'password', required: true },
+];
+
+const scrapeParams: APIParameter[] = [
+  { name: 'url', displayName: 'Target URL', type: 'url', required: true, placeholder: 'https://example.com' },
+  { name: 'extract_rules', displayName: 'Extract Rules (JSON)', type: 'textarea', placeholder: '{"title": "h1", "price": ".price"}' },
+  { name: 'proxy_country', displayName: 'Proxy Country', type: 'string', placeholder: 'us' },
+  { name: 'javascript', displayName: 'Render JavaScript', type: 'boolean', default: false },
+  { name: 'format', displayName: 'Output Format', type: 'select', default: 'json', options: [
+    { label: 'JSON', value: 'json' }, { label: 'HTML', value: 'html' }, { label: 'Markdown', value: 'markdown' },
+  ]},
+];
+
 export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
   {
     id: 'comm',
@@ -3289,6 +3599,8 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Mailchimp Marketing', 'api_key', undefined, mailchimpMarketingParams],
         ['MailerSend', 'api_key', 'MailerSend transactional email API with personalization/templates.', mailerSendParams],
         ['Nylas', 'api_key', 'Nylas unified email/calendar/contacts API via a single integration.', nylasEmailParams],
+        ['Mailtrap', 'api_key', 'Mailtrap email testing and delivery inspection API.'],
+        ['Ethereal', 'free', 'Ethereal fake SMTP server for email development and testing.'],
       ]),
       withBlocks('team-chat', 'Team Chat & Collaboration', [
         ['Slack', 'free', undefined, slackParams, slackCredentials],
@@ -3307,6 +3619,8 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Chanty', 'api_key', undefined, discordParams],
         ['Sendbird', 'api_key', 'Sendbird in-app chat/messaging API.', discordParams],
         ['Stream Chat', 'api_key', 'Stream Chat API for messaging and feeds.', discordParams],
+        ['Facebook Messenger', 'api_key', 'Facebook Messenger platform messaging and conversation API.', messengerParams, messengerCredentials],
+        ['Signal', 'api_key', 'Signal secure messaging and encrypted communication API.', signalParams, signalCredentials],
       ]),
       withBlocks('sms-voice', 'SMS, Voice & Mobile Push', [
         ['Twilio', 'api_key', undefined, twilioParams, twilioCredentials],
@@ -3371,6 +3685,30 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Amazon Bedrock', 'api_key', 'AWS Bedrock foundation model inference API.', awsApiParams],
         ['IBM watsonx', 'api_key', 'IBM watsonx.ai model inference API.', cloudApiParams],
         ['AI21 Labs', 'api_key', 'AI21 Jurassic/Jamba model API.', openaiParams],
+        ['LangChain', 'api_key', 'LangChain LLM orchestration and chain composition API.', langchainParams],
+        ['LangSmith', 'api_key', 'LangSmith LLM application tracing and evaluation API.'],
+        ['Langfuse', 'api_key', 'Langfuse open-source LLM observability and trace monitoring API.'],
+        ['Weights & Biases', 'api_key', 'Weights & Biases ML experiment tracking and model registry API.', wandbParams, wandbCredentials],
+        ['MLflow', 'api_key', 'MLflow open-source ML lifecycle and experiment tracking API.'],
+        ['Comet ML', 'api_key', 'Comet ML experiment tracking and model management API.'],
+        ['Vellum', 'api_key', 'Vellum AI development platform for prompt engineering and LLM workflows.'],
+        ['CrewAI', 'api_key', 'CrewAI multi-agent orchestration and role-based AI agent framework.'],
+        ['AutoGPT', 'api_key', 'AutoGPT autonomous AI agent task execution and goal management API.'],
+        ['Fal.ai', 'api_key', 'Fal.ai serverless AI inference and model deployment API.'],
+        ['Modal', 'api_key', 'Modal cloud compute platform for AI/ML workloads and serverless functions.'],
+        ['Predibase', 'api_key', 'Predibase fine-tuning and LLM deployment platform API.'],
+        ['Anyscale', 'api_key', 'Anyscale distributed compute and Ray-based ML workload API.'],
+        ['OpenAI Files', 'api_key', 'OpenAI Files API for file upload management.', openaiFilesApiParams],
+        ['Anthropic Batches', 'api_key', 'Anthropic Batches API for batch processing.', anthropicBatchesApiParams],
+        ['Mistral OCR', 'api_key', 'Mistral AI OCR document extraction API.', mistralOcrApiParams],
+        ['Cohere Embeddings', 'api_key', 'Cohere Embeddings API for text vectorization.', cohereEmbedApiParams],
+        ['Perplexity Search', 'api_key', 'Perplexity AI search-based answer API.', perplexitySearchApiParams],
+        ['Replicate Predictions', 'api_key', 'Replicate prediction runs and model deployment API.', replicatePredictionsApiParams],
+        ['RunwayML Tasks', 'api_key', 'RunwayML video generation task management API.', runwayTasksApiParams],
+        ['Stability AI Image', 'api_key', 'Stability AI image generation and editing API.', stabilityImageApiParams],
+        ['ElevenLabs Voices', 'api_key', 'ElevenLabs voice management and TTS API.', elevenlabsVoicesApiParams],
+        ['AssemblyAI Transcript', 'api_key', 'AssemblyAI async audio transcription API.', assemblyaiTranscriptApiParams],
+        ['Deepgram Listen', 'api_key', 'Deepgram real-time audio transcription and understanding API.', deepgramListenApiParams],
       ]),
       withBlocks('image-video-3d', 'Image, Video & 3D Generation', [
         ['DALL-E', 'api_key', undefined, dalleParams],
@@ -3389,6 +3727,14 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Ideogram', 'api_key', 'Ideogram text-to-image generation API.', dalleParams],
         ['Krea', 'api_key', 'Krea AI image/video generation API.', stableParams],
         ['Recraft', 'api_key', 'Recraft AI vector/icon/image generation API.', stableParams],
+      ]),
+      withBlocks('localization', 'Localization & Translation', [
+        ['Lokalise', 'api_key', 'Lokalise translation management and localization platform API.', lokaliseParams, lokaliseCredentials],
+        ['Crowdin', 'api_key', 'Crowdin localization management and translation automation API.'],
+        ['POEditor', 'api_key', 'POEditor translation management and crowdsourcing platform API.'],
+        ['Smartling', 'api_key', 'Smartling enterprise translation and localization management API.'],
+        ['Transifex', 'api_key', 'Transifex continuous localization and translation management API.'],
+        ['Phrase', 'api_key', 'Phrase localization platform and translation management API.'],
       ]),
       withBlocks('audio-voice-music', 'Audio, Voice & Music AI', [
         ['ElevenLabs', 'api_key', undefined, elevenLabsParams, elevenLabsCredentials],
@@ -3434,6 +3780,12 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['InfluxDB', 'api_key', 'InfluxDB time-series database query API.', databaseQueryParams],
         ['SingleStore', 'api_key', 'SingleStore distributed SQL database API.', sqlDatabaseParams],
         ['ClickHouse', 'free', 'ClickHouse column-oriented analytics database HTTP API.', databaseQueryParams],
+        ['PocketBase', 'free', 'PocketBase open-source backend with realtime database and auth API.'],
+        ['Appwrite', 'api_key', 'Appwrite open-source backend server with database/auth/storage API.', appwriteParams, appwriteCredentials],
+        ['Nhost', 'api_key', 'Nhost open-source backend with GraphQL, storage, and serverless functions API.'],
+        ['Convex', 'api_key', 'Convex reactive backend with realtime database and serverless functions API.', convexParams, convexCredentials],
+        ['InstantDB', 'free', 'InstantDB realtime client-side database with permission-based API.'],
+        ['Neon', 'free', 'Neon serverless Postgres with branching and connection pooling API.'],
       ]),
       withBlocks('cloud-storage-cdn', 'Cloud File Storage & CDN', [
         ['Google Drive', 'free', undefined, googledriveParams],
@@ -3467,6 +3819,12 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['NocoDB', 'free', 'NocoDB open source Airtable alternative API.', spreadsheetParams],
         ['Rows', 'free', 'Rows spreadsheet with API integrations.', spreadsheetParams],
       ]),
+      withBlocks('storage-extras', 'Advanced Storage APIs', [
+        ['Dropbox Files', 'api_key', 'Dropbox file operations: upload, download, delete, list API.', dropboxFilesApiParams],
+        ['Google Drive Permissions', 'api_key', 'Google Drive permission and sharing management API.', googleDrivePermissionsApiParams],
+        ['OneDrive Items', 'api_key', 'Microsoft OneDrive file and item management API.', oneDriveItemsApiParams],
+        ['Box Folders', 'api_key', 'Box folder and file operations management API.', boxFoldersApiParams],
+      ]),
     ],
   },
   {
@@ -3491,6 +3849,12 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Railway', 'free', 'Railway deploy platform projects/environments API.', vercelParams],
         ['Render', 'free', 'Render services/deploys/jobs HTTP API.', vercelParams],
         ['Fly.io', 'api_key', 'Fly.io apps/machines/volumes API.', vercelParams],
+        ['GitHub Checks', 'api_key', 'GitHub Checks API for commit check runs and annotations.', githubChecksApiParams],
+        ['GitLab Merge Requests', 'api_key', 'GitLab merge request management and review API.', gitlabMergeRequestsApiParams],
+        ['Bitbucket Pipelines', 'api_key', 'Bitbucket Pipelines CI/CD run and build management API.', bitbucketPipelinesApiParams],
+        ['CircleCI Insights', 'api_key', 'CircleCI pipeline insights and performance analytics API.', circleciInsightsApiParams],
+        ['Jenkins Crumb', 'api_key', 'Jenkins CSRF crumb issuer for secure API calls.', jenkinsCrumbApiParams],
+        ['Docker Hub Repos', 'api_key', 'Docker Hub repository and image tag management API.', dockerHubReposApiParams],
       ]),
       withBlocks('monitoring', 'Monitoring & Infrastructure', [
         ['Sentry', 'free', undefined, sentryParams, sentryCredentials],
@@ -3515,6 +3879,65 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Azure Monitor', 'api_key', 'Azure Monitor metrics/logs query API.', azureApiParams],
         ['Checkly', 'api_key', 'Checkly browser/API checks monitoring API.', monitoringParams],
         ['Zabbix', 'api_key', 'Zabbix monitoring platform API.', monitoringParams],
+      ]),
+      withBlocks('data-pipelines', 'Data Pipelines & Orchestration', [
+        ['Airbyte', 'api_key', 'Airbyte data integration/ELT pipeline API.', devOpsParams],
+        ['dbt', 'api_key', 'dbt data transformation and modeling API.', devOpsParams],
+        ['Prefect', 'api_key', 'Prefect workflow orchestration and scheduling API.', devOpsParams],
+        ['Dagster', 'api_key', 'Dagster data pipeline orchestration and asset management API.', devOpsParams],
+        ['Temporal', 'api_key', 'Temporal durable execution and workflow orchestration API.', devOpsParams],
+        ['Apache Airflow', 'api_key', 'Apache Airflow DAG scheduling and workflow management API.', devOpsParams],
+        ['Fivetran', 'api_key', 'Fivetran managed data pipeline and connector API.', devOpsParams],
+        ['Meltano', 'api_key', 'Meltano open-source ELT and data integration API.', devOpsParams],
+        ['Great Expectations', 'api_key', 'Great Expectations data quality and validation API.', devOpsParams],
+      ]),
+      withBlocks('low-code-platforms', 'Low-Code & Automation Platforms', [
+        ['Zapier', 'api_key', 'Zapier cross-app automation and workflow API.', devOpsParams],
+        ['Make', 'api_key', 'Make (Integromat) visual automation scenario API.', devOpsParams],
+        ['n8n', 'api_key', 'n8n open-source fair-code workflow automation API.', devOpsParams],
+        ['Node-RED', 'free', 'Node-RED flow-based programming and low-code integration API.'],
+        ['Retool', 'api_key', 'Retool internal tool builder and workflow API.', devOpsParams],
+        ['Appsmith', 'free', 'Appsmith open-source low-code application builder API.'],
+        ['Tooljet', 'free', 'Tooljet open-source low-code internal tools platform API.'],
+        ['Budibase', 'free', 'Budibase open-source low-code platform API.'],
+      ]),
+      withBlocks('testing-qa', 'Testing & QA', [
+        ['Cypress', 'api_key', 'Cypress frontend test runner and dashboard API.', cypressParams],
+        ['Playwright', 'api_key', 'Playwright browser automation and cross-browser testing API.', playwrightParams],
+        ['Selenium', 'api_key', 'Selenium browser automation and WebDriver testing API.', seleniumParams],
+        ['Puppeteer', 'api_key', 'Puppeteer headless Chrome browser automation API.', puppeteerParams],
+        ['BrowserStack', 'api_key', 'BrowserStack cloud testing and device lab API.', browserstackParams, browserstackCredentials],
+        ['Sauce Labs', 'api_key', 'Sauce Labs cloud testing and Selenium grid API.', saucelabsParams, saucelabsCredentials],
+        ['TestRail', 'api_key', 'TestRail test case management and run reporting API.', testrailParams, testrailCredentials],
+        ['Testim', 'api_key', 'Testim AI-powered test automation and authoring API.'],
+        ['Applitools', 'api_key', 'Applitools visual testing and UI validation API.', applitoolsParams, applitoolsCredentials],
+      ]),
+      withBlocks('api-tools', 'API Tools & Developer Utilities', [
+        ['Postman', 'api_key', 'Postman API collection runner and workspace management API.', postmanParams],
+        ['Swagger/OpenAPI', 'api_key', 'Swagger/OpenAPI spec validation and documentation generation API.'],
+        ['Apollo GraphQL', 'api_key', 'Apollo GraphQL schema registry and federation management API.'],
+        ['WunderGraph', 'api_key', 'WunderGraph API composition and gateway configuration API.'],
+        ['ngrok', 'api_key', 'ngrok secure tunnel and localhost exposure API.', ngrokParams, ngrokCredentials],
+        ['Cloudflare Workers', 'api_key', 'Cloudflare Workers serverless edge function deployment API.', cloudflareWorkersApiParams],
+      ]),
+      withBlocks('feature-flags', 'Feature Flags & Experimentation', [
+        ['LaunchDarkly', 'api_key', 'LaunchDarkly feature flag management and targeting API.', launchdarklyParams, launchdarklyCredentials],
+        ['Unleash', 'api_key', 'Unleash open-source feature flag and toggle management API.'],
+        ['Flagsmith', 'api_key', 'Flagsmith feature flag and remote config management API.'],
+        ['GrowthBook', 'api_key', 'GrowthBook open-source feature flags and A/B testing API.'],
+        ['ConfigCat', 'api_key', 'ConfigCat feature flag and configuration management API.'],
+        ['Split.io', 'api_key', 'Split.io feature experimentation and flag delivery API.'],
+      ]),
+      withBlocks('web-scraping', 'Web Scraping & Data Extraction', [
+        ['Apify', 'api_key', 'Apify web scraping and browser automation platform API.', apifyParams],
+        ['ScrapingBee', 'api_key', 'ScrapingBee managed web scraping and proxy rotation API.', scrapeParams],
+        ['ScrapingAnt', 'api_key', 'ScrapingAnt headless proxy-based web scraping API.', scrapeParams],
+        ['Bright Data', 'api_key', 'Bright Data proxy network and web scraping API.', scrapeParams],
+      ]),
+      withBlocks('domain-dns', 'Domain & DNS Management', [
+        ['Namecheap', 'api_key', 'Namecheap domain registration and DNS management API.'],
+        ['GoDaddy', 'api_key', 'GoDaddy domain registration and DNS management API.'],
+        ['AWS Route53', 'api_key', 'AWS Route53 DNS and domain registration management API.', awsApiParams],
       ]),
     ],
   },
@@ -3578,6 +4001,11 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Typeform', 'free', undefined, typeformParams, typeformCredentials], ['Jotform', 'free', undefined, jotformParams, jotformCredentials], ['Tally.so', 'free', undefined, tallyParams, tallyCredentials], ['SurveyMonkey', 'api_key', undefined, surveyMonkeyParams, surveyMonkeyCredentials], ['Hotjar', 'free'],
         ['UserTesting', 'api_key', undefined, userTestingParams, userTestingCredentials], ['Qualtrics', 'api_key', undefined, qualtricsParams, qualtricsCredentials],
         ['Google Forms', 'free', 'Google Forms responses retrieval API.', googleServiceParams],
+        ['Formspree', 'api_key', 'Formspree form backend and submission management API.'],
+        ['Formcarry', 'api_key', 'Formcarry form submission handling and email notification API.'],
+        ['Web3Forms', 'free', 'Web3Forms form-to-email submission API.'],
+        ['Paperform', 'api_key', 'Paperform online form builder and submission management API.'],
+        ['Fillout', 'api_key', 'Fillout form builder and response collection API.'],
       ]),
     ],
   },
@@ -3660,11 +4088,28 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Microsoft Intune', 'api_key', 'Microsoft Intune device management API.', msGraphApiParams],
         ['Descope', 'api_key', 'Descope user authentication/flows API.', identityParams],
         ['WorkOS', 'api_key', 'WorkOS SSO/directory/audit log API.', identityParams],
+        ['Keycloak', 'api_key', 'Keycloak open-source identity and access management API.', keycloakParams, keycloakCredentials],
+        ['FusionAuth', 'api_key', 'FusionAuth comprehensive auth platform and user management API.'],
+        ['SuperTokens', 'api_key', 'SuperTokens open-source auth with session management and MFA API.'],
+        ['Logto', 'api_key', 'Logto open-source auth platform with OIDC and user management API.'],
+        ['Permit.io', 'api_key', 'Permit.io fine-grained authorization and access control API.'],
+        ['Cerbos', 'api_key', 'Cerbos open-source authorization policy engine and access control API.'],
+        ['Warrant', 'api_key', 'Warrant authorization and permissions management API.'],
+        ['Auth0 Users', 'api_key', 'Auth0 user management and profile administration API.', auth0UsersApiParams],
+        ['Okta Groups', 'api_key', 'Okta group management and membership API.', oktaGroupsApiParams],
+        ['Clerk Users', 'api_key', 'Clerk user management, sessions, and organization API.', clerkUsersApiParams],
+        ['Stytch Magic Links', 'api_key', 'Stytch passwordless authentication via magic links API.', stytchMagicLinksApiParams],
+        ['Kinde OAuth', 'api_key', 'Kinde OAuth/OIDC and user authentication management API.', kindeOauthApiParams],
       ]),
       withBlocks('threat-intel', 'Threat Intel & Security', [
         ['VirusTotal', 'free', undefined, securityParams], ['HaveIBeenPwned', 'api_key', undefined, securityParams], ['Shodan', 'api_key', undefined, securityParams], ['Cloudflare Security', 'free', undefined, securityParams],
         ['CrowdStrike', 'api_key', undefined, securityParams], ['Splunk', 'api_key', undefined, securityParams],
         ['Wazuh', 'api_key', 'Wazuh open source security monitoring/XDR agents/alerts API.', securityParams],
+        ['VirusTotal URLs', 'api_key', 'VirusTotal URL scan, analysis, and threat intel API.', virustotalUrlsApiParams],
+        ['Shodan Host', 'api_key', 'Shodan host/service discovery and vulnerability scanning API.', shodanHostApiParams],
+        ['HaveIBeenPwned Breach', 'api_key', 'HaveIBeenPwned breach and account compromise check API.', haveibeenpwnedBreachApiParams],
+        ['CrowdStrike Alerts', 'api_key', 'CrowdStrike Falcon threat detection and alert API.', crowdstrikeAlertsApiParams],
+        ['Splunk Search', 'api_key', 'Splunk search and data analysis API.', splunkSearchApiParams],
       ]),
     ],
   },
@@ -3678,6 +4123,10 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
       ]),
       withBlocks('smart-home', 'Smart Home', [
         ['Philips Hue', 'api_key', undefined, iotParams], ['Nest', 'api_key', undefined, iotParams], ['IFTTT', 'free', undefined, iotParams], ['Home Assistant', 'free', undefined, iotParams], ['Shelly', 'free', undefined, iotParams], ['Tuya', 'api_key', undefined, iotParams],
+      ]),
+      withBlocks('scheduling', 'Scheduling & Appointments', [
+        ['Calendly', 'api_key', 'Calendly scheduling event management and invitee API.', calendlyParams, calendlyCredentials],
+        ['Acuity Scheduling', 'api_key', 'Acuity Scheduling appointment booking and calendar management API.'],
       ]),
     ],
   },
@@ -3767,6 +4216,10 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Google Docs', 'free', 'Google Docs document creation/editing API.', googleServiceParams],
         ['Google Slides', 'free', 'Google Slides presentation creation API.', googleServiceParams],
         ['Microsoft SharePoint', 'api_key', 'Microsoft SharePoint sites/lists/files API.', msGraphApiParams],
+        ['Gatsby', 'api_key', 'Gatsby static site build and deploy API.'],
+        ['Hugo', 'free', 'Hugo static site generator build and deployment API.'],
+        ['Eleventy', 'free', 'Eleventy static site generator build and deployment API.'],
+        ['Jekyll', 'api_key', 'Jekyll static site generator build and GitHub Pages deployment API.'],
       ]),
       withBlocks('news-media', 'News & Media APIs', [
         ['NewsAPI', 'api_key', undefined, newsapiParams],
@@ -3775,6 +4228,17 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
       withBlocks('audio-video-editing', 'Audio & Video Editing APIs', [
         ['Descript', 'api_key', undefined, descriptParams],
         ['Mux Video', 'api_key', 'Mux video encoding/streaming assets and playback IDs API.', muxVideoApiParams],
+        ['Vimeo', 'api_key', 'Vimeo video upload, management, and showcase API.', vimeoApiParams],
+        ['Wistia', 'api_key', 'Wistia video hosting, analytics, and engagement API.'],
+        ['Brightcove', 'api_key', 'Brightcove video cloud platform and player management API.'],
+        ['JW Player', 'api_key', 'JW Player video platform and content delivery API.'],
+      ]),
+      withBlocks('music-audio', 'Music & Audio Platforms', [
+        ['Spotify', 'api_key', 'Spotify music playback, playlist, and recommendation API.'],
+        ['Apple Music', 'api_key', 'Apple Music catalog, library, and streaming API.'],
+        ['SoundCloud', 'api_key', 'SoundCloud audio upload, playlist, and streaming API.'],
+        ['Tidal', 'api_key', 'Tidal music streaming catalog and playback API.'],
+        ['Shazam', 'api_key', 'Shazam audio recognition and song identification API.'],
       ]),
     ],
   },
@@ -3805,6 +4269,34 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['AfterShip', 'api_key', undefined, logisticsParams], ['Shippo', 'api_key', undefined, logisticsParams], ['EasyPost', 'api_key', undefined, logisticsParams], ['Zillow', 'api_key', undefined, logisticsParams], ['Airbnb', 'api_key', undefined, logisticsParams], ['Uber', 'api_key', undefined, logisticsParams],
         ['DoorDash', 'api_key', undefined, logisticsParams], ['FedEx', 'api_key', undefined, logisticsParams], ['UPS', 'api_key', undefined, logisticsParams], ['USPS', 'free', undefined, logisticsParams],
         ['Onfleet', 'api_key', 'Onfleet last-mile delivery task/driver/destination management API.', onfleetApiParams],
+        ['Adyen Transfers', 'api_key', 'Adyen transfers and payout API for marketplace platforms.', adyenTransfersApiParams],
+        ['Braintree Vault', 'api_key', 'Braintree payment method vault and stored credential API.', braintreeVaultApiParams],
+        ['FedEx Rates', 'api_key', 'FedEx shipping rates and transit time API.', fedexRatesApiParams],
+        ['UPS Tracking', 'api_key', 'UPS package tracking and status API.', upsTrackingApiParams],
+        ['USPS Address', 'api_key', 'USPS address validation and standardized formatting API.', uspsAddressApiParams],
+        ['Shippo Shipments', 'api_key', 'Shippo multi-carrier shipment creation and tracking API.', shippoShipmentsApiParams],
+        ['EasyPost Tracker', 'api_key', 'EasyPost package tracker creation and webhook API.', easypostTrackerApiParams],
+      ]),
+      withBlocks('travel-hospitality', 'Travel & Hospitality', [
+        ['AviationStack', 'api_key', 'AviationStack flights, airports, and airline tracking API.', aviationstackApiParams],
+        ['Amadeus Travel', 'api_key', 'Amadeus flights, hotels, and travel booking API.', amadeusTravelApiParams],
+        ['Skyscanner', 'api_key', 'Skyscanner flight search and travel insight API.', skyscannerApiParams],
+        ['Rome2Rio', 'api_key', 'Rome2Rio multi-modal route planning and transport API.', rome2rioApiParams],
+        ['OpenWeather Geocoding', 'api_key', 'OpenWeather geocoding and location search API.', openweatherGeocodingApiParams],
+        ['Mapbox Geocoding', 'api_key', 'Mapbox forward/reverse geocoding and search API.', mapboxGeocodingApiParams],
+        ['Google Maps Routes', 'api_key', 'Google Maps Routes API for directions and distance matrix.', googleMapsRoutesApiParams],
+        ['TomTom Search', 'api_key', 'TomTom geocoding, routing, and map search API.', tomtomSearchApiParams],
+        ['HERE Geocoding', 'api_key', 'HERE geocoding and location-based services API.', hereGeocodingApiParams],
+        ['Booking.com', 'api_key', 'Booking.com property listings, rates, and availability API.'],
+        ['Expedia', 'api_key', 'Expedia lodging, flights, and travel booking API.'],
+        ['TripAdvisor', 'api_key', 'TripAdvisor reviews, attractions, and hotel content API.'],
+      ]),
+      withBlocks('gaming', 'Gaming & Interactive', [
+        ['Steam', 'api_key', 'Steam game inventory, friends, and player stats API.'],
+        ['Epic Games', 'api_key', 'Epic Games Store catalog, auth, and game services API.'],
+        ['Roblox', 'api_key', 'Roblox game publishing, economy, and cloud API.'],
+        ['Itch.io', 'api_key', 'Itch.io game uploads, sales, and download management API.'],
+        ['Unity Cloud', 'api_key', 'Unity Cloud build pipeline, asset management, and collaboration API.'],
       ]),
       withBlocks('accounting', 'Accounting & Finance', [
         ['QuickBooks', 'api_key', undefined, financeParams], ['Xero', 'api_key', undefined, financeParams], ['FreshBooks', 'api_key', undefined, financeParams], ['Wave', 'free', undefined, financeParams],
@@ -3827,12 +4319,18 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Novu', 'free', undefined, notificationParams], ['Knock', 'api_key', undefined, notificationParams], ['MagicBell', 'api_key', undefined, notificationParams],
         ['Courier', 'api_key', undefined, notificationParams], ['Engagespot', 'free', undefined, notificationParams],
         ['AWS SNS', 'api_key', 'AWS SNS push notification/topic publish API.', awsApiParams],
+        ['Novu Events', 'api_key', 'Novu notification trigger and workflow event API.', novuEventsApiParams],
+        ['Courier Send', 'api_key', 'Courier notification send and template rendering API.', courierSendApiParams],
+        ['Knock Workflows', 'api_key', 'Knock notification workflow and preference management API.', knockWorkflowsApiParams],
       ]),
       withBlocks('alerts', 'Alerting & Incident', [
         ['PagerDuty', 'api_key', undefined, alertParams], ['OpsGenie', 'api_key', undefined, alertParams], ['VictorOps', 'api_key', undefined, alertParams],
         ['StatusPage', 'api_key', undefined, alertParams], ['Instatus', 'free', undefined, alertParams],         ['Cachet', 'free', undefined, alertParams],
         ['Incident.io', 'api_key', 'Incident.io incident management API.', alertParams],
         ['xMatters', 'api_key', 'xMatters on-call/alerting API.', alertParams],
+        ['PagerDuty Incidents', 'api_key', 'PagerDuty incident CRUD and management API.', pagerdutyIncidentsApiParams],
+        ['OpsGenie Alerts', 'api_key', 'OpsGenie alert creation and team management API.', opsgenieAlertsApiParams],
+        ['StatusPage Components', 'api_key', 'Atlassian Statuspage component and incident API.', statuspageComponentsApiParams],
       ]),
     ],
   },
@@ -3846,6 +4344,13 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Qdrant', 'free', undefined, searchParams], ['ChromaDB', 'free', undefined, searchParams],
         ['Google Books', 'free', 'Google Books search/volumes API.', searchParams],
         ['Azure Cognitive Search', 'api_key', 'Azure Cognitive Search indexing/query API.', azureApiParams],
+        ['Algolia Recommend', 'api_key', 'Algolia AI recommendations and personalization API.', algoliaRecommendApiParams],
+        ['Elasticsearch SQL', 'api_key', 'Elasticsearch SQL query and analytics API.', elasticsearchSqlApiParams],
+        ['Meilisearch Tasks', 'api_key', 'Meilisearch async task management and index API.', meilisearchTasksApiParams],
+        ['Typesense Documents', 'api_key', 'Typesense document indexing and curated search API.', typesenseDocumentsApiParams],
+        ['Pinecone Inference', 'api_key', 'Pinecone vector inference and index management API.', pineconeInferenceApiParams],
+        ['Weaviate Batch', 'api_key', 'Weaviate batch import and bulk vector data API.', weaviateBatchApiParams],
+        ['Qdrant Collections', 'api_key', 'Qdrant collection management and point operations API.', qdrantCollectionsApiParams],
       ]),
       withBlocks('analytics-bi', 'Analytics & BI', [
         ['Google Analytics', 'api_key', undefined, analyticsParams], ['Plausible', 'free', undefined, analyticsParams], ['PostHog', 'free', undefined, analyticsParams],
@@ -3855,6 +4360,17 @@ export const AUTOMATION_INTEGRATION_REGISTRY: AutomationRegistryCategory[] = [
         ['Google Search Console', 'free', 'Google Search Console site performance API.', googleServiceParams],
         ['Domo', 'api_key', 'Domo business analytics platform API.', analyticsParams],
         ['Sigma', 'api_key', 'Sigma Computing cloud analytics API.', analyticsParams],
+        ['FullStory', 'api_key', 'FullStory session replay and product experience analytics API.', fullstoryParams],
+        ['Microsoft Clarity', 'free', 'Microsoft Clarity free session replay and user behavior analytics API.'],
+        ['Heap', 'api_key', 'Heap product analytics and auto-capture event tracking API.'],
+        ['Matomo', 'api_key', 'Matomo open-source web analytics and reporting API.', matomoParams, matomoCredentials],
+        ['Google Analytics Admin', 'api_key', 'Google Analytics Admin API for property and account management.', googleAnalyticsAdminApiParams],
+        ['PostHog Feature Flags', 'api_key', 'PostHog feature flag management and evaluation API.', posthogFeatureFlagsApiParams],
+        ['Plausible Sites', 'api_key', 'Plausible Analytics site statistics and timeseries API.', plausibleSitesApiParams],
+        ['Datadog Logs', 'api_key', 'Datadog log management, search, and analytics API.', datadogLogsApiParams],
+        ['New Relic Logs', 'api_key', 'New Relic log management and observability API.', newRelicLogsApiParams],
+        ['Sentry Releases', 'api_key', 'Sentry release tracking, deploys, and artifact API.', sentryReleasesApiParams],
+        ['Grafana Alerting', 'api_key', 'Grafana alert rule management and notification API.', grafanaAlertingApiParams],
       ]),
 
     ],

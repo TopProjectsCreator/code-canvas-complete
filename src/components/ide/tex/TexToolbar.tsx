@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import {
   Heading1, FunctionSquare, Radical, Superscript, Subscript,
-  Sigma, Pi, Variable, Bold, Italic, Underline,
+  Sigma, Pi, Variable, Bold, Italic, Underline as UnderlineIcon,
   Code2, Link, List, ListOrdered, Table, Image,
   Quote, WrapText, Hash, Infinity, ArrowRight,
   Braces, Square, Search, Type,
@@ -154,7 +154,7 @@ export const TexToolbar = ({ onInsert, editorRef }: TexToolbarProps) => {
 
           <ToolbarButton icon={Bold} tooltip="Bold (Ctrl+B)" onClick={() => handleCommand(textStyles[0])} />
           <ToolbarButton icon={Italic} tooltip="Italic (Ctrl+I)" onClick={() => handleCommand(textStyles[1])} />
-          <ToolbarButton icon={Underline} tooltip="Underline (Ctrl+U)" onClick={() => handleCommand(textStyles[2])} />
+          <ToolbarButton icon={UnderlineIcon} tooltip="Underline (Ctrl+U)" onClick={() => handleCommand(textStyles[2])} />
           <ToolbarButton icon={Code2} tooltip="Monospace" onClick={() => handleCommand(textStyles[3])} />
 
           <Separator orientation="vertical" className="h-5 mx-1" />

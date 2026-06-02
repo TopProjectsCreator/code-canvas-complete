@@ -1,12 +1,14 @@
 export type PreviewType =
   | "image" | "markdown" | "svg" | "video" | "audio"
   | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite"
-  | "mermaid" | "ipynb" | "draw" | "pdf" | "tex" | "scratch" | null;
+  | "mermaid" | "ipynb" | "draw" | "pdf" | "tex" | "scratch"
+  | "font" | null;
 
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "ico", "bmp"];
 const VIDEO_EXTS = ["mp4", "webm", "mov", "avi", "mkv", "ogv", "ogg"];
 const AUDIO_EXTS = ["mp3", "wav", "flac", "aac", "m4a"];
 const CAD_EXTS = ["stl", "obj"];
+const FONT_EXTS = ["ttf", "otf", "woff", "woff2"];
 
 export const TEXT_EXTENSIONS = new Set([
   'txt', 'md', 'mdx', 'markdown', 'js', 'ts', 'tsx', 'jsx',
@@ -33,6 +35,7 @@ export function getPreviewType(fileName: string): PreviewType {
   if (["db", "sqlite", "sqlite3"].includes(ext || "")) return "sqlite";
   if (["ipynb"].includes(ext || "")) return "ipynb";
   if (CAD_EXTS.includes(ext || "")) return "cad";
+  if (FONT_EXTS.includes(ext || "")) return "font";
   if (["sb3", "sb2", "sb"].includes(ext || "")) return "scratch";
   return null;
 }
