@@ -9,12 +9,6 @@ const REPLIT_LIKE_HOST_PATTERNS = ['.up.railway.app', '.railway.app', '.codecanv
 const getHostPlatform = (host: string): DeploymentPlatform | null => {
   const normalizedHost = host.toLowerCase();
 
-  // Lovable preview hosts can be embedded cross-origin and trigger OAuth postMessage origin errors.
-  // Treat them as generic unless explicitly overridden by env.
-  if (normalizedHost.includes('preview--') && normalizedHost.endsWith('.lovable.app')) {
-    return 'generic';
-  }
-
   if (REPLIT_HOST_PATTERNS.some((pattern) => normalizedHost.endsWith(pattern))) {
     return 'replit';
   }
@@ -39,16 +33,14 @@ export const detectDeploymentPlatform = (): DeploymentPlatform => {
   const host = typeof window !== 'undefined' ? window.location.hostname : '';
   const hostDetected = host ? getHostPlatform(host) : null;
 
-  // Railway/custom server deployments must win over a stale build-time
-  // VITE_DEPLOY_PLATFORM=lovable; otherwise OAuth uses Lovable's broker and
-  // fails with "Unsupported provider: missing OAuth secret" outside Lovable.
-  if (hostDetected && hostDetected !== 'lovable') return hostDetected;
+  // Concrete runtime hosts must win over stale build-time VITE_DEPLOY_PLATFORM.
+  // Otherwise Lovable hosts can accidentally use direct /authorize OAuth and
+  // Railway/custom server deployments can miss the real pty-backed terminal.
+  if (hostDetected) return hostDetected;
 
   if (explicit === 'replit' || explicit === 'lovable' || explicit === 'generic' || explicit === 'github_codespaces' || explicit === 'github_pages') {
     return explicit;
   }
-
-  if (hostDetected) return hostDetected;
 
   if (import.meta.env.VITE_REPLIT_AUTH_ENABLED === 'true') {
     return 'replit';
