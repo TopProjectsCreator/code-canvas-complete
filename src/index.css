@@ -412,6 +412,36 @@
     @apply absolute left-0 w-10 text-right pr-3 select-none;
     color: hsl(var(--editor-gutter));
   }
+
+  .code-editor-textarea {
+    color: transparent;
+    caret-color: hsl(var(--foreground));
+    background: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .code-editor-textarea::selection {
+    background: hsl(var(--editor-selection));
+    -webkit-text-fill-color: transparent;
+  }
+
+  .code-editor-textarea::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .code-editor-textarea::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .code-editor-textarea::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 3px;
+  }
+
+  .code-editor-textarea::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
 }
 
 @layer utilities {
