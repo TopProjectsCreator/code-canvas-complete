@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { MediaGenerationPanel } from './MediaGenerationPanel';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -158,6 +158,16 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
   const [sqliteQueryError, setSqliteQueryError] = useState<string | null>(null);
   const [mermaidSource, setMermaidSource] = useState('');
   const [mermaidShowSource, setMermaidShowSource] = useState(false);
+  const mermaidRenderRequestRef = useRef(0);
+
+  const getMermaidRenderId = useCallback((source: string) => {
+    let hash = 0;
+    for (let index = 0; index < source.length; index += 1) {
+      hash = Math.imul(31, hash) + source.charCodeAt(index) | 0;
+    }
+    const safeFileId = file.id.replace(/[^a-zA-Z0-9_-]/g, '-');
+    return `mermaid-preview-${safeFileId}-${(hash >>> 0).toString(36)}`;
+  }, [file.id]);
 
   useEffect(() => {
     if (!csvResizing) return;
@@ -206,11 +216,18 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
   }, [csvData, csvEditedData, csvSortCol, csvSortAsc, csvSearch, previewType, csvEditMode]);
 
   useEffect(() => {
+    if (previewType !== 'mermaid') return;
+
+    const requestId = mermaidRenderRequestRef.current + 1;
+    mermaidRenderRequestRef.current = requestId;
+
     const renderMermaid = async () => {
-      if (previewType !== 'mermaid') return;
       if (!content.trim()) {
-        setMermaidSvg('');
-        setMermaidError('No Mermaid diagram source found.');
+        if (mermaidRenderRequestRef.current === requestId) {
+          setMermaidSvg('');
+          setMermaidError('No Mermaid diagram source found.');
+          setMermaidLoading(false);
+        }
         return;
       }
 
@@ -234,24 +251,37 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
 
         const valid = await mermaid.parse(content);
         if (!valid) {
-          setMermaidSvg('');
-          setMermaidError('Invalid Mermaid diagram syntax.');
+          if (mermaidRenderRequestRef.current === requestId) {
+            setMermaidSvg('');
+            setMermaidError('Invalid Mermaid diagram syntax.');
+          }
           return;
         }
 
-        const id = `mermaid-preview-${file.id}-${Date.now()}`;
-        const result = await mermaid.render(id, content);
-        setMermaidSvg(result.svg);
+        const result = await mermaid.render(getMermaidRenderId(content), content);
+        if (mermaidRenderRequestRef.current === requestId) {
+          setMermaidSvg(result.svg);
+        }
       } catch (err) {
-        setMermaidSvg('');
-        setMermaidError(err instanceof Error ? err.message : 'Unable to render Mermaid diagram.');
+        if (mermaidRenderRequestRef.current === requestId) {
+          setMermaidSvg('');
+          setMermaidError(err instanceof Error ? err.message : 'Unable to render Mermaid diagram.');
+        }
       } finally {
-        setMermaidLoading(false);
+        if (mermaidRenderRequestRef.current === requestId) {
+          setMermaidLoading(false);
+        }
       }
     };
 
-    void renderMermaid();
-  }, [content, file.id, previewType]);
+    const timeout = window.setTimeout(() => {
+      void renderMermaid();
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [content, getMermaidRenderId, previewType]);
 
   useEffect(() => {
     const loadSqlite = async () => {
@@ -874,8 +904,8 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
     return (
       <div className="flex-1 flex flex-col bg-editor overflow-hidden">
         {mermaidShowSource ? (
-          <div className="flex-1 flex overflow-hidden">
-            <div className="flex-1 flex flex-col border-r border-border">
+          <div className="flex-1 flex min-w-0 overflow-hidden">
+            <div className="flex-1 min-w-0 flex flex-col border-r border-border">
               <div className="px-4 py-1.5 bg-muted/30 text-xs text-muted-foreground font-medium">Source</div>
               <textarea
                 className="flex-1 p-4 text-xs font-mono bg-background text-foreground outline-none resize-none border-0"
@@ -883,7 +913,7 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
                 readOnly
               />
             </div>
-            <div className="flex-1 flex flex-col">
+            <div className="flex-1 min-w-0 flex flex-col">
               <div className="px-4 py-1.5 bg-muted/30 text-xs text-muted-foreground font-medium">Preview</div>
               <div className="flex-1 overflow-auto bg-[radial-gradient(hsl(var(--border))_1px,transparent_1px)] [background-size:18px_18px]">
                 <div className="min-h-full p-6 flex items-start justify-center"

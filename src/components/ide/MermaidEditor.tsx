@@ -16,17 +16,28 @@ export function MermaidEditor({ file, onContentChange }: MermaidEditorProps) {
   const [renderedSvg, setRenderedSvg] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const rafRef = useRef<number | null>(null);
+  const renderRequestRef = useRef(0);
+
+  const getRenderId = useCallback((source: string) => {
+    let hash = 0;
+    for (let index = 0; index < source.length; index += 1) {
+      hash = Math.imul(31, hash) + source.charCodeAt(index) | 0;
+    }
+    const safeFileId = file.id.replace(/[^a-zA-Z0-9_-]/g, "-");
+    return `mermaid-${safeFileId}-${(hash >>> 0).toString(36)}`;
+  }, [file.id]);
 
   useEffect(() => {
     setContent(file.content || "");
   }, [file.id, file.content]);
 
-  const renderDiagram = useCallback(async (source: string) => {
+  const renderDiagram = useCallback(async (source: string, requestId: number) => {
     if (!source.trim()) {
-      setRenderedSvg("");
-      setError(null);
-      setLoading(false);
+      if (renderRequestRef.current === requestId) {
+        setRenderedSvg("");
+        setError(null);
+        setLoading(false);
+      }
       return;
     }
 
@@ -45,23 +56,31 @@ export function MermaidEditor({ file, onContentChange }: MermaidEditorProps) {
         sequence: { useMaxWidth: true },
       });
       await mermaid.parse(source);
-      const id = `mermaid-${file.id}-${Date.now()}`;
-      const result = await mermaid.render(id, source);
-      setRenderedSvg(result.svg);
+      const result = await mermaid.render(getRenderId(source), source);
+      if (renderRequestRef.current === requestId) {
+        setRenderedSvg(result.svg);
+      }
     } catch (err) {
-      setRenderedSvg("");
-      setError(err instanceof Error ? err.message : "Failed to render diagram");
+      if (renderRequestRef.current === requestId) {
+        setRenderedSvg("");
+        setError(err instanceof Error ? err.message : "Failed to render diagram");
+      }
+    } finally {
+      if (renderRequestRef.current === requestId) {
+        setLoading(false);
+      }
     }
-    setLoading(false);
-  }, [file.id]);
+  }, [getRenderId]);
 
   useEffect(() => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      renderDiagram(content);
-    });
+    const requestId = renderRequestRef.current + 1;
+    renderRequestRef.current = requestId;
+    const timeout = window.setTimeout(() => {
+      void renderDiagram(content, requestId);
+    }, 350);
+
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(timeout);
     };
   }, [content, renderDiagram]);
 
@@ -79,16 +98,16 @@ export function MermaidEditor({ file, onContentChange }: MermaidEditorProps) {
       </div>
       <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
         <ResizablePanel defaultSize={45} minSize={25}>
-          <div className="flex h-full flex-col">
+          <div className="flex h-full min-w-0 flex-col">
             <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5 shrink-0">
               <Code className="h-4 w-4 text-muted-foreground" />
               <span className="text-xs font-medium text-muted-foreground">Source</span>
             </div>
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 min-h-0 overflow-auto">
               <textarea
                 value={content}
                 onChange={handleChange}
-                className="h-full w-full resize-none border-0 bg-transparent p-4 font-mono text-sm leading-6 outline-none"
+                className="min-h-full w-full resize-none border-0 bg-transparent p-4 font-mono text-sm leading-6 outline-none"
                 spellCheck={false}
                 placeholder={`flowchart TD\n  A[Start] --> B{Is it working?}\n  B -->|Yes| C[Great!]\n  B -->|No| D[Debug]`}
               />
@@ -97,7 +116,7 @@ export function MermaidEditor({ file, onContentChange }: MermaidEditorProps) {
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={55} minSize={25}>
-          <div className="flex h-full flex-col">
+          <div className="flex h-full min-w-0 flex-col">
             <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5 shrink-0">
               <Eye className="h-4 w-4 text-muted-foreground" />
               <span className="text-xs font-medium text-muted-foreground">Preview</span>
