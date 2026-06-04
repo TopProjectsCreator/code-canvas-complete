@@ -6,18 +6,21 @@ const LOVABLE_HOST_PATTERNS = ['.lovable.app', '.lovable.dev'];
 // Same architecture as Replit (server + WS /api/replit/pty), so map them to 'replit'.
 const REPLIT_LIKE_HOST_PATTERNS = ['.up.railway.app', '.railway.app', '.codecanvas.app'];
 
+const hostMatches = (host: string, pattern: string) =>
+  host === pattern.slice(1) || host.endsWith(pattern);
+
 const getHostPlatform = (host: string): DeploymentPlatform | null => {
   const normalizedHost = host.toLowerCase();
 
-  if (REPLIT_HOST_PATTERNS.some((pattern) => normalizedHost.endsWith(pattern))) {
+  if (REPLIT_HOST_PATTERNS.some((pattern) => hostMatches(normalizedHost, pattern))) {
     return 'replit';
   }
 
-  if (REPLIT_LIKE_HOST_PATTERNS.some((pattern) => normalizedHost.endsWith(pattern))) {
+  if (REPLIT_LIKE_HOST_PATTERNS.some((pattern) => hostMatches(normalizedHost, pattern))) {
     return 'replit';
   }
 
-  if (LOVABLE_HOST_PATTERNS.some((pattern) => normalizedHost.endsWith(pattern))) {
+  if (LOVABLE_HOST_PATTERNS.some((pattern) => hostMatches(normalizedHost, pattern))) {
     return 'lovable';
   }
 
