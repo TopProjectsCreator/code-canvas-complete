@@ -36,12 +36,18 @@ const getHostPlatform = (host: string): DeploymentPlatform | null => {
 
 export const detectDeploymentPlatform = (): DeploymentPlatform => {
   const explicit = import.meta.env.VITE_DEPLOY_PLATFORM as string | undefined;
+  const host = typeof window !== 'undefined' ? window.location.hostname : '';
+  const hostDetected = host ? getHostPlatform(host) : null;
+
+  // Railway/custom server deployments must win over a stale build-time
+  // VITE_DEPLOY_PLATFORM=lovable; otherwise OAuth uses Lovable's broker and
+  // fails with "Unsupported provider: missing OAuth secret" outside Lovable.
+  if (hostDetected && hostDetected !== 'lovable') return hostDetected;
+
   if (explicit === 'replit' || explicit === 'lovable' || explicit === 'generic' || explicit === 'github_codespaces' || explicit === 'github_pages') {
     return explicit;
   }
 
-  const host = typeof window !== 'undefined' ? window.location.hostname : '';
-  const hostDetected = host ? getHostPlatform(host) : null;
   if (hostDetected) return hostDetected;
 
   if (import.meta.env.VITE_REPLIT_AUTH_ENABLED === 'true') {
