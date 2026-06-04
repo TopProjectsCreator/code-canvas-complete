@@ -282,9 +282,9 @@ export const TEMPLATES: TemplateMeta[] = [
   },
   {
     id: "cad",
-    name: "3D CAD Viewer",
-    description: "View and inspect 3D models (.stl/.obj)",
-    aiDescription: "3D CAD model viewing (STL/OBJ)",
+    name: "3D CAD Editor",
+    description: "Parametric 3D CAD modeling with sketches, features, and assemblies",
+    aiDescription: "Full parametric 3D CAD modeling environment",
   },
   {
     id: "ftc",

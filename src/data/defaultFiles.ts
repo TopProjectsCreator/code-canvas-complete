@@ -2434,28 +2434,49 @@ const cadTemplate: FileNode[] = [
     type: "folder",
     children: [
       {
-        id: "model-stl",
-        name: "model.stl",
+        id: "model",
+        name: "model.json",
         type: "file",
-        language: "cad",
-        content: "",
+        language: "json",
+        content: JSON.stringify({
+          version: 1,
+          bodies: {},
+          scene: [],
+          sketches: {},
+          constructionPlanes: {},
+          constructionAxes: {},
+          constructionPoints: {},
+          constructionCSys: {},
+          materials: {},
+          units: "mm",
+          precision: 4,
+          angleUnits: "degrees",
+          metadata: {
+            name: "Untitled Model",
+            description: "",
+            author: "",
+            createdAt: new Date().toISOString(),
+            modifiedAt: new Date().toISOString(),
+            version: 1,
+            appVersion: "0.1.0",
+          },
+        }, null, 2),
       },
       {
         id: "readme-md",
         name: "README.md",
         type: "file",
         language: "markdown",
-        content: `# 3D CAD Viewer Project
+        content: `# 3D CAD Editor Project
 
-Upload \`.stl\` or \`.obj\` files to view 3D models.
+Create and edit parametric 3D models.
 
 ## Features
-- Interactive 3D orbit controls
-- Wireframe toggle
-- Grid and background options
-- Model info (vertices, faces)
-- Color customization
-- Drag & drop upload
+- Parametric feature tree
+- Sketch-based modeling
+- 3D viewport with orbit controls
+- Multiple file format support
+- Real-time geometry preview
 `,
       },
     ],

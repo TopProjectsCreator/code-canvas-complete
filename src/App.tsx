@@ -20,6 +20,7 @@ import ArduinoPage from "./pages/Arduino";
 import OfficePage from "./pages/Office";
 import AutomationsPage from "./pages/Automations";
 import ScratchPage from "./pages/Scratch";
+import CadPage from "./pages/CadPage";
 import { LivingGrid } from "./pages/landings/LivingGrid";
 import { TerminalBoot } from "./pages/landings/TerminalBoot";
 import { TheVoid } from "./pages/landings/TheVoid";
@@ -95,6 +96,7 @@ const App = () => (
               <Route path="/office" element={<OfficePage />} />
               <Route path="/automations" element={<AutomationsPage />} />
               <Route path="/scratch" element={<ScratchPage />} />
+              <Route path="/cad" element={<CadPage />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

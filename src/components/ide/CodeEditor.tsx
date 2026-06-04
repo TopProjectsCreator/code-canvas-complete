@@ -18,7 +18,7 @@ import { OfficeEditor } from "./OfficeEditor";
 import { VideoEditor } from "./VideoEditor";
 import { AudioEditor } from "./AudioEditor";
 import { RTFEditor } from "./RTFEditor";
-import { CADEditor } from "./CADEditor";
+import { CadEditor } from "@/components/cad/CadEditor";
 import { ZipEditor } from "./ZipEditor";
 import { IpynbViewer } from "./IpynbViewer";
 import { MarkdownComposer } from "./MarkdownComposer";
@@ -494,7 +494,7 @@ export const CodeEditor = ({
   if (previewType === "video") return <VideoEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "audio") return <AudioEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "rtf") return <RTFEditor file={file} onContentChange={onContentChange} />;
-  if (previewType === "cad") return <CADEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === "cad") return <CadEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "ipynb") return <IpynbViewer file={file} onContentChange={onContentChange} />;
   if (previewType === "zip") return <ZipEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "font") return <FontEditor file={file} onContentChange={onContentChange} />;
@@ -683,8 +683,8 @@ export const CodeEditor = ({
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1">
-          <div className="flex min-w-0 flex-1 overflow-auto ide-scrollbar">
-            <div className="flex min-h-full min-w-full">
+          <div className="flex min-w-0 flex-1">
+            <div className="flex h-full min-w-full min-h-0 overflow-y-auto ide-scrollbar">
               <div className="sticky left-0 z-10 bg-editor pt-[2px] font-mono text-sm leading-6 text-muted-foreground">
                 {content.split("\n").map((_, index) => {
                   const lineNumber = index + 1;
@@ -768,7 +768,7 @@ export const CodeEditor = ({
                     <div className="h-6 bg-primary/5" />
                   </div>
                 )}
-                <div className="relative flex-1 min-h-0 overflow-hidden">
+                <div className="relative flex-1 min-h-0">
                   <div
                     ref={editorRef}
                     contentEditable
