@@ -94,9 +94,5 @@ const lovableProvider: AuthProvider = {
 };
 
 export const createAuthProvider = (): AuthProvider => {
-  const platform = detectDeploymentPlatform();
-
-  if (platform === 'lovable') return lovableProvider;
-
-  return supabaseProvider;
+  return lovableProvider;
 };
