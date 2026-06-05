@@ -1,7 +1,7 @@
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
-import { DeploymentPlatform, detectDeploymentPlatform } from '@/lib/platform';
+import { DeploymentPlatform } from '@/lib/platform';
 
 export type OAuthProvider = 'google';
 
@@ -60,19 +60,6 @@ const common = {
   async getCurrentUser() {
     const { data, error } = await supabase.auth.getUser();
     return { user: data.user, error: error ?? null };
-  },
-};
-
-const supabaseProvider: AuthProvider = {
-  platform: 'generic',
-  ...common,
-  availableOAuthProviders: ['google'],
-  async signInWithOAuth(provider) {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: provider as 'google',
-      options: { redirectTo: window.location.origin },
-    });
-    return { error };
   },
 };
 
