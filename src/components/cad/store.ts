@@ -270,7 +270,7 @@ function getWorkspacePreset(workspace: string): Record<string, { visible: boolea
 
 export type CADStore = DocumentSlice & SceneSlice & SelectionSlice & ToolSlice &
   ViewportSlice & GizmoSlice & SnapSlice & SketchSlice & HistorySlice &
-  TasksSlice & UISlice & SettingsSlice
+  TasksSlice & UISlice & SettingsSlice & CollabSlice
 
 export const useCADStore = create<CADStore>()(
   immer((set, get) => ({
@@ -795,7 +795,7 @@ export const useCADStore = create<CADStore>()(
 
     // === Snap ===
     snap: { grid: true, vertex: true, edge: true, midpoint: true, center: true, angle: true, gridSize: 10, angleStep: 15, threshold: 5 },
-    setSnapEnabled: (key, enabled) => set(state => { state.snap[key] = enabled }),
+    setSnapEnabled: (key, enabled) => set(state => { (state.snap as any)[key] = enabled }),
     setGridSize: (size) => set(state => { state.snap.gridSize = size }),
     setAngleStep: (deg) => set(state => { state.snap.angleStep = deg }),
     setThreshold: (threshold) => set(state => { state.snap.threshold = threshold }),

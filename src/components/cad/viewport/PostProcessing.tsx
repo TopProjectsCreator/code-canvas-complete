@@ -1,5 +1,4 @@
-import { EffectComposer, Bloom, SSAO, ToneMapping } from '@react-three/postprocessing'
-import { ToneMappingMode } from 'postprocessing'
+import { EffectComposer, Bloom, SSAO } from '@react-three/postprocessing'
 
 export function PostProcessing() {
   return (
@@ -9,6 +8,10 @@ export function PostProcessing() {
         radius={0.1}
         bias={0.001}
         distanceThreshold={100}
+        worldDistanceThreshold={100}
+        worldDistanceFalloff={0.01}
+        worldProximityThreshold={0.1}
+        worldProximityFalloff={0.01}
       />
       <Bloom
         intensity={0.1}
@@ -16,7 +19,6 @@ export function PostProcessing() {
         luminanceSmoothing={0.9}
         mipmapBlur
       />
-      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
     </EffectComposer>
   )
 }

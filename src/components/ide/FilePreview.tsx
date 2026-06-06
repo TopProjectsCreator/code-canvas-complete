@@ -9,7 +9,7 @@ import { FileNode } from '@/types/ide';
 import {
   Video, Music, Table, Search, X, BarChart3, Pencil, FileJson,
   ArrowUp, ArrowDown, ArrowUpDown, Database, Code2, FileText,
-  Workflow, ZoomIn, ZoomOut, Download,
+  Workflow, ZoomIn, ZoomOut, Download, Image,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 

@@ -49,7 +49,7 @@ export function createDemoDocument(): CadDocument {
             diameter: 4,
             depth: 12,
             endCondition: 'through-all',
-            thread: { majorDiameter: 4, minorDiameter: 3.2, pitch: 0.7, depth: 12, class: '6H' },
+            thread: { majorDiameter: 4, minorDiameter: 3.2, pitch: 0.7, depth: 12, class: '6H', standard: 'iso', size: 'M4', direction: 'right', modeled: true },
           },
           {
             id: id(),
@@ -122,10 +122,7 @@ export function createDemoDocument(): CadDocument {
       createdAt: new Date().toISOString(),
       modifiedAt: new Date().toISOString(),
       appVersion: '1.0.0',
-      docVersion: 1,
+      version: 1,
     },
-    snapSettings: { grid: true, vertex: true, edge: false, midpoint: true, center: true, angle: true, gridSize: 5, angleStep: 15, threshold: 8 },
-    viewportSettings: { background: 'dark', environmentPreset: 'studio', customBackgroundColor: '#1e293b', grid: true, wireframe: false, ghostMode: false, hiddenLine: false, sectionEnabled: false },
-    workspaceLayout: { id: 'default', name: 'Default', panels: {} },
   }
 }

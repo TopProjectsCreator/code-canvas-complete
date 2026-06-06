@@ -49,7 +49,7 @@ export function HoleTool() {
       endCondition: 'through-all',
       cboreDiameter: holeType === 'counterbore' ? (parseFloat(cboreDiameter) || 8) : undefined,
       cboreDepth: holeType === 'counterbore' ? (parseFloat(cboreDepth) || 3) : undefined,
-      thread: { majorDiameter: parseFloat(diameter) || 5, minorDiameter: (parseFloat(diameter) || 5) * 0.8, pitch: 1, depth: (parseFloat(depth) || 10), class: '6H' },
+      thread: { majorDiameter: parseFloat(diameter) || 5, minorDiameter: (parseFloat(diameter) || 5) * 0.8, pitch: 1, depth: (parseFloat(depth) || 10), class: '6H', standard: 'iso', size: 'M5', direction: 'right', modeled: true },
     }
     addFeature(firstBodyId, feat as any)
     setToolMode('select')

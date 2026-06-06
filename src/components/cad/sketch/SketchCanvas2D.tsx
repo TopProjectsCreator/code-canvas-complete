@@ -20,7 +20,7 @@ export function SketchCanvas2D() {
   const updateSketchEntity = useCADStore(s => s.updateSketchEntity)
   const removeSketchEntity = useCADStore(s => s.removeSketchEntity)
   const doc = useCADStore(s => s.doc)
-  const snapSettings = useCADStore(s => s.snapSettings)
+  const snapSettings = useCADStore(s => s.snap)
 
   const [drawing, setDrawing] = useState(false)
   const [start, setStart] = useState<Point2D>({ x: 0, y: 0 })
@@ -61,7 +61,7 @@ export function SketchCanvas2D() {
     return pt
   }, [sketch, entities, snapSettings])
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!activeSketch) return
     const raw = toCanvas(e)
     const pt = applySnap(raw)
@@ -106,7 +106,7 @@ export function SketchCanvas2D() {
     }
   }, [activeSketch, sketchTool, toCanvas, applySnap, sketch, entities, updateSketchEntity, addSketchEntity, offsetDist])
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const raw = toCanvas(e)
     const pt = applySnap(raw)
 

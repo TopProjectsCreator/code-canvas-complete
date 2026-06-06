@@ -39,11 +39,11 @@ export function DraftTool() {
       featureIndex: 0,
       dependencies: [],
       faces: [],
-      direction: direction as any,
+      direction: 'face',
+      mode: 'face',
       angle: parseFloat(angle) || 5,
-      neutralPlane: undefined,
-      neutralPlaneId: undefined,
-      splitFaces: false,
+      neutralPlane: { type: 'standard', plane: 'xy' },
+      pullDirection: [0, 0, 1],
     }
     addFeature(firstBodyId, feat as any)
     setToolMode('select')

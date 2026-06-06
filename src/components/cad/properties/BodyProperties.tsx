@@ -23,7 +23,7 @@ export function BodyProperties() {
   return <BodyInfo body={body} />
 }
 
-function findNode(nodes: typeof import('../types').SceneNode[], id: string): typeof import('../types').SceneNode | null {
+function findNode(nodes: import('../types').SceneNode[], id: string): import('../types').SceneNode | null {
   for (const n of nodes) {
     if (n.id === id) return n
     const found = findNode(n.children, id)

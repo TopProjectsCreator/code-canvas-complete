@@ -184,7 +184,7 @@ function rtfToHtml(rtf: string): string {
     return tableHtml;
   }
 
-  return `<p${alignClass}>${html}</p>` || '<p></p>';
+  return html ? `<p${alignClass}>${html}</p>` : '<p></p>';
 }
 
 function htmlToRtf(html: string): string {

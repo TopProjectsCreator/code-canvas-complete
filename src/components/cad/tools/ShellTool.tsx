@@ -32,10 +32,8 @@ export function ShellTool() {
       featureIndex: 0,
       dependencies: [],
       thickness: parseFloat(thickness) || 2,
-      direction: 'inward',
-      removeFaces: [],
-      draftAngle: undefined,
-      thicknessFaces: undefined,
+      direction: 'inside',
+      openFaces: [],
     }
     addFeature(firstBodyId, feat as any)
     setToolMode('select')

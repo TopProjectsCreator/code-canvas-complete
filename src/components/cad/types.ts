@@ -198,6 +198,9 @@ export interface ThreadSpec {
   class: string
   direction: 'right' | 'left'
   modeled: boolean
+  majorDiameter: number
+  minorDiameter: number
+  depth: number
 }
 
 export interface HoleFeature extends BaseFeature {
@@ -311,12 +314,22 @@ export interface PrimitiveFeature extends BaseFeature {
   params: Record<string, number>
 }
 
+export interface ThreadFeature extends BaseFeature {
+  type: 'thread'
+  sketchId: string
+  diameter: number
+  depth: number
+  thread: ThreadSpec
+  faceId?: string
+}
+
 export type Feature =
   | PrimitiveFeature | ExtrudeFeature | RevolveFeature | SweepFeature | LoftFeature
   | CoilFeature | RibFeature | FilletFeature | ChamferFeature
   | ShellFeature | DraftFeature | HoleFeature | BooleanFeature
   | MirrorFeature | PatternFeature | EmbossFeature | WrapFeature
   | SplitBodyFeature | MoveFaceFeature | SuppressFeature
+  | ThreadFeature
 
 export interface MassProperties {
   volume: number

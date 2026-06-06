@@ -59,7 +59,7 @@ export function Toolbar() {
               onClick={() => {
                 setToolMode(btn.mode)
                 if (btn.mode === 'move' || btn.mode === 'rotate' || btn.mode === 'scale') {
-                  setGizmoMode(btn.mode)
+                  setGizmoMode(btn.mode === 'move' ? 'translate' : btn.mode)
                 }
               }}
               title={btn.label}

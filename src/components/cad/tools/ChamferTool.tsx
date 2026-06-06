@@ -44,7 +44,6 @@ export function ChamferTool() {
       distance1: parseFloat(distance1) || 2,
       distance2: mode === 'two-distance' ? (parseFloat(distance2) || 1) : undefined,
       tangentPropagation: true,
-      overflow: 'default',
     }
     addFeature(firstBodyId, feat as any)
     setToolMode('select')

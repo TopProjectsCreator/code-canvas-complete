@@ -18,7 +18,8 @@ export function SketchDimensions() {
 
   const sketch = activeSketch ? doc.sketches[activeSketch] : null
 
-  const selectedEntityId = selection.find(s => s.type === 'sketch-entity' && s.sketchId === activeSketch)?.entityId
+  const selectedEntityId = (selection.find((s): s is Extract<import('../types').SelectionTarget, { type: 'sketch-entity' }> =>
+    s.type === 'sketch-entity' && s.sketchId === activeSketch))?.entityId
 
   if (!sketch) return null
 

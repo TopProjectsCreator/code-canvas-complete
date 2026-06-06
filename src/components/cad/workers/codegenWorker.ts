@@ -25,12 +25,12 @@ self.onmessage = (e: MessageEvent<{ doc: CadDocument }>) => {
 
   const transferables: ArrayBuffer[] = []
   for (const g of Object.values(featureGeometries)) {
-    transferables.push(g.position.buffer)
-    if (g.normal.length) transferables.push(g.normal.buffer)
-    if (g.uv.length) transferables.push(g.uv.buffer)
-    if (g.index.length) transferables.push(g.index.buffer)
+    transferables.push(g.position.buffer as ArrayBuffer)
+    if (g.normal.length) transferables.push(g.normal.buffer as ArrayBuffer)
+    if (g.uv.length) transferables.push(g.uv.buffer as ArrayBuffer)
+    if (g.index.length) transferables.push(g.index.buffer as ArrayBuffer)
   }
 
   const result: WorkerResult = { featureGeometries }
-  self.postMessage(result, transferables)
+  self.postMessage(result, { transfer: transferables })
 }

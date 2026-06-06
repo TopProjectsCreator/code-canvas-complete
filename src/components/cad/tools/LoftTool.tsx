@@ -46,7 +46,6 @@ export function LoftTool() {
       suppressed: false,
       bodyId: firstBodyId,
       featureIndex: 0,
-      dependencies: [],
       dependencies: [...sectionIds],
       sectionIds,
       blend: blend as any,

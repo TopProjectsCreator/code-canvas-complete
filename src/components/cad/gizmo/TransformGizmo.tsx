@@ -55,7 +55,7 @@ export function TransformGizmo() {
           object={target}
           mode={gizmo.mode}
           space={gizmo.space === 'world' ? 'world' : 'local'}
-          snap={snapSize}
+          translationSnap={snapSize}
           rotationSnap={rotationSnap}
           onObjectChange={() => {
             if (target && selectedNodeId) {

@@ -87,10 +87,8 @@ function GlyphPreview({ font, glyphIndex, size }: { font: Font; glyphIndex: numb
 function GlyphDetailView({ font, glyphIndex }: { font: Font; glyphIndex: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glyph = font.glyphs.get(glyphIndex);
-  if (!glyph) {
-    return <div className="flex-1 flex items-center justify-center text-muted-foreground">Glyph not found</div>;
-  }
   useEffect(() => {
+    if (!glyph) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const parent = canvas.parentElement;
@@ -122,7 +120,10 @@ function GlyphDetailView({ font, glyphIndex }: { font: Font; glyphIndex: number 
       ctx.strokeRect(ox + bb.x1, oy + bb.y1, gW, gH);
       ctx.setLineDash([]);
     } catch {}
-  }, [font, glyphIndex]);
+  }, [font, glyphIndex, glyph]);
+  if (!glyph) {
+    return <div className="flex-1 flex items-center justify-center text-muted-foreground">Glyph not found</div>;
+  }
   const unicodes = glyph.unicodes || (glyph.unicode !== undefined ? [glyph.unicode] : []);
   const commands = glyph.path?.commands || [];
   return (

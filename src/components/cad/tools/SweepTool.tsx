@@ -43,7 +43,6 @@ export function SweepTool() {
       suppressed: false,
       bodyId: firstBodyId,
       featureIndex: 0,
-      dependencies: [],
       dependencies: [profileSketchId, pathSketchId || profileSketchId].filter(Boolean),
       profileSketchId,
       pathSketchId: pathSketchId || profileSketchId,

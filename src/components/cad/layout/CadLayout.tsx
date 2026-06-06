@@ -19,8 +19,8 @@ import { TooltipProvider } from '../ui/Tooltip'
 export function CadLayout() {
   const panels = useCADStore(s => s.panels)
   const tasks = useCADStore(s => s.tasks)
-  const firstError = tasks.find(t => t.status === 'error')
-  const firstWarning = tasks.find(t => t.status === 'warning')
+  const firstError = tasks.find(t => t.status === 'failed')
+  const firstWarning = tasks.find(t => t.status === 'failed')
 
   useKeyboardShortcuts()
 
@@ -30,10 +30,10 @@ export function CadLayout() {
         <Toolbar />
 
         {firstError && (
-          <AlertBanner type="error" message={firstError.label || 'An error occurred'} onDismiss={() => useCADStore.getState().cancelTask(firstError.id)} />
+          <AlertBanner type="error" message={firstError.message || firstError.name || 'An error occurred'} onDismiss={() => useCADStore.getState().cancelTask(firstError.id)} />
         )}
         {!firstError && firstWarning && (
-          <AlertBanner type="warning" message={firstWarning.label || 'Warning'} onDismiss={() => useCADStore.getState().cancelTask(firstWarning.id)} />
+          <AlertBanner type="warning" message={firstWarning.message || firstWarning.name || 'Warning'} onDismiss={() => useCADStore.getState().cancelTask(firstWarning.id)} />
         )}
 
         <div className="flex-1 flex overflow-hidden">

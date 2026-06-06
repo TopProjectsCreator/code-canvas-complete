@@ -124,7 +124,7 @@ export function findSnapPoint(
     }
   }
 
-  if (snapToIntersections && ents.length >= 2) {
+  if (snapToIntersection && ents.length >= 2) {
     for (let i = 0; i < ents.length; i++) {
       const segsA = getEntitySegments(ents[i])
       for (let j = i + 1; j < ents.length; j++) {

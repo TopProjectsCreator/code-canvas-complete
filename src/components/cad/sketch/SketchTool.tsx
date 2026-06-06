@@ -7,8 +7,11 @@ import {
   FlipHorizontal, Grid3x3, type LucideIcon,
 } from 'lucide-react'
 
-const ArcFull: LucideIcon = (props) => (
+import { forwardRef } from 'react'
+
+const ArcFull = forwardRef<SVGSVGElement, React.SVGProps<SVGSVGElement>>((props, ref) => (
   <svg
+    ref={ref}
     xmlns="http://www.w3.org/2000/svg"
     width="24"
     height="24"
@@ -24,7 +27,8 @@ const ArcFull: LucideIcon = (props) => (
     <path d="M22 12a10 10 0 0 1-18.48 5.02" />
     <circle cx="12" cy="12" r="1" fill="currentColor" />
   </svg>
-)
+))
+ArcFull.displayName = 'ArcFull'
 
 const SKETCH_TOOLS = [
   { id: 'select' as const, icon: MousePointer2, label: 'Select' },

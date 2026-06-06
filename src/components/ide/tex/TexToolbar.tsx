@@ -3,7 +3,7 @@ import {
   Heading1, FunctionSquare, Radical, Superscript, Subscript,
   Sigma, Pi, Variable, Bold, Italic, Underline as UnderlineIcon,
   Code2, Link, List, ListOrdered, Table, Image,
-  Quote, WrapText, Hash, Infinity, ArrowRight,
+  Quote, WrapText, Hash, Infinity as InfinityIcon, ArrowRight,
   Braces, Square, Search, Type,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -148,7 +148,7 @@ export const TexToolbar = ({ onInsert, editorRef }: TexToolbarProps) => {
           <ToolbarButton icon={FunctionSquare} tooltip="Integral" onClick={() => handleCommand(mathStructures[5])} />
           <ToolbarButton icon={Sigma} tooltip="Summation" onClick={() => handleCommand(mathStructures[6])} />
           <ToolbarButton icon={Pi} tooltip="Product" onClick={() => handleCommand(mathStructures[7])} />
-          <ToolbarButton icon={Infinity} tooltip="Limit" onClick={() => handleCommand(mathStructures[8])} />
+          <ToolbarButton icon={InfinityIcon} tooltip="Limit" onClick={() => handleCommand(mathStructures[8])} />
 
           <Separator orientation="vertical" className="h-5 mx-1" />
 

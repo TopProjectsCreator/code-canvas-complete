@@ -31,7 +31,8 @@ export function SketchConstraints() {
   const entityIds = useMemo(() => {
     if (!sketch) return []
     return selection
-      .filter(s => s.type === 'sketch-entity' && s.sketchId === activeSketch)
+      .filter((s): s is Extract<import('../types').SelectionTarget, { type: 'sketch-entity' }> =>
+        s.type === 'sketch-entity' && s.sketchId === activeSketch)
       .map(s => s.entityId)
   }, [selection, sketch, activeSketch])
 
