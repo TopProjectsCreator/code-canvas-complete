@@ -1329,7 +1329,7 @@ serve(async (req) => {
     if (byokProvider && (BYOK_PROVIDERS[byokProvider] || isOpenAICompatible)) {
       const { data: keyData } = await supabase
         .from("user_api_keys")
-        .select("api_key, base_url")
+        .select(isOpenAICompatible ? "api_key, base_url" : "api_key")
         .eq("user_id", userId)
         .eq("provider", byokProvider)
         .single();
