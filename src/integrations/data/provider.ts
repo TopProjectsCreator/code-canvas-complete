@@ -189,32 +189,14 @@ const supabaseProvider: DataProvider = {
 };
 
 const createReplitDataProvider = (): DataProvider => {
-  // For Replit: API keys are stored locally on the backend server.
-  // All other data operations fall through to Supabase (best-effort).
-  const base = '/api/replit/ai';
-
-  const keyCall = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
-    const response = await fetch(`${base}${path}`, {
-      ...init,
-      headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
-    });
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(text || `Key request failed (${response.status})`);
-    }
-    if (response.status === 204) return undefined as T;
-    return (await response.json()) as T;
-  };
-
+  // On Replit-like hosts (Railway, Replit, custom domains), users authenticate via
+  // Supabase (cross-origin OAuth bridge), so BYOK API keys live in the same Supabase
+  // user_api_keys table as the generic platform. The legacy /api/replit/ai/keys
+  // endpoint was only meaningful in the standalone Replit dev server and lacks the
+  // authenticated user context needed for per-user key storage on Railway.
   return {
     ...supabaseProvider,
     platform: 'replit',
-    listApiKeys: (_userId) => keyCall<ApiKeyRecord[]>('/keys'),
-    upsertApiKey: (_userId, provider, apiKey, baseUrl?) =>
-      keyCall<void>('/keys', { method: 'PUT', body: JSON.stringify({ provider, api_key: apiKey, base_url: baseUrl }) }),
-    deleteApiKey: (_userId, provider) =>
-      keyCall<void>(`/keys?provider=${encodeURIComponent(provider)}`, { method: 'DELETE' }),
-    listUsageForDate: async (_userId, _date) => [],
   };
 };
 
