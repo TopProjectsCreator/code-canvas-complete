@@ -67,13 +67,26 @@ export async function initDiscordSdk(): Promise<boolean> {
     await discordSdk.ready();
     console.log("[Discord] SDK ready");
 
-    const { code } = await discordSdk.commands.authorize({
-      client_id: clientId,
-      response_type: "code",
-      state: "",
-      prompt: "none",
-      scope: ["identify", "guilds", "applications.commands", "rpc.activities.write"],
-    });
+    let code: string;
+    try {
+      const result = await discordSdk.commands.authorize({
+        client_id: clientId,
+        response_type: "code",
+        state: "",
+        prompt: "none",
+        scope: ["identify", "guilds", "applications.commands", "rpc.activities.write"],
+      });
+      code = result.code;
+    } catch {
+      console.log("[Discord] Silent auth failed, requesting consent for new scopes");
+      const result = await discordSdk.commands.authorize({
+        client_id: clientId,
+        response_type: "code",
+        state: "",
+        scope: ["identify", "guilds", "applications.commands", "rpc.activities.write"],
+      });
+      code = result.code;
+    }
 
     const response = await fetch("/api/token", {
       method: "POST",
