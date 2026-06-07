@@ -210,15 +210,34 @@ export const useCodeExecution = () => {
         // All other languages (python, javascript, …) — fresh process per run,
         // with stdin piped so input() / readline work.
 
-        // When offline on Replit, try Pyodide for Python first (browser-based,
-        // no server dependency). Skip if code uses system imports Pyodide can't handle.
-        if ((normalizedLanguage === 'python' || normalizedLanguage === 'py') && !navigator.onLine) {
+        // On Replit, prefer Pyodide for Python when explicitly set, when running
+        // simple scripts (auto), or when offline. Skip if code uses system
+        // imports Pyodide can't handle.
+        if (normalizedLanguage === 'python' || normalizedLanguage === 'py') {
+          const pythonExecutorMode = typeof window !== 'undefined'
+            ? window.localStorage.getItem('ide.pythonExecutorMode') || 'auto'
+            : 'auto';
           const unsupported = detectUnsupportedPyodideUsage(code);
-          if (!unsupported) {
+          const preferPyodide =
+            pythonExecutorMode === 'pyodide' ||
+            (pythonExecutorMode === 'auto' && !unsupported) ||
+            !navigator.onLine;
+
+          if (preferPyodide) {
+            if (!navigator.onLine && unsupported) {
+              return {
+                output: [],
+                error: `📡 Offline. This Python script uses "${unsupported}" which needs the cloud container. Reconnect to run it.`,
+                executedAt: new Date().toISOString(),
+              };
+            }
             try {
               const result = await runPyodide(code, stdin);
+              const banner = !navigator.onLine
+                ? '🐍 Offline — running in Pyodide (browser Python).'
+                : '🐍 Pyodide (browser Python).';
               return {
-                output: ['🐍 Offline — running in Pyodide (browser Python).', ...result.stdout, ...result.stderr],
+                output: [banner, ...result.stdout, ...result.stderr],
                 error: result.exitCode === 0 ? null : 'Python execution failed',
                 executedAt: new Date().toISOString(),
               };

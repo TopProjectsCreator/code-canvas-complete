@@ -4,7 +4,7 @@ import { lovable } from '@/integrations/lovable';
 import { DeploymentPlatform, detectDeploymentPlatform } from '@/lib/platform';
 import { BRIDGE_ORIGIN, randomState, stashOutbound } from '@/lib/authBridge';
 
-export type OAuthProvider = 'google';
+export type OAuthProvider = 'google' | 'apple' | 'microsoft';
 
 export interface AuthProvider {
   platform: DeploymentPlatform;
@@ -45,7 +45,7 @@ const common = {
 const lovableProvider: AuthProvider = {
   platform: 'lovable',
   ...common,
-  availableOAuthProviders: ['google'],
+  availableOAuthProviders: ['google', 'apple', 'microsoft'],
   async signUp(email, password, displayName) {
     const { error } = await supabase.auth.signUp({
       email,
@@ -67,10 +67,10 @@ const lovableProvider: AuthProvider = {
     return { error };
   },
   async signInWithOAuth(provider) {
-    if (provider !== 'google') {
+    if (!['google', 'apple', 'microsoft'].includes(provider)) {
       return { error: new Error(`Provider ${provider} is not available on Lovable auth`) };
     }
-    const result = await lovable.auth.signInWithOAuth('google', {
+    const result = await lovable.auth.signInWithOAuth(provider, {
       redirect_uri: window.location.origin,
     });
     return { error: result.error ?? null };
@@ -86,7 +86,7 @@ const buildBridgeUrl = (path: string, params: Record<string, string>): string =>
 const bridgedProvider: AuthProvider = {
   platform: detectDeploymentPlatform(),
   ...common,
-  availableOAuthProviders: ['google'],
+  availableOAuthProviders: ['google', 'apple', 'microsoft'],
   async signUp(email, password, displayName) {
     const { error } = await supabase.auth.signUp({
       email,
@@ -121,7 +121,7 @@ const bridgedProvider: AuthProvider = {
     return { error };
   },
   async signInWithOAuth(provider) {
-    if (provider !== 'google') {
+    if (!['google', 'apple', 'microsoft'].includes(provider)) {
       return { error: new Error(`Provider ${provider} is not available`) };
     }
     const state = randomState();
@@ -131,6 +131,7 @@ const bridgedProvider: AuthProvider = {
     const bridgeUrl = buildBridgeUrl('/auth-bridge', {
       return: returnUrl,
       state,
+      provider,
     });
     window.location.assign(bridgeUrl);
     return { error: null };

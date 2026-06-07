@@ -27,7 +27,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
   const [displayName, setDisplayName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState<null | 'google'>(null);
+  const [oauthLoading, setOauthLoading] = useState<null | 'google' | 'apple' | 'microsoft'>(null);
   const { signIn, signUp, resetPassword, signInWithOAuth, availableOAuthProviders, platform } = useAuth();
   const { toast } = useToast();
 
@@ -76,7 +76,7 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
     }
   };
 
-  const handleOAuthSignIn = async (provider: 'google') => {
+  const handleOAuthSignIn = async (provider: 'google' | 'apple' | 'microsoft') => {
     setOauthLoading(provider);
     try {
       const { error } = await signInWithOAuth(provider);
@@ -149,6 +149,45 @@ export const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
                   </svg>
                 )}
                 Continue with Google
+              </Button>
+            )}
+
+            {availableOAuthProviders.includes('apple') && (
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => handleOAuthSignIn('apple')}
+                disabled={oauthLoading !== null || !isOnline}
+              >
+                {oauthLoading === 'apple' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.157-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.69 3.56-1.702z"/>
+                  </svg>
+                )}
+                Continue with Apple
+              </Button>
+            )}
+
+            {availableOAuthProviders.includes('microsoft') && (
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => handleOAuthSignIn('microsoft')}
+                disabled={oauthLoading !== null || !isOnline}
+              >
+                {oauthLoading === 'microsoft' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <rect x="2" y="2" width="9" height="9" fill="#F25022"/>
+                    <rect x="13" y="2" width="9" height="9" fill="#7FBA00"/>
+                    <rect x="2" y="13" width="9" height="9" fill="#00A4EF"/>
+                    <rect x="13" y="13" width="9" height="9" fill="#FFB900"/>
+                  </svg>
+                )}
+                Continue with Microsoft
               </Button>
             )}
 
