@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { createRequire } from 'module';
+import { Client, GatewayIntentBits, Events } from 'discord.js';
 
 // node-pty ships as CJS; use createRequire for ESM compatibility
 const require = createRequire(import.meta.url);
@@ -66,6 +67,61 @@ app.post('/api/token', async (req, res) => {
     res.json({ access_token: data.access_token });
   } catch (err) {
     console.error('[Discord] Token exchange exception:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Discord bot — link Discord user to authenticated web user
+// ---------------------------------------------------------------------------
+
+app.post('/api/discord/link', (req, res) => {
+  try {
+    const { code } = req.body || {};
+    const userId = req.headers['x-user-id'];
+    if (!code || !userId) {
+      return res.status(400).json({ error: 'Missing code or user id' });
+    }
+
+    let matchedDiscordId = null;
+    for (const [discordUserId, link] of Object.entries(_discordLinks)) {
+      if (link.authCode === code && !link.userId && link.authCodeExpiresAt > Date.now()) {
+        matchedDiscordId = discordUserId;
+        break;
+      }
+    }
+
+    if (!matchedDiscordId) {
+      return res.status(400).json({ error: 'Invalid or expired code. DM the bot again for a new code.' });
+    }
+
+    _discordLinks[matchedDiscordId].userId = userId;
+    _discordLinks[matchedDiscordId].linkedAt = new Date().toISOString();
+    delete _discordLinks[matchedDiscordId].authCode;
+    delete _discordLinks[matchedDiscordId].authCodeExpiresAt;
+    saveDiscordLinks();
+
+    console.log(`[Discord Bot] Linked Discord user ${matchedDiscordId} to Code Canvas user ${userId}`);
+    res.json({ ok: true, discordUserId: matchedDiscordId });
+  } catch (err) {
+    console.error('[Discord Bot] Link error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/discord/link-status', (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    if (!userId) return res.status(400).json({ error: 'Missing user id' });
+    const linked = Object.entries(_discordLinks)
+      .filter(([, link]) => link.userId === userId)
+      .map(([discordUserId, link]) => ({
+        discordUserId,
+        discordUsername: link.discordUsername || null,
+        linkedAt: link.linkedAt,
+      }));
+    res.json({ linked });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
@@ -267,6 +323,32 @@ try {
 
 function saveAgentSkills() {
   try { fs.writeFileSync(SKILLS_FILE, JSON.stringify(_agentSkills)); } catch {}
+}
+
+// ---------------------------------------------------------------------------
+// Discord link storage — maps Discord user IDs to Supabase user IDs
+// ---------------------------------------------------------------------------
+
+const DISCORD_LINKS_FILE = path.join(__dirname, 'discord-links.json');
+let _discordLinks = {};
+try {
+  if (fs.existsSync(DISCORD_LINKS_FILE)) _discordLinks = JSON.parse(fs.readFileSync(DISCORD_LINKS_FILE, 'utf8'));
+} catch { _discordLinks = {}; }
+function saveDiscordLinks() {
+  try { fs.writeFileSync(DISCORD_LINKS_FILE, JSON.stringify(_discordLinks)); } catch {}
+}
+
+// ---------------------------------------------------------------------------
+// Discord chat history — per-user conversation state for DM AI chats
+// ---------------------------------------------------------------------------
+
+const DISCORD_CHATS_FILE = path.join(__dirname, 'discord-chats.json');
+let _discordChats = {};
+try {
+  if (fs.existsSync(DISCORD_CHATS_FILE)) _discordChats = JSON.parse(fs.readFileSync(DISCORD_CHATS_FILE, 'utf8'));
+} catch { _discordChats = {}; }
+function saveDiscordChats() {
+  try { fs.writeFileSync(DISCORD_CHATS_FILE, JSON.stringify(_discordChats)); } catch {}
 }
 
 function getReplitUserId(req) {
@@ -1636,6 +1718,178 @@ if (fs.existsSync(distPath)) {
       res.sendFile(path.join(distPath, 'index.html'));
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// Discord bot — DM-based AI assistant
+// ---------------------------------------------------------------------------
+
+const APP_URL = process.env.DISCORD_APP_URL || 'http://localhost:5173';
+
+async function discordAIChat(userId, discordUserId, userMessages) {
+  const userKeys = _aiKeys[userId] || {};
+  let provider = null;
+  let keyData = null;
+  for (const p of Object.keys(BYOK_PROVIDERS)) {
+    if (p === 'openai-compatible') continue;
+    if (userKeys[p]) { provider = p; keyData = userKeys[p]; break; }
+  }
+  if (!provider || !keyData) {
+    return 'No AI API key configured. Set one with `/key <provider> <apiKey>` (e.g. `/key openai sk-xxx`).';
+  }
+
+  const cfg = BYOK_PROVIDERS[provider];
+  const effectiveModel = BYOK_DEFAULT_MODELS[provider] || 'gpt-4o';
+
+  // Load conversation history (last 50 messages)
+  const history = _discordChats[discordUserId] || [];
+  const aiMessages = [
+    { role: 'system', content: 'You are a helpful AI coding assistant in Code Canvas IDE. The user is chatting with you via Discord DM. Keep responses concise and helpful.' },
+    ...history.map(m => ({ role: m.role, content: m.content })),
+    { role: 'user', content: userMessages.join('\n') },
+  ];
+
+  try {
+    const content = await runChatWithTools(provider, cfg, keyData.api_key, effectiveModel, aiMessages, [], []);
+    // Store conversation history
+    history.push({ role: 'user', content: userMessages.join('\n'), ts: new Date().toISOString() });
+    history.push({ role: 'assistant', content, ts: new Date().toISOString() });
+    // Keep last 50
+    if (history.length > 50) history.splice(0, history.length - 50);
+    _discordChats[discordUserId] = history;
+    saveDiscordChats();
+    return content;
+  } catch (err) {
+    console.error('[Discord Bot] AI chat error:', err.message);
+    return `AI request failed: ${err.message}`;
+  }
+}
+
+if (process.env.DISCORD_BOT_KEY) {
+  const discordClient = new Client({
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages],
+  });
+
+  discordClient.once(Events.ClientReady, (c) => {
+    console.log(`[Discord Bot] Logged in as ${c.user.tag}`);
+  });
+
+  discordClient.on(Events.MessageCreate, async (message) => {
+    if (message.author.bot) return;
+    if (message.channel.type !== 1) return; // DM only
+
+    const discordUserId = message.author.id;
+    const content = message.content.trim();
+    const link = _discordLinks[discordUserId];
+
+    // ── Not linked → send auth code ──────────────────────────────────────
+    if (!link || !link.userId) {
+      const authCode = crypto.randomUUID ? crypto.randomUUID() : randomUUID();
+      _discordLinks[discordUserId] = {
+        authCode,
+        authCodeExpiresAt: Date.now() + 15 * 60 * 1000,
+        discordUsername: message.author.username,
+        userId: null,
+        linkedAt: null,
+      };
+      saveDiscordLinks();
+      await message.reply(
+        `Welcome to Code Canvas, ${message.author.username}! 🎨\n\nTo link your account, please visit:\n${APP_URL}/link-discord?code=${authCode}\n\nSign in (or create an account), then your Discord will be linked. This code expires in 15 minutes.`
+      );
+      return;
+    }
+
+    const userId = link.userId;
+
+    // ── /help ────────────────────────────────────────────────────────────
+    if (content === '/help') {
+      await message.reply(
+        '**Code Canvas Bot — Commands**\n\n' +
+        '• Send any message to chat with the AI assistant\n' +
+        '• `/key` — List your configured AI providers\n' +
+        '• `/key <provider> <apiKey> [baseUrl]` — Set an API key (e.g. `/key openai sk-xxx`)\n' +
+        '• `/key remove <provider>` — Remove an API key\n' +
+        '• `/help` — Show this message\n\n' +
+        'Supported providers: openai, anthropic, gemini, deepseek, groq, and more.'
+      );
+      return;
+    }
+
+    // ── /key ─────────────────────────────────────────────────────────────
+    if (content.startsWith('/key')) {
+      const parts = content.split(/\s+/);
+      if (parts.length === 1 || (parts.length === 2 && (parts[1] === 'list' || parts[1] === 'ls'))) {
+        const userKeys = _aiKeys[userId] || {};
+        const keyList = Object.keys(userKeys);
+        if (keyList.length === 0) {
+          await message.reply('No API keys configured. Use `/key <provider> <apiKey>` to add one.');
+        } else {
+          const masked = keyList.map(p => {
+            const k = userKeys[p].api_key;
+            const mask = k.length > 8 ? k.slice(0, 4) + '…' + k.slice(-4) : '***';
+            return `• **${p}**: \`${mask}\``;
+          }).join('\n');
+          await message.reply(`**Your configured API keys:**\n${masked}`);
+        }
+        return;
+      }
+
+      if (parts[1] === 'remove' && parts[2]) {
+        const provider = parts[2].toLowerCase();
+        if (_aiKeys[userId] && _aiKeys[userId][provider]) {
+          delete _aiKeys[userId][provider];
+          saveAiKeys();
+          await message.reply(`Removed **${provider}** key.`);
+        } else {
+          await message.reply(`No key found for **${provider}**.`);
+        }
+        return;
+      }
+
+      if (parts.length >= 3) {
+        const provider = parts[1].toLowerCase();
+        const apiKey = parts[2];
+        const baseUrl = parts.slice(3).join(' ') || '';
+        if (!BYOK_PROVIDERS[provider] && provider !== 'openai-compatible') {
+          const supported = Object.keys(BYOK_PROVIDERS).join(', ');
+          await message.reply(`Unknown provider **${provider}**. Supported: ${supported}`);
+          return;
+        }
+        if (!_aiKeys[userId]) _aiKeys[userId] = {};
+        _aiKeys[userId][provider] = { api_key: apiKey, base_url: baseUrl };
+        saveAiKeys();
+        await message.reply(`Saved **${provider}** API key. You can now chat with AI!`);
+        return;
+      }
+
+      await message.reply('Usage: `/key <provider> <apiKey>` or `/key remove <provider>`');
+      return;
+    }
+
+    // ── AI Chat ──────────────────────────────────────────────────────────
+    await message.channel.sendTyping();
+    const reply = await discordAIChat(userId, discordUserId, [content]);
+
+    // Discord has a 2000-char message limit; split if needed
+    if (reply.length <= 2000) {
+      await message.reply(reply);
+    } else {
+      const chunks = [];
+      for (let i = 0; i < reply.length; i += 1990) {
+        chunks.push(reply.slice(i, i + 1990));
+      }
+      await message.reply(chunks[0]);
+      for (let i = 1; i < chunks.length; i++) {
+        await message.channel.send(chunks[i]);
+      }
+    }
+  });
+
+  discordClient.login(process.env.DISCORD_BOT_KEY).catch(err => {
+    console.error('[Discord Bot] Login failed:', err.message);
+  });
+} else {
+  console.log('[Discord Bot] DISCORD_BOT_KEY not set — bot not started');
 }
 
 // ---------------------------------------------------------------------------

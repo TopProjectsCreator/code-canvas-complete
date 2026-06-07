@@ -26,6 +26,7 @@ import AuthBridge from "./pages/AuthBridge";
 import AuthLink from "./pages/AuthLink";
 import AuthLogout from "./pages/AuthLogout";
 import AuthCallback from "./pages/AuthCallback";
+import LinkDiscord from "./pages/LinkDiscord";
 import ResetPassword from "./pages/ResetPassword";
 import OAuthHostsAdmin from "./pages/admin/OAuthHosts";
 import { LivingGrid } from "./pages/landings/LivingGrid";
@@ -110,6 +111,7 @@ const App = () => (
               <Route path="/auth-logout" element={<AuthLogout />} />
               <Route path="/auth-callback" element={<AuthCallback />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/link-discord" element={<LinkDiscord />} />
               <Route path="/admin/oauth-hosts" element={<OAuthHostsAdmin />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
