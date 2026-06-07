@@ -201,6 +201,7 @@ const createReplitDataProvider = (): DataProvider => {
 };
 
 const createManagedDataProvider = (platform: 'replit' | 'lovable'): DataProvider => {
+  const replitLike = isReplitLikePlatform(platform);
   const base = isReplitLikePlatform(platform) ? import.meta.env.VITE_REPLIT_DB_BASE_URL : import.meta.env.VITE_LOVABLE_DB_BASE_URL;
   if (!base) {
     if (isReplitLikePlatform(platform)) return createReplitDataProvider();
@@ -244,9 +245,15 @@ const createManagedDataProvider = (platform: 'replit' | 'lovable'): DataProvider
     getExistingStar: (projectId, userId) => call<{ id: string } | null>(`/project-stars/find?project_id=${encodeURIComponent(projectId)}&user_id=${encodeURIComponent(userId)}`),
     createStar: (projectId, userId) => call<void>('/project-stars', { method: 'POST', body: JSON.stringify({ project_id: projectId, user_id: userId }) }),
     deleteStarById: (starId) => call<void>(`/project-stars/${starId}`, { method: 'DELETE' }),
-    listApiKeys: (userId) => call<ApiKeyRecord[]>(`/user-api-keys?user_id=${encodeURIComponent(userId)}`),
-    upsertApiKey: (userId, provider, apiKey, baseUrl?) => call<void>('/user-api-keys', { method: 'PUT', body: JSON.stringify({ user_id: userId, provider, api_key: apiKey, base_url: baseUrl }) }),
-    deleteApiKey: (userId, provider) => call<void>(`/user-api-keys?user_id=${encodeURIComponent(userId)}&provider=${encodeURIComponent(provider)}`, { method: 'DELETE' }),
+    listApiKeys: replitLike
+      ? supabaseProvider.listApiKeys
+      : (userId) => call<ApiKeyRecord[]>(`/user-api-keys?user_id=${encodeURIComponent(userId)}`),
+    upsertApiKey: replitLike
+      ? supabaseProvider.upsertApiKey
+      : (userId, provider, apiKey, baseUrl?) => call<void>('/user-api-keys', { method: 'PUT', body: JSON.stringify({ user_id: userId, provider, api_key: apiKey, base_url: baseUrl }) }),
+    deleteApiKey: replitLike
+      ? supabaseProvider.deleteApiKey
+      : (userId, provider) => call<void>(`/user-api-keys?user_id=${encodeURIComponent(userId)}&provider=${encodeURIComponent(provider)}`, { method: 'DELETE' }),
     listUsageForDate: (userId, date) => call<UsageRecord[]>(`/ai-usage?user_id=${encodeURIComponent(userId)}&usage_date=${encodeURIComponent(date)}`),
   };
 };
