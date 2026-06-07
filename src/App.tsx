@@ -21,6 +21,12 @@ import OfficePage from "./pages/Office";
 import AutomationsPage from "./pages/Automations";
 import ScratchPage from "./pages/Scratch";
 import CadPage from "./pages/CadPage";
+import AuthBridge from "./pages/AuthBridge";
+import AuthLink from "./pages/AuthLink";
+import AuthLogout from "./pages/AuthLogout";
+import AuthCallback from "./pages/AuthCallback";
+import ResetPassword from "./pages/ResetPassword";
+import OAuthHostsAdmin from "./pages/admin/OAuthHosts";
 import { LivingGrid } from "./pages/landings/LivingGrid";
 import { TerminalBoot } from "./pages/landings/TerminalBoot";
 import { TheVoid } from "./pages/landings/TheVoid";
@@ -97,6 +103,12 @@ const App = () => (
               <Route path="/automations" element={<AutomationsPage />} />
               <Route path="/scratch" element={<ScratchPage />} />
               <Route path="/cad" element={<CadPage />} />
+              <Route path="/auth-bridge" element={<AuthBridge />} />
+              <Route path="/auth-link" element={<AuthLink />} />
+              <Route path="/auth-logout" element={<AuthLogout />} />
+              <Route path="/auth-callback" element={<AuthCallback />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/admin/oauth-hosts" element={<OAuthHostsAdmin />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
