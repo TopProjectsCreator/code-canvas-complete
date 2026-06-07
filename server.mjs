@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { fileURLToPath } from 'url';
 import path from 'path';
@@ -36,24 +37,86 @@ app.use((req, res, next) => {
 
 app.post('/api/token', async (req, res) => {
   try {
+    const clientId = process.env.VITE_DISCORD_CLIENT_ID;
+    const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+      console.error('[Discord] Token exchange: VITE_DISCORD_CLIENT_ID or DISCORD_CLIENT_SECRET not set');
+      return res.status(500).json({ error: 'Discord OAuth2 credentials not configured on server' });
+    }
+
+    const body = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'authorization_code',
+      code: req.body.code,
+      redirect_uri: 'https://127.0.0.1',
+    });
+
     const response = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: process.env.VITE_DISCORD_CLIENT_ID,
-        client_secret: process.env.DISCORD_CLIENT_SECRET,
-        grant_type: 'authorization_code',
-        code: req.body.code,
-      }),
+      body,
     });
     const data = await response.json();
     if (!response.ok) {
+      console.error('[Discord] Token exchange error from Discord:', JSON.stringify(data));
       return res.status(response.status).json({ error: data.error_description || data.error });
     }
+    console.log('[Discord] Token exchange successful');
     res.json({ access_token: data.access_token });
   } catch (err) {
+    console.error('[Discord] Token exchange exception:', err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Supabase proxy — allows Supabase API calls from within Discord's CSP-restricted iframe
+// ---------------------------------------------------------------------------
+
+function proxySupabase(targetUrl, req, res) {
+  const parsedUrl = new URL(targetUrl);
+  const options = {
+    method: req.method,
+    headers: { ...req.headers },
+    hostname: parsedUrl.hostname,
+    path: parsedUrl.pathname + parsedUrl.search,
+    port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+  };
+  delete options.headers.host;
+  delete options.headers.connection;
+  delete options.headers.referer;
+  delete options.headers['content-length'];
+
+  const protocol = parsedUrl.protocol === 'https:' ? https : http;
+  const proxyReq = protocol.request(options, (proxyRes) => {
+    const chunks = [];
+    proxyRes.on('data', (chunk) => chunks.push(chunk));
+    proxyRes.on('end', () => {
+      const body = Buffer.concat(chunks);
+      if (!res.headersSent) {
+        res.writeHead(proxyRes.statusCode, { ...proxyRes.headers, 'access-control-allow-origin': '*' });
+      }
+      res.end(body);
+    });
+  });
+  proxyReq.on('error', (err) => {
+    if (!res.headersSent) res.status(502).json({ error: err.message });
+  });
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    proxyReq.end();
+  } else {
+    req.pipe(proxyReq, { end: true });
+  }
+}
+
+// Catch-all for /api/supabase/* — proxies to the real Supabase instance
+app.all('/api/supabase/*', (req, res) => {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  if (!supabaseUrl) return res.status(500).json({ error: 'VITE_SUPABASE_URL not configured' });
+  const tail = req.params[0];
+  const target = `${supabaseUrl}/${tail}`;
+  proxySupabase(target, req, res);
 });
 
 // ---------------------------------------------------------------------------

@@ -8,7 +8,15 @@ const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+// In Discord's CSP-restricted iframe, route Supabase calls through our server proxy
+// to avoid being blocked by Discord's Content Security Policy.
+const isDiscordIframe = typeof window !== 'undefined' && (() => {
+  try { return window.self !== window.top; } catch { return true; }
+})();
+
+const effectiveUrl = isDiscordIframe ? '/api/supabase' : SUPABASE_URL;
+
+export const supabase = createClient<Database>(effectiveUrl, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     storage: localStorage,
     persistSession: true,
