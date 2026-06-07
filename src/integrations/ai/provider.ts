@@ -79,12 +79,16 @@ const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => 
     isReplitLikePlatform(platform)
       ? (import.meta.env.VITE_REPLIT_AI_BASE_URL || '/api/replit/ai')
       : import.meta.env.VITE_LOVABLE_AI_BASE_URL;
+  const supabaseAI = createSupabaseAIProvider();
   if (isReplitLikePlatform(platform)) {
     return {
       platform,
       supportsManagedAI: true,
       allowsBYOK: true,
       chat: async (payload, options) => {
+        if (payload.byokProvider) {
+          return supabaseAI.chat(payload, options);
+        }
         const response = await fetch(`${envBase}/chat`, {
           method: 'POST',
           headers: jsonHeaders(options?.accessToken),
@@ -92,7 +96,7 @@ const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => 
           signal: options?.signal,
         });
         if (response.ok) return response;
-        return createSupabaseAIProvider().chat(payload, options);
+        return supabaseAI.chat(payload, options);
       },
       generateImage: (prompt, options) =>
         fetch(`${envBase}/image`, {
@@ -111,20 +115,24 @@ const createManagedAIProvider = (platform: 'replit' | 'lovable'): AIProvider => 
     };
   }
 
-  const fallback = createSupabaseAIProvider();
+  const fallback = supabaseAI;
   if (!envBase) return { ...fallback, platform };
 
   return {
     platform,
     supportsManagedAI: true,
     allowsBYOK: true,
-    chat: (payload, options) =>
-      fetch(`${envBase}/chat`, {
+    chat: (payload, options) => {
+      if (payload.byokProvider) {
+        return supabaseAI.chat(payload, options);
+      }
+      return fetch(`${envBase}/chat`, {
         method: 'POST',
         headers: jsonHeaders(options?.accessToken),
         body: JSON.stringify(payload),
         signal: options?.signal,
-      }),
+      });
+    },
     generateImage: (prompt, options) =>
       fetch(`${envBase}/image`, {
         method: 'POST',

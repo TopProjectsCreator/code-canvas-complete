@@ -1327,12 +1327,23 @@ serve(async (req) => {
 
     const isOpenAICompatible = byokProvider === "openai-compatible";
     if (byokProvider && (BYOK_PROVIDERS[byokProvider] || isOpenAICompatible)) {
-      const { data: keyData } = await supabase
+      const serviceSupabaseForKeys = supabaseServiceKey ? createClient(supabaseUrl, supabaseServiceKey) : supabase;
+      let { data: keyData, error: keyError } = await serviceSupabaseForKeys
         .from("user_api_keys")
-        .select("api_key, base_url")
+        .select(isOpenAICompatible ? "api_key, base_url" : "api_key")
         .eq("user_id", userId)
         .eq("provider", byokProvider)
-        .single();
+        .maybeSingle();
+
+      if (keyError && isOpenAICompatible) {
+        const retry = await serviceSupabaseForKeys
+          .from("user_api_keys")
+          .select("api_key")
+          .eq("user_id", userId)
+          .eq("provider", byokProvider)
+          .maybeSingle();
+        keyData = retry.data;
+      }
 
       if (keyData) {
         userApiKey = (keyData as any).api_key;
