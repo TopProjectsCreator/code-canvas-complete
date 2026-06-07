@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { PresenceAvatars } from './CollabDialog';
 import { OfflineIndicator } from './OfflineIndicator';
+import { DiscordIndicator } from './DiscordIndicator';
 import type { PresenceState } from '@/hooks/useCollaboration';
 import { ProjectMenu } from './ProjectMenu';
 import type { LanguageTemplate } from '@/data/templateRegistry';
@@ -256,6 +257,9 @@ export const Header = ({
             <rect x="14" y="14" width="7" height="7" />
           </svg>
         </button>
+
+        {/* Discord indicator */}
+        <DiscordIndicator />
 
         {/* Presence avatars */}
         <PresenceAvatars presence={presence} />

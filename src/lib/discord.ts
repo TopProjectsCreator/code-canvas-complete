@@ -20,10 +20,6 @@ export function getDiscordAuth(): any {
   return auth;
 }
 
-function getUnixSeconds(): number {
-  return Math.floor(Date.now() / 1000);
-}
-
 export async function setActivity(activity: {
   details?: string;
   state?: string;
@@ -44,9 +40,53 @@ let activityStartTime: number | null = null;
 
 export function getActivityStartTime(): number {
   if (!activityStartTime) {
-    activityStartTime = getUnixSeconds();
+    activityStartTime = Math.floor(Date.now() / 1000);
   }
   return activityStartTime;
+}
+
+export async function updateRichPresence(fileName?: string | null, language?: string | null, projectName?: string | null, isRunning?: boolean): Promise<void> {
+  const label = language ? (formatLanguage(language) || language) : null;
+  let details: string;
+  let state: string;
+
+  if (isRunning) {
+    details = `Running ${fileName || projectName || "code"}`;
+    state = label ? `${label} — Executing` : "Executing";
+  } else if (fileName) {
+    details = `Editing ${fileName}`;
+    state = label ? `Working in ${label}` : "Coding";
+  } else if (projectName) {
+    details = `In project: ${projectName}`;
+    state = label ? `Using ${label}` : "Browsing files";
+  } else {
+    details = "Canvas IDE";
+    state = "Getting started";
+  }
+
+  await setActivity({
+    type: 0,
+    details,
+    state,
+    timestamps: { start: getActivityStartTime() },
+  });
+}
+
+function formatLanguage(lang: string): string | null {
+  const map: Record<string, string> = {
+    javascript: "JavaScript", typescript: "TypeScript", python: "Python",
+    java: "Java", cpp: "C++", csharp: "C#", go: "Go", rust: "Rust",
+    ruby: "Ruby", php: "PHP", bash: "Bash", lua: "Lua", html: "HTML",
+    css: "CSS", react: "React", nodejs: "Node.js", arduino: "Arduino",
+    ftc: "FTC Robotics", scratch: "Scratch", sqlite: "SQLite",
+    database: "Database", cad: "CAD", latex: "LaTeX", mermaid: "Mermaid",
+    jupyter: "Jupyter", swift: "Swift", kotlin: "Kotlin", r: "R",
+    haskell: "Haskell", elixir: "Elixir", erlang: "Erlang", julia: "Julia",
+    scala: "Scala", vim: "Vim", perl: "Perl", zig: "Zig", nim: "Nim",
+    lisp: "Lisp", groovy: "Groovy", pascal: "Pascal", crystal: "Crystal",
+    ocaml: "OCaml", pony: "Pony", d: "D", c: "C",
+  };
+  return map[lang] || null;
 }
 
 export async function initDiscordSdk(): Promise<boolean> {
@@ -54,7 +94,7 @@ export async function initDiscordSdk(): Promise<boolean> {
 
   const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
   if (!clientId) {
-    console.warn("[Discord] VITE_DISCORD_CLIENT_ID not set — skipping SDK init");
+    console.warn("[Discord] VITE_DISCORD_CLIENT_ID not set");
     return false;
   }
 
@@ -65,7 +105,6 @@ export async function initDiscordSdk(): Promise<boolean> {
   try {
     discordSdk = new DiscordSDK(clientId);
     await discordSdk.ready();
-    console.log("[Discord] SDK ready");
 
     let code: string;
     try {
@@ -78,7 +117,6 @@ export async function initDiscordSdk(): Promise<boolean> {
       });
       code = result.code;
     } catch {
-      console.log("[Discord] Silent auth failed, requesting consent for new scopes");
       const result = await discordSdk.commands.authorize({
         client_id: clientId,
         response_type: "code",
@@ -101,7 +139,6 @@ export async function initDiscordSdk(): Promise<boolean> {
     }
 
     const { access_token } = await response.json();
-
     auth = await discordSdk.commands.authenticate({ access_token });
 
     if (!auth) {
@@ -110,10 +147,12 @@ export async function initDiscordSdk(): Promise<boolean> {
     }
 
     _isInitialized = true;
-    console.log("[Discord] Authenticated as", auth.user?.username);
+
+    updateRichPresence(null, null, null, false);
+
     return true;
   } catch (err) {
-    console.warn("[Discord] Init failed (likely not in Discord):", err);
+    console.warn("[Discord] Init failed:", err);
     discordSdk = null;
     return false;
   }

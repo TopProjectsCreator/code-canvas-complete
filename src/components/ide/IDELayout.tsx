@@ -22,7 +22,7 @@ import { ShareDialog } from "./ShareDialog";
 import { GitProviderImportDialog } from "./GitProviderImportDialog";
 import { CollabDialog, PresenceAvatars } from "./CollabDialog";
 import { useCollaboration } from "@/hooks/useCollaboration";
-import { useDiscordRichPresence } from "@/hooks/useDiscordRichPresence";
+import { useDiscord } from "@/contexts/DiscordContext";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -639,12 +639,10 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     void collab.updatePresence({ currentFile: activeFilePath });
   }, [activeFilePath, collab]);
 
-  useDiscordRichPresence({
-    activeFileName: activeFilePath,
-    language: selectedTemplate,
-    projectName: currentProject?.name || localProjectName,
-    isRunning,
-  });
+  const { updateRichPresence: discordPresence } = useDiscord();
+  useEffect(() => {
+    void discordPresence(activeFilePath, selectedTemplate, currentProject?.name || localProjectName, isRunning);
+  }, [discordPresence, activeFilePath, selectedTemplate, currentProject?.name, localProjectName, isRunning]);
 
   useEffect(() => {
     const engine = collabEngineRef.current;
