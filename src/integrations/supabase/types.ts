@@ -127,6 +127,27 @@ export type Database = {
         }
         Relationships: []
       }
+      allowed_oauth_return_hosts: {
+        Row: {
+          created_at: string
+          host: string
+          note: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          host: string
+          note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          host?: string
+          note?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       code_comments: {
         Row: {
           content: string
