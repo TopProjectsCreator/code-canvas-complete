@@ -12,6 +12,7 @@ export type AIProvider =
   | 'xai' 
   | 'cohere' 
   | 'openrouter'
+  | 'pollinations'
   | 'github'
   | 'mistral'
   | 'meshy'
@@ -54,6 +55,7 @@ export const PROVIDER_INFO: Record<AIProvider, { label: string; placeholder: str
   xai: { label: 'xAI (Grok)', placeholder: 'xai-...', docsUrl: 'https://console.x.ai' },
   cohere: { label: 'Cohere', placeholder: '...', docsUrl: 'https://dashboard.cohere.com/api-keys' },
   openrouter: { label: 'OpenRouter', placeholder: 'sk-or-...', docsUrl: 'https://openrouter.ai/keys' },
+  pollinations: { label: 'Pollinations.AI', placeholder: 'sk_... (OAuth)', docsUrl: 'https://gen.pollinations.ai/docs' },
   github: { label: 'GitHub', placeholder: 'ghp_... or github_pat_...', docsUrl: 'https://github.com/settings/tokens' },
   mistral: { label: 'Mistral AI', placeholder: '...', docsUrl: 'https://console.mistral.ai/api-keys' },
   meshy: { label: 'Meshy (Text-to-3D)', placeholder: 'msy_...', docsUrl: 'https://docs.meshy.ai/api-introduction' },
@@ -239,6 +241,14 @@ export const PROVIDER_MODELS: Record<AIProvider, { id: string; label: string }[]
     { id: 'nousresearch/hermes-3-llama-3.1-405b', label: 'Hermes 3 405B' },
     { id: 'microsoft/phi-4', label: 'Phi-4' },
     { id: 'perplexity/sonar-pro', label: 'Sonar Pro' },
+  ],
+  pollinations: [
+    { id: 'openai', label: 'OpenAI' },
+    { id: 'openai-large', label: 'OpenAI Large' },
+    { id: 'openai-fast', label: 'OpenAI Fast' },
+    { id: 'mistral', label: 'Mistral' },
+    { id: 'deepseek', label: 'DeepSeek' },
+    { id: 'qwen-coder', label: 'Qwen Coder' },
   ],
   github: [
     { id: 'gpt-4o', label: 'GPT-4o' },

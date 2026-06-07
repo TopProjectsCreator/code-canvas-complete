@@ -194,6 +194,7 @@ const BYOK_PROVIDERS = {
   xai:         { url: 'https://api.x.ai/v1/chat/completions',                                authHeader: 'Bearer' },
   cohere:      { url: 'https://api.cohere.com/v2/chat',                                      authHeader: 'Bearer' },
   openrouter:  { url: 'https://openrouter.ai/api/v1/chat/completions',                       authHeader: 'Bearer' },
+  pollinations:{ url: 'https://gen.pollinations.ai/v1/chat/completions',                     authHeader: 'Bearer' },
   github:      { url: 'https://models.inference.ai.azure.com/chat/completions',              authHeader: 'Bearer' },
   groq:        { url: 'https://api.groq.com/openai/v1/chat/completions',                     authHeader: 'Bearer' },
   'openai-compatible': { url: '',                                                           authHeader: 'Bearer' },
@@ -202,7 +203,7 @@ const BYOK_PROVIDERS = {
 const BYOK_DEFAULT_MODELS = {
   openai: 'gpt-4o', anthropic: 'claude-3-5-sonnet-latest', gemini: 'gemini-2.5-flash',
   perplexity: 'sonar', deepseek: 'deepseek-chat', xai: 'grok-3-fast',
-  cohere: 'command-r-plus', openrouter: 'openai/gpt-4o', github: 'gpt-4o',
+  cohere: 'command-r-plus', openrouter: 'openai/gpt-4o', pollinations: 'openai', github: 'gpt-4o',
   groq: 'llama-3.3-70b-versatile',
   'openai-compatible': 'custom-model',
 };
