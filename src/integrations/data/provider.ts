@@ -201,8 +201,8 @@ const createReplitDataProvider = (): DataProvider => {
 };
 
 const createManagedDataProvider = (platform: 'replit' | 'lovable'): DataProvider => {
-  const replitLike = isReplitLikePlatform(platform);
   const base = isReplitLikePlatform(platform) ? import.meta.env.VITE_REPLIT_DB_BASE_URL : import.meta.env.VITE_LOVABLE_DB_BASE_URL;
+
   if (!base) {
     if (isReplitLikePlatform(platform)) return createReplitDataProvider();
     return { ...supabaseProvider, platform };
