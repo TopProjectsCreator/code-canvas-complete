@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ interface ApiKeysDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'groq', 'openai-compatible', 'stability', 'ideogram', 'replicate', 'runway', 'kling', 'higgsfield', 'luma', 'pika', 'meshy', 'sloyd', 'tripo', 'modelslab', 'fal', 'neural4d'];
+const PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'pollinations', 'github', 'groq', 'openai-compatible', 'stability', 'ideogram', 'replicate', 'runway', 'kling', 'higgsfield', 'luma', 'pika', 'meshy', 'sloyd', 'tripo', 'modelslab', 'fal', 'neural4d'];
 
 // Format validation rules per provider
 const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; label: string }> = {
@@ -26,6 +26,7 @@ const KEY_FORMAT: Record<AIProvider, { prefix?: string[]; minLength: number; lab
   xai: { prefix: ['xai-'], minLength: 20, label: 'xai-...' },
   cohere: { minLength: 20, label: '20+ characters' },
   openrouter: { prefix: ['sk-or-'], minLength: 20, label: 'sk-or-...' },
+  pollinations: { prefix: ['sk_'], minLength: 12, label: 'sk_...' },
   github: { prefix: ['ghp_', 'github_pat_'], minLength: 20, label: 'ghp_... or github_pat_...' },
   meshy: { prefix: ['msy_'], minLength: 20, label: 'msy_...' },
   sloyd: { prefix: ['sloyd_'], minLength: 20, label: 'sloyd_...' },
@@ -62,6 +63,15 @@ function validateKeyFormat(provider: AIProvider, key: string): string | null {
 }
 
 type ValidationState = 'idle' | 'validating' | 'valid' | 'invalid';
+
+const POLLINATIONS_AUTH_URL = 'https://enter.pollinations.ai/authorize';
+const POLLINATIONS_OAUTH_STATE_KEY = 'code-canvas:pollinations-oauth-state';
+const POLLINATIONS_CLIENT_ID = import.meta.env.VITE_POLLINATIONS_CLIENT_ID as string | undefined;
+
+function createOAuthState(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
 
 export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
   const { apiKeys, saveApiKey, deleteApiKey, loading, getUsageForTier } = useApiKeys();
@@ -135,6 +145,33 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
 
   const existingKeys = new Set(apiKeys.map(k => k.provider));
 
+  const startPollinationsOAuth = () => {
+    const state = createOAuthState();
+    localStorage.setItem(POLLINATIONS_OAUTH_STATE_KEY, state);
+    const params = new URLSearchParams({
+      redirect_uri: `${window.location.origin}${window.location.pathname}${window.location.search}`,
+      state,
+      models: 'openai,openai-large,openai-fast,mistral,deepseek,qwen-coder',
+      expiry: '30',
+      budget: '25',
+    });
+    if (POLLINATIONS_CLIENT_ID?.startsWith('pk_')) params.set('client_id', POLLINATIONS_CLIENT_ID);
+    window.location.assign(`${POLLINATIONS_AUTH_URL}?${params.toString()}`);
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.location.hash) return;
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const apiKey = hashParams.get('api_key');
+    if (!apiKey) return;
+    const returnedState = hashParams.get('state');
+    const expectedState = localStorage.getItem(POLLINATIONS_OAUTH_STATE_KEY);
+    if (!expectedState || returnedState !== expectedState || !apiKey.startsWith('sk_')) return;
+    localStorage.removeItem(POLLINATIONS_OAUTH_STATE_KEY);
+    window.history.replaceState(null, document.title, `${window.location.pathname}${window.location.search}`);
+    void saveApiKey('pollinations', apiKey);
+  }, [saveApiKey]);
+
   const tiers = [
     { id: 'pro', label: 'Pro', icon: '💎', limit: 5 },
     { id: 'flash', label: 'Flash', icon: '🔥', limit: 10 },
@@ -201,10 +238,12 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
                       )}
                     </div>
                     <div className="flex items-center gap-1">
-                      <a href={info.docsUrl} target="_blank" rel="noopener noreferrer"
-                        className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                      {info.docsUrl && (
+                        <a href={info.docsUrl} target="_blank" rel="noopener noreferrer"
+                          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                       {hasKey ? (
                         <>
                           <button onClick={() => setShowKey(prev => ({ ...prev, [provider]: !prev[provider] }))}
@@ -216,6 +255,10 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
                             <Trash2 className="w-3 h-3" />
                           </button>
                         </>
+                      ) : provider === 'pollinations' ? (
+                        <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={startPollinationsOAuth}>
+                          Connect
+                        </Button>
                       ) : (
                         <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" 
                           onClick={() => { setEditingProvider(provider); setKeyInput(''); setBaseUrlInput(''); setValidation('idle'); setValidationError(''); }}>
@@ -229,6 +272,12 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
                     <div className="mt-1 text-[10px] text-muted-foreground font-mono">
                       {showKey[provider] ? apiKeys.find(k => k.provider === provider)?.api_key : masked}
                     </div>
+                  )}
+
+                  {!hasKey && provider === 'pollinations' && !isEditing && (
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      OAuth BYOK lets users authorize Code Canvas to spend their own Pollen without pasting a secret key.
+                    </p>
                   )}
 
                   {isEditing && (
