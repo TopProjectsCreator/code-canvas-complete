@@ -61,7 +61,7 @@ export default defineConfig(({ mode }) => ({
           },
         ],
       },
-      includeAssets: ["favicon.ico", "placeholder.svg", "robots.txt"],
+      includeAssets: ["favicon.ico", "placeholder.svg", "robots.txt", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: {
         name: "Canvas IDE",
         short_name: "Canvas",

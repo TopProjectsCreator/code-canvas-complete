@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, Upload, Blocks } from "lucide-react";
 import { FileNode } from "@/types/ide";
 import { FindReplace } from "./FindReplace";
 import { FilePreview } from "./FilePreview";
