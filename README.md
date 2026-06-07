@@ -649,6 +649,115 @@ Our specialized editors are designed to bridge the gap between ideation, impleme
 </details>
 
 <details>
+<summary><b>UI Builder — Drag-and-Drop App Designer</b></summary>
+
+### What you can do
+- Design app interfaces by dragging and dropping components onto a canvas.
+- Arrange buttons, inputs, cards, and other UI elements visually.
+- Edit component properties (colors, text, sizing) in a properties panel.
+- See a live preview of your design as you build it.
+- Generate clean production-ready code from your visual layout.
+- Browse a palette of pre-built components and add them in one click.
+
+### Best for
+- Rapid prototyping.
+- Visual-first development.
+- Non-developer designers.
+- App mockups and MVPs.
+
+</details>
+
+<details>
+<summary><b>FTC Robotics — FIRST Tech Challenge Programming</b></summary>
+
+### What you can do
+- Write and edit FTC robot control code.
+- Configure hardware mappings for motors, servos, and sensors.
+- Compile your robot code in the cloud.
+- Iterate quickly without setting up a local SDK.
+- Keep your robot project alongside other team documentation.
+
+### Best for
+- FTC competition teams.
+- Robotics classrooms and workshops.
+- Prototyping robot behaviors.
+
+</details>
+
+<details>
+<summary><b>SVG Editor — Vector Graphics Made Simple</b></summary>
+
+### What you can do
+- Draw and edit vector shapes directly in the workspace.
+- Organize artwork using a layer panel.
+- Apply boolean operations (union, subtract, intersect) to shapes.
+- Create icons, illustrations, and UI assets.
+- Export SVG files ready for web or app use.
+- Undo/redo your editing history.
+
+### Best for
+- Icon and illustration creation.
+- UI asset preparation.
+- Quick graphic edits without external tools.
+
+</details>
+
+<details>
+<summary><b>Diagrams — Mermaid & Whiteboard</b></summary>
+
+### What you can do
+- Write diagram descriptions in plain text and see them rendered as flowcharts, sequence diagrams, class diagrams, and more.
+- Sketch freely with a digital whiteboard for brainstorming and user flows.
+- Keep architecture docs and visual notes right next to your code.
+- Export diagrams for presentations and documentation.
+
+### Best for
+- Architecture planning.
+- Brainstorming sessions.
+- Documentation visuals.
+- Teaching and explaining systems.
+
+</details>
+
+<details>
+<summary><b>LaTeX Editor — Scientific & Academic Writing</b></summary>
+
+### What you can do
+- Write LaTeX documents with syntax highlighting.
+- Preview rendered equations and formatting as you type.
+- Keep research papers, theses, and reports in the same workspace as related code.
+- Collaborate on scientific documents with your team.
+
+### Best for
+- Academic papers and theses.
+- STEM documentation.
+- Mathematical and scientific writing.
+
+</details>
+
+<details>
+<summary><b>More Built-in Tools</b></summary>
+
+Code Canvas ships with a collection of additional tools to handle nearly any file type you encounter:
+
+- **Font Editor:** Preview and inspect font files.
+- **PDF Viewer:** Read PDFs without leaving the workspace.
+- **Jupyter Notebook Viewer:** Open and view `.ipynb` files alongside your code.
+- **Archive Viewer:** Inspect zip and other archive contents.
+- **RTF Editor:** Work with rich-text format documents.
+- **Environment File Editor:** Manage `.env` variables with a clean UI.
+- **Markdown Composer:** Write formatted markdown with preview.
+- **Rich Text Composer:** Edit styled text without markup.
+- **Parts Inventory:** Browse and manage electronic component data for hardware projects.
+
+### Best for
+- Reducing tool-switching.
+- Handling diverse file formats in one place.
+- Keeping all project assets accessible from a single workspace.
+
+</details>
+
+<details>
 <summary><b>All Editors Together — Why This Matters</b></summary>
 
 ### Unified environment advantages
@@ -693,6 +802,88 @@ Code Canvas is designed for team-scale productivity and oversight.
     - **Code Review Threads:** Threaded feedback synced to specific lines of code.
     - **Project Bookmarks:** Share named hotspots across the project for fast context switching.
 - **Analytics Tab:** Monitor team spending and resource usage in real-time.
+</details>
+
+## 📋 Task Board
+
+Track and manage your work with a built-in project management board.
+
+<details>
+<summary><b>View Task Board Features</b></summary>
+
+- **Kanban Board:** Organize tasks into columns (To Do, In Progress, Done).
+- **Drag and Drop:** Move tasks between columns as they progress.
+- **Labels & Priorities:** Tag tasks with labels and set priority levels.
+- **Task Details:** Add descriptions, checklists, due dates, and assignees.
+- **Search & Filter:** Find tasks quickly across the board.
+- **Stay in Context:** Manage your project tasks without leaving the workspace.
+
+### Best for
+- Sprint planning.
+- Personal task management.
+- Small team coordination.
+- Project tracking alongside development.
+
+</details>
+
+## 🔔 Notifications & Inbox
+
+Stay informed about what matters in your workspace.
+
+<details>
+<summary><b>View Notification Features</b></summary>
+
+- **In-App Inbox:** See all your notifications in one place.
+- **Team Activity:** Get alerts for code reviews, mentions, and project updates.
+- **Build & Deploy Notifications:** Know when your builds complete or fail.
+- **Email & SMS Alerts:** Optional notifications sent to your phone or inbox.
+- **Collaboration Requests:** Get notified when teammates invite you to collaborate.
+
+### Best for
+- Keeping up with team activity.
+- Never missing a build failure or review request.
+- Staying connected while away from the workspace.
+
+</details>
+
+## 🔐 Security & Passkeys
+
+Protect your account and your project with modern security tools.
+
+<details>
+<summary><b>View Security Features</b></summary>
+
+- **Passwordless Login:** Use your fingerprint, face ID, or device PIN to sign in.
+- **Passkey Support:** WebAuthn-based passkeys for secure, phishing-resistant authentication.
+- **Vulnerability Scanner:** Automatically check your project dependencies for known security issues.
+- **Safety Playbooks:** Built-in guides for handling security incidents.
+- **Account Management:** Manage sessions, connected devices, and security settings.
+
+### Best for
+- Secure and convenient authentication.
+- Keeping dependencies safe.
+- Security-conscious teams and individuals.
+
+</details>
+
+## 📡 Offline Mode
+
+Keep working even when you lose your internet connection.
+
+<details>
+<summary><b>View Offline Features</b></summary>
+
+- **Work Without Internet:** Edit files, browse your project, and make changes offline.
+- **Automatic Sync:** Changes are saved locally and sync when you reconnect.
+- **Offline AI Assistant:** Basic AI help available even without a connection.
+- **No Data Loss:** Your work is never lost due to a dropped connection.
+- **Progressive Web App:** Install the workspace as an app on your device for the best offline experience.
+
+### Best for
+- Working on flights or commutes.
+- Unreliable internet connections.
+- Uninterrupted productivity anywhere.
+
 </details>
 
 ---
