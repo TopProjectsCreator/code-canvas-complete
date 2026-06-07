@@ -137,6 +137,19 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
       }
     }, []);
 
+    const handleWheel = useCallback(
+      (e: React.WheelEvent<HTMLDivElement>) => {
+        const ta = textareaRef.current;
+        if (!ta) return;
+
+        e.preventDefault();
+        ta.scrollTop += e.deltaY;
+        ta.scrollLeft += e.deltaX;
+        syncScroll();
+      },
+      [syncScroll],
+    );
+
     const handleInput = useCallback(() => {
       const ta = textareaRef.current;
       if (!ta) return;
@@ -181,7 +194,7 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
     const lineCount = content.split("\n").length;
 
     return (
-      <div className="relative flex-1 min-h-0 overflow-hidden">
+      <div className="relative flex-1 min-h-0 overflow-hidden" onWheel={handleWheel}>
         {selectedLine !== null && (
           <div
             className="pointer-events-none absolute inset-x-0 z-0"
