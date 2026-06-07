@@ -111,10 +111,10 @@ function proxySupabase(targetUrl, req, res) {
 }
 
 // Catch-all for /api/supabase/* — proxies to the real Supabase instance
-app.all('/api/supabase/*', (req, res) => {
+app.all('/api/supabase/{*path}', (req, res) => {
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   if (!supabaseUrl) return res.status(500).json({ error: 'VITE_SUPABASE_URL not configured' });
-  const tail = req.params[0];
+  const tail = req.params.path;
   const target = `${supabaseUrl}/${tail}`;
   proxySupabase(target, req, res);
 });
