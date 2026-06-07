@@ -1,7 +1,8 @@
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
-import { DeploymentPlatform } from '@/lib/platform';
+import { DeploymentPlatform, detectDeploymentPlatform } from '@/lib/platform';
+import { BRIDGE_ORIGIN, randomState, stashOutbound } from '@/lib/authBridge';
 
 export type OAuthProvider = 'google';
 
@@ -31,30 +32,8 @@ const common = {
       unsubscribe: () => data.subscription.unsubscribe(),
     };
   },
-  async signUp(email: string, password: string, displayName?: string) {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: {
-          display_name: displayName || email.split('@')[0],
-        },
-      },
-    });
-    return { error };
-  },
   async signIn(email: string, password: string) {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
-  },
-  async signOut() {
-    await supabase.auth.signOut();
-  },
-  async resetPassword(email: string) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin,
-    });
     return { error };
   },
   async getCurrentUser() {
@@ -67,19 +46,98 @@ const lovableProvider: AuthProvider = {
   platform: 'lovable',
   ...common,
   availableOAuthProviders: ['google'],
+  async signUp(email, password, displayName) {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: { display_name: displayName || email.split('@')[0] },
+      },
+    });
+    return { error };
+  },
+  async signOut() {
+    await supabase.auth.signOut();
+  },
+  async resetPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    return { error };
+  },
   async signInWithOAuth(provider) {
     if (provider !== 'google') {
       return { error: new Error(`Provider ${provider} is not available on Lovable auth`) };
     }
-
     const result = await lovable.auth.signInWithOAuth('google', {
       redirect_uri: window.location.origin,
     });
-
     return { error: result.error ?? null };
   },
 };
 
+const buildBridgeUrl = (path: string, params: Record<string, string>): string => {
+  const url = new URL(path, BRIDGE_ORIGIN);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  return url.toString();
+};
+
+const bridgedProvider: AuthProvider = {
+  platform: detectDeploymentPlatform(),
+  ...common,
+  availableOAuthProviders: ['google'],
+  async signUp(email, password, displayName) {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: buildBridgeUrl('/auth-link', {
+          next: `${window.location.origin}/auth-callback`,
+        }),
+        data: { display_name: displayName || email.split('@')[0] },
+      },
+    });
+    return { error };
+  },
+  async signOut() {
+    try {
+      await supabase.auth.signOut();
+    } catch {
+      // ignore — we still redirect through the bridge to clear the lovable session
+    }
+    const logoutUrl = buildBridgeUrl('/auth-logout', {
+      return: `${window.location.origin}/`,
+    });
+    window.location.assign(logoutUrl);
+  },
+  async resetPassword(email) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: buildBridgeUrl('/auth-link', {
+        next: `${window.location.origin}/auth-callback`,
+        type: 'recovery',
+      }),
+    });
+    return { error };
+  },
+  async signInWithOAuth(provider) {
+    if (provider !== 'google') {
+      return { error: new Error(`Provider ${provider} is not available`) };
+    }
+    const state = randomState();
+    const returnUrl = `${window.location.origin}/auth-callback`;
+    const intended = window.location.pathname + window.location.search;
+    stashOutbound(state, returnUrl, intended);
+    const bridgeUrl = buildBridgeUrl('/auth-bridge', {
+      return: returnUrl,
+      state,
+    });
+    window.location.assign(bridgeUrl);
+    return { error: null };
+  },
+};
+
 export const createAuthProvider = (): AuthProvider => {
-  return lovableProvider;
+  const platform = detectDeploymentPlatform();
+  return platform === 'lovable' ? lovableProvider : bridgedProvider;
 };
