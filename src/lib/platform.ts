@@ -1,4 +1,4 @@
-export type DeploymentPlatform = 'replit' | 'lovable' | 'generic' | 'github_codespaces' | 'github_pages';
+export type DeploymentPlatform = 'replit' | 'lovable' | 'generic' | 'github_codespaces' | 'github_pages' | 'discord';
 
 const REPLIT_HOST_PATTERNS = ['.replit.dev', '.repl.co', '.replit.app'];
 const LOVABLE_HOST_PATTERNS = ['.lovable.app', '.lovable.dev'];

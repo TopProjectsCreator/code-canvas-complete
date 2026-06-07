@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { OnboardingProvider } from "@/contexts/OnboardingContext";
 import { OnboardingManager } from "@/components/onboarding/OnboardingManager";
+import { DiscordProvider } from "@/contexts/DiscordContext";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -76,6 +77,7 @@ const App = () => (
           <OfflineDialog />
           <InboxNotifier />
           <OnboardingManager />
+          <DiscordProvider>
           <BrowserRouter basename={getGitHubPagesBasename()}>
             <Routes>
               <Route path="/" element={<RootRoute />} />
@@ -113,6 +115,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          </DiscordProvider>
         </TooltipProvider>
         </OnboardingProvider>
       </ThemeProvider>
