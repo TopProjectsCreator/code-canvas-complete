@@ -641,7 +641,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
   const { updateRichPresence: discordPresence } = useDiscord();
   useEffect(() => {
-    void discordPresence(activeFilePath, selectedTemplate, currentProject?.name || localProjectName, isRunning);
+    const ctx = isRunning ? 'running' : activeFilePath ? 'editing' : 'idle';
+    void discordPresence(activeFilePath, selectedTemplate, currentProject?.name || localProjectName, isRunning, ctx);
   }, [discordPresence, activeFilePath, selectedTemplate, currentProject?.name, localProjectName, isRunning]);
 
   useEffect(() => {

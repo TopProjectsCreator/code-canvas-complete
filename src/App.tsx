@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -39,6 +40,7 @@ import { isPublishedHost } from "./lib/publishing";
 import { getGitHubPagesBasename } from "./lib/github-pages";
 import { OfflineDialog } from "@/components/ide/OfflineDialog";
 import { InboxNotifier } from "@/components/ide/InboxNotifier";
+import { useDiscord } from "@/contexts/DiscordContext";
 
 const queryClient = new QueryClient();
 
@@ -60,10 +62,18 @@ const getLandingVariant = () => {
   return otherVariants[idx] ?? "/landing";
 };
 
+function LandingDiscordUpdater({ children }: { children: React.ReactNode }) {
+  const { updateRichPresence } = useDiscord();
+  useEffect(() => {
+    updateRichPresence(null, null, null, false, 'landing');
+  }, [updateRichPresence]);
+  return <>{children}</>;
+}
+
 const RootRoute = () => {
   if (isPublishedHost()) return <Index />;
   const choice = getLandingVariant();
-  if (choice === "/landing") return <Landing />;
+  if (choice === "/landing") return <LandingDiscordUpdater><Landing /></LandingDiscordUpdater>;
   return <Navigate to={choice} replace />;
 };
 
@@ -82,13 +92,13 @@ const App = () => (
           <BrowserRouter basename={getGitHubPagesBasename()}>
             <Routes>
               <Route path="/" element={<RootRoute />} />
-              <Route path="/landing" element={<Landing />} />
-              <Route path="/landing/living-grid" element={<LivingGrid />} />
-              <Route path="/landing/terminal-boot" element={<TerminalBoot />} />
-              <Route path="/landing/the-void" element={<TheVoid />} />
-              <Route path="/landing/monochrome" element={<MonochromePrecision />} />
-              <Route path="/landing/warm-momentum" element={<WarmMomentum />} />
-              <Route path="/landing/terminal-verdict" element={<TerminalVerdict />} />
+              <Route path="/landing" element={<LandingDiscordUpdater><Landing /></LandingDiscordUpdater>} />
+              <Route path="/landing/living-grid" element={<LandingDiscordUpdater><LivingGrid /></LandingDiscordUpdater>} />
+              <Route path="/landing/terminal-boot" element={<LandingDiscordUpdater><TerminalBoot /></LandingDiscordUpdater>} />
+              <Route path="/landing/the-void" element={<LandingDiscordUpdater><TheVoid /></LandingDiscordUpdater>} />
+              <Route path="/landing/monochrome" element={<LandingDiscordUpdater><MonochromePrecision /></LandingDiscordUpdater>} />
+              <Route path="/landing/warm-momentum" element={<LandingDiscordUpdater><WarmMomentum /></LandingDiscordUpdater>} />
+              <Route path="/landing/terminal-verdict" element={<LandingDiscordUpdater><TerminalVerdict /></LandingDiscordUpdater>} />
               <Route path="/home" element={<Index />} />
               <Route path="/editor" element={<Index />} />
               <Route path="/project/:projectId" element={<Index />} />

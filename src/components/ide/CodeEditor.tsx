@@ -12,6 +12,7 @@ import { ZipEditor } from "./ZipEditor";
 import { IpynbViewer } from "./IpynbViewer";
 import { MarkdownComposer } from "./MarkdownComposer";
 import { PDFEditor } from "./PDFEditor";
+import { EpubViewer } from "./EpubViewer";
 import { TexEditor } from "./TexEditor";
 import { MermaidEditor } from "./MermaidEditor";
 import { Badge } from "@/components/ui/badge";
@@ -274,6 +275,7 @@ export const CodeEditor = ({
   if (previewType === "draw") return <DrawEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "office") return <OfficeEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "pdf") return <PDFEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === "epub") return <EpubViewer file={file} onContentChange={onContentChange} />;
   if (previewType === "tex") return <TexEditor file={file} onContentChange={onContentChange} allFiles={allFiles} />;
   if (previewType === "mermaid") return <MermaidEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "video") return <VideoEditor file={file} onContentChange={onContentChange} />;

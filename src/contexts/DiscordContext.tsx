@@ -11,7 +11,7 @@ interface DiscordContextType {
   guildAvatar: string | null;
   initialized: boolean;
   initError: string | null;
-  updateRichPresence: (fileName?: string | null, language?: string | null, projectName?: string | null, isRunning?: boolean) => Promise<void>;
+  updateRichPresence: (fileName?: string | null, language?: string | null, projectName?: string | null, isRunning?: boolean, context?: 'landing' | 'editing' | 'running' | 'idle') => Promise<void>;
 }
 
 const DiscordContext = createContext<DiscordContextType>({
@@ -38,8 +38,8 @@ export const DiscordProvider = ({ children }: { children: ReactNode }) => {
   const discordSdkRef = useRef<DiscordSDK | null>(null);
   const authRef = useRef<any>(null);
 
-  const updatePresence = useCallback(async (fileName?: string | null, language?: string | null, projectName?: string | null, isRunning?: boolean) => {
-    await updateRichPresence(fileName, language, projectName, isRunning);
+  const updatePresence = useCallback(async (fileName?: string | null, language?: string | null, projectName?: string | null, isRunning?: boolean, context?: 'landing' | 'editing' | 'running' | 'idle') => {
+    await updateRichPresence(fileName, language, projectName, isRunning, context);
   }, []);
 
   useEffect(() => {

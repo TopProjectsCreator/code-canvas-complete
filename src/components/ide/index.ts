@@ -20,3 +20,4 @@ export { SettingsDialog } from './SettingsDialog';
 
 export { AdvancedWorkbench } from './AdvancedWorkbench';
 export { IpynbViewer } from './IpynbViewer';
+export { EpubViewer } from './EpubViewer';

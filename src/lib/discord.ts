@@ -45,12 +45,60 @@ export function getActivityStartTime(): number {
   return activityStartTime;
 }
 
-export async function updateRichPresence(fileName?: string | null, language?: string | null, projectName?: string | null, isRunning?: boolean): Promise<void> {
+export interface DiscordPresenceConfig {
+  showElapsedTime: boolean;
+  landing: { enabled: boolean; details: string; state: string };
+  editing: { enabled: boolean; details: string; state: string };
+  running: { enabled: boolean; details: string; state: string };
+}
+
+const DISCORD_STORAGE_KEY = 'discordPresence';
+
+export function defaultPresenceConfig(): DiscordPresenceConfig {
+  return {
+    showElapsedTime: true,
+    landing: { enabled: true, details: 'Canvas IDE', state: 'Looking at home' },
+    editing: { enabled: false, details: 'Editing {fileName}', state: 'Working in {language}' },
+    running: { enabled: false, details: 'Running {fileName}', state: 'Executing' },
+  };
+}
+
+export function loadDiscordPresenceConfig(): DiscordPresenceConfig {
+  if (typeof window === 'undefined') return defaultPresenceConfig();
+  try {
+    const raw = window.localStorage.getItem(DISCORD_STORAGE_KEY);
+    if (!raw) return defaultPresenceConfig();
+    return { ...defaultPresenceConfig(), ...JSON.parse(raw) };
+  } catch {
+    return defaultPresenceConfig();
+  }
+}
+
+export function saveDiscordPresenceConfig(config: DiscordPresenceConfig): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(DISCORD_STORAGE_KEY, JSON.stringify(config));
+}
+
+export async function updateRichPresence(
+  fileName?: string | null,
+  language?: string | null,
+  projectName?: string | null,
+  isRunning?: boolean,
+  context?: 'landing' | 'editing' | 'running' | 'idle'
+): Promise<void> {
+  const settings = loadDiscordPresenceConfig();
   const label = language ? (formatLanguage(language) || language) : null;
   let details: string;
   let state: string;
 
-  if (isRunning) {
+  if (context && settings[context]?.enabled) {
+    const substitute = (s: string) =>
+      s.replace(/{fileName}/g, fileName || '')
+       .replace(/{language}/g, label || language || '')
+       .replace(/{projectName}/g, projectName || '');
+    details = substitute(settings[context].details);
+    state = substitute(settings[context].state);
+  } else if (isRunning) {
     details = `Running ${fileName || projectName || "code"}`;
     state = label ? `${label} — Executing` : "Executing";
   } else if (fileName) {
@@ -68,7 +116,7 @@ export async function updateRichPresence(fileName?: string | null, language?: st
     type: 0,
     details,
     state,
-    timestamps: { start: getActivityStartTime() },
+    ...(settings.showElapsedTime ? { timestamps: { start: getActivityStartTime() } } : {}),
   });
 }
 

@@ -2,7 +2,7 @@ export type PreviewType =
   | "image" | "markdown" | "svg" | "video" | "audio"
   | "csv" | "office" | "cad" | "rtf" | "zip" | "sqlite"
   | "mermaid" | "ipynb" | "draw" | "pdf" | "tex" | "scratch"
-  | "font" | null;
+  | "font" | "epub" | null;
 
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "gif", "webp", "ico", "bmp"];
 const VIDEO_EXTS = ["mp4", "webm", "mov", "avi", "mkv", "ogv", "ogg"];
@@ -20,6 +20,7 @@ export const TEXT_EXTENSIONS = new Set([
 export function getPreviewType(fileName: string): PreviewType {
   const ext = fileName.split(".").pop()?.toLowerCase();
   if (ext === "pdf") return "pdf";
+  if (ext === "epub") return "epub";
   if (ext === "tex" || ext === "latex" || ext === "ltx") return "tex";
   if (ext === "draw") return "draw";
   if (ext === "rtf") return "rtf";
