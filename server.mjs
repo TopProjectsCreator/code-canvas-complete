@@ -170,7 +170,7 @@ function proxySupabase(targetUrl, req, res) {
 app.all('/api/supabase/{*path}', (req, res) => {
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   if (!supabaseUrl) return res.status(500).json({ error: 'VITE_SUPABASE_URL not configured' });
-  const tail = req.params.path;
+  const tail = Array.isArray(req.params.path) ? req.params.path.join('/') : req.params.path;
   const target = `${supabaseUrl}/${tail}`;
   proxySupabase(target, req, res);
 });

@@ -18,9 +18,32 @@ const customFetch: typeof fetch = isDiscordIframe
     }
   : fetch;
 
+function getAuthStorage() {
+  if (typeof window === 'undefined') return localStorage;
+  try {
+    localStorage.setItem('__test__', '1');
+    localStorage.removeItem('__test__');
+    return localStorage;
+  } catch {
+    const prefix = 'sb-';
+    return {
+      getItem: (key: string) => {
+        const match = document.cookie.match(new RegExp(`(^| )${prefix}${key}=([^;]+)`));
+        return match ? decodeURIComponent(match[2]) : null;
+      },
+      setItem: (key: string, value: string) => {
+        document.cookie = `${prefix}${key}=${encodeURIComponent(value)}; path=/; SameSite=None; Secure; Partitioned; max-age=31536000`;
+      },
+      removeItem: (key: string) => {
+        document.cookie = `${prefix}${key}=; path=/; SameSite=None; Secure; Partitioned; max-age=0`;
+      },
+    };
+  }
+}
+
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: getAuthStorage(),
     persistSession: true,
     autoRefreshToken: true,
   },
