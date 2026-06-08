@@ -6,10 +6,14 @@ let _isInitialized = false;
 
 export function isInDiscord(): boolean {
   try {
-    return window.self !== window.top;
+    if (window.self === window.top) return false;
   } catch {
-    return true;
+    return false;
   }
+  const ref = document.referrer || '';
+  if (ref.includes('discord.com') || ref.includes('discordapp.com')) return true;
+  const params = new URLSearchParams(window.location.search);
+  return params.has('frame_id');
 }
 
 export function getDiscordSdk(): DiscordSDK | null {
