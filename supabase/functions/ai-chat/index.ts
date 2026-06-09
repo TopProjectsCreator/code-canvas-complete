@@ -1288,15 +1288,15 @@ serve(async (req) => {
     let userId: string | null = replitUserId;
 
     if (!replitUserId) {
-      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) {
+      const { data: userData, error: userError } = await supabase.auth.getUser(token);
+      if (userError || !userData?.user) {
         return new Response(JSON.stringify({ error: "Invalid session." }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      userId = claimsData.claims.sub;
+      userId = userData.user.id;
     }
     const {
       messages,

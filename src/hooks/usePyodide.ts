@@ -128,6 +128,9 @@ export const usePyodide = () => {
   const load = useCallback(async () => { await loadPyodideInternal(); }, []);
 
   const runPython = useCallback(async (code: string, stdin?: string): Promise<PyRunResult> => {
+    if (!navigator.onLine && !pyodideInstance) {
+      throw new Error('Cannot load Pyodide while offline — Pyodide assets are not cached yet. Visit once while online so Pyodide is cached for offline use.');
+    }
     const py = await loadPyodideInternal();
     const stdout: string[] = [];
     const stderr: string[] = [];

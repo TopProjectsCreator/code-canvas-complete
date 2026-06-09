@@ -2,7 +2,7 @@ import { EffectComposer, Bloom, SSAO } from '@react-three/postprocessing'
 
 export function PostProcessing() {
   return (
-    <EffectComposer multisampling={4}>
+    <EffectComposer multisampling={4} enableNormalPass>
       <SSAO
         intensity={0.5}
         radius={0.1}

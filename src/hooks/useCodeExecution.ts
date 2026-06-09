@@ -241,8 +241,15 @@ export const useCodeExecution = () => {
                 error: result.exitCode === 0 ? null : 'Python execution failed',
                 executedAt: new Date().toISOString(),
               };
-            } catch {
-              // Pyodide failed — fall through to Replit backend
+            } catch (err) {
+              if (!navigator.onLine) {
+                return {
+                  output: [],
+                  error: `📡 Offline and Pyodide failed to load. ${err instanceof Error ? err.message : 'Please connect to the internet first so Pyodide can be cached for offline use.'}`,
+                  executedAt: new Date().toISOString(),
+                };
+              }
+              // Pyodide failed while online — fall through to Replit backend
             }
           }
         }

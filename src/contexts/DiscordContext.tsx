@@ -96,7 +96,10 @@ export const DiscordProvider = ({ children }: { children: ReactNode }) => {
       setInitialized(true);
     }
 
-    setup();
+    setup().catch((err) => {
+      console.warn('[Discord] Setup failed:', err);
+      setInitialized(true);
+    });
     return () => { cancelled = true; };
   }, []);
 

@@ -9,6 +9,8 @@ const corsHeaders = {
 interface EmailRequest {
   provider: 'resend' | 'mailgun' | 'postmark' | 'twilio';
   apiKey: string;
+  accountSid?: string;
+  authToken?: string;
   from: string;
   to: string;
   subject: string;
@@ -71,6 +73,23 @@ async function sendViaPostmark(req: EmailRequest): Promise<Response> {
 }
 
 async function sendViaTwilio(req: EmailRequest): Promise<Response> {
+  if (req.accountSid) {
+    // Twilio SMS
+    const auth = btoa(`${req.accountSid}:${req.authToken}`);
+    const form = new URLSearchParams();
+    form.set('From', req.from);
+    form.set('To', req.to);
+    form.set('Body', req.subject);
+    return fetch(`https://api.twilio.com/2010-04-01/Accounts/${req.accountSid}/Messages.json`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: form.toString(),
+    });
+  }
+  // Twilio SendGrid email
   return fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
     headers: {
@@ -106,8 +125,8 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } },
     );
     const token = authHeader.replace('Bearer ', '');
-    const { data: claims, error: authError } = await supabase.auth.getClaims(token);
-    if (authError || !claims?.claims) {
+    const { data: userData, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !userData?.user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -115,9 +134,11 @@ serve(async (req) => {
     }
 
     const body: EmailRequest = await req.json();
-    const { provider, apiKey, from, to, subject, html } = body;
+    const { provider, apiKey, accountSid, authToken, from, to, subject, html } = body;
 
-    if (!provider || !apiKey || !to || !subject) {
+    const hasEmail = !!(apiKey && subject && html);
+    const hasSms = !!(accountSid && authToken);
+    if (!provider || !to || !(hasEmail || hasSms)) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -139,7 +160,7 @@ serve(async (req) => {
       });
     }
 
-    const response = await sender({ provider, apiKey, from, to, subject, html });
+    const response = await sender({ provider, apiKey, accountSid, authToken, from, to, subject, html });
     const responseBody = await response.text();
 
     if (!response.ok && response.status !== 202) {

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { CadLayout } from './layout/CadLayout'
 import { useCADStore } from './store'
 import type { CadDocument } from './types'
+import { createDemoDocument } from './demo/createDemoDocument'
 
 interface CadEditorProps {
   file: { id: string; name: string; content?: string }
@@ -23,7 +24,9 @@ export function CadEditor({ file, onContentChange }: CadEditorProps) {
         useCADStore.getState().resetDoc()
       }
     } else {
-      useCADStore.getState().resetDoc()
+      const demo = createDemoDocument()
+      demo.metadata.name = file.name
+      loadDoc(demo, file.name)
     }
   }, [file.id])
 

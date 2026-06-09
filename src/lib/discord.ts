@@ -200,7 +200,9 @@ export async function initDiscordSdk(): Promise<boolean> {
 
     _isInitialized = true;
 
-    updateRichPresence(null, null, null, false);
+    updateRichPresence(null, null, null, false).catch((err) => {
+      console.warn('[Discord] Initial presence update failed:', err);
+    });
 
     return true;
   } catch (err) {

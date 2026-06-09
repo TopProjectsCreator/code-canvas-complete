@@ -1,4 +1,5 @@
 import { useThree } from '@react-three/fiber'
+import { Html } from '@react-three/drei'
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useCADStore } from '../store'
 import * as THREE from 'three'
@@ -95,14 +96,16 @@ export function SelectionFrustum() {
   const scaleY = rect.height / 2
 
   return (
-    <div
-      className="absolute pointer-events-none z-10 border-2 border-blue-500 bg-blue-500/10"
-      style={{
-        left: `${(box.x + 1) * scaleX}px`,
-        top: `${(-box.y + 1) * scaleY}px`,
-        width: `${box.w * scaleX}px`,
-        height: `${box.h * scaleY}px`,
-      }}
-    />
+    <Html transform={false}>
+      <div
+        className="absolute pointer-events-none z-10 border-2 border-blue-500 bg-blue-500/10"
+        style={{
+          left: `${(box.x + 1) * scaleX}px`,
+          top: `${(-box.y + 1) * scaleY}px`,
+          width: `${box.w * scaleX}px`,
+          height: `${box.h * scaleY}px`,
+        }}
+      />
+    </Html>
   )
 }

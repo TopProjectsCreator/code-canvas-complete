@@ -115,6 +115,8 @@ export function useNotifications() {
           body: JSON.stringify({
             provider: settings.emailProvider,
             apiKey: settings.emailApiKey,
+            accountSid: settings.smsAccountSid || undefined,
+            authToken: settings.smsAuthToken || undefined,
             from: settings.emailFrom || 'noreply@ide.app',
             to,
             subject,
@@ -128,6 +130,8 @@ export function useNotifications() {
           body: {
             provider: settings.emailProvider,
             apiKey: settings.emailApiKey,
+            accountSid: settings.smsAccountSid || undefined,
+            authToken: settings.smsAuthToken || undefined,
             from: settings.emailFrom || 'noreply@ide.app',
             to,
             subject,

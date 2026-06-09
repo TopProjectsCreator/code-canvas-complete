@@ -36,6 +36,18 @@ export default defineConfig(({ mode }) => ({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      '/api/supabase': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/api/token': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+      '/api/discord': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
   plugins: [
@@ -58,6 +70,14 @@ export default defineConfig(({ mode }) => ({
             urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
             handler: "CacheFirst",
             options: { cacheName: "gstatic-fonts-cache", expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 } },
+          },
+          {
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/pyodide\/.*/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "pyodide-cache",
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
           },
         ],
       },

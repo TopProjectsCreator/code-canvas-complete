@@ -728,18 +728,36 @@ function firstSavedProvider(uid) {
 app.post('/api/replit/send-collab-notification', async (req, res) => {
   const uid = getReplitUserId(req);
   if (!uid) return res.status(401).json({ error: 'Not authenticated' });
-  const { provider, apiKey, from, to, subject, html } = req.body || {};
-  if (!provider || !apiKey || !to || !subject || !html) return res.status(400).json({ error: 'Missing required fields' });
+  const { provider, apiKey, accountSid, authToken, from, to, subject, html } = req.body || {};
+  const hasEmail = !!(apiKey && subject && html);
+  const hasSms = !!(accountSid && authToken);
+  if (!provider || !to || !(hasEmail || hasSms)) return res.status(400).json({ error: 'Missing required fields' });
   try {
     if (provider === 'twilio') {
-      const body = new URLSearchParams({ From: from || '', To: to, Body: subject });
-      const auth = Buffer.from(`${provider}:${apiKey}`).toString('base64');
-      const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${from}/Messages.json`, {
-        method: 'POST',
-        headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      });
-      if (!r.ok) throw new Error(await r.text());
+      if (accountSid) {
+        // Twilio SMS
+        const params = new URLSearchParams({ From: from || '', To: to, Body: subject });
+        const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+        const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+          method: 'POST',
+          headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params,
+        });
+        if (!r.ok) throw new Error(await r.text());
+      } else {
+        // Twilio SendGrid email
+        const r = await fetch('https://api.sendgrid.com/v3/mail/send', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email: to }] }],
+            from: { email: from },
+            subject,
+            content: [{ type: 'text/html', value: html }],
+          }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+      }
     } else if (provider === 'resend') {
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -840,7 +858,8 @@ app.post('/api/replit/ai/identify-part', async (req, res) => {
   if (!uid) return res.status(401).json({ error: 'Not authenticated' });
   const { partName, platform, vendorUrl } = req.body || {};
   const provider = firstSavedProvider(uid);
-  const apiKey = provider ? _aiKeys[uid][provider] : null;
+  const keyData = provider ? _aiKeys[uid][provider] : null;
+  const apiKey = keyData?.api_key || null;
   if (!apiKey) return res.status(400).json({ error: 'No AI API key configured' });
   const prompt = `Identify this part for ${platform || 'general'} use.\nName: ${partName}\nVendor URL: ${vendorUrl || 'n/a'}\nReturn JSON with fields description, manufacturer, partNumber, category, specifications, compatibleWith, tips.`;
   try {

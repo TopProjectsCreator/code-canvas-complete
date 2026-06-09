@@ -41,6 +41,8 @@ if (isPreviewHost || isInIframe) {
     }
 
     window.sessionStorage.removeItem(previewCacheResetKey);
+  }).catch((err) => {
+    console.warn('Failed to unregister service workers:', err);
   });
 } else if (!isGitHubPages) {
   if ("serviceWorker" in navigator) {

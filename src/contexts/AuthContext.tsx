@@ -69,31 +69,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const subscription = authProvider.onAuthStateChange(async (event, nextSession) => {
-      setSession(nextSession);
-      setUser(nextSession?.user ?? null);
+      try {
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
 
-      if (nextSession?.user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', nextSession.user.id)
-          .single();
-
-        // Auto-cancel scheduled deletion on explicit sign-in
-        if (event === 'SIGNED_IN' && profileData?.deletion_scheduled_at) {
-          await supabase
+        if (nextSession?.user) {
+          const { data: profileData } = await supabase
             .from('profiles')
-            .update({ deletion_scheduled_at: null })
-            .eq('user_id', nextSession.user.id);
-          profileData.deletion_scheduled_at = null;
+            .select('*')
+            .eq('user_id', nextSession.user.id)
+            .single();
+
+          // Auto-cancel scheduled deletion on explicit sign-in
+          if (event === 'SIGNED_IN' && profileData?.deletion_scheduled_at) {
+            await supabase
+              .from('profiles')
+              .update({ deletion_scheduled_at: null })
+              .eq('user_id', nextSession.user.id);
+            profileData.deletion_scheduled_at = null;
+          }
+
+          setProfile(profileData);
+        } else {
+          setProfile(null);
         }
-
-        setProfile(profileData);
-      } else {
-        setProfile(null);
+      } catch (err) {
+        console.error('Auth state change error:', err);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     });
 
     authProvider.getSession().then(({ session: initialSession }) => {
@@ -109,10 +113,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .then(({ data: profileData }) => {
             setProfile(profileData);
             setLoading(false);
+          })
+          .catch((err) => {
+            console.error('Failed to fetch profile:', err);
+            setLoading(false);
           });
       } else {
         setLoading(false);
       }
+    }).catch((err) => {
+      console.error('Failed to get session:', err);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();

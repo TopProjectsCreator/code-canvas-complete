@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import JSZip from 'jszip';
-import ePub, { Book, Rendition } from 'epubjs';
+import { Epub, Rendition } from 'epubjs';
 import { decodeDataUrl } from './office/officeUtils';
 
 interface EpubViewerProps {
@@ -42,7 +42,7 @@ export const EpubViewer = ({ file, onContentChange }: EpubViewerProps) => {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const renditionRef = useRef<Rendition | null>(null);
-  const bookRef = useRef<Book | null>(null);
+  const bookRef = useRef<Epub | null>(null);
   const blobUrlsRef = useRef<string[]>([]);
 
   useEffect(() => {
@@ -92,7 +92,7 @@ export const EpubViewer = ({ file, onContentChange }: EpubViewerProps) => {
         const opfEntry = zip.file(opfPath);
         if (!opfEntry) throw new Error('Invalid EPUB: OPF file not found');
 
-        const book = new Book();
+        const book = new Epub();
         bookRef.current = book;
 
         const isXmlType = (ext: string) => ['xml', 'opf', 'ncx'].includes(ext);
@@ -103,8 +103,12 @@ export const EpubViewer = ({ file, onContentChange }: EpubViewerProps) => {
         };
 
         book.request = async (url: string, type: string) => {
-          const relPath = url.startsWith(opfDir) ? url.slice(opfDir.length) : url;
-          const fileKey = files.has(relPath) ? relPath : files.has(url) ? url : null;
+          let normalizedUrl = url;
+          try {
+            normalizedUrl = new URL(url).pathname.replace(/^\//, '');
+          } catch {}
+          const relPath = normalizedUrl.startsWith(opfDir) ? normalizedUrl.slice(opfDir.length) : normalizedUrl;
+          const fileKey = files.has(relPath) ? relPath : files.has(normalizedUrl) ? normalizedUrl : null;
 
           if (!fileKey) throw new Error(`Resource not found: ${url}`);
           const entry = files.get(fileKey)!;
@@ -421,6 +425,6 @@ function buildToc(navItems: any[]): TocItem[] {
   return navItems.map((item: any) => ({
     label: item.label || '',
     href: item.href || '',
-    subitems: item.subitems ? buildToc(item.subitems) : undefined,
+    subitems: item.children ? buildToc(item.children) : undefined,
   }));
 }

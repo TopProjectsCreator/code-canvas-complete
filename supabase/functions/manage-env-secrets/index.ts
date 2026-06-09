@@ -6,9 +6,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const encrypt = async (plainText: string) => {
-  const data = new TextEncoder().encode(plainText);
-  return btoa(String.fromCharCode(...data));
+async function getKey(): Promise<CryptoKey> {
+  const raw = Deno.env.get('ENCRYPTION_KEY');
+  if (!raw) throw new Error('ENCRYPTION_KEY environment variable is not set');
+  const keyMaterial = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
+  return crypto.subtle.importKey('raw', keyMaterial, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+const encrypt = async (plainText: string): Promise<string> => {
+  const key = await getKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    key,
+    new TextEncoder().encode(plainText),
+  );
+  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+  return btoa(String.fromCharCode(...combined));
 };
 
 serve(async (req) => {
