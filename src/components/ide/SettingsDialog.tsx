@@ -127,6 +127,9 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
   // Appearance sub-view state
   type AppearanceView = 'main' | 'creator' | 'library' | { type: 'edit'; theme: CustomTheme };
   const [appearanceView, setAppearanceView] = useState<AppearanceView>('main');
+
+  type ConnectionsView = 'main' | { app: string };
+  const [connectionsView, setConnectionsView] = useState<ConnectionsView>('main');
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   // Editor settings state
@@ -392,7 +395,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
         </DialogHeader>
 
         <Tabs defaultValue={defaultTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="profile" className="gap-1 text-xs">
               <User className="w-3.5 h-3.5" /> Profile
             </TabsTrigger>
@@ -407,9 +410,6 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
             </TabsTrigger>
             <TabsTrigger value="editor" className="gap-1 text-xs">
               <Keyboard className="w-3.5 h-3.5" /> Editor
-            </TabsTrigger>
-            <TabsTrigger value="discord" className="gap-1 text-xs">
-              <Gamepad2 className="w-3.5 h-3.5" /> Discord
             </TabsTrigger>
           </TabsList>
 
@@ -479,6 +479,164 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
 
               <div className="border-t border-border pt-4">
                 <PasskeySettings />
+              </div>
+
+              {/* Connections section */}
+              <div className="border-t border-border pt-4">
+                <h4 className="text-sm font-medium mb-3">Connections</h4>
+                {connectionsView === 'main' ? (
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => setConnectionsView({ app: 'discord' })}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-accent transition-colors text-left"
+                    >
+                      <Gamepad2 className="w-5 h-5 text-[#5865F2]" />
+                      <div>
+                        <p className="text-sm font-medium">Discord</p>
+                        <p className="text-xs text-muted-foreground">Rich Presence activity status</p>
+                      </div>
+                    </button>
+                  </div>
+                ) : connectionsView.app === 'discord' ? (
+                  <div className="space-y-4">
+                    <button
+                      onClick={() => setConnectionsView('main')}
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      ← Back to Connections
+                    </button>
+                    {!isInDiscord() ? (
+                      <p className="text-sm text-muted-foreground py-8 text-center">
+                        Discord Rich Presence is only available when running as a Discord Activity.
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        <h5 className="text-sm font-medium">Rich Presence</h5>
+
+                        <label className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Show elapsed time</span>
+                          <input
+                            type="checkbox"
+                            checked={discordConfig.showElapsedTime}
+                            onChange={(e) => handleDiscordConfigChange({ showElapsedTime: e.target.checked })}
+                            className="accent-primary"
+                          />
+                        </label>
+
+                        <div className="border-t border-border pt-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-sm font-medium">Landing Page</h5>
+                            <label className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Custom</span>
+                              <input
+                                type="checkbox"
+                                checked={discordConfig.landing.enabled}
+                                onChange={(e) => handleDiscordSectionChange('landing', 'enabled', e.target.checked)}
+                                className="accent-primary"
+                              />
+                            </label>
+                          </div>
+                          {discordConfig.landing.enabled && (
+                            <div className="space-y-2 pl-2 border-l-2 border-border">
+                              <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Details</label>
+                                <input
+                                  type="text"
+                                  value={discordConfig.landing.details}
+                                  onChange={(e) => handleDiscordSectionChange('landing', 'details', e.target.value)}
+                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">State</label>
+                                <input
+                                  type="text"
+                                  value={discordConfig.landing.state}
+                                  onChange={(e) => handleDiscordSectionChange('landing', 'state', e.target.value)}
+                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="border-t border-border pt-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-sm font-medium">Editing Files</h5>
+                            <label className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Custom</span>
+                              <input
+                                type="checkbox"
+                                checked={discordConfig.editing.enabled}
+                                onChange={(e) => handleDiscordSectionChange('editing', 'enabled', e.target.checked)}
+                                className="accent-primary"
+                              />
+                            </label>
+                          </div>
+                          {discordConfig.editing.enabled && (
+                            <div className="space-y-2 pl-2 border-l-2 border-border">
+                              <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Details</label>
+                                <input
+                                  type="text"
+                                  value={discordConfig.editing.details}
+                                  onChange={(e) => handleDiscordSectionChange('editing', 'details', e.target.value)}
+                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">State</label>
+                                <input
+                                  type="text"
+                                  value={discordConfig.editing.state}
+                                  onChange={(e) => handleDiscordSectionChange('editing', 'state', e.target.value)}
+                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="border-t border-border pt-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <h5 className="text-sm font-medium">Running Code</h5>
+                            <label className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">Custom</span>
+                              <input
+                                type="checkbox"
+                                checked={discordConfig.running.enabled}
+                                onChange={(e) => handleDiscordSectionChange('running', 'enabled', e.target.checked)}
+                                className="accent-primary"
+                              />
+                            </label>
+                          </div>
+                          {discordConfig.running.enabled && (
+                            <div className="space-y-2 pl-2 border-l-2 border-border">
+                              <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">Details</label>
+                                <input
+                                  type="text"
+                                  value={discordConfig.running.details}
+                                  onChange={(e) => handleDiscordSectionChange('running', 'details', e.target.value)}
+                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs text-muted-foreground">State</label>
+                                <input
+                                  type="text"
+                                  value={discordConfig.running.state}
+                                  onChange={(e) => handleDiscordSectionChange('running', 'state', e.target.value)}
+                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
 
               <div className="border-t border-border pt-4">
@@ -993,139 +1151,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
               </div>
             </TabsContent>
 
-            {/* Discord Rich Presence Tab */}
-            <TabsContent value="discord" className="space-y-4 mt-0">
-              {!isInDiscord() ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">
-                  Discord Rich Presence is only available when running as a Discord Activity.
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium">Rich Presence</h4>
 
-                  <label className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Show elapsed time</span>
-                    <input
-                      type="checkbox"
-                      checked={discordConfig.showElapsedTime}
-                      onChange={(e) => handleDiscordConfigChange({ showElapsedTime: e.target.checked })}
-                      className="accent-primary"
-                    />
-                  </label>
-
-                  <div className="border-t border-border pt-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h5 className="text-sm font-medium">Landing Page</h5>
-                      <label className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Custom</span>
-                        <input
-                          type="checkbox"
-                          checked={discordConfig.landing.enabled}
-                          onChange={(e) => handleDiscordSectionChange('landing', 'enabled', e.target.checked)}
-                          className="accent-primary"
-                        />
-                      </label>
-                    </div>
-                    {discordConfig.landing.enabled && (
-                      <div className="space-y-2 pl-2 border-l-2 border-border">
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Details</label>
-                          <input
-                            type="text"
-                            value={discordConfig.landing.details}
-                            onChange={(e) => handleDiscordSectionChange('landing', 'details', e.target.value)}
-                            className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">State</label>
-                          <input
-                            type="text"
-                            value={discordConfig.landing.state}
-                            onChange={(e) => handleDiscordSectionChange('landing', 'state', e.target.value)}
-                            className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-border pt-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h5 className="text-sm font-medium">Editing Files</h5>
-                      <label className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Custom</span>
-                        <input
-                          type="checkbox"
-                          checked={discordConfig.editing.enabled}
-                          onChange={(e) => handleDiscordSectionChange('editing', 'enabled', e.target.checked)}
-                          className="accent-primary"
-                        />
-                      </label>
-                    </div>
-                    {discordConfig.editing.enabled && (
-                      <div className="space-y-2 pl-2 border-l-2 border-border">
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Details</label>
-                          <input
-                            type="text"
-                            value={discordConfig.editing.details}
-                            onChange={(e) => handleDiscordSectionChange('editing', 'details', e.target.value)}
-                            className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">State</label>
-                          <input
-                            type="text"
-                            value={discordConfig.editing.state}
-                            onChange={(e) => handleDiscordSectionChange('editing', 'state', e.target.value)}
-                            className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="border-t border-border pt-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h5 className="text-sm font-medium">Running Code</h5>
-                      <label className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">Custom</span>
-                        <input
-                          type="checkbox"
-                          checked={discordConfig.running.enabled}
-                          onChange={(e) => handleDiscordSectionChange('running', 'enabled', e.target.checked)}
-                          className="accent-primary"
-                        />
-                      </label>
-                    </div>
-                    {discordConfig.running.enabled && (
-                      <div className="space-y-2 pl-2 border-l-2 border-border">
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">Details</label>
-                          <input
-                            type="text"
-                            value={discordConfig.running.details}
-                            onChange={(e) => handleDiscordSectionChange('running', 'details', e.target.value)}
-                            className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs text-muted-foreground">State</label>
-                          <input
-                            type="text"
-                            value={discordConfig.running.state}
-                            onChange={(e) => handleDiscordSectionChange('running', 'state', e.target.value)}
-                            className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </TabsContent>
           </div>
         </Tabs>
       </DialogContent>
