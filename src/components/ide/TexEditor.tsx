@@ -57,7 +57,6 @@ function envToHtml(env: string, body: string): string {
   const e = env.replace(/\*$/, '');
   if (MATH_TAGS.some((t) => t === env)) {
     try {
-      const katex = katex;
       return katex.renderToString(body, { displayMode: true, throwOnError: false });
     } catch {
       return `<div class="text-red-400 font-mono text-xs">[LaTeX error in ${env}]</div>`;
@@ -243,7 +242,7 @@ function inlineCommands(text: string): string {
     const e = env.replace(/\*$/, '');
     if (MATH_TAGS.some((t) => t === env)) {
       try {
-        const katex = katex;
+
         return katex.renderToString(preprocessLatexForKatex(body), { displayMode: true, throwOnError: false });
       } catch {
         return `<span class="text-red-400">[${env} error]</span>`;
@@ -268,7 +267,6 @@ function inlineCommands(text: string): string {
 
   result = result.replace(/\$\$([\s\S]*?)\$\$/g, (_, math) => {
     try {
-      const katex = katex;
       return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
     } catch {
       return `<span class="text-red-400">[math error]</span>`;
@@ -278,7 +276,6 @@ function inlineCommands(text: string): string {
   result = result.replace(/\$([^$\n]+?)\$/g, (_, math) => {
     if (math.trim().length === 0) return `$${math}$`;
     try {
-      const katex = katex;
       return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
     } catch {
       return `$${math}$`;
@@ -287,7 +284,6 @@ function inlineCommands(text: string): string {
 
   result = result.replace(/\\\(([\s\S]*?)\\\)/g, (_, math) => {
     try {
-      const katex = katex;
       return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
     } catch {
       return `\\(${math}\\)`;
@@ -296,7 +292,6 @@ function inlineCommands(text: string): string {
 
   result = result.replace(/\\\[([\s\S]*?)\\\]/g, (_, math) => {
     try {
-      const katex = katex;
       return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
     } catch {
       return `\\[${math}\\]`;
