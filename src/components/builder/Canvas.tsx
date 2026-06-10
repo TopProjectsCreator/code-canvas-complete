@@ -117,6 +117,11 @@ function RenderNode({ node, depth }: { node: UINode; depth: number }) {
   }
 
   const Comp = config.component;
+
+  if (config.isVoid) {
+    return <Comp {...node.props} className={undefined} />;
+  }
+
   const children = node.children.length > 0 ? (
     <NodeList nodes={node.children} parentId={node.id} depth={depth + 1} />
   ) : null;
