@@ -1,10 +1,8 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
-  Heading1, FunctionSquare, Radical, Superscript, Subscript,
+  FunctionSquare, Radical, Superscript, Subscript,
   Sigma, Pi, Variable, Bold, Italic, Underline as UnderlineIcon,
-  Code2, Link, List, ListOrdered, Table, Image,
-  Quote, WrapText, Hash, Infinity as InfinityIcon, ArrowRight,
-  Braces, Square, Search, Type,
+  Code2, Hash, Infinity as InfinityIcon, Braces, Square, Type,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -18,8 +16,7 @@ import {
 } from "./latexData";
 
 interface TexToolbarProps {
-  onInsert: (text: string, cursorOffset?: number) => void;
-  editorRef: React.RefObject<HTMLDivElement | null>;
+  onInsert: (text: string) => void;
 }
 
 function ToolbarButton({ icon: Icon, tooltip, onClick }: {
@@ -39,7 +36,7 @@ function ToolbarButton({ icon: Icon, tooltip, onClick }: {
   );
 }
 
-function SearchableCommandDropdown({ items, label, icon: Icon, onSelect }: {
+function SearchableDropdown({ items, label, icon: Icon, onSelect }: {
   items: LatexCommand[];
   label: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -80,11 +77,7 @@ function SearchableCommandDropdown({ items, label, icon: Icon, onSelect }: {
               {filtered.map((item) => (
                 <CommandItem
                   key={item.command}
-                  onSelect={() => {
-                    onSelect(item);
-                    setOpen(false);
-                    setSearch("");
-                  }}
+                  onSelect={() => { onSelect(item); setOpen(false); setSearch(""); }}
                   className="flex items-center gap-2"
                 >
                   <code className="text-xs font-mono text-syntax-keyword">{item.command}</code>
@@ -131,20 +124,20 @@ function SimpleDropdown({ items, label, icon: Icon, onSelect }: {
   );
 }
 
-export const TexToolbar = ({ onInsert, editorRef }: TexToolbarProps) => {
+export const TexToolbar = ({ onInsert }: TexToolbarProps) => {
   const handleCommand = useCallback((item: LatexCommand) => {
-    onInsert(item.insert, item.cursorOffset);
+    onInsert(item.insert);
   }, [onInsert]);
 
   return (
     <TooltipProvider>
       <div className="border-b border-border bg-muted/30">
-        {/* Row 1: Math structures + Text styles */}
+        {/* Row 1: Quick inserts */}
         <div className="flex items-center gap-0.5 px-2 py-1 flex-wrap">
-          <ToolbarButton icon={Braces} tooltip="Fraction (Ctrl+Shift+F)" onClick={() => handleCommand(mathStructures[0])} />
-          <ToolbarButton icon={Radical} tooltip="Square Root (Ctrl+Shift+R)" onClick={() => handleCommand(mathStructures[1])} />
-          <ToolbarButton icon={Superscript} tooltip="Superscript (Ctrl+Shift+Up)" onClick={() => handleCommand(mathStructures[3])} />
-          <ToolbarButton icon={Subscript} tooltip="Subscript (Ctrl+Shift+Down)" onClick={() => handleCommand(mathStructures[4])} />
+          <ToolbarButton icon={Braces} tooltip="Fraction" onClick={() => handleCommand(mathStructures[0])} />
+          <ToolbarButton icon={Radical} tooltip="Square Root" onClick={() => handleCommand(mathStructures[1])} />
+          <ToolbarButton icon={Superscript} tooltip="Superscript" onClick={() => handleCommand(mathStructures[3])} />
+          <ToolbarButton icon={Subscript} tooltip="Subscript" onClick={() => handleCommand(mathStructures[4])} />
           <ToolbarButton icon={FunctionSquare} tooltip="Integral" onClick={() => handleCommand(mathStructures[5])} />
           <ToolbarButton icon={Sigma} tooltip="Summation" onClick={() => handleCommand(mathStructures[6])} />
           <ToolbarButton icon={Pi} tooltip="Product" onClick={() => handleCommand(mathStructures[7])} />
@@ -152,34 +145,34 @@ export const TexToolbar = ({ onInsert, editorRef }: TexToolbarProps) => {
 
           <Separator orientation="vertical" className="h-5 mx-1" />
 
-          <ToolbarButton icon={Bold} tooltip="Bold (Ctrl+B)" onClick={() => handleCommand(textStyles[0])} />
-          <ToolbarButton icon={Italic} tooltip="Italic (Ctrl+I)" onClick={() => handleCommand(textStyles[1])} />
-          <ToolbarButton icon={UnderlineIcon} tooltip="Underline (Ctrl+U)" onClick={() => handleCommand(textStyles[2])} />
+          <ToolbarButton icon={Bold} tooltip="Bold" onClick={() => handleCommand(textStyles[0])} />
+          <ToolbarButton icon={Italic} tooltip="Italic" onClick={() => handleCommand(textStyles[1])} />
+          <ToolbarButton icon={UnderlineIcon} tooltip="Underline" onClick={() => handleCommand(textStyles[2])} />
           <ToolbarButton icon={Code2} tooltip="Monospace" onClick={() => handleCommand(textStyles[3])} />
 
           <Separator orientation="vertical" className="h-5 mx-1" />
 
-          <ToolbarButton icon={Heading1} tooltip="Section" onClick={() => handleCommand(sectionCommands[0])} />
+          <ToolbarButton icon={Type} tooltip="Section" onClick={() => handleCommand(sectionCommands[0])} />
           <ToolbarButton icon={Type} tooltip="Subsection" onClick={() => handleCommand(sectionCommands[1])} />
 
           <div className="flex-1" />
           <span className="text-[10px] text-muted-foreground mr-1">.tex</span>
         </div>
 
-        {/* Row 2: Searchable dropdowns + environment dropdowns + inserts */}
+        {/* Row 2: Dropdowns */}
         <div className="flex items-center gap-0.5 px-2 py-1 flex-wrap border-t border-border/50">
-          <SearchableCommandDropdown items={greekLetters} label="Greek Letters" icon={Variable} onSelect={handleCommand} />
-          <SearchableCommandDropdown items={symbols} label="Symbols" icon={Hash} onSelect={handleCommand} />
+          <SearchableDropdown items={greekLetters} label="Greek Letters" icon={Variable} onSelect={handleCommand} />
+          <SearchableDropdown items={symbols} label="Symbols" icon={Hash} onSelect={handleCommand} />
 
           <Separator orientation="vertical" className="h-5 mx-1" />
 
-          <SimpleDropdown items={sectionCommands} label="Sections" icon={List} onSelect={handleCommand} />
+          <SimpleDropdown items={sectionCommands} label="Sections" icon={Type} onSelect={handleCommand} />
           <SimpleDropdown items={environments} label="Environments" icon={Square} onSelect={handleCommand} />
-          <SimpleDropdown items={textStyles} label="Text Styles" icon={WrapText} onSelect={handleCommand} />
+          <SimpleDropdown items={textStyles} label="Text Styles" icon={Bold} onSelect={handleCommand} />
 
           <Separator orientation="vertical" className="h-5 mx-1" />
 
-          <SimpleDropdown items={insertCommands} label="Insert" icon={Link} onSelect={handleCommand} />
+          <SimpleDropdown items={insertCommands} label="Insert" icon={Braces} onSelect={handleCommand} />
           <SimpleDropdown items={mathStructures} label="Math" icon={FunctionSquare} onSelect={handleCommand} />
         </div>
       </div>
