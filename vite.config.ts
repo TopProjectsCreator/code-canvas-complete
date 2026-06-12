@@ -59,7 +59,22 @@ export default defineConfig(({ mode }) => ({
       devOptions: { enabled: false },
       workbox: {
         maximumFileSizeToCacheInBytes: 20 * 1024 * 1024,
-        navigateFallbackDenylist: [/^\/~oauth/],
+        // Ensure a newly-deployed SW immediately replaces any stale shell that
+        // doesn't know about freshly-added routes (e.g. /auth-bridge).
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        // SPA fallback: serve index.html for any navigation that doesn't map
+        // to a precached file so React Router can match the route client-side.
+        navigateFallback: "index.html",
+        navigateFallbackDenylist: [
+          /^\/~oauth/,
+          /^\/auth-bridge/,
+          /^\/auth-link/,
+          /^\/auth-logout/,
+          /^\/auth-callback/,
+          /^\/reset-password/,
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
