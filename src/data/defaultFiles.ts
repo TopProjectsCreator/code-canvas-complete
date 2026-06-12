@@ -2639,10 +2639,24 @@ const latexTemplate: FileNode[] = [
 
 \\maketitle
 
+\\begin{abstract}
+This document showcases the live preview capabilities of the LaTeX editor.
+All rendering is done client-side using MathJax and a custom LaTeX-to-HTML
+converter. \\textbf{Note:} This is a best-effort preview, not a full TeX compilation.
+\\end{abstract}
+
 \\section{Introduction}
 
 This is a sample LaTeX document. You can edit the source on the left
-and see the rendered output on the right, powered by \\texttt{KaTeX}.
+and see the rendered output update live on the right.
+
+\\subsection{Nested Text Formatting}
+
+This demonstrates \\textbf{bold, \\textit{italic, \\underline{and underlined}}} text
+with arbitrary nesting depth. Also \\texttt{monospace}, \\textsc{small caps},
+\\textsf{sans-serif}, and \\textrm{serif} text styles are supported.
+
+\\textcolor{red}{Colored text} and \\colorbox{yellow}{highlighted text} work too.
 
 \\section{Mathematics}
 
@@ -2664,6 +2678,13 @@ The quadratic formula: $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$
   \\sum_{n=1}^{\\infty} \\frac{1}{n^2} = \\frac{\\pi^2}{6}
 \\end{equation}
 
+\\begin{align}
+  \\nabla \\cdot \\mathbf{D} &= \\rho \\\\
+  \\nabla \\cdot \\mathbf{B} &= 0 \\\\
+  \\nabla \\times \\mathbf{E} &= -\\frac{\\partial \\mathbf{B}}{\\partial t} \\\\
+  \\nabla \\times \\mathbf{H} &= \\mathbf{J} + \\frac{\\partial \\mathbf{D}}{\\partial t}
+\\end{align}
+
 \\section{Lists}
 
 \\begin{itemize}
@@ -2677,6 +2698,52 @@ The quadratic formula: $x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$
   \\item Second item
   \\item Third item
 \\end{enumerate}
+
+\\begin{description}
+  \\item[Term] Description of the term
+  \\item[Another] Another description
+\\end{description}
+
+\\section{Theorem Environments}
+
+\\begin{theorem}
+For any right triangle with legs $a$ and $b$ and hypotenuse $c$,
+we have $a^2 + b^2 = c^2$.
+\\end{theorem}
+
+\\begin{proof}
+Consider a square of side $a + b$. Its area can be computed
+in two ways: $(a + b)^2$ and $c^2 + 2ab$. Equating them
+gives $a^2 + b^2 = c^2$.
+\\end{proof}
+
+\\begin{definition}
+A prime number is a natural number greater than 1 that has no positive
+divisors other than 1 and itself.
+\\end{definition}
+
+\\begin{lemma}
+If $p$ is prime and $p \\mid ab$, then $p \\mid a$ or $p \\mid b$.
+\\end{lemma}
+
+\\section{Tables}
+
+\\begin{center}
+\\begin{tabular}{lcr}
+  \\hline
+  \\textbf{Name} & \\textbf{Variable} & \\textbf{Value} \\\\
+  \\hline
+  Pi & $\\pi$ & 3.14159 \\\\
+  Euler's number & $e$ & 2.71828 \\\\
+  Golden ratio & $\\phi$ & 1.61803 \\\\
+  \\hline
+\\end{tabular}
+\\end{center}
+
+\\section{Hyperlinks}
+
+Visit \\href{https://example.com}{Example Website} or
+direct URLs like \\url{https://example.com}.
 
 \\end{document}
 `,
@@ -2694,16 +2761,23 @@ This project contains a LaTeX document with live preview.
 1. Click on \`main.tex\` to open the LaTeX editor
 2. Edit the source on the left panel
 3. See the rendered output update live on the right
-4. The preview uses KaTeX for fast client-side rendering
+4. The preview uses MathJax for math typesetting
 
 ## Features
 - Live preview as you type
-- Support for math expressions (\\(...\\) and \\[...\\])
-- Common environments: equation, align, gather, itemize, enumerate
-- Preamble parsing (title, author, date)
+- Math expressions: inline ($...$), display ($$...$$), and environments
+- Text formatting: bold, italic, underline, monospace, small caps, colors
+- Environments: equation, align, gather, itemize, enumerate, description
+- Theorem environments: theorem, lemma, proof, definition, corollary, remark
+- Tables with tabular, tables, and figures
+- Lists: itemize, enumerate, description
+- Hyperlinks and URLs
+- Preamble parsing (title, author, date, abstract)
+- Nested braces in formatting commands
+- Verbatim and listings
 
 ## Limitations
-- The preview is a best-effort rendering via KaTeX
+- The preview is a best-effort rendering via MathJax
 - Not all LaTeX packages or commands are supported
 - For full LaTeX compilation, use a local TeX distribution
 `,

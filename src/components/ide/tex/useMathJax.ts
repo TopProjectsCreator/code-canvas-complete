@@ -14,6 +14,7 @@ declare global {
       loader?: { load: string[] };
       tex?: {
         inlineMath: [string, string][];
+        displayMath: [string, string][];
         packages: { [key: string]: string[] };
       };
     };
@@ -32,6 +33,7 @@ function loadMathJax(): Promise<void> {
       loader: { load: ['[tex]/begingroup'] },
       tex: {
         inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
         packages: { '[+]': ['begingroup'] },
       },
       startup: {
