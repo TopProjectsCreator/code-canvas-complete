@@ -30,6 +30,15 @@ import AuthCallback from "./pages/AuthCallback";
 import LinkDiscord from "./pages/LinkDiscord";
 import ResetPassword from "./pages/ResetPassword";
 import OAuthHostsAdmin from "./pages/admin/OAuthHosts";
+import RedactorLanding from "./pages/redactor/Landing";
+import RedactorAuth from "./pages/redactor/Auth";
+import RedactorDashboard from "./pages/redactor/Dashboard";
+import RedactorPlayground from "./pages/redactor/Playground";
+import RedactorProviderKeys from "./pages/redactor/ProviderKeys";
+import RedactorProxyKeys from "./pages/redactor/ProxyKeys";
+import RedactorRules from "./pages/redactor/Rules";
+import RedactorLogs from "./pages/redactor/Logs";
+import RedactorAuthenticatedLayout from "./pages/redactor/AuthenticatedLayout";
 import { LivingGrid } from "./pages/landings/LivingGrid";
 import { TerminalBoot } from "./pages/landings/TerminalBoot";
 import { TheVoid } from "./pages/landings/TheVoid";
@@ -123,6 +132,18 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/link-discord" element={<LinkDiscord />} />
               <Route path="/admin/oauth-hosts" element={<OAuthHostsAdmin />} />
+              {/* Redactor routes — public */}
+              <Route path="/redactor" element={<RedactorLanding />} />
+              <Route path="/redactor/auth" element={<RedactorAuth />} />
+              {/* Redactor routes — authenticated (layout provides sidebar + auth guard) */}
+              <Route element={<RedactorAuthenticatedLayout />}>
+                <Route path="/redactor/dashboard" element={<RedactorDashboard />} />
+                <Route path="/redactor/playground" element={<RedactorPlayground />} />
+                <Route path="/redactor/provider-keys" element={<RedactorProviderKeys />} />
+                <Route path="/redactor/proxy-keys" element={<RedactorProxyKeys />} />
+                <Route path="/redactor/rules" element={<RedactorRules />} />
+                <Route path="/redactor/logs" element={<RedactorLogs />} />
+              </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -1,0 +1,244 @@
+import { supabase } from "@/integrations/supabase/client";
+import { nanoid } from "nanoid";
+
+async function requireUserId(): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const id = session?.user?.id;
+  if (!id) throw new Error("Not authenticated");
+  return id;
+}
+
+// ---------- Provider keys ----------
+
+export interface ProviderKey {
+  id: string;
+  provider: string;
+  label: string;
+  baseUrl: string | null;
+  createdAt: string;
+}
+
+export async function listProviderKeys(): Promise<ProviderKey[]> {
+  const { data, error } = await supabase
+    .from("redactor_provider_keys")
+    .select("id, provider, label, base_url, created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    provider: r.provider,
+    label: r.label,
+    baseUrl: r.base_url,
+    createdAt: r.created_at,
+  }));
+}
+
+export async function addProviderKey(opts: {
+  provider: string;
+  label: string;
+  apiKey: string;
+  baseUrl?: string;
+}) {
+  const userId = await requireUserId();
+  const id = nanoid();
+  let encryptedKey: string, iv: string, salt: string;
+  let fallback = false;
+  try {
+    const { data, error } = await supabase.functions.invoke("redactor-crypto", {
+      body: { action: "encrypt-provider-key", apiKey: opts.apiKey },
+    });
+    if (error || !data) throw error ?? new Error("Encryption failed");
+    encryptedKey = data.ciphertext;
+    iv = data.iv;
+    salt = data.salt;
+  } catch {
+    throw new Error("Encryption unavailable — provider keys require the redactor-crypto edge function to be deployed.");
+  }
+  const { error } = await supabase.from("redactor_provider_keys").insert({
+    id,
+    user_id: userId,
+    provider: opts.provider,
+    label: opts.label,
+    encrypted_key: encryptedKey,
+    iv,
+    salt,
+    base_url: opts.baseUrl || null,
+  });
+  if (error) throw error;
+  return { ok: true };
+}
+
+export async function deleteProviderKey(id: string) {
+  const { error } = await supabase
+    .from("redactor_provider_keys")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+  return { ok: true };
+}
+
+// ---------- Proxy keys ----------
+
+export interface ProxyKey {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  allowedProviders: string[];
+  rateLimitRpm: number | null;
+  logRequests: boolean;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  expiresAt: string | null;
+}
+
+export async function listProxyKeys(): Promise<ProxyKey[]> {
+  const { data, error } = await supabase
+    .from("redactor_proxy_keys")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    name: r.name,
+    keyPrefix: r.key_prefix,
+    allowedProviders: r.allowed_providers ?? [],
+    rateLimitRpm: r.rate_limit_rpm,
+    logRequests: r.log_requests,
+    createdAt: r.created_at,
+    lastUsedAt: r.last_used_at,
+    revokedAt: r.revoked_at,
+    expiresAt: r.expires_at,
+  }));
+}
+
+export async function createProxyKey(opts: {
+  name: string;
+  allowedProviders: string[];
+  logRequests: boolean;
+}): Promise<{ fullKey: string; prefix: string }> {
+  const userId = await requireUserId();
+  const random = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map((b) => b.toString(36).padStart(2, "0"))
+    .join("");
+  const full = `lvp_live_${random}`;
+  const prefix = full.slice(0, 16);
+  const hash = Array.from(
+    new Uint8Array(
+      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(full)),
+    ),
+  )
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  const id = nanoid();
+  const { error } = await supabase.from("redactor_proxy_keys").insert({
+    id,
+    user_id: userId,
+    key_hash: hash,
+    key_prefix: prefix,
+    name: opts.name,
+    allowed_providers: opts.allowedProviders,
+    log_requests: opts.logRequests,
+  });
+  if (error) throw error;
+  return { fullKey: full, prefix };
+}
+
+export async function revokeProxyKey(id: string) {
+  const { error } = await supabase
+    .from("redactor_proxy_keys")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw error;
+  return { ok: true };
+}
+
+// ---------- Redaction rules ----------
+
+export interface RedactionRule {
+  id: string;
+  pattern: string;
+  label: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
+export async function listRules(): Promise<RedactionRule[]> {
+  const { data, error } = await supabase
+    .from("redactor_redaction_rules")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    pattern: r.pattern,
+    label: r.label,
+    enabled: r.enabled,
+    createdAt: r.created_at,
+  }));
+}
+
+export async function addRule(opts: { pattern: string; label: string }) {
+  const userId = await requireUserId();
+  try {
+    new RegExp(opts.pattern);
+  } catch {
+    throw new Error("Invalid regex pattern");
+  }
+  const id = nanoid();
+  const { error } = await supabase.from("redactor_redaction_rules").insert({
+    id,
+    user_id: userId,
+    pattern: opts.pattern,
+    label: opts.label,
+    enabled: true,
+  });
+  if (error) throw error;
+  return { ok: true };
+}
+
+export async function deleteRule(id: string) {
+  const { error } = await supabase
+    .from("redactor_redaction_rules")
+    .delete()
+    .eq("id", id);
+  if (error) throw error;
+  return { ok: true };
+}
+
+// ---------- Logs ----------
+
+export interface RequestLog {
+  id: string;
+  provider: string;
+  model: string | null;
+  status: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  redactions: Record<string, number> | null;
+  latencyMs: number | null;
+  error: string | null;
+  createdAt: string;
+}
+
+export async function listLogs(): Promise<RequestLog[]> {
+  const { data, error } = await supabase
+    .from("redactor_request_logs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    provider: r.provider,
+    model: r.model,
+    status: r.status,
+    inputTokens: r.input_tokens,
+    outputTokens: r.output_tokens,
+    redactions: r.redactions as Record<string, number> | null,
+    latencyMs: r.latency_ms,
+    error: r.error,
+    createdAt: r.created_at,
+  }));
+}

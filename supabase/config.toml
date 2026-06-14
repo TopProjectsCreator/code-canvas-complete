@@ -60,3 +60,9 @@ verify_jwt = false
 [functions.cleanup-expired-deletions]
 verify_jwt = false
 schedule = "0 0 * * *"
+
+[functions.redactor-proxy]
+verify_jwt = false
+
+[functions.redactor-crypto]
+verify_jwt = false
