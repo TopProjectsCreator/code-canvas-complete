@@ -921,6 +921,182 @@ export type Database = {
           },
         ]
       }
+      redactor_provider_keys: {
+        Row: {
+          base_url: string | null
+          created_at: string
+          encrypted_key: string
+          id: string
+          iv: string
+          label: string
+          provider: string
+          salt: string
+          user_id: string
+        }
+        Insert: {
+          base_url?: string | null
+          created_at?: string
+          encrypted_key: string
+          id: string
+          iv: string
+          label: string
+          provider: string
+          salt: string
+          user_id: string
+        }
+        Update: {
+          base_url?: string | null
+          created_at?: string
+          encrypted_key?: string
+          id?: string
+          iv?: string
+          label?: string
+          provider?: string
+          salt?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      redactor_proxy_keys: {
+        Row: {
+          allowed_providers: string[]
+          created_at: string
+          expires_at: string | null
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_used_at: string | null
+          log_requests: boolean
+          name: string
+          rate_limit_rpm: number | null
+          revoked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          allowed_providers?: string[]
+          created_at?: string
+          expires_at?: string | null
+          id: string
+          key_hash: string
+          key_prefix: string
+          last_used_at?: string | null
+          log_requests?: boolean
+          name: string
+          rate_limit_rpm?: number | null
+          revoked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          allowed_providers?: string[]
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          last_used_at?: string | null
+          log_requests?: boolean
+          name?: string
+          rate_limit_rpm?: number | null
+          revoked_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      redactor_redaction_rules: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          id: string
+          label: string
+          pattern: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          id: string
+          label: string
+          pattern: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          label?: string
+          pattern?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      redactor_request_logs: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          input_tokens: number | null
+          latency_ms: number | null
+          model: string | null
+          output_tokens: number | null
+          provider: string
+          proxy_key_id: string | null
+          redactions: Json | null
+          status: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_tokens?: number | null
+          latency_ms?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          provider: string
+          proxy_key_id?: string | null
+          redactions?: Json | null
+          status: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          input_tokens?: number | null
+          latency_ms?: number | null
+          model?: string | null
+          output_tokens?: number | null
+          provider?: string
+          proxy_key_id?: string | null
+          redactions?: Json | null
+          status?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redactor_request_logs_proxy_key_id_fkey"
+            columns: ["proxy_key_id"]
+            isOneToOne: false
+            referencedRelation: "redactor_proxy_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      redactor_secrets: {
+        Row: {
+          key: string
+          value: string
+        }
+        Insert: {
+          key: string
+          value: string
+        }
+        Update: {
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
       session_recordings: {
         Row: {
           created_at: string
