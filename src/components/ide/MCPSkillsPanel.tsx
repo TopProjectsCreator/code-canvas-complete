@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
   Plus, Trash2, Server, Sparkles, Globe, Eye, EyeOff,
-  Loader2, Pencil, Check, X, Zap, Brain, Code, FileText,
+  Loader2, Zap, Brain, Code, FileText,
   Lightbulb, Wrench, Shield, Bug, Library
 } from 'lucide-react';
 import { SkillsLibraryDialog } from './SkillsLibraryDialog';

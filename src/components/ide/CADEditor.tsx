@@ -18,7 +18,6 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useApiKeys } from '@/hooks/useApiKeys';
 import { isReplitLikePlatform } from '@/lib/platform';
-import { detectDeploymentPlatform } from '@/lib/platform';
 
 interface CADEditorProps {
   file: FileNode;
@@ -93,7 +92,6 @@ function exportToSTL(geometry: THREE.BufferGeometry, filename: string): void {
   const normals = geometry.getAttribute('normal');
 
   let offset = 84;
-  const v = new THREE.Vector3();
   const n = new THREE.Vector3();
 
   for (let i = 0; i < triangleCount; i++) {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { 
-  Download, Trash2, CheckCircle2, AlertCircle, Info, 
+  Download, CheckCircle2, Info, 
   Search, ExternalLink, Cpu, HardDrive, Zap, Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -92,9 +92,7 @@ export function OfflineModelManager({
   const [customModelId, setCustomModelId] = useState('');
   const [selectedQuant, setSelectedQuant] = useState('q4f16');
 
-  const [baseId, currentQuant] = currentModelId.includes('@') 
-    ? currentModelId.split('@') 
-    : [currentModelId, 'q4f16'];
+  const baseId = currentModelId.includes('@') ? currentModelId.split('@')[0] : currentModelId;
 
   const handleDownload = (id: string) => {
     onDownload(`${id}@${selectedQuant}`);

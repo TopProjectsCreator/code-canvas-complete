@@ -2,11 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { FileNode } from '@/types/ide';
 import {
   ChevronLeft, ChevronRight, FileText, Loader2,
-  BookOpen, Download, Sun, Moon, Search, X,
+  Download, Sun, Moon, X,
   List, Minus, Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import JSZip from 'jszip';
@@ -27,7 +26,7 @@ interface TocItem {
 const DEFAULT_FONT_SIZE = 100;
 const THEME_STORAGE_KEY = 'epub-viewer-theme';
 
-export const EpubViewer = ({ file, onContentChange }: EpubViewerProps) => {
+export const EpubViewer = ({ file }: EpubViewerProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toc, setToc] = useState<TocItem[]>([]);
@@ -36,7 +35,6 @@ export const EpubViewer = ({ file, onContentChange }: EpubViewerProps) => {
     return localStorage.getItem(THEME_STORAGE_KEY) === 'dark';
   });
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE);
-  const [searchQuery, setSearchQuery] = useState('');
   const [currentLocation, setCurrentLocation] = useState<string>('');
   const [totalLocations, setTotalLocations] = useState(0);
 
@@ -99,7 +97,7 @@ export const EpubViewer = ({ file, onContentChange }: EpubViewerProps) => {
         const getExt = (url: string) => url.split('.').pop()?.toLowerCase() || '';
         const parseXml = (text: string, mime: string) => {
           if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-          return new DOMParser().parseFromString(text, mime);
+          return new DOMParser().parseFromString(text, mime as DOMParserSupportedType);
         };
 
         book.request = async (url: string, type: string) => {
@@ -128,10 +126,10 @@ export const EpubViewer = ({ file, onContentChange }: EpubViewerProps) => {
           return entry.data;
         };
 
-        book.url = opfDir;
+        (book as any).url = opfDir;
         await book.open(opfPath, 'opf');
 
-        setToc(buildToc(book.toc));
+        setToc(buildToc((book as any).toc));
 
         if (cancelled) return;
 
@@ -245,11 +243,6 @@ export const EpubViewer = ({ file, onContentChange }: EpubViewerProps) => {
     a.download = file.name;
     a.click();
   }, [file]);
-
-  const handleSearch = useCallback((query: string) => {
-    if (!renditionRef.current || !query.trim()) return;
-    renditionRef.current.display(`/search?q=${encodeURIComponent(query)}`);
-  }, []);
 
   useEffect(() => {
     const container = containerRef.current;

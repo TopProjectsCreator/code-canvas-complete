@@ -95,13 +95,13 @@ export async function updateRichPresence(
   let details: string;
   let state: string;
 
-  if (context && settings[context]?.enabled) {
+  if (context && (settings as any)[context]?.enabled) {
     const substitute = (s: string) =>
       s.replace(/{fileName}/g, fileName || '')
        .replace(/{language}/g, label || language || '')
        .replace(/{projectName}/g, projectName || '');
-    details = substitute(settings[context].details);
-    state = substitute(settings[context].state);
+    details = substitute((settings as any)[context].details);
+    state = substitute((settings as any)[context].state);
   } else if (isRunning) {
     details = `Running ${fileName || projectName || "code"}`;
     state = label ? `${label} — Executing` : "Executing";

@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2, ChevronLeft, Code2, Copy, Download, FileCode2, Loader2,
-  PackagePlus, Play, Rocket, Search, Sparkles, Store, Terminal,
+  PackagePlus, Play, Search, Sparkles, Store, Terminal,
   Trash2, WandSparkles,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildContext, executeExtension } from '@/lib/extensionRuntime';
 import { isReplitLikePlatform } from '@/lib/platform';
-import { detectDeploymentPlatform } from '@/lib/platform';
 import type { FileNode } from '@/types/ide';
 import { toast } from 'sonner';
 import { BUILTIN_EXTENSIONS, type BuiltinExtension } from '@/data/builtinExtensions';

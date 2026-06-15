@@ -1,4 +1,4 @@
-import { Code2, FileText, Monitor, Terminal, Sparkles } from 'lucide-react';
+import { Code2, Monitor, Terminal, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type MobilePanel = 'editor' | 'preview' | 'terminal' | 'ai';

@@ -39,7 +39,6 @@ export function DraftTool() {
       featureIndex: 0,
       dependencies: [],
       faces: [],
-      direction: 'face',
       mode: 'face',
       angle: parseFloat(angle) || 5,
       neutralPlane: { type: 'standard', plane: 'xy' },

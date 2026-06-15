@@ -155,7 +155,6 @@ function buildParagraph(el: HTMLElement, tag: string): Paragraph | null {
   const alignment = getTextAlignment(el);
 
   if (tag.match(/^h[1-6]$/)) {
-    const level = parseInt(tag[1], 10) as 1 | 2 | 3 | 4 | 5 | 6;
     const headingLevel = HEADING_MAP[tag];
     const size = HEADING_SIZES[tag] || 22;
     const spacing = HEADING_SPACING[tag] || { before: 0, after: 0 };
@@ -164,7 +163,7 @@ function buildParagraph(el: HTMLElement, tag: string): Paragraph | null {
     if (children.length === 0) return null;
 
     return new Paragraph({
-      heading: headingLevel,
+      heading: headingLevel as any,
       children,
       alignment,
       spacing: { before: spacing.before, after: spacing.after },
@@ -347,7 +346,7 @@ function buildBlockElements(html: string): (Paragraph | Table)[] {
       }));
     } else if (tag === 'div' && el.classList.contains('page-break')) {
       result.push(new Paragraph({
-        children: [new PageBreak()],
+        children: [new PageBreak() as any],
         spacing: { before: 0, after: 0 },
       }));
     } else if (tag === 'div') {
@@ -374,7 +373,7 @@ const ORDERED_LEVELS = [0, 1, 2, 3, 4, 5].map(level => ({
         level === 3 ? '%4.' :
         level === 4 ? '%5.' :
         '%6.',
-  alignment: AlignmentType.LEFT as const,
+  alignment: AlignmentType.LEFT,
   style: {
     paragraph: {
       indent: { left: 720 * (level + 1), hanging: 360 },

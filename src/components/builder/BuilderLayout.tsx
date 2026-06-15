@@ -31,7 +31,7 @@ interface BuilderLayoutProps {
 type ViewMode = "design" | "code";
 
 function BuilderLayoutInner({ file, onContentChange }: BuilderLayoutProps) {
-  const { state, dispatch, getCode, toJSON, loadFromJSON } = useBuilder();
+  const { state, dispatch, toJSON, loadFromJSON } = useBuilder();
   const initialLoadDone = useRef(false);
 
   useEffect(() => {

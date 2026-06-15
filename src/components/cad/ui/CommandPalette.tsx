@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useCADStore } from '../store'
 import {
   CommandDialog,
@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/command'
 import { SHORTCUTS } from '../keyboardShortcuts'
 import { Search } from 'lucide-react'
-import type { ToolMode } from '../types'
 
 const ACTION_MAP: Record<string, () => void> = {
   'tool-select': () => useCADStore.getState().setToolMode('select'),

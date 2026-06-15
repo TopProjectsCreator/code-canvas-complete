@@ -26,7 +26,6 @@ export function ToolOptions() {
   const toolMode = useCADStore(s => s.toolMode)
   const toolOptions = useCADStore(s => s.toolOptions)
   const setToolOption = useCADStore(s => s.setToolOption)
-  const setToolMode = useCADStore(s => s.setToolMode)
 
   switch (toolMode) {
     case 'select':

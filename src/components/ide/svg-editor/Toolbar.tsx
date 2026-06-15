@@ -10,7 +10,7 @@ import {
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
   ArrowLeftRight, ArrowUpDown,
   Merge, Split, Ungroup, Group,
-  Layers, Eye, Lock,
+  Layers,
 } from 'lucide-react'
 
 interface ToolbarProps {

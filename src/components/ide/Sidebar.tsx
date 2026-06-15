@@ -6,13 +6,11 @@ import {
   Settings, 
   Package, 
   Plus,
-  ChevronDown,
   Users,
   History,
   FilePlus,
   FolderPlus,
   Upload,
-  FileText,
   Zap,
   Wrench,
   ShieldAlert,
@@ -96,7 +94,6 @@ export const Sidebar = ({
   workflows,
   onRunWorkflow,
   onCreateWorkflow,
-  onUpdateWorkflow,
   onDeleteWorkflow,
   currentlyRunningWorkflow,
   historyEntries,
@@ -209,8 +206,6 @@ export const Sidebar = ({
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'svg'];
   const officeExtensions = ['docx', 'xlsx', 'pptx'];
   const binaryExtensions = ['zip', 'tar', 'gz', 'bz2', '7z', 'rar', 'xz', 'pdf', 'mp3', 'wav', 'flac', 'aac', 'm4a', 'mp4', 'webm', 'mov', 'avi', 'mkv', 'ogg', 'ogv', 'ttf', 'otf', 'woff', 'woff2', 'wasm', 'bin', 'exe', 'dll', 'so', 'dylib'];
-  const supportedExtensions = ['js', 'ts', 'jsx', 'tsx', 'html', 'css', 'json', 'md', 'txt', 'py', 'go', 'rs', 'java', 'cpp', 'c', 'h', 'xml', 'yaml', 'yml', 'toml', 'env', 'gitignore', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'svg', 'draw', 'sb3', 'sb2', 'sb', ...officeExtensions];
-
   const isImageFile = (filename: string) => {
     const ext = filename.split('.').pop()?.toLowerCase() || '';
     return imageExtensions.includes(ext);
@@ -231,7 +226,7 @@ export const Sidebar = ({
     return lower.endsWith('.sb3') || lower.endsWith('.sb2') || lower.endsWith('.sb');
   };
 
-  const isSupportedFile = () => true;
+  const isSupportedFile = (_filename: string) => true;
 
   const LARGE_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 
@@ -610,7 +605,6 @@ export const Sidebar = ({
             workflows={workflows}
             onRunWorkflow={onRunWorkflow}
             onCreateWorkflow={onCreateWorkflow}
-            onUpdateWorkflow={onUpdateWorkflow}
             onDeleteWorkflow={onDeleteWorkflow}
             currentlyRunning={currentlyRunningWorkflow}
           />

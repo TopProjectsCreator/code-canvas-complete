@@ -1,9 +1,9 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import type {
-  CadDocument, Body, Feature, SceneNode, Sketch, SketchEntity, Constraint, Transform,
+  CadDocument, Body, Feature, SceneNode, SketchEntity, Constraint, Transform,
   SelectionTarget, ToolMode, Command, BackgroundTask,
-  GizmoState, SnapSettings, ViewportSettings, WorkspaceLayout, CollabUser, PlaneRef, MaterialDef,
+  GizmoState, SnapSettings, ViewportSettings, CollabUser, PlaneRef,
 } from './types'
 import { CAD_DOCUMENT_VERSION, CAD_APP_VERSION } from './constants'
 
@@ -337,7 +337,7 @@ export const useCADStore = create<CADStore>()(
         const f = body.features.find(f => f.id === featureId)
         return f ? JSON.parse(JSON.stringify(f)) : null
       })()
-      if (!prev) { set(state => { /* no-op */ }); return }
+      if (!prev) { set(() => {}); return }
       set(state => {
         const body = state.doc.bodies[bodyId]
         if (!body) return
@@ -547,18 +547,19 @@ export const useCADStore = create<CADStore>()(
           return true
         })
       state.doc.scene = removeFrom(state.doc.scene)
-      if (node && parentId) {
+      const nn = node
+      if (nn && parentId) {
         const addTo = (nodes: SceneNode[]) => {
           for (const n of nodes) {
-            if (n.id === parentId) { n.children.push(node!); node!.parentId = parentId; return true }
+            if (n.id === parentId) { n.children.push(nn as SceneNode); (nn as SceneNode).parentId = parentId; return true }
             if (addTo(n.children)) return true
           }
           return false
         }
-        addTo(state.doc.scene) ?? state.doc.scene.push(node)
-      } else if (node) {
-        node.parentId = null
-        state.doc.scene.push(node)
+        if (!addTo(state.doc.scene)) state.doc.scene.push(nn as SceneNode)
+      } else if (nn) {
+        (nn as SceneNode).parentId = null
+        state.doc.scene.push(nn as SceneNode)
       }
       state.markDirty()
     }),

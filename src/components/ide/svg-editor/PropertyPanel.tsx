@@ -8,13 +8,12 @@ import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 import type { SvgElement, SvgDocument, SvgGradient, SvgFilter, SvgPattern, GradientType } from './types'
 import { generateId, COLOR_PRESETS, STROKE_WIDTHS, COLOR_MATRIX_PRESETS } from './types'
-import { getElementBBox } from './svgUtils'
-import { Plus, Trash2, GripVertical } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 
 interface PropertyPanelProps {
   doc: SvgDocument
   selectedIds: Set<string>
-  onUpdateElement: (id: string, attrs: Record<string, string | number>, style?: Partial<SvgElement['style']>) => void
+  onUpdateElement: (id: string, attrs: Record<string, string | number>, style?: Partial<SvgElement['style']>, extra?: Record<string, any>) => void
   onUpdateTransform: (id: string, transform: SvgElement['transform']) => void
   onAddGradient: (gradient: SvgGradient) => void
   onUpdateGradient: (id: string, gradient: Partial<SvgGradient>) => void
@@ -62,7 +61,7 @@ export function PropertyPanel({
         <div className="p-3 space-y-3">
           {activeTab === 'properties' && (
             <PropertiesContent
-              el={selectedElement}
+              el={selectedElement ?? undefined}
               onUpdateElement={onUpdateElement}
               onUpdateTransform={onUpdateTransform}
               gradients={doc.gradients}

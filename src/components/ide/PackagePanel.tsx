@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Package, Search, Plus, Trash2, ExternalLink, AlertCircle } from 'lucide-react';
+import { Package, Search, Plus, Trash2, AlertCircle } from 'lucide-react';
 import { FileNode } from '@/types/ide';
-import { cn } from '@/lib/utils';
 
 interface PackagePanelProps {
   files: FileNode[];

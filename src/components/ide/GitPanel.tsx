@@ -13,9 +13,8 @@ import {
   Download,
   MoreHorizontal,
   Clock,
-  User
 } from 'lucide-react';
-import { GitState, GitChange, GitCommit } from '@/types/ide';
+import { GitState, GitChange } from '@/types/ide';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -30,13 +29,11 @@ interface GitPanelProps {
   onInitRepo: () => void;
 }
 
-const generateId = () => Math.random().toString(36).substring(2, 9);
-
 export const GitPanel = ({
   gitState,
   onCommit,
-  onStageFile,
-  onUnstageFile,
+  onStageFile: _onStageFile,
+  onUnstageFile: _onUnstageFile,
   onDiscardChanges,
   onCreateBranch,
   onSwitchBranch,
@@ -50,8 +47,6 @@ export const GitPanel = ({
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
 
   const currentBranch = gitState.branches.find(b => b.name === gitState.currentBranch);
-  const stagedChanges = gitState.changes.filter(c => c.status !== 'deleted');
-  const unstagedChanges = gitState.changes;
 
   const handleCommit = () => {
     if (!commitMessage.trim() || gitState.changes.length === 0) return;

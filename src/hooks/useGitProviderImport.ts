@@ -279,9 +279,9 @@ const bitbucket = {
     const allItems: { path: string; type: 'blob' | 'tree' }[] = [];
     let url: string | null = `https://api.bitbucket.org/2.0/repositories/${owner}/${repo}/src/${branch}/?pagelen=100&max_depth=10`;
     while (url) {
-      const r = await fetch(url);
+      const r: Response = await fetch(url);
       if (!r.ok) throw new Error(`Failed to fetch tree: ${r.statusText}`);
-      const d = await r.json();
+      const d: any = await r.json();
       for (const v of (d.values || [])) {
         allItems.push({
           path: v.path,

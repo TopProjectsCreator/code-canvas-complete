@@ -10,10 +10,11 @@ export function TransformProperties() {
   const nodeSel = selection.find(s => s.type === 'node')
   if (!nodeSel) return null
 
+  const sn = nodeSel!
   function findNode() {
     function search(nodes: typeof doc.scene): (typeof doc.scene)[0] | null {
       for (const n of nodes) {
-        if (n.id === nodeSel.nodeId) return n
+        if (n.id === sn.nodeId) return n
         const found = search(n.children)
         if (found) return found
       }
@@ -25,11 +26,12 @@ export function TransformProperties() {
   const node = findNode()
   if (!node) return null
 
-  function handleChange(axis: number, value: number, field: 'position' | 'rotation' | 'scale') {
+  const handleChange = (axis: number, value: number, field: 'position' | 'rotation' | 'scale') => {
+    const n = node!
     const update: Record<string, number[]> = {}
-    update[field] = [...node.transform[field]]
+    update[field] = [...n.transform[field]]
     update[field][axis] = value
-    updateTransform(node.id, update as any)
+    updateTransform(n.id, update as any)
   }
 
   return (

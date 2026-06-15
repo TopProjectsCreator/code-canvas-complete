@@ -289,7 +289,7 @@ const withBlocks = (
     | [string, AutomationAuthType, string | undefined, APIParameter[]]
     | [string, AutomationAuthType, string | undefined, APIParameter[], APIParameter[]]
     | [string, AutomationAuthType, string | undefined, APIParameter[], APIParameter[], Operation[]]
-    | [string, AutomationAuthType, string | undefined, APIParameter[], APIParameter[], Operation[], boolean]
+    | [string, AutomationAuthType, string | undefined, APIParameter[] | undefined, APIParameter[] | undefined, Operation[] | undefined, boolean]
   >
 ): AutomationRegistrySubcategory => ({
   id,
@@ -1540,10 +1540,6 @@ const googledriveParams: APIParameter[] = [
     { label: 'Delete', value: 'delete' },
   ]},
 ];
-const googledriveCredentials: APIParameter[] = [
-  { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
-];
-
 const s3Params: APIParameter[] = [
   { name: 'bucket', displayName: 'Bucket Name', type: 'string', required: true },
   { name: 'key', displayName: 'Object Key', type: 'string', required: true },
@@ -1648,57 +1644,6 @@ const imageKitParams: APIParameter[] = [
   { name: 'image_url', displayName: 'Image URL', type: 'url', required: true },
   { name: 'transformation', displayName: 'Transformation', type: 'string', placeholder: 'w-400,h-300,c-scale' },
   { name: 'folder', displayName: 'Folder', type: 'string', placeholder: '/images' },
-];
-
-const excelOnlineParams: APIParameter[] = [
-  { name: 'workbook_id', displayName: 'Workbook ID', type: 'string', required: true },
-  { name: 'worksheet_name', displayName: 'Worksheet Name', type: 'string', required: true },
-  { name: 'range', displayName: 'Range', type: 'string', placeholder: 'A1:D10' },
-  { name: 'operation', displayName: 'Operation', type: 'select', required: true, options: [
-    { label: 'Read', value: 'read' },
-    { label: 'Write', value: 'write' },
-    { label: 'Append', value: 'append' },
-    { label: 'Clear', value: 'clear' },
-  ]},
-  { name: 'values', displayName: 'Values (JSON)', type: 'textarea', placeholder: '[ ["A", "B"], ["C", "D"] ]' },
-];
-const smartsheetParams: APIParameter[] = [
-  { name: 'sheet_id', displayName: 'Sheet ID', type: 'string', required: true },
-  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
-    { label: 'Add Row', value: 'addRow' },
-    { label: 'Update Row', value: 'updateRow' },
-    { label: 'List Rows', value: 'listRows' },
-  ]},
-  { name: 'row_data', displayName: 'Row Data (JSON)', type: 'textarea', placeholder: '[{"columnId": 123, "value": "Hello"}]' },
-];
-const codaParams: APIParameter[] = [
-  { name: 'doc_id', displayName: 'Doc ID', type: 'string', required: true },
-  { name: 'table_id', displayName: 'Table ID', type: 'string', required: true },
-  { name: 'row_data', displayName: 'Row Data (JSON)', type: 'textarea', required: true },
-];
-const baserowParams: APIParameter[] = [
-  { name: 'base_id', displayName: 'Base ID', type: 'string', required: true },
-  { name: 'table_id', displayName: 'Table ID', type: 'string', required: true },
-  { name: 'row_data', displayName: 'Row Data (JSON)', type: 'textarea', required: true },
-];
-const seaTableParams: APIParameter[] = [
-  { name: 'table_name', displayName: 'Table Name', type: 'string', required: true },
-  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
-    { label: 'Add Row', value: 'addRow' },
-    { label: 'Update Row', value: 'updateRow' },
-    { label: 'Delete Row', value: 'deleteRow' },
-  ]},
-  { name: 'row_data', displayName: 'Row Data (JSON)', type: 'textarea', required: true },
-];
-const gristParams: APIParameter[] = [
-  { name: 'doc_id', displayName: 'Doc ID', type: 'string', required: true },
-  { name: 'table_name', displayName: 'Table Name', type: 'string', required: true },
-  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
-    { label: 'Add Record', value: 'addRecord' },
-    { label: 'Update Record', value: 'updateRecord' },
-    { label: 'List Records', value: 'listRecords' },
-  ]},
-  { name: 'record_data', displayName: 'Record Data (JSON)', type: 'textarea' },
 ];
 
 // ============ SPREADSHEETS ============
@@ -1908,36 +1853,6 @@ const pipedriveCredentials: APIParameter[] = [
   { name: 'company_domain', displayName: 'Company Domain', type: 'string', required: true },
 ];
 
-// ============ TASK & PROJECT MANAGEMENT ============
-const asanaParams: APIParameter[] = [
-  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
-    { label: 'Create Task', value: 'createTask' },
-    { label: 'Update Task', value: 'updateTask' },
-    { label: 'List Tasks', value: 'listTasks' },
-    { label: 'Complete Task', value: 'completeTask' },
-  ]},
-  { name: 'project_id', displayName: 'Project ID', type: 'string', required: true },
-  { name: 'task_data', displayName: 'Task Data (JSON)', type: 'textarea' },
-];
-const asanaCredentials: APIParameter[] = [
-  { name: 'api_token', displayName: 'Personal Access Token', type: 'password', required: true },
-];
-
-const trelloParams: APIParameter[] = [
-  { name: 'board_id', displayName: 'Board ID', type: 'string', required: true },
-  { name: 'list_id', displayName: 'List ID', type: 'string' },
-  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
-    { label: 'Create Card', value: 'createCard' },
-    { label: 'Update Card', value: 'updateCard' },
-    { label: 'List Cards', value: 'listCards' },
-  ]},
-  { name: 'card_data', displayName: 'Card Data (JSON)', type: 'textarea' },
-];
-const trelloCredentials: APIParameter[] = [
-  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
-  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
-];
-
 const jiraParams: APIParameter[] = [
   { name: 'project_key', displayName: 'Project Key', type: 'string', required: true },
   { name: 'issue_type', displayName: 'Issue Type', type: 'select', required: true, options: [
@@ -1955,31 +1870,12 @@ const jiraCredentials: APIParameter[] = [
   { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
 ];
 
-const linearParams: APIParameter[] = [
-  { name: 'team_key', displayName: 'Team Key', type: 'string', required: true },
-  { name: 'title', displayName: 'Issue Title', type: 'string', required: true },
-  { name: 'description', displayName: 'Description', type: 'textarea' },
-  { name: 'priority', displayName: 'Priority', type: 'select', options: [
-    { label: 'Urgent', value: '4' },
-    { label: 'High', value: '3' },
-    { label: 'Medium', value: '2' },
-    { label: 'Low', value: '1' },
-  ]},
-];
-const linearCredentials: APIParameter[] = [
-  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
-];
-
 const clickupParams: APIParameter[] = [
   { name: 'list_id', displayName: 'List ID', type: 'string', required: true },
   { name: 'task_title', displayName: 'Task Title', type: 'string', required: true },
   { name: 'description', displayName: 'Description', type: 'textarea' },
   { name: 'priority', displayName: 'Priority', type: 'number', description: '1-5' },
 ];
-const clickupCredentials: APIParameter[] = [
-  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
-];
-
 // ============ HELP DESK & SUPPORT ============
 const zendeskParams: APIParameter[] = [
   { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
@@ -2506,61 +2402,6 @@ const metaadsCredentials: APIParameter[] = [
   { name: 'access_token', displayName: 'Access Token', type: 'password', required: true },
 ];
 
-// ============ IDENTITY & AUTH ============
-const oktaParams: APIParameter[] = [
-  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
-    { label: 'Create User', value: 'createUser' },
-    { label: 'List Users', value: 'listUsers' },
-    { label: 'Update User', value: 'updateUser' },
-  ]},
-  { name: 'user_data', displayName: 'User Data (JSON)', type: 'textarea' },
-];
-const oktaCredentials: APIParameter[] = [
-  { name: 'org_url', displayName: 'Okta Org URL', type: 'url', required: true },
-  { name: 'api_token', displayName: 'API Token', type: 'password', required: true },
-];
-
-const auth0Params: APIParameter[] = [
-  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
-    { label: 'Get User', value: 'getUser' },
-    { label: 'Create User', value: 'createUser' },
-    { label: 'List Users', value: 'listUsers' },
-    { label: 'Block User', value: 'blockUser' },
-  ]},
-  { name: 'user_id', displayName: 'User ID', type: 'string' },
-  { name: 'user_data', displayName: 'User Data (JSON)', type: 'textarea' },
-];
-const auth0Credentials: APIParameter[] = [
-  { name: 'domain', displayName: 'Domain', type: 'string', required: true, placeholder: 'example.auth0.com' },
-  { name: 'client_id', displayName: 'Client ID', type: 'password', required: true },
-  { name: 'client_secret', displayName: 'Client Secret', type: 'password', required: true },
-];
-
-// ============ UTILITIES ============
-const openweathermapParams: APIParameter[] = [
-  { name: 'q', displayName: 'Location (City/Coords)', type: 'string', required: true, placeholder: 'New York or 40.7128,-74.0060' },
-  { name: 'units', displayName: 'Units', type: 'select', default: 'metric', options: [
-    { label: 'Metric (°C)', value: 'metric' },
-    { label: 'Imperial (°F)', value: 'imperial' },
-  ]},
-];
-const openweathermapCredentials: APIParameter[] = [
-  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
-];
-
-const googlemapsParams: APIParameter[] = [
-  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
-    { label: 'Geocode', value: 'geocode' },
-    { label: 'Directions', value: 'directions' },
-    { label: 'Distance Matrix', value: 'distanceMatrix' },
-  ]},
-  { name: 'origin', displayName: 'Origin', type: 'string', placeholder: 'Address or coordinates' },
-  { name: 'destination', displayName: 'Destination', type: 'string', placeholder: 'Address or coordinates' },
-];
-const googlemapsCredentials: APIParameter[] = [
-  { name: 'api_key', displayName: 'API Key', type: 'password', required: true },
-];
-
 // ============ DATA TRANSFORMATION (INTERNAL) ============
 const sqlDatabaseParams: APIParameter[] = [
   { name: 'connection_string', displayName: 'Connection String', type: 'string', required: true, description: 'Database connection string or endpoint', placeholder: 'postgres://user:pass@host:5432/db' },
@@ -2853,81 +2694,6 @@ const analyticsParams: APIParameter[] = [
   { name: 'time_range', displayName: 'Time Range', type: 'string', placeholder: 'last_30_days' },
 ];
 
-const textFormatterParams: APIParameter[] = [
-  { name: 'operation', displayName: 'Operation', type: 'select', required: true, options: [
-    { label: 'Uppercase', value: 'uppercase' },
-    { label: 'Lowercase', value: 'lowercase' },
-    { label: 'Title Case', value: 'titlecase' },
-    { label: 'Capitalize', value: 'capitalize' },
-    { label: 'Reverse', value: 'reverse' },
-    { label: 'Replace', value: 'replace' },
-    { label: 'Trim', value: 'trim' },
-  ]},
-  { name: 'text', displayName: 'Text Input', type: 'textarea', required: true },
-  { name: 'search', displayName: 'Search String (for Replace)', type: 'string' },
-  { name: 'replace_with', displayName: 'Replace With', type: 'string' },
-];
-
-const dateFormatterParams: APIParameter[] = [
-  { name: 'date_input', displayName: 'Date Input', type: 'string', required: true, placeholder: '2024-01-15' },
-  { name: 'input_format', displayName: 'Input Format', type: 'string', default: 'YYYY-MM-DD' },
-  { name: 'output_format', displayName: 'Output Format', type: 'string', default: 'MMMM D, YYYY' },
-  { name: 'timezone', displayName: 'Timezone', type: 'string', default: 'UTC' },
-];
-
-const jsonparserParams: APIParameter[] = [
-  { name: 'json_string', displayName: 'JSON String', type: 'textarea', required: true },
-  { name: 'path', displayName: 'Path to Extract (dot notation)', type: 'string', placeholder: 'user.email' },
-  { name: 'action', displayName: 'Action', type: 'select', required: true, options: [
-    { label: 'Parse', value: 'parse' },
-    { label: 'Stringify', value: 'stringify' },
-    { label: 'Extract Value', value: 'extract' },
-    { label: 'Validate', value: 'validate' },
-  ]},
-];
-
-const mathParams: APIParameter[] = [
-  { name: 'operation', displayName: 'Operation', type: 'select', required: true, options: [
-    { label: 'Add', value: 'add' },
-    { label: 'Subtract', value: 'subtract' },
-    { label: 'Multiply', value: 'multiply' },
-    { label: 'Divide', value: 'divide' },
-    { label: 'Power', value: 'power' },
-    { label: 'Square Root', value: 'sqrt' },
-    { label: 'Modulo', value: 'modulo' },
-  ]},
-  { name: 'value_a', displayName: 'First Value', type: 'number', required: true },
-  { name: 'value_b', displayName: 'Second Value', type: 'number' },
-];
-
-const codeexecParams: APIParameter[] = [
-  { name: 'language', displayName: 'Language', type: 'select', required: true, options: [
-    { label: 'JavaScript', value: 'javascript' },
-    { label: 'Python', value: 'python' },
-    { label: 'Bash', value: 'bash' },
-  ]},
-  { name: 'code', displayName: 'Code', type: 'textarea', required: true, placeholder: 'console.log("Hello");' },
-  { name: 'input_data', displayName: 'Input Data (JSON)', type: 'textarea', placeholder: '{"key": "value"}' },
-];
-
-const csvParams: APIParameter[] = [
-  { name: 'data', displayName: 'Data (JSON array)', type: 'textarea', required: true },
-  { name: 'headers', displayName: 'Column Headers (comma-separated)', type: 'string', required: true },
-  { name: 'format', displayName: 'Format', type: 'select', default: 'csv', options: [
-    { label: 'CSV', value: 'csv' },
-    { label: 'TSV', value: 'tsv' },
-  ]},
-];
-
-const pdfParams: APIParameter[] = [
-  { name: 'title', displayName: 'Document Title', type: 'string', required: true },
-  { name: 'content', displayName: 'Content (HTML or Markdown)', type: 'textarea', required: true },
-  { name: 'orientation', displayName: 'Orientation', type: 'select', default: 'portrait', options: [
-    { label: 'Portrait', value: 'portrait' },
-    { label: 'Landscape', value: 'landscape' },
-  ]},
-];
-
 // ============ Shared Cloud / Platform API Params (for unique expanded catalog entries) ============
 
 const cloudApiParams: APIParameter[] = [
@@ -3003,15 +2769,6 @@ const klaviyoParams: APIParameter[] = [
   { name: 'properties', displayName: 'Event Properties (JSON)', type: 'textarea', placeholder: '{"value":29.99}' },
 ];
 
-const stripeRadarApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const plaidTransactionsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const hubspotMarketingApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const salesforceBulkApi2Params: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const zendeskTicketsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const intercomContactsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const notionBlocksApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const airtableWebApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-
 const adyenTransfersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const braintreeVaultApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const fedexRatesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
@@ -3056,23 +2813,10 @@ const stabilityImageApiParams: APIParameter[] = [{ name: 'operation', displayNam
 const elevenlabsVoicesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const assemblyaiTranscriptApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const deepgramListenApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const zoomRecordingsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const googleMeetSpacesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const microsoftGraphUsersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const outlookMailApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const dropboxFilesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const googleDrivePermissionsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const oneDriveItemsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const boxFoldersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const airtableMetadataApiV3Params: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const smartsheetSheetsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const codaRowsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const quickbooksInvoicesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const xeroContactsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const wiseTransfersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const docusignEnvelopesApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const dropboxSignRequestsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
-const pandadocDocumentsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const auth0UsersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const oktaGroupsApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const clerkUsersApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
@@ -3128,6 +2872,7 @@ const openChargeMapApiParams: APIParameter[] = [{ name: 'operation', displayName
 const nrelAltFuelApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'NREL alternative fueling station API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const cloudinaryAdminApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Cloudinary assets and transformations API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
 const imgixManagementApiParams: APIParameter[] = [{ name: 'operation', displayName: 'Operation', type: 'string', required: true, description: 'Imgix sources and rendering API.' }, { name: 'resource_id', displayName: 'Resource ID', type: 'string' }, { name: 'payload_json', displayName: 'Payload (JSON)', type: 'textarea' }];
+void [shipstationApiParams, delhiveryApiParams, dhlParcelApiParams, aftershipApiParams, easyshipApiParams, bringgApiParams, project44ApiParams, fourkitesApiParams, weatherapiComApiParams, openMeteoApiParams, tomorrowIoApiParams, visualCrossingApiParams, openChargeMapApiParams, nrelAltFuelApiParams, cloudinaryAdminApiParams, imgixManagementApiParams];
 const muxVideoApiParams: APIParameter[] = [
   { name: 'operation', displayName: 'Operation', type: 'select', required: true, default: 'create_asset', options: [
     { label: 'Create Asset', value: 'create_asset' },

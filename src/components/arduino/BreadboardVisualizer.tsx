@@ -74,7 +74,7 @@ export function BreadboardVisualizer({
     const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;
     if (!audioCtxRef.current) audioCtxRef.current = new AudioContextClass();
-    const ctx = audioCtxRef.current;
+    const ctx = audioCtxRef.current!;
 
     Object.keys(oscRef.current).forEach((id) => {
       if ((levels[id] ?? 0) <= 0.02) {

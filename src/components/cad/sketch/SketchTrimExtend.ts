@@ -172,7 +172,6 @@ export function extendEntity(
   const isNearA = endpointDistA < endpointDistB && endpointDistA < 20
 
   let targetEnd = isNearA ? a : b
-  const otherEnd = isNearA ? b : a
 
   let bestIntersection: { x: number; y: number } | null = null
   let bestDist = Infinity

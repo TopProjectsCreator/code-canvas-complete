@@ -369,7 +369,7 @@ const drawBuzzer = (ctx: CanvasRenderingContext2D, x: number, y: number, w: numb
   });
 };
 
-const drawPotentiometer = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>, simulating: boolean) => {
+const drawPotentiometer = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, props: Record<string, any>, _simulating: boolean) => {
   const value = props.value || 0.5;
   
   // Body

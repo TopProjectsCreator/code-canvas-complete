@@ -150,7 +150,7 @@ function GlyphDetailView({ font, glyphIndex }: { font: Font; glyphIndex: number 
         <div className="p-3">
           <div className="text-xs font-medium text-muted-foreground mb-1.5">Path Commands ({commands.length})</div>
           <pre className="text-xs font-mono text-muted-foreground/80 leading-relaxed">
-            {commands.map((cmd: any, i: number) => {
+            {commands.map((cmd: any, _i: number) => {
               if (cmd.type === 'M') return `M ${cmd.x} ${cmd.y}`;
               if (cmd.type === 'L') return `L ${cmd.x} ${cmd.y}`;
               if (cmd.type === 'C') return `C ${cmd.x1} ${cmd.y1} ${cmd.x2} ${cmd.y2} ${cmd.x} ${cmd.y}`;

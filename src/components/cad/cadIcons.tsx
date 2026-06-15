@@ -1,8 +1,8 @@
 import {
   BoxSelect, Move3d, Rotate3d, Maximize2, Pencil, Shuffle,
-  Orbit, Spline, Layers, GitBranch, Columns3, Diamond,
+  Orbit, Spline, Layers, Columns3, Diamond,
   Radius, PaintBucket, Shell, Waves, Drill, Ruler,
-  Combine, CopyMinus, Crosshair, Component, CaseSensitive,
+  Combine, Crosshair, Component, CaseSensitive,
   WrapText, Split, Hand, Ban, Workflow, Shapes, Crop,
   Pyramid, Cog, Variable, Type, Rows3, Columns2, AlignCenter,
   Keyboard, Eye, EyeOff, Lock, Unlock, Search, Filter,

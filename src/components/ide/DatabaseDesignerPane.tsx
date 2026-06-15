@@ -1367,7 +1367,7 @@ const AttachmentBody = ({
         const mammoth = await import("mammoth/mammoth.browser");
         const [htmlResult, textResult] = await Promise.all([
           mammoth.convertToHtml({ arrayBuffer }),
-          mammoth.extractRawText({ arrayBuffer }),
+          (mammoth as any).extractRawText({ arrayBuffer }),
         ]);
         if (!cancelled) {
           setWordHtml(htmlResult.value);

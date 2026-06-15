@@ -3,20 +3,13 @@ import {
   Play, 
   Plus, 
   Trash2, 
-  Settings2, 
-  Terminal, 
-  Globe, 
   Zap,
   Clock,
-  ChevronRight,
-  Edit2,
   Copy,
   MoreVertical,
   CheckCircle2,
   XCircle,
   Loader2,
-  FileCode,
-  Server,
   TestTube,
   Package,
   Rocket
@@ -46,7 +39,6 @@ interface WorkflowsPanelProps {
   workflows: Workflow[];
   onRunWorkflow: (workflow: Workflow) => void;
   onCreateWorkflow: (workflow: Omit<Workflow, 'id'>) => void;
-  onUpdateWorkflow: (id: string, workflow: Partial<Workflow>) => void;
   onDeleteWorkflow: (id: string) => void;
   currentlyRunning: string | null;
 }
@@ -77,13 +69,11 @@ export const WorkflowsPanel = ({
   workflows,
   onRunWorkflow,
   onCreateWorkflow,
-  onUpdateWorkflow,
   onDeleteWorkflow,
   currentlyRunning,
 }: WorkflowsPanelProps) => {
 
   const [isCreating, setIsCreating] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [newWorkflow, setNewWorkflow] = useState({
     name: '',
     type: 'run' as Workflow['type'],

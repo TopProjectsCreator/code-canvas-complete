@@ -37,7 +37,6 @@ export function SelectionFrustum() {
 
     const onMove = (e: MouseEvent) => {
       if (!isDragging || !startPoint.current) return
-      const rect = dom.getBoundingClientRect()
       const current = getNDC(e.clientX, e.clientY)
       setBox({
         x: Math.min(startPoint.current.x, current.x),
@@ -49,7 +48,7 @@ export function SelectionFrustum() {
 
     const onUp = (e: MouseEvent) => {
       if (!isDragging || !startPoint.current) return
-      const end = getNDC(e.clientX, e.clientY)
+      getNDC(e.clientX, e.clientY)
 
       const frustum = new THREE.Frustum()
       const projScreen = new THREE.Matrix4().multiplyMatrices(

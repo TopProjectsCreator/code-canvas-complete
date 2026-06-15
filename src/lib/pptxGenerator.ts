@@ -1,5 +1,4 @@
 import PptxGenJS from 'pptxgenjs';
-import { encodeDataUrl } from '@/components/ide/office/officeUtils';
 
 export interface PptxSlide {
   title: string;

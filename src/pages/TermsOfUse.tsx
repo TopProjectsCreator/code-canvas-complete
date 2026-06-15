@@ -55,7 +55,7 @@ function SectionLink({ id }: { id: string }) {
 }
 
 export default function TermsOfUsePage() {
-  const [activeSection, setActiveSection] = useState(sections[0].id);
+  const [activeSection, setActiveSection] = useState<string>(sections[0].id);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 

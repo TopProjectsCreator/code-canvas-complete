@@ -39,7 +39,6 @@ export function Toolbar() {
   const togglePanel = useCADStore(s => s.togglePanel)
   const snap = useCADStore(s => s.snap)
   const setSnapEnabled = useCADStore(s => s.setSnapEnabled)
-  const setGridSize = useCADStore(s => s.setGridSize)
 
   return (
     <div className="h-10 border-b flex items-center px-2 gap-1 bg-background">

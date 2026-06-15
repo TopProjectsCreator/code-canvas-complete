@@ -26,8 +26,6 @@ export function ThreadTool() {
   const [depth, setDepth] = useState('15')
   const [pitch, setPitch] = useState('1.5')
   const [threadClass, setThreadClass] = useState('6H')
-  const [mergeType, setMergeType] = useState('new-body')
-
   const bodies = Object.values(doc.bodies)
   const firstBodyId = bodies[0]?.id
 
@@ -55,6 +53,9 @@ export function ThreadTool() {
         class: threadClass,
         direction: 'right',
         modeled: true,
+        majorDiameter: parseFloat(diameter) || 10,
+        minorDiameter: (parseFloat(diameter) || 10) * 0.85,
+        depth: parseFloat(depth) || 15,
       },
     }
 

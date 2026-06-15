@@ -6,7 +6,6 @@
  */
 
 // DFU class-specific requests
-const DFU_DETACH = 0x00;
 const DFU_DNLOAD = 0x01;
 const DFU_GETSTATUS = 0x03;
 const DFU_CLRSTATUS = 0x04;

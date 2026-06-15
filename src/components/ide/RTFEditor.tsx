@@ -1,8 +1,8 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import { FileNode } from '@/types/ide';
 import {
   FileText, Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
-  List, ListOrdered, Upload, Download, Type, Palette, Undo, Redo, Image,
+  List, ListOrdered, Upload, Download, Image,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
@@ -23,26 +23,6 @@ import { Image as ImageExt } from '@tiptap/extension-image';
 interface RTFEditorProps {
   file: FileNode;
   onContentChange: (fileId: string, content: string) => void;
-}
-
-// Convert URL to base64 for embedding
-async function urlToBase64(url: string): Promise<string> {
-  try {
-    if (url.startsWith('data:')) return url.split(',')[1] || '';
-    const response = await fetch(url);
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result.split(',')[1] || '');
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return '';
-  }
 }
 
 function rtfToHtml(rtf: string): string {
@@ -73,10 +53,8 @@ function rtfToHtml(rtf: string): string {
   let currentColor = '', currentBg = '';
   let currentFontSize = 24;
   let align = 'left';
-  let inTable = false;
   let currentRow: string[] = [];
   const tableRows: string[][] = [];
-  let inList = false;
 
   const tokens = body.split(/(\\[a-z]+\d*\s?|\\[}{']|\\'[0-9a-f]{2}|\\`[a-z]|\n|\r|[{])/gi).filter(Boolean);
   let groupDepth = 0;
@@ -120,7 +98,7 @@ function rtfToHtml(rtf: string): string {
       if (cmd === '\\qc' || cmd === '\\qc ') { align = 'center'; continue; }
       if (cmd === '\\qj' || cmd === '\\qj ') { align = 'justify'; continue; }
 
-      if (cmd === '\\trowd' || cmd === '\\trowd ') { inTable = true; continue; }
+      if (cmd === '\\trowd' || cmd === '\\trowd ') { continue; }
       if (cmd === '\\row' || cmd === '\\row ') {
         if (currentRow.length > 0) { tableRows.push(currentRow); currentRow = []; }
         continue;
@@ -281,11 +259,6 @@ export const RTFEditor = ({ file, onContentChange }: RTFEditorProps) => {
       onContentChange(file.id, rtf);
     },
   });
-
-  const execTipTap = useCallback((fn: () => void) => {
-    fn();
-    editor?.chain().focus().run();
-  }, [editor]);
 
   const loadFile = (f: File) => {
     const reader = new FileReader();

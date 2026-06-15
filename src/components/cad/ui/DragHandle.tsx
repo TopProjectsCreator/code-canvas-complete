@@ -11,10 +11,10 @@ export function DragHandle({ onDrag }: DragHandleProps) {
       onMouseDown={e => {
         if (!onDrag) return
         const startX = e.clientX
-        function onMove(ev: MouseEvent) {
+        const onMove = (ev: MouseEvent) => {
           onDrag(ev.clientX - startX)
         }
-        function onUp() {
+        const onUp = () => {
           document.removeEventListener('mousemove', onMove)
           document.removeEventListener('mouseup', onUp)
         }

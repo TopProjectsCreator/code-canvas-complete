@@ -24,7 +24,7 @@ function CanvasDroppable({ id, children, className }: { id: string; children: Re
   );
 }
 
-export function DragPreview({ type, label }: { type: string; label: string }) {
+export function DragPreview({ label }: { type: string; label: string }) {
   return (
     <div className="px-3 py-1.5 rounded-md bg-background border border-primary/50 shadow-lg text-sm font-medium text-foreground flex items-center gap-2">
       <span className="w-2 h-2 rounded-full bg-primary" />

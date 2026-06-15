@@ -21,7 +21,6 @@ import {
 import type { AdbDevice } from '@/lib/webusb-adb';
 import { HardwareConfigEditor } from './HardwareConfigEditor';
 import { isReplitLikePlatform } from '@/lib/platform';
-import { detectDeploymentPlatform } from '@/lib/platform';
 import { ftcTemplate } from '@/data/ftcTemplateFiles';
 import {
   Hammer,

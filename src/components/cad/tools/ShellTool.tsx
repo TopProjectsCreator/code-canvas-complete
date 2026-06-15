@@ -15,7 +15,6 @@ export function ShellTool() {
   const setToolMode = useCADStore(s => s.setToolMode)
 
   const [thickness, setThickness] = useState('2')
-  const [showBodies, setShowBodies] = useState(false)
 
   const bodies = Object.values(doc.bodies)
   const firstBodyId = bodies[0]?.id

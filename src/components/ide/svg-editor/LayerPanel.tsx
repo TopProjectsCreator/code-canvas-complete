@@ -32,7 +32,7 @@ const elementIcon = (type: string): string => {
 export function LayerPanel({
   elements, selectedIds, onSelect,
   onReorder, onToggleVisibility, onToggleLock,
-  onDuplicate, onDelete,
+
 }: LayerPanelProps) {
   const flatElements = elements.filter((e) => e.type !== 'group')
     .concat(elements.filter((e) => e.type === 'group'))

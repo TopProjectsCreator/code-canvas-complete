@@ -18,8 +18,6 @@ export const EditorStatusBar = ({
   cursorPosition,
   selectedLine,
   currentScope,
-  fileName,
-  content,
   showWorkbench,
   onGenerateTest,
   onToggleWorkbench,

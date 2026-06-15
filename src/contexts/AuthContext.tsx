@@ -43,10 +43,10 @@ export const useAuth = () => {
       profile: null,
       loading: true,
       platform: 'generic',
-      availableOAuthProviders: [],
+      availableOAuthProviders: [] as OAuthProvider[],
       signUp: async () => ({ error: new Error('Auth is not ready') }),
       signIn: async () => ({ error: new Error('Auth is not ready') }),
-      signInWithOAuth: async () => ({ error: new Error('Auth is not ready') }),
+      signInWithOAuth: async (_provider: OAuthProvider) => ({ error: new Error('Auth is not ready') }),
       resetPassword: async () => ({ error: new Error('Auth is not ready') }),
       signOut: async () => {},
       updateProfile: async () => ({ error: new Error('Auth is not ready') }),
@@ -80,16 +80,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             .eq('user_id', nextSession.user.id)
             .single();
 
+          const pd = profileData as Profile | null;
+
           // Auto-cancel scheduled deletion on explicit sign-in
-          if (event === 'SIGNED_IN' && profileData?.deletion_scheduled_at) {
+          if (event === 'SIGNED_IN' && pd?.deletion_scheduled_at) {
             await supabase
               .from('profiles')
-              .update({ deletion_scheduled_at: null })
+              .update({ deletion_scheduled_at: null } as never)
               .eq('user_id', nextSession.user.id);
-            profileData.deletion_scheduled_at = null;
+            pd.deletion_scheduled_at = null;
           }
 
-          setProfile(profileData);
+          setProfile(pd);
         } else {
           setProfile(null);
         }
@@ -110,14 +112,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .select('*')
           .eq('user_id', initialSession.user.id)
           .single()
-          .then(({ data: profileData }) => {
-            setProfile(profileData);
-            setLoading(false);
-          })
-          .catch((err) => {
-            console.error('Failed to fetch profile:', err);
-            setLoading(false);
-          });
+          .then(
+            (result: any) => {
+              setProfile(result.data as Profile | null);
+              setLoading(false);
+            },
+            (err: unknown) => {
+              console.error('Failed to fetch profile:', err);
+              setLoading(false);
+            }
+          );
       } else {
         setLoading(false);
       }
@@ -173,7 +177,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const { error } = await supabase
       .from('profiles')
-      .update({ deletion_scheduled_at: null })
+      .update({ deletion_scheduled_at: null } as never)
       .eq('user_id', user.id);
 
     if (!error && profile) {

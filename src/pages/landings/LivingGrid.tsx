@@ -23,8 +23,8 @@ function getCenter(node: { x: number; y: number; w: number; h: number }) {
 
 export function LivingGrid() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [liveUsers, setLiveUsers] = useState(1847);
-  const [liveCanvases, setLiveCanvases] = useState(892);
+  const [_liveUsers, setLiveUsers] = useState(1847);
+  const [_liveCanvases, setLiveCanvases] = useState(892);
   const [hovered, setHovered] = useState<string | null>(null);
 
   useEffect(() => {

@@ -12,7 +12,6 @@ import {
   Zap,
   Code2,
   Terminal,
-  Globe,
   Users,
   Layers,
   Bot,
@@ -989,7 +988,6 @@ export default function Compare() {
   };
 
   // Dynamic grid columns: feature label + CodeCanvas + N competitors
-  const colCount = 1 + 1 + selectedIds.length;
   const gridTemplate = `1fr repeat(${1 + selectedIds.length}, minmax(100px, 120px))`;
 
   return (

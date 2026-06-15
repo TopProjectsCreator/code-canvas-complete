@@ -70,7 +70,6 @@ export interface ControlPoints {
 export function getSegmentControlPoints(
   segments: PathSegment[],
   index: number,
-  prevPoint?: { x: number; y: number },
 ): ControlPoints | null {
   const seg = segments[index]
   if (!seg) return null
@@ -104,33 +103,24 @@ export function getSegmentControlPoints(
 
 export function getSegmentAnchors(segments: PathSegment[]): { x: number; y: number }[] {
   const anchors: { x: number; y: number }[] = []
-  let prevX = 0, prevY = 0
 
   for (const seg of segments) {
     const pts = seg.points
     if (seg.type === 'M' || seg.type === 'L') {
       if (pts.length >= 2) {
         anchors.push({ x: pts[0], y: pts[1] })
-        prevX = pts[0]
-        prevY = pts[1]
       }
     } else if (seg.type === 'C') {
       if (pts.length >= 6) {
         anchors.push({ x: pts[4], y: pts[5] })
-        prevX = pts[4]
-        prevY = pts[5]
       }
     } else if (seg.type === 'Q') {
       if (pts.length >= 4) {
         anchors.push({ x: pts[2], y: pts[3] })
-        prevX = pts[2]
-        prevY = pts[3]
       }
     } else if (seg.type === 'A') {
       if (pts.length >= 7) {
         anchors.push({ x: pts[5], y: pts[6] })
-        prevX = pts[5]
-        prevY = pts[6]
       }
     }
   }
@@ -226,8 +216,6 @@ export function insertPointInPath(
     )
   } else if (seg.type === 'C') {
     const [ax, ay] = getPreviousAnchor(segments, bestSegIndex)
-    const p1 = cubicBezierPoint(ax, ay, seg.points[0], seg.points[1], seg.points[2], seg.points[3], seg.points[4], seg.points[5], bestT - 0.05)
-    const p2 = cubicBezierPoint(ax, ay, seg.points[0], seg.points[1], seg.points[2], seg.points[3], seg.points[4], seg.points[5], bestT + 0.05)
     const split = cubicSplit(ax, ay, seg.points[0], seg.points[1], seg.points[2], seg.points[3], seg.points[4], seg.points[5], bestT)
     if (split) {
       result.splice(bestSegIndex, 1,

@@ -38,7 +38,6 @@ interface ArduinoUploadDialogProps {
   onInstallMicroPython: (boardId: string, targetPath: string, firmwareUrl: string, onProgress?: (message: string, percent?: number) => void) => Promise<void>;
   onDeployMicroPython: (boardId: string, serialPortPath: string, script: string, onProgress?: (message: string, percent?: number) => void) => Promise<void>;
   defaultMicroPythonFirmwareUrl?: (boardId: string) => string | undefined;
-  sketchCode: string;
 }
 
 const SAMBA_BOARDS = ['uno_r4_wifi', 'due', 'zero', 'mkr_wifi_1010', 'nano_33_iot'];
@@ -69,7 +68,6 @@ export function ArduinoUploadDialog({
   onInstallMicroPython,
   onDeployMicroPython,
   defaultMicroPythonFirmwareUrl,
-  sketchCode,
 }: ArduinoUploadDialogProps) {
   const [config, setConfig] = useState<UploadConfig>({
     boardId: 'uno',

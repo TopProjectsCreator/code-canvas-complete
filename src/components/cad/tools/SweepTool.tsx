@@ -24,7 +24,7 @@ export function SweepTool() {
   const [profileSketchId, setProfileSketchId] = useState('')
   const [pathSketchId, setPathSketchId] = useState('')
   const [twistAngle, setTwistAngle] = useState('0')
-  const [solid, setSolid] = useState('true')
+  const [solid] = useState('true')
   const [alignment, setAlignment] = useState('free')
   const [mergeType, setMergeType] = useState('new-body')
 

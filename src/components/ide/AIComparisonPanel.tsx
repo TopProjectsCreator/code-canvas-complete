@@ -13,7 +13,7 @@ import { PROVIDER_MODELS, AIProvider } from '@/hooks/useApiKeys';
 import ReactMarkdown from 'react-markdown';
 import { useAttachments } from '@/hooks/useAttachments';
 import { isReplitLikePlatform } from '@/lib/platform';
-import { detectDeploymentPlatform } from '@/lib/platform';
+
 
 interface ModelConfig {
   provider: AIProvider;

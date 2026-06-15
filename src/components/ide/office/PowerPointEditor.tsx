@@ -7,7 +7,7 @@ import {
   Bold, Italic, Underline as UnderlineIcon, AlignLeft, AlignCenter, AlignRight,
   Type, Square, Image, Play, Undo, Redo, Loader2,
   Table, Film, Link, Palette, Wand2, Zap, RotateCcw,
-  Eye, SlidersHorizontal, Timer, Maximize, Move, GripVertical,
+  Eye, SlidersHorizontal, Timer, Maximize,
   List,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -105,7 +105,6 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const [showGrid, setShowGrid] = useState(false);
   const [rotationDrag, setRotationDrag] = useState<{ id: string; startAngle: number; elAngle: number } | null>(null);
   // P7: Selected elements set for multi-select support
-  const [selectedElements, setSelectedElements] = useState<Set<string>>(new Set());
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const historyRef = useRef<SlideData[][]>([]);
@@ -427,11 +426,11 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               w,
               h,
               rotate: el.rotation || 0,
-              border: { type: 'solid', color: '6B7280', pt: 1 },
+              border: { type: 'solid', color: '6B7280', pt: 1 } as any,
               color: toPptxColor(el.color),
               fontSize: Math.max(10, cssPixelsToPoints(el.fontSize || 12)),
               valign: 'middle',
-            });
+            } as any);
             return;
           }
 
@@ -458,7 +457,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 bullet: { type: 'bullet' },
               },
             }));
-            slide.addText(textObjects, { x, y, w, h, rotate: el.rotation || 0, valign: 'top' });
+            slide.addText(textObjects as any, { x, y, w, h, rotate: el.rotation || 0, valign: 'top' });
           } else {
             slide.addText(el.content || '', {
               x,

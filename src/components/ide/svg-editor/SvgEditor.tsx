@@ -1,11 +1,11 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { FileNode } from '@/types/ide'
 import { Toolbar } from './Toolbar'
 import { SvgCanvas } from './SvgCanvas'
 import { PropertyPanel } from './PropertyPanel'
 import { LayerPanel } from './LayerPanel'
 import { useHistory } from './useHistory'
-import { parseSvgSource, serializeToSvg, getElementBBox, cloneElements, findElementById } from './svgUtils'
+import { parseSvgSource, serializeToSvg } from './svgUtils'
 import { parsePathD, segmentsToPathD, updateSegmentPoint } from './pathUtils'
 import { performBooleanOp } from './booleanOps'
 import { alignElements, distributeElements } from './alignUtils'
@@ -15,8 +15,6 @@ import type {
   ToolMode, GuideLine, SvgTransform,
 } from './types'
 import { toast } from 'sonner'
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
-import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface SvgEditorProps {
   file: FileNode
@@ -36,8 +34,6 @@ export function SvgEditor({ file, onContentChange }: SvgEditorProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [toolMode, setToolMode] = useState<ToolMode>('select')
   const [zoom, setZoom] = useState(1)
-  const [panX, setPanX] = useState(0)
-  const [panY, setPanY] = useState(0)
   const [showGrid, setShowGrid] = useState(false)
   const [snapToGrid, setSnapToGrid] = useState(false)
   const [showSource, setShowSource] = useState(false)
@@ -45,14 +41,14 @@ export function SvgEditor({ file, onContentChange }: SvgEditorProps) {
   const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null)
   const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null)
   const [pathPoints, setPathPoints] = useState<{ x: number; y: number }[]>([])
-  const [guideLines, setGuideLines] = useState<GuideLine[]>([])
+  const [guideLines] = useState<GuideLine[]>([])
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [freehandPoints, setFreehandPoints] = useState<{ x: number; y: number }[]>([])
   const dirtyRef = useRef(false)
   const persistTimerRef = useRef<ReturnType<typeof setTimeout>>()
   const docRef = useRef(doc)
 
-  const { push: pushHistory, undo: undoHistory, redo: redoHistory, canUndo, canRedo, reset: resetHistory } = useHistory(doc)
+  const { push: pushHistory, undo: undoHistory, redo: redoHistory, canUndo, canRedo } = useHistory(doc)
 
   const persist = useCallback((d: SvgDocument) => {
     const svg = serializeToSvg(d)
@@ -121,12 +117,12 @@ export function SvgEditor({ file, onContentChange }: SvgEditorProps) {
   }, [selectedIds, updateDoc])
 
   // Handle the __delete__ special case from canvas
-  const handleUpdateElement = useCallback((id: string, attrs: Record<string, string | number>, style?: Partial<SvgElement['style']>) => {
+  const handleUpdateElement = useCallback((id: string, attrs: Record<string, string | number>, style?: Partial<SvgElement['style']>, extra?: Record<string, any>) => {
     if (attrs.__deleteIds) {
       handleDeleteSelected()
       return
     }
-    updateElementInDoc(id, attrs, style)
+    updateElementInDoc(id, attrs, style, extra)
   }, [handleDeleteSelected, updateElementInDoc])
 
   const handleMoveElements = useCallback((ids: string[], dx: number, dy: number) => {
@@ -276,7 +272,6 @@ export function SvgEditor({ file, onContentChange }: SvgEditorProps) {
     setPathPoints(newPoints)
 
     if (newPoints.length >= 2) {
-      const prev = newPoints[newPoints.length - 2]
       const d = newPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x} ${p.y}`).join(' ')
       const el = {
         id: generateId('path'),
@@ -412,7 +407,6 @@ export function SvgEditor({ file, onContentChange }: SvgEditorProps) {
   const handleZoomIn = useCallback(() => setZoom((z) => Math.min(z * 1.25, 10)), [])
   const handleZoomOut = useCallback(() => setZoom((z) => Math.max(z / 1.25, 0.1)), [])
   const handleZoomFit = useCallback(() => {
-    const aspect = doc.width / doc.height
     const container = document.querySelector('[data-svg-container]')
     if (container) {
       const rect = container.getBoundingClientRect()
@@ -468,7 +462,7 @@ export function SvgEditor({ file, onContentChange }: SvgEditorProps) {
     navigator.clipboard.writeText(svg).then(() => toast.success('SVG source copied'))
   }, [])
 
-  const handleSelect = useCallback((ids: Set<string>, toggle?: boolean) => {
+  const handleSelect = useCallback((ids: Set<string>) => {
     setSelectedIds(ids)
   }, [])
 
@@ -827,8 +821,6 @@ export function SvgEditor({ file, onContentChange }: SvgEditorProps) {
                 selectedIds={selectedIds}
                 toolMode="select"
                 zoom={zoom}
-                panX={panX}
-                panY={panY}
                 showGrid={showGrid}
                 snapToGrid={snapToGrid}
                 gridSize={20}
@@ -873,8 +865,6 @@ export function SvgEditor({ file, onContentChange }: SvgEditorProps) {
                 selectedIds={selectedIds}
                 toolMode={toolMode}
                 zoom={zoom}
-                panX={panX}
-                panY={panY}
                 showGrid={showGrid}
                 snapToGrid={snapToGrid}
                 gridSize={20}
@@ -952,7 +942,6 @@ function catmullRomToSvgPath(points: { x: number; y: number }[]): string {
     const p2 = points[Math.min(i + 1, len - 1)]
     const p3 = points[Math.min(i + 2, len - 1)]
 
-    const tension = 0.5
     const cp1x = p1.x + (p2.x - p0.x) / 6
     const cp1y = p1.y + (p2.y - p0.y) / 6
     const cp2x = p2.x - (p3.x - p1.x) / 6

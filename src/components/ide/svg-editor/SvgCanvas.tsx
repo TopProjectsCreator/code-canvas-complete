@@ -1,7 +1,7 @@
-import { useRef, useCallback, useEffect, useState, useMemo } from 'react'
+import { useRef, useCallback, useState, useMemo } from 'react'
 import type { SvgElement, SvgDocument, ToolMode, GuideLine, BBox, SvgTransform } from './types'
 import { getElementBBox, getSelectionBBox, getElementAtPoint } from './svgUtils'
-import { parsePathD, segmentsToPathD, getSegmentControlPoints, getSegmentAnchors, updateSegmentPoint } from './pathUtils'
+import { parsePathD, getSegmentControlPoints } from './pathUtils'
 import { cn } from '@/lib/utils'
 
 interface SvgCanvasProps {
@@ -9,8 +9,6 @@ interface SvgCanvasProps {
   selectedIds: Set<string>
   toolMode: ToolMode
   zoom: number
-  panX: number
-  panY: number
   showGrid: boolean
   snapToGrid: boolean
   gridSize: number
@@ -39,10 +37,10 @@ interface SvgCanvasProps {
 type HandleType = 'top-left' | 'top-center' | 'top-right' | 'middle-left' | 'middle-right' | 'bottom-left' | 'bottom-center' | 'bottom-right' | 'rotate'
 
 export function SvgCanvas({
-  doc, selectedIds, toolMode, zoom, panX, panY,
+  doc, selectedIds, toolMode, zoom,
   showGrid, snapToGrid, gridSize, guideLines,
   editingTextId,
-  onSelect, onMoveElements, onResizeElement, onUpdateTransform,
+  onSelect, onMoveElements, onResizeElement,
   onStartDraw, onDrawMove, onEndDraw,
   onAddPathPoint, onTextPlace,
   onFreehandStart, onFreehandMove, onFreehandEnd,
@@ -52,13 +50,11 @@ export function SvgCanvas({
   const svgRef = useRef<SVGSVGElement>(null)
   const [dragging, setDragging] = useState(false)
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null)
-  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null)
   const [resizeHandle, setResizeHandle] = useState<HandleType | null>(null)
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number; bbox: BBox } | null>(null)
   const [rubberBand, setRubberBand] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [dragGuides, setDragGuides] = useState<GuideLine[]>([])
-  const [editingPathId, setEditingPathId] = useState<string | null>(null)
   const [draggingControl, setDraggingControl] = useState<{
     elId: string; segIndex: number; pointIndex: number
   } | null>(null)
@@ -84,7 +80,7 @@ export function SvgCanvas({
     }
   }, [snapToGrid, gridSize])
 
-  const computeGuides = useCallback((mx: number, my: number, ids: Set<string>): GuideLine[] => {
+  const computeGuides = useCallback((ids: Set<string>): GuideLine[] => {
     const guides: GuideLine[] = []
     const threshold = 8 / zoom
 
@@ -145,12 +141,10 @@ export function SvgCanvas({
       if (hitEl) {
         if (selectedIds.has(hitEl.id)) {
           setDragStart(snapped)
-          setDragOffset({ x: snapped.x, y: snapped.y })
           setDragging(true)
         } else {
           onSelect(new Set([hitEl.id]), e.shiftKey)
           setDragStart(snapped)
-          setDragOffset({ x: snapped.x, y: snapped.y })
           setDragging(true)
         }
       } else {
@@ -178,7 +172,7 @@ export function SvgCanvas({
       if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
         onMoveElements(Array.from(selectedIds), dx, dy)
         setDragStart(snapped)
-        const guides = computeGuides(pt.x, pt.y, selectedIds)
+        const guides = computeGuides(selectedIds)
         setDragGuides(guides)
       }
     } else if (rubberBand) {
@@ -259,13 +253,12 @@ export function SvgCanvas({
       setRubberBand(null)
     } else if (toolMode === 'freehand') {
       onFreehandEnd(snapped.x, snapped.y)
-    } else if (drawStart && (toolMode !== 'select' && toolMode !== 'freehand' && toolMode !== 'text' && toolMode !== 'path')) {
+    } else if (drawStart && (toolMode !== 'select' && toolMode !== 'text' && toolMode !== 'path')) {
       onEndDraw(snapped.x, snapped.y)
     }
 
     setDragging(false)
     setDragStart(null)
-    setDragOffset(null)
     setResizeHandle(null)
     setResizeStart(null)
     setDragGuides([])
@@ -295,11 +288,9 @@ export function SvgCanvas({
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if ((e.key === 'Delete' || e.key === 'Backspace') && toolMode === 'select' && selectedIds.size > 0) {
-      const remaining = doc.elements.filter((el) => !selectedIds.has(el.id))
-      onUpdateElement('__delete__', { __deleteIds: Array.from(selectedIds) })
+      onUpdateElement('__delete__', { __deleteIds: Array.from(selectedIds) } as unknown as Record<string, string | number>)
     }
     if (e.key === 'Escape') {
-      setEditingPathId(null)
       onSetEditingText(null)
     }
   }, [selectedIds, toolMode, doc.elements, onUpdateElement, onSetEditingText])
@@ -370,11 +361,10 @@ export function SvgCanvas({
 
     const d = (el.attrs.d as string) || ''
     const segments = parsePathD(d)
-    const anchors = getSegmentAnchors(segments)
 
     return (
       <g className="path-editing" pointerEvents="all">
-        {segments.map((seg, si) => {
+        {segments.map((_, si) => {
           const cp = getSegmentControlPoints(segments, si)
           if (!cp) return null
           const pts: Array<{ x: number; y: number; type: 'anchor' | 'cp' }> = []
@@ -383,7 +373,6 @@ export function SvgCanvas({
           pts.push({ ...cp.anchor, type: 'anchor' })
 
           return pts.map((p, pi) => {
-            const globalPi = segments.slice(0, si).reduce((acc, s) => acc + Math.ceil(s.points.length / 2), 0) + pi
             return (
               <circle
                 key={`${si}-${pi}`}
@@ -395,8 +384,7 @@ export function SvgCanvas({
                 style={{ cursor: 'pointer' }}
                 onMouseDown={(e) => {
                   e.stopPropagation()
-                  // Determine point index within segment
-                  const pointIdx = pi // 0=cp1, 1=cp2, 2=anchor (for C)
+                  const pointIdx = pi
                   handleControlPointMouseDown(el.id, si, pointIdx, e)
                 }}
               />
@@ -539,17 +527,17 @@ export function SvgCanvas({
         case 'line':
           return <line key={el.id} x1={el.attrs.x1} y1={el.attrs.y1} x2={el.attrs.x2} y2={el.attrs.y2} {...commonProps} />
         case 'path':
-          return <path key={el.id} d={el.attrs.d} {...commonProps} />
+          return <path key={el.id} d={el.attrs.d as string} {...commonProps} />
         case 'text':
           return (
-            <text key={el.id} x={el.attrs.x} y={el.attrs.y} fontSize={el.attrs.fontSize || 16} fontFamily={el.attrs.fontFamily || 'sans-serif'} textAnchor={el.attrs.textAnchor || 'start'} {...commonProps}>
+            <text key={el.id} x={el.attrs.x} y={el.attrs.y} fontSize={el.attrs.fontSize || 16} fontFamily={el.attrs.fontFamily as string || 'sans-serif'} textAnchor={el.attrs.textAnchor as 'start' || 'start'} {...commonProps}>
               {editingTextId === el.id ? (
                 <tspan>{el.name}</tspan>
               ) : el.name}
             </text>
           )
         case 'image':
-          return <image key={el.id} x={el.attrs.x} y={el.attrs.y} width={el.attrs.width} height={el.attrs.height} href={el.attrs.href as string} preserveAspectRatio={(el.attrs.preserveAspectRatio as string) || 'xMidYMid meet'} {...commonProps} />
+          return <image key={el.id} x={el.attrs.x} y={el.attrs.y} width={el.attrs.width} height={el.attrs.height} href={el.attrs.href as string} preserveAspectRatio={el.attrs.preserveAspectRatio as string || 'xMidYMid meet'} {...commonProps} />
         case 'group':
           return (
             <g key={el.id} {...commonProps}>

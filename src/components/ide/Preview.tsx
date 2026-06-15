@@ -11,7 +11,6 @@ import {
   Bug,
   X,
   Trash2,
-  ChevronDown,
   Search,
   CheckCircle2,
   AlertTriangle,
@@ -352,7 +351,6 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
       return null;
     }
     const head = doc.head;
-    const get = (sel: string) => head?.querySelector(sel) as HTMLElement | null;
     const getMeta = (name: string) =>
       (head?.querySelector(`meta[name="${name}" i]`) as HTMLMetaElement | null)?.content || '';
     const getProp = (prop: string) =>

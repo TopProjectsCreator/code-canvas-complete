@@ -20,7 +20,6 @@ const ESP_FLASH_END = 0x04;
 
 const CHIP_DETECT_MAGIC_REG = 0x40001000;
 const ESP8266_MAGIC = 0xfff0c101;
-const ESP32_MAGIC = 0x00f01d83;
 
 const ESP_FLASH_WRITE_SIZE = 0x4000;
 const FLASH_SECTOR_SIZE = 4096;
@@ -227,7 +226,7 @@ async function flashEnd(
 export async function flashViaEsptool(
   firmwareBase64: string,
   port: SerialPortLike,
-  chipHint: 'esp32' | 'esp8266' = 'esp32',
+  _chipHint?: string,
   onProgress?: ProgressCb
 ): Promise<void> {
   const binaryStr = atob(firmwareBase64);

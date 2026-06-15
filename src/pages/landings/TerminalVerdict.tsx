@@ -240,7 +240,7 @@ export function TerminalVerdict() {
           {/* Feature index */}
           <div style={{ fontSize: 11, color: "#484f58", letterSpacing: "0.06em", marginBottom: 12 }}>// FEATURES</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {["AI pair programming", "Live team presence", "Edge deploy pipeline", "Built-in git workflow", "Visual canvas", "Automations engine"].map((f, i) => (
+            {["AI pair programming", "Live team presence", "Edge deploy pipeline", "Built-in git workflow", "Visual canvas", "Automations engine"].map((f, _i) => (
               <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#8b949e" }}>
                 <span style={{ color: "#238636" }}>✓</span>
                 {f}

@@ -4,69 +4,13 @@ import { getArduinoTemplateFiles } from "./arduinoTemplates";
 import { ftcTemplate } from "./ftcTemplateFiles";
 import { secureOpsTemplate } from "./secureOpsTemplate";
 
-const tutorialTitles: Record<LanguageTemplate, string> = {
-  blank: "Blank Canvas",
-  html: "HTML/CSS/JS",
-  javascript: "JavaScript",
-  typescript: "TypeScript",
-  python: "Python",
-  java: "Java",
-  cpp: "C++",
-  c: "C",
-  go: "Go",
-  rust: "Rust",
-  ruby: "Ruby",
-  php: "PHP",
-  csharp: "C#",
-  bash: "Bash",
-  lua: "Lua",
-  perl: "Perl",
-  r: "R",
-  haskell: "Haskell",
-  nim: "Nim",
-  zig: "Zig",
-  lisp: "Common Lisp",
-  d: "D",
-  groovy: "Groovy",
-  pascal: "Pascal",
-  swift: "Swift",
-  crystal: "Crystal",
-  elixir: "Elixir",
-  erlang: "Erlang",
-  julia: "Julia",
-  ocaml: "OCaml",
-  pony: "Pony",
-  scala: "Scala",
-  vim: "Vim Script",
-  lazyk: "Lazy K",
-  react: "React",
-  nodejs: "Node.js",
-  secureops: "SecureOps Platform",
-  automation: "Automation Canvas",
-  sqlite: "SQLite",
-  database: "Database Designer",
-  arduino: "Arduino",
-  scratch: "Scratch Blocks",
-  word: "Word Document",
-  powerpoint: "PowerPoint",
-  excel: "Excel Spreadsheet",
-  video: "Video Editor",
-  audio: "Audio Editor",
-  rtf: "Rich Text",
-  cad: "3D CAD Viewer",
-  ftc: "FTC Robotics",
-  whiteboard: "Whiteboard",
-  latex: "LaTeX",
-  mermaid: "Mermaid",
-};
-
 const cloneFileNodes = (nodes: FileNode[]): FileNode[] =>
   nodes.map((node) => ({
     ...node,
     children: node.children ? cloneFileNodes(node.children) : undefined,
   }));
 
-const withTutorialFolder = (template: LanguageTemplate, templateFiles: FileNode[]): FileNode[] => {
+const withTutorialFolder = (_template: LanguageTemplate, templateFiles: FileNode[]): FileNode[] => {
   return cloneFileNodes(templateFiles);
 };
 

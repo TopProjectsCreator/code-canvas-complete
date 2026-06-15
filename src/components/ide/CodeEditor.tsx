@@ -51,7 +51,7 @@ function ScratchProjectView({ file, onContentChange }: { file: FileNode; onConte
   useEffect(() => {
     if (hasLoaded || !file.content) return;
     const tryLoadFromContent = async () => {
-      const c = file.content.trim();
+      const c = (file.content ?? "").trim();
       if (c.startsWith('{') || c.startsWith('project.json')) {
         setArchive({ projectJson: c.replace(/^project\.json\n/, ''), files: {}, fileNames: [] });
         setHasLoaded(true);
@@ -72,7 +72,7 @@ function ScratchProjectView({ file, onContentChange }: { file: FileNode; onConte
     tryLoadFromContent();
   }, [file.content, hasLoaded]);
 
-  const handleProjectJsonUpdate = useCallback((json: string) => {
+  const handleProjectJsonUpdate = useCallback((_json: string) => {
     if (!archive) return;
     exportSb3(archive).then((bytes) => {
       const base64 = btoa(String.fromCharCode(...bytes));
@@ -153,7 +153,7 @@ export const CodeEditor = ({
   const [showWorkbench, setShowWorkbench] = useState(false);
   const [asideTab, setAsideTab] = useState<"assistant" | "comments">("assistant");
   const [foldedScopes, setFoldedScopes] = useState<string[]>([]);
-  const [showStickyScope, setShowStickyScope] = useState(() => {
+  const [_showStickyScope, setShowStickyScope] = useState(() => {
     const stored = localStorage.getItem('showStickyScope');
     return stored === 'true';
   });
@@ -179,6 +179,10 @@ export const CodeEditor = ({
   const activePresence = useMemo(
     () => collab?.presence.filter((entry) => entry.currentFile === currentFilePath) || [],
     [collab?.presence, currentFilePath],
+  );
+  const mappedActivePresence = useMemo(
+    () => activePresence.map((p) => ({ ...p, cursorLine: p.cursorLine ?? undefined, cursorCol: p.cursorCol ?? undefined })),
+    [activePresence],
   );
   const scopes = useMemo(() => extractScopeHeaders(content), [content]);
   const currentScope = useMemo(
@@ -274,7 +278,7 @@ export const CodeEditor = ({
   if (isEnvFile) return <EnvFileEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "draw") return <DrawEditor file={file} onContentChange={onContentChange} />;
   if (previewType === "office") return <OfficeEditor file={file} onContentChange={onContentChange} />;
-  if (previewType === "pdf") return <PDFEditor file={file} onContentChange={onContentChange} />;
+  if (previewType === "pdf") return <PDFEditor file={file} />;
   if (previewType === "epub") return <EpubViewer file={file} onContentChange={onContentChange} />;
   if (previewType === "tex") return <TexEditor file={file} onContentChange={onContentChange} allFiles={allFiles} />;
   if (previewType === "mermaid") return <MermaidEditor file={file} onContentChange={onContentChange} />;
@@ -430,7 +434,7 @@ export const CodeEditor = ({
             content={content}
             selectedLine={selectedLine}
             commentsByLine={commentsByLine}
-            activePresence={activePresence}
+            activePresence={mappedActivePresence}
             scopes={scopes}
             foldedScopeSet={foldedScopeSet}
             onSelectLine={setSelectedLine}
@@ -444,7 +448,7 @@ export const CodeEditor = ({
             language={file.language || "text"}
             searchMatches={searchMatches}
             currentMatchIndex={currentMatchIndex}
-            activePresence={activePresence}
+            activePresence={mappedActivePresence}
             selectedLine={selectedLine}
             onChange={handleContentChange}
             onCursorChange={(line, col) => setCursorPosition({ line, col })}
@@ -500,10 +504,10 @@ export const CodeEditor = ({
                 <EditorComments
                   selectedLine={selectedLine}
                   currentFilePath={currentFilePath ?? null}
-                  collab={collab}
+                  collab={collab!}
                   fileComments={fileComments}
                   selectedLineThreads={selectedLineThreads}
-                  activePresence={activePresence}
+                  activePresence={mappedActivePresence}
                 />
               </TabsContent>
             </Tabs>

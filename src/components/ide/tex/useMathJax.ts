@@ -38,7 +38,7 @@ function loadMathJax(): Promise<void> {
       },
       startup: {
         pageReady() {
-          return (window.MathJax!.startup!.pageReady as any).call(this).then(() => {
+          return ((window.MathJax!.startup as any).pageReady as any).call(this).then(() => {
             resolve();
           });
         },

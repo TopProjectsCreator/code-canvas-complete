@@ -6,7 +6,6 @@ import {
   ArrowRight,
   Bot,
   ChevronRight,
-  CircuitBoard,
   Code2,
   Cpu,
   Gauge,

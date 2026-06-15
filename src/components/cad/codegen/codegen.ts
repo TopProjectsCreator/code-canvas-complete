@@ -1,4 +1,4 @@
-import type { CadDocument, Feature, PrimitiveFeature, ExtrudeFeature, RevolveFeature, SweepFeature, LoftFeature, CoilFeature, RibFeature, FilletFeature, ChamferFeature, ShellFeature, DraftFeature, HoleFeature, BooleanFeature, SketchEntity, Sketch } from '../types'
+import type { CadDocument, Feature, PrimitiveFeature, ExtrudeFeature, RevolveFeature, SweepFeature, LoftFeature, CoilFeature, RibFeature, HoleFeature, SketchEntity } from '../types'
 import * as THREE from 'three'
 import { generatePrimitive } from './PrimitiveGen'
 import { generateExtrudeGeometry } from './ExtrudeGen'

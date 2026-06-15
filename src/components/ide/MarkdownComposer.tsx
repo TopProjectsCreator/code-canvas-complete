@@ -67,8 +67,8 @@ export function MarkdownComposer({ content, onChange, placeholder = 'Write your 
       CodeBlockLowlight.configure({ lowlight }),
       Placeholder.configure({ placeholder }),
     ],
-    content: marked.parse(parsed.body || content),
-    onUpdate: ({ editor: ed }) => {
+    content: marked.parse(parsed.body || content) as string,
+    onUpdate: ({ editor: ed }: { editor: any }) => {
       const html = ed.getHTML();
       let md = turndownService.turndown(html);
       const fm = frontmatterRef.current;
@@ -89,7 +89,7 @@ export function MarkdownComposer({ content, onChange, placeholder = 'Write your 
       const parsed = extractFrontmatter(content);
       frontmatterRef.current = parsed.frontmatter;
       setHasFrontmatter(!!parsed.frontmatter);
-      const newBody = marked.parse(parsed.body || content);
+      const newBody = marked.parse(parsed.body || content) as string;
       const currentHtml = editor.getHTML();
       if (newBody.trim() !== currentHtml.trim()) {
         editor.commands.setContent(newBody);
@@ -97,7 +97,7 @@ export function MarkdownComposer({ content, onChange, placeholder = 'Write your 
     }
   }, [content, editor]);
 
-  const handlePaste = useCallback((event: React.ClipboardEvent) => {
+  const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
     const files = event.clipboardData?.files;
     if (files && files.length > 0) {
       const imageFile = Array.from(files).find(f => f.type.startsWith('image/'));

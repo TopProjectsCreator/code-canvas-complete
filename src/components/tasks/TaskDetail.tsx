@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Task, TaskStatus, TaskPriority } from '@/types/task';
-import { PRIORITY_COLORS, COLUMNS } from '@/types/task';
+import { COLUMNS } from '@/types/task';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

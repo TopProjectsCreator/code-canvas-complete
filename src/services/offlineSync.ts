@@ -6,7 +6,6 @@ import {
   markProjectClean,
   onOnlineStatusChange,
   isOnline,
-  OfflineProject,
   deleteOfflineProject,
 } from './offlineStorage';
 import { createDataProvider } from '@/integrations/data/provider';

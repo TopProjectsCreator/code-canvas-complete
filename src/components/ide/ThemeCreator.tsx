@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { ArrowLeft, Save, Trash2, Paintbrush } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { CustomTheme, CustomThemeColors } from '@/contexts/ThemeContext';
-import { cn } from '@/lib/utils';
 
 interface ThemeCreatorProps {
   existingTheme?: CustomTheme;

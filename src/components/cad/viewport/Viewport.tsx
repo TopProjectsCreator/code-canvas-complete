@@ -50,7 +50,6 @@ function OrbitControlsWithScroll() {
 function SceneContent() {
   const background = useCADStore(s => s.viewport.background)
   const bgColor = useCADStore(s => s.viewport.customBackgroundColor)
-  const wireframe = useCADStore(s => s.viewport.wireframe)
 
   const finalColor = background === 'dark'
     ? CAD_COLORS.backgroundDark

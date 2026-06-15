@@ -1,10 +1,6 @@
 import type { SketchEntity, Constraint as SkConstraint } from '../types'
 import { buildConstraints, solveConstraints, computeDOF, type SolverParams, type SolverConstraint, type SolverResult } from './ConstraintSolver'
 
-interface EntityEndpoints {
-  pointIndices: number[]
-}
-
 function getEntityPoints(entity: SketchEntity): { x: number; y: number }[] {
   const p = entity.params as Record<string, number>
   switch (entity.type) {
@@ -59,7 +55,6 @@ export function buildSolverMapping(entities: SketchEntity[]): {
       pointIndices: indices,
       updateParams: (solved) => {
         const newParams: Record<string, number> = {}
-        const eps = getEntityPoints({ ...ent, params: {} } as SketchEntity)
         if (ent.type === 'line') {
           newParams.x1 = solved[indices[0]]?.x ?? 0
           newParams.y1 = solved[indices[0]]?.y ?? 0

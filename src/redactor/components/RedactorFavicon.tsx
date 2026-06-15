@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 
-const ORIGINAL_HREF = "/favicon.png";
 const REDACTOR_HREF = "/redactor-favicon.ico";
 
 export function RedactorFavicon() {

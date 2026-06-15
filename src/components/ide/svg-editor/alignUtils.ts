@@ -8,8 +8,8 @@ export function alignElements(
   elements: SvgElement[],
   ids: Set<string>,
   mode: AlignMode,
-  canvasWidth: number,
-  canvasHeight: number,
+  _canvasWidth: number,
+  _canvasHeight: number,
 ): SvgElement[] {
   const selected = elements.filter((e) => ids.has(e.id))
   if (selected.length === 0) return elements

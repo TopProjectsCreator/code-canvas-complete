@@ -25,10 +25,6 @@ function vecSub(a: SolverPoint, b: SolverPoint): SolverPoint {
   return { x: a.x - b.x, y: a.y - b.y }
 }
 
-function vecLen(v: SolverPoint): number {
-  return Math.sqrt(v.x * v.x + v.y * v.y)
-}
-
 function vecDot(a: SolverPoint, b: SolverPoint): number {
   return a.x * b.x + a.y * b.y
 }
@@ -37,7 +33,7 @@ function horizConstraint(p1Ix: number, p2Ix: number): SolverConstraint {
   return {
     name: 'horizontal',
     error: (p) => p.points[p1Ix].y - p.points[p2Ix].y,
-    gradient: (p) => {
+    gradient: () => {
       const g: { pointIx: number; dx: number; dy: number }[] = []
       if (p1Ix >= 0) g.push({ pointIx: p1Ix, dx: 0, dy: 1 })
       if (p2Ix >= 0) g.push({ pointIx: p2Ix, dx: 0, dy: -1 })

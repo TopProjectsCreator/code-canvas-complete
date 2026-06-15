@@ -93,7 +93,7 @@ export const exportSb3 = async (archive: ScratchArchive): Promise<Uint8Array> =>
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
 };
 
-export const exportScratchArchive = async (archive: ScratchArchive, format: ScratchArchiveFormat = 'sb3'): Promise<Uint8Array> => {
+export const exportScratchArchive = async (archive: ScratchArchive, _format: ScratchArchiveFormat = 'sb3'): Promise<Uint8Array> => {
   // sb2/sb3 are both zip-based Scratch archives; we currently emit a zip archive with
   // project.json + assets and let callers pick the download extension.
   // Scratch VM can still load a legacy-compatible project through JSON; file export

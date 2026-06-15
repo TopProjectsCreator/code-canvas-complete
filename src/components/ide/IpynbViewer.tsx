@@ -855,8 +855,8 @@ const VariablesSidebar = ({ variables }: { variables: Array<{ name: string; type
 // ---------------------------------------------------------------------------
 
 export function IpynbViewer({ file, onContentChange }: { file: FileNode; onContentChange?: (fileId: string, content: string) => void }) {
-  const [cells, setCells] = useState<NotebookCell[]>(() => parseCells(file.content));
-  const [metadata, setMetadata] = useState<Record<string, unknown>>(() => parseMetadata(file.content));
+  const [cells, setCells] = useState<NotebookCell[]>(() => parseCells(file.content ?? ""));
+  const [metadata, setMetadata] = useState<Record<string, unknown>>(() => parseMetadata(file.content ?? ""));
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [variables, setVariables] = useState<Array<{ name: string; type: string }>>([]);
@@ -878,7 +878,7 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
   const [isExecuting, setIsExecuting] = useState(false);
 
   // useNotebookKernel hook - mock implementation if not available
-  const { kernel, runCell } = useNotebookKernel(file.id);
+  const { kernel, runCell, restartKernel } = useNotebookKernel();
 
   // Update variables whenever cells change
   useEffect(() => {
@@ -902,9 +902,9 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
   // Re-parse when file changes
   useEffect(() => {
     if (file.content !== initRef.current) {
-      initRef.current = file.content;
-      setCells(parseCells(file.content));
-      setMetadata(parseMetadata(file.content));
+      initRef.current = file.content ?? null;
+      setCells(parseCells(file.content ?? ""));
+      setMetadata(parseMetadata(file.content ?? ""));
       setSelectedCellId(null);
       setExecutionTimes({});
       setShowRawJson(false);
@@ -932,10 +932,10 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
   }, [metadata]);
 
   const kernelName = useMemo(() => {
-    const ks = metadata?.kernelspec;
+    const ks = metadata?.kernelspec as Record<string, unknown> | undefined;
     if (ks && typeof ks.display_name === "string") return String(ks.display_name);
     if (ks && typeof ks.name === "string") return String(ks.name);
-    const li = metadata?.language_info;
+    const li = metadata?.language_info as Record<string, unknown> | undefined;
     if (li && typeof li.name === "string") return String(li.name);
     return "unknown";
   }, [metadata]);
@@ -1180,9 +1180,9 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
   }, [saveNotebook]);
 
   const handleRestartKernel = useCallback(() => {
-    kernel.restartKernel();
+    restartKernel();
     setExecutionTimes({});
-  }, [kernel]);
+  }, [restartKernel]);
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -1358,7 +1358,7 @@ export function IpynbViewer({ file, onContentChange }: { file: FileNode; onConte
   };
 
   const exportHtml = () => {
-    const renderedCells = cells.map((cell, i) => {
+    const renderedCells = cells.map((cell) => {
       if (cell.cell_type === 'markdown') {
         return `<div class="cell markdown">${cell.source}</div>`;
       }

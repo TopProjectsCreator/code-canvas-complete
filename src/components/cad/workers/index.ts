@@ -9,7 +9,6 @@ export interface ReconstructedGeometry {
 
 let workerInstance: Worker | null = null
 let pendingResolve: ((result: ReconstructedGeometry[]) => void) | null = null
-let pendingId = 0
 
 function getWorker(): Worker {
   if (!workerInstance) {

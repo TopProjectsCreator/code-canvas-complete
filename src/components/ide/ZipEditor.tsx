@@ -35,44 +35,16 @@ const getPreviewType = (path: string): ZipPreviewType => {
   return 'binary';
 };
 
+interface EntryMeta {
+  path: string;
+  size: number;
+}
+
 const formatBytes = (n: number): string => {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
   return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
-};
-
-interface TreeNode {
-  name: string;
-  path: string;
-  type: 'file' | 'folder';
-  children: TreeNode[];
-  size?: number;
-}
-
-const buildTree = (entries: EntryMeta[]) => {
-  const root: TreeNode = { name: '', path: '', type: 'folder', children: [] };
-  for (const entry of entries) {
-    const parts = entry.path.split('/');
-    let current = root;
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isFile = i === parts.length - 1;
-      let child = current.children.find(c => c.name === part);
-      if (!child) {
-        child = {
-          name: part,
-          path: isFile ? entry.path : parts.slice(0, i + 1).join('/'),
-          type: isFile ? 'file' : 'folder',
-          children: [],
-          ...(isFile ? { size: entry.size } : {})
-        };
-        current.children.push(child);
-      }
-      current = child;
-    }
-  }
-  return root.children;
 };
 
 export const ZipEditor = ({ file, onContentChange }: ZipEditorProps) => {
@@ -232,40 +204,7 @@ export const ZipEditor = ({ file, onContentChange }: ZipEditorProps) => {
     }
   };
 
-  const treeData = useMemo(() => buildTree(entries.filter((e) => e.path.toLowerCase().includes(filter.toLowerCase()))), [entries, filter]);
-
-  const renderTree = (nodes: TreeNode[]): JSX.Element[] => {
-    return nodes.map(node => (
-      <div key={node.path}>
-        {node.type === 'folder' ? (
-          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{node.name}/</div>
-        ) : (
-          <div className="group flex items-center">
-            <button
-              className={`flex-1 text-left px-2 py-1.5 rounded text-xs hover:bg-muted/50 flex items-center justify-between gap-2 ${selectedPath === node.path ? 'bg-muted' : ''}`}
-              onClick={() => void openEntry(node.path)}
-            >
-              <span className="truncate">{node.name}</span>
-              <span className="text-muted-foreground shrink-0">{node.size ? formatBytes(node.size) : ''}</span>
-            </button>
-            <div className="hidden group-hover:flex items-center gap-0.5 pr-1">
-              <button
-                onClick={() => { setRenamingPath(node.path); setRenameValue(node.path); }}
-                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                title="Rename"
-              ><Pencil className="w-3 h-3" /></button>
-              <button
-                onClick={() => { if (confirm(`Delete ${node.path}?`)) void deleteEntry(node.path); }}
-                className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/20"
-                title="Delete"
-              ><Trash2 className="w-3 h-3" /></button>
-            </div>
-          </div>
-        )}
-        {node.children.length > 0 && <div className="pl-4">{renderTree(node.children)}</div>}
-      </div>
-    ));
-  };
+  const visibleEntries = useMemo(() => entries.filter((e) => e.path.toLowerCase().includes(filter.toLowerCase())), [entries, filter]);
 
   const openEntry = async (path: string) => {
     if (!zip) return;

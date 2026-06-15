@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import type { Task, TaskStatus } from '@/types/task';
+import type { Task } from '@/types/task';
 import { COLUMNS, PRIORITY_COLORS } from '@/types/task';
 
 interface TaskGanttProps {

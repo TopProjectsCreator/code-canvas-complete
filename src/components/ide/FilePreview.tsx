@@ -156,7 +156,6 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
   const [sqliteQuery, setSqliteQuery] = useState('');
   const [sqliteQueryResult, setSqliteQueryResult] = useState<string[][] | null>(null);
   const [sqliteQueryError, setSqliteQueryError] = useState<string | null>(null);
-  const [mermaidSource, setMermaidSource] = useState('');
   const [mermaidShowSource, setMermaidShowSource] = useState(false);
   const mermaidRenderRequestRef = useRef(0);
 
@@ -396,7 +395,6 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
 
   if (previewType === 'audio') {
     const isDataUrl = content.startsWith('data:');
-    const isUrl = content.startsWith('http://') || content.startsWith('https://');
     const ext = file.name.split('.').pop()?.toLowerCase();
     const mimeTypes: Record<string, string> = {
       mp3: 'audio/mpeg',
@@ -877,7 +875,7 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
 
     const downloadPng = () => {
       if (!mermaidSvg) return;
-      const img = new Image();
+      const img = new window.Image();
       const svgBlob = new Blob([mermaidSvg], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(svgBlob);
       img.onload = () => {

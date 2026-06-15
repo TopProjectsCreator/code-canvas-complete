@@ -17,7 +17,6 @@ import {
   Sparkles,
   FileCog,
   WandSparkles,
-  Package,
 } from 'lucide-react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
@@ -1156,8 +1155,6 @@ export const ToolsPanel = () => {
         for (let index = 0; index < imageLayers.length; index += 1) {
           const layer = imageLayers[index];
           const inputIndex = index + 2;
-          const widthPx = Math.max(8, Math.floor((layer.widthPercent / 100) * safeWidth));
-          const heightPx = Math.max(8, Math.floor((layer.heightPercent / 100) * safeHeight));
           const xPx = Math.floor((layer.xPercent / 100) * safeWidth);
           const yPx = Math.floor((layer.yPercent / 100) * safeHeight);
           const nextVideoLabel = index === imageLayers.length - 1 && sceneLayers.filter((nextLayer) => nextLayer.kind === 'element').length === 0

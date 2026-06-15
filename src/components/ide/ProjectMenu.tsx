@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Pencil, LayoutTemplate, Check, X, AlertTriangle } from 'lucide-react';
+import { ChevronDown, Pencil, LayoutTemplate, Check, AlertTriangle } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,6 @@ import {
 } from '@/components/ui/dialog';
 import type { LanguageTemplate } from '@/data/templateRegistry';
 import { TEMPLATES } from '@/data/templateRegistry';
-import { cn } from '@/lib/utils';
 
 interface ProjectMenuProps {
   projectName: string;

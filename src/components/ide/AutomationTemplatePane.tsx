@@ -737,9 +737,6 @@ const starterFlow = (): AutomationBlockInstance[] => [
   },
 ];
 
-const getBlocksSignature = (items: AutomationBlockInstance[]) =>
-  JSON.stringify(items.map((block) => ({ type: block.type, label: block.label, config: block.config })));
-
 export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVersion = 0 }: AutomationTemplatePaneProps = {}) => {
   const [query, setQuery] = useState('');
   const [blocks, setBlocks] = useState<AutomationBlockInstance[]>(initialBlocks ?? starterFlow());
@@ -848,7 +845,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
       category: entry.categoryTitle,
       subcategory: entry.subcategoryTitle,
       auth: entry.auth,
-      config: defaultConfigForAuth(entry.auth),
+      config: defaultConfigForAuth(entry.auth) as unknown as Record<string, string>,
     };
 
     setBlocks((prev) => [...prev, instance]);
@@ -864,14 +861,6 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   const removeBlock = (id: string) => {
     setBlocks((prev) => prev.filter((item) => item.id !== id));
     if (selectedBlockId === id) setSelectedBlockId(null);
-  };
-
-  const updateSelectedConfig = (key: string, value: string) => {
-    if (!selectedBlock) return;
-
-    setBlocks((prev) =>
-      prev.map((item) => (item.id === selectedBlock.id ? { ...item, config: { ...item.config, [key]: value } } : item)),
-    );
   };
 
   const replaceSelectedConfig = (nextConfig: Record<string, string>) => {
@@ -891,28 +880,6 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   const upsertQuickConfig = (updates: Record<string, string>) => {
     if (!selectedBlock) return;
     replaceSelectedConfig({ ...selectedBlock.config, ...updates });
-  };
-
-  const updateConfigEntry = (oldKey: string, newKey: string, value: string) => {
-    if (!selectedBlock) return;
-    const trimmedNewKey = newKey.trim();
-    if (!trimmedNewKey) return;
-
-    const updatedConfig: Record<string, string> = {};
-    Object.entries(selectedBlock.config).forEach(([entryKey, entryValue]) => {
-      if (entryKey === oldKey) {
-        updatedConfig[trimmedNewKey] = value;
-      } else {
-        updatedConfig[entryKey] = entryValue;
-      }
-    });
-    replaceSelectedConfig(updatedConfig);
-  };
-
-  const removeConfigKey = (key: string) => {
-    if (!selectedBlock) return;
-    const updatedConfig = Object.fromEntries(Object.entries(selectedBlock.config).filter(([entryKey]) => entryKey !== key));
-    replaceSelectedConfig(updatedConfig);
   };
 
   const addCustomParam = () => {
@@ -2652,11 +2619,6 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     setSelectedRunId(null);
     toast.success('Run history cleared');
   }, []);
-
-  const selectedRun = useMemo(
-    () => runHistory.find((r) => r.id === selectedRunId) ?? null,
-    [runHistory, selectedRunId],
-  );
 
   // ===== Artifacts: search, filter, log-link, diff-vs-previous-run =====
   const [artifactSearch, setArtifactSearch] = useState('');

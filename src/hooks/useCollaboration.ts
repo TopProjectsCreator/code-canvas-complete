@@ -565,7 +565,7 @@ export function useCollaboration(projectId: string | undefined) {
   const broadcastFilePatch = useCallback(async (
     engine: CollaborationSyncEngine,
     fileId: string,
-    filePath: string,
+    _filePath: string,
     nextContent: string,
   ) => {
     if (!user || !workspaceChannelRef.current) return;

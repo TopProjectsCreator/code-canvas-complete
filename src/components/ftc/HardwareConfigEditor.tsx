@@ -2,17 +2,14 @@ import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Plus,
   Trash2,
-  Save,
   Download,
-  Upload,
   Cpu,
-  RotateCcw,
   Settings2,
 } from 'lucide-react';
 
@@ -49,16 +46,6 @@ const CONTROLLER_PORTS: PortSlot[] = [
   { label: 'Analog Input', type: 'analog', maxPorts: 4, portStart: 0 },
   { label: 'I2C Bus', type: 'i2c', maxPorts: 4, portStart: 0 },
 ];
-
-const DEVICE_TYPE_LABELS: Record<DeviceType, string> = {
-  dc_motor: 'DC Motor',
-  servo: 'Servo',
-  crservo: 'CR Servo',
-  digital: 'Digital I/O',
-  analog: 'Analog Input',
-  i2c: 'I2C Device',
-  webcam: 'Webcam',
-};
 
 const DEVICE_TYPE_COLORS: Record<DeviceType, string> = {
   dc_motor: 'bg-blue-500/20 text-blue-400 border-blue-500/30',

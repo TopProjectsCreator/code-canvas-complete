@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import {
   StopCircle,
   Maximize2,
@@ -7,12 +7,9 @@ import {
   Volume2,
   Brush,
   Code2,
-  // Search removed - unused
   ZoomIn,
   ZoomOut,
   CircleMinus,
-  RotateCw,
-  RotateCcw,
   Eye,
   EyeOff,
   Upload,
@@ -674,7 +671,6 @@ const ensureArchive = (archive: ScratchArchive | null): ScratchArchive => {
   });
 };
 
-const makeNumberInput = (value: string) => [1, [4, value]];
 const isEventBlock = (opcode: string) => opcode?.startsWith('event_');
 const getBlockColor = (opcode: string) => (!opcode ? '#4c97ff' : opcode.startsWith('motion_') ? '#4c97ff'
   : opcode.startsWith('looks_') ? '#9966ff'
@@ -1608,7 +1604,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const [inputDropTarget, setInputDropTarget] = useState<{ blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number } | null>(null);
   // Mirror of inputDropTarget used inside pointer-up handlers to avoid stale-closure misses.
   const inputDropTargetRef = useRef<typeof inputDropTarget>(null);
-  const [editingShadow, setEditingShadow] = useState<{ blockId: string; inputKey: string } | null>(null);
   const [blockContextMenu, setBlockContextMenu] = useState<{ blockId: string; x: number; y: number } | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [vmError, setVmError] = useState<string | null>(null);
@@ -1779,10 +1774,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const selectedCostumes = selectedTarget?.costumes || [];
   const selectedSounds = selectedTarget?.sounds || [];
   const currentCostumeIndex = Number(selectedTarget?.currentCostume || 0);
-  const activeCostume = selectedCostumes[currentCostumeIndex] || selectedCostumes[0];
-  const stageCostumeSrc = activeCostume && archive?.files?.[activeCostume.md5ext]
-    ? `data:${imgMime(activeCostume.dataFormat)};base64,${archive.files[activeCostume.md5ext]}`
-    : null;
 
   const syncFromVm = useCallback(() => {
     const vm = vmRef.current;
@@ -2768,7 +2759,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       });
     });
     if (!best) return null;
-    const { score: _s, ...rest } = best;
+    const { score: _s, ...rest }: { blockId: string; inputKey: string; type: 'reporter' | 'boolean'; x: number; y: number; width: number; height: number; score: number } = best;
     return rest;
   }, []);
 
@@ -3926,7 +3917,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             {selectedBlocks.filter((block) => block.opcode && !block.shadow && (block.x !== undefined || block.topLevel)).map((block) => {
               const blockColor = getBlockColor(block.opcode);
               const shape = getBlockShape(block.opcode);
-              const baseLabel = blockLabels[block.opcode] || block.opcode.replace(/_/g, ' ');
               const blocksMap = selectedTarget?.blocks || {};
               const menuDefs = DROPDOWN_REGISTRY[block.opcode] || [];
               // Resolve current menu values from shadow blocks for inline display
@@ -3969,7 +3959,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 absoluteOffsetX?: number,
                 absoluteOffsetY?: number,
                 visited = new Set<string>(),
-              ) => {
+              ): React.ReactNode[] => {
                 if (visited.has(hostBlock.id)) return [];
                 const nextVisited = new Set(visited);
                 nextVisited.add(hostBlock.id);
@@ -3979,7 +3969,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 const slots = slotsRegistryRef.current.get(hostBlock.id) || [];
                 const orderedKeys = getOrderedInputKeysForBlock(hostBlock);
 
-                return slots.flatMap((slot) => {
+                return slots.flatMap((slot): React.ReactNode[] => {
                   const inputKey = orderedKeys[slot.index];
                   if (!inputKey) return [];
                   const ref = (hostBlock.inputs || {})[inputKey] as unknown[] | undefined;

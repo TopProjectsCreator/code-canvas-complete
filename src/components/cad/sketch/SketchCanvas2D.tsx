@@ -3,7 +3,7 @@ import { useCADStore } from '../store'
 import { findSnapPoint, drawSnapIndicator } from './SketchSnap'
 import type { SnapPoint } from './SketchSnap'
 import { trimEntity, extendEntity, findBestHit } from './SketchTrimExtend'
-import { offsetEntity, getOffsetDist } from './SketchOffset'
+import { offsetEntity } from './SketchOffset'
 import type { SketchEntity } from '../types'
 
 interface Point2D { x: number; y: number }
@@ -18,7 +18,6 @@ export function SketchCanvas2D() {
   const sketchTool = useCADStore(s => s.sketchTool)
   const addSketchEntity = useCADStore(s => s.addSketchEntity)
   const updateSketchEntity = useCADStore(s => s.updateSketchEntity)
-  const removeSketchEntity = useCADStore(s => s.removeSketchEntity)
   const doc = useCADStore(s => s.doc)
   const snapSettings = useCADStore(s => s.snap)
 

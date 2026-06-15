@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Packer } from 'docx';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -12,9 +12,9 @@ import { FileNode } from '@/types/ide';
 import {
   FileText, Save, Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  List, ListOrdered, Undo, Redo, Type, Minus, Plus,
-  Loader2, Table as TableIcon, Image, Link as LinkIcon, Columns,
-  Heading1, Heading2, Quote, Code, SeparatorHorizontal,
+  List, ListOrdered, Undo, Redo, Minus, Plus,
+  Loader2, Table as TableIcon, Image, Link as LinkIcon,
+  Quote, Code, SeparatorHorizontal,
   Sun, Moon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -49,7 +49,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const [zoom, setZoom] = useState(100);
   const [activeTab, setActiveTab] = useState<'home' | 'insert'>('home');
   const [wordCount, setWordCount] = useState(0);
-  const [paperSize, setPaperSize] = useState<'letter' | 'a4'>('letter');
+  const [paperSize] = useState<'letter' | 'a4'>('letter');
   const [docTheme, setDocTheme] = useState<'light' | 'dark'>('light');
   const { toast } = useToast();
 
@@ -87,10 +87,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
         if (bytes && bytes.length > 0) {
           const slice = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
           const mammoth = await import('mammoth/mammoth.browser');
-          const result = await mammoth.convertToHtml(
-            { arrayBuffer: slice },
-            { styleMap: ['u => u'] },
-          );
+          const result = await mammoth.convertToHtml({ arrayBuffer: slice, styleMap: ['u => u'] } as any);
           editor.commands.setContent(result.value || '<p></p>');
         } else {
           editor.commands.setContent('<p></p>');

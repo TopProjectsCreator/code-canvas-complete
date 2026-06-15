@@ -4,7 +4,7 @@ import { Separator } from '@/components/ui/separator'
 import {
   MousePointer2, Minus, Circle, RectangleHorizontal,
   ScissorsLineDashed, ArrowLeftRight, ArrowUpDown,
-  FlipHorizontal, Grid3x3, type LucideIcon,
+  FlipHorizontal, Grid3x3,
 } from 'lucide-react'
 
 import { forwardRef } from 'react'

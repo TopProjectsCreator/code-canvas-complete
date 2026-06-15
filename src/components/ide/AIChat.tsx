@@ -15,15 +15,15 @@ import ReactMarkdown from 'react-markdown';
 import { FileNode, TerminalLine, Workflow } from '@/types/ide';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAgentChat } from '@/hooks/useAgentChat';
-import { AgentMessage, AgentStep, CodeChange, WorkflowAction, GeneratedImage, GeneratedAudio, AIModel, InteractiveQuestion } from '@/types/agent';
+import { AgentStep, CodeChange, AIModel, InteractiveQuestion } from '@/types/agent';
 import { useApiKeys, PROVIDER_MODELS, PROVIDER_INFO } from '@/hooks/useApiKeys';
 const CHAT_BYOK_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'perplexity', 'deepseek', 'xai', 'cohere', 'openrouter', 'github', 'mistral', 'groq', 'openai-compatible', 'pollinations']);
 
 import { SettingsDialog } from './SettingsDialog';
 import { getDiffLines } from '@/lib/diffUtils';
-import { useAttachments, ChatAttachment } from '@/hooks/useAttachments';
+import { useAttachments } from '@/hooks/useAttachments';
 import { ChatWidgetRenderer } from './ChatWidgets';
-import { useAutonomyMode, type AutonomyPreset, type AutonomyConfig } from '@/hooks/useAutonomyMode';
+import { useAutonomyMode, type AutonomyPreset } from '@/hooks/useAutonomyMode';
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -47,7 +47,6 @@ interface AIChatProps {
   consoleOutput?: TerminalLine[];
   onInsertCode?: (code: string) => void;
   onApplyCode?: (code: string, fileName: string) => void;
-  onRunTest?: (testCode: string) => void;
   workflows?: Workflow[];
   onCreateWorkflow?: (workflow: Omit<Workflow, 'id'>) => void;
   onRunWorkflow?: (workflow: Workflow) => void;
@@ -673,7 +672,6 @@ export const AIChat = ({
   consoleOutput,
   onInsertCode,
   onApplyCode,
-  onRunTest,
   workflows,
   onCreateWorkflow,
   onRunWorkflow,
@@ -1610,7 +1608,7 @@ export const AIChat = ({
             </div>
 
             {/* BYOK model picker */}
-            {byokProvider && PROVIDER_MODELS[byokProvider] && (
+            {byokProvider && (PROVIDER_MODELS as any)[byokProvider] && (
               <div className="space-y-2 mb-2">
                 {byokProvider === 'openai-compatible' && (
                   <div className="flex items-center gap-1.5">
@@ -1639,13 +1637,13 @@ export const AIChat = ({
                     onChange={e => setByokModel(e.target.value)}
                     className="text-[10px] bg-accent/50 border border-border rounded px-1.5 py-0.5 text-foreground outline-none focus:ring-1 focus:ring-primary flex-1"
                   >
-                    {(PROVIDER_MODELS[byokProvider] || [])
-                      .filter((m) =>
+                    {((PROVIDER_MODELS as any)[byokProvider] || [] as { id: string; label: string }[])
+                      .filter((m: { id: string; label: string }) =>
                         byokModelFilter.trim()
                           ? m.label.toLowerCase().includes(byokModelFilter.toLowerCase()) || m.id.toLowerCase().includes(byokModelFilter.toLowerCase())
                           : true
                       )
-                      .map(m => (
+                      .map((m: { id: string; label: string }) => (
                         <option key={m.id} value={m.id}>{m.label}</option>
                       ))}
                   </select>

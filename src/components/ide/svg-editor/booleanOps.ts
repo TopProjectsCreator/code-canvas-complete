@@ -307,8 +307,8 @@ function perpendicularDist(
 
 function pointsToPathD(
   points: Array<{ x: number; y: number }>,
-  ox: number,
-  oy: number,
+  _ox: number,
+  _oy: number,
   scale: number,
   offsetX: number,
   offsetY: number,

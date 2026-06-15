@@ -1,4 +1,4 @@
-import type { SvgElement, SvgDocument, BBox, SvgTransform, PathSegment } from './types'
+import type { SvgElement, SvgDocument, BBox, SvgTransform } from './types'
 
 export function parseSvgSource(xml: string): SvgDocument | null {
   try {
@@ -353,7 +353,6 @@ export function serializeToSvg(doc: SvgDocument): string {
 
 function serializeElement(el: SvgElement, indent: string): string {
   const tf = buildTransformString(el.transform)
-  const style = buildStyleString(el.style)
   const fill = el.gradientId ? `url(#${el.gradientId})` : el.patternId ? `url(#${el.patternId})` : el.style.fill
   const filter = el.filterId ? `url(#${el.filterId})` : undefined
 
@@ -367,7 +366,7 @@ function serializeElement(el: SvgElement, indent: string): string {
     opacity: el.style.opacity !== 1 ? el.style.opacity : undefined,
     filter,
     transform: tf || undefined,
-    style: style || undefined,
+
   }
 
   const attrs = { ...common, ...el.attrs }
@@ -410,10 +409,6 @@ function buildTransformString(tf: SvgTransform): string {
   return parts.join(' ')
 }
 
-function buildStyleString(style: SvgElement['style']): string {
-  const parts: string[] = []
-  return parts.join(';')
-}
 
 function escapeXml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')

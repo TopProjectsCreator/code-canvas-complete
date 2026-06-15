@@ -20,7 +20,7 @@ import { ProjectsDialog } from "./ProjectsDialog";
 import { SaveProjectDialog } from "./SaveProjectDialog";
 import { ShareDialog } from "./ShareDialog";
 import { GitProviderImportDialog } from "./GitProviderImportDialog";
-import { CollabDialog, PresenceAvatars } from "./CollabDialog";
+import { CollabDialog } from "./CollabDialog";
 import { useCollaboration } from "@/hooks/useCollaboration";
 import { useDiscord } from "@/contexts/DiscordContext";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -35,7 +35,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ScratchArchive, importScratchArchive } from "@/services/scratchSb3";
 import { createDataProvider } from "@/integrations/data/provider";
 import { buildProjectShareUrl } from "@/lib/publishing";
-import { useGitHubImport } from "@/hooks/useGitHubImport";
 import { useGitProviderImport } from "@/hooks/useGitProviderImport";
 import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
 import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/collabSyncEngine";
@@ -294,7 +293,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [isStarred, setIsStarred] = useState(false);
   const [isForking, setIsForking] = useState(false);
   const [scratchArchive, setScratchArchive] = useState<ScratchArchive | null>(null);
-  const [scratchSyncVersion, setScratchSyncVersion] = useState(0);
+  const [, setScratchSyncVersion] = useState(0);
   const scratchSyncRef = useRef<'pane' | 'file' | null>(null);
   const lastScratchJsonRef = useRef<string | null>(null);
   const [automationBlocks, setAutomationBlocks] = useState<AutomationBlockInstance[] | undefined>(undefined);
@@ -319,9 +318,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   >([]);
   const editedFilesRef = useRef<Set<string>>(new Set());
   const collabEngineRef = useRef<CollaborationSyncEngine>(new CollaborationSyncEngine());
-  const { executeCode, executeShellCommand, isExecuting, resetReplitShell } = useCodeExecution();
+  const { executeCode, executeShellCommand, resetReplitShell } = useCodeExecution();
   const collab = useCollaboration(currentProject?.id);
-  const { importRepository: gitImportRepo } = useGitHubImport();
   const { importRepository: gitProviderImport } = useGitProviderImport();
   const { saveLocally, isOfflineCapable: checkOffline } = useOfflineProject();
   const offlineSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -849,11 +847,11 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     [gitState.changes, files, fileContents, originalFileContents, addHistoryEntry],
   );
 
-  const handleGitStageFile = useCallback((fileId: string) => {
+  const handleGitStageFile = useCallback((_fileId: string) => {
     // In this simplified implementation, all changes are automatically staged
   }, []);
 
-  const handleGitUnstageFile = useCallback((fileId: string) => {
+  const handleGitUnstageFile = useCallback((_fileId: string) => {
     // In this simplified implementation, we can't unstage
   }, []);
 
@@ -2628,7 +2626,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         files={filesWithContent}
                         onFileUpdate={handleContentChange}
                         onAddFile={addFile}
-                        currentTemplate={selectedTemplate}
+
                       />
                     </Suspense>
                   ) : selectedTemplate === "ftc" ? (
@@ -2756,7 +2754,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                         files={filesWithContent}
                         onFileUpdate={handleContentChange}
                         onAddFile={addFile}
-                        currentTemplate={selectedTemplate}
+
                       />
                     </Suspense>
                   ) : selectedTemplate === "ftc" ? (
@@ -2932,7 +2930,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               }
               handleGitCreateBranch(name);
             }}
-            onGitImport={(url) => {
+            onGitImport={() => {
               setShowGitImportDialog(true);
             }}
             onMakePublic={async () => {

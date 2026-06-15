@@ -4,7 +4,7 @@ import type { SketchEntity } from '../types'
 export function generateSweepGeometry(
   profileEntities: SketchEntity[],
   pathEntities: SketchEntity[],
-  solid: boolean,
+  _solid: boolean,
   twistAngle?: number
 ): THREE.BufferGeometry | null {
   const profilePoints = profileToPoints(profileEntities)
@@ -33,7 +33,6 @@ export function generateSweepGeometry(
   for (let j = 0; j < rows; j++) {
     const t = j / (rows - 1)
     const pos = samples[j]
-    const tangent = frames.tangents[j]
     const normal = frames.normals[j]
     const binormal = frames.binormals[j]
 

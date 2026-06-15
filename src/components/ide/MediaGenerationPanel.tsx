@@ -4,8 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { isReplitLikePlatform } from '@/lib/platform';
-import { detectDeploymentPlatform } from '@/lib/platform';
-
 type MediaMode = 'image' | 'video';
 type ProviderId = 'openrouter' | 'openai' | 'gemini' | 'stability' | 'ideogram' | 'replicate' | 'runway' | 'kling' | 'higgsfield' | 'luma' | 'pika';
 

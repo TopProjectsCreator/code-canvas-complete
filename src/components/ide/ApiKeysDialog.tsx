@@ -6,7 +6,6 @@ import { Key, Trash2, ExternalLink, Eye, EyeOff, Shield, Zap, Loader2, CheckCirc
 import { useApiKeys, AIProvider, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { supabase } from '@/integrations/supabase/client';
 import { isReplitLikePlatform } from '@/lib/platform';
-import { detectDeploymentPlatform } from '@/lib/platform';
 import { cn } from '@/lib/utils';
 
 interface ApiKeysDialogProps {

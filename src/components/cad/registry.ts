@@ -54,6 +54,6 @@ export function createDefaultFeature(type: string, bodyId: string): Feature | nu
     bodyId,
     featureIndex: 0,
     dependencies: [],
-    ...def.defaultParams as Record<string, never>,
-  } as Feature
+    ...def.defaultParams,
+  } as unknown as Feature
 }

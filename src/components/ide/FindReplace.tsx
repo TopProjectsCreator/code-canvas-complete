@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { X, ChevronUp, ChevronDown, Replace, ReplaceAll } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-
 interface FindReplaceProps {
   content: string;
   isOpen: boolean;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Wifi, WifiOff, CloudOff, Cloud } from 'lucide-react';
+import { WifiOff, Cloud } from 'lucide-react';
 import { isOnline, onOnlineStatusChange, getDirtyProjects } from '@/services/offlineStorage';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';

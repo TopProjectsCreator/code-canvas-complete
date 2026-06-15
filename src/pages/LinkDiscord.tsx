@@ -18,7 +18,7 @@ const LinkDiscord = () => {
   const [linking, setLinking] = useState(false);
   const [linkError, setLinkError] = useState('');
   const [linkDone, setLinkDone] = useState(false);
-  const [discordUsername, setDiscordUsername] = useState('');
+  const [_discordUsername, setDiscordUsername] = useState('');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

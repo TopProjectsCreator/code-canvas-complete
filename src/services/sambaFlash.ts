@@ -104,7 +104,6 @@ function isFlashAddress(address: number, config: SambaBoardConfig): boolean {
 function resolveFlashStartAddress(
   config: SambaBoardConfig,
   boardId: string,
-  firmware: Uint8Array,
   baseAddress?: number,
 ): number {
   const defaultStartAddress = config.flashBase + config.bootloaderSize;
@@ -223,7 +222,6 @@ class SambaConnection {
   private interactive = true;
 
   constructor(
-    private port: SerialPortLike,
     writer: WritableStreamDefaultWriter<Uint8Array>,
     reader: ReadableStreamDefaultReader<Uint8Array>
   ) {
@@ -378,7 +376,7 @@ export async function flashViaSamba(
 
   if (firmware.length === 0) throw new Error('Empty firmware');
 
-  const flashStartAddress = resolveFlashStartAddress(config, boardId, firmware, baseAddress);
+  const flashStartAddress = resolveFlashStartAddress(config, boardId, baseAddress);
   const flashEndAddress = flashStartAddress + firmware.length;
   if (flashEndAddress > config.flashBase + config.flashSize) {
     throw new Error(
@@ -411,7 +409,7 @@ export async function flashViaSamba(
     throw new Error('Could not access serial port streams');
   }
 
-  const samba = new SambaConnection(bootloaderPort, writer, reader);
+  const samba = new SambaConnection(writer, reader);
 
   try {
     onProgress?.('Initializing SAM-BA connection...', 16);

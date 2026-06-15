@@ -38,7 +38,6 @@ const CONNECTION_DIST = 130;
 export default function BubbleField() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const nodesRef = useRef<Node[]>([]);
-  const fragmentsRef = useRef<Fragment[]>([]);
   const mouseRef = useRef({ x: -9999, y: -9999 });
   const rafRef = useRef(0);
 

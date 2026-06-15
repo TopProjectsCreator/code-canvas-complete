@@ -1,7 +1,5 @@
 import { FileEdit, Terminal, GitCommit, Clock, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { FileIcon } from './FileIcon';
-
 export interface HistoryEntry {
   id: string;
   type: 'file-edit' | 'file-create' | 'file-delete' | 'terminal-command' | 'git-commit' | 'template-change' | 'rename';

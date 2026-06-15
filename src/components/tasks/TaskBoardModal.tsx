@@ -12,7 +12,7 @@ import { TaskTable } from './TaskTable';
 import { TaskGantt } from './TaskGantt';
 import { TaskDetail } from './TaskDetail';
 import type { Task, TaskStatus, TaskPriority, ViewMode } from '@/types/task';
-import { TASKBOARD_EVENTS, COLUMNS } from '@/types/task';
+import { TASKBOARD_EVENTS } from '@/types/task';
 
 interface TaskBoardModalProps {
   open: boolean;
@@ -33,7 +33,6 @@ export function TaskBoardModal({
     deleteTask,
     reorderTask,
     planFeature,
-    subscribe,
   } = useTaskBoard(projectId);
 
   const [viewMode, setViewMode] = useState<ViewMode>('board');

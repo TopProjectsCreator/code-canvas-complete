@@ -26,7 +26,6 @@ export function generateLoftGeometry(
   const indices: number[] = []
   const cols = maxLen
   const rows = aligned.length
-  const zRange = aligned[aligned.length - 1].z - aligned[0].z || 1
 
   for (let j = 0; j < rows; j++) {
     for (let i = 0; i < cols; i++) {

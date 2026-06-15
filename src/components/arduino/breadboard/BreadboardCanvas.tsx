@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { ArduinoComponent, BreadboardCircuit } from '@/types/ide';
-import { COMPONENT_TEMPLATES, WIRE_COLORS } from './componentTemplates';
+import { COMPONENT_TEMPLATES } from './componentTemplates';
 import { Wire, WirePoint, ToolMode, SimulationState } from './types';
 import { arduinoBoards } from '@/data/arduinoTemplates';
 

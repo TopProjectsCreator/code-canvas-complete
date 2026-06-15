@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
 import { useCADStore } from '../store'
 import { createCodegenWorker, type ReconstructedGeometry } from '../workers'

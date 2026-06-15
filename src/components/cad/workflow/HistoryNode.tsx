@@ -14,7 +14,6 @@ interface HistoryNodeProps {
 export function HistoryNode({ feature, index, bodyId }: HistoryNodeProps) {
   const select = useCADStore(s => s.select)
   const selection = useCADStore(s => s.selection)
-  const updateFeature = useCADStore(s => s.updateFeature)
   const [expanded, setExpanded] = useState(false)
 
   const isSelected = selection.some(s => s.type === 'feature' && s.featureId === feature.id)

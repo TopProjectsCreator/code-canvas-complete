@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { arduinoLibraries } from '@/data/arduinoTemplates';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 interface LibraryManagerProps {

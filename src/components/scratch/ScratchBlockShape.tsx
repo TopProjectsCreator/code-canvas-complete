@@ -156,7 +156,7 @@ const capPath = (w: number, h: number) => {
 };
 
 /** C-block: top notch, open mouth, bottom notch */
-const cBlockPath = (w: number, h: number, mouth: number) => {
+const cBlockPath = (w: number, _h: number, mouth: number) => {
   const r = CORNER;
   const topH = STACK_H;
   const armW = C_ARM;

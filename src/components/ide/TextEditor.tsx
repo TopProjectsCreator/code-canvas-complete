@@ -17,7 +17,7 @@ interface TextEditorProps {
   selectedLine: number | null;
   onChange: (value: string) => void;
   onCursorChange: (line: number, col: number) => void;
-  externalTextareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  externalTextareaRef?: React.RefObject<HTMLTextAreaElement>;
 }
 
 const LINE_HEIGHT = 24;
@@ -190,8 +190,6 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
       const lines = before.split("\n");
       return { line: lines.length, col: lines[lines.length - 1].length + 1 };
     };
-
-    const lineCount = content.split("\n").length;
 
     return (
       <div className="relative flex-1 min-h-0 overflow-hidden" onWheel={handleWheel}>

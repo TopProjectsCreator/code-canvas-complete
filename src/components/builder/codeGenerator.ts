@@ -1,4 +1,4 @@
-import { registry, getRegistryEntry } from "./registry";
+import { getRegistryEntry } from "./registry";
 import type { UINode } from "./types";
 
 export function generateCode(nodes: UINode[]): string {
@@ -92,7 +92,7 @@ function getTagName(node: UINode, config: any): string {
   return "div";
 }
 
-function formatProps(props: Record<string, any>, config: any): string {
+function formatProps(props: Record<string, any>, _config: any): string {
   const skipProps = new Set(["children"]);
   const parts: string[] = [];
 

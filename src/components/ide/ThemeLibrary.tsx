@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ArrowLeft, Search, Download, Palette } from 'lucide-react';
+import { ArrowLeft, Search, Download } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CustomTheme, CustomThemeColors } from '@/contexts/ThemeContext';
@@ -141,8 +141,6 @@ const COMMUNITY_THEMES: CommunityTheme[] = [
     },
   },
 ];
-
-const ALL_TAGS = [...new Set(COMMUNITY_THEMES.flatMap((t) => t.tags))];
 
 export const ThemeLibrary = ({ onImport, onBack, existingThemeNames }: ThemeLibraryProps) => {
   const [search, setSearch] = useState('');

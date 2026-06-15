@@ -3,7 +3,7 @@ import { FileNode } from '@/types/ide';
 import {
   ChevronLeft, ChevronRight, ZoomIn, ZoomOut,
   FileText, Loader2, Maximize, Minimize, Download,
-  PanelLeftClose, PanelLeft, Image as ImageIcon,
+  PanelLeftClose, PanelLeft,
   Search, X, ChevronUp, ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,6 @@ if (typeof window !== 'undefined' && !GlobalWorkerOptions.workerSrc) {
 
 interface PDFEditorProps {
   file: FileNode;
-  onContentChange: (fileId: string, content: string) => void;
 }
 
 interface SearchMatch {
@@ -28,7 +27,7 @@ interface SearchMatch {
   itemIndex: number;
 }
 
-export const PDFEditor = ({ file, onContentChange }: PDFEditorProps) => {
+export const PDFEditor = ({ file }: PDFEditorProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [numPages, setNumPages] = useState(0);
@@ -72,7 +71,7 @@ export const PDFEditor = ({ file, onContentChange }: PDFEditorProps) => {
           canvas.height = viewport.height;
           const ctx = canvas.getContext('2d');
           if (ctx) {
-            await page.render({ canvasContext: ctx, viewport }).promise;
+            await (page.render as any)({ canvasContext: ctx, viewport }).promise;
             thumbs.push(canvas.toDataURL());
           }
         }
@@ -111,7 +110,7 @@ export const PDFEditor = ({ file, onContentChange }: PDFEditorProps) => {
       canvas.height = viewport.height;
 
       setComputedZoom(Math.round(scale * 100));
-      await page.render({ canvasContext: context, viewport }).promise;
+      await (page.render as any)({ canvasContext: context, viewport }).promise;
 
       if (textLayer) {
         const textContent = await page.getTextContent();

@@ -1,20 +1,3 @@
-import {
-  LayoutPanelTop,
-  Square,
-  Type,
-  TextCursorInput,
-  AlignStartVertical,
-  ToggleLeft,
-  SlidersHorizontal,
-  CreditCard,
-  Heading,
-  Milestone,
-  AlertTriangle,
-  SeparatorHorizontal,
-  ListChecks,
-  TextSelect,
-  GripHorizontal,
-} from "lucide-react";
 import type { BuilderComponentConfig } from "./types";
 
 let customComponents: BuilderComponentConfig[] = [];
@@ -287,7 +270,7 @@ export const registry: BuilderComponentConfig[] = [
     label: "Switch",
     icon: "ToggleLeft",
     category: "form",
-    component: ({ className, checked, ...props }: any) => (
+    component: ({ className, checked }: any) => (
       <div className={`flex items-center gap-2 ${className ?? ""}`}>
         <div className={`h-5 w-9 rounded-full transition-colors ${checked ? "bg-primary" : "bg-input"} flex items-center ${checked ? "justify-end" : "justify-start"} p-0.5`}>
           <div className="h-4 w-4 rounded-full bg-white shadow" />
@@ -311,7 +294,7 @@ export const registry: BuilderComponentConfig[] = [
     label: "Slider",
     icon: "SlidersHorizontal",
     category: "form",
-    component: ({ className, defaultValue, max, step, ...props }: any) => (
+    component: ({ className, defaultValue, max }: any) => (
       <div className={`relative flex w-full touch-none select-none items-center ${className ?? ""}`}>
         <div className="relative h-1.5 w-full rounded-full bg-primary/20">
           <div className="absolute h-full rounded-full bg-primary" style={{ width: `${((defaultValue?.[0] ?? 50) / (max ?? 100)) * 100}%` }} />

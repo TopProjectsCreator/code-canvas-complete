@@ -11,7 +11,6 @@ import {
   SerialPortLike,
   getSerial,
   perform1200BaudTouch,
-  waitForNewPort,
 } from './serialUtils';
 
 const CONNECT_BAUD = 57600;

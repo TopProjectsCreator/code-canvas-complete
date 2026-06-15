@@ -14,11 +14,12 @@ import { useTheme, themeInfo, IDETheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { useApiKeys, AIProvider, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
+import { supabase } from '@/integrations/supabase/client';
 import { isInDiscord, loadDiscordPresenceConfig, saveDiscordPresenceConfig, defaultPresenceConfig } from '@/lib/discord';
 import type { DiscordPresenceConfig } from '@/lib/discord';
 import { 
-  User, Palette, Keyboard, Check, Upload, Loader2, Key, Shield, Zap,
-  ExternalLink, Eye, EyeOff, Trash2, CheckCircle, XCircle, Settings2, Server, Sparkles, Bell, Brain, BarChart3,
+  User, Palette, Keyboard, Check, Upload, Loader2, Shield, Zap,
+  ExternalLink, Eye, EyeOff, Trash2, CheckCircle, XCircle, Settings2, Bell, Brain,
   Plus, Library, Download, Pencil, Share2, Gamepad2
 } from 'lucide-react';
 import { ThemeCreator } from './ThemeCreator';

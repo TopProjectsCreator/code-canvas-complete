@@ -40,7 +40,7 @@ interface TerminalProps {
 
 export const Terminal = ({
   history, onCommand, isMinimized, onToggleMinimize,
-  stdinPrompt, onStdinSubmit, onNewShell,
+  stdinPrompt, onStdinSubmit,
   projectFiles, projectId, projectName, onFilesUpdate, onProjectFilesChange,
   onPortDetected, sessionKey,
 }: TerminalProps) => {

@@ -28,7 +28,6 @@ interface ArduinoPanelProps {
    * Called when the panel needs a new file added to the workspace (e.g. circuit.json).
    */
   onAddFile?: (name: string, content: string, language?: string) => void;
-  currentTemplate: string;
 }
 
 type AppBrickType = 'chat' | 'vision' | 'sensor-stream' | 'automation' | 'actuator';
@@ -91,7 +90,7 @@ const findFileByName = (nodes: FileNode[], name: string): FileNode | undefined =
   return undefined;
 };
 
-export function ArduinoPanel({ files, onFileUpdate, onAddFile, currentTemplate }: ArduinoPanelProps) {
+export function ArduinoPanel({ files, onFileUpdate, onAddFile }: ArduinoPanelProps) {
   const [selectedLibraries, setSelectedLibraries] = useState<string[]>([]);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [aiStudioOpen, setAiStudioOpen] = useState(false);
@@ -524,7 +523,6 @@ String runAppBrickAction(String action, int value) {
           await ArduinoUploadService.deployMicroPythonScript(boardId, serialPortPath, script, 'main.py', onProgress);
         }}
         defaultMicroPythonFirmwareUrl={(boardId) => ArduinoUploadService.getMicroPythonFirmwareUrl(boardId)}
-        sketchCode={getSketchWithLibraries()}
       />
 
       <Dialog open={aiStudioOpen} onOpenChange={setAiStudioOpen}>

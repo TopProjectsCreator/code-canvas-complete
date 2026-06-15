@@ -7,7 +7,7 @@ import {
   Plus, Loader2, ChevronDown, Table, Image, Link,
   BarChart3, Filter, SortAsc, SortDesc, Search,
   Eye, Columns, ArrowDownUp, Calculator, Sigma,
-  Percent, DollarSign, Calendar, X, Maximize2,
+  X, Maximize2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,11 +78,11 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
   }]);
   const [activeSheetIdx, setActiveSheetIdx] = useState(0);
   const [selectedCell, setSelectedCell] = useState<[number, number]>([0, 0]);
-  const [selectedRange, setSelectedRange] = useState<[[number, number], [number, number]] | null>(null);
+  const [selectedRange] = useState<[[number, number], [number, number]] | null>(null);
   const [editingCell, setEditingCell] = useState<[number, number] | null>(null);
   const [formulaBarValue, setFormulaBarValue] = useState('');
   const [colWidths, setColWidths] = useState<number[]>(Array(DEFAULT_COLS).fill(80));
-  const [rowHeights, setRowHeights] = useState<number[]>(Array(DEFAULT_ROWS).fill(28));
+  const [rowHeights] = useState<number[]>(Array(DEFAULT_ROWS).fill(28));
   const [ribbonTab, setRibbonTab] = useState<'home' | 'insert' | 'formulas' | 'data' | 'review' | 'view'>('home');
   const [renamingSheetIdx, setRenamingSheetIdx] = useState<number | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
@@ -460,7 +460,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
       return {
         ...s,
         grid: s.grid.map(row => [...row.slice(0, col), '', ...row.slice(col)].slice(0, DEFAULT_COLS)),
-        styles: s.styles.map(row => [...row.slice(0, col), { textAlign: 'left', numberFormat: 'general' }, ...row.slice(col)].slice(0, DEFAULT_COLS)),
+        styles: s.styles.map(row => [...row.slice(0, col), { textAlign: 'left', numberFormat: 'general' } as CellStyle, ...row.slice(col)].slice(0, DEFAULT_COLS)),
       };
     }));
   };
@@ -472,7 +472,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
       return {
         ...s,
         grid: s.grid.map(row => [...row.slice(0, col + 1), '', ...row.slice(col + 1)].slice(0, DEFAULT_COLS)),
-        styles: s.styles.map(row => [...row.slice(0, col + 1), { textAlign: 'left', numberFormat: 'general' }, ...row.slice(col + 1)].slice(0, DEFAULT_COLS)),
+        styles: s.styles.map(row => [...row.slice(0, col + 1), { textAlign: 'left', numberFormat: 'general' } as CellStyle, ...row.slice(col + 1)].slice(0, DEFAULT_COLS)),
       };
     }));
   };
@@ -522,7 +522,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     if (!prev) return;
     redoRef.current.push(grid.map(r => [...r]));
     if (redoRef.current.length > 50) redoRef.current.shift();
-    setGrid(prev);
+    setGrid(() => prev);
   };
 
   const redo = () => {
@@ -530,7 +530,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     if (!next) return;
     historyRef.current.push(grid.map(r => [...r]));
     if (historyRef.current.length > 50) historyRef.current.shift();
-    setGrid(next);
+    setGrid(() => next);
   };
 
   const handleCellKeyDown = (e: React.KeyboardEvent, row: number, col: number) => {
@@ -686,7 +686,6 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     const [, col] = selectedCell;
     setGrid(prev => {
       const next = prev.map(r => [...r]);
-      const startIdx = sortHasHeaders ? 1 : 0;
       const header = sortHasHeaders ? next[0] : null;
       const data = header ? next.slice(1) : next;
       data.sort((a, b) => {
@@ -719,7 +718,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
         const parser = new Parser();
         const parserResult = parser.parse(value.trim().slice(1));
         if (parserResult.error) return '#ERR';
-        const result = parser.evaluate(parserResult.result, (id: string) => {
+        const result = (parser as any).evaluate(parserResult.result, (id: string) => {
           const match = id.match(/^([A-Z]+)(\d+)$/i);
           if (!match) return undefined;
           const col = match[1].toUpperCase().split('').reduce((acc, ch) => acc * 26 + ch.charCodeAt(0) - 64, 0) - 1;
@@ -1064,8 +1063,6 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
                     const isSelected = selectedCell[0] === rowIdx && selectedCell[1] === colIdx;
                     const isEditing = editingCell?.[0] === rowIdx && editingCell?.[1] === colIdx;
                     const merge = isCellMerged(rowIdx, colIdx);
-                    const isMergeMain = merge && merge.fromRow === rowIdx && merge.fromCol === colIdx;
-
                     if (merge && !(merge.fromRow === rowIdx && merge.fromCol === colIdx)) {
                       return null;
                     }
