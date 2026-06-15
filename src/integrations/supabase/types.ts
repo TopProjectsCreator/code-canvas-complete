@@ -921,6 +921,30 @@ export type Database = {
           },
         ]
       }
+      redactor_model_pricing: {
+        Row: {
+          cost_input: number
+          cost_output: number
+          model_id: string
+          provider_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          cost_input: number
+          cost_output: number
+          model_id: string
+          provider_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          cost_input?: number
+          cost_output?: number
+          model_id?: string
+          provider_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       redactor_provider_keys: {
         Row: {
           base_url: string | null
@@ -963,10 +987,12 @@ export type Database = {
           created_at: string
           expires_at: string | null
           id: string
+          ip_allowlist: string[]
           key_hash: string
           key_prefix: string
           last_used_at: string | null
           log_requests: boolean
+          monthly_cap_usd: number | null
           name: string
           rate_limit_rpm: number | null
           revoked_at: string | null
@@ -977,10 +1003,12 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id: string
+          ip_allowlist?: string[]
           key_hash: string
           key_prefix: string
           last_used_at?: string | null
           log_requests?: boolean
+          monthly_cap_usd?: number | null
           name: string
           rate_limit_rpm?: number | null
           revoked_at?: string | null
@@ -991,10 +1019,12 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          ip_allowlist?: string[]
           key_hash?: string
           key_prefix?: string
           last_used_at?: string | null
           log_requests?: boolean
+          monthly_cap_usd?: number | null
           name?: string
           rate_limit_rpm?: number | null
           revoked_at?: string | null
@@ -1031,6 +1061,7 @@ export type Database = {
       }
       redactor_request_logs: {
         Row: {
+          cost_usd: number | null
           created_at: string
           error: string | null
           id: string
@@ -1045,6 +1076,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cost_usd?: number | null
           created_at?: string
           error?: string | null
           id?: string
@@ -1059,6 +1091,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cost_usd?: number | null
           created_at?: string
           error?: string | null
           id?: string
