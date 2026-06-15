@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "postinstall": "npm rebuild node-pty",
-    "bridge:arduino": "node tools/arduino-bridge/server.mjs"
+    "bridge:arduino": "node tools/arduino-bridge/server.mjs",
+    "sync:pricing": "npx tsx scripts/sync-model-pricing.ts"
   },
   "overrides": {
     "@babel/plugin-proposal-private-property-in-object": "7.21.11",

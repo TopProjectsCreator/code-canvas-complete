@@ -121,6 +121,8 @@ export async function createProxyKey(opts: {
   name: string;
   allowedProviders: string[];
   logRequests: boolean;
+  rateLimitRpm?: number;
+  expiresAt?: string;
 }): Promise<{ fullKey: string; prefix: string }> {
   const userId = await requireUserId();
   const random = Array.from(crypto.getRandomValues(new Uint8Array(32)))
@@ -145,6 +147,8 @@ export async function createProxyKey(opts: {
     name: opts.name,
     allowed_providers: opts.allowedProviders,
     log_requests: opts.logRequests,
+    rate_limit_rpm: opts.rateLimitRpm ?? null,
+    expires_at: opts.expiresAt ?? null,
   });
   const { error } = res;
   if (error) throw error;
@@ -229,7 +233,77 @@ export interface RequestLog {
   redactions: Record<string, number> | null;
   latencyMs: number | null;
   error: string | null;
+  costUsd: number | null;
   createdAt: string;
+  proxyKeyId?: string;
+}
+
+export interface LogStats {
+  totalRequests: number;
+  totalTokens: number;
+  totalCostUsd: number;
+  totalRedactions: number;
+}
+
+export async function getMonthlyStats(): Promise<LogStats> {
+  const userId = await requireUserId();
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  const res: any = await db
+    .from("redactor_request_logs")
+    .select("*", { count: "exact", head: false })
+    .eq("user_id", userId)
+    .gte("created_at", start.toISOString());
+  const { data, error } = res;
+  if (error) throw error;
+  const rows = (data ?? []) as any[];
+  return {
+    totalRequests: rows.length,
+    totalTokens: rows.reduce((s, r) => s + (r.input_tokens ?? 0) + (r.output_tokens ?? 0), 0),
+    totalCostUsd: rows.reduce((s, r) => s + parseFloat(r.cost_usd ?? "0"), 0),
+    totalRedactions: rows.reduce((s, r) => {
+      const red = r.redactions as Record<string, number> | null;
+      if (!red) return s;
+      return s + Object.values(red).reduce((a, b) => a + b, 0);
+    }, 0),
+  };
+}
+
+export async function listLogsPaginated(from: number, to: number, filters?: { provider?: string; proxyKeyId?: string; model?: string }): Promise<RequestLog[]> {
+  const userId = await requireUserId();
+  let query: any = db
+    .from("redactor_request_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .range(from, to);
+  if (filters?.provider) {
+    query = query.eq("provider", filters.provider);
+  }
+  if (filters?.proxyKeyId) {
+    query = query.eq("proxy_key_id", filters.proxyKeyId);
+  }
+  if (filters?.model) {
+    query = query.ilike("model", `%${filters.model}%`);
+  }
+  const res: any = await query;
+  const { data, error } = res;
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({
+    id: r.id,
+    provider: r.provider,
+    model: r.model,
+    status: r.status,
+    inputTokens: r.input_tokens,
+    outputTokens: r.output_tokens,
+    redactions: r.redactions as Record<string, number> | null,
+    latencyMs: r.latency_ms,
+    error: r.error,
+    costUsd: r.cost_usd ?? null,
+    createdAt: r.created_at,
+    proxyKeyId: r.proxy_key_id,
+  }));
 }
 
 export async function listLogs(): Promise<RequestLog[]> {
@@ -250,6 +324,8 @@ export async function listLogs(): Promise<RequestLog[]> {
     redactions: r.redactions as Record<string, number> | null,
     latencyMs: r.latency_ms,
     error: r.error,
+    costUsd: r.cost_usd ?? null,
     createdAt: r.created_at,
+    proxyKeyId: r.proxy_key_id,
   }));
 }

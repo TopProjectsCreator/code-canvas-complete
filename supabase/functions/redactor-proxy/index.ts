@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { redactJson, rehydrate, transformJsonStrings } from "./redaction.ts";
 import { getProvider, resolveModelRouting, type ProviderDef } from "./providers.ts";
+import { translateRequest, translateResponse, translateStreamChunk, detectShape, type Shape } from "./translate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,6 +71,105 @@ async function decryptProviderKey(
   return (data as { apiKey: string }).apiKey;
 }
 
+// ---------- Rate limiter (in-memory sliding window) ----------
+
+const rateLimitBuckets = new Map<string, number[]>();
+
+function checkRateLimit(keyId: string, rpm: number): boolean {
+  const now = Date.now();
+  let timestamps = rateLimitBuckets.get(keyId);
+  if (!timestamps) {
+    timestamps = [];
+    rateLimitBuckets.set(keyId, timestamps);
+  }
+  const windowStart = now - 60_000;
+  while (timestamps.length > 0 && timestamps[0] < windowStart) {
+    timestamps.shift();
+  }
+  if (timestamps.length >= rpm) return false;
+  timestamps.push(now);
+  return true;
+}
+
+// ---------- IP allowlist check ----------
+
+function getClientIP(request: Request): string {
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || request.headers.get("x-real-ip") ?? "";
+}
+
+function isIPAllowed(ip: string, allowlist: string[]): boolean {
+  if (allowlist.length === 0) return true;
+  return allowlist.includes(ip);
+}
+
+// ---------- Model pricing / cost ----------
+
+interface ModelCostRow {
+  model_id: string;
+  provider_id: string;
+  cost_input: number;
+  cost_output: number;
+}
+
+async function getModelCost(
+  model: string | undefined,
+  providerId: string,
+  supabase: ReturnType<typeof createClient>,
+): Promise<{ costInput: number; costOutput: number } | null> {
+  if (!model) return null;
+  const { data } = await supabase
+    .from("redactor_model_pricing")
+    .select("cost_input, cost_output")
+    .eq("model_id", `${providerId}/${model}`)
+    .maybeSingle();
+  if (data) return { costInput: (data as any).cost_input, costOutput: (data as any).cost_output };
+  // Try bare model name
+  const { data: data2 } = await supabase
+    .from("redactor_model_pricing")
+    .select("cost_input, cost_output")
+    .eq("model_id", model)
+    .maybeSingle();
+  if (data2) return { costInput: (data2 as any).cost_input, costOutput: (data2 as any).cost_output };
+  return null;
+}
+
+function computeCost(inputTokens: number, outputTokens: number, pricing: { costInput: number; costOutput: number }): number {
+  return ((inputTokens * pricing.costInput) + (outputTokens * pricing.costOutput)) / 1_000_000;
+}
+
+// ---------- Log retention ----------
+
+async function cleanOldLogs(supabase: ReturnType<typeof createClient>): Promise<void> {
+  const retentionDays = parseInt(Deno.env.get("REDACTOR_LOG_RETENTION_DAYS") ?? "90", 10);
+  const cutoff = new Date(Date.now() - retentionDays * 86_400_000).toISOString();
+  await supabase
+    .from("redactor_request_logs")
+    .delete()
+    .lt("created_at", cutoff)
+    .catch(() => {});
+}
+
+// ---------- Spend cap check ----------
+
+async function checkMonthlySpend(
+  proxyKeyId: string,
+  monthlyCapUsd: number | null,
+  supabase: ReturnType<typeof createClient>,
+): Promise<boolean> {
+  if (monthlyCapUsd == null) return true;
+  const start = new Date();
+  start.setDate(1);
+  start.setHours(0, 0, 0, 0);
+  const { data } = await supabase
+    .from("redactor_request_logs")
+    .select("cost_usd")
+    .eq("proxy_key_id", proxyKeyId)
+    .gte("created_at", start.toISOString());
+  const total = (data ?? []).reduce((s: number, r: any) => s + parseFloat(r.cost_usd ?? "0"), 0);
+  return total < monthlyCapUsd;
+}
+
 // ---------- Auth: proxy key lookup ----------
 
 interface AuthedProxyKey {
@@ -77,6 +177,9 @@ interface AuthedProxyKey {
   userId: string;
   allowedProviders: string[];
   logRequests: boolean;
+  rateLimitRpm: number | null;
+  ipAllowlist: string[];
+  monthlyCapUsd: number | null;
 }
 
 async function authenticateProxyKey(
@@ -90,7 +193,7 @@ async function authenticateProxyKey(
 
   const { data, error } = await supabase
     .from("redactor_proxy_keys")
-    .select("id, user_id, allowed_providers, log_requests, revoked_at, expires_at")
+    .select("id, user_id, allowed_providers, log_requests, revoked_at, expires_at, rate_limit_rpm, ip_allowlist, monthly_cap_usd")
     .eq("key_hash", hash)
     .single();
 
@@ -112,6 +215,9 @@ async function authenticateProxyKey(
     userId: data.user_id,
     allowedProviders: data.allowed_providers ?? [],
     logRequests: data.log_requests ?? true,
+    rateLimitRpm: data.rate_limit_rpm ?? null,
+    ipAllowlist: data.ip_allowlist ?? [],
+    monthlyCapUsd: data.monthly_cap_usd ?? null,
   };
 }
 
@@ -192,6 +298,7 @@ interface LogInput {
   redactions?: Record<string, number>;
   inputTokens?: number;
   outputTokens?: number;
+  costUsd?: number;
   error?: string;
 }
 
@@ -210,6 +317,7 @@ async function writeLog(
       status: input.status,
       input_tokens: input.inputTokens ?? null,
       output_tokens: input.outputTokens ?? null,
+      cost_usd: input.costUsd ?? null,
       redactions: input.redactions ?? null,
       latency_ms: input.latencyMs,
       error: input.error ?? null,
@@ -334,9 +442,12 @@ async function runProxy(
   request: Request,
   ctx: ProxyContext,
   supabase: ReturnType<typeof createClient>,
+  sourceShape?: Shape,
 ): Promise<Response> {
   const startedAt = Date.now();
   const customPatterns = await getUserRules(ctx.proxyKey.userId, supabase);
+  const targetShape = ctx.upstream.provider.shape as Shape;
+  const needTranslate = sourceShape && sourceShape !== targetShape;
 
   const reqContentType = (request.headers.get("content-type") ?? "").toLowerCase();
   const isJsonReq = reqContentType.includes("application/json") || reqContentType === "";
@@ -346,14 +457,18 @@ async function runProxy(
 
   let sharedMap: Record<string, string> = {};
   let redactionCounts: Record<string, number> = {};
-  let bodyJson: unknown = null;
+  let bodyJson: Record<string, unknown> | null = null;
   let upstreamBody: BodyInit | null = null;
 
   if (isJsonReq && request.method !== "GET" && request.method !== "HEAD") {
     try {
-      bodyJson = await request.json();
+      bodyJson = (await request.json()) as Record<string, unknown>;
     } catch {
       return jsonError(400, "Request body must be valid JSON");
+    }
+    // Translate request shape if needed (before redaction)
+    if (needTranslate && bodyJson) {
+      bodyJson = translateRequest(bodyJson, sourceShape!, targetShape);
     }
     const redacted = redactJson(bodyJson, { customPatterns, detectNames: false });
     sharedMap = redacted.map;
@@ -373,17 +488,7 @@ async function runProxy(
       body: upstreamBody as BodyInit | null,
     });
   } catch (e) {
-    await writeLog(
-      ctx,
-      {
-        status: 502,
-        latencyMs: Date.now() - startedAt,
-        providerId: ctx.providerId,
-        redactions: redactionCounts,
-        error: (e as Error).message,
-      },
-      supabase,
-    );
+    await writeLog(ctx, { status: 502, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts, error: (e as Error).message }, supabase);
     return jsonError(502, "Upstream request failed: " + (e as Error).message);
   }
 
@@ -402,32 +507,47 @@ async function runProxy(
   const wantStream = isJsonReq && isStreamingRequest(bodyJson);
 
   if ((wantStream || isSSE) && upstreamRes.body) {
-    const stream = createRehydrateStream(upstreamRes.body, sharedMap);
-    writeLog(
-      ctx,
-      {
-        status: upstreamRes.status,
-        latencyMs: Date.now() - startedAt,
-        providerId: ctx.providerId,
-        redactions: redactionCounts,
-      },
-      supabase,
-    ).catch(() => {});
+    let stream: ReadableStream<Uint8Array>;
+    if (needTranslate && targetShape !== "openai") {
+      // Translate streaming response back to source shape
+      const encoder = new TextEncoder();
+      const decoder = new TextDecoder();
+      const reader = upstreamRes.body.getReader();
+      stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          let pending = "";
+          try {
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              pending += decoder.decode(value, { stream: true });
+              const events = pending.split("\n");
+              pending = events.pop() ?? "";
+              for (const line of events) {
+                const translated = translateStreamChunk(line + "\n", targetShape, sourceShape!);
+                if (translated) {
+                  controller.enqueue(encoder.encode(translated));
+                }
+              }
+            }
+            if (pending) {
+              const translated = translateStreamChunk(pending, targetShape, sourceShape!);
+              if (translated) controller.enqueue(encoder.encode(translated));
+            }
+          } catch (e) { controller.error(e); return; }
+          controller.close();
+        },
+      });
+    } else {
+      stream = createRehydrateStream(upstreamRes.body, sharedMap);
+    }
+    writeLog(ctx, { status: upstreamRes.status, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts }, supabase).catch(() => {});
     return new Response(stream, { status: upstreamRes.status, headers: respHeaders });
   }
 
   if (!isJsonResp) {
     const buf = await upstreamRes.arrayBuffer();
-    await writeLog(
-      ctx,
-      {
-        status: upstreamRes.status,
-        latencyMs: Date.now() - startedAt,
-        providerId: ctx.providerId,
-        redactions: redactionCounts,
-      },
-      supabase,
-    );
+    await writeLog(ctx, { status: upstreamRes.status, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts }, supabase);
     return new Response(buf, { status: upstreamRes.status, headers: respHeaders });
   }
 
@@ -435,35 +555,23 @@ async function runProxy(
   const text = await upstreamRes.text();
   let outText = text;
   try {
-    const parsed = JSON.parse(text);
+    let parsed = JSON.parse(text);
+    // Translate response shape back if needed
+    if (needTranslate) {
+      parsed = translateResponse(parsed, targetShape, sourceShape!);
+    }
     const rehydrated = transformJsonStrings(parsed, (s) => rehydrate(s, sharedMap));
     outText = JSON.stringify(rehydrated);
     const usage = extractUsage(rehydrated);
-    await writeLog(
-      ctx,
-      {
-        status: upstreamRes.status,
-        latencyMs: Date.now() - startedAt,
-        providerId: ctx.providerId,
-        redactions: redactionCounts,
-        inputTokens: usage.input,
-        outputTokens: usage.output,
-        model: extractModel(rehydrated, bodyJson),
-      },
-      supabase,
-    );
+    const model = extractModel(rehydrated, bodyJson);
+    const pricing = await getModelCost(model, ctx.providerId, supabase);
+    const costUsd = usage.input != null && usage.output != null && pricing
+      ? computeCost(usage.input, usage.output, pricing)
+      : undefined;
+    await writeLog(ctx, { status: upstreamRes.status, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts, inputTokens: usage.input, outputTokens: usage.output, model, costUsd }, supabase);
   } catch {
     outText = rehydrate(text, sharedMap);
-    await writeLog(
-      ctx,
-      {
-        status: upstreamRes.status,
-        latencyMs: Date.now() - startedAt,
-        providerId: ctx.providerId,
-        redactions: redactionCounts,
-      },
-      supabase,
-    );
+    await writeLog(ctx, { status: upstreamRes.status, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts }, supabase);
   }
 
   return new Response(outText, { status: upstreamRes.status, headers: respHeaders });
@@ -494,15 +602,15 @@ function parsePath(url: string): { route: EndpointRoute | null; rest: string } {
   if (first === "anthropic") {
     return { route: { providerId: "anthropic", path: "/" + second }, rest: u.pathname };
   }
-  if (first === "gemini") {
+  if (first === "gemini" || first === "google") {
     // /gemini/v1beta/models/{model}:generateContent
     const modelIdx = segments.indexOf("models");
     if (modelIdx >= 0 && modelIdx + 1 < segments.length) {
       const action = segments[modelIdx + 1];
       const restPath = "/" + segments.slice(segments.length - 2).join("/");
-      return { route: { providerId: "gemini", path: restPath }, rest: u.pathname };
+      return { route: { providerId: "google", path: restPath }, rest: u.pathname };
     }
-    return { route: { providerId: "gemini", path: "/" + second }, rest: u.pathname };
+    return { route: { providerId: "google", path: "/" + second }, rest: u.pathname };
   }
   if (first === "v1") {
     return { route: { providerId: "", path: "/v1/" + second }, rest: u.pathname };
@@ -527,6 +635,13 @@ serve(async (req) => {
 
     const { route } = parsePath(req.url);
     if (!route) return jsonError(404, "Unknown endpoint");
+
+    // Determine source shape from path
+    const pathSourceShape: Shape | undefined =
+      route.providerId === "anthropic" ? "anthropic" :
+      route.providerId === "google" ? "gemini" :
+      route.providerId === "" || !route.providerId ? "openai" :
+      undefined;
 
     // If no provider is determined by the path, try the x-provider header or model inference
     let providerId = route.providerId;
@@ -560,8 +675,28 @@ serve(async (req) => {
       return jsonError(403, `Provider '${providerId}' not allowed for this key`);
     }
 
+    // IP allowlist check
+    if (!isIPAllowed(getClientIP(req), authed.ipAllowlist)) {
+      return jsonError(403, "IP not allowed");
+    }
+
+    // Rate limit check
+    if (authed.rateLimitRpm != null && !checkRateLimit(authed.id, authed.rateLimitRpm)) {
+      return jsonError(429, "Rate limit exceeded");
+    }
+
+    // Spend cap check
+    if (!(await checkMonthlySpend(authed.id, authed.monthlyCapUsd, supabase))) {
+      return jsonError(429, "Monthly spend cap exceeded");
+    }
+
+    // Log retention cleanup (fire-and-forget, max 1/min)
+    if (!rateLimitBuckets.has("__log_cleanup")) {
+      cleanOldLogs(supabase);
+    }
+
     const upstream = await getProviderKey(authed.userId, providerId, supabase);
-    const resp = await runProxy(req, { proxyKey: authed, providerId, upstream, path: route.path }, supabase);
+    const resp = await runProxy(req, { proxyKey: authed, providerId, upstream, path: route.path }, supabase, pathSourceShape);
     return resp;
   } catch (e) {
     if (e instanceof ProxyError) {

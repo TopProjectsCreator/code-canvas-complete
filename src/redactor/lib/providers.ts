@@ -42,7 +42,7 @@ export const PROVIDERS: ProviderDef[] = [
     keyPattern: "^sk-ant-",
   },
   {
-    id: "gemini",
+    id: "google",
     name: "Google Gemini",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta",
     authStyle: "google",
@@ -79,6 +79,7 @@ export const PROVIDERS: ProviderDef[] = [
     shape: "openai",
     modelPrefixes: ["mistral-", "open-mistral"],
     docsUrl: "https://console.mistral.ai/api-keys/",
+    keyPattern: "[A-Za-z0-9]{32}",
   },
   {
     id: "openrouter",
@@ -98,6 +99,7 @@ export const PROVIDERS: ProviderDef[] = [
     shape: "openai",
     modelPrefixes: ["deepseek-"],
     docsUrl: "https://platform.deepseek.com/api_keys",
+    keyPattern: "[A-Za-z0-9]{32}",
   },
   {
     id: "perplexity",
@@ -110,12 +112,13 @@ export const PROVIDERS: ProviderDef[] = [
     keyPattern: "^pplx-",
   },
   {
-    id: "together",
+    id: "togetherai",
     name: "Together AI",
     baseUrl: "https://api.together.xyz/v1",
     authStyle: "bearer",
     shape: "openai",
     docsUrl: "https://api.together.ai/settings/api-keys",
+    keyPattern: "[A-Za-z0-9]{32}",
   },
   {
     id: "cohere",
@@ -125,14 +128,16 @@ export const PROVIDERS: ProviderDef[] = [
     shape: "openai",
     modelPrefixes: ["command-"],
     docsUrl: "https://dashboard.cohere.com/api-keys",
+    keyPattern: "^co-",
   },
   {
-    id: "fireworks",
-    name: "Fireworks",
+    id: "fireworks-ai",
+    name: "Fireworks AI",
     baseUrl: "https://api.fireworks.ai/inference/v1",
     authStyle: "bearer",
     shape: "openai",
     docsUrl: "https://fireworks.ai/account/api-keys",
+    keyPattern: "[A-Za-z0-9]{32}",
   },
   {
     id: "cerebras",
@@ -141,14 +146,7 @@ export const PROVIDERS: ProviderDef[] = [
     authStyle: "bearer",
     shape: "openai",
     docsUrl: "https://cloud.cerebras.ai/",
-  },
-  {
-    id: "sambanova",
-    name: "SambaNova",
-    baseUrl: "https://api.sambanova.ai/v1",
-    authStyle: "bearer",
-    shape: "openai",
-    docsUrl: "https://cloud.sambanova.ai/apis",
+    keyPattern: "[A-Za-z0-9]{32}",
   },
   {
     id: "custom",

@@ -40,6 +40,9 @@ export default function RedactorProxyKeys() {
 
   const [name, setName] = useState("");
   const [allowed, setAllowed] = useState<string[]>([]);
+  const [logRequests, setLogRequests] = useState(true);
+  const [rateLimitRpm, setRateLimitRpm] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
   const [newKey, setNewKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -54,11 +57,16 @@ export default function RedactorProxyKeys() {
       const r = await createProxyKey({
         name,
         allowedProviders: allowed,
-        logRequests: true,
+        logRequests,
+        rateLimitRpm: rateLimitRpm ? parseInt(rateLimitRpm, 10) : undefined,
+        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
       });
       setNewKey(r.fullKey);
       setName("");
       setAllowed([]);
+      setLogRequests(true);
+      setRateLimitRpm("");
+      setExpiresAt("");
       qc.invalidateQueries({ queryKey: ["redactor-proxy-keys"] });
     } catch (e) {
       toast.error((e as Error).message);
@@ -101,6 +109,35 @@ export default function RedactorProxyKeys() {
                 ))}
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Rate limit (RPM)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={rateLimitRpm}
+                  onChange={(e) => setRateLimitRpm(e.target.value)}
+                  placeholder="e.g. 60"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Max requests per minute. Empty = unlimited.</p>
+              </div>
+              <div>
+                <Label>Expires at</Label>
+                <Input
+                  type="date"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Empty = never expires.</p>
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={logRequests}
+                onCheckedChange={(v) => setLogRequests(v === true)}
+              />
+              Log request metadata
+            </label>
             <Button type="submit" disabled={busy}>
               {busy ? "Creating…" : "Generate key"}
             </Button>
@@ -126,6 +163,9 @@ export default function RedactorProxyKeys() {
                     </div>
                     <div className="text-xs text-muted-foreground font-mono">
                       {k.keyPrefix}… · {k.allowedProviders.length || "all"} providers
+                      {k.rateLimitRpm != null && ` · ${k.rateLimitRpm} RPM`}
+                      {k.expiresAt && ` · expires ${new Date(k.expiresAt).toLocaleDateString()}`}
+                      {!k.logRequests && " · no logging"}
                       {k.lastUsedAt &&
                         ` · last used ${new Date(k.lastUsedAt).toLocaleString()}`}
                     </div>
