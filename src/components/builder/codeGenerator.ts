@@ -88,6 +88,9 @@ function generateJSX(nodes: UINode[], depth: number): string {
 
 function getTagName(node: UINode, config: any): string {
   if (node.componentType === "html/div") return "div";
+  if (node.componentType === "html/img") return "img";
+  if (node.componentType === "html/video") return "video";
+  if (node.componentType === "html/audio") return "audio";
   if (config) return config.importName;
   return "div";
 }

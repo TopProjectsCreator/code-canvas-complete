@@ -345,6 +345,40 @@ export const registry: BuilderComponentConfig[] = [
     importPath: "@/components/ui/select",
     importName: "Select",
   },
+  {
+    type: "ui/file-upload",
+    label: "File Upload",
+    icon: "Upload",
+    category: "form",
+    component: ({ className, accept, multiple, ...props }: any) => (
+      <div className={`flex items-center gap-2 ${className ?? ""}`}>
+        <input
+          type="file"
+          accept={accept ?? "image/*,video/*,audio/*"}
+          multiple={multiple}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          {...props}
+        />
+      </div>
+    ),
+    defaultProps: { accept: "image/*,video/*,audio/*", multiple: false },
+    propsConfig: [
+      { name: "accept", label: "Accepted types", type: "select", options: [
+        { label: "Images", value: "image/*" },
+        { label: "Videos", value: "video/*" },
+        { label: "Audio", value: "audio/*" },
+        { label: "All Media", value: "image/*,video/*,audio/*" },
+      ], defaultValue: "image/*,video/*,audio/*", category: "behavior" },
+      { name: "multiple", label: "Multiple files", type: "boolean", defaultValue: false, category: "behavior" },
+      { name: "disabled", label: "Disabled", type: "boolean", defaultValue: false, category: "behavior" },
+      { name: "className", label: "CSS classes", type: "class", defaultValue: "", category: "appearance" },
+    ],
+    allowedChildren: [],
+    isContainer: false,
+    isVoid: true,
+    importPath: "",
+    importName: "",
+  },
 
   // ─── Display ───
   {
@@ -415,6 +449,110 @@ export const registry: BuilderComponentConfig[] = [
     isVoid: true,
     importPath: "@/components/ui/separator",
     importName: "Separator",
+  },
+  {
+    type: "html/img",
+    label: "Image",
+    icon: "Image",
+    category: "display",
+    component: ({ src, alt, className, ...props }: any) =>
+      src ? (
+        <img src={src} alt={alt ?? ""} className={`max-w-full h-auto rounded ${className ?? ""}`} {...props} />
+      ) : (
+        <div className={`flex items-center justify-center rounded border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-8 ${className ?? ""}`}>
+          <div className="text-center text-muted-foreground">
+            <svg className="mx-auto h-8 w-8 mb-2 opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+            <p className="text-xs">Enter an image URL in properties</p>
+          </div>
+        </div>
+      ),
+    defaultProps: {},
+    propsConfig: [
+      { name: "src", label: "Image URL", type: "string", defaultValue: "", category: "content" },
+      { name: "alt", label: "Alt text", type: "string", defaultValue: "", category: "content" },
+      { name: "className", label: "CSS classes", type: "class", defaultValue: "max-w-full h-auto rounded", category: "appearance" },
+    ],
+    allowedChildren: [],
+    isContainer: false,
+    isVoid: true,
+    importPath: "",
+    importName: "",
+  },
+  {
+    type: "html/video",
+    label: "Video",
+    icon: "Video",
+    category: "display",
+    component: ({ src, controls, autoplay, loop, muted, className, ...props }: any) =>
+      src ? (
+        <video
+          src={src}
+          controls={controls !== false}
+          autoPlay={!!autoplay}
+          loop={!!loop}
+          muted={!!muted}
+          className={`max-w-full rounded ${className ?? ""}`}
+          {...props}
+        />
+      ) : (
+        <div className={`flex items-center justify-center rounded border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-8 ${className ?? ""}`}>
+          <div className="text-center text-muted-foreground">
+            <svg className="mx-auto h-8 w-8 mb-2 opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect width="15" height="14" x="1" y="5" rx="2" ry="2"/></svg>
+            <p className="text-xs">Enter a video URL in properties</p>
+          </div>
+        </div>
+      ),
+    defaultProps: { controls: true },
+    propsConfig: [
+      { name: "src", label: "Video URL", type: "string", defaultValue: "", category: "content" },
+      { name: "controls", label: "Show controls", type: "boolean", defaultValue: true, category: "behavior" },
+      { name: "autoplay", label: "Autoplay", type: "boolean", defaultValue: false, category: "behavior" },
+      { name: "loop", label: "Loop", type: "boolean", defaultValue: false, category: "behavior" },
+      { name: "muted", label: "Muted", type: "boolean", defaultValue: false, category: "behavior" },
+      { name: "className", label: "CSS classes", type: "class", defaultValue: "max-w-full rounded", category: "appearance" },
+    ],
+    allowedChildren: [],
+    isContainer: false,
+    isVoid: true,
+    importPath: "",
+    importName: "",
+  },
+  {
+    type: "html/audio",
+    label: "Audio",
+    icon: "Music",
+    category: "display",
+    component: ({ src, controls, autoplay, loop, className, ...props }: any) =>
+      src ? (
+        <audio
+          src={src}
+          controls={controls !== false}
+          autoPlay={!!autoplay}
+          loop={!!loop}
+          className={`w-full ${className ?? ""}`}
+          {...props}
+        />
+      ) : (
+        <div className={`flex items-center justify-center rounded border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-8 ${className ?? ""}`}>
+          <div className="text-center text-muted-foreground">
+            <svg className="mx-auto h-8 w-8 mb-2 opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            <p className="text-xs">Enter an audio URL in properties</p>
+          </div>
+        </div>
+      ),
+    defaultProps: { controls: true },
+    propsConfig: [
+      { name: "src", label: "Audio URL", type: "string", defaultValue: "", category: "content" },
+      { name: "controls", label: "Show controls", type: "boolean", defaultValue: true, category: "behavior" },
+      { name: "autoplay", label: "Autoplay", type: "boolean", defaultValue: false, category: "behavior" },
+      { name: "loop", label: "Loop", type: "boolean", defaultValue: false, category: "behavior" },
+      { name: "className", label: "CSS classes", type: "class", defaultValue: "w-full", category: "appearance" },
+    ],
+    allowedChildren: [],
+    isContainer: false,
+    isVoid: true,
+    importPath: "",
+    importName: "",
   },
 
   // ─── Feedback ───

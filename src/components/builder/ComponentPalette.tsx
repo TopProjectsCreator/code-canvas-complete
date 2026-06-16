@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { Search, Square, CreditCard, LayoutPanelTop, GripHorizontal, TextCursorInput, Type, ListChecks, ToggleLeft, SlidersHorizontal, Heading, Milestone, AlertTriangle, SeparatorHorizontal, TextSelect, AlignStartVertical } from "lucide-react";
+import { Search, Square, CreditCard, LayoutPanelTop, GripHorizontal, TextCursorInput, Type, ListChecks, ToggleLeft, SlidersHorizontal, Heading, Milestone, AlertTriangle, SeparatorHorizontal, TextSelect, AlignStartVertical, Image, Video, Music, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ const iconMap: Record<string, React.ComponentType<any>> = {
   Square, CreditCard, LayoutPanelTop, GripHorizontal, TextCursorInput,
   Type, ListChecks, ToggleLeft, SlidersHorizontal, Heading, Milestone,
   AlertTriangle, SeparatorHorizontal, TextSelect, AlignStartVertical,
+  Image, Video, Music, Upload,
 };
 
 function PaletteItem({ config }: { config: BuilderComponentConfig }) {
