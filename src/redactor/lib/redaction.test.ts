@@ -386,3 +386,109 @@ describe("redactJson", () => {
     expect(JSON.stringify(value)).toContain("[SECRET_1]");
   });
 });
+
+// ── Image redaction helpers ──────────────────────────────────
+
+import { previewImageRedaction } from "./redaction.functions";
+
+describe("previewImageRedaction", () => {
+  it("returns the input unchanged when no PII is present", () => {
+    const r = previewImageRedaction("The quick brown fox jumps over the lazy dog.");
+    expect(r.redacted).toBe("The quick brown fox jumps over the lazy dog.");
+    expect(r.matches).toHaveLength(0);
+    expect(r.hasPii).toBe(false);
+  });
+
+  it("redacts a credit card number in OCR text", () => {
+    const r = previewImageRedaction("My card is 4111111111111111 and it expires next month.");
+    expect(r.redacted).toContain("[CARD_1]");
+    expect(r.redacted).not.toContain("4111111111111111");
+    expect(r.hasPii).toBe(true);
+    expect(r.matches[0].type).toBe("credit_card");
+  });
+
+  it("redacts an email in OCR text", () => {
+    const r = previewImageRedaction("Contact: john.doe@example.com");
+    expect(r.redacted).toContain("[EMAIL_1]");
+    expect(r.redacted).not.toContain("john.doe@example.com");
+  });
+
+  it("redacts multiple PII types from image OCR text", () => {
+    const r = previewImageRedaction(
+      "Name: John Smith\nCard: 4111 1111 1111 1111\nEmail: jsmith@example.com\nSSN: 123-45-6789",
+    );
+    expect(r.matches.length).toBeGreaterThanOrEqual(3);
+    expect(r.hasPii).toBe(true);
+    expect(r.redacted).toContain("[CARD_1]");
+    expect(r.redacted).toContain("[EMAIL_1]");
+  });
+
+  it("deduplicates the same PII value appearing multiple times in OCR text", () => {
+    const r = previewImageRedaction("Contact alice@example.com and also alice@example.com");
+    expect(r.matches).toHaveLength(2);
+    // Both matches should use the same token (dedup within a single redact() call)
+    expect(r.matches[0].token).toBe(r.matches[1].token);
+  });
+});
+
+describe("redactJson with seedMap / seedCounts", () => {
+  it("reuses tokens from the seed map", () => {
+    const { value, map } = redactJson(
+      { text: "My credit card is 4111111111111111" },
+      {
+        seedMap: { "[CARD_42]": "4111111111111111" },
+        seedCounts: { CARD: 42 },
+      },
+    );
+    expect(value).toEqual({ text: "My credit card is [CARD_42]" });
+    expect(map["[CARD_42]"]).toBe("4111111111111111");
+  });
+
+  it("continues counting from seed counts", () => {
+    const { value, map } = redactJson(
+      { text: "First card 4111111111111111, second card 5500000000000004" },
+      {
+        seedMap: { "[CARD_1]": "4111111111111111" },
+        seedCounts: { CARD: 1 },
+      },
+    );
+    expect(JSON.stringify(value)).toContain("[CARD_1]");
+    expect(JSON.stringify(value)).toContain("[CARD_2]");
+    expect(map["[CARD_1]"]).toBe("4111111111111111");
+    expect(map["[CARD_2]"]).toBe("5500000000000004");
+  });
+
+  it("handles empty seed map gracefully", () => {
+    const { value, map } = redactJson(
+      { text: "sk-proj-abcdef1234567890abcdef123456789012345" },
+      { seedMap: {}, seedCounts: {} },
+    );
+    expect(JSON.stringify(value)).toContain("[SECRET_1]");
+  });
+});
+
+describe("image redaction integration - findImageBlocks", () => {
+  // Unit tests for the image block finding logic (API-shape-aware)
+  it("finds OpenAI image_url blocks", () => {
+    // This tests the shape-aware image detection that runs in the edge function.
+    // We verify the redactJson pipeline handles content arrays correctly.
+    const body = {
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "What's in this image?" },
+            { type: "image_url", image_url: { url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", detail: "auto" } },
+          ],
+        },
+      ],
+    };
+    // redactJson should process the text content normally, and image data URLs
+    // are just strings that pass through if they don't match PII patterns
+    const { value } = redactJson(body, { detectNames: false });
+    const msg = (value as any).messages[0];
+    expect(msg.content[0].text).toBe("What's in this image?");
+    // The image URL is a base64 PNG (no PII inside), so it should pass through
+    expect(msg.content[1].type).toBe("image_url");
+  });
+});

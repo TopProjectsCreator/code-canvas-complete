@@ -88,6 +88,7 @@ export const proxyKeys = pgTable(
     monthlyCapUsd: integer("monthly_cap_usd"),
     ipAllowlist: text("ip_allowlist").array().notNull().default([]),
     logRequests: boolean("log_requests").notNull().default(true),
+    redactImages: boolean("redact_images").notNull().default(true),
     expiresAt: timestamp("expires_at"),
     lastUsedAt: timestamp("last_used_at"),
     revokedAt: timestamp("revoked_at"),

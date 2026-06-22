@@ -41,6 +41,7 @@ export default function RedactorProxyKeys() {
   const [name, setName] = useState("");
   const [allowed, setAllowed] = useState<string[]>([]);
   const [logRequests, setLogRequests] = useState(true);
+  const [redactImages, setRedactImages] = useState(true);
   const [rateLimitRpm, setRateLimitRpm] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -58,6 +59,7 @@ export default function RedactorProxyKeys() {
         name,
         allowedProviders: allowed,
         logRequests,
+        redactImages,
         rateLimitRpm: rateLimitRpm ? parseInt(rateLimitRpm, 10) : undefined,
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
       });
@@ -65,6 +67,7 @@ export default function RedactorProxyKeys() {
       setName("");
       setAllowed([]);
       setLogRequests(true);
+      setRedactImages(true);
       setRateLimitRpm("");
       setExpiresAt("");
       qc.invalidateQueries({ queryKey: ["redactor-proxy-keys"] });
@@ -138,6 +141,13 @@ export default function RedactorProxyKeys() {
               />
               Log request metadata
             </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={redactImages}
+                onCheckedChange={(v) => setRedactImages(v === true)}
+              />
+              Redact PII in images via OCR
+            </label>
             <Button type="submit" disabled={busy}>
               {busy ? "Creating…" : "Generate key"}
             </Button>
@@ -166,6 +176,7 @@ export default function RedactorProxyKeys() {
                       {k.rateLimitRpm != null && ` · ${k.rateLimitRpm} RPM`}
                       {k.expiresAt && ` · expires ${new Date(k.expiresAt).toLocaleDateString()}`}
                       {!k.logRequests && " · no logging"}
+                      {k.redactImages ? " · image redaction" : " · no image redaction"}
                       {k.lastUsedAt &&
                         ` · last used ${new Date(k.lastUsedAt).toLocaleString()}`}
                     </div>

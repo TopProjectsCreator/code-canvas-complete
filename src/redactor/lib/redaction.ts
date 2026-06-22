@@ -340,11 +340,20 @@ export function transformJsonStrings(
  */
 export function redactJson(
   value: unknown,
-  opts: RedactOptions = {},
+  opts: RedactOptions & {
+    /** Pre-seed the token map so repeat PII gets the same token across images & text. */
+    seedMap?: Record<string, string>;
+    /** Pre-seed the per-label counter. */
+    seedCounts?: Record<string, number>;
+  } = {},
 ): { value: unknown; map: Record<string, string>; counts: Record<string, number> } {
-  const sharedMap: Record<string, string> = {};
+  const sharedMap: Record<string, string> = { ...opts.seedMap };
   const reverseMap: Record<string, string> = {};
-  const counts: Record<string, number> = {};
+  const counts: Record<string, number> = { ...opts.seedCounts };
+
+  for (const [token, original] of Object.entries(sharedMap)) {
+    reverseMap[original] = token;
+  }
 
   function redactStr(s: string): string {
     const r = redact(s, opts);

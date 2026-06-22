@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { redactJson, rehydrate, transformJsonStrings } from "./redaction.ts";
 import { getProvider, resolveModelRouting, type ProviderDef } from "./providers.ts";
 import { translateRequest, translateResponse, translateStreamChunk, detectShape, type Shape } from "./translate.ts";
+import { redactImagesInBody } from "./image-redaction.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -180,6 +181,7 @@ interface AuthedProxyKey {
   rateLimitRpm: number | null;
   ipAllowlist: string[];
   monthlyCapUsd: number | null;
+  redactImages: boolean;
 }
 
 async function authenticateProxyKey(
@@ -193,7 +195,7 @@ async function authenticateProxyKey(
 
   const { data, error } = await supabase
     .from("redactor_proxy_keys")
-    .select("id, user_id, allowed_providers, log_requests, revoked_at, expires_at, rate_limit_rpm, ip_allowlist, monthly_cap_usd")
+    .select("id, user_id, allowed_providers, log_requests, revoked_at, expires_at, rate_limit_rpm, ip_allowlist, monthly_cap_usd, redact_images")
     .eq("key_hash", hash)
     .single();
 
@@ -218,6 +220,7 @@ async function authenticateProxyKey(
     rateLimitRpm: data.rate_limit_rpm ?? null,
     ipAllowlist: data.ip_allowlist ?? [],
     monthlyCapUsd: data.monthly_cap_usd ?? null,
+    redactImages: (data as any).redact_images ?? true,
   };
 }
 
@@ -466,11 +469,28 @@ async function runProxy(
     } catch {
       return jsonError(400, "Request body must be valid JSON");
     }
-    // Translate request shape if needed (before redaction)
-    if (needTranslate && bodyJson) {
-      bodyJson = translateRequest(bodyJson, sourceShape!, targetShape);
+    // 1. Image redaction (before shape translation, in source shape)
+    const imgResult = await redactImagesInBody(
+      bodyJson,
+      sourceShape ?? "openai",
+      { customPatterns, detectNames: false },
+      ctx.proxyKey.redactImages,
+    );
+
+    // 2. Translate request shape if needed
+    if (needTranslate && imgResult.body) {
+      bodyJson = translateRequest(imgResult.body, sourceShape!, targetShape);
+    } else if (imgResult.body) {
+      bodyJson = imgResult.body;
     }
-    const redacted = redactJson(bodyJson, { customPatterns, detectNames: false });
+
+    // 3. Text redaction (seeded with image PII map for cross-media dedup)
+    const redacted = redactJson(bodyJson, {
+      customPatterns,
+      detectNames: false,
+      seedMap: imgResult.map,
+      seedCounts: imgResult.counts,
+    });
     sharedMap = redacted.map;
     redactionCounts = redacted.counts;
     upstreamHeaders.set("content-type", "application/json");
