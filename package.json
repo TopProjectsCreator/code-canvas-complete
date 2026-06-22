@@ -16,7 +16,10 @@
     "test:watch": "vitest",
     "postinstall": "npm rebuild node-pty",
     "bridge:arduino": "node tools/arduino-bridge/server.mjs",
-    "sync:pricing": "npx tsx scripts/sync-model-pricing.ts"
+    "sync:pricing": "npx tsx scripts/sync-model-pricing.ts",
+    "remotion:preview": "npx remotion preview",
+    "remotion:render": "npx remotion render RedactorImageRedaction out/redactor-image-redaction.mp4",
+    "remotion:still": "npx remotion still RedactorImageRedaction out/redactor-image-redaction.png --frame=240"
   },
   "overrides": {
     "@babel/plugin-proposal-private-property-in-object": "7.21.11",
@@ -37,6 +40,7 @@
     "@heyputer/puter.js": "^2.2.14",
     "@hookform/resolvers": "^3.10.0",
     "@lovable.dev/cloud-auth-js": "^1.1.2",
+    "@napi-rs/canvas": "^1.0.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
@@ -67,6 +71,7 @@
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18",
     "@react-three/postprocessing": "^2.16.4",
+    "@remotion/cli": "^4.0.481",
     "@supabase/supabase-js": "^2.93.3",
     "@tanstack/react-query": "^5.83.0",
     "@tanstack/react-virtual": "^3.13.26",
@@ -139,6 +144,7 @@
     "react-router-dom": "^6.30.1",
     "recharts": "^2.15.4",
     "remark-gfm": "^4.0.0",
+    "remotion": "^4.0.481",
     "scratch-audio": "^2.0.268",
     "scratch-render": "^2.2.82",
     "scratch-storage": "^6.2.1",
@@ -155,7 +161,7 @@
     "vaul": "^0.9.9",
     "vite-plugin-pwa": "^1.2.0",
     "ws": "^8.20.0",
-    "zod": "^3.25.76",
+    "zod": "4.3.6",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
