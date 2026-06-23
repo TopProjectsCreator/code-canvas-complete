@@ -28,11 +28,14 @@ import { extractScopeHeaders, generateUnitTestFile, getScopeForLine } from "@/li
 import { ScratchPanel } from "@/components/scratch/ScratchPanel";
 import type { ScratchArchive } from "@/services/scratchSb3";
 import { importSb3, exportSb3 } from "@/services/scratchSb3";
-import { TextEditor, type TextEditorHandle } from "./TextEditor";
+import { Cm6Editor, type Cm6EditorHandle } from "./Cm6Editor";
 import { EditorGutter } from "./EditorGutter";
 import { EditorMinimap } from "./EditorMinimap";
 import { EditorStatusBar } from "./EditorStatusBar";
 import { EditorComments } from "./EditorComments";
+import type { Extension } from "@codemirror/state";
+import { useLspClient } from "@/hooks/useLspClient";
+import { createLspExtensions, updateLspDiagnostics, convertLspDiagnostics } from "@/components/ide/cm6/extensions/lsp";
 
 interface CodeEditorProps {
   file: FileNode | null;
@@ -141,11 +144,13 @@ export const CodeEditor = ({
 }: CodeEditorProps) => {
   const [content, setContent] = useState("");
   const [cursorPosition, setCursorPosition] = useState({ line: 0, col: 0 });
-  const textEditorRef = useRef<TextEditorHandle>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<Cm6EditorHandle>(null);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [searchMatches, setSearchMatches] = useState<{ start: number; end: number }[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
+  const [lspExtensions, setLspExtensions] = useState<Extension[]>([]);
+
+  const lsp = useLspClient(file?.name ?? null, content);
   const [markdownPreview, setMarkdownPreview] = useState(true);
   const [splitPreview, setSplitPreview] = useState(false);
   const [composerMode, setComposerMode] = useState(false);
@@ -220,7 +225,7 @@ export const CodeEditor = ({
       setCurrentMatchIndex(index);
       if (index >= 0 && matches[index]) {
         const lineNumber = content.substring(0, matches[index].start).split("\n").length;
-        textEditorRef.current?.scrollToLine(lineNumber);
+        editorRef.current?.scrollToLine(lineNumber);
       }
     },
     [content],
@@ -258,6 +263,37 @@ export const CodeEditor = ({
       prev.includes(scopeId) ? prev.filter((entry) => entry !== scopeId) : [...prev, scopeId],
     );
   }, []);
+
+  useEffect(() => {
+    if (lsp.supported) {
+      const exts = createLspExtensions(
+        {
+          getCompletions: lsp.getCompletions,
+          getHover: lsp.getHover,
+        },
+        { current: null },
+      );
+      setLspExtensions(exts);
+    } else {
+      setLspExtensions([]);
+    }
+  }, [lsp.supported, lsp.getCompletions, lsp.getHover]);
+
+  useEffect(() => {
+    const view = editorRef.current?.getEditorView();
+    if (view) {
+      const cm6Diags = lsp.connected && lsp.diagnostics.length > 0
+        ? convertLspDiagnostics(lsp.diagnostics, view)
+        : [];
+      updateLspDiagnostics(cm6Diags);
+    }
+  }, [lsp.connected, lsp.diagnostics]);
+
+  useEffect(() => {
+    if (lsp.connected && content) {
+      lsp.updateContent(content);
+    }
+  }, [content, lsp.connected, lsp.updateContent]);
 
   if (!file) {
     return (
@@ -439,20 +475,21 @@ export const CodeEditor = ({
             foldedScopeSet={foldedScopeSet}
             onSelectLine={setSelectedLine}
             onToggleFold={handleToggleFold}
-            textareaRef={textareaRef}
+            editorRef={editorRef}
           />
 
-          <TextEditor
-            ref={textEditorRef}
+          <Cm6Editor
+            ref={editorRef}
             content={content}
             language={file.language || "text"}
+            fileName={file.name}
             searchMatches={searchMatches}
             currentMatchIndex={currentMatchIndex}
             activePresence={mappedActivePresence}
             selectedLine={selectedLine}
             onChange={handleContentChange}
             onCursorChange={(line, col) => setCursorPosition({ line, col })}
-            externalTextareaRef={textareaRef}
+            extensions={lspExtensions}
           />
 
           <EditorMinimap
@@ -523,6 +560,9 @@ export const CodeEditor = ({
         fileName={file.name}
         content={content}
         showWorkbench={showWorkbench}
+        errorCount={lsp.errorCount}
+        warningCount={lsp.warningCount}
+        lspConnected={lsp.connected}
         onGenerateTest={() => {
           const generated = generateUnitTestFile(file.name, content);
           onCreateOrUpdateFile(generated.fileName, generated.content, "typescript");

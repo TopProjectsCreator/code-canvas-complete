@@ -1954,10 +1954,208 @@ httpServer.on('upgrade', (request, socket, head) => {
     });
     proxyReq.on('error', () => socket.destroy());
     proxyReq.end();
+  } else if (url.pathname === '/api/lsp/ws') {
+    const language = url.searchParams.get('language') || 'unknown';
+    const connectionId = randomUUID();
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+      setupLspConnection(ws, language, connectionId);
+    });
   } else {
     socket.destroy();
   }
 });
+
+// ---------------------------------------------------------------------------
+// LSP — Language Server Protocol bridge (Replit backend)
+// Spawns language server processes and forwards JSON-RPC over WebSocket.
+// Uses LSP's Content-Length framing for stdin/stdout communication.
+// ---------------------------------------------------------------------------
+
+const lspProcesses = new Map();
+
+function lspEncode(msg) {
+  const body = JSON.stringify(msg);
+  const headers = `Content-Length: ${Buffer.byteLength(body, 'utf-8')}\r\n\r\n`;
+  return headers + body;
+}
+
+function setupLspConnection(ws, language, connectionId) {
+  ws.on('message', (data) => {
+    try {
+      const msg = JSON.parse(data.toString());
+      handleLspMessage(ws, language, msg, connectionId);
+    } catch (err) {
+      ws.send(JSON.stringify({ jsonrpc: '2.0', error: { code: -32700, message: 'Parse error' } }));
+    }
+  });
+
+  ws.on('close', () => {
+    const entry = lspProcesses.get(connectionId);
+    if (entry) {
+      entry.process.kill();
+      lspProcesses.delete(connectionId);
+    }
+  });
+
+  ws.on('error', () => {
+    const entry = lspProcesses.get(connectionId);
+    if (entry) {
+      entry.process.kill();
+      lspProcesses.delete(connectionId);
+    }
+  });
+}
+
+function handleLspMessage(ws, language, msg, connectionId) {
+  const entry = findLspEntry(language);
+
+  if (msg.method === 'initialize') {
+    const lsProcess = getOrCreateLsProcess(language, entry, ws, connectionId);
+    if (lsProcess) {
+      lsProcess.stdin.write(lspEncode(msg));
+    } else {
+      ws.send(JSON.stringify({
+        jsonrpc: '2.0',
+        id: msg.id,
+        result: {
+          capabilities: {
+            textDocumentSync: 1,
+            completionProvider: { triggerCharacters: ['.', '<', '"', "'", '/', '@', '(', ':'] },
+            hoverProvider: true,
+            definitionProvider: true,
+            referencesProvider: true,
+            signatureHelpProvider: { triggerCharacters: ['(', ','] },
+            documentFormattingProvider: true,
+            codeActionProvider: true,
+          },
+          serverInfo: { name: 'Fallback (no LS process)', version: '1.0' },
+        },
+      }));
+    }
+    return;
+  }
+
+  if (msg.method === 'initialized') {
+    return;
+  }
+
+  if (!entry) {
+    if (msg.id) {
+      ws.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, error: { code: -32601, message: `No LSP server for: ${language}` } }));
+    }
+    return;
+  }
+
+  const lsProcess = getOrCreateLsProcess(language, entry, ws, connectionId);
+  if (lsProcess) {
+    lsProcess.stdin.write(lspEncode(msg));
+  } else if (msg.id) {
+    ws.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, error: { code: -32603, message: 'Language server not available' } }));
+  }
+}
+
+const LSP_SERVER_MAP = {
+  python: { name: 'Pyright', command: 'pyright-langserver', args: ['--stdio'] },
+  css: { name: 'CSS Language Server', command: 'vscode-css-languageserver', args: ['--stdio'] },
+  html: { name: 'HTML Language Server', command: 'vscode-html-languageserver', args: ['--stdio'] },
+  json: { name: 'JSON Language Server', command: 'vscode-json-languageserver', args: ['--stdio'] },
+  markdown: { name: 'Markdown Language Server', command: 'vscode-markdown-languageserver', args: ['--stdio'] },
+  xml: { name: 'XML Language Server', command: 'vscode-xml-languageserver', args: ['--stdio'] },
+  sql: { name: 'SQL Language Server', command: 'sql-language-server', args: ['up', '--method', 'stdio'] },
+  yaml: { name: 'YAML Language Server', command: 'yaml-language-server', args: ['--stdio'] },
+  bash: { name: 'Bash Language Server', command: 'bash-language-server', args: ['start'] },
+};
+
+function findLspEntry(language) {
+  const entry = LSP_SERVER_MAP[language];
+  if (entry) return entry;
+  return LSP_SERVER_MAP[language.split('-')[0]] || null;
+}
+
+function getOrCreateLsProcess(language, entry, ws, connectionId) {
+  const existing = lspProcesses.get(connectionId);
+  if (existing) return existing.process;
+
+  if (!entry) return null;
+
+  try {
+    const lsProcess = spawn(entry.command, entry.args, {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env },
+    });
+
+    let readBuffer = '';
+    let contentLength = -1;
+
+    lsProcess.stdout.on('data', (chunk) => {
+      readBuffer += chunk.toString();
+
+      while (readBuffer.length > 0) {
+        if (contentLength < 0) {
+          const headerEnd = readBuffer.indexOf('\r\n\r\n');
+          if (headerEnd === -1) break;
+          const header = readBuffer.substring(0, headerEnd);
+          const match = header.match(/Content-Length:\s*(\d+)/i);
+          if (match) contentLength = parseInt(match[1], 10);
+          else contentLength = 0;
+          readBuffer = readBuffer.substring(headerEnd + 4);
+        }
+
+        if (contentLength >= 0 && readBuffer.length >= contentLength) {
+          const body = readBuffer.substring(0, contentLength);
+          readBuffer = readBuffer.substring(contentLength);
+          contentLength = -1;
+
+          try {
+            const msg = JSON.parse(body);
+            if (ws && ws.readyState === 1) {
+              ws.send(JSON.stringify(msg));
+            }
+          } catch {
+            // ignore non-JSON output
+          }
+        } else {
+          break;
+        }
+      }
+    });
+
+    lsProcess.stderr.on('data', (chunk) => {
+      console.error(`[LSP:${language}] stderr:`, chunk.toString());
+    });
+
+    lsProcess.on('close', (code) => {
+      console.log(`[LSP:${language}] process exited with code ${code}`);
+      lspProcesses.delete(connectionId);
+    });
+
+    lsProcess.on('error', (err) => {
+      console.error(`[LSP:${language}] error:`, err.message);
+      lspProcesses.delete(connectionId);
+      const errMsg = JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'textDocument/publishDiagnostics',
+        params: {
+          uri: '',
+          diagnostics: [{
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } },
+            severity: 1,
+            message: `Language server for ${language} failed to start: ${err.message}`,
+            source: 'lsp',
+          }],
+        },
+      });
+      if (ws && ws.readyState === 1) ws.send(errMsg);
+    });
+
+    lspProcesses.set(connectionId, { process: lsProcess, ws, language, connectionId });
+    return lsProcess;
+  } catch (err) {
+    console.error(`[LSP:${language}] failed to spawn:`, err.message);
+    return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Command safety filter

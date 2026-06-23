@@ -1,0 +1,243 @@
+import { EditorView } from "@codemirror/view";
+import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
+
+const syntaxTheme = EditorView.theme(
+  {
+    "&": {
+      backgroundColor: "transparent",
+      fontSize: "0.875rem",
+      fontFamily: `'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`,
+      lineHeight: "24px",
+      height: "100%",
+    },
+    ".cm-scroller": {
+      overflow: "auto",
+      fontFamily: `'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`,
+      lineHeight: "24px",
+    },
+    ".cm-content": {
+      caretColor: "var(--caret-color, hsl(var(--foreground)))",
+      padding: "2px 0 2px 6px",
+      fontFamily: `'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`,
+      lineHeight: "24px",
+      fontSize: "0.875rem",
+    },
+    ".cm-line": {
+      padding: "0",
+      fontFamily: `'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`,
+      lineHeight: "24px",
+    },
+    ".cm-cursor": {
+      borderLeftColor: "var(--caret-color, hsl(var(--foreground)))",
+      borderLeftWidth: "2px",
+    },
+    ".cm-selectionBackground": {
+      backgroundColor: "hsl(var(--primary) / 0.15) !important",
+    },
+    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground.cm-focused": {
+      backgroundColor: "hsl(var(--primary) / 0.2) !important",
+    },
+    ".cm-activeLine": {
+      backgroundColor: "hsl(var(--muted) / 0.3)",
+    },
+    ".cm-matchingBracket": {
+      backgroundColor: "hsl(var(--primary) / 0.15)",
+      outline: "1px solid hsl(var(--primary) / 0.3)",
+    },
+    ".cm-gutters": {
+      backgroundColor: "transparent",
+      border: "none",
+      color: "hsl(var(--muted-foreground))",
+    },
+    ".cm-lineNumbers": {
+      color: "hsl(var(--muted-foreground))",
+      fontSize: "0.75rem",
+      paddingRight: "8px",
+      minWidth: "3.5rem",
+      textAlign: "right",
+    },
+    ".cm-lineNumbers .cm-gutterElement": {
+      padding: "0 8px 0 2px",
+      lineHeight: "24px",
+    },
+    ".cm-foldGutter": {
+      color: "hsl(var(--muted-foreground))",
+    },
+    ".cm-foldGutter .cm-gutterElement": {
+      padding: "0 4px",
+      lineHeight: "24px",
+      cursor: "pointer",
+    },
+    ".cm-diagnostic": {
+      padding: "3px 6px",
+      fontFamily: `'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`,
+      fontSize: "0.8rem",
+    },
+    ".cm-diagnostic-error": {
+      borderLeft: "3px solid hsl(var(--destructive))",
+    },
+    ".cm-diagnostic-warning": {
+      borderLeft: "3px solid hsl(var(--warning, 38 92% 50%))",
+    },
+    ".cm-tooltip": {
+      border: "1px solid hsl(var(--border))",
+      backgroundColor: "hsl(var(--popover))",
+      color: "hsl(var(--popover-foreground))",
+      borderRadius: "6px",
+      boxShadow: "0 4px 12px hsl(var(--shadow) / 0.15)",
+      fontSize: "0.8rem",
+      maxWidth: "500px",
+    },
+    ".cm-tooltip-autocomplete": {
+      "& > ul": {
+        maxHeight: "300px",
+        fontFamily: `'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`,
+      },
+      "& > ul > li": {
+        padding: "4px 8px",
+        lineHeight: "1.4",
+      },
+      "& > ul > li[aria-selected]": {
+        backgroundColor: "hsl(var(--primary) / 0.1)",
+        color: "hsl(var(--primary))",
+      },
+      "& .cm-completionDetail": {
+        color: "hsl(var(--muted-foreground))",
+        fontStyle: "italic",
+      },
+      "& .cm-completionIcon": {
+        fontSize: "0",
+      },
+    },
+    ".cm-panel.cm-search": {
+      backgroundColor: "hsl(var(--background))",
+      borderBottom: "1px solid hsl(var(--border))",
+      padding: "8px",
+      "& label": {
+        fontSize: "0.8rem",
+        color: "hsl(var(--foreground))",
+      },
+      "& input": {
+        backgroundColor: "hsl(var(--input))",
+        border: "1px solid hsl(var(--border))",
+        color: "hsl(var(--foreground))",
+        borderRadius: "4px",
+        padding: "4px 8px",
+        fontSize: "0.8rem",
+        fontFamily: `'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`,
+      },
+      "& .cm-button": {
+        backgroundColor: "hsl(var(--secondary))",
+        color: "hsl(var(--secondary-foreground))",
+        border: "1px solid hsl(var(--border))",
+        borderRadius: "4px",
+        padding: "4px 8px",
+        fontSize: "0.75rem",
+        cursor: "pointer",
+      },
+    },
+    ".cm-completionIcon": {
+      fontSize: "0",
+      "&::after": {
+        fontSize: "0.7rem",
+        content: "'●'",
+        color: "hsl(var(--muted-foreground))",
+      },
+    },
+    ".cm-completionIcon-function::after": { content: "'ƒ'", color: "hsl(var(--syntax-function))" },
+    ".cm-completionIcon-method::after": { content: "'ƒ'", color: "hsl(var(--syntax-function))" },
+    ".cm-completionIcon-class::after": { content: "'C'", color: "hsl(var(--syntax-keyword))" },
+    ".cm-completionIcon-interface::after": { content: "'I'", color: "hsl(var(--syntax-keyword))" },
+    ".cm-completionIcon-variable::after": { content: "'x'", color: "hsl(var(--syntax-variable))" },
+    ".cm-completionIcon-constant::after": { content: "'π'", color: "hsl(var(--syntax-number))" },
+    ".cm-completionIcon-type::after": { content: "'T'", color: "hsl(var(--syntax-keyword))" },
+    ".cm-completionIcon-keyword::after": { content: "'K'", color: "hsl(var(--syntax-keyword))" },
+    ".cm-completionIcon-namespace::after": { content: "'□'", color: "hsl(var(--syntax-variable))" },
+    ".cm-completionIcon-module::after": { content: "'□'", color: "hsl(var(--syntax-variable))" },
+    ".cm-completionIcon-property::after": { content: "'▪'", color: "hsl(var(--syntax-property, var(--syntax-variable)))" },
+    ".cm-completionIcon-snippet::after": { content: "'✂'", color: "hsl(var(--muted-foreground))" },
+    ".cm-completionIcon-text::after": { content: "'■'", color: "hsl(var(--muted-foreground))" },
+    ".cm-completionIcon-color::after": { content: "'■'", color: "hsl(var(--syntax-string))" },
+    ".cm-completionIcon-unit::after": { content: "'u'", color: "hsl(var(--syntax-number))" },
+    ".cm-completionIcon-file::after": { content: "'📄'", color: "hsl(var(--muted-foreground))" },
+    ".cm-completionIcon-folder::after": { content: "'📁'", color: "hsl(var(--muted-foreground))" },
+    ".cm-completionIcon-enum::after": { content: "'E'", color: "hsl(var(--syntax-keyword))" },
+    ".cm-completionIcon-enumMember::after": { content: "'m'", color: "hsl(var(--syntax-variable))" },
+    ".cm-completionIcon-struct::after": { content: "'S'", color: "hsl(var(--syntax-variable))" },
+    ".cm-completionIcon-event::after": { content: "'⚡'", color: "hsl(var(--syntax-operator))" },
+    ".cm-completionIcon-operator::after": { content: "'◊'", color: "hsl(var(--syntax-operator))" },
+    ".cm-completionIcon-typeParameter::after": { content: "'T'", color: "hsl(var(--syntax-keyword))" },
+    ".cm-completionIcon-field::after": { content: "'▪'", color: "hsl(var(--syntax-variable))" },
+    "&.cm-focused": {
+      outline: "none",
+    },
+    ".cm-scroller::-webkit-scrollbar": {
+      width: "8px",
+      height: "8px",
+    },
+    ".cm-scroller::-webkit-scrollbar-track": {
+      backgroundColor: "transparent",
+    },
+    ".cm-scroller::-webkit-scrollbar-thumb": {
+      backgroundColor: "hsl(var(--border))",
+      borderRadius: "4px",
+    },
+    ".cm-scroller::-webkit-scrollbar-thumb:hover": {
+      backgroundColor: "hsl(var(--muted-foreground))",
+    },
+  },
+  { dark: false },
+);
+
+const syntaxHighlight = HighlightStyle.define([
+  { tag: tags.keyword, color: "hsl(var(--syntax-keyword))" },
+  { tag: tags.string, color: "hsl(var(--syntax-string))" },
+  { tag: tags.number, color: "hsl(var(--syntax-number))" },
+  { tag: tags.function(tags.variableName), color: "hsl(var(--syntax-function))" },
+  { tag: tags.function(tags.propertyName), color: "hsl(var(--syntax-function))" },
+  { tag: tags.definition(tags.function(tags.variableName)), color: "hsl(var(--syntax-function))" },
+  { tag: tags.comment, color: "hsl(var(--syntax-comment))", fontStyle: "italic" },
+  { tag: tags.variableName, color: "hsl(var(--syntax-variable))" },
+  { tag: tags.operator, color: "hsl(var(--syntax-operator))" },
+  { tag: tags.attributeName, color: "hsl(var(--syntax-function))" },
+  { tag: tags.propertyName, color: "hsl(var(--syntax-variable))" },
+  { tag: tags.tagName, color: "hsl(var(--syntax-keyword))" },
+  { tag: tags.typeName, color: "hsl(var(--syntax-keyword))" },
+  { tag: tags.className, color: "hsl(var(--syntax-keyword))" },
+  { tag: tags.labelName, color: "hsl(var(--syntax-variable))" },
+  { tag: tags.bool, color: "hsl(var(--syntax-keyword))" },
+  { tag: tags.regexp, color: "hsl(var(--syntax-string))" },
+  { tag: tags.moduleKeyword, color: "hsl(var(--syntax-keyword))" },
+  { tag: tags.controlKeyword, color: "hsl(var(--syntax-keyword))" },
+  { tag: tags.definitionKeyword, color: "hsl(var(--syntax-keyword))" },
+  { tag: tags.angleBracket, color: "hsl(var(--syntax-operator))" },
+  { tag: tags.brace, color: "hsl(var(--syntax-operator))" },
+  { tag: tags.bracket, color: "hsl(var(--syntax-operator))" },
+  { tag: tags.paren, color: "hsl(var(--syntax-operator))" },
+  { tag: tags.separator, color: "hsl(var(--syntax-operator))" },
+  { tag: tags.special(tags.string), color: "hsl(var(--syntax-string))" },
+  { tag: tags.meta, color: "hsl(var(--syntax-comment))" },
+  { tag: tags.invalid, color: "hsl(var(--destructive))" },
+  { tag: tags.link, color: "hsl(var(--syntax-string))", textDecoration: "underline" },
+  { tag: tags.strikethrough, textDecoration: "line-through" },
+  { tag: tags.strong, fontWeight: "bold" },
+  { tag: tags.emphasis, fontStyle: "italic" },
+  { tag: tags.heading, color: "hsl(var(--syntax-function))", fontWeight: "bold" },
+  { tag: tags.atom, color: "hsl(var(--syntax-number))" },
+  { tag: tags.self, color: "hsl(var(--syntax-keyword))" },
+  { tag: tags.null, color: "hsl(var(--syntax-keyword))" },
+  { tag: tags.unit, color: "hsl(var(--syntax-number))" },
+  { tag: tags.modifier, color: "hsl(var(--syntax-operator))" },
+  { tag: tags.color, color: "hsl(var(--syntax-string))" },
+  { tag: tags.constant(tags.variableName), color: "hsl(var(--syntax-number))" },
+  { tag: tags.standard(tags.variableName), color: "hsl(var(--syntax-variable))" },
+  { tag: tags.local(tags.variableName), color: "hsl(var(--syntax-variable))" },
+  { tag: tags.special(tags.variableName), color: "hsl(var(--syntax-keyword))" },
+  { tag: tags.changed, color: "hsl(var(--syntax-string))" },
+  { tag: tags.inserted, color: "hsl(var(--syntax-string))" },
+  { tag: tags.deleted, color: "hsl(var(--destructive))" },
+  { tag: tags.escape, color: "hsl(var(--syntax-operator))" },
+]);
+
+export const cm6Theme = [syntaxTheme, syntaxHighlighting(syntaxHighlight)];

@@ -1,4 +1,4 @@
-import { TestTube2, PanelRightOpen } from "lucide-react";
+import { TestTube2, PanelRightOpen, CircleAlert, CircleX } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface EditorStatusBarProps {
@@ -9,6 +9,9 @@ interface EditorStatusBarProps {
   fileName: string;
   content: string;
   showWorkbench: boolean;
+  errorCount?: number;
+  warningCount?: number;
+  lspConnected?: boolean;
   onGenerateTest: () => void;
   onToggleWorkbench: () => void;
 }
@@ -19,6 +22,9 @@ export const EditorStatusBar = ({
   selectedLine,
   currentScope,
   showWorkbench,
+  errorCount = 0,
+  warningCount = 0,
+  lspConnected = false,
   onGenerateTest,
   onToggleWorkbench,
 }: EditorStatusBarProps) => {
@@ -29,8 +35,23 @@ export const EditorStatusBar = ({
         <span>UTF-8</span>
         {selectedLine !== null && <span>Comment lane: Ln {selectedLine}</span>}
         <span className="text-muted-foreground/70">{currentScope?.name || "Global"}</span>
+        {errorCount > 0 && (
+          <span className="flex items-center gap-1 text-destructive">
+            <CircleX className="h-3 w-3" />
+            {errorCount}
+          </span>
+        )}
+        {warningCount > 0 && (
+          <span className="flex items-center gap-1 text-yellow-500">
+            <CircleAlert className="h-3 w-3" />
+            {warningCount}
+          </span>
+        )}
       </div>
       <div className="flex items-center gap-2">
+        {lspConnected && (
+          <span className="flex h-2 w-2 rounded-full bg-emerald-500" title="LSP connected" />
+        )}
         <button
           type="button"
           className="hover:text-foreground transition-colors"

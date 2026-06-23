@@ -48,6 +48,11 @@ export default defineConfig(({ mode }) => ({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      '/api/lsp': {
+        target: 'ws://localhost:3001',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   plugins: [

@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback } from "react";
 import { ChevronRight, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { Cm6EditorHandle } from "./Cm6Editor";
 
 interface ScopeEntry {
   name: string;
@@ -18,7 +19,7 @@ interface EditorGutterProps {
   foldedScopeSet: Set<string>;
   onSelectLine: (line: number) => void;
   onToggleFold: (scopeId: string) => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  editorRef: React.RefObject<Cm6EditorHandle | null>;
 }
 
 export const EditorGutter = ({
@@ -30,24 +31,27 @@ export const EditorGutter = ({
   foldedScopeSet,
   onSelectLine,
   onToggleFold,
-  textareaRef,
+  editorRef,
 }: EditorGutterProps) => {
   const gutterRef = useRef<HTMLDivElement>(null);
 
   const syncScroll = useCallback(() => {
-    const ta = textareaRef.current;
+    const view = editorRef.current?.getEditorView();
+    if (!view) return;
+    const cmScroller = view.scrollDOM;
     const gutter = gutterRef.current;
-    if (ta && gutter) {
-      gutter.scrollTop = ta.scrollTop;
+    if (cmScroller && gutter) {
+      gutter.scrollTop = cmScroller.scrollTop;
     }
-  }, [textareaRef]);
+  }, [editorRef]);
 
   useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.addEventListener("scroll", syncScroll, { passive: true });
-    return () => ta.removeEventListener("scroll", syncScroll);
-  }, [textareaRef, syncScroll]);
+    const view = editorRef.current?.getEditorView();
+    if (!view) return;
+    const cmScroller = view.scrollDOM;
+    cmScroller.addEventListener("scroll", syncScroll, { passive: true });
+    return () => cmScroller.removeEventListener("scroll", syncScroll);
+  }, [editorRef, syncScroll]);
 
   useEffect(() => {
     syncScroll();
@@ -72,13 +76,12 @@ export const EditorGutter = ({
               type="button"
               onClick={() => onSelectLine(lineNumber)}
               className={cn(
-                "flex h-6 min-w-[3.5rem] items-center justify-end gap-1 pr-2 text-right text-xs leading-6 transition-colors",
+                "flex h-6 min-w-[1.25rem] items-center justify-center gap-1 text-right text-xs leading-6 transition-colors",
                 selected ? "bg-primary/10 text-primary" : "hover:bg-muted/40",
               )}
             >
               {lineComments.length > 0 && <MessageSquare className="h-3 w-3 text-primary" />}
               {peers.length > 0 && <span className="h-2 w-2 rounded-full bg-emerald-400" />}
-              <span>{lineNumber}</span>
             </button>
           );
         })}
