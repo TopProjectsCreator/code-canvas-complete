@@ -19,7 +19,9 @@
     "sync:pricing": "npx tsx scripts/sync-model-pricing.ts",
     "remotion:preview": "npx remotion preview",
     "remotion:render": "npx remotion render RedactorImageRedaction out/redactor-image-redaction.mp4",
-    "remotion:still": "npx remotion still RedactorImageRedaction out/redactor-image-redaction.png --frame=240"
+    "remotion:still": "npx remotion still RedactorImageRedaction out/redactor-image-redaction.png --frame=240",
+    "remotion:render:lsp": "npx remotion render LspIntroduction out/lsp-introduction.mp4",
+    "remotion:still:lsp": "npx remotion still LspIntroduction out/lsp-introduction.png --frame=240"
   },
   "overrides": {
     "@babel/plugin-proposal-private-property-in-object": "7.21.11",
