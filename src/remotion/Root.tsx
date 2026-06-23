@@ -8,7 +8,7 @@ const Root: React.FC = () => {
     <Composition
       id="RedactorImageRedaction"
       component={RedactorAnimation}
-      durationInFrames={32 * FPS}
+      durationInFrames={39 * FPS}
       fps={FPS}
       width={1920}
       height={1080}

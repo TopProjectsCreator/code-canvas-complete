@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HighlightedText } from "@/redactor/components/HighlightedText";
 
-type Tab = "text" | "image";
+type Tab = "text" | "image" | "video";
 
 export default function RedactorPlayground() {
   const [tab, setTab] = useState<Tab>("text");
@@ -77,6 +77,12 @@ export default function RedactorPlayground() {
           className={`px-3 py-1 text-sm rounded-t ${tab === "image" ? "bg-card font-medium" : "text-muted-foreground hover:text-foreground"}`}
         >
           Image redaction (OCR)
+        </button>
+        <button
+          onClick={() => setTab("video")}
+          className={`px-3 py-1 text-sm rounded-t ${tab === "video" ? "bg-card font-medium" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          Video redaction (I-frame)
         </button>
       </div>
 
@@ -186,6 +192,45 @@ export default function RedactorPlayground() {
             </Card>
           )}
         </>
+      )}
+
+      {tab === "video" && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">How video redaction works</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <p>
+                When a chat request contains a <code>file_uri</code> or data URI pointing to a video,
+                the proxy downloads it in chunks, extracts <strong>I-frames</strong> (1 per GOP, ~1/sec),
+                runs OCR + pixelation + token overlay, and re-encodes only the I-frames. The
+                P/B-frames naturally propagate the pixelation through motion prediction.
+              </p>
+              <p>
+                The proxy replaces the video URL with a streaming endpoint that serves the
+                progressively-redacted video to the AI provider during inference. Zero extra
+                wall-clock time for the user.
+              </p>
+              <div className="rounded-md border bg-card/40 p-4 font-mono text-xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">1.</span>
+                  <span>Download video in chunks from source URL</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">2.</span>
+                  <span>mp4box demux → h264 decode I-frames → OCR → pixelate → re-encode</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">3.</span>
+                  <span>mp4box remux redacted I-frames with original P/B-frames</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">4.</span>
+                  <span>Stream redacted MP4 to AI provider via chunked transfer</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

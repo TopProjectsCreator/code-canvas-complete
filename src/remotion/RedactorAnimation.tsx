@@ -843,6 +843,430 @@ function RedactionScene({ frame }: { frame: number }) {
   );
 }
 
+// ── Video Scene ──────────────────────────────────────────────
+
+function VideoScene({ frame }: { frame: number }) {
+  const base = 26 * FPS;
+  const f = frame - base;
+
+  // Pipeline step glow animations
+  const step = (delay: number, dur = 20): number =>
+    interpolate(Math.max(0, f - delay), [0, dur / 2, dur], [0, 1, 0], {
+      extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.ease,
+    });
+
+  // Download progress: two blocks fill in
+  const downloadFill = interpolate(Math.max(0, f - 25), [0, 40], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+
+  // I-frame extraction: visual separation of I from P/B
+  const iframeExtract = fadeIn(f, 15, 35);
+
+  // Pipeline glow on each stage
+  const decodeGlow = step(45);
+  const ocrGlow = step(55);
+  const pixelateGlow = step(65);
+  const encodeGlow = step(75);
+  const remuxGlow = step(85);
+
+  // Chunked streaming: block pulses
+  const chunk1 = fadeIn(f, 8, 90);
+  const chunk2 = fadeIn(f, 8, 98);
+  const chunk3 = fadeIn(f, 8, 106);
+
+  return (
+    <AbsoluteFill style={{ background: BG }}>
+      <DotGrid frame={frame} />
+
+      {/* Header */}
+      <div style={{
+        position: "absolute", top: 30, left: 0, width: "100%",
+        textAlign: "center", opacity: fadeIn(f, 15, 0),
+      }}>
+        <span style={{ color: MUTED, fontSize: 16, fontFamily: "monospace", letterSpacing: 4, textTransform: "uppercase" }}>
+          Step 3
+        </span>
+        <h2 style={{ color: TEXT, fontSize: 40, fontWeight: 700, fontFamily: "system-ui", margin: "6px 0 0" }}>
+          Video I-Frame Streaming
+        </h2>
+      </div>
+
+      {/* ── Left: Provider Fetch ── */}
+      <div
+        style={{
+          position: "absolute", left: 40, top: 130, width: 240,
+          opacity: fadeIn(f, 15, 10),
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 10, border: `2px solid ${BLUE}40`,
+            background: `${BLUE}08`, padding: 16,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 32, marginBottom: 8 }}>&#127909;</div>
+          <div style={{ color: BLUE, fontSize: 15, fontWeight: 700, fontFamily: "system-ui" }}>
+            AI Provider
+          </div>
+          <div style={{ color: MUTED, fontSize: 12, fontFamily: "monospace", marginTop: 4 }}>
+            GET /v/&lt;id&gt;.mp4
+          </div>
+          <div style={{
+            marginTop: 8, padding: "4px 10px", borderRadius: 6,
+            background: `${BLUE}15`, color: BLUE, fontSize: 11, fontFamily: "monospace",
+          }}>
+            No auth headers needed
+          </div>
+        </div>
+      </div>
+
+      {/* Arrow: Provider → Proxy */}
+      <Arrow x1={280} y1={190} x2={380} y2={190} frame={f} delay={15} color={BLUE} />
+      <ArrowLabel text="HTTP Fetch" x={300} y={170} frame={f} delay={20} />
+
+      {/* ── Center: Video Pipeline ── */}
+      <div
+        style={{
+          position: "absolute", left: 390, top: 110, width: 750,
+          opacity: fadeIn(f, 15, 20),
+        }}
+      >
+        {/* Pipeline header */}
+        <div style={{
+          display: "flex", justifyContent: "space-between",
+          marginBottom: 6,
+        }}>
+          <span style={{ color: MUTED, fontSize: 11, fontFamily: "monospace", textTransform: "uppercase", letterSpacing: 1 }}>
+            Redactor Proxy — Video Pipeline
+          </span>
+          <span style={{ color: ACCENT, fontSize: 11, fontFamily: "monospace" }}>
+            chunked transfer keeps function alive
+          </span>
+        </div>
+
+        {/* Pipeline boxes row */}
+        <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+          {/* 1. Download */}
+          <div style={{
+            flex: 1, borderRadius: 8, border: `1px solid ${CARD_BORDER}`,
+            background: CARD_BG, padding: 8, textAlign: "center",
+            opacity: fadeIn(f, 10, 22),
+          }}>
+            <div style={{ color: BLUE, fontSize: 13, fontWeight: 700, fontFamily: "system-ui" }}>Download</div>
+            <div style={{
+              height: 4, borderRadius: 2, marginTop: 6,
+              background: SURFACE2, overflow: "hidden",
+            }}>
+              <div style={{
+                width: `${downloadFill * 100}%`, height: "100%",
+                background: BLUE, borderRadius: 2,
+              }} />
+            </div>
+            <div style={{ color: MUTED, fontSize: 10, fontFamily: "monospace", marginTop: 4 }}>
+              progressive stream
+            </div>
+          </div>
+
+          {/* 2. Demux */}
+          <div style={{
+            flex: 1, borderRadius: 8, border: `1px solid ${CARD_BORDER}`,
+            background: CARD_BG, padding: 8, textAlign: "center",
+            opacity: fadeIn(f, 10, 28),
+          }}>
+            <div style={{ color: BLUE, fontSize: 13, fontWeight: 700, fontFamily: "system-ui" }}>Demux</div>
+            <div style={{ color: MUTED, fontSize: 10, fontFamily: "monospace", marginTop: 6 }}>
+              mp4box.js
+            </div>
+            <div style={{ color: MUTED, fontSize: 9, fontFamily: "monospace" }}>
+              separate tracks
+            </div>
+          </div>
+
+          {/* 3. I-Frame Decode */}
+          <div style={{
+            flex: 1, borderRadius: 8,
+            border: `1px solid ${decodeGlow > 0.5 ? ACCENT : CARD_BORDER}`,
+            boxShadow: decodeGlow > 0.5 ? `0 0 12px ${ACCENT}50` : undefined,
+            background: decodeGlow > 0.5 ? `${ACCENT}08` : CARD_BG, padding: 8, textAlign: "center",
+            opacity: fadeIn(f, 10, 34),
+          }}>
+            <div style={{
+              color: decodeGlow > 0.5 ? ACCENT : TEXT, fontSize: 13,
+              fontWeight: 700, fontFamily: "system-ui",
+            }}>
+              h264 Decode
+            </div>
+            <div style={{ color: MUTED, fontSize: 10, fontFamily: "monospace", marginTop: 4 }}>
+              Wasm decoder
+            </div>
+            <div style={{ color: MUTED, fontSize: 9, fontFamily: "monospace" }}>
+              I-frame → RGBA
+            </div>
+          </div>
+
+          {/* 4. OCR */}
+          <div style={{
+            flex: 1, borderRadius: 8,
+            border: `1px solid ${ocrGlow > 0.5 ? ACCENT : CARD_BORDER}`,
+            boxShadow: ocrGlow > 0.5 ? `0 0 12px ${ACCENT}50` : undefined,
+            background: ocrGlow > 0.5 ? `${ACCENT}08` : CARD_BG, padding: 8, textAlign: "center",
+            opacity: fadeIn(f, 10, 40),
+          }}>
+            <div style={{
+              color: ocrGlow > 0.5 ? ACCENT : TEXT, fontSize: 13,
+              fontWeight: 700, fontFamily: "system-ui",
+            }}>
+              OCR Scan
+            </div>
+            <div style={{ color: MUTED, fontSize: 10, fontFamily: "monospace", marginTop: 4 }}>
+              Tesseract.js
+            </div>
+            <div style={{ color: MUTED, fontSize: 9, fontFamily: "monospace" }}>
+              PII detection
+            </div>
+          </div>
+
+          {/* 5. Pixelate */}
+          <div style={{
+            flex: 1, borderRadius: 8,
+            border: `1px solid ${pixelateGlow > 0.5 ? ACCENT : CARD_BORDER}`,
+            boxShadow: pixelateGlow > 0.5 ? `0 0 12px ${ACCENT}50` : undefined,
+            background: pixelateGlow > 0.5 ? `${ACCENT}08` : CARD_BG, padding: 8, textAlign: "center",
+            opacity: fadeIn(f, 10, 46),
+          }}>
+            <div style={{
+              color: pixelateGlow > 0.5 ? ACCENT : TEXT, fontSize: 13,
+              fontWeight: 700, fontFamily: "system-ui",
+            }}>
+              Pixelate
+            </div>
+            <div style={{ color: MUTED, fontSize: 10, fontFamily: "monospace", marginTop: 4 }}>
+              block avg
+            </div>
+            <div style={{ color: MUTED, fontSize: 9, fontFamily: "monospace" }}>
+              + token overlay
+            </div>
+          </div>
+
+          {/* 6. Re-encode */}
+          <div style={{
+            flex: 1, borderRadius: 8,
+            border: `1px solid ${encodeGlow > 0.5 ? ACCENT : CARD_BORDER}`,
+            boxShadow: encodeGlow > 0.5 ? `0 0 12px ${ACCENT}50` : undefined,
+            background: encodeGlow > 0.5 ? `${ACCENT}08` : CARD_BG, padding: 8, textAlign: "center",
+            opacity: fadeIn(f, 10, 52),
+          }}>
+            <div style={{
+              color: encodeGlow > 0.5 ? ACCENT : TEXT, fontSize: 13,
+              fontWeight: 700, fontFamily: "system-ui",
+            }}>
+              h264 Encode
+            </div>
+            <div style={{ color: MUTED, fontSize: 10, fontFamily: "monospace", marginTop: 4 }}>
+              Wasm encoder
+            </div>
+            <div style={{ color: MUTED, fontSize: 9, fontFamily: "monospace" }}>
+              RGBA → I-frame
+            </div>
+          </div>
+
+          {/* 7. Remux */}
+          <div style={{
+            flex: 1, borderRadius: 8,
+            border: `1px solid ${remuxGlow > 0.5 ? ACCENT : CARD_BORDER}`,
+            boxShadow: remuxGlow > 0.5 ? `0 0 12px ${ACCENT}50` : undefined,
+            background: remuxGlow > 0.5 ? `${ACCENT}08` : CARD_BG, padding: 8, textAlign: "center",
+            opacity: fadeIn(f, 10, 58),
+          }}>
+            <div style={{
+              color: remuxGlow > 0.5 ? ACCENT : TEXT, fontSize: 13,
+              fontWeight: 700, fontFamily: "system-ui",
+            }}>
+              Remux
+            </div>
+            <div style={{ color: MUTED, fontSize: 10, fontFamily: "monospace", marginTop: 4 }}>
+              mp4box.js
+            </div>
+            <div style={{ color: MUTED, fontSize: 9, fontFamily: "monospace" }}>
+              I + P/B frames
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* I-frame extraction visual */}
+      <div style={{
+        position: "absolute", left: 390, top: 270, width: 750,
+        opacity: iframeExtract, display: "flex", gap: 4,
+        alignItems: "center", justifyContent: "center",
+      }}>
+        {/* I-frame block */}
+        <div style={{
+          width: 80, height: 40, borderRadius: 6,
+          background: `${ACCENT}25`, border: `2px solid ${ACCENT}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: ACCENT, fontSize: 11, fontFamily: "monospace", fontWeight: 700,
+        }}>
+          I-frame
+        </div>
+
+        {/* Arrow down */}
+        <div style={{
+          width: 24, textAlign: "center", color: ACCENT, fontSize: 18,
+        }}>
+          &#8595;
+        </div>
+
+        {/* P-frames blocks */}
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+          <div key={i} style={{
+            width: 50, height: 30, borderRadius: 4,
+            background: `${BLUE}10`, border: `1px solid ${BLUE}30`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: MUTED, fontSize: 9, fontFamily: "monospace",
+            opacity: 0.5 + 0.5 * Math.sin(i * 0.8 + f * 0.05),
+          }}>
+            {i % 2 === 0 ? "P" : "B"}
+          </div>
+        ))}
+
+        {/* Arrow up */}
+        <div style={{
+          width: 24, textAlign: "center", color: BLUE, fontSize: 18,
+        }}>
+          &#8593;
+        </div>
+
+        {/* Passthrough label */}
+        <div style={{
+          color: MUTED, fontSize: 10, fontFamily: "monospace",
+          writingMode: "vertical-rl", letterSpacing: 1,
+        }}>
+          pass through
+        </div>
+      </div>
+
+      {/* I-frame processing detail */}
+      <div style={{
+        position: "absolute", left: 100, top: 340, width: 1100,
+        opacity: fadeIn(f, 15, 45),
+        display: "flex", gap: 12, alignItems: "flex-start",
+        justifyContent: "center",
+      }}>
+        {/* Detail boxes */}
+        {[
+          { label: "Decode", glow: decodeGlow, detail: "h264 NAL → RGBA pixels", delay: 0 },
+          { label: "OCR", glow: ocrGlow, detail: "Text detection → PII match", delay: 10 },
+          { label: "Pixelate", glow: pixelateGlow, detail: "8×8 block pixelation + token", delay: 20 },
+          { label: "Encode", glow: encodeGlow, detail: "RGBA → h264 NAL (Wasm)", delay: 30 },
+        ].map((step_, i) => (
+          <div key={i} style={{
+            flex: 1, borderRadius: 8, padding: "10px 12px",
+            border: `1px solid ${step_.glow > 0.5 ? ACCENT : CARD_BORDER}`,
+            background: step_.glow > 0.5 ? `${ACCENT}08` : CARD_BG,
+            boxShadow: step_.glow > 0.5 ? `0 0 16px ${ACCENT}40` : undefined,
+            display: "flex", flexDirection: "column", gap: 4,
+          }}>
+            <div style={{
+              color: step_.glow > 0.5 ? ACCENT : TEXT, fontSize: 13,
+              fontWeight: 700, fontFamily: "system-ui",
+            }}>
+              {step_.label}
+            </div>
+            <div style={{ color: MUTED, fontSize: 11, fontFamily: "monospace" }}>
+              {step_.detail}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* P/B frame passthrough explanation */}
+      <div style={{
+        position: "absolute", left: 100, top: 410,
+        opacity: fadeIn(f, 15, 65),
+        display: "flex", gap: 20, alignItems: "center",
+        padding: "10px 20px", borderRadius: 8,
+        background: `${BLUE}08`, border: `1px solid ${BLUE}25`,
+        width: 1100,
+      }}>
+        <span style={{ color: BLUE, fontSize: 22, fontWeight: 700, fontFamily: "system-ui" }}>
+          &#9889;
+        </span>
+        <div>
+          <div style={{ color: TEXT, fontSize: 14, fontWeight: 600, fontFamily: "system-ui" }}>
+            P/B-frames automatically propagate pixelation
+          </div>
+          <div style={{ color: MUTED, fontSize: 12, fontFamily: "monospace", marginTop: 2 }}>
+            Motion prediction references I-frame macroblocks — only ~1 frame/sec needs OCR, not 30/sec
+          </div>
+        </div>
+      </div>
+
+      {/* ── Arrow: Proxy → Provider ── */}
+      <Arrow x1={1140} y1={190} x2={1240} y2={190} frame={f} delay={80} color={ACCENT} />
+      <ArrowLabel text="Chunked Streaming" x={1150} y={170} frame={f} delay={85} />
+
+      {/* ── Right: Streaming Response ── */}
+      <div
+        style={{
+          position: "absolute", left: 1250, top: 130, width: 220,
+          opacity: fadeIn(f, 15, 80),
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 10, border: `2px solid ${ACCENT}40`,
+            background: `${ACCENT}08`, padding: 16,
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 32, marginBottom: 8 }}>&#128196;</div>
+          <div style={{ color: ACCENT, fontSize: 15, fontWeight: 700, fontFamily: "system-ui" }}>
+            Redacted MP4
+          </div>
+
+          {/* Chunked transfer blocks */}
+          {[{ label: "moov", delay: 90, show: chunk1 },
+            { label: "moof+mdat (I-frame)", delay: 98, show: chunk2 },
+            { label: "moof+mdat (P-frames)", delay: 106, show: chunk3 },
+          ].map((ch, i) => (
+            <div key={i} style={{
+              marginTop: 6, padding: "3px 8px", borderRadius: 4,
+              background: ch.show > 0 ? `${ACCENT}15` : SURFACE2,
+              border: `1px solid ${ch.show > 0 ? ACCENT : SURFACE2}`,
+              color: ch.show > 0 ? ACCENT : MUTED,
+              fontSize: 10, fontFamily: "monospace",
+              opacity: ch.show,
+            }}>
+              {ch.label}
+            </div>
+          ))}
+
+          <div style={{
+            marginTop: 8, padding: "4px 10px", borderRadius: 6,
+            background: `${ACCENT}15`, color: ACCENT, fontSize: 11, fontFamily: "monospace",
+          }}>
+            Transfer-Encoding: chunked
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom key insight */}
+      <div style={{
+        position: "absolute", bottom: 40, left: "50%", marginLeft: -450, width: 900,
+        opacity: fadeIn(f, 20, 95),
+        padding: "14px 24px", borderRadius: 10,
+        background: ACCENT_GLOW, border: `1px solid ${ACCENT}30`,
+        textAlign: "center",
+      }}>
+        <span style={{ color: ACCENT, fontSize: 16, fontFamily: "system-ui", fontWeight: 600 }}>
+          Zero extra wall-clock time &mdash; video processing hides inside provider's download window
+        </span>
+      </div>
+    </AbsoluteFill>
+  );
+}
+
 // ── Final scene ──────────────────────────────────────────────
 
 function FinalScene({ frame }: { frame: number }) {
@@ -960,8 +1384,11 @@ export const RedactorAnimation: React.FC = () => {
       {/* Scene 4: Redaction (19-26s) */}
       {frame >= 19 * FPS && frame < 26 * FPS && <RedactionScene frame={frame} />}
 
-      {/* Scene 5: Final (26-32s) */}
-      {frame >= 26 * FPS && frame < 32 * FPS && <FinalScene frame={frame} />}
+      {/* Scene 5: Video I-Frame Streaming (26-33s) */}
+      {frame >= 26 * FPS && frame < 33 * FPS && <VideoScene frame={frame} />}
+
+      {/* Scene 6: Final (33-39s) */}
+      {frame >= 33 * FPS && frame < 39 * FPS && <FinalScene frame={frame} />}
     </AbsoluteFill>
   );
 };

@@ -317,7 +317,7 @@ async function processSingleImage(
   const mimeType = block.mimeType === "image/jpeg" ? "image/jpeg" : "image/png";
   const encoded = mimeType === "image/jpeg"
     ? await img.encodeJPEG(85)
-    : await img.encodePNG();
+    : await img.encode();
 
   return { ...block, data: bytesToBase64(encoded) };
 }

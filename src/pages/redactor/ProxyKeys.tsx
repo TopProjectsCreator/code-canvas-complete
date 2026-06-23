@@ -42,6 +42,7 @@ export default function RedactorProxyKeys() {
   const [allowed, setAllowed] = useState<string[]>([]);
   const [logRequests, setLogRequests] = useState(true);
   const [redactImages, setRedactImages] = useState(true);
+  const [redactVideos, setRedactVideos] = useState(true);
   const [rateLimitRpm, setRateLimitRpm] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export default function RedactorProxyKeys() {
     setAllowed((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   }
 
-  async function handleCreate(e: React.FormEvent) {
+    async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
@@ -60,6 +61,7 @@ export default function RedactorProxyKeys() {
         allowedProviders: allowed,
         logRequests,
         redactImages,
+        redactVideos,
         rateLimitRpm: rateLimitRpm ? parseInt(rateLimitRpm, 10) : undefined,
         expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
       });
@@ -68,6 +70,7 @@ export default function RedactorProxyKeys() {
       setAllowed([]);
       setLogRequests(true);
       setRedactImages(true);
+      setRedactVideos(true);
       setRateLimitRpm("");
       setExpiresAt("");
       qc.invalidateQueries({ queryKey: ["redactor-proxy-keys"] });
@@ -148,6 +151,13 @@ export default function RedactorProxyKeys() {
               />
               Redact PII in images via OCR
             </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <Checkbox
+                checked={redactVideos}
+                onCheckedChange={(v) => setRedactVideos(v === true)}
+              />
+              Redact PII in videos via OCR (I-frame streaming)
+            </label>
             <Button type="submit" disabled={busy}>
               {busy ? "Creating…" : "Generate key"}
             </Button>
@@ -177,6 +187,7 @@ export default function RedactorProxyKeys() {
                       {k.expiresAt && ` · expires ${new Date(k.expiresAt).toLocaleDateString()}`}
                       {!k.logRequests && " · no logging"}
                       {k.redactImages ? " · image redaction" : " · no image redaction"}
+                      {k.redactVideos ? " · video redaction" : " · no video redaction"}
                       {k.lastUsedAt &&
                         ` · last used ${new Date(k.lastUsedAt).toLocaleString()}`}
                     </div>

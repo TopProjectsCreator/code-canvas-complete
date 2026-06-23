@@ -91,6 +91,7 @@ export interface ProxyKey {
   rateLimitRpm: number | null;
   logRequests: boolean;
   redactImages: boolean;
+  redactVideos: boolean;
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
@@ -112,6 +113,7 @@ export async function listProxyKeys(): Promise<ProxyKey[]> {
     rateLimitRpm: r.rate_limit_rpm,
     logRequests: r.log_requests,
     redactImages: r.redact_images ?? true,
+    redactVideos: r.redact_videos ?? true,
     createdAt: r.created_at,
     lastUsedAt: r.last_used_at,
     revokedAt: r.revoked_at,
@@ -124,6 +126,7 @@ export async function createProxyKey(opts: {
   allowedProviders: string[];
   logRequests: boolean;
   redactImages?: boolean;
+  redactVideos?: boolean;
   rateLimitRpm?: number;
   expiresAt?: string;
 }): Promise<{ fullKey: string; prefix: string }> {
@@ -151,6 +154,7 @@ export async function createProxyKey(opts: {
     allowed_providers: opts.allowedProviders,
     log_requests: opts.logRequests,
     redact_images: opts.redactImages ?? true,
+    redact_videos: opts.redactVideos ?? true,
     rate_limit_rpm: opts.rateLimitRpm ?? null,
     expires_at: opts.expiresAt ?? null,
   });

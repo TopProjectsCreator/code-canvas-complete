@@ -4,6 +4,7 @@ import { redactJson, rehydrate, transformJsonStrings } from "./redaction.ts";
 import { getProvider, resolveModelRouting, type ProviderDef } from "./providers.ts";
 import { translateRequest, translateResponse, translateStreamChunk, detectShape, type Shape } from "./translate.ts";
 import { redactImagesInBody } from "./image-redaction.ts";
+import { redactVideosInBody, serveRedactedVideo } from "./video-redaction.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -182,6 +183,7 @@ interface AuthedProxyKey {
   ipAllowlist: string[];
   monthlyCapUsd: number | null;
   redactImages: boolean;
+  redactVideos: boolean;
 }
 
 async function authenticateProxyKey(
@@ -195,7 +197,7 @@ async function authenticateProxyKey(
 
   const { data, error } = await supabase
     .from("redactor_proxy_keys")
-    .select("id, user_id, allowed_providers, log_requests, revoked_at, expires_at, rate_limit_rpm, ip_allowlist, monthly_cap_usd, redact_images")
+    .select("id, user_id, allowed_providers, log_requests, revoked_at, expires_at, rate_limit_rpm, ip_allowlist, monthly_cap_usd, redact_images, redact_videos")
     .eq("key_hash", hash)
     .single();
 
@@ -221,6 +223,7 @@ async function authenticateProxyKey(
     ipAllowlist: data.ip_allowlist ?? [],
     monthlyCapUsd: data.monthly_cap_usd ?? null,
     redactImages: (data as any).redact_images ?? true,
+    redactVideos: (data as any).redact_videos ?? true,
   };
 }
 
@@ -477,19 +480,34 @@ async function runProxy(
       ctx.proxyKey.redactImages,
     );
 
-    // 2. Translate request shape if needed
-    if (needTranslate && imgResult.body) {
-      bodyJson = translateRequest(imgResult.body, sourceShape!, targetShape);
-    } else if (imgResult.body) {
-      bodyJson = imgResult.body;
+    // 2. Video redaction (after image, before shape translation)
+    const videoResult = await redactVideosInBody(
+      bodyJson,
+      sourceShape ?? "openai",
+      { customPatterns, detectNames: false },
+      ctx.proxyKey.redactVideos,
+    );
+
+    // Merge video PII map into image map for cross-media dedup
+    const mergedMap = { ...imgResult.map, ...videoResult.map };
+    const mergedCounts = { ...imgResult.counts };
+    for (const [k, v] of Object.entries(videoResult.counts)) {
+      mergedCounts[k] = (mergedCounts[k] ?? 0) + v;
     }
 
-    // 3. Text redaction (seeded with image PII map for cross-media dedup)
+    // 3. Translate request shape if needed
+    if (needTranslate && videoResult.body) {
+      bodyJson = translateRequest(videoResult.body, sourceShape!, targetShape);
+    } else if (videoResult.body) {
+      bodyJson = videoResult.body;
+    }
+
+    // 4. Text redaction (seeded with image + video PII map for cross-media dedup)
     const redacted = redactJson(bodyJson, {
       customPatterns,
       detectNames: false,
-      seedMap: imgResult.map,
-      seedCounts: imgResult.counts,
+      seedMap: mergedMap,
+      seedCounts: mergedCounts,
     });
     sharedMap = redacted.map;
     redactionCounts = redacted.counts;
@@ -649,6 +667,13 @@ serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const supabase = createClient(supabaseUrl, serviceKey);
+
+  // ── Video serving route ─────────────────────────────────
+  const urlPath = new URL(req.url).pathname;
+  const videoMatch = urlPath.match(/\/v\/([a-f0-9-]+)\.mp4$/);
+  if (videoMatch) {
+    return await serveRedactedVideo(videoMatch[1]);
+  }
 
   try {
     const authed = await authenticateProxyKey(req.headers.get("authorization"), supabase);
