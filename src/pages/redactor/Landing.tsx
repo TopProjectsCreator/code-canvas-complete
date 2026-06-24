@@ -69,7 +69,7 @@ export default function RedactorLanding() {
         <div className="mt-10 rounded-lg border border-border/60 bg-card/40 p-4 font-mono text-xs overflow-x-auto">
           <div className="text-muted-foreground mb-2"># Point your OpenAI SDK at the proxy</div>
           <pre className="text-foreground">{`const openai = new OpenAI({
-  baseURL: "https://your-proxy.up.railway.app/api/public/v1",
+  baseURL: "${window.location.origin}/redactor/public/v1",
   apiKey: "lvp_live_••••••••••••••••",
 });`}</pre>
         </div>

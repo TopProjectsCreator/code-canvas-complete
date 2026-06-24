@@ -175,6 +175,15 @@ app.all('/api/supabase/{*path}', (req, res) => {
   proxySupabase(target, req, res);
 });
 
+// Redactor proxy — forwards /redactor/public/v1/* to the Supabase redactor-proxy edge function
+app.all('/redactor/public/v1/{*path}', (req, res) => {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  if (!supabaseUrl) return res.status(500).json({ error: 'VITE_SUPABASE_URL not configured' });
+  const tail = Array.isArray(req.params.path) ? req.params.path.join('/') : req.params.path;
+  const target = `${supabaseUrl}/functions/v1/redactor-proxy/v1/${tail}`;
+  proxySupabase(target, req, res);
+});
+
 // ---------------------------------------------------------------------------
 // Model Proxy — allows downloading models from HuggingFace/CDNs via our server
 // to bypass strict client-side firewalls or VPNs.
