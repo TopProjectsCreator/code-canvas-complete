@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Terminal as TerminalIcon, X, Plus, ChevronUp, ChevronDown, Loader2, Sparkles, WifiOff, AlertTriangle, Pencil } from 'lucide-react';
 import { TerminalLine } from '@/types/ide';
 import { cn } from '@/lib/utils';
@@ -96,6 +96,51 @@ export const Terminal = ({
   const pythonExecutorMode = usePythonExecutorMode();
 
   const isReplitShellActive = isReplitLikePlatform(platform) && activePane !== 'console';
+
+  // Vertical drag-to-resize
+  const [terminalHeight, setTerminalHeight] = useState(256);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartY = useRef(0);
+  const dragStartHeight = useRef(256);
+  const lastExpandedHeight = useRef(256);
+
+  const handleResizePointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    dragStartY.current = e.clientY;
+    dragStartHeight.current = terminalHeight;
+  }, [terminalHeight]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    const handlePointerMove = (e: PointerEvent) => {
+      const delta = dragStartY.current - e.clientY;
+      const newHeight = Math.max(36, Math.min(800, dragStartHeight.current + delta));
+      setTerminalHeight(newHeight);
+      lastExpandedHeight.current = newHeight;
+    };
+    const handlePointerUp = () => {
+      setIsDragging(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging]);
+
+  useEffect(() => {
+    if (isMinimized) {
+      lastExpandedHeight.current = terminalHeight;
+    }
+  }, [isMinimized, terminalHeight]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -234,10 +279,21 @@ export const Terminal = ({
   };
 
   return (
-    <div className={cn(
-      'flex flex-col bg-terminal transition-all duration-200',
-      isMinimized ? 'h-9' : isReplitLikePlatform(platform) ? 'h-64' : 'h-48'
-    )}>
+    <div
+      className={cn(
+        'flex flex-col bg-terminal',
+        isDragging && 'select-none'
+      )}
+      style={{ height: isMinimized ? 36 : terminalHeight }}
+    >
+      {/* ── Resize handle (hover to reveal) ── */}
+      <div
+        onPointerDown={handleResizePointerDown}
+        className="group relative h-1.5 shrink-0 cursor-row-resize"
+      >
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-0.5 bg-transparent group-hover:bg-primary/40 transition-colors" />
+      </div>
+
       {/* ── Header ── */}
       <div className="flex items-center justify-between h-9 px-2 bg-card border-t border-border shrink-0 overflow-x-auto">
         <div className="flex items-center gap-0.5 min-w-0 flex-1">
