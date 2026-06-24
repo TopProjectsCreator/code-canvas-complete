@@ -17,15 +17,15 @@ const PAGE_SIZE = 50;
 
 export default function RedactorLogs() {
   const [page, setPage] = useState(0);
-  const [filterProvider, setFilterProvider] = useState("");
-  const [filterKey, setFilterKey] = useState("");
+  const [filterProvider, setFilterProvider] = useState("all");
+  const [filterKey, setFilterKey] = useState("all");
   const [filterModel, setFilterModel] = useState("");
 
   const proxyKeys = useQuery({ queryKey: ["redactor-proxy-keys"], queryFn: listProxyKeys });
 
   const filters: { provider?: string; proxyKeyId?: string; model?: string } = {};
-  if (filterProvider) filters.provider = filterProvider;
-  if (filterKey) filters.proxyKeyId = filterKey;
+  if (filterProvider && filterProvider !== "all") filters.provider = filterProvider;
+  if (filterKey && filterKey !== "all") filters.proxyKeyId = filterKey;
   if (filterModel) filters.model = filterModel;
 
   const from = page * PAGE_SIZE;
@@ -53,7 +53,7 @@ export default function RedactorLogs() {
             <SelectValue placeholder="All providers" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All providers</SelectItem>
+            <SelectItem value="all">All providers</SelectItem>
             {Array.from(providers).map((p) => (
               <SelectItem key={p} value={p}>{p}</SelectItem>
             ))}
@@ -65,7 +65,7 @@ export default function RedactorLogs() {
             <SelectValue placeholder="All proxy keys" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All proxy keys</SelectItem>
+            <SelectItem value="all">All proxy keys</SelectItem>
             {(proxyKeys.data ?? []).map((k) => (
               <SelectItem key={k.id} value={k.id}>{k.name} ({k.keyPrefix}…)</SelectItem>
             ))}

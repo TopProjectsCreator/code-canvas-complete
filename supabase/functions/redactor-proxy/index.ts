@@ -624,34 +624,34 @@ interface EndpointRoute {
 
 function parsePath(url: string): { route: EndpointRoute | null; rest: string } {
   const u = new URL(url);
-  // Expected: /v1/chat/completions, /v1/embeddings, /anthropic/v1/messages, /gemini/v1beta/models/{model}:generateContent
   const segments = u.pathname.split("/").filter(Boolean);
-  // Remove "redactor-proxy" or function name prefix
-  // The function URL is usually /functions/v1/redactor-proxy
-  // so segments = ["functions", "v1", "redactor-proxy", ...rest]
-  // or just the remaining path after routing.
-  // We look for known prefixes.
-  if (segments.length < 2) return { route: null, rest: u.pathname };
 
-  // Check for known provider-specific prefixes: /anthropic/... or /gemini/...
-  const first = segments[segments.length - 2];
-  const second = segments[segments.length - 1];
+  // Strip Supabase function prefix (/functions/v1/redactor-proxy/...)
+  // so that remaining segments are the actual API path
+  const fnIdx = segments.indexOf("redactor-proxy");
+  const rest = fnIdx >= 0 ? segments.slice(fnIdx + 1) : segments;
 
-  if (first === "anthropic") {
-    return { route: { providerId: "anthropic", path: "/" + second }, rest: u.pathname };
+  if (rest.length < 1) return { route: null, rest: u.pathname };
+
+  const prefix = rest[0];
+
+  if (prefix === "v1") {
+    // /v1/chat/completions, /v1/embeddings, etc.
+    // baseUrls already include /v1 for OpenAI-compatible providers
+    const path = "/" + rest.slice(1).join("/");
+    return { route: { providerId: "", path }, rest: u.pathname };
   }
-  if (first === "gemini" || first === "google") {
+  if (prefix === "anthropic") {
+    // /anthropic/v1/messages
+    // Anthropic baseUrl = https://api.anthropic.com/v1, strip /anthropic/v1
+    const path = rest.length > 2 ? "/" + rest.slice(2).join("/") : "/";
+    return { route: { providerId: "anthropic", path }, rest: u.pathname };
+  }
+  if (prefix === "gemini" || prefix === "google") {
     // /gemini/v1beta/models/{model}:generateContent
-    const modelIdx = segments.indexOf("models");
-    if (modelIdx >= 0 && modelIdx + 1 < segments.length) {
-      const action = segments[modelIdx + 1];
-      const restPath = "/" + segments.slice(segments.length - 2).join("/");
-      return { route: { providerId: "google", path: restPath }, rest: u.pathname };
-    }
-    return { route: { providerId: "google", path: "/" + second }, rest: u.pathname };
-  }
-  if (first === "v1") {
-    return { route: { providerId: "", path: "/v1/" + second }, rest: u.pathname };
+    // Google baseUrl = https://generativelanguage.googleapis.com/v1beta
+    const path = rest.length > 2 ? "/" + rest.slice(2).join("/") : "/";
+    return { route: { providerId: "google", path }, rest: u.pathname };
   }
 
   return { route: null, rest: u.pathname };
