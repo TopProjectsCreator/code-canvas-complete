@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { redactJson, rehydrate, transformJsonStrings } from "./redaction.ts";
 import { getProvider, resolveModelRouting, type ProviderDef } from "./providers.ts";
@@ -657,7 +656,7 @@ function parsePath(url: string): { route: EndpointRoute | null; rest: string } {
 
 // ---------- Main handler ----------
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
