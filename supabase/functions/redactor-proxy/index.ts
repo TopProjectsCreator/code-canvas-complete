@@ -66,7 +66,7 @@ async function decryptProviderKey(
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(`decrypt failed: ${(err as { error?: string }).error ?? res.status}`);
+    throw new ProxyError(502, `decrypt failed: ${(err as { error?: string }).error ?? res.status}`);
   }
   const data = await res.json();
   return (data as { apiKey: string }).apiKey;

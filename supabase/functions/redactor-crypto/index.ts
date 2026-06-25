@@ -38,10 +38,10 @@ async function getMasterKey(): Promise<Uint8Array> {
   return buf;
 }
 
-let cachedInternalSecret: string | null = null;
+let cachedInternalSecret: string | null | undefined;
 
 async function getInternalSecret(): Promise<string | null> {
-  if (cachedInternalSecret !== null) return cachedInternalSecret;
+  if (cachedInternalSecret !== undefined) return cachedInternalSecret;
   const raw = Deno.env.get("REDACTOR_INTERNAL_SECRET");
   if (raw) {
     cachedInternalSecret = raw;
@@ -136,7 +136,7 @@ serve(async (req) => {
     // encrypt-provider-key requires user JWT auth
     const authHeader = req.headers.get("Authorization") ?? "";
     const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace("Bearer ", ""),
+      authHeader.replace(/^Bearer\s+/i, ""),
     );
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
