@@ -132,19 +132,18 @@ app.get('/api/discord/link-status', (req, res) => {
 
 function proxySupabase(targetUrl, req, res) {
   const parsedUrl = new URL(targetUrl);
+  const protocol = parsedUrl.protocol === 'https:' ? https : http;
+  const port = parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80);
   const options = {
     method: req.method,
     headers: { ...req.headers },
     hostname: parsedUrl.hostname,
     path: parsedUrl.pathname + parsedUrl.search,
-    port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+    port,
   };
   delete options.headers.host;
   delete options.headers.connection;
   delete options.headers.referer;
-  delete options.headers['content-length'];
-
-  const protocol = parsedUrl.protocol === 'https:' ? https : http;
   const proxyReq = protocol.request(options, (proxyRes) => {
     const chunks = [];
     proxyRes.on('data', (chunk) => chunks.push(chunk));
@@ -161,6 +160,10 @@ function proxySupabase(targetUrl, req, res) {
   });
   if (req.method === 'GET' || req.method === 'HEAD') {
     proxyReq.end();
+  } else if (req.body && typeof req.body === 'object') {
+    const bodyStr = JSON.stringify(req.body);
+    proxyReq.setHeader('content-length', Buffer.byteLength(bodyStr));
+    proxyReq.end(bodyStr);
   } else {
     req.pipe(proxyReq, { end: true });
   }
