@@ -88,8 +88,13 @@ async function encryptSecret(plaintext: string): Promise<EncryptedBlob> {
 }
 
 async function checkInternalSecret(req: Request): Promise<boolean> {
+  // Accept call if Authorization header matches the service role key
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (authHeader === `Bearer ${serviceKey}`) return true;
+  // Fallback: x-internal-secret header
   const secret = await getInternalSecret();
-  if (!secret) return true; // no secret configured — allow all
+  if (!secret) return true;
   const header = req.headers.get("x-internal-secret") ?? "";
   return header === secret;
 }
