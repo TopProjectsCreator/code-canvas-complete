@@ -96,8 +96,8 @@ function checkRateLimit(keyId: string, rpm: number): boolean {
 // ---------- IP allowlist check ----------
 
 function getClientIP(request: Request): string {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip") ?? "";
+  return (request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || request.headers.get("x-real-ip")) ?? "";
 }
 
 function isIPAllowed(ip: string, allowlist: string[]): boolean {
