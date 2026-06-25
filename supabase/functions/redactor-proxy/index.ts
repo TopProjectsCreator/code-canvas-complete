@@ -142,11 +142,12 @@ function computeCost(inputTokens: number, outputTokens: number, pricing: { costI
 async function cleanOldLogs(supabase: ReturnType<typeof createClient>): Promise<void> {
   const retentionDays = parseInt(Deno.env.get("REDACTOR_LOG_RETENTION_DAYS") ?? "90", 10);
   const cutoff = new Date(Date.now() - retentionDays * 86_400_000).toISOString();
-  await supabase
-    .from("redactor_request_logs")
-    .delete()
-    .lt("created_at", cutoff)
-    .catch(() => {});
+  try {
+    await supabase
+      .from("redactor_request_logs")
+      .delete()
+      .lt("created_at", cutoff);
+  } catch {}
 }
 
 // ---------- Spend cap check ----------
@@ -209,7 +210,7 @@ async function authenticateProxyKey(
     .from("redactor_proxy_keys")
     .update({ last_used_at: new Date().toISOString() })
     .eq("id", keyObj.id)
-    .catch(() => {});
+    .then(undefined, () => {});
 
   return {
     id: keyObj.id,
