@@ -995,6 +995,8 @@ export type Database = {
           monthly_cap_usd: number | null
           name: string
           rate_limit_rpm: number | null
+          redact_images: boolean
+          redact_videos: boolean
           revoked_at: string | null
           user_id: string
         }
@@ -1011,6 +1013,8 @@ export type Database = {
           monthly_cap_usd?: number | null
           name: string
           rate_limit_rpm?: number | null
+          redact_images?: boolean
+          redact_videos?: boolean
           revoked_at?: string | null
           user_id: string
         }
@@ -1027,6 +1031,8 @@ export type Database = {
           monthly_cap_usd?: number | null
           name?: string
           rate_limit_rpm?: number | null
+          redact_images?: boolean
+          redact_videos?: boolean
           revoked_at?: string | null
           user_id?: string
         }
