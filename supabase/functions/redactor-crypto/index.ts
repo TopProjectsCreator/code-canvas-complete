@@ -27,13 +27,12 @@ async function getMasterKey(): Promise<Uint8Array> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const supabase = createClient(supabaseUrl, serviceKey);
-  const { data, error } = await supabase
+  const { data: rows, error } = await supabase
     .from("redactor_secrets")
     .select("value")
-    .eq("key", "master_encryption_key")
-    .maybeSingle();
-  if (error || !data) throw new Error("MASTER_ENCRYPTION_KEY not set and no DB fallback");
-  const buf = Uint8Array.from(atob(data.value), (c) => c.charCodeAt(0));
+    .eq("key", "master_encryption_key");
+  if (error || !rows || rows.length === 0) throw new Error("MASTER_ENCRYPTION_KEY not set and no DB fallback");
+  const buf = Uint8Array.from(atob(rows[0].value), (c) => c.charCodeAt(0));
   if (buf.length !== 32) throw new Error("MASTER_ENCRYPTION_KEY must be 32 bytes base64");
   cachedMasterKey = buf;
   return buf;
@@ -51,12 +50,11 @@ async function getInternalSecret(): Promise<string | null> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const supabase = createClient(supabaseUrl, serviceKey);
-  const { data } = await supabase
+  const { data: secRows } = await supabase
     .from("redactor_secrets")
     .select("value")
-    .eq("key", "internal_secret")
-    .maybeSingle();
-  cachedInternalSecret = data?.value ?? null;
+    .eq("key", "internal_secret");
+  cachedInternalSecret = secRows?.[0]?.value ?? null;
   return cachedInternalSecret;
 }
 

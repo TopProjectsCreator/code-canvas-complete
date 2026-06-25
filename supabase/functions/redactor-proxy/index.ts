@@ -29,12 +29,11 @@ async function getInternalSecret(supabase: ReturnType<typeof createClient>): Pro
     cachedInternalSecret = raw;
     return raw;
   }
-  const { data } = await supabase
+  const { data: rows } = await supabase
     .from("redactor_secrets")
     .select("value")
-    .eq("key", "internal_secret")
-    .maybeSingle();
-  cachedInternalSecret = data?.value ?? null;
+    .eq("key", "internal_secret");
+  cachedInternalSecret = rows?.[0]?.value ?? null;
   return cachedInternalSecret;
 }
 
@@ -120,19 +119,17 @@ async function getModelCost(
   supabase: ReturnType<typeof createClient>,
 ): Promise<{ costInput: number; costOutput: number } | null> {
   if (!model) return null;
-  const { data } = await supabase
+  const { data: pricingRows } = await supabase
     .from("redactor_model_pricing")
     .select("cost_input, cost_output")
-    .eq("model_id", `${providerId}/${model}`)
-    .maybeSingle();
-  if (data) return { costInput: (data as any).cost_input, costOutput: (data as any).cost_output };
+    .eq("model_id", `${providerId}/${model}`);
+  if (pricingRows && pricingRows.length > 0) return { costInput: (pricingRows[0] as any).cost_input, costOutput: (pricingRows[0] as any).cost_output };
   // Try bare model name
-  const { data: data2 } = await supabase
+  const { data: pricingRows2 } = await supabase
     .from("redactor_model_pricing")
     .select("cost_input, cost_output")
-    .eq("model_id", model)
-    .maybeSingle();
-  if (data2) return { costInput: (data2 as any).cost_input, costOutput: (data2 as any).cost_output };
+    .eq("model_id", model);
+  if (pricingRows2 && pricingRows2.length > 0) return { costInput: (pricingRows2[0] as any).cost_input, costOutput: (pricingRows2[0] as any).cost_output };
   return null;
 }
 
@@ -195,15 +192,15 @@ async function authenticateProxyKey(
   if (!token.startsWith("lvp_")) throw new ProxyError(401, "Invalid proxy key format");
   const hash = await hashProxyKey(token);
 
-  const { data, error } = await supabase
+  const { data: rows, error } = await supabase
     .from("redactor_proxy_keys")
     .select("id, user_id, allowed_providers, log_requests, revoked_at, expires_at, rate_limit_rpm, ip_allowlist, monthly_cap_usd, redact_images, redact_videos")
-    .eq("key_hash", hash)
-    .maybeSingle();
+    .eq("key_hash", hash);
 
-  if (error || !data) throw new ProxyError(401, "Unknown or revoked proxy key");
-  if (data.revoked_at) throw new ProxyError(401, "Proxy key has been revoked");
-  if (data.expires_at && new Date(data.expires_at).getTime() < Date.now()) {
+  if (error || !rows || rows.length === 0) throw new ProxyError(401, "Unknown or revoked proxy key");
+  const keyObj = rows[0];
+  if (keyObj.revoked_at) throw new ProxyError(401, "Proxy key has been revoked");
+  if (keyObj.expires_at && new Date(keyObj.expires_at).getTime() < Date.now()) {
     throw new ProxyError(401, "Proxy key has expired");
   }
 
@@ -211,19 +208,19 @@ async function authenticateProxyKey(
   supabase
     .from("redactor_proxy_keys")
     .update({ last_used_at: new Date().toISOString() })
-    .eq("id", data.id)
+    .eq("id", keyObj.id)
     .catch(() => {});
 
   return {
-    id: data.id,
-    userId: data.user_id,
-    allowedProviders: data.allowed_providers ?? [],
-    logRequests: data.log_requests ?? true,
-    rateLimitRpm: data.rate_limit_rpm ?? null,
-    ipAllowlist: data.ip_allowlist ?? [],
-    monthlyCapUsd: data.monthly_cap_usd ?? null,
-    redactImages: (data as any).redact_images ?? true,
-    redactVideos: (data as any).redact_videos ?? true,
+    id: keyObj.id,
+    userId: keyObj.user_id,
+    allowedProviders: keyObj.allowed_providers ?? [],
+    logRequests: keyObj.log_requests ?? true,
+    rateLimitRpm: keyObj.rate_limit_rpm ?? null,
+    ipAllowlist: keyObj.ip_allowlist ?? [],
+    monthlyCapUsd: keyObj.monthly_cap_usd ?? null,
+    redactImages: (keyObj as any).redact_images ?? true,
+    redactVideos: (keyObj as any).redact_videos ?? true,
   };
 }
 
@@ -240,20 +237,20 @@ async function getProviderKey(
   providerId: string,
   supabase: ReturnType<typeof createClient>,
 ): Promise<UpstreamKey> {
-  const { data, error } = await supabase
+  const { data: provRows, error } = await supabase
     .from("redactor_provider_keys")
     .select("provider, encrypted_key, iv, salt, base_url")
     .eq("user_id", userId)
-    .eq("provider", providerId)
-    .maybeSingle();
+    .eq("provider", providerId);
 
-  if (error || !data) throw new ProxyError(400, `No provider key configured for '${providerId}'`);
+  if (error || !provRows || provRows.length === 0) throw new ProxyError(400, `No provider key configured for '${providerId}'`);
+  const provKey = provRows[0];
 
   const provider = getProvider(providerId);
   if (!provider) throw new ProxyError(400, `Unknown provider '${providerId}'`);
 
-  const apiKey = await decryptProviderKey(data.encrypted_key, data.iv, data.salt, supabase);
-  return { apiKey, provider, baseUrl: data.base_url || provider.baseUrl };
+  const apiKey = await decryptProviderKey(provKey.encrypted_key, provKey.iv, provKey.salt, supabase);
+  return { apiKey, provider, baseUrl: provKey.base_url || provider.baseUrl };
 }
 
 // ---------- Custom rules ----------
