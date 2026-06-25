@@ -33,7 +33,7 @@ async function getInternalSecret(supabase: ReturnType<typeof createClient>): Pro
     .from("redactor_secrets")
     .select("value")
     .eq("key", "internal_secret")
-    .single();
+    .maybeSingle();
   cachedInternalSecret = data?.value ?? null;
   return cachedInternalSecret;
 }
@@ -199,7 +199,7 @@ async function authenticateProxyKey(
     .from("redactor_proxy_keys")
     .select("id, user_id, allowed_providers, log_requests, revoked_at, expires_at, rate_limit_rpm, ip_allowlist, monthly_cap_usd, redact_images, redact_videos")
     .eq("key_hash", hash)
-    .single();
+    .maybeSingle();
 
   if (error || !data) throw new ProxyError(401, "Unknown or revoked proxy key");
   if (data.revoked_at) throw new ProxyError(401, "Proxy key has been revoked");

@@ -31,7 +31,7 @@ async function getMasterKey(): Promise<Uint8Array> {
     .from("redactor_secrets")
     .select("value")
     .eq("key", "master_encryption_key")
-    .single();
+    .maybeSingle();
   if (error || !data) throw new Error("MASTER_ENCRYPTION_KEY not set and no DB fallback");
   const buf = Uint8Array.from(atob(data.value), (c) => c.charCodeAt(0));
   if (buf.length !== 32) throw new Error("MASTER_ENCRYPTION_KEY must be 32 bytes base64");
@@ -55,7 +55,7 @@ async function getInternalSecret(): Promise<string | null> {
     .from("redactor_secrets")
     .select("value")
     .eq("key", "internal_secret")
-    .single();
+    .maybeSingle();
   cachedInternalSecret = data?.value ?? null;
   return cachedInternalSecret;
 }
