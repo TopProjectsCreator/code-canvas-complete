@@ -44,6 +44,7 @@ interface CodeEditorProps {
   onContentChange: (fileId: string, content: string) => void;
   onCreateOrUpdateFile: (name: string, content: string, language?: string) => void;
   collab?: ReturnType<typeof useCollaboration>;
+  projectId?: string;
 }
 
 function ScratchProjectView({ file, onContentChange }: { file: FileNode; onContentChange: (fileId: string, content: string) => void }) {
@@ -141,6 +142,7 @@ export const CodeEditor = ({
   onContentChange,
   onCreateOrUpdateFile,
   collab,
+  projectId,
 }: CodeEditorProps) => {
   const [content, setContent] = useState("");
   const [cursorPosition, setCursorPosition] = useState({ line: 0, col: 0 });
@@ -151,6 +153,7 @@ export const CodeEditor = ({
   const [lspExtensions, setLspExtensions] = useState<Extension[]>([]);
 
   const lsp = useLspClient(file?.name ?? null, content);
+  const { updateContent: lspUpdateContent, connected: lspConnected } = lsp;
   const [markdownPreview, setMarkdownPreview] = useState(true);
   const [splitPreview, setSplitPreview] = useState(false);
   const [composerMode, setComposerMode] = useState(false);
@@ -290,10 +293,10 @@ export const CodeEditor = ({
   }, [lsp.connected, lsp.diagnostics]);
 
   useEffect(() => {
-    if (lsp.connected && content) {
-      lsp.updateContent(content);
+    if (lspConnected && content) {
+      lspUpdateContent(content);
     }
-  }, [content, lsp.connected, lsp.updateContent]);
+  }, [content, lspConnected, lspUpdateContent]);
 
   if (!file) {
     return (
@@ -534,6 +537,7 @@ export const CodeEditor = ({
                   onContentChange={onContentChange}
                   onCreateOrUpdateFile={onCreateOrUpdateFile}
                   collab={collab}
+                  projectId={projectId}
                 />
               </TabsContent>
 

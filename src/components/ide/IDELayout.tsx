@@ -2612,7 +2612,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     onTabClose={handleTabClose}
                   />
                   <div className="flex-1 overflow-hidden">
-                    <CodeEditor file={activeFileWithContent} allFiles={filesWithContent} currentFilePath={activeFilePath} onContentChange={handleContentChange} onCreateOrUpdateFile={handleCreateOrUpdateFile} collab={collab} />
+                    <CodeEditor file={activeFileWithContent} allFiles={filesWithContent} currentFilePath={activeFilePath} onContentChange={handleContentChange} onCreateOrUpdateFile={handleCreateOrUpdateFile} collab={collab} projectId={currentProject?.id} />
                   </div>
                 </div>
               )}
@@ -2716,7 +2716,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                     />
                     <div className="flex-1 flex flex-col overflow-hidden">
                       <div data-onboarding="code-editor" className="flex-1 overflow-hidden">
-                        <CodeEditor file={activeFileWithContent} allFiles={filesWithContent} currentFilePath={activeFilePath} onContentChange={handleContentChange} onCreateOrUpdateFile={handleCreateOrUpdateFile} collab={collab} />
+                          <CodeEditor file={activeFileWithContent} allFiles={filesWithContent} currentFilePath={activeFilePath} onContentChange={handleContentChange} onCreateOrUpdateFile={handleCreateOrUpdateFile} collab={collab} projectId={currentProject?.id} />
                       </div>
                       <div data-onboarding="terminal">
                         <Terminal

@@ -46,6 +46,7 @@ import {
 } from '@/lib/advancedWorkbench';
 import { FileNode } from '@/types/ide';
 import { useCollaboration } from '@/hooks/useCollaboration';
+import { VoiceVideoRoom } from './VoiceVideoRoom';
 
 interface AdvancedWorkbenchProps {
   file: FileNode;
@@ -55,6 +56,7 @@ interface AdvancedWorkbenchProps {
   onContentChange: (fileId: string, content: string) => void;
   onCreateOrUpdateFile: (name: string, content: string, language?: string) => void;
   collab?: ReturnType<typeof useCollaboration>;
+  projectId?: string;
 }
 
 const storageKey = 'advanced-workbench-prompts-v1';
@@ -124,6 +126,7 @@ export const AdvancedWorkbench = ({
   onContentChange,
   onCreateOrUpdateFile,
   collab,
+  projectId,
 }: AdvancedWorkbenchProps) => {
   const [promptDraft, setPromptDraft] = useState('Explain the failure mode and generate tests for the selected function.');
   const [promptHistory, setPromptHistory] = useState<string[]>([]);
@@ -439,22 +442,10 @@ export const AdvancedWorkbench = ({
 
           <TabsContent value="collab" className="space-y-4">
             <div className="grid gap-4 xl:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Video className="h-4 w-4" />Voice / video room</CardTitle>
-                  <CardDescription>WebRTC room orchestration embedded in the IDE.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  <div className="rounded-xl border border-border bg-muted/20 p-3">
-                    <div className="mb-2 flex items-center justify-between"><span className="font-medium">Daily standup room</span><Badge variant="secondary">WebRTC ready</Badge></div>
-                    <div className="text-muted-foreground">Room URL: /rooms/{(currentFilePath || file.name).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm"><Mic className="mr-1 h-3.5 w-3.5" />Join audio</Button>
-                    <Button size="sm" variant="outline"><Video className="mr-1 h-3.5 w-3.5" />Enable camera</Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <VoiceVideoRoom
+                projectId={projectId}
+                roomName={(currentFilePath || file.name).replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}
+              />
 
               <Card>
                 <CardHeader>
