@@ -25,14 +25,6 @@ function fadeIn(frame: number, dur = 15, delay = 0): number {
   });
 }
 
-function fadeOut(frame: number, dur = 15, delay = 0): number {
-  return interpolate(frame - delay, [0, dur], [1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.ease,
-  });
-}
-
 function slideIn(frame: number, dir: number, dur = 25, delay = 0): number {
   const progress = interpolate(frame - delay, [0, dur], [dir, 0], {
     extrapolateLeft: "clamp",

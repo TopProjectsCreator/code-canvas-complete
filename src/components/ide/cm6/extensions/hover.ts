@@ -4,8 +4,7 @@ import type { Extension } from "@codemirror/state";
 export type LspHoverFn = (line: number, col: number) => Promise<{ contents: string } | null>;
 
 class LspHoverSource {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private fn: LspHoverFn | null = null;
+  fn: LspHoverFn | null = null;
 
   setFn(fn: LspHoverFn) {
     this.fn = fn;

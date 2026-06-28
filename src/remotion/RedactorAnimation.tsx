@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, spring, Easing } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate, spring, Easing, staticFile, Img } from "remotion";
 
 const FPS = 30;
 
@@ -19,14 +19,6 @@ const CARD_BORDER = "#2a2a4e";
 
 function fadeIn(frame: number, dur = 15, delay = 0): number {
   return interpolate(frame - delay, [0, dur], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.ease,
-  });
-}
-
-function fadeOut(frame: number, dur = 15, delay = 0): number {
-  return interpolate(frame - delay, [0, dur], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.ease,
