@@ -633,6 +633,13 @@ function parsePath(url: string): { route: EndpointRoute | null; rest: string } {
   const prefix = rest[0];
 
   if (prefix === "v1") {
+    // /v1/images/embeddings → route to /embeddings on any provider that
+    // supports multimodal inputs (OpenRouter, Aurous, etc.). Provider is
+    // resolved from the model name as usual, so users pick the right model
+    // (e.g. openrouter/openai/text-embedding-3-small).
+    if (rest.length >= 3 && rest[1] === "images" && rest[2] === "embeddings") {
+      return { route: { providerId: "", path: "/embeddings" }, rest: u.pathname };
+    }
     // /v1/chat/completions, /v1/embeddings, etc.
     // baseUrls already include /v1 for OpenAI-compatible providers
     const path = "/" + rest.slice(1).join("/");

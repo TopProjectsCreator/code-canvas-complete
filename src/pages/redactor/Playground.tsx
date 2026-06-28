@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { previewRedaction, previewImageRedaction } from "@/redactor/lib/redaction.functions";
+import { previewRedaction, previewImageRedaction, pixelateImageOnCanvas, type OCRWord } from "@/redactor/lib/redaction.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HighlightedText } from "@/redactor/components/HighlightedText";
@@ -20,6 +20,8 @@ export default function RedactorPlayground() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [ocrText, setOcrText] = useState("");
+  const [ocrWords, setOcrWords] = useState<OCRWord[]>([]);
+  const [redactedImageUrl, setRedactedImageUrl] = useState<string | null>(null);
   const [imgOut, setImgOut] = useState<{ redacted: string; matches: { token: string; original: string; type: string }[]; hasPii: boolean } | null>(null);
   const [ocrBusy, setOcrBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -38,17 +40,33 @@ export default function RedactorPlayground() {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    const url = URL.createObjectURL(file);
+    setImagePreview(url);
     setOcrText("");
+    setOcrWords([]);
+    setRedactedImageUrl(null);
     setImgOut(null);
 
     setOcrBusy(true);
     try {
       const T = await import("tesseract.js");
       const { data } = await T.recognize(file, "eng");
+      const words: OCRWord[] = (data.words ?? []).map((w: any) => ({
+        text: w.text,
+        bbox: { x0: w.bbox.x0, y0: w.bbox.y0, x1: w.bbox.x1, y1: w.bbox.y1 },
+      }));
       setOcrText(data.text);
+      setOcrWords(words);
+
       const r = previewImageRedaction(data.text);
       setImgOut(r);
+
+      // Generate pixelated image preview when PII is found
+      if (r.hasPii && words.length > 0) {
+        pixelateImageOnCanvas(url, words, r.matches, data.text).then(
+          (redactedUrl) => setRedactedImageUrl(redactedUrl),
+        );
+      }
     } catch (err) {
       setOcrText(`OCR failed: ${(err as Error).message}`);
     } finally {
@@ -159,13 +177,27 @@ export default function RedactorPlayground() {
             </Card>
 
             <Card>
-              <CardHeader><CardTitle className="text-base">Redacted result</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">What the provider sees</CardTitle></CardHeader>
               <CardContent>
                 {imgOut ? (
                   <div className="space-y-3">
-                    <div className="w-full rounded-md border bg-background p-3 font-mono text-sm overflow-auto whitespace-pre-wrap max-h-64">
-                      {imgOut.hasPii ? <HighlightedText text={imgOut.redacted} /> : ocrText}
-                    </div>
+                    {redactedImageUrl ? (
+                      <img src={redactedImageUrl} alt="Redacted image" className="max-w-full h-auto rounded border max-h-64 object-contain" />
+                    ) : imgOut.hasPii ? (
+                      <div className="w-full rounded-md border bg-background p-3 font-mono text-sm overflow-auto whitespace-pre-wrap max-h-64">
+                        <HighlightedText text={imgOut.redacted} />
+                      </div>
+                    ) : null}
+                    {imgOut.hasPii && redactedImageUrl && (
+                      <details className="text-sm">
+                        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                          Show redacted OCR text
+                        </summary>
+                        <div className="mt-2 rounded-md border bg-background p-3 font-mono text-xs overflow-auto whitespace-pre-wrap max-h-32">
+                          <HighlightedText text={imgOut.redacted} />
+                        </div>
+                      </details>
+                    )}
                     {!imgOut.hasPii && ocrText && (
                       <p className="text-sm text-muted-foreground">No PII detected in this image.</p>
                     )}
