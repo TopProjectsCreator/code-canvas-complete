@@ -78,6 +78,8 @@ export default defineConfig(({ mode }) => ({
           /^\/auth-link/,
           /^\/auth-logout/,
           /^\/auth-callback/,
+          /^\/auth\/external-oauth/,
+          /^\/admin\//,
           /^\/reset-password/,
         ],
         runtimeCaching: [
