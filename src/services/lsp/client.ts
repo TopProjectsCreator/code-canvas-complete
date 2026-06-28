@@ -30,7 +30,6 @@ export class LspClient {
   private documentManager = new TextDocumentManager();
   private eventHandlers: Partial<LspEventHandler> = {};
   private currentUri: string | null = null;
-  private config: LspConfig | null = null;
   private capabilities: Record<string, boolean> = {};
   private _connected = false;
   private pendingRequests = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
@@ -57,7 +56,7 @@ export class LspClient {
   }
 
   async connect(config: LspConfig, uri: string): Promise<void> {
-    this.config = config;
+    void config;
     this.currentUri = uri;
 
     this.transport?.disconnect();
