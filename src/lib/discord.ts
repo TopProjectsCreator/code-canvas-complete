@@ -162,9 +162,9 @@ function formatLanguage(lang: string): string | null {
 export async function initDiscordSdk(): Promise<boolean> {
   if (_isInitialized) return true;
 
-  const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
+  const clientId = await fetchDiscordClientId();
   if (!clientId) {
-    console.warn("[Discord] VITE_DISCORD_CLIENT_ID not set");
+    console.warn("[Discord] DISCORD_CLIENT_ID secret not configured");
     return false;
   }
 
@@ -196,19 +196,16 @@ export async function initDiscordSdk(): Promise<boolean> {
       code = result.code;
     }
 
-    const response = await fetch("/api/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+    const { data: tokenData, error: tokenError } = await supabase.functions.invoke('discord-token', {
+      body: { code },
     });
 
-    if (!response.ok) {
-      const err = await response.json();
-      console.error("[Discord] Token exchange failed:", err);
+    if (tokenError || !(tokenData as any)?.access_token) {
+      console.error("[Discord] Token exchange failed:", tokenError ?? tokenData);
       return false;
     }
 
-    const { access_token } = await response.json();
+    const { access_token } = tokenData as { access_token: string };
     auth = await discordSdk.commands.authenticate({ access_token });
 
     if (!auth) {
