@@ -6,7 +6,7 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: './',
+  base: '/',
   server: {
     host: "0.0.0.0",
     port: 5000,
@@ -111,7 +111,7 @@ export default defineConfig(({ mode }) => ({
         theme_color: "#1a1d27",
         background_color: "#1a1d27",
         display: "standalone",
-        start_url: ".",
+        start_url: "/",
         icons: [
           { src: "./pwa-192x192.png", sizes: "192x192", type: "image/png" },
           { src: "./pwa-512x512.png", sizes: "512x512", type: "image/png" },
