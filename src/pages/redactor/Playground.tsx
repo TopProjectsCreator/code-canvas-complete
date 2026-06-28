@@ -17,10 +17,10 @@ export default function RedactorPlayground() {
   const [busy, setBusy] = useState(false);
 
   // Image redaction
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [ocrText, setOcrText] = useState("");
-  const [ocrWords, setOcrWords] = useState<OCRWord[]>([]);
+  const [, setOcrWords] = useState<OCRWord[]>([]);
   const [redactedImageUrl, setRedactedImageUrl] = useState<string | null>(null);
   const [imgOut, setImgOut] = useState<{ redacted: string; matches: { token: string; original: string; type: string }[]; hasPii: boolean } | null>(null);
   const [ocrBusy, setOcrBusy] = useState(false);
@@ -51,7 +51,7 @@ export default function RedactorPlayground() {
     try {
       const T = await import("tesseract.js");
       const { data } = await T.recognize(file, "eng");
-      const words: OCRWord[] = (data.words ?? []).map((w: any) => ({
+      const words: OCRWord[] = ((data as any).words ?? []).map((w: any) => ({
         text: w.text,
         bbox: { x0: w.bbox.x0, y0: w.bbox.y0, x1: w.bbox.x1, y1: w.bbox.y1 },
       }));

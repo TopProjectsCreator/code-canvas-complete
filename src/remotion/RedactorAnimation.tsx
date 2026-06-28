@@ -134,8 +134,6 @@ function Arrow({ x1, y1, x2, y2, frame, delay, color = ACCENT }: {
     easing: Easing.out(Easing.ease),
   });
   const opacity = fadeIn(frame, 10, delay);
-  const mx = x1 + (x2 - x1) * progress;
-  const my = y1 + (y2 - y1) * progress;
 
   // Compute angle
   const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);

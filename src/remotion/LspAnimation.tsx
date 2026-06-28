@@ -46,10 +46,6 @@ function glowPulse(frame: number, speed = 0.03): number {
   return 0.5 + 0.5 * Math.sin(frame * speed * Math.PI * 2);
 }
 
-function typewriter(text: string, frame: number, delay = 0, charSpeed = 2): string {
-  const chars = Math.max(0, Math.floor((frame - delay) / charSpeed));
-  return text.slice(0, chars);
-}
 
 function StepBox({
   label,

@@ -147,7 +147,7 @@ export class ReplitTransport extends BaseTransport {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
 
-  constructor(private languageId: string) {
+  constructor(public languageId: string) {
     super();
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     this.url = `${protocol}//${window.location.host}/api/lsp/ws?language=${languageId}`;
