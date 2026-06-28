@@ -27,6 +27,7 @@ import AuthBridge from "./pages/AuthBridge";
 import AuthLink from "./pages/AuthLink";
 import AuthLogout from "./pages/AuthLogout";
 import AuthCallback from "./pages/AuthCallback";
+import ExternalOAuth from "./pages/ExternalOAuth";
 import LinkDiscord from "./pages/LinkDiscord";
 import ResetPassword from "./pages/ResetPassword";
 import OAuthHostsAdmin from "./pages/admin/OAuthHosts";
@@ -129,6 +130,7 @@ const App = () => (
               <Route path="/auth-link" element={<AuthLink />} />
               <Route path="/auth-logout" element={<AuthLogout />} />
               <Route path="/auth-callback" element={<AuthCallback />} />
+              <Route path="/auth/external-oauth" element={<ExternalOAuth />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/link-discord" element={<LinkDiscord />} />
               <Route path="/admin/oauth-hosts" element={<OAuthHostsAdmin />} />

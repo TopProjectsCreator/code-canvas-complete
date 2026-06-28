@@ -72,6 +72,84 @@ app.post('/api/token', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// OAuth — userinfo + token refresh for "Login with Code Canvas" external apps
+// ---------------------------------------------------------------------------
+
+app.get('/api/oauth/userinfo', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    }
+    const token = authHeader.slice(7);
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return res.status(500).json({ error: 'Supabase not configured on server' });
+    }
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    });
+    if (!resp.ok) {
+      return res.status(401).json({ error: 'Token invalid or expired' });
+    }
+    const userData = await resp.json();
+    const userId = userData.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Could not identify user from token' });
+    }
+    const profileResp = await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}&select=*`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+    });
+    let profile = null;
+    if (profileResp.ok) {
+      const profiles = await profileResp.json();
+      profile = Array.isArray(profiles) && profiles.length > 0 ? profiles[0] : null;
+    }
+    res.json({
+      id: userId,
+      email: userData.email || null,
+      display_name: profile?.display_name || null,
+      avatar_url: profile?.avatar_url || null,
+    });
+  } catch (err) {
+    console.error('[OAuth] userinfo error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/oauth/token/refresh', async (req, res) => {
+  try {
+    const { refresh_token } = req.body || {};
+    if (!refresh_token) {
+      return res.status(400).json({ error: 'refresh_token required' });
+    }
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return res.status(500).json({ error: 'Supabase not configured on server' });
+    }
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY },
+      body: JSON.stringify({ refresh_token }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      return res.status(401).json({ error: data.error_description || data.error || 'Refresh failed' });
+    }
+    res.json({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: data.expires_in,
+    });
+  } catch (err) {
+    console.error('[OAuth] token refresh error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Discord bot — link Discord user to authenticated web user
 // ---------------------------------------------------------------------------
 
