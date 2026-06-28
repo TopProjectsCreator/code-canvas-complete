@@ -62,7 +62,7 @@ The external app **does not need its own Supabase project** — it uses Code Can
 An admin must add your external app's hostname to the allowlist so the OAuth flow will accept return redirects.
 
 **Via the admin UI** (if you have admin access):
-1. Go to `https://codecanvas.app/admin/oauth-hosts`
+1. Go to `https://code-canvas-complete-production.up.railway.app/admin/oauth-hosts`
 2. Add your app's hostname (e.g., `myapp.up.railway.app` or `myapp.example.com`)
 3. Add a note to describe what the host is for
 
@@ -111,7 +111,7 @@ export function buildOAuthUrl(returnPath?: string): string {
   const returnUrl = encodeURIComponent(
     `${window.location.origin}${returnPath || '/auth/codecanvas-callback'}`
   );
-  return `https://codecanvas.app/auth/external-oauth?return=${returnUrl}&state=${state}&client_name=${encodeURIComponent('Your App Name')}`;
+  return `https://code-canvas-complete-production.up.railway.app/auth/external-oauth?return=${returnUrl}&state=${state}&client_name=${encodeURIComponent('Your App Name')}`;
 }
 ```
 
@@ -121,7 +121,7 @@ export function buildOAuthUrl(returnPath?: string): string {
 // components/LoginWithCodeCanvas.tsx
 import { useState } from 'react';
 
-const CODE_CANVAS_ORIGIN = 'https://codecanvas.app';
+const CODE_CANVAS_ORIGIN = 'https://code-canvas-complete-production.up.railway.app';
 
 interface LoginWithCodeCanvasProps {
   appName?: string;
@@ -173,7 +173,7 @@ function stashOAuthState(state: string) {
 </button>
 
 <script>
-  const CODE_CANVAS_ORIGIN = 'https://codecanvas.app';
+  const CODE_CANVAS_ORIGIN = 'https://code-canvas-complete-production.up.railway.app';
 
   function randomState() {
     const bytes = new Uint8Array(16);
@@ -202,7 +202,7 @@ Create a callback page that receives the tokens from the URL hash.
 // pages/CodeCanvasCallback.tsx
 import { useEffect, useState } from 'react';
 
-const CODE_CANVAS_ORIGIN = 'https://codecanvas.app';
+const CODE_CANVAS_ORIGIN = 'https://code-canvas-complete-production.up.railway.app';
 
 interface CodeCanvasUser {
   id: string;
@@ -542,7 +542,7 @@ External App                           Code Canvas
 Tokens from Supabase Auth expire. Implement a refresh interceptor:
 
 ```typescript
-const CODE_CANVAS_ORIGIN = 'https://codecanvas.app';
+const CODE_CANVAS_ORIGIN = 'https://code-canvas-complete-production.up.railway.app';
 
 export async function getValidAccessToken(): Promise<string | null> {
   const stored = localStorage.getItem('cc-oauth:session');
@@ -599,7 +599,7 @@ async function fetchUserData() {
     return;
   }
 
-  const resp = await fetch('https://codecanvas.app/api/oauth/userinfo', {
+  const resp = await fetch('https://code-canvas-complete-production.up.railway.app/api/oauth/userinfo', {
     headers: { Authorization: `Bearer ${token}` },
   });
   return resp.json();
