@@ -18,12 +18,6 @@ export default function RedactorDashboard() {
   const providerKeys = useQuery({ queryKey: ["redactor-provider-keys"], queryFn: listProviderKeys });
   const monthly = useQuery({ queryKey: ["redactor-monthly-stats"], queryFn: getMonthlyStats });
 
-  const totalReqs = logs.data?.length ?? 0;
-  const totalRedactions = (logs.data ?? []).reduce((sum, l) => {
-    const r = l.redactions;
-    if (!r) return sum;
-    return sum + Object.values(r).reduce((a, b) => a + b, 0);
-  }, 0);
 
   // Hourly request counts for chart
   const hourlyCounts = buildHourlyCounts(logs.data ?? []);

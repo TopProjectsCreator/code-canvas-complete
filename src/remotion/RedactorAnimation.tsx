@@ -4,7 +4,6 @@ const FPS = 30;
 
 // ── Color palette ────────────────────────────────────────────
 const BG = "#0a0a0f";
-const SURFACE = "#14141f";
 const SURFACE2 = "#1c1c2e";
 const ACCENT = "#00e599";
 const ACCENT_GLOW = "rgba(0, 229, 153, 0.15)";
@@ -20,14 +19,6 @@ const CARD_BORDER = "#2a2a4e";
 
 function fadeIn(frame: number, dur = 15, delay = 0): number {
   return interpolate(frame - delay, [0, dur], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.ease,
-  });
-}
-
-function fadeOut(frame: number, dur = 15, delay = 0): number {
-  return interpolate(frame - delay, [0, dur], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.ease,
@@ -135,8 +126,6 @@ function Arrow({ x1, y1, x2, y2, frame, delay, color = ACCENT }: {
     easing: Easing.out(Easing.ease),
   });
   const opacity = fadeIn(frame, 10, delay);
-  const mx = x1 + (x2 - x1) * progress;
-  const my = y1 + (y2 - y1) * progress;
 
   // Compute angle
   const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);

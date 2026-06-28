@@ -7,7 +7,6 @@ import {
   Decoration,
   DecorationSet,
   EditorView,
-  type ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
 

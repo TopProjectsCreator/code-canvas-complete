@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, spring, Easing, Img, staticFile } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate, spring, Easing } from "remotion";
 
 const FPS = 30;
 
@@ -8,7 +8,6 @@ const SURFACE2 = "#1c1c2e";
 const ACCENT = "#00e599";
 const ACCENT_GLOW = "rgba(0, 229, 153, 0.15)";
 const BLUE = "#3b82f6";
-const BLUE_GLOW = "rgba(59, 130, 246, 0.15)";
 const PURPLE = "#a855f7";
 const PURPLE_GLOW = "rgba(168, 85, 247, 0.15)";
 const RED = "#ef4444";
@@ -20,14 +19,6 @@ const YELLOW = "#eab308";
 
 function fadeIn(frame: number, dur = 15, delay = 0): number {
   return interpolate(frame - delay, [0, dur], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.ease,
-  });
-}
-
-function fadeOut(frame: number, dur = 15, delay = 0): number {
-  return interpolate(frame - delay, [0, dur], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.ease,
@@ -47,10 +38,6 @@ function glowPulse(frame: number, speed = 0.03): number {
   return 0.5 + 0.5 * Math.sin(frame * speed * Math.PI * 2);
 }
 
-function typewriter(text: string, frame: number, delay = 0, charSpeed = 2): string {
-  const chars = Math.max(0, Math.floor((frame - delay) / charSpeed));
-  return text.slice(0, chars);
-}
 
 function StepBox({
   label,

@@ -274,7 +274,7 @@ export const CodeEditor = ({
           getCompletions: lsp.getCompletions,
           getHover: lsp.getHover,
         },
-        { current: null },
+        
       );
       setLspExtensions(exts);
     } else {

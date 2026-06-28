@@ -4,13 +4,13 @@ import type { Extension } from "@codemirror/state";
 export type LspHoverFn = (line: number, col: number) => Promise<{ contents: string } | null>;
 
 class LspHoverSource {
-  private fn: LspHoverFn | null = null;
+  fn: LspHoverFn | null = null;
 
   setFn(fn: LspHoverFn) {
     this.fn = fn;
   }
 
-  get = (view: any, pos: number, side: number): Tooltip | null => {
+  get = (): Tooltip | null => {
     return null;
   };
 }
@@ -22,7 +22,7 @@ export function setHoverFn(fn: LspHoverFn) {
 }
 
 export function lspHoverExtension(): Extension {
-  return hoverTooltip((view, pos, side) => {
+  return hoverTooltip(() => {
     return null;
   });
 }

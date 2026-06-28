@@ -93,7 +93,7 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
         }
       };
 
-      pc.ontrack = (event) => {
+      pc.ontrack = (_event) => {
         updatePeersList();
       };
 

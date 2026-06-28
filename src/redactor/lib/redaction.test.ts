@@ -459,7 +459,7 @@ describe("redactJson with seedMap / seedCounts", () => {
   });
 
   it("handles empty seed map gracefully", () => {
-    const { value, map } = redactJson(
+    const { value } = redactJson(
       { text: "sk-proj-abcdef1234567890abcdef123456789012345" },
       { seedMap: {}, seedCounts: {} },
     );

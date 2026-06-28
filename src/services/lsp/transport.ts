@@ -76,7 +76,6 @@ export class TypeScriptWorkerTransport extends BaseTransport {
   private worker: Worker | null = null;
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   private nextId = 1;
-  private messageBuffer: string[] = [];
 
   constructor() {
     super();
@@ -148,7 +147,7 @@ export class ReplitTransport extends BaseTransport {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
 
-  constructor(private languageId: string) {
+  constructor(public languageId: string) {
     super();
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     this.url = `${protocol}//${window.location.host}/api/lsp/ws?language=${languageId}`;

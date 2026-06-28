@@ -1,5 +1,5 @@
 import { autocompletion, type CompletionResult, type CompletionContext } from "@codemirror/autocomplete";
-import { type Diagnostic } from "@codemirror/lint";
+// diagnostics imported lazily
 import { hoverTooltip, type Tooltip, EditorView } from "@codemirror/view";
 import { type Extension } from "@codemirror/state";
 import { type Diagnostic as LspDiagnostic } from "vscode-languageserver-protocol";
@@ -122,7 +122,7 @@ export function convertLspDiagnostics(diags: LspDiagnostic[], view: EditorView):
     from: lineColToOffset(view, d.range.start.line + 1, d.range.start.character + 1),
     to: lineColToOffset(view, d.range.end.line + 1, d.range.end.character + 1),
     severity: d.severity === 1 ? "error" as const : d.severity === 2 ? "warning" as const : "info" as const,
-    message: d.message,
+    message: typeof d.message === "string" ? d.message : (d.message as any)?.value ?? "",
     source: d.source ?? "lsp",
   }));
 }
