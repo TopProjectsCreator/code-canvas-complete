@@ -12,7 +12,7 @@ interface VoiceVideoRoomProps {
 export function VoiceVideoRoom({ projectId, roomName }: VoiceVideoRoomProps) {
   const {
     isInRoom,
-    localStream,
+    // localStream unused
     peers,
     audioEnabled,
     videoEnabled,

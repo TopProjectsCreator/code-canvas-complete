@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, spring, Easing, Img, staticFile } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate, spring, Easing } from "remotion";
 
 const FPS = 30;
 
@@ -8,7 +8,6 @@ const SURFACE2 = "#1c1c2e";
 const ACCENT = "#00e599";
 const ACCENT_GLOW = "rgba(0, 229, 153, 0.15)";
 const BLUE = "#3b82f6";
-const BLUE_GLOW = "rgba(59, 130, 246, 0.15)";
 const PURPLE = "#a855f7";
 const PURPLE_GLOW = "rgba(168, 85, 247, 0.15)";
 const RED = "#ef4444";

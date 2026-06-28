@@ -76,7 +76,6 @@ export class TypeScriptWorkerTransport extends BaseTransport {
   private worker: Worker | null = null;
   private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   private nextId = 1;
-  private messageBuffer: string[] = [];
 
   constructor() {
     super();

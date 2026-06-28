@@ -1,5 +1,5 @@
 import { autocompletion, type CompletionResult, type CompletionContext } from "@codemirror/autocomplete";
-import { type Diagnostic } from "@codemirror/lint";
+// diagnostics imported lazily
 import { hoverTooltip, type Tooltip, EditorView } from "@codemirror/view";
 import { type Extension } from "@codemirror/state";
 import { type Diagnostic as LspDiagnostic } from "vscode-languageserver-protocol";

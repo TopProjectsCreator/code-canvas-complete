@@ -1,10 +1,9 @@
-import { AbsoluteFill, useCurrentFrame, interpolate, spring, Easing, staticFile, Img } from "remotion";
+import { AbsoluteFill, useCurrentFrame, interpolate, spring, Easing } from "remotion";
 
 const FPS = 30;
 
 // ── Color palette ────────────────────────────────────────────
 const BG = "#0a0a0f";
-const SURFACE = "#14141f";
 const SURFACE2 = "#1c1c2e";
 const ACCENT = "#00e599";
 const ACCENT_GLOW = "rgba(0, 229, 153, 0.15)";

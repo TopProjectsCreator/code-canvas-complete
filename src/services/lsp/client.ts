@@ -9,7 +9,7 @@ import type {
   LspServerStatus,
   LspDiagnosticContext,
 } from "./types";
-import { TextDocumentManager, type TextDocument } from "./documents";
+import { TextDocumentManager } from "./documents";
 import {
   TypeScriptWorkerTransport,
   ReplitTransport,
@@ -30,7 +30,6 @@ export class LspClient {
   private documentManager = new TextDocumentManager();
   private eventHandlers: Partial<LspEventHandler> = {};
   private currentUri: string | null = null;
-  private config: LspConfig | null = null;
   private capabilities: Record<string, boolean> = {};
   private _connected = false;
   private pendingRequests = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
