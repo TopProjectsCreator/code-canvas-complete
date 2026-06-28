@@ -1,4 +1,22 @@
 import { DiscordSDK } from "@discord/embedded-app-sdk";
+import { supabase } from "@/integrations/supabase/client";
+
+let _cachedClientId: string | null = null;
+async function fetchDiscordClientId(): Promise<string | null> {
+  if (_cachedClientId) return _cachedClientId;
+  try {
+    const { data, error } = await supabase.functions.invoke('discord-config');
+    if (error) {
+      console.warn('[Discord] Failed to load discord-config:', error);
+      return null;
+    }
+    _cachedClientId = (data as any)?.clientId ?? null;
+    return _cachedClientId;
+  } catch (err) {
+    console.warn('[Discord] discord-config invoke failed:', err);
+    return null;
+  }
+}
 
 let discordSdk: DiscordSDK | null = null;
 let auth: any = null;
