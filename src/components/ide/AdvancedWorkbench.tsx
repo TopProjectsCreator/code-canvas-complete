@@ -20,7 +20,7 @@ import {
   Rocket,
   ScrollText,
   TestTube2,
-  Video,
+  Wrench as Video,
   Wrench,
   X,
 } from 'lucide-react';
