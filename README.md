@@ -415,7 +415,7 @@ Our specialized editors are designed to bridge the gap between ideation, impleme
 - Convert rough notes into polished documentation.
 - Pair with AI summarization for speed.
 - Keep context tied to code changes.
-
+ 
 ### Excel workflows
 - Manage feature matrices and test plans.
 - Track estimates, staffing, and milestones.
