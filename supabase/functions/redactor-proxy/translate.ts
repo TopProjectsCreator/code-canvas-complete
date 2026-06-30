@@ -819,8 +819,9 @@ function anthropicToGeminiSSE(line: string, state: AnthropicToGeminiState): stri
       if (state.currentBlock.type === "text" && state.currentBlock.text != null) {
         state.parts[index] = { text: state.currentBlock.text };
       } else if (state.currentBlock.type === "tool_use" && state.currentBlock.toolName) {
+        const rawInput = state.currentBlock.input?.trim() || "{}";
         let parsedInput: unknown = {};
-        try { parsedInput = JSON.parse(state.currentBlock.input ?? "{}"); } catch { parsedInput = state.currentBlock.input; }
+        try { parsedInput = JSON.parse(rawInput); } catch { parsedInput = rawInput; }
         state.parts[index] = {
           functionCall: { name: state.currentBlock.toolName, args: parsedInput },
         };

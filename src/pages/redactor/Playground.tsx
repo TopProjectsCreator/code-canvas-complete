@@ -84,7 +84,6 @@ export default function RedactorPlayground() {
         }),
         signal: controller.signal,
       });
-      clearTimeout(timeout);
       if (!res.ok) {
         const text = await res.text();
         let msg: string;
@@ -98,6 +97,7 @@ export default function RedactorPlayground() {
     } catch (err) {
       setChatMessages((prev) => [...prev, { role: "assistant", content: `Error: ${(err as Error).message}` }]);
     } finally {
+      clearTimeout(timeout);
       setChatBusy(false);
     }
   }
