@@ -186,7 +186,6 @@ function openaiToGeminiReq(body: Record<string, unknown>): Record<string, unknow
 
   const out: Record<string, unknown> = {
     contents,
-    model: body.model,
   };
 
   if (systemMsg) {
@@ -200,7 +199,7 @@ function openaiToGeminiReq(body: Record<string, unknown>): Record<string, unknow
   if (body.max_tokens != null) genConfig.maxOutputTokens = body.max_tokens;
   else if (body.max_completion_tokens != null) genConfig.maxOutputTokens = body.max_completion_tokens;
   if (body.top_p != null) genConfig.topP = body.top_p;
-  if (body.stream) genConfig.stream = body.stream;
+  // stream is NOT mapped to generationConfig — Gemini uses endpoint URL for streaming
   if (body.stop_sequences) genConfig.stopSequences = body.stop_sequences;
   else if (body.stop != null) genConfig.stopSequences = Array.isArray(body.stop) ? body.stop : [body.stop];
   if (body.frequency_penalty != null) genConfig.frequencyPenalty = body.frequency_penalty;

@@ -463,6 +463,7 @@ async function runProxy(
   let bodyJson: Record<string, unknown> | null = null;
   let upstreamBody: BodyInit | null = null;
   let wasStreaming = false;
+  let originalModel: string | undefined;
 
   if (isJsonReq && request.method !== "GET" && request.method !== "HEAD") {
     try {
@@ -471,6 +472,7 @@ async function runProxy(
       return jsonError(400, "Request body must be valid JSON");
     }
     wasStreaming = isStreamingRequest(bodyJson);
+    originalModel = bodyJson?.model as string | undefined;
     // 1. Image redaction (before shape translation, in source shape)
     const imgResult = await redactImagesInBody(
       bodyJson,
@@ -517,10 +519,9 @@ async function runProxy(
     if (needTranslate) {
       let newPath = ctx.path;
       if (targetShape === "gemini") {
-        const model = (redacted.value as Record<string, unknown>)?.model ?? (bodyJson as Record<string, unknown>)?.model;
-        if (model && typeof model === "string") {
+        if (originalModel) {
           const action = wasStreaming ? "streamGenerateContent" : "generateContent";
-          newPath = `/models/${model}:${action}`;
+          newPath = `/models/${originalModel}:${action}`;
         }
       } else if (targetShape === "anthropic") {
         newPath = "/messages";
