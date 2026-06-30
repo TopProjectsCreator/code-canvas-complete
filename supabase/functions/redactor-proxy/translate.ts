@@ -220,7 +220,7 @@ function openaiToGeminiReq(body: Record<string, unknown>): Record<string, unknow
   if (body.tools) {
     const tools = body.tools as Array<Record<string, unknown>>;
     out.tools = [{
-      function_declarations: tools.map((t) => {
+      functionDeclarations: tools.map((t) => {
         const fn = t.function as Record<string, unknown> | undefined;
         return {
           name: fn?.name ?? "",
@@ -232,17 +232,18 @@ function openaiToGeminiReq(body: Record<string, unknown>): Record<string, unknow
   }
   if (body.tool_choice) {
     const tc = body.tool_choice;
-    if (tc === "auto") out.tool_config = { function_calling_config: { mode: "AUTO" } };
-    else if (tc === "none") out.tool_config = { function_calling_config: { mode: "NONE" } };
-    else if (tc === "required") out.tool_config = { function_calling_config: { mode: "ANY" } };
+    const fcc: Record<string, unknown> = {};
+    if (tc === "auto") fcc.mode = "AUTO";
+    else if (tc === "none") fcc.mode = "NONE";
+    else if (tc === "required") fcc.mode = "ANY";
     else if (typeof tc === "object" && tc !== null) {
       const fn = (tc as Record<string, unknown>).function as Record<string, unknown> | undefined;
       if (fn?.name) {
-        out.tool_config = {
-          function_calling_config: { mode: "ANY", allowed_function_names: [fn.name as string] },
-        };
+        fcc.mode = "ANY";
+        fcc.allowedFunctionNames = [fn.name as string];
       }
     }
+    if (Object.keys(fcc).length > 0) out.toolConfig = { functionCallingConfig: fcc };
   }
   return out;
 }
@@ -358,7 +359,7 @@ function geminiToOpenaiReq(body: Record<string, unknown>): Record<string, unknow
   if (body.tools) {
     const geminiTools = body.tools as Array<Record<string, unknown>>;
     const fds = geminiTools.flatMap((t) => {
-      const decls = t.function_declarations as Array<Record<string, unknown>> | undefined;
+      const decls = t.functionDeclarations as Array<Record<string, unknown>> | undefined;
       return decls ?? [];
     });
     out.tools = fds.map((fd) => ({
@@ -370,15 +371,15 @@ function geminiToOpenaiReq(body: Record<string, unknown>): Record<string, unknow
       },
     }));
   }
-  if (body.tool_config) {
-    const tc = body.tool_config as Record<string, unknown>;
-    const fcc = tc.function_calling_config as Record<string, unknown> | undefined;
+  if (body.toolConfig) {
+    const tc = body.toolConfig as Record<string, unknown>;
+    const fcc = tc.functionCallingConfig as Record<string, unknown> | undefined;
     if (fcc) {
       const mode = fcc.mode as string;
       if (mode === "NONE") out.tool_choice = "none";
       else if (mode === "AUTO") out.tool_choice = "auto";
       else if (mode === "ANY") {
-        const names = fcc.allowed_function_names as string[] | undefined;
+        const names = fcc.allowedFunctionNames as string[] | undefined;
         if (names && names.length === 1) out.tool_choice = { type: "function", function: { name: names[0] } };
         else out.tool_choice = "required";
       }

@@ -685,19 +685,39 @@ async function runProxy(
   let outText = text;
   try {
     let parsed = JSON.parse(text);
-    // Translate response shape back if needed
-    if (needTranslate) {
+    // On error, extract the upstream error before shape translation
+    if (upstreamRes.status >= 400) {
+      if (targetShape === "gemini") {
+        const geminiErr = parsed as Record<string, unknown>;
+        const err = geminiErr.error as Record<string, unknown> | undefined;
+        if (err) outText = JSON.stringify({ error: { message: err.message ?? err.status ?? "Unknown Gemini error", type: "upstream_error" } });
+      } else if (targetShape === "anthropic") {
+        const anthErr = parsed as Record<string, unknown>;
+        const err = anthErr.error as Record<string, unknown> | undefined;
+        if (err) outText = JSON.stringify({ error: { message: err.message ?? "Unknown Anthropic error", type: "upstream_error" } });
+      }
+    } else if (needTranslate) {
       parsed = translateResponse(parsed, targetShape, sourceShape!);
+      const rehydrated = transformJsonStrings(parsed, (s) => rehydrate(s, sharedMap));
+      outText = JSON.stringify(rehydrated);
+      const usage = extractUsage(rehydrated);
+      const model = extractModel(rehydrated, bodyJson);
+      const pricing = await getModelCost(model, ctx.providerId, supabase);
+      const costUsd = usage.input != null && usage.output != null && pricing
+        ? computeCost(usage.input, usage.output, pricing)
+        : undefined;
+      await writeLog(ctx, { status: upstreamRes.status, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts, inputTokens: usage.input, outputTokens: usage.output, model, costUsd }, supabase);
+    } else {
+      const rehydrated = transformJsonStrings(parsed, (s) => rehydrate(s, sharedMap));
+      outText = JSON.stringify(rehydrated);
+      const usage = extractUsage(rehydrated);
+      const model = extractModel(rehydrated, bodyJson);
+      const pricing = await getModelCost(model, ctx.providerId, supabase);
+      const costUsd = usage.input != null && usage.output != null && pricing
+        ? computeCost(usage.input, usage.output, pricing)
+        : undefined;
+      await writeLog(ctx, { status: upstreamRes.status, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts, inputTokens: usage.input, outputTokens: usage.output, model, costUsd }, supabase);
     }
-    const rehydrated = transformJsonStrings(parsed, (s) => rehydrate(s, sharedMap));
-    outText = JSON.stringify(rehydrated);
-    const usage = extractUsage(rehydrated);
-    const model = extractModel(rehydrated, bodyJson);
-    const pricing = await getModelCost(model, ctx.providerId, supabase);
-    const costUsd = usage.input != null && usage.output != null && pricing
-      ? computeCost(usage.input, usage.output, pricing)
-      : undefined;
-    await writeLog(ctx, { status: upstreamRes.status, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts, inputTokens: usage.input, outputTokens: usage.output, model, costUsd }, supabase);
   } catch {
     outText = rehydrate(text, sharedMap);
     await writeLog(ctx, { status: upstreamRes.status, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts }, supabase);
