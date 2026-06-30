@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { redactJson, rehydrate, transformJsonStrings } from "./redaction.ts";
 import { getProvider, resolveModelRouting, type ProviderDef } from "./providers.ts";
-import { translateRequest, translateResponse, translateStreamChunk, detectShape, type Shape } from "./translate.ts";
+import { translateRequest, translateResponse, translateStreamChunk, translateStreamChunks, createOpenaiToAnthropicTransformer, createGeminiToAnthropicTransformer, createAnthropicToGeminiTransformer, type Shape } from "./translate.ts";
 import { redactImagesInBody } from "./image-redaction.ts";
 import { redactVideosInBody, serveRedactedVideo } from "./video-redaction.ts";
 
@@ -462,6 +462,7 @@ async function runProxy(
   let redactionCounts: Record<string, number> = {};
   let bodyJson: Record<string, unknown> | null = null;
   let upstreamBody: BodyInit | null = null;
+  let wasStreaming = false;
 
   if (isJsonReq && request.method !== "GET" && request.method !== "HEAD") {
     try {
@@ -469,6 +470,7 @@ async function runProxy(
     } catch {
       return jsonError(400, "Request body must be valid JSON");
     }
+    wasStreaming = isStreamingRequest(bodyJson);
     // 1. Image redaction (before shape translation, in source shape)
     const imgResult = await redactImagesInBody(
       bodyJson,
@@ -510,6 +512,23 @@ async function runProxy(
     redactionCounts = redacted.counts;
     upstreamHeaders.set("content-type", "application/json");
     upstreamBody = JSON.stringify(redacted.value);
+
+    // 5. Recalculate upstream URL when shape translation was applied
+    if (needTranslate) {
+      let newPath = ctx.path;
+      if (targetShape === "gemini") {
+        const model = (redacted.value as Record<string, unknown>)?.model ?? (bodyJson as Record<string, unknown>)?.model;
+        if (model && typeof model === "string") {
+          const action = wasStreaming ? "streamGenerateContent" : "generateContent";
+          newPath = `/models/${model}:${action}`;
+        }
+      } else if (targetShape === "anthropic") {
+        newPath = "/messages";
+      } else if (targetShape === "openai") {
+        newPath = "/chat/completions";
+      }
+      upstreamUrl = ctx.upstream.baseUrl.replace(/\/$/, "") + newPath;
+    }
   } else if (request.method !== "GET" && request.method !== "HEAD") {
     if (reqContentType) upstreamHeaders.set("content-type", reqContentType);
     upstreamBody = await request.arrayBuffer();
@@ -539,40 +558,114 @@ async function runProxy(
   const respContentType = (upstreamRes.headers.get("content-type") ?? "").toLowerCase();
   const isSSE = respContentType.includes("text/event-stream");
   const isJsonResp = respContentType.includes("application/json");
-  const wantStream = isJsonReq && isStreamingRequest(bodyJson);
+  const wantStream = isJsonReq && (needTranslate ? wasStreaming : isStreamingRequest(bodyJson));
 
   if ((wantStream || isSSE) && upstreamRes.body) {
     let stream: ReadableStream<Uint8Array>;
-    if (needTranslate && targetShape !== "openai") {
-      // Translate streaming response back to source shape
+    if (needTranslate) {
       const encoder = new TextEncoder();
       const decoder = new TextDecoder();
       const reader = upstreamRes.body.getReader();
-      stream = new ReadableStream<Uint8Array>({
-        async start(controller) {
-          let pending = "";
-          try {
-            while (true) {
-              const { value, done } = await reader.read();
-              if (done) break;
-              pending += decoder.decode(value, { stream: true });
-              const events = pending.split("\n");
-              pending = events.pop() ?? "";
-              for (const line of events) {
-                const translated = translateStreamChunk(line + "\n", targetShape, sourceShape!);
-                if (translated) {
-                  controller.enqueue(encoder.encode(translated));
+      if (targetShape === "openai") {
+        // OpenAI upstream → non-OpenAI caller
+        // e.g. OpenAI SSE → Gemini SSE, OpenAI SSE → Anthropic SSE
+        const anthropicTransformer = sourceShape === "anthropic" ? createOpenaiToAnthropicTransformer() : null;
+        stream = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            let pending = "";
+            try {
+              while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                pending += decoder.decode(value, { stream: true });
+                const events = pending.split("\n");
+                pending = events.pop() ?? "";
+                for (const line of events) {
+                  if (sourceShape === "anthropic" && anthropicTransformer) {
+                    const translated = anthropicTransformer(line + "\n");
+                    for (const t of translated) controller.enqueue(encoder.encode(t));
+                  } else if (sourceShape === "gemini") {
+                    const translated = translateStreamChunks(line + "\n", "openai", "gemini");
+                    if (translated) {
+                      for (const t of translated) controller.enqueue(encoder.encode(t));
+                    }
+                  }
                 }
               }
-            }
-            if (pending) {
-              const translated = translateStreamChunk(pending, targetShape, sourceShape!);
-              if (translated) controller.enqueue(encoder.encode(translated));
-            }
-          } catch (e) { controller.error(e); return; }
-          controller.close();
-        },
-      });
+              if (pending) {
+                if (sourceShape === "anthropic" && anthropicTransformer) {
+                  const translated = anthropicTransformer(pending);
+                  for (const t of translated) controller.enqueue(encoder.encode(t));
+                } else if (sourceShape === "gemini") {
+                  const translated = translateStreamChunks(pending, "openai", "gemini");
+                  if (translated) {
+                    for (const t of translated) controller.enqueue(encoder.encode(t));
+                  }
+                }
+              }
+            } catch (e) { controller.error(e); return; }
+            controller.close();
+          },
+        });
+      } else if (sourceShape === "openai") {
+        // Non-OpenAI upstream → OpenAI caller
+        // e.g. Gemini SSE → OpenAI SSE, Anthropic SSE → OpenAI SSE
+        stream = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            let pending = "";
+            try {
+              while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                pending += decoder.decode(value, { stream: true });
+                const events = pending.split("\n");
+                pending = events.pop() ?? "";
+                for (const line of events) {
+                  const translated = translateStreamChunk(line + "\n", targetShape, "openai");
+                  if (translated) controller.enqueue(encoder.encode(translated));
+                }
+              }
+              if (pending) {
+                const translated = translateStreamChunk(pending, targetShape, "openai");
+                if (translated) controller.enqueue(encoder.encode(translated));
+              }
+            } catch (e) { controller.error(e); return; }
+            controller.close();
+          },
+        });
+      } else {
+        // Both non-OpenAI, different → use direct Gemini↔Anthropic translators
+        // e.g. Gemini SSE → Anthropic SSE, Anthropic SSE → Gemini SSE
+        const directTransformer =
+          targetShape === "gemini" && sourceShape === "anthropic" ? createGeminiToAnthropicTransformer() :
+          targetShape === "anthropic" && sourceShape === "gemini" ? createAnthropicToGeminiTransformer() :
+          null;
+        stream = new ReadableStream<Uint8Array>({
+          async start(controller) {
+            let pending = "";
+            try {
+              while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                pending += decoder.decode(value, { stream: true });
+                const events = pending.split("\n");
+                pending = events.pop() ?? "";
+                if (directTransformer) {
+                  for (const line of events) {
+                    const translated = directTransformer(line + "\n");
+                    for (const t of translated) controller.enqueue(encoder.encode(t));
+                  }
+                }
+              }
+              if (pending && directTransformer) {
+                const translated = directTransformer(pending);
+                for (const t of translated) controller.enqueue(encoder.encode(t));
+              }
+            } catch (e) { controller.error(e); return; }
+            controller.close();
+          },
+        });
+      }
     } else {
       stream = createRehydrateStream(upstreamRes.body, sharedMap);
     }

@@ -12,6 +12,16 @@ import { Loader2, Mail, Lock, Eye, EyeOff, ArrowLeft, ShieldAlert } from 'lucide
 
 type PageStatus = 'loading' | 'error' | 'signin' | 'consent';
 
+const ALLOWED_SCOPES = ['profile', 'redactor', 'ai_chat'];
+const DEFAULT_SCOPES = ['profile'];
+
+function parseScope(raw: string | null): string[] {
+  if (!raw) return DEFAULT_SCOPES;
+  const scopes = raw.split(',').map((s) => s.trim()).filter(Boolean);
+  const valid = scopes.filter((s) => ALLOWED_SCOPES.includes(s));
+  return valid.length > 0 ? valid : DEFAULT_SCOPES;
+}
+
 const ExternalOAuth = () => {
   const [searchParams] = useSearchParams();
   const { user, profile, session, signIn, signInWithOAuth, availableOAuthProviders, platform } = useAuth();
@@ -23,6 +33,7 @@ const ExternalOAuth = () => {
   const [returnUrl, setReturnUrl] = useState<URL | null>(null);
   const [stateParam, setStateParam] = useState<string | null>(null);
   const [clientName, setClientName] = useState('this app');
+  const [scope, setScope] = useState<string[]>(DEFAULT_SCOPES);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,6 +44,7 @@ const ExternalOAuth = () => {
   const returnParam = searchParams.get('return');
   const stateFromUrl = searchParams.get('state');
   const clientNameFromUrl = searchParams.get('client_name');
+  const scopeFromUrl = searchParams.get('scope');
 
   useEffect(() => {
     if (!returnParam || !stateFromUrl) {
@@ -43,6 +55,7 @@ const ExternalOAuth = () => {
 
     setStateParam(stateFromUrl);
     setClientName(clientNameFromUrl || 'this app');
+    setScope(parseScope(scopeFromUrl));
 
     validateReturnUrl(returnParam).then((validated) => {
       if (validated) {
@@ -52,7 +65,7 @@ const ExternalOAuth = () => {
         setMessage('Return URL host is not on the allowlist.');
       }
     });
-  }, [returnParam, stateFromUrl, clientNameFromUrl]);
+  }, [returnParam, stateFromUrl, clientNameFromUrl, scopeFromUrl]);
 
   useEffect(() => {
     if (!returnUrl || !stateParam) return;
@@ -142,6 +155,7 @@ const ExternalOAuth = () => {
             userEmail={user?.email || ''}
             userAvatar={profile?.avatar_url || null}
             userDisplayName={profile?.display_name || null}
+            scope={scope}
             onContinue={handleConsentContinue}
             onCancel={handleConsentCancel}
           />

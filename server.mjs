@@ -8,7 +8,7 @@ import http from 'http';
 import { spawn } from 'child_process';
 import { tmpdir } from 'os';
 import { mkdtempSync, writeFileSync, rmSync } from 'fs';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes, createHash } from 'crypto';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { createRequire } from 'module';
@@ -145,6 +145,347 @@ app.post('/api/oauth/token/refresh', async (req, res) => {
     });
   } catch (err) {
     console.error('[OAuth] token refresh error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// OAuth — create a Redactor proxy key for the external app
+// ---------------------------------------------------------------------------
+
+app.post('/api/oauth/redactor/proxy-keys', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    }
+    const token = authHeader.slice(7);
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return res.status(500).json({ error: 'Supabase not configured on server' });
+    }
+
+    // Validate token and get user
+    const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    });
+    if (!userResp.ok) {
+      return res.status(401).json({ error: 'Token invalid or expired' });
+    }
+    const userData = await userResp.json();
+    const userId = userData.id;
+    if (!userId) return res.status(401).json({ error: 'Could not identify user from token' });
+
+    // Generate proxy key
+    const raw = randomBytes(32);
+    const randomStr = Array.from(raw).map((b) => b.toString(36).padStart(2, '0')).join('');
+    const fullKey = `lvp_live_${randomStr}`;
+    const prefix = fullKey.slice(0, 16);
+    const hash = createHash('sha256').update(fullKey).digest('hex');
+
+    const { name, allowed_providers, rate_limit_rpm, monthly_cap_usd, ip_allowlist, log_requests, redact_images, redact_videos, expires_at } = req.body || {};
+
+    // Insert via Supabase REST API (JWT auth passes user context for RLS)
+    const insertResp = await fetch(`${SUPABASE_URL}/rest/v1/redactor_proxy_keys`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify({
+        key_hash: hash,
+        key_prefix: prefix,
+        name: name || 'OAuth-generated key',
+        allowed_providers: allowed_providers || [],
+        rate_limit_rpm: rate_limit_rpm || null,
+        monthly_cap_usd: monthly_cap_usd || null,
+        ip_allowlist: ip_allowlist || [],
+        log_requests: log_requests !== undefined ? log_requests : true,
+        redact_images: redact_images !== undefined ? redact_images : true,
+        redact_videos: redact_videos !== undefined ? redact_videos : true,
+        expires_at: expires_at || null,
+      }),
+    });
+
+    if (!insertResp.ok) {
+      const errBody = await insertResp.text();
+      console.error('[OAuth] Failed to insert proxy key:', errBody);
+      return res.status(500).json({ error: 'Failed to create proxy key' });
+    }
+
+    const inserted = await insertResp.json();
+    const row = Array.isArray(inserted) ? inserted[0] : inserted;
+
+    res.status(201).json({
+      id: row.id,
+      name: row.name,
+      key: fullKey,
+      prefix: row.key_prefix,
+      allowed_providers: row.allowed_providers,
+      rate_limit_rpm: row.rate_limit_rpm,
+      monthly_cap_usd: row.monthly_cap_usd,
+      expires_at: row.expires_at,
+      created_at: row.created_at,
+    });
+  } catch (err) {
+    console.error('[OAuth] proxy key creation error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// OAuth — list external app's Redactor proxy keys
+// ---------------------------------------------------------------------------
+
+app.get('/api/oauth/redactor/proxy-keys', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    }
+    const token = authHeader.slice(7);
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return res.status(500).json({ error: 'Supabase not configured on server' });
+    }
+
+    const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    });
+    if (!userResp.ok) return res.status(401).json({ error: 'Token invalid or expired' });
+    const userData = await userResp.json();
+    if (!userData.id) return res.status(401).json({ error: 'Could not identify user from token' });
+
+    const keysResp = await fetch(`${SUPABASE_URL}/rest/v1/redactor_proxy_keys?order=created_at.desc`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!keysResp.ok) {
+      return res.status(500).json({ error: 'Failed to fetch proxy keys' });
+    }
+    const keys = await keysResp.json();
+    res.json(Array.isArray(keys) ? keys : []);
+  } catch (err) {
+    console.error('[OAuth] list proxy keys error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// OAuth — revoke a Redactor proxy key
+// ---------------------------------------------------------------------------
+
+app.post('/api/oauth/redactor/proxy-keys/:id/revoke', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    }
+    const token = authHeader.slice(7);
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return res.status(500).json({ error: 'Supabase not configured on server' });
+    }
+
+    const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    });
+    if (!userResp.ok) return res.status(401).json({ error: 'Token invalid or expired' });
+    const userData = await userResp.json();
+    if (!userData.id) return res.status(401).json({ error: 'Could not identify user from token' });
+
+    const { id } = req.params;
+    const updateResp = await fetch(`${SUPABASE_URL}/rest/v1/redactor_proxy_keys?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        apikey: SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify({ revoked_at: new Date().toISOString() }),
+    });
+
+    if (!updateResp.ok) {
+      return res.status(500).json({ error: 'Failed to revoke proxy key' });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[OAuth] revoke proxy key error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// OAuth — AI chat via the user's configured AI providers
+// ---------------------------------------------------------------------------
+
+app.post('/api/oauth/ai/chat', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    }
+    const token = authHeader.slice(7);
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return res.status(500).json({ error: 'Supabase not configured on server' });
+    }
+
+    const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    });
+    if (!userResp.ok) return res.status(401).json({ error: 'Token invalid or expired' });
+    const userData = await userResp.json();
+    const userId = userData.id;
+    if (!userId) return res.status(401).json({ error: 'Could not identify user from token' });
+
+    const { model, messages, temperature, max_tokens, provider: requestedProvider } = req.body || {};
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'messages array is required' });
+    }
+
+    // Look up user's API keys from server file store
+    const userKeys = _aiKeys[userId] || {};
+
+    // Also check Supabase user_api_keys table
+    let supabaseKeys = [];
+    try {
+      const keysResp = await fetch(`${SUPABASE_URL}/rest/v1/user_api_keys?user_id=eq.${userId}&select=provider,api_key,base_url`, {
+        headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      });
+      if (keysResp.ok) {
+        supabaseKeys = await keysResp.json();
+      }
+    } catch { /* fallback to server store only */ }
+
+    for (const row of supabaseKeys) {
+      if (!userKeys[row.provider]) {
+        userKeys[row.provider] = { api_key: row.api_key, base_url: row.base_url || '' };
+      }
+    }
+
+    // Find the provider to use
+    let provider = requestedProvider || null;
+    let keyData = provider ? userKeys[provider] : null;
+
+    if (!provider || !keyData) {
+      // Auto-select first available provider
+      for (const p of Object.keys(BYOK_PROVIDERS)) {
+        if (p === 'openai-compatible') continue;
+        if (userKeys[p]) { provider = p; keyData = userKeys[p]; break; }
+      }
+    }
+
+    if (!provider || !keyData || !keyData.api_key) {
+      return res.status(503).json({ error: 'No AI API key configured for this user. They need to add one in their Code Canvas settings.' });
+    }
+
+    const isOpenAICompatible = provider === 'openai-compatible';
+    const cfg = isOpenAICompatible
+      ? { url: keyData.base_url || '', authHeader: 'Bearer' }
+      : BYOK_PROVIDERS[provider];
+
+    if (!cfg || !cfg.url) {
+      return res.status(400).json({ error: `Unsupported provider: ${provider}` });
+    }
+
+    const effectiveModel = model || BYOK_DEFAULT_MODELS[provider] || 'gpt-4o';
+
+    const body = {
+      model: effectiveModel,
+      messages,
+      ...(temperature !== undefined ? { temperature } : {}),
+      ...(max_tokens !== undefined ? { max_tokens } : {}),
+    };
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (cfg.authHeader === 'x-api-key') {
+      headers['x-api-key'] = keyData.api_key;
+      if (provider === 'anthropic') headers['anthropic-version'] = '2023-06-01';
+    } else {
+      headers['Authorization'] = `Bearer ${keyData.api_key}`;
+    }
+
+    const apiUrl = isOpenAICompatible
+      ? `${cfg.url.replace(/\/$/, '')}/chat/completions`
+      : cfg.url;
+
+    const apiResp = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    const data = await apiResp.json();
+
+    if (!apiResp.ok) {
+      const errMsg = data?.error?.message || data?.error || `Provider returned ${apiResp.status}`;
+      return res.status(502).json({ error: errMsg, provider });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error('[OAuth] AI chat error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// OAuth — list the user's configured AI providers (no key values)
+// ---------------------------------------------------------------------------
+
+app.get('/api/oauth/ai/providers', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+    }
+    const token = authHeader.slice(7);
+    const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return res.status(500).json({ error: 'Supabase not configured on server' });
+    }
+
+    const userResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    });
+    if (!userResp.ok) return res.status(401).json({ error: 'Token invalid or expired' });
+    const userData = await userResp.json();
+    const userId = userData.id;
+    if (!userId) return res.status(401).json({ error: 'Could not identify user from token' });
+
+    // Gather keys from both stores
+    const serverKeys = Object.keys(_aiKeys[userId] || {});
+    let supabaseKeys = [];
+    try {
+      const keysResp = await fetch(`${SUPABASE_URL}/rest/v1/user_api_keys?user_id=eq.${userId}&select=provider,base_url`, {
+        headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      });
+      if (keysResp.ok) {
+        supabaseKeys = await keysResp.json();
+      }
+    } catch { /* ignore */ }
+
+    const providerSet = new Set([...serverKeys, ...supabaseKeys.map((k) => k.provider)]);
+    const providers = Array.from(providerSet)
+      .filter((p) => p && p !== 'openai-compatible')
+      .sort();
+
+    res.json({ providers });
+  } catch (err) {
+    console.error('[OAuth] list providers error:', err.message);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

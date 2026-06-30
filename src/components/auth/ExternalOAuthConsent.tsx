@@ -2,11 +2,20 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CheckCircle2, Shield } from 'lucide-react';
 
+const SCOPE_LABELS: Record<string, { label: string; description: string }> = {
+  profile: { label: 'Profile', description: 'View your email, display name, and avatar' },
+  redactor: { label: 'Redactor', description: 'Generate API keys through your Redactor proxy' },
+  ai_chat: { label: 'AI Chat', description: 'Send AI chat requests using your AI providers' },
+};
+
+const DEFAULT_SCOPES = ['profile'];
+
 interface ExternalOAuthConsentProps {
   clientName: string;
   userEmail: string;
   userAvatar: string | null;
   userDisplayName: string | null;
+  scope?: string[];
   onContinue: () => void;
   onCancel: () => void;
   loading?: boolean;
@@ -17,6 +26,7 @@ export const ExternalOAuthConsent = ({
   userEmail,
   userAvatar,
   userDisplayName,
+  scope = DEFAULT_SCOPES,
   onContinue,
   onCancel,
   loading = false,
@@ -27,6 +37,8 @@ export const ExternalOAuthConsent = ({
     .join('')
     .toUpperCase()
     .slice(0, 2);
+
+  const shown = scope.filter((s) => SCOPE_LABELS[s]);
 
   return (
     <div className="flex flex-col items-center space-y-6">
@@ -59,10 +71,13 @@ export const ExternalOAuthConsent = ({
       <div className="w-full max-w-sm space-y-2">
         <p className="text-xs text-muted-foreground font-medium">This will allow {clientName} to:</p>
         <ul className="space-y-1.5">
-          {['View your email address', 'View your display name', 'View your avatar'].map((perm) => (
-            <li key={perm} className="flex items-start gap-2 text-xs text-muted-foreground">
+          {shown.map((s) => (
+            <li key={s} className="flex items-start gap-2 text-xs text-muted-foreground">
               <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />
-              <span>{perm}</span>
+              <div>
+                <span className="font-medium text-foreground">{SCOPE_LABELS[s].label}:</span>{' '}
+                <span>{SCOPE_LABELS[s].description}</span>
+              </div>
             </li>
           ))}
         </ul>
