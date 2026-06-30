@@ -115,7 +115,7 @@ export default function RedactorPlayground() {
       const reply = data?.choices?.[0]?.message?.content ?? data?.content?.[0]?.text ?? JSON.stringify(data);
       setChatMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (err) {
-      setChatMessages((prev) => [...prev, { role: "assistant", content: `Error: ${(err as Error).message}` }]);
+      setChatMessages((prev) => [...prev, { role: "assistant", content: `Error: ${(err as any)?.message ?? String(err)}` }]);
     } finally {
       clearTimeout(timeout);
       abortRef.current = null;
