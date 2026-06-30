@@ -12,6 +12,10 @@ interface ChatMessage {
   content: string;
 }
 
+const PROVIDER_MAP: Record<string, string> = {
+  google: "gemini",
+};
+
 export default function RedactorPlayground() {
   const [tab, setTab] = useState<Tab>("text");
 
@@ -38,30 +42,34 @@ export default function RedactorPlayground() {
   const [chatModels, setChatModels] = useState<string[]>([]);
   const [chatModel, setChatModel] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
+  const [chatModelError, setChatModelError] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
-
-  const PROVIDER_MAP: Record<string, string> = {
-    google: "gemini",
-  };
 
   useEffect(() => {
     return () => abortRef.current?.abort();
   }, []);
 
   useEffect(() => {
+    setChatModelError("");
+    let ignore = false;
     supabase
       .from("redactor_model_pricing")
       .select("model_id, provider_id")
       .order("model_id")
       .then(({ data, error }) => {
-        if (error) return;
+        if (ignore) return;
+        if (error) {
+          setChatModelError(error.message);
+          return;
+        }
         const models = [...new Set(data?.map((r) => r.provider_id + "/" + r.model_id) ?? [])];
         const bare = [...new Set(data?.map((r) => r.model_id) ?? [])];
         const all = [...new Set([...bare, ...models])].sort();
         setChatModels(all);
         if (all.length > 0) setChatModel(all[0]);
       });
+    return () => { ignore = true; };
   }, []);
 
   useEffect(() => {
@@ -363,16 +371,21 @@ export default function RedactorPlayground() {
       {tab === "chat" && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <select
-              value={chatModel}
-              onChange={(e) => setChatModel(e.target.value)}
-              className="rounded-md border bg-background px-3 py-1.5 text-sm max-w-xs"
-            >
-              {chatModels.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            {chatModels.length === 0 && <span className="text-xs text-muted-foreground">Loading models\u2026</span>}
+            {chatModelError ? (
+              <span className="text-xs text-destructive">Failed to load models: {chatModelError}</span>
+            ) : chatModels.length === 0 ? (
+              <span className="text-xs text-muted-foreground">Loading models\u2026</span>
+            ) : (
+              <select
+                value={chatModel}
+                onChange={(e) => setChatModel(e.target.value)}
+                className="rounded-md border bg-background px-3 py-1.5 text-sm max-w-xs"
+              >
+                {chatModels.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           <Card>
