@@ -1,10 +1,16 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { previewRedaction, previewImageRedaction, pixelateImageOnCanvas, type OCRWord } from "@/redactor/lib/redaction.functions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HighlightedText } from "@/redactor/components/HighlightedText";
+import { supabase } from "@/integrations/supabase/client";
 
-type Tab = "text" | "image" | "video";
+type Tab = "text" | "image" | "video" | "chat";
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
 export default function RedactorPlayground() {
   const [tab, setTab] = useState<Tab>("text");
@@ -25,6 +31,72 @@ export default function RedactorPlayground() {
   const [imgOut, setImgOut] = useState<{ redacted: string; matches: { token: string; original: string; type: string }[]; hasPii: boolean } | null>(null);
   const [ocrBusy, setOcrBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Chat
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatModels, setChatModels] = useState<string[]>([]);
+  const [chatModel, setChatModel] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    supabase
+      .from("redactor_model_pricing")
+      .select("model_id, provider_id")
+      .order("model_id")
+      .then(({ data, error }) => {
+        if (error) return;
+        const models = [...new Set(data?.map((r) => r.provider_id + "/" + r.model_id) ?? [])];
+        const bare = [...new Set(data?.map((r) => r.model_id) ?? [])];
+        const all = [...new Set([...bare, ...models])].sort();
+        setChatModels(all);
+        if (all.length > 0) setChatModel(all[0]);
+      });
+  }, []);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  async function sendChat() {
+    if (!chatInput.trim() || chatBusy) return;
+    const userMsg: ChatMessage = { role: "user", content: chatInput.trim() };
+    setChatMessages((prev) => [...prev, userMsg]);
+    setChatInput("");
+    setChatBusy(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session?.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      const res = await fetch("/api/oauth/ai/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          model: chatModel,
+          messages: [...chatMessages, userMsg],
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        let msg: string;
+        try { msg = JSON.parse(text).error; } catch { msg = text; }
+        throw new Error(msg || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+
+      const reply = data?.choices?.[0]?.message?.content || data?.content?.[0]?.text || JSON.stringify(data);
+      setChatMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    } catch (err) {
+      setChatMessages((prev) => [...prev, { role: "assistant", content: `Error: ${(err as Error).message}` }]);
+    } finally {
+      setChatBusy(false);
+    }
+  }
 
   function go() {
     setBusy(true);
@@ -101,6 +173,12 @@ export default function RedactorPlayground() {
           className={`px-3 py-1 text-sm rounded-t ${tab === "video" ? "bg-card font-medium" : "text-muted-foreground hover:text-foreground"}`}
         >
           Video redaction (I-frame)
+        </button>
+        <button
+          onClick={() => setTab("chat")}
+          className={`px-3 py-1 text-sm rounded-t ${tab === "chat" ? "bg-card font-medium" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          Chat
         </button>
       </div>
 
@@ -260,6 +338,61 @@ export default function RedactorPlayground() {
                   <span>Stream redacted MP4 to AI provider via chunked transfer</span>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {tab === "chat" && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <select
+              value={chatModel}
+              onChange={(e) => setChatModel(e.target.value)}
+              className="rounded-md border bg-background px-3 py-1.5 text-sm max-w-xs"
+            >
+              {chatModels.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            {chatModels.length === 0 && <span className="text-xs text-muted-foreground">Loading models\u2026</span>}
+          </div>
+
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="h-80 overflow-y-auto space-y-3 border rounded-md bg-background p-3">
+                {chatMessages.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center pt-8">Send a message to start chatting</p>
+                )}
+                {chatMessages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted"
+                    }`}>
+                      <pre className="whitespace-pre-wrap font-sans">{msg.content}</pre>
+                    </div>
+                  </div>
+                ))}
+                <div ref={chatEndRef} />
+              </div>
+
+              <form
+                onSubmit={(e) => { e.preventDefault(); sendChat(); }}
+                className="flex gap-2"
+              >
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Type a message\u2026"
+                  disabled={chatBusy}
+                  className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+                />
+                <Button type="submit" disabled={chatBusy || !chatInput.trim() || chatModels.length === 0}>
+                  {chatBusy ? "Thinking\u2026" : "Send"}
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </div>
