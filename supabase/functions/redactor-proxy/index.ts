@@ -455,7 +455,7 @@ async function runProxy(
   const reqContentType = (request.headers.get("content-type") ?? "").toLowerCase();
   const isJsonReq = reqContentType.includes("application/json") || reqContentType === "";
 
-  const upstreamUrl = ctx.upstream.baseUrl.replace(/\/$/, "") + ctx.path;
+  let upstreamUrl = ctx.upstream.baseUrl.replace(/\/$/, "") + ctx.path;
   const upstreamHeaders = buildUpstreamHeaders(ctx.upstream.provider, ctx.upstream.apiKey, request.headers);
 
   let sharedMap: Record<string, string> = {};

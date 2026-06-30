@@ -1,14 +1,15 @@
 /**
- * Shape translation between OpenAI, Anthropic, and Gemini formats.
+ * Full bidirectional shape translation for all combinations of OpenAI, Anthropic, and Gemini formats.
  *
- * Supports request body translation (OpenAI → native) and
- * response body / streaming translation (native → OpenAI).
+ * Supports bidirectional request body, response body, and SSE streaming translation for
+ * all direction combinations (OpenAI ↔ Anthropic, OpenAI ↔ Gemini, Gemini ↔ Anthropic).
  */
 
 // ---------- OpenAI → Anthropic ----------
 
 function openaiToAnthropicReq(body: Record<string, unknown>): Record<string, unknown> {
-  const messages = body.messages as Array<Record<string, unknown>> | undefined;
+  const rawMessages = body.messages;
+  const messages = Array.isArray(rawMessages) ? (rawMessages as Array<Record<string, unknown>>) : undefined;
   const system = messages?.find((m) => m.role === "system")?.content;
   const msgs = messages?.filter((m) => m.role !== "system") ?? [];
 
@@ -16,7 +17,7 @@ function openaiToAnthropicReq(body: Record<string, unknown>): Record<string, unk
     model: body.model,
     messages: msgs.map((m) => ({
       role: m.role === "developer" ? "user" : m.role,
-      content: typeof m.content === "string" ? m.content : m.content,
+      content: m.content,
     })),
     max_tokens: body.max_tokens ?? body.maxTokens ?? body.max_completion_tokens,
   };
@@ -176,7 +177,8 @@ function anthropicToOpenaiSSE(line: string): string | null {
 // ---------- OpenAI → Gemini ----------
 
 function openaiToGeminiReq(body: Record<string, unknown>): Record<string, unknown> {
-  const messages = body.messages as Array<Record<string, unknown>> | undefined;
+  const rawMessages = body.messages;
+  const messages = Array.isArray(rawMessages) ? (rawMessages as Array<Record<string, unknown>>) : undefined;
   const systemMsg = messages?.find((m) => m.role === "system");
 
   const contents = messages?.filter((m) => m.role !== "system")?.map((m) => ({
@@ -391,7 +393,8 @@ function geminiToOpenaiReq(body: Record<string, unknown>): Record<string, unknow
 // ---------- Anthropic → OpenAI request ----------
 
 function anthropicToOpenaiReq(body: Record<string, unknown>): Record<string, unknown> {
-  const messages = body.messages as Array<Record<string, unknown>> | undefined;
+  const rawMessages = body.messages;
+  const messages = Array.isArray(rawMessages) ? (rawMessages as Array<Record<string, unknown>>) : undefined;
   const system = body.system;
 
   const msgs: Record<string, unknown>[] = [];
@@ -789,7 +792,7 @@ function anthropicToGeminiSSE(line: string, state: AnthropicToGeminiState): stri
         type: "tool_use", index,
         toolName: block.name as string,
         toolId: block.id as string,
-        input: JSON.stringify(block.input ?? ""),
+        input: block.input && typeof block.input === "object" && Object.keys(block.input as Record<string, unknown>).length > 0 ? JSON.stringify(block.input) : "",
       };
     }
     return results;
