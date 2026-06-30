@@ -65,6 +65,8 @@ export default function RedactorPlayground() {
     setChatMessages((prev) => [...prev, userMsg]);
     setChatInput("");
     setChatBusy(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
     try {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
@@ -80,7 +82,9 @@ export default function RedactorPlayground() {
           model: chatModel,
           messages: [...chatMessages, userMsg],
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       if (!res.ok) {
         const text = await res.text();
         let msg: string;
@@ -89,7 +93,7 @@ export default function RedactorPlayground() {
       }
       const data = await res.json();
 
-      const reply = data?.choices?.[0]?.message?.content || data?.content?.[0]?.text || JSON.stringify(data);
+      const reply = data?.choices?.[0]?.message?.content ?? data?.content?.[0]?.text ?? JSON.stringify(data);
       setChatMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (err) {
       setChatMessages((prev) => [...prev, { role: "assistant", content: `Error: ${(err as Error).message}` }]);
