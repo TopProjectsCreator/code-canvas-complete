@@ -39,6 +39,15 @@ export default function RedactorPlayground() {
   const [chatModel, setChatModel] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const PROVIDER_MAP: Record<string, string> = {
+    google: "gemini",
+  };
+
+  useEffect(() => {
+    return () => abortRef.current?.abort();
+  }, []);
 
   useEffect(() => {
     supabase
@@ -66,11 +75,17 @@ export default function RedactorPlayground() {
     setChatInput("");
     setChatBusy(true);
     const controller = new AbortController();
+    abortRef.current = controller;
     const timeout = setTimeout(() => controller.abort(), 30000);
     try {
       const { data: session } = await supabase.auth.getSession();
       const token = session?.session?.access_token;
       if (!token) throw new Error("Not authenticated");
+
+      const slash = chatModel.indexOf("/");
+      const provider = slash > 0 ? (PROVIDER_MAP[chatModel.slice(0, slash)] ?? chatModel.slice(0, slash)) : undefined;
+      const body: Record<string, unknown> = { model: chatModel, messages: [...chatMessages, userMsg] };
+      if (provider) body.provider = provider;
 
       const res = await fetch("/api/oauth/ai/chat", {
         method: "POST",
@@ -78,10 +93,7 @@ export default function RedactorPlayground() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          model: chatModel,
-          messages: [...chatMessages, userMsg],
-        }),
+        body: JSON.stringify(body),
         signal: controller.signal,
       });
       if (!res.ok) {
@@ -98,6 +110,7 @@ export default function RedactorPlayground() {
       setChatMessages((prev) => [...prev, { role: "assistant", content: `Error: ${(err as Error).message}` }]);
     } finally {
       clearTimeout(timeout);
+      abortRef.current = null;
       setChatBusy(false);
     }
   }
