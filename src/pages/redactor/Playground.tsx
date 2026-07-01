@@ -31,14 +31,13 @@ export default function RedactorPlayground() {
   const [busy, setBusy] = useState(false);
 
   // Image redaction
-  const [, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [ocrText, setOcrText] = useState("");
-  const [, setOcrWords] = useState<OCRWord[]>([]);
   const [redactedImageUrl, setRedactedImageUrl] = useState<string | null>(null);
   const [imgOut, setImgOut] = useState<{ redacted: string; matches: { token: string; original: string; type: string }[]; hasPii: boolean } | null>(null);
   const [ocrBusy, setOcrBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const uploadIndex = useRef(0);
 
   // Chat
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -91,6 +90,7 @@ export default function RedactorPlayground() {
     setChatMessages((prev) => [...prev, userMsg]);
     setChatInput("");
     setChatBusy(true);
+    abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     const timeout = setTimeout(() => controller.abort(), 30000);
@@ -148,38 +148,43 @@ export default function RedactorPlayground() {
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setImageFile(file);
     const url = URL.createObjectURL(file);
     setImagePreview(url);
     setOcrText("");
-    setOcrWords([]);
     setRedactedImageUrl(null);
     setImgOut(null);
 
+    const idx = ++uploadIndex.current;
     setOcrBusy(true);
     try {
       const T = await import("tesseract.js");
       const { data } = await T.recognize(file, "eng");
+      if (idx !== uploadIndex.current) return;
       const words: OCRWord[] = ((data as any).words ?? []).map((w: any) => ({
         text: w.text,
         bbox: { x0: w.bbox.x0, y0: w.bbox.y0, x1: w.bbox.x1, y1: w.bbox.y1 },
       }));
       setOcrText(data.text);
-      setOcrWords(words);
 
       const r = previewImageRedaction(data.text);
       setImgOut(r);
 
       // Generate pixelated image preview when PII is found
       if (r.hasPii && words.length > 0) {
+        const pxIdx = idx;
         pixelateImageOnCanvas(url, words, r.matches, data.text)
-          .then((redactedUrl) => setRedactedImageUrl(redactedUrl))
-          .catch((err) => console.error("Pixelation failed", err));
+          .then((redactedUrl) => {
+            if (pxIdx === uploadIndex.current) setRedactedImageUrl(redactedUrl);
+          })
+          .catch((err) => {
+            console.error("Pixelation failed", err);
+            if (pxIdx === uploadIndex.current) setOcrText(`Pixelation failed: ${(err as any)?.message ?? String(err)}`);
+          });
       }
     } catch (err) {
-      setOcrText(`OCR failed: ${(err as any)?.message ?? String(err)}`);
+      if (idx === uploadIndex.current) setOcrText(`OCR failed: ${(err as any)?.message ?? String(err)}`);
     } finally {
-      setOcrBusy(false);
+      if (idx === uploadIndex.current) setOcrBusy(false);
     }
   }
 

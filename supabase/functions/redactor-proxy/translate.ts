@@ -989,11 +989,8 @@ export function createOpenaiToAnthropicTransformer(): (line: string) => string[]
 }
 
 export function detectShape(body: Record<string, unknown>): Shape {
-  if (body.messages) return "openai";
   if (body.contents) return "gemini";
-  if (body.messages === undefined && (body.anthropic_version || body.max_tokens !== undefined)) {
-    return "anthropic";
-  }
-  if (Array.isArray(body.contents)) return "gemini";
+  if (body.anthropic_version || ((body.messages === undefined || body.messages === null) && body.max_tokens !== undefined)) return "anthropic";
+  if (body.messages) return "openai";
   return "openai";
 }
