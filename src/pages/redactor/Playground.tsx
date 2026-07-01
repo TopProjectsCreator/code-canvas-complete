@@ -16,6 +16,10 @@ const PROVIDER_MAP: Record<string, string> = {
   google: "gemini",
 };
 
+function safeStringify(obj: unknown): string {
+  try { return JSON.stringify(obj); } catch { return String(obj); }
+}
+
 export default function RedactorPlayground() {
   const [tab, setTab] = useState<Tab>("text");
 
@@ -45,6 +49,11 @@ export default function RedactorPlayground() {
   const [chatModelError, setChatModelError] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Revoke previous blob URL when a new one replaces it
+  useEffect(() => {
+    return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); };
+  }, [imagePreview]);
 
   useEffect(() => {
     return () => abortRef.current?.abort();
@@ -115,8 +124,9 @@ export default function RedactorPlayground() {
       const reply = data?.choices?.[0]?.message?.content ?? data?.content?.[0]?.text ?? JSON.stringify(data);
       setChatMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (err) {
-      const errMsg = (err as any)?.message ?? (typeof err === "object" ? (() => { try { return JSON.stringify(err); } catch { return String(err); } })() : String(err));
-      const userMsg = (err as any)?.name === "AbortError" ? "Request timed out" : errMsg;
+      const errObj = err as any;
+      const errMsg = errObj?.message ?? (typeof err === "object" ? safeStringify(err) : String(err));
+      const userMsg = errObj?.name === "AbortError" ? "Request timed out" : errMsg;
       setChatMessages((prev) => [...prev, { role: "assistant", content: `Error: ${userMsg}` }]);
     } finally {
       clearTimeout(timeout);
@@ -139,8 +149,6 @@ export default function RedactorPlayground() {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageFile(file);
-    // Revoke previous blob URL to avoid memory leak
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
     const url = URL.createObjectURL(file);
     setImagePreview(url);
     setOcrText("");
