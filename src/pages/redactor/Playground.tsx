@@ -77,7 +77,7 @@ export default function RedactorPlayground() {
   }, [chatMessages]);
 
   async function sendChat() {
-    if (!chatInput.trim() || chatBusy) return;
+    if (!chatInput.trim() || chatBusy || !chatModel) return;
     const userMsg: ChatMessage = { role: "user", content: chatInput.trim() };
     setChatMessages((prev) => [...prev, userMsg]);
     setChatInput("");
@@ -115,7 +115,9 @@ export default function RedactorPlayground() {
       const reply = data?.choices?.[0]?.message?.content ?? data?.content?.[0]?.text ?? JSON.stringify(data);
       setChatMessages((prev) => [...prev, { role: "assistant", content: reply }]);
     } catch (err) {
-      setChatMessages((prev) => [...prev, { role: "assistant", content: `Error: ${(err as any)?.message ?? String(err)}` }]);
+      const errMsg = (err as any)?.message ?? (typeof err === "object" ? (() => { try { return JSON.stringify(err); } catch { return String(err); } })() : String(err));
+      const userMsg = (err as any)?.name === "AbortError" ? "Request timed out" : errMsg;
+      setChatMessages((prev) => [...prev, { role: "assistant", content: `Error: ${userMsg}` }]);
     } finally {
       clearTimeout(timeout);
       abortRef.current = null;
@@ -137,6 +139,8 @@ export default function RedactorPlayground() {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageFile(file);
+    // Revoke previous blob URL to avoid memory leak
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
     const url = URL.createObjectURL(file);
     setImagePreview(url);
     setOcrText("");
@@ -160,12 +164,12 @@ export default function RedactorPlayground() {
 
       // Generate pixelated image preview when PII is found
       if (r.hasPii && words.length > 0) {
-        pixelateImageOnCanvas(url, words, r.matches, data.text).then(
-          (redactedUrl) => setRedactedImageUrl(redactedUrl),
-        );
+        pixelateImageOnCanvas(url, words, r.matches, data.text)
+          .then((redactedUrl) => setRedactedImageUrl(redactedUrl))
+          .catch((err) => console.error("Pixelation failed", err));
       }
     } catch (err) {
-      setOcrText(`OCR failed: ${(err as Error).message}`);
+      setOcrText(`OCR failed: ${(err as any)?.message ?? String(err)}`);
     } finally {
       setOcrBusy(false);
     }
@@ -416,7 +420,7 @@ export default function RedactorPlayground() {
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   placeholder="Type a message\u2026"
-                  disabled={chatBusy}
+                  disabled={chatBusy || chatModels.length === 0}
                   className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
                 />
                 <Button type="submit" disabled={chatBusy || !chatInput.trim() || chatModels.length === 0}>
