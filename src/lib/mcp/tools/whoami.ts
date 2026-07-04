@@ -1,5 +1,5 @@
 import { defineTool } from "@lovable.dev/mcp-js";
-import { requireAuth, userClient, ok, err } from "../_shared";
+import { requireAuth, userClient, ok } from "../_shared";
 
 export default defineTool({
   name: "whoami",
