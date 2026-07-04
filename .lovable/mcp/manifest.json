@@ -3,12 +3,16 @@
   "sdk_version": "0.20.0",
   "path": "/functions/v1/mcp",
   "auth": {
-    "type": "none"
+    "type": "oauth",
+    "issuer": "https://xlmvlplazxrouscupidi.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
   },
   "mcp": {
     "server": {
       "name": "codecanvas-mcp",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "title": "CodeCanvas MCP"
     },
     "tools": [
@@ -79,6 +83,725 @@
           "$schema": "http://json-schema.org/draft-07/schema#",
           "type": "object",
           "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "whoami",
+        "title": "Who am I",
+        "description": "Return the signed-in user's id, email, and profile display name.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_my_canvases",
+        "title": "List my canvases",
+        "description": "List CodeCanvas projects owned by the signed-in user.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_canvas",
+        "title": "Get canvas details",
+        "description": "Get full details of one canvas the user can access (owned, collaborated on, or public). Returns metadata and a flat file listing.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "required": [
+            "canvas_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_canvas",
+        "title": "Create canvas",
+        "description": "Create a new empty CodeCanvas project owned by the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "language": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "is_public": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "name"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "delete_canvas",
+        "title": "Delete canvas",
+        "description": "Permanently delete a canvas owned by the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "required": [
+            "canvas_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_canvas_meta",
+        "title": "Update canvas metadata",
+        "description": "Rename, re-describe, change language, or toggle public visibility.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "language": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "is_public": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "canvas_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "fork_canvas",
+        "title": "Fork canvas",
+        "description": "Create a copy of a canvas the user can access, owned by the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          },
+          "required": [
+            "canvas_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_files",
+        "title": "List canvas files",
+        "description": "List every file in a canvas as a flat slash-delimited path list.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "required": [
+            "canvas_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "read_file",
+        "title": "Read canvas file",
+        "description": "Read the full contents of one file in a canvas.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Slash-delimited path from the root folder (e.g. `my-repl/main.zig`)."
+            }
+          },
+          "required": [
+            "canvas_id",
+            "path"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "write_file",
+        "title": "Write canvas file",
+        "description": "Create or overwrite a file in a canvas the user owns.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "content": {
+              "type": "string"
+            },
+            "language": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          "required": [
+            "canvas_id",
+            "path",
+            "content"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "delete_file",
+        "title": "Delete canvas file",
+        "description": "Delete a file or folder from a canvas the user owns.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "canvas_id",
+            "path"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "search_in_canvas",
+        "title": "Search inside a canvas",
+        "description": "Grep-style substring search across every file in a canvas. Returns matching path, line number, and line text.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "query": {
+              "type": "string",
+              "minLength": 1
+            },
+            "case_sensitive": {
+              "type": "boolean"
+            },
+            "max_results": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          "required": [
+            "canvas_id",
+            "query"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "add_comment",
+        "title": "Add code comment",
+        "description": "Post a comment on a specific line of a file in a canvas.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "file_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "line_number": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "content": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "parent_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "required": [
+            "canvas_id",
+            "file_path",
+            "line_number",
+            "content"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_comments",
+        "title": "List code comments",
+        "description": "List code comments on a canvas, optionally filtered by file path.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "file_path": {
+              "type": "string"
+            },
+            "include_resolved": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "canvas_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "resolve_comment",
+        "title": "Resolve comment",
+        "description": "Mark a code comment as resolved (or reopened).",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "comment_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "resolved": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "comment_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "request_review",
+        "title": "Request code review",
+        "description": "Open a code review request on a canvas.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "description": {
+              "type": "string",
+              "maxLength": 4000
+            },
+            "reviewer_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "file_paths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "canvas_id",
+            "title"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_reviews",
+        "title": "List code reviews",
+        "description": "List code reviews visible to the signed-in user, optionally scoped to one canvas.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "open",
+                "approved",
+                "changes_requested",
+                "closed"
+              ]
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "star_canvas",
+        "title": "Star or unstar canvas",
+        "description": "Star (or unstar) a canvas as the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "starred": {
+              "type": "boolean",
+              "description": "true to star, false to unstar"
+            }
+          },
+          "required": [
+            "canvas_id",
+            "starred"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "bookmark_canvas",
+        "title": "Bookmark or unbookmark canvas",
+        "description": "Bookmark (or remove bookmark on) a canvas as the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "bookmarked": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "canvas_id",
+            "bookmarked"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "run_code",
+        "title": "Run code",
+        "description": "Execute a code snippet on the CodeCanvas execution backend (containerized sandbox for supported languages). Returns stdout, stderr, and exit code.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "language": {
+              "type": "string",
+              "minLength": 1,
+              "description": "e.g. `python`, `javascript`, `typescript`, `bash`, `java`, `cpp`, `rust`, `go`."
+            },
+            "code": {
+              "type": "string",
+              "minLength": 1
+            },
+            "stdin": {
+              "type": "string"
+            },
+            "timeout_ms": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 60000
+            }
+          },
+          "required": [
+            "language",
+            "code"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_preview_url",
+        "title": "Get canvas preview URL",
+        "description": "Return the public preview URL for a canvas. Requires the canvas to be published (has a publish_slug).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "canvas_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "required": [
+            "canvas_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_messages",
+        "title": "List inbox messages",
+        "description": "List the signed-in user's inbox messages.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "unread_only": {
+              "type": "boolean"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "send_message",
+        "title": "Send inbox message",
+        "description": "Send a message to another CodeCanvas user by user id.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "recipient_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "subject": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "body_html": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20000
+            },
+            "kind": {
+              "type": "string",
+              "maxLength": 40
+            }
+          },
+          "required": [
+            "recipient_id",
+            "subject",
+            "body_html"
+          ]
         },
         "outputSchema": null
       }
