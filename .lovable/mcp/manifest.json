@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "none"
+  },
+  "mcp": {
+    "server": {
+      "name": "codecanvas-mcp",
+      "version": "0.1.0",
+      "title": "CodeCanvas MCP"
+    },
+    "tools": [
+      {
+        "name": "search_public_canvases",
+        "title": "Search public canvases",
+        "description": "Search public CodeCanvas projects by name, description, or language. Returns up to 20 results ordered by stars.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Free-text query matched against name, description, and language."
+            },
+            "limit": {
+              "description": "Maximum number of results (default 10, max 20).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_featured_canvases",
+        "title": "Get featured canvases",
+        "description": "Return the top public CodeCanvas projects ordered by star count.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "How many featured canvases to return (default 5, max 20).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_canvas_count",
+        "title": "Get total canvas count",
+        "description": "Return the total number of CodeCanvas projects across the platform.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
