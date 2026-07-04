@@ -3,7 +3,7 @@
 // supabase function: mcp
 // Bundled from src/lib/mcp/index.ts by @lovable.dev/mcp-js.
 // src/lib/mcp/index.ts
-import { defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.20.0";
 
 // src/lib/mcp/tools/search-public-canvases.ts
 import { createClient } from "npm:@supabase/supabase-js@^2.93.3";
@@ -97,13 +97,823 @@ var get_canvas_count_default = defineTool3({
   }
 });
 
+// src/lib/mcp/tools/whoami.ts
+import { defineTool as defineTool4 } from "npm:@lovable.dev/mcp-js@0.20.0";
+
+// src/lib/mcp/_shared.ts
+import { createClient as createClient4 } from "npm:@supabase/supabase-js@^2.93.3";
+function userClient(ctx) {
+  return createClient4(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY,
+    {
+      global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
+      auth: { persistSession: false, autoRefreshToken: false }
+    }
+  );
+}
+function requireAuth(ctx) {
+  if (!ctx.isAuthenticated()) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: "Not authenticated. Sign in via OAuth to use this tool."
+        }
+      ],
+      isError: true
+    };
+  }
+  return null;
+}
+function ok(payload, text) {
+  return {
+    content: [
+      { type: "text", text: text ?? JSON.stringify(payload, null, 2) }
+    ],
+    structuredContent: payload
+  };
+}
+function err(message) {
+  return {
+    content: [{ type: "text", text: message }],
+    isError: true
+  };
+}
+function flattenFiles(nodes, prefix = "") {
+  if (!Array.isArray(nodes)) return [];
+  const out = [];
+  for (const node of nodes) {
+    const path = prefix ? `${prefix}/${node.name}` : node.name;
+    if (node.type === "folder") {
+      out.push(...flattenFiles(node.children, path));
+    } else {
+      out.push({
+        path,
+        language: node.language,
+        size: (node.content ?? "").length
+      });
+    }
+  }
+  return out;
+}
+function findFile(nodes, path) {
+  const parts = path.split("/").filter(Boolean);
+  if (!parts.length || !Array.isArray(nodes)) return null;
+  let current = nodes.find((n) => n.name === parts[0]);
+  for (let i = 1; i < parts.length && current; i++) {
+    if (current.type !== "folder" || !current.children) return null;
+    current = current.children.find((n) => n.name === parts[i]);
+  }
+  return current && current.type === "file" ? current : null;
+}
+function upsertFile(nodes, path, content, language) {
+  const parts = path.split("/").filter(Boolean);
+  if (!parts.length) throw new Error("Empty path");
+  const tree = Array.isArray(nodes) ? [...nodes] : [];
+  const walk = (arr, depth) => {
+    const name = parts[depth];
+    const isLast = depth === parts.length - 1;
+    const idx = arr.findIndex((n) => n.name === name);
+    if (isLast) {
+      const file = {
+        id: idx >= 0 ? arr[idx].id : `${name}-${Date.now()}`,
+        name,
+        type: "file",
+        content,
+        language
+      };
+      const next2 = [...arr];
+      if (idx >= 0) next2[idx] = file;
+      else next2.push(file);
+      return next2;
+    }
+    const folder = idx >= 0 && arr[idx].type === "folder" ? arr[idx] : {
+      id: `${name}-${Date.now()}`,
+      name,
+      type: "folder",
+      children: []
+    };
+    const nextChildren = walk(folder.children ?? [], depth + 1);
+    const next = [...arr];
+    const updated = { ...folder, children: nextChildren };
+    if (idx >= 0) next[idx] = updated;
+    else next.push(updated);
+    return next;
+  };
+  return walk(tree, 0);
+}
+function deleteAtPath(nodes, path) {
+  const parts = path.split("/").filter(Boolean);
+  if (!parts.length || !Array.isArray(nodes)) return nodes ?? [];
+  const walk = (arr, depth) => {
+    const name = parts[depth];
+    const isLast = depth === parts.length - 1;
+    if (isLast) return arr.filter((n) => n.name !== name);
+    return arr.map((n) => {
+      if (n.name === name && n.type === "folder") {
+        return { ...n, children: walk(n.children ?? [], depth + 1) };
+      }
+      return n;
+    });
+  };
+  return walk(nodes, 0);
+}
+async function loadProject(ctx, projectId) {
+  const sb = userClient(ctx);
+  const { data, error } = await sb.from("projects").select("*").eq("id", projectId).maybeSingle();
+  if (error) return { error: error.message };
+  if (!data) return { error: "Project not found or you don't have access." };
+  return { project: data };
+}
+
+// src/lib/mcp/tools/whoami.ts
+var whoami_default = defineTool4({
+  name: "whoami",
+  title: "Who am I",
+  description: "Return the signed-in user's id, email, and profile display name.",
+  inputSchema: {},
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async (_input, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { data } = await userClient(ctx).from("profiles").select("display_name, avatar_url").eq("user_id", ctx.getUserId()).maybeSingle();
+    return ok({
+      user_id: ctx.getUserId(),
+      email: ctx.getUserEmail(),
+      display_name: data?.display_name ?? null,
+      avatar_url: data?.avatar_url ?? null
+    });
+  }
+});
+
+// src/lib/mcp/tools/list-my-canvases.ts
+import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z3 } from "npm:zod@^4.4.3";
+var list_my_canvases_default = defineTool5({
+  name: "list_my_canvases",
+  title: "List my canvases",
+  description: "List CodeCanvas projects owned by the signed-in user.",
+  inputSchema: {
+    limit: z3.number().int().min(1).max(100).optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ limit }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { data, error } = await userClient(ctx).from("projects").select("id, name, description, language, is_public, stars_count, updated_at").eq("user_id", ctx.getUserId()).order("updated_at", { ascending: false }).limit(limit ?? 25);
+    if (error) return err(error.message);
+    return ok({ canvases: data ?? [] });
+  }
+});
+
+// src/lib/mcp/tools/get-canvas.ts
+import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z4 } from "npm:zod@^4.4.3";
+var get_canvas_default = defineTool6({
+  name: "get_canvas",
+  title: "Get canvas details",
+  description: "Get full details of one canvas the user can access (owned, collaborated on, or public). Returns metadata and a flat file listing.",
+  inputSchema: { canvas_id: z4.string().uuid() },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ canvas_id }, ctx) => {
+    const { project, error } = await loadProject(ctx, canvas_id);
+    if (error) return err(error);
+    const files = flattenFiles(project.files);
+    return ok({
+      canvas: {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        language: project.language,
+        is_public: project.is_public,
+        stars_count: project.stars_count,
+        publish_slug: project.publish_slug,
+        published_at: project.published_at,
+        updated_at: project.updated_at,
+        file_count: files.length
+      },
+      files
+    });
+  }
+});
+
+// src/lib/mcp/tools/create-canvas.ts
+import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z5 } from "npm:zod@^4.4.3";
+var create_canvas_default = defineTool7({
+  name: "create_canvas",
+  title: "Create canvas",
+  description: "Create a new empty CodeCanvas project owned by the signed-in user.",
+  inputSchema: {
+    name: z5.string().trim().min(1).max(120),
+    description: z5.string().max(500).optional(),
+    language: z5.string().max(40).optional(),
+    is_public: z5.boolean().optional()
+  },
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+  handler: async ({ name, description, language, is_public }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const root = [
+      {
+        id: `root-${Date.now()}`,
+        name,
+        type: "folder",
+        children: [
+          {
+            id: `readme-${Date.now()}`,
+            name: "README.md",
+            type: "file",
+            content: `# ${name}
+
+${description ?? ""}`,
+            language: "markdown"
+          }
+        ]
+      }
+    ];
+    const { data, error } = await userClient(ctx).from("projects").insert({
+      user_id: ctx.getUserId(),
+      name,
+      description: description ?? null,
+      language: language ?? "javascript",
+      is_public: is_public ?? false,
+      files: root
+    }).select("id, name").single();
+    if (error) return err(error.message);
+    return ok({ canvas: data });
+  }
+});
+
+// src/lib/mcp/tools/delete-canvas.ts
+import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z6 } from "npm:zod@^4.4.3";
+var delete_canvas_default = defineTool8({
+  name: "delete_canvas",
+  title: "Delete canvas",
+  description: "Permanently delete a canvas owned by the signed-in user.",
+  inputSchema: { canvas_id: z6.string().uuid() },
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  handler: async ({ canvas_id }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { error } = await userClient(ctx).from("projects").delete().eq("id", canvas_id).eq("user_id", ctx.getUserId());
+    if (error) return err(error.message);
+    return ok({ deleted: canvas_id });
+  }
+});
+
+// src/lib/mcp/tools/update-canvas-meta.ts
+import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z7 } from "npm:zod@^4.4.3";
+var update_canvas_meta_default = defineTool9({
+  name: "update_canvas_meta",
+  title: "Update canvas metadata",
+  description: "Rename, re-describe, change language, or toggle public visibility.",
+  inputSchema: {
+    canvas_id: z7.string().uuid(),
+    name: z7.string().trim().min(1).max(120).optional(),
+    description: z7.string().max(500).optional(),
+    language: z7.string().max(40).optional(),
+    is_public: z7.boolean().optional()
+  },
+  annotations: { readOnlyHint: false, openWorldHint: false },
+  handler: async ({ canvas_id, ...patch }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const clean = Object.fromEntries(
+      Object.entries(patch).filter(([, v]) => v !== void 0)
+    );
+    if (!Object.keys(clean).length) return err("No fields to update.");
+    const { data, error } = await userClient(ctx).from("projects").update(clean).eq("id", canvas_id).eq("user_id", ctx.getUserId()).select("id, name, description, language, is_public").maybeSingle();
+    if (error) return err(error.message);
+    if (!data) return err("Canvas not found or not owned by you.");
+    return ok({ canvas: data });
+  }
+});
+
+// src/lib/mcp/tools/fork-canvas.ts
+import { defineTool as defineTool10 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z8 } from "npm:zod@^4.4.3";
+var fork_canvas_default = defineTool10({
+  name: "fork_canvas",
+  title: "Fork canvas",
+  description: "Create a copy of a canvas the user can access, owned by the signed-in user.",
+  inputSchema: {
+    canvas_id: z8.string().uuid(),
+    name: z8.string().trim().min(1).max(120).optional()
+  },
+  annotations: { readOnlyHint: false, openWorldHint: false },
+  handler: async ({ canvas_id, name }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { project, error } = await loadProject(ctx, canvas_id);
+    if (error) return err(error);
+    const { data, error: insertError } = await userClient(ctx).from("projects").insert({
+      user_id: ctx.getUserId(),
+      name: name ?? `${project.name} (fork)`,
+      description: project.description,
+      language: project.language,
+      is_public: false,
+      files: project.files,
+      forked_from: project.id
+    }).select("id, name").single();
+    if (insertError) return err(insertError.message);
+    return ok({ canvas: data });
+  }
+});
+
+// src/lib/mcp/tools/list-files.ts
+import { defineTool as defineTool11 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z9 } from "npm:zod@^4.4.3";
+var list_files_default = defineTool11({
+  name: "list_files",
+  title: "List canvas files",
+  description: "List every file in a canvas as a flat slash-delimited path list.",
+  inputSchema: { canvas_id: z9.string().uuid() },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ canvas_id }, ctx) => {
+    const { project, error } = await loadProject(ctx, canvas_id);
+    if (error) return err(error);
+    return ok({ files: flattenFiles(project.files) });
+  }
+});
+
+// src/lib/mcp/tools/read-file.ts
+import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z10 } from "npm:zod@^4.4.3";
+var read_file_default = defineTool12({
+  name: "read_file",
+  title: "Read canvas file",
+  description: "Read the full contents of one file in a canvas.",
+  inputSchema: {
+    canvas_id: z10.string().uuid(),
+    path: z10.string().min(1).describe("Slash-delimited path from the root folder (e.g. `my-repl/main.zig`).")
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ canvas_id, path }, ctx) => {
+    const { project, error } = await loadProject(ctx, canvas_id);
+    if (error) return err(error);
+    const file = findFile(project.files, path);
+    if (!file) return err(`File not found: ${path}`);
+    return ok(
+      { path, language: file.language, content: file.content ?? "" },
+      file.content ?? ""
+    );
+  }
+});
+
+// src/lib/mcp/tools/write-file.ts
+import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z11 } from "npm:zod@^4.4.3";
+var write_file_default = defineTool13({
+  name: "write_file",
+  title: "Write canvas file",
+  description: "Create or overwrite a file in a canvas the user owns.",
+  inputSchema: {
+    canvas_id: z11.string().uuid(),
+    path: z11.string().min(1),
+    content: z11.string(),
+    language: z11.string().max(40).optional()
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  handler: async ({ canvas_id, path, content, language }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { project, error } = await loadProject(ctx, canvas_id);
+    if (error) return err(error);
+    if (project.user_id !== ctx.getUserId()) {
+      return err("Only the canvas owner can write files.");
+    }
+    const nextFiles = upsertFile(project.files, path, content, language);
+    const { error: updateError } = await userClient(ctx).from("projects").update({ files: nextFiles }).eq("id", canvas_id);
+    if (updateError) return err(updateError.message);
+    return ok({ path, bytes: content.length });
+  }
+});
+
+// src/lib/mcp/tools/delete-file.ts
+import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z12 } from "npm:zod@^4.4.3";
+var delete_file_default = defineTool14({
+  name: "delete_file",
+  title: "Delete canvas file",
+  description: "Delete a file or folder from a canvas the user owns.",
+  inputSchema: {
+    canvas_id: z12.string().uuid(),
+    path: z12.string().min(1)
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  handler: async ({ canvas_id, path }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { project, error } = await loadProject(ctx, canvas_id);
+    if (error) return err(error);
+    if (project.user_id !== ctx.getUserId()) {
+      return err("Only the canvas owner can delete files.");
+    }
+    const nextFiles = deleteAtPath(project.files, path);
+    const { error: updateError } = await userClient(ctx).from("projects").update({ files: nextFiles }).eq("id", canvas_id);
+    if (updateError) return err(updateError.message);
+    return ok({ deleted: path });
+  }
+});
+
+// src/lib/mcp/tools/search-in-canvas.ts
+import { defineTool as defineTool15 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z13 } from "npm:zod@^4.4.3";
+var search_in_canvas_default = defineTool15({
+  name: "search_in_canvas",
+  title: "Search inside a canvas",
+  description: "Grep-style substring search across every file in a canvas. Returns matching path, line number, and line text.",
+  inputSchema: {
+    canvas_id: z13.string().uuid(),
+    query: z13.string().min(1),
+    case_sensitive: z13.boolean().optional(),
+    max_results: z13.number().int().min(1).max(200).optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ canvas_id, query, case_sensitive, max_results }, ctx) => {
+    const { project, error } = await loadProject(ctx, canvas_id);
+    if (error) return err(error);
+    const files = flattenFiles(project.files);
+    const cap = max_results ?? 50;
+    const needle = case_sensitive ? query : query.toLowerCase();
+    const matches = [];
+    for (const f of files) {
+      const node = findFile(project.files, f.path);
+      const content = node?.content ?? "";
+      const lines = content.split(/\r?\n/);
+      for (let i = 0; i < lines.length; i++) {
+        const hay = case_sensitive ? lines[i] : lines[i].toLowerCase();
+        if (hay.includes(needle)) {
+          matches.push({ path: f.path, line: i + 1, text: lines[i].slice(0, 300) });
+          if (matches.length >= cap) return ok({ matches, truncated: true });
+        }
+      }
+    }
+    return ok({ matches, truncated: false });
+  }
+});
+
+// src/lib/mcp/tools/add-comment.ts
+import { defineTool as defineTool16 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z14 } from "npm:zod@^4.4.3";
+var add_comment_default = defineTool16({
+  name: "add_comment",
+  title: "Add code comment",
+  description: "Post a comment on a specific line of a file in a canvas.",
+  inputSchema: {
+    canvas_id: z14.string().uuid(),
+    file_path: z14.string().min(1),
+    line_number: z14.number().int().min(1),
+    content: z14.string().min(1).max(4e3),
+    parent_id: z14.string().uuid().optional()
+  },
+  annotations: { readOnlyHint: false, openWorldHint: false },
+  handler: async ({ canvas_id, file_path, line_number, content, parent_id }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { data, error } = await userClient(ctx).from("code_comments").insert({
+      project_id: canvas_id,
+      user_id: ctx.getUserId(),
+      file_path,
+      line_number,
+      content,
+      parent_id: parent_id ?? null
+    }).select("*").single();
+    if (error) return err(error.message);
+    return ok({ comment: data });
+  }
+});
+
+// src/lib/mcp/tools/list-comments.ts
+import { defineTool as defineTool17 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z15 } from "npm:zod@^4.4.3";
+var list_comments_default = defineTool17({
+  name: "list_comments",
+  title: "List code comments",
+  description: "List code comments on a canvas, optionally filtered by file path.",
+  inputSchema: {
+    canvas_id: z15.string().uuid(),
+    file_path: z15.string().optional(),
+    include_resolved: z15.boolean().optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ canvas_id, file_path, include_resolved }, ctx) => {
+    let q = userClient(ctx).from("code_comments").select("*").eq("project_id", canvas_id).order("created_at", { ascending: false }).limit(200);
+    if (file_path) q = q.eq("file_path", file_path);
+    if (!include_resolved) q = q.eq("resolved", false);
+    const { data, error } = await q;
+    if (error) return err(error.message);
+    return ok({ comments: data ?? [] });
+  }
+});
+
+// src/lib/mcp/tools/resolve-comment.ts
+import { defineTool as defineTool18 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z16 } from "npm:zod@^4.4.3";
+var resolve_comment_default = defineTool18({
+  name: "resolve_comment",
+  title: "Resolve comment",
+  description: "Mark a code comment as resolved (or reopened).",
+  inputSchema: {
+    comment_id: z16.string().uuid(),
+    resolved: z16.boolean().optional()
+  },
+  annotations: { readOnlyHint: false, openWorldHint: false },
+  handler: async ({ comment_id, resolved }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { data, error } = await userClient(ctx).from("code_comments").update({ resolved: resolved ?? true }).eq("id", comment_id).select("id, resolved").maybeSingle();
+    if (error) return err(error.message);
+    if (!data) return err("Comment not found or you can't update it.");
+    return ok({ comment: data });
+  }
+});
+
+// src/lib/mcp/tools/star-canvas.ts
+import { defineTool as defineTool19 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z17 } from "npm:zod@^4.4.3";
+var star_canvas_default = defineTool19({
+  name: "star_canvas",
+  title: "Star or unstar canvas",
+  description: "Star (or unstar) a canvas as the signed-in user.",
+  inputSchema: {
+    canvas_id: z17.string().uuid(),
+    starred: z17.boolean().describe("true to star, false to unstar")
+  },
+  annotations: { readOnlyHint: false, openWorldHint: false },
+  handler: async ({ canvas_id, starred }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const sb = userClient(ctx);
+    if (starred) {
+      const { error } = await sb.from("project_stars").upsert({ project_id: canvas_id, user_id: ctx.getUserId() });
+      if (error) return err(error.message);
+    } else {
+      const { error } = await sb.from("project_stars").delete().eq("project_id", canvas_id).eq("user_id", ctx.getUserId());
+      if (error) return err(error.message);
+    }
+    return ok({ canvas_id, starred });
+  }
+});
+
+// src/lib/mcp/tools/bookmark-canvas.ts
+import { defineTool as defineTool20 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z18 } from "npm:zod@^4.4.3";
+var bookmark_canvas_default = defineTool20({
+  name: "bookmark_canvas",
+  title: "Bookmark or unbookmark canvas",
+  description: "Bookmark (or remove bookmark on) a canvas as the signed-in user.",
+  inputSchema: {
+    canvas_id: z18.string().uuid(),
+    bookmarked: z18.boolean()
+  },
+  annotations: { readOnlyHint: false, openWorldHint: false },
+  handler: async ({ canvas_id, bookmarked }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const sb = userClient(ctx);
+    if (bookmarked) {
+      const { error } = await sb.from("project_bookmarks").upsert({ project_id: canvas_id, user_id: ctx.getUserId() });
+      if (error) return err(error.message);
+    } else {
+      const { error } = await sb.from("project_bookmarks").delete().eq("project_id", canvas_id).eq("user_id", ctx.getUserId());
+      if (error) return err(error.message);
+    }
+    return ok({ canvas_id, bookmarked });
+  }
+});
+
+// src/lib/mcp/tools/request-review.ts
+import { defineTool as defineTool21 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z19 } from "npm:zod@^4.4.3";
+var request_review_default = defineTool21({
+  name: "request_review",
+  title: "Request code review",
+  description: "Open a code review request on a canvas.",
+  inputSchema: {
+    canvas_id: z19.string().uuid(),
+    title: z19.string().min(1).max(200),
+    description: z19.string().max(4e3).optional(),
+    reviewer_id: z19.string().uuid().optional(),
+    file_paths: z19.array(z19.string()).optional()
+  },
+  annotations: { readOnlyHint: false, openWorldHint: false },
+  handler: async ({ canvas_id, title, description, reviewer_id, file_paths }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { data, error } = await userClient(ctx).from("code_reviews").insert({
+      project_id: canvas_id,
+      requester_id: ctx.getUserId(),
+      reviewer_id: reviewer_id ?? null,
+      title,
+      description: description ?? null,
+      file_paths: file_paths ?? [],
+      status: "open"
+    }).select("*").single();
+    if (error) return err(error.message);
+    return ok({ review: data });
+  }
+});
+
+// src/lib/mcp/tools/list-reviews.ts
+import { defineTool as defineTool22 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z20 } from "npm:zod@^4.4.3";
+var list_reviews_default = defineTool22({
+  name: "list_reviews",
+  title: "List code reviews",
+  description: "List code reviews visible to the signed-in user, optionally scoped to one canvas.",
+  inputSchema: {
+    canvas_id: z20.string().uuid().optional(),
+    status: z20.enum(["open", "approved", "changes_requested", "closed"]).optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ canvas_id, status }, ctx) => {
+    let q = userClient(ctx).from("code_reviews").select("*").order("created_at", { ascending: false }).limit(100);
+    if (canvas_id) q = q.eq("project_id", canvas_id);
+    if (status) q = q.eq("status", status);
+    const { data, error } = await q;
+    if (error) return err(error.message);
+    return ok({ reviews: data ?? [] });
+  }
+});
+
+// src/lib/mcp/tools/run-code.ts
+import { defineTool as defineTool23 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z21 } from "npm:zod@^4.4.3";
+var run_code_default = defineTool23({
+  name: "run_code",
+  title: "Run code",
+  description: "Execute a code snippet on the CodeCanvas execution backend (containerized sandbox for supported languages). Returns stdout, stderr, and exit code.",
+  inputSchema: {
+    language: z21.string().min(1).describe("e.g. `python`, `javascript`, `typescript`, `bash`, `java`, `cpp`, `rust`, `go`."),
+    code: z21.string().min(1),
+    stdin: z21.string().optional(),
+    timeout_ms: z21.number().int().min(1e3).max(6e4).optional()
+  },
+  annotations: { readOnlyHint: false, openWorldHint: true },
+  handler: async ({ language, code, stdin, timeout_ms }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    try {
+      const res = await fetch(
+        `${process.env.SUPABASE_URL}/functions/v1/execute-code`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${ctx.getToken()}`,
+            apikey: process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({
+            language,
+            code,
+            stdin: stdin ?? "",
+            timeout: timeout_ms ?? 15e3
+          })
+        }
+      );
+      const text = await res.text();
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = { raw: text };
+      }
+      if (!res.ok) return err(`Execution failed (${res.status}): ${text.slice(0, 500)}`);
+      return ok(parsed);
+    } catch (e) {
+      return err(`Execution error: ${e.message}`);
+    }
+  }
+});
+
+// src/lib/mcp/tools/get-preview-url.ts
+import { defineTool as defineTool24 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z22 } from "npm:zod@^4.4.3";
+var get_preview_url_default = defineTool24({
+  name: "get_preview_url",
+  title: "Get canvas preview URL",
+  description: "Return the public preview URL for a canvas. Requires the canvas to be published (has a publish_slug).",
+  inputSchema: { canvas_id: z22.string().uuid() },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ canvas_id }, ctx) => {
+    const { project, error } = await loadProject(ctx, canvas_id);
+    if (error) return err(error);
+    if (!project.publish_slug) {
+      return err("Canvas is not published. Call update_canvas_meta to publish it first, or open it in the editor.");
+    }
+    const editorUrl = `https://codecanvas.app/project/${project.id}`;
+    const publishedUrl = `https://${project.publish_slug}.codecanvas.app`;
+    return ok({
+      editor_url: editorUrl,
+      published_url: publishedUrl,
+      published_at: project.published_at
+    });
+  }
+});
+
+// src/lib/mcp/tools/list-messages.ts
+import { defineTool as defineTool25 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z23 } from "npm:zod@^4.4.3";
+var list_messages_default = defineTool25({
+  name: "list_messages",
+  title: "List inbox messages",
+  description: "List the signed-in user's inbox messages.",
+  inputSchema: {
+    unread_only: z23.boolean().optional(),
+    limit: z23.number().int().min(1).max(100).optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ unread_only, limit }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    let q = userClient(ctx).from("messages").select("id, sender_id, subject, kind, read_at, created_at, labels").eq("recipient_id", ctx.getUserId()).order("created_at", { ascending: false }).limit(limit ?? 25);
+    if (unread_only) q = q.is("read_at", null);
+    const { data, error } = await q;
+    if (error) return err(error.message);
+    return ok({ messages: data ?? [] });
+  }
+});
+
+// src/lib/mcp/tools/send-message.ts
+import { defineTool as defineTool26 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z24 } from "npm:zod@^4.4.3";
+var send_message_default = defineTool26({
+  name: "send_message",
+  title: "Send inbox message",
+  description: "Send a message to another CodeCanvas user by user id.",
+  inputSchema: {
+    recipient_id: z24.string().uuid(),
+    subject: z24.string().min(1).max(200),
+    body_html: z24.string().min(1).max(2e4),
+    kind: z24.string().max(40).optional()
+  },
+  annotations: { readOnlyHint: false, openWorldHint: false },
+  handler: async ({ recipient_id, subject, body_html, kind }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { data, error } = await userClient(ctx).from("messages").insert({
+      sender_id: ctx.getUserId(),
+      recipient_id,
+      subject,
+      body_html,
+      kind: kind ?? "direct"
+    }).select("id, subject, created_at").single();
+    if (error) return err(error.message);
+    return ok({ message: data });
+  }
+});
+
 // src/lib/mcp/index.ts
+var projectRef = "xlmvlplazxrouscupidi";
 var mcp_default = defineMcp({
   name: "codecanvas-mcp",
   title: "CodeCanvas MCP",
-  version: "0.1.0",
-  instructions: "Tools for exploring public CodeCanvas projects. Use `search_public_canvases` to find canvases by keyword, `get_featured_canvases` for the top-starred canvases, and `get_canvas_count` for the total number of canvases on the platform.",
-  tools: [search_public_canvases_default, get_featured_canvases_default, get_canvas_count_default]
+  version: "0.2.0",
+  instructions: "CodeCanvas MCP: everything the in-app AI assistant can do \u2014 sign in via OAuth to browse and edit your canvases, read/write files, run code in the execution sandbox, leave code comments, request reviews, star/bookmark, and manage inbox messages. Public discovery tools (search_public_canvases, get_featured_canvases, get_canvas_count) work without auth.",
+  auth: auth.oauth.issuer({
+    issuer: `https://${projectRef}.supabase.co/auth/v1`,
+    acceptedAudiences: "authenticated"
+  }),
+  tools: [
+    // Public
+    search_public_canvases_default,
+    get_featured_canvases_default,
+    get_canvas_count_default,
+    // Identity
+    whoami_default,
+    // Canvas management
+    list_my_canvases_default,
+    get_canvas_default,
+    create_canvas_default,
+    delete_canvas_default,
+    update_canvas_meta_default,
+    fork_canvas_default,
+    // Files
+    list_files_default,
+    read_file_default,
+    write_file_default,
+    delete_file_default,
+    search_in_canvas_default,
+    // Collaboration
+    add_comment_default,
+    list_comments_default,
+    resolve_comment_default,
+    request_review_default,
+    list_reviews_default,
+    star_canvas_default,
+    bookmark_canvas_default,
+    // Execution / preview
+    run_code_default,
+    get_preview_url_default,
+    // Messaging
+    list_messages_default,
+    send_message_default
+  ]
 });
 
 // lovable-mcp-supabase-entry.ts
