@@ -4,11 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { validateReturnUrl, buildHashHandoff } from '@/lib/authBridge';
 import { ExternalOAuthConsent } from '@/components/auth/ExternalOAuthConsent';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Lock, Eye, EyeOff, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { Loader2, Mail, Lock, Eye, EyeOff, ShieldAlert } from 'lucide-react';
 
 type PageStatus = 'loading' | 'error' | 'signin' | 'consent';
 
@@ -24,7 +23,7 @@ function parseScope(raw: string | null): string[] {
 
 const ExternalOAuth = () => {
   const [searchParams] = useSearchParams();
-  const { user, profile, session, signIn, signInWithOAuth, availableOAuthProviders, platform } = useAuth();
+  const { user, profile, session, signIn, signInWithOAuth, availableOAuthProviders } = useAuth();
   const { toast } = useToast();
 
   const [status, setStatus] = useState<PageStatus>('loading');
