@@ -54,6 +54,7 @@
     "@heyputer/puter.js": "^2.2.14",
     "@hookform/resolvers": "^3.10.0",
     "@lovable.dev/cloud-auth-js": "^1.1.2",
+    "@lovable.dev/mcp-js": "^0.20.0",
     "@napi-rs/canvas": "^1.0.0",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -177,7 +178,7 @@
     "vite-plugin-pwa": "^1.2.0",
     "vscode-languageserver-protocol": "^3.18.1",
     "ws": "^8.20.0",
-    "zod": "4.3.6",
+    "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
