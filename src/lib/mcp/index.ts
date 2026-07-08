@@ -76,6 +76,7 @@ export default defineMcp({
     bookmarkCanvas,
     // Execution / preview
     runCode,
+    runShell,
     getPreviewUrl,
     // Messaging
     listMessages,
