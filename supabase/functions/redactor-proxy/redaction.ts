@@ -311,7 +311,7 @@ export function rehydrate(input: string, map: Record<string, string>): string {
   for (const t of tokens) {
     // Escape regex special chars in token
     const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    out = out.replace(new RegExp(escaped, "g"), map[t]);
+    out = out.replace(new RegExp(escaped, "g"), () => map[t]);
   }
   return out;
 }
@@ -324,7 +324,7 @@ export function transformJsonStrings(
   if (typeof value === "string") return fn(value);
   if (Array.isArray(value)) return value.map((v) => transformJsonStrings(v, fn));
   if (value && typeof value === "object") {
-    const out: Record<string, unknown> = {};
+    const out: Record<string, unknown> = Object.create(null);
     for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
       out[k] = transformJsonStrings(v, fn);
     }

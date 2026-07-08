@@ -358,6 +358,8 @@ function replaceVideoBlock(
         for (const part of content) {
           if ((part as Record<string, unknown>).type === "image_url") {
             const iu = (part as Record<string, unknown>).image_url as Record<string, unknown>;
+            const url = iu.url as string ?? "";
+            if (!parseVideoDataUri(url)) continue;
             if (bi === blockIndex) {
               iu.url = videoUrl;
             }
@@ -378,10 +380,13 @@ function replaceVideoBlock(
         for (const part of content) {
           if ((part as Record<string, unknown>).type === "image") {
             const src = (part as Record<string, unknown>).source as Record<string, unknown>;
+            if (!src || src.type !== "base64") continue;
+            if (!isVideoMime(src.media_type as string)) continue;
             if (bi === blockIndex) {
-              src.type = "base64";
-              src.media_type = "video/mp4";
-              src.data = videoUrl;
+              src.type = "url";
+              src.url = videoUrl;
+              delete src.media_type;
+              delete src.data;
             }
             bi++;
           }
@@ -404,7 +409,10 @@ function replaceVideoBlock(
           (fd && isVideoMime(fd.mime_type as string));
         if (!isVideoBlock) continue;
         if (bi === blockIndex) {
-          if (id) id.data = videoUrl;
+          if (id) {
+            part.file_data = { mime_type: id.mime_type, file_uri: videoUrl };
+            delete part.inline_data;
+          }
           if (fd) fd.file_uri = videoUrl;
         }
         bi++;
@@ -441,7 +449,8 @@ async function processVideo(sessionId: string, opts: RedactOptions): Promise<voi
     const file = MP4Box.createFile();
     let videoTrack: any = null;
     let audioTrack: any = null;
-    const samples: { data: Uint8Array; duration: number; isSync: boolean; dts: number; cts: number }[] = [];
+    const videoSamples: { data: Uint8Array; duration: number; isSync: boolean; dts: number; cts: number }[] = [];
+    const audioSamples: { data: Uint8Array; duration: number; isSync: boolean; dts: number; cts: number }[] = [];
 
     // Track I-frames for processing
     const iframeSamples: number[] = [];
@@ -458,17 +467,19 @@ async function processVideo(sessionId: string, opts: RedactOptions): Promise<voi
     };
 
     file.onSamples = (trackId: number, _user: unknown, sampleList: any[]) => {
+      const isVideo = videoTrack ? trackId === videoTrack.id : trackId === 1;
+      const target = isVideo ? videoSamples : audioSamples;
       for (const sample of sampleList) {
-        const isSync = sample.is_sync === true;
-        samples.push({
+        const s = {
           data: new Uint8Array(sample.data),
           duration: sample.duration,
-          isSync,
+          isSync: sample.is_sync === true,
           dts: sample.dts,
           cts: sample.cts,
-        });
-        if (isSync) {
-          iframeSamples.push(samples.length - 1);
+        };
+        target.push(s);
+        if (s.isSync && isVideo) {
+          iframeSamples.push(videoSamples.length - 1);
         }
       }
     };
@@ -491,7 +502,7 @@ async function processVideo(sessionId: string, opts: RedactOptions): Promise<voi
       // Process available I-frames as they come
       if (videoTrack && iframeSamples.length > 0) {
         await processAvailableIFrames(
-          samples, iframeSamples, videoTrack, file,
+          videoSamples, iframeSamples, videoTrack, file,
           session, opts,
         );
       }
@@ -502,14 +513,14 @@ async function processVideo(sessionId: string, opts: RedactOptions): Promise<voi
     // Process any remaining I-frames
     if (videoTrack && iframeSamples.length > 0) {
       await processAvailableIFrames(
-        samples, iframeSamples, videoTrack, file,
+        videoSamples, iframeSamples, videoTrack, file,
         session, opts,
       );
     }
 
     // Build a redacted MP4 by remuxing
     const redactedMp4 = await buildRedactedMp4(
-      samples, videoTrack, audioTrack, file, session,
+      videoSamples, audioSamples, videoTrack, audioTrack, file,
     );
 
     session.processedChunks = [new Uint8Array(redactedMp4)];
@@ -579,7 +590,8 @@ async function processAvailableIFrames(
       // Decode as ImageScript Image for pixelation
       const decodedImg = await IM.Image.decode(pngBytes);
       const imgReverseMap: Record<string, string> = {};
-      const localCounts: Record<string, number> = {};
+      // Seed from session counts so token numbering continues across I-frames
+      const localCounts: Record<string, number> = { ...session.counts };
       let redacted = false;
       for (const reg of regions) {
         const orig = reg.original;
@@ -603,9 +615,10 @@ async function processAvailableIFrames(
 
       if (!redacted) continue;
 
-      // Update global counts
+      // Update global counts (localCounts was seeded from session.counts,
+      // so use max to avoid double-counting the baseline)
       for (const [l, c] of Object.entries(localCounts)) {
-        session.counts[l] = (session.counts[l] ?? 0) + c;
+        session.counts[l] = Math.max(session.counts[l] ?? 0, c);
       }
 
       // Extract raw RGBA pixels from the pixelated ImageScript Image
@@ -715,8 +728,16 @@ function mapMatchesToBBoxes(
   fullText: string,
 ): MatchRegion[] {
   const charToWord: number[] = [];
+  let searchFrom = 0;
   for (let wi = 0; wi < words.length; wi++) {
     const w = words[wi];
+    const pos = fullText.indexOf(w.text, searchFrom);
+    if (pos >= 0) {
+      while (charToWord.length < pos) {
+        charToWord.push(-1);
+      }
+      searchFrom = pos + w.text.length;
+    }
     for (let ci = 0; ci < w.text.length; ci++) {
       charToWord.push(wi);
     }
@@ -786,11 +807,11 @@ async function importMP4Box() {
 }
 
 async function buildRedactedMp4(
-  samples: any[],
+  videoSamples: any[],
+  audioSamples: any[],
   videoTrack: any,
   audioTrack: any,
   file: any,
-  session: SessionStore,
 ): Promise<ArrayBuffer> {
   const MP4Box = await importMP4Box();
 
@@ -820,7 +841,7 @@ async function buildRedactedMp4(
     avcDecoderConfigRecord: avcConfigRecord,
   });
 
-  for (const sample of samples) {
+  for (const sample of videoSamples) {
     outputFile.addSample(1, sample.data, {
       duration: sample.duration,
       is_sync: sample.isSync,
@@ -830,8 +851,8 @@ async function buildRedactedMp4(
   }
 
   // Copy original audio track if present (we don't modify audio)
-  if (audioTrack) {
-    const audioDesc = outputFile.addTrack({
+  if (audioTrack && audioSamples.length > 0) {
+    outputFile.addTrack({
       id: 2,
       hdlr: "soun",
       type: audioTrack.codec ?? audioTrack.type ?? "mp4a",
@@ -839,17 +860,13 @@ async function buildRedactedMp4(
       channel_count: audioTrack.channel_count ?? 2,
       samplerate: audioTrack.sample_rate ?? 48000,
     });
-    // Copy audio samples from file (all samples, not just video)
-    // This works because file has both tracks and we extract audio separately
-    for (const s of file.samples ?? []) {
-      if (s.track_id === (audioTrack.id ?? 2)) {
-        outputFile.addSample(2, s.data, {
-          duration: s.duration,
-          is_sync: s.is_sync ?? false,
-          dts: s.dts,
-          cts: s.cts,
-        });
-      }
+    for (const s of audioSamples) {
+      outputFile.addSample(2, s.data, {
+        duration: s.duration,
+        is_sync: s.isSync,
+        dts: s.dts,
+        cts: s.cts,
+      });
     }
   }
 

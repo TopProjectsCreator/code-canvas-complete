@@ -24,7 +24,7 @@ async function getOCR(): Promise<typeof ocrWorker> {
           const { data } = await worker.recognize(img);
           return {
             text: data.text,
-            words: (data.words ?? []).map((w: Record<string, unknown>) => ({
+            words: (data.words ?? []).map((w: any) => ({
               text: w.text as string,
               bbox: w.bbox as OCRBBox,
             })),
@@ -294,11 +294,6 @@ async function processSingleImage(
       imgReverseMap[orig] = token;
       result.map[token] = orig;
     }
-    // Update global counts for seeding text redaction
-    for (const [l, c] of Object.entries(localCounts)) {
-      result.counts[l] = c;
-    }
-
     // Normalise bbox coords to image dimensions
     const x = Math.max(0, Math.floor(reg.bbox.x0));
     const y = Math.max(0, Math.floor(reg.bbox.y0));
@@ -312,6 +307,11 @@ async function processSingleImage(
   }
 
   if (!redacted) return block;
+
+  // Accumulate global counts for seeding text redaction
+  for (const [l, c] of Object.entries(localCounts)) {
+    result.counts[l] = (result.counts[l] ?? 0) + c;
+  }
 
   // Re-encode
   const mimeType = block.mimeType === "image/jpeg" ? "image/jpeg" : "image/png";
@@ -336,17 +336,21 @@ function mapMatchesToBBoxes(
   fullText: string,
 ): MatchRegion[] {
   // Build a character → word index
-  // Start with char positions mapped to word indices
   const charToWord: number[] = [];
+  let searchFrom = 0;
   for (let wi = 0; wi < words.length; wi++) {
     const w = words[wi];
-    const pos = fullText.indexOf(w.text, charToWord.length > 0 ? charToWord.length - 1 : 0);
-    // Approximate: just map each character of the word to this word index
+    const pos = fullText.indexOf(w.text, searchFrom);
+    if (pos >= 0) {
+      while (charToWord.length < pos) {
+        charToWord.push(-1);
+      }
+      searchFrom = pos + w.text.length;
+    }
     for (let ci = 0; ci < w.text.length; ci++) {
       charToWord.push(wi);
     }
-    // Add a space between words
-    charToWord.push(-1); // space
+    charToWord.push(-1);
   }
 
   const regions: MatchRegion[] = [];

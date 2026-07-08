@@ -31,7 +31,8 @@ function openaiToAnthropicReq(body: Record<string, unknown>): Record<string, unk
   }
   if (body.metadata != null) out.metadata = body.metadata;
   if (body.tools) {
-    const tools = body.tools as Array<Record<string, unknown>>;
+    const rawTools = body.tools;
+    const tools = Array.isArray(rawTools) ? (rawTools as Array<Record<string, unknown>>) : [];
     out.tools = tools.map((t) => {
       const fn = t.function as Record<string, unknown> | undefined;
       return {
@@ -183,7 +184,7 @@ function openaiToGeminiReq(body: Record<string, unknown>): Record<string, unknow
 
   const contents = messages?.filter((m) => m.role !== "system")?.map((m) => ({
     role: m.role === "assistant" ? "model" : "user",
-    parts: [{ text: typeof m.content === "string" ? m.content : JSON.stringify(m.content) }],
+    parts: [{ text: typeof m.content === "string" ? m.content : (m.content != null ? JSON.stringify(m.content) : "") }],
   }));
 
   const out: Record<string, unknown> = {
@@ -192,14 +193,14 @@ function openaiToGeminiReq(body: Record<string, unknown>): Record<string, unknow
 
   if (systemMsg) {
     out.system_instruction = {
-      parts: [{ text: typeof systemMsg.content === "string" ? systemMsg.content : JSON.stringify(systemMsg.content) }],
+      parts: [{ text: typeof systemMsg.content === "string" ? systemMsg.content : (systemMsg.content != null ? JSON.stringify(systemMsg.content) : "") }],
     };
   }
 
   const genConfig: Record<string, unknown> = {};
   if (body.temperature != null) genConfig.temperature = body.temperature;
-  if (body.max_tokens != null) genConfig.maxOutputTokens = body.max_tokens;
-  else if (body.max_completion_tokens != null) genConfig.maxOutputTokens = body.max_completion_tokens;
+  if (body.max_completion_tokens != null) genConfig.maxOutputTokens = body.max_completion_tokens;
+  else if (body.max_tokens != null) genConfig.maxOutputTokens = body.max_tokens;
   if (body.top_p != null) genConfig.topP = body.top_p;
   // stream is NOT mapped to generationConfig — Gemini uses endpoint URL for streaming
   if (body.stop_sequences) genConfig.stopSequences = body.stop_sequences;
@@ -220,7 +221,8 @@ function openaiToGeminiReq(body: Record<string, unknown>): Record<string, unknow
   if (Object.keys(genConfig).length > 0) out.generationConfig = genConfig;
 
   if (body.tools) {
-    const tools = body.tools as Array<Record<string, unknown>>;
+    const rawTools = body.tools;
+    const tools = Array.isArray(rawTools) ? (rawTools as Array<Record<string, unknown>>) : [];
     out.tools = [{
       functionDeclarations: tools.map((t) => {
         const fn = t.function as Record<string, unknown> | undefined;
@@ -252,25 +254,40 @@ function openaiToGeminiReq(body: Record<string, unknown>): Record<string, unknow
 
 function geminiToOpenaiRes(body: Record<string, unknown>): Record<string, unknown> {
   const candidates = body.candidates as Array<Record<string, unknown>> | undefined;
-  const candidate = candidates?.[0];
-  const content = candidate?.content as Record<string, unknown> | undefined;
-  const parts = content?.parts as Array<Record<string, unknown>> | undefined;
-  const text = parts?.map((p) => p.text).filter(Boolean).join("") ?? "";
-  const finishReason = candidate?.finishReason as string | undefined;
-  const usageMeta = body.usageMetadata as Record<string, unknown> | undefined;
 
+  // Check for safety block or empty response (no candidates)
+  if (!candidates || candidates.length === 0) {
+    const promptFeedback = body.promptFeedback as Record<string, unknown> | undefined;
+    const blockReason = promptFeedback?.blockReason as string | undefined;
+    const blockFinish = blockReason === "SAFETY" ? "content_filter" : blockReason?.toLowerCase() ?? "stop";
+    return {
+      id: body.id ?? `gemini-${Date.now()}`,
+      object: "chat.completion",
+      created: Math.floor(Date.now() / 1000),
+      model: body.model,
+      choices: [{ index: 0, message: { role: "assistant", content: "" }, finish_reason: blockFinish }],
+    };
+  }
+
+  const choices = candidates.map((candidate, idx) => {
+    const content = candidate.content as Record<string, unknown> | undefined;
+    const parts = content?.parts as Array<Record<string, unknown>> | undefined;
+    const text = parts?.map((p: any) => p.text).filter(Boolean).join("") ?? "";
+    const finishReason = candidate.finishReason as string | undefined;
+    return {
+      index: idx,
+      message: { role: "assistant", content: text },
+      finish_reason: finishReason === "STOP" ? "stop" : finishReason === "MAX_TOKENS" ? "length" : finishReason === "SAFETY" ? "content_filter" : (finishReason?.toLowerCase() ?? "stop"),
+    };
+  });
+
+  const usageMeta = body.usageMetadata as Record<string, unknown> | undefined;
   return {
     id: body.id ?? `gemini-${Date.now()}`,
     object: "chat.completion",
     created: Math.floor(Date.now() / 1000),
     model: body.model,
-    choices: [
-      {
-        index: 0,
-        message: { role: "assistant", content: text },
-        finish_reason: finishReason === "STOP" ? "stop" : (finishReason?.toLowerCase() ?? "stop"),
-      },
-    ],
+    choices,
     usage: usageMeta
       ? {
           prompt_tokens: usageMeta.promptTokenCount,
@@ -303,7 +320,7 @@ function geminiToOpenaiSSE(line: string): string | null {
       {
         index: 0,
         delta: text ? { content: text } : {},
-        finish_reason: finishReason === "STOP" ? "stop" : null,
+        finish_reason: finishReason ? (finishReason === "STOP" ? "stop" : finishReason === "MAX_TOKENS" ? "length" : null) : null,
       },
     ],
   };
@@ -359,7 +376,8 @@ function geminiToOpenaiReq(body: Record<string, unknown>): Record<string, unknow
     }
   }
   if (body.tools) {
-    const geminiTools = body.tools as Array<Record<string, unknown>>;
+    const rawGeminiTools = body.tools;
+    const geminiTools = Array.isArray(rawGeminiTools) ? (rawGeminiTools as Array<Record<string, unknown>>) : [];
     const fds = geminiTools.flatMap((t) => {
       const decls = t.functionDeclarations as Array<Record<string, unknown>> | undefined;
       return decls ?? [];
@@ -405,7 +423,7 @@ function anthropicToOpenaiReq(body: Record<string, unknown>): Record<string, unk
     for (const m of messages) {
       msgs.push({
         role: (m.role as string) ?? "user",
-        content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+        content: typeof m.content === "string" ? m.content : (m.content != null ? JSON.stringify(m.content) : ""),
       });
     }
   }
@@ -419,7 +437,8 @@ function anthropicToOpenaiReq(body: Record<string, unknown>): Record<string, unk
   if (body.stop_sequences) out.stop = body.stop_sequences;
   if (body.metadata != null) out.metadata = body.metadata;
   if (body.tools) {
-    const tools = body.tools as Array<Record<string, unknown>>;
+    const rawTools = body.tools;
+    const tools = Array.isArray(rawTools) ? (rawTools as Array<Record<string, unknown>>) : [];
     out.tools = tools.map((t) => ({
       type: "function",
       function: {
@@ -430,11 +449,14 @@ function anthropicToOpenaiReq(body: Record<string, unknown>): Record<string, unk
     }));
   }
   if (body.tool_choice) {
-    const tc = body.tool_choice as Record<string, unknown>;
-    const type = tc.type as string;
-    if (type === "auto") out.tool_choice = "auto";
-    else if (type === "any") out.tool_choice = "required";
-    else if (type === "tool" && tc.name) out.tool_choice = { type: "function", function: { name: tc.name } };
+    const rawTc = body.tool_choice;
+    const tc = rawTc && typeof rawTc === "object" ? (rawTc as Record<string, unknown>) : null;
+    if (tc) {
+      const type = tc.type as string;
+      if (type === "auto") out.tool_choice = "auto";
+      else if (type === "any") out.tool_choice = "required";
+      else if (type === "tool" && tc.name) out.tool_choice = { type: "function", function: { name: tc.name as string } };
+    }
   }
   return out;
 }
@@ -456,7 +478,7 @@ function openaiToGeminiRes(body: Record<string, unknown>): Record<string, unknow
     },
   }];
   if (finishReason) {
-    candidates[0].finishReason = finishReason === "stop" ? "STOP" : finishReason.toUpperCase();
+    candidates[0].finishReason = finishReason === "stop" ? "STOP" : finishReason === "length" ? "MAX_TOKENS" : finishReason === "content_filter" ? "SAFETY" : finishReason.toUpperCase();
   }
 
   const out: Record<string, unknown> = { candidates, model: body.model ?? "" };
@@ -519,7 +541,7 @@ function openaiToGeminiSSE(line: string): string | null {
     content: { parts: content ? [{ text: content }] : [], role: "model" },
   }];
   if (finishReason) {
-    candidates[0].finishReason = finishReason === "stop" ? "STOP" : finishReason.toUpperCase();
+    candidates[0].finishReason = finishReason === "stop" ? "STOP" : finishReason === "length" ? "MAX_TOKENS" : finishReason === "content_filter" ? "SAFETY" : finishReason.toUpperCase();
   }
 
   const out: Record<string, unknown> = { candidates };
@@ -990,7 +1012,7 @@ export function createOpenaiToAnthropicTransformer(): (line: string) => string[]
 
 export function detectShape(body: Record<string, unknown>): Shape {
   if (body.contents) return "gemini";
-  if (body.anthropic_version || ((body.messages === undefined || body.messages === null) && body.max_tokens !== undefined)) return "anthropic";
+  if (body.anthropic_version) return "anthropic";
   if (body.messages) return "openai";
   return "openai";
 }

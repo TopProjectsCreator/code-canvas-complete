@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.108.2";
 import { redactJson, rehydrate, transformJsonStrings } from "./redaction.ts";
 import { getProvider, resolveModelRouting, type ProviderDef } from "./providers.ts";
 import { translateRequest, translateResponse, translateStreamChunk, translateStreamChunks, createOpenaiToAnthropicTransformer, createGeminiToAnthropicTransformer, createAnthropicToGeminiTransformer, type Shape } from "./translate.ts";
@@ -21,17 +21,18 @@ async function hashProxyKey(token: string): Promise<string> {
 
 let cachedInternalSecret: string | null | undefined;
 
-async function getInternalSecret(supabase: ReturnType<typeof createClient>): Promise<string | null> {
+async function getInternalSecret(supabase: any): Promise<string | null> {
   if (cachedInternalSecret !== undefined) return cachedInternalSecret;
   const raw = Deno.env.get("REDACTOR_INTERNAL_SECRET");
   if (raw) {
     cachedInternalSecret = raw;
     return raw;
   }
-  const { data: rows } = await supabase
+  type SecretRow = { value: string };
+  const { data: rows } = await (supabase as any)
     .from("redactor_secrets")
     .select("value")
-    .eq("key", "internal_secret");
+    .eq("key", "internal_secret") as { data: SecretRow[] | null; error: unknown };
   cachedInternalSecret = rows?.[0]?.value ?? null;
   return cachedInternalSecret;
 }
@@ -40,7 +41,7 @@ async function decryptProviderKey(
   ciphertext: string,
   iv: string,
   salt: string,
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
 ): Promise<string> {
   const internalSecret = await getInternalSecret(supabase);
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -64,11 +65,15 @@ async function decryptProviderKey(
     }),
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new ProxyError(502, `decrypt failed: ${(err as { error?: string }).error ?? res.status}`);
+    const errText = await res.text().catch(() => "");
+    let errMsg: string;
+    try { errMsg = JSON.parse(errText).error || `HTTP ${res.status}`; } catch { errMsg = errText || `HTTP ${res.status}`; }
+    throw new ProxyError(502, `decrypt failed: ${errMsg}`);
   }
   const data = await res.json();
-  return (data as { apiKey: string }).apiKey;
+  const apiKey = (data as { apiKey?: string }).apiKey;
+  if (!apiKey) throw new ProxyError(502, "decrypt returned empty key");
+  return apiKey;
 }
 
 // ---------- Rate limiter (in-memory sliding window) ----------
@@ -115,7 +120,7 @@ interface ModelCostRow {
 async function getModelCost(
   model: string | undefined,
   providerId: string,
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
 ): Promise<{ costInput: number; costOutput: number } | null> {
   if (!model) return null;
   const { data: pricingRows } = await supabase
@@ -138,7 +143,7 @@ function computeCost(inputTokens: number, outputTokens: number, pricing: { costI
 
 // ---------- Log retention ----------
 
-async function cleanOldLogs(supabase: ReturnType<typeof createClient>): Promise<void> {
+async function cleanOldLogs(supabase: any): Promise<void> {
   const retentionDays = parseInt(Deno.env.get("REDACTOR_LOG_RETENTION_DAYS") ?? "90", 10);
   const cutoff = new Date(Date.now() - retentionDays * 86_400_000).toISOString();
   try {
@@ -154,7 +159,7 @@ async function cleanOldLogs(supabase: ReturnType<typeof createClient>): Promise<
 async function checkMonthlySpend(
   proxyKeyId: string,
   monthlyCapUsd: number | null,
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
 ): Promise<boolean> {
   if (monthlyCapUsd == null) return true;
   const start = new Date();
@@ -185,7 +190,7 @@ interface AuthedProxyKey {
 
 async function authenticateProxyKey(
   authHeader: string | null,
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
 ): Promise<AuthedProxyKey> {
   if (!authHeader) throw new ProxyError(401, "Missing Authorization header");
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
@@ -235,7 +240,7 @@ interface UpstreamKey {
 async function getProviderKey(
   userId: string,
   providerId: string,
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
 ): Promise<UpstreamKey> {
   const { data: provRows, error } = await supabase
     .from("redactor_provider_keys")
@@ -257,14 +262,14 @@ async function getProviderKey(
 
 async function getUserRules(
   userId: string,
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
 ): Promise<{ pattern: string; label: string }[]> {
   const { data } = await supabase
     .from("redactor_redaction_rules")
     .select("pattern, label")
     .eq("user_id", userId)
     .eq("enabled", true);
-  return (data ?? []).map((r) => ({ pattern: r.pattern, label: r.label }));
+  return (data ?? []).map((r: any) => ({ pattern: r.pattern, label: r.label }));
 }
 
 // ---------- Upstream request building ----------
@@ -308,7 +313,7 @@ interface LogInput {
 async function writeLog(
   ctx: { proxyKey: AuthedProxyKey; providerId: string },
   input: LogInput,
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
 ) {
   if (!ctx.proxyKey.logRequests) return;
   try {
@@ -384,7 +389,7 @@ function rehydrateStreamChunk(
   for (const t of tokens) {
     if (out.includes(t)) {
       const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      out = out.replace(new RegExp(escaped, "g"), map[t]);
+      out = out.replace(new RegExp(escaped, "g"), () => map[t]);
     }
   }
   return out;
@@ -444,7 +449,7 @@ interface ProxyContext {
 async function runProxy(
   request: Request,
   ctx: ProxyContext,
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   sourceShape?: Shape,
 ): Promise<Response> {
   const startedAt = Date.now();
@@ -481,9 +486,12 @@ async function runProxy(
       ctx.proxyKey.redactImages,
     );
 
+    // Use the image-redacted body for video redaction so pixelation isn't lost
+    const bodyAfterImages = imgResult.body ?? bodyJson;
+
     // 2. Video redaction (after image, before shape translation)
     const videoResult = await redactVideosInBody(
-      bodyJson,
+      bodyAfterImages,
       sourceShape ?? "openai",
       { customPatterns, detectNames: false },
       ctx.proxyKey.redactVideos,
@@ -535,22 +543,40 @@ async function runProxy(
     upstreamBody = await request.arrayBuffer();
   }
 
-  let upstreamRes: Response;
-  try {
-    upstreamRes = await fetch(upstreamUrl, {
-      method: request.method,
-      headers: upstreamHeaders,
-      body: upstreamBody as BodyInit | null,
-    });
-  } catch (e) {
-    await writeLog(ctx, { status: 502, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts, error: (e as Error).message }, supabase);
-    return jsonError(502, "Upstream request failed: " + (e as Error).message);
+  let upstreamRes!: Response;
+  let lastError: Error | undefined;
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 55000);
+    try {
+      upstreamRes = await fetch(upstreamUrl, {
+        method: request.method,
+        headers: upstreamHeaders,
+        body: upstreamBody as BodyInit | null,
+        signal: controller.signal,
+      });
+      lastError = undefined;
+      break;
+    } catch (e) {
+      lastError = e as Error;
+      if (attempt < maxRetries) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  if (lastError) {
+    await writeLog(ctx, { status: 502, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts, error: lastError.message }, supabase);
+    return jsonError(502, "Upstream request failed: " + lastError.message);
   }
 
-  const respHeaders = new Headers();
+  const respHeaders = new Headers({ "access-control-allow-origin": "*" });
   upstreamRes.headers.forEach((v, k) => {
     const lk = k.toLowerCase();
-    if (lk === "content-encoding" || lk === "content-length" || lk === "transfer-encoding" || lk === "connection") {
+    if (lk === "content-encoding" || lk === "content-length" || lk === "transfer-encoding" || lk === "connection" || lk === "access-control-allow-origin") {
       return;
     }
     respHeaders.set(k, v);
@@ -561,18 +587,18 @@ async function runProxy(
   const isJsonResp = respContentType.includes("application/json");
   const wantStream = isJsonReq && (needTranslate ? wasStreaming : isStreamingRequest(bodyJson));
 
-  if ((wantStream || isSSE) && upstreamRes.body) {
+  if ((wantStream || isSSE) && upstreamRes.body && upstreamRes.status < 400) {
     let stream: ReadableStream<Uint8Array>;
     if (needTranslate) {
       const encoder = new TextEncoder();
       const decoder = new TextDecoder();
-      const reader = upstreamRes.body.getReader();
       if (targetShape === "openai") {
         // OpenAI upstream → non-OpenAI caller
         // e.g. OpenAI SSE → Gemini SSE, OpenAI SSE → Anthropic SSE
         const anthropicTransformer = sourceShape === "anthropic" ? createOpenaiToAnthropicTransformer() : null;
         stream = new ReadableStream<Uint8Array>({
           async start(controller) {
+            const reader = upstreamRes.body!.getReader();
             let pending = "";
             try {
               while (true) {
@@ -613,6 +639,7 @@ async function runProxy(
         // e.g. Gemini SSE → OpenAI SSE, Anthropic SSE → OpenAI SSE
         stream = new ReadableStream<Uint8Array>({
           async start(controller) {
+            const reader = upstreamRes.body!.getReader();
             let pending = "";
             try {
               while (true) {
@@ -643,6 +670,7 @@ async function runProxy(
           null;
         stream = new ReadableStream<Uint8Array>({
           async start(controller) {
+            const reader = upstreamRes.body!.getReader();
             let pending = "";
             try {
               while (true) {
@@ -684,20 +712,31 @@ async function runProxy(
   const text = await upstreamRes.text();
   let outText = text;
   try {
-    let parsed = JSON.parse(text);
-    // On error, extract the upstream error before shape translation
     if (upstreamRes.status >= 400) {
-      if (targetShape === "gemini") {
-        const geminiErr = parsed as Record<string, unknown>;
-        const err = geminiErr.error as Record<string, unknown> | undefined;
-        if (err) outText = JSON.stringify({ error: { message: err.message ?? err.status ?? "Unknown Gemini error", type: "upstream_error" } });
-      } else if (targetShape === "anthropic") {
-        const anthErr = parsed as Record<string, unknown>;
-        const err = anthErr.error as Record<string, unknown> | undefined;
-        if (err) outText = JSON.stringify({ error: { message: err.message ?? "Unknown Anthropic error", type: "upstream_error" } });
+      // Handle upstream errors: parse body if possible, produce a useful error
+      if (!text.trim()) {
+        outText = JSON.stringify({ error: { message: `Upstream returned ${upstreamRes.status} with empty body`, type: "upstream_error" } });
+      } else {
+        let parsed: Record<string, unknown>;
+        try { parsed = JSON.parse(text); } catch {
+          outText = JSON.stringify({ error: { message: `Upstream returned ${upstreamRes.status}: ${text.slice(0, 200)}`, type: "upstream_error" } });
+          return new Response(outText, { status: upstreamRes.status, headers: respHeaders });
+        }
+        if (targetShape === "gemini") {
+          const err = (parsed as any)?.error;
+          outText = JSON.stringify({ error: { message: err?.message ?? err?.status ?? `Gemini returned ${upstreamRes.status}`, type: "upstream_error" } });
+        } else if (targetShape === "anthropic") {
+          const err = (parsed as any)?.error;
+          outText = JSON.stringify({ error: { message: err?.message ?? `Anthropic returned ${upstreamRes.status}`, type: "upstream_error" } });
+        } else {
+          try { const p = JSON.parse(text); outText = JSON.stringify({ error: { message: (p as any)?.error?.message ?? (p as any)?.error ?? text.slice(0, 300), type: "upstream_error" } }); }
+          catch { outText = JSON.stringify({ error: { message: text.slice(0, 300), type: "upstream_error" } }); }
+        }
       }
     } else if (needTranslate) {
+      let parsed = JSON.parse(text);
       parsed = translateResponse(parsed, targetShape, sourceShape!);
+      if (!parsed.model && originalModel) parsed.model = originalModel;
       const rehydrated = transformJsonStrings(parsed, (s) => rehydrate(s, sharedMap));
       outText = JSON.stringify(rehydrated);
       const usage = extractUsage(rehydrated);
@@ -708,6 +747,8 @@ async function runProxy(
         : undefined;
       await writeLog(ctx, { status: upstreamRes.status, latencyMs: Date.now() - startedAt, providerId: ctx.providerId, redactions: redactionCounts, inputTokens: usage.input, outputTokens: usage.output, model, costUsd }, supabase);
     } else {
+      const parsed = JSON.parse(text);
+      if (!parsed.model && originalModel) parsed.model = originalModel;
       const rehydrated = transformJsonStrings(parsed, (s) => rehydrate(s, sharedMap));
       outText = JSON.stringify(rehydrated);
       const usage = extractUsage(rehydrated);
@@ -854,8 +895,13 @@ Deno.serve(async (req) => {
     }
 
     // Log retention cleanup (fire-and-forget, max 1/min)
-    if (!rateLimitBuckets.has("__log_cleanup")) {
-      cleanOldLogs(supabase);
+    {
+      const now = Date.now();
+      const existing = rateLimitBuckets.get("__log_cleanup");
+      if (!existing || existing[existing.length - 1] < now - 60_000) {
+        cleanOldLogs(supabase).catch(() => {});
+        rateLimitBuckets.set("__log_cleanup", [now]);
+      }
     }
 
     const upstream = await getProviderKey(authed.userId, providerId, supabase);
