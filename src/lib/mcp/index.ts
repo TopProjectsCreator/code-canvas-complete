@@ -26,6 +26,7 @@ import bookmarkCanvas from "./tools/bookmark-canvas";
 import requestReview from "./tools/request-review";
 import listReviews from "./tools/list-reviews";
 import runCode from "./tools/run-code";
+import runShell from "./tools/run-shell";
 import getPreviewUrl from "./tools/get-preview-url";
 import listMessages from "./tools/list-messages";
 import sendMessage from "./tools/send-message";
