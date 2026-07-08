@@ -80,7 +80,7 @@ Code Canvas combines the best of cloud IDEs, AI generators, and specialized engi
 
 </details>
 
-Code Canvas provides a professional development environment entirely in your browser, powered by the WebContainers API and Supabase for backend services.
+Code Canvas brings a professional IDE straight to your browser, phone, or AI agents (via MCP and APIs). By leveraging the WebContainers API, Supabase, and cloud-based backend containers, it gives you full-stack development power on any device.
 
 <details>
 <summary><b>View Workspace Features</b></summary>
