@@ -30,6 +30,9 @@ import runShell from "./tools/run-shell";
 import getPreviewUrl from "./tools/get-preview-url";
 import listMessages from "./tools/list-messages";
 import sendMessage from "./tools/send-message";
+import createSnapshot from "./tools/create-snapshot";
+import listHistory from "./tools/list-history";
+import restoreSnapshot from "./tools/restore-snapshot";
 
 // The OAuth issuer MUST be the direct Supabase host, constructed from the project
 // ref (Vite inlines VITE_SUPABASE_PROJECT_ID as a literal at build time so this
@@ -81,5 +84,9 @@ export default defineMcp({
     // Messaging
     listMessages,
     sendMessage,
+    // History / snapshots
+    createSnapshot,
+    listHistory,
+    restoreSnapshot,
   ],
 });

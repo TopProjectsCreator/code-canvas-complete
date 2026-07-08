@@ -146,6 +146,46 @@ Agent Skills are custom "personas" or instruction sets that guide the AI's behav
 4. When enabled, the AI will prioritize these instructions in every interaction.
 </details>
 
+<details>
+<summary><b>MCP Tools Reference (30 tools)</b></summary>
+
+CodeCanvas exposes an MCP (Model Context Protocol) server (`codecanvas-mcp` v0.2.0) with the following tools for the AI assistant. Tools marked *require OAuth authentication.
+
+| Tool | Description |
+|------|-------------|
+| `search_public_canvases` | Search public canvases by query |
+| `get_featured_canvases` | List featured public canvases |
+| `get_canvas_count` | Get total public canvas count |
+| `whoami` * | Get the signed-in user's identity |
+| `list_my_canvases` * | List own canvases |
+| `get_canvas` * | Get canvas details and file listing |
+| `create_canvas` * | Create a new canvas |
+| `delete_canvas` * | Delete a canvas |
+| `update_canvas_meta` * | Update canvas name/description/visibility |
+| `fork_canvas` * | Fork a canvas |
+| `list_files` * | List files in a canvas |
+| `read_file` * | Read a file's content |
+| `write_file` * | Create or overwrite a file |
+| `delete_file` * | Delete a file |
+| `search_in_canvas` * | Search across files in a canvas |
+| `add_comment` * | Add a code comment |
+| `list_comments` * | List code comments on a file |
+| `resolve_comment` * | Resolve a code comment |
+| `request_review` * | Request a code review |
+| `list_reviews` * | List code reviews |
+| `star_canvas` * | Star/unstar a canvas |
+| `bookmark_canvas` * | Bookmark/unbookmark a canvas |
+| `run_code` * | Run code in the execution sandbox |
+| `run_shell` * | Run a shell command |
+| `get_preview_url` * | Get the project preview URL |
+| `list_messages` * | List inbox messages |
+| `send_message` * | Send an inbox message |
+| `create_snapshot` * | Create a named restore-point |
+| `list_history` * | List project snapshots |
+| `restore_snapshot` * | Restore project files from a snapshot |
+
+</details>
+
 ## 💻 Persistent Shell & Terminal
 
 Code Canvas offers a professional-grade, persistent terminal environment, ensuring your workflows remain uninterrupted.
