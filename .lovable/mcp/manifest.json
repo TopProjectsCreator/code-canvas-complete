@@ -716,6 +716,39 @@
         "outputSchema": null
       },
       {
+        "name": "run_shell",
+        "title": "Run shell command",
+        "description": "Execute an arbitrary shell command (bash) in the CodeCanvas execution sandbox. Returns stdout, stderr, and exit code. Supports multi-line scripts and pipes.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Shell command or multi-line bash script to run."
+            },
+            "stdin": {
+              "type": "string"
+            },
+            "timeout_ms": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 60000
+            }
+          },
+          "required": [
+            "command"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
         "name": "get_preview_url",
         "title": "Get canvas preview URL",
         "description": "Return the public preview URL for a canvas. Requires the canvas to be published (has a publish_slug).",

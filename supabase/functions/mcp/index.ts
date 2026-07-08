@@ -791,14 +791,68 @@ var run_code_default = defineTool23({
   }
 });
 
-// src/lib/mcp/tools/get-preview-url.ts
+// src/lib/mcp/tools/run-shell.ts
 import { defineTool as defineTool24 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z22 } from "npm:zod@^4.4.3";
-var get_preview_url_default = defineTool24({
+var run_shell_default = defineTool24({
+  name: "run_shell",
+  title: "Run shell command",
+  description: "Execute an arbitrary shell command (bash) in the CodeCanvas execution sandbox. Returns stdout, stderr, and exit code. Supports multi-line scripts and pipes.",
+  inputSchema: {
+    command: z22.string().min(1).describe("Shell command or multi-line bash script to run."),
+    stdin: z22.string().optional(),
+    timeout_ms: z22.number().int().min(1e3).max(6e4).optional()
+  },
+  annotations: {
+    readOnlyHint: false,
+    destructiveHint: true,
+    openWorldHint: true
+  },
+  handler: async ({ command, stdin, timeout_ms }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    try {
+      const res = await fetch(
+        `${process.env.SUPABASE_URL}/functions/v1/execute-code`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${ctx.getToken()}`,
+            apikey: process.env.SUPABASE_PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({
+            language: "bash",
+            code: command,
+            stdin: stdin ?? "",
+            timeout: timeout_ms ?? 15e3
+          })
+        }
+      );
+      const text = await res.text();
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = { raw: text };
+      }
+      if (!res.ok)
+        return err(`Shell execution failed (${res.status}): ${text.slice(0, 500)}`);
+      return ok(parsed);
+    } catch (e) {
+      return err(`Shell execution error: ${e.message}`);
+    }
+  }
+});
+
+// src/lib/mcp/tools/get-preview-url.ts
+import { defineTool as defineTool25 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z23 } from "npm:zod@^4.4.3";
+var get_preview_url_default = defineTool25({
   name: "get_preview_url",
   title: "Get canvas preview URL",
   description: "Return the public preview URL for a canvas. Requires the canvas to be published (has a publish_slug).",
-  inputSchema: { canvas_id: z22.string().uuid() },
+  inputSchema: { canvas_id: z23.string().uuid() },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ canvas_id }, ctx) => {
     const { project, error } = await loadProject(ctx, canvas_id);
@@ -817,15 +871,15 @@ var get_preview_url_default = defineTool24({
 });
 
 // src/lib/mcp/tools/list-messages.ts
-import { defineTool as defineTool25 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z23 } from "npm:zod@^4.4.3";
-var list_messages_default = defineTool25({
+import { defineTool as defineTool26 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z24 } from "npm:zod@^4.4.3";
+var list_messages_default = defineTool26({
   name: "list_messages",
   title: "List inbox messages",
   description: "List the signed-in user's inbox messages.",
   inputSchema: {
-    unread_only: z23.boolean().optional(),
-    limit: z23.number().int().min(1).max(100).optional()
+    unread_only: z24.boolean().optional(),
+    limit: z24.number().int().min(1).max(100).optional()
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ unread_only, limit }, ctx) => {
@@ -840,17 +894,17 @@ var list_messages_default = defineTool25({
 });
 
 // src/lib/mcp/tools/send-message.ts
-import { defineTool as defineTool26 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z24 } from "npm:zod@^4.4.3";
-var send_message_default = defineTool26({
+import { defineTool as defineTool27 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z25 } from "npm:zod@^4.4.3";
+var send_message_default = defineTool27({
   name: "send_message",
   title: "Send inbox message",
   description: "Send a message to another CodeCanvas user by user id.",
   inputSchema: {
-    recipient_id: z24.string().uuid(),
-    subject: z24.string().min(1).max(200),
-    body_html: z24.string().min(1).max(2e4),
-    kind: z24.string().max(40).optional()
+    recipient_id: z25.string().uuid(),
+    subject: z25.string().min(1).max(200),
+    body_html: z25.string().min(1).max(2e4),
+    kind: z25.string().max(40).optional()
   },
   annotations: { readOnlyHint: false, openWorldHint: false },
   handler: async ({ recipient_id, subject, body_html, kind }, ctx) => {
@@ -909,6 +963,7 @@ var mcp_default = defineMcp({
     bookmark_canvas_default,
     // Execution / preview
     run_code_default,
+    run_shell_default,
     get_preview_url_default,
     // Messaging
     list_messages_default,
