@@ -22,12 +22,14 @@ const MICROPYTHON_FW_URLS: Record<string, string> = {
 const OTA_BRIDGE_URL = import.meta.env.VITE_OTA_BRIDGE_URL || 'http://127.0.0.1:3232';
 const OTA_BRIDGE_TOKEN = import.meta.env.VITE_OTA_BRIDGE_TOKEN;
 const REQUEST_TIMEOUT_MS = 45000;
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdWIiLCJyZWYiOiJ4bG12bHBsYXp4cm91c2N1cGlkaSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzY5OTY2MjY0LCJleHAiOjIwODU1NDIyNjR9.invalid';
+const FALLBACK_SUPABASE_PROJECT_ID = 'xlmvlplazxrouscupidi';
 
 export class ArduinoUploadService {
   private static async buildCompileHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
-    const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || FALLBACK_SUPABASE_PUBLISHABLE_KEY;
     if (publishableKey) {
       headers.apikey = publishableKey;
     }
@@ -83,7 +85,7 @@ export class ArduinoUploadService {
     this.assertBoardSupported(boardId);
     onProgress?.('Compiling sketch...', 0);
 
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID || FALLBACK_SUPABASE_PROJECT_ID;
     if (!projectId) {
       throw new Error('Project configuration missing');
     }
