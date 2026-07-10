@@ -184,10 +184,8 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
       const {
         data: { session },
       } = await (await import("@/integrations/supabase/client")).supabase.auth.getSession();
-      const backendUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xlmvlplazxrouscupidi.supabase.co';
-      const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdWIiLCJyZWYiOiJ4bG12bHBsYXp4cm91c2N1cGlkaSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzY5OTY2MjY0LCJleHAiOjIwODU1NDIyNjR9.invalid';
-      const authToken = session?.access_token || publishableKey;
-      const resp = await fetch(`${backendUrl}/functions/v1/template-assistant`, {
+      const authToken = session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/template-assistant`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

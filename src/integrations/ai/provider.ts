@@ -43,10 +43,9 @@ const jsonHeaders = (accessToken?: string) => ({
 });
 
 const replitBlueprintModel = 'google/gemini-3-flash-preview';
-const FALLBACK_SUPABASE_URL = 'https://xlmvlplazxrouscupidi.supabase.co';
 
 const createSupabaseAIProvider = (): AIProvider => {
-  const base = import.meta.env.VITE_SUPABASE_URL || FALLBACK_SUPABASE_URL;
+  const base = import.meta.env.VITE_SUPABASE_URL;
   return {
     platform: 'generic',
     supportsManagedAI: true,
