@@ -137,6 +137,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/link-discord" element={<LinkDiscord />} />
               <Route path="/admin/oauth-hosts" element={<OAuthHostsAdmin />} />
+              <Route path="/mcp" element={<MCP />} />
               {/* Redactor routes — public */}
               <Route path="/redactor" element={<RedactorLanding />} />
               <Route path="/redactor/auth" element={<RedactorAuth />} />
