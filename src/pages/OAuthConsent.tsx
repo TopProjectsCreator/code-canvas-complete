@@ -90,6 +90,22 @@ export default function OAuthConsent() {
     );
   }
 
+  if (checkedSession && !details) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <Card className="max-w-md w-full p-6 space-y-4 text-center">
+          <ShieldCheck className="h-6 w-6 text-primary mx-auto" />
+          <h1 className="text-lg font-semibold">Sign in to continue</h1>
+          <p className="text-sm text-muted-foreground">
+            Sign in to your CodeCanvas account to authorize this app.
+          </p>
+          <Button onClick={() => setAuthOpen(true)}>Sign in</Button>
+        </Card>
+        <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
+      </div>
+    );
+  }
+
   if (!details) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
