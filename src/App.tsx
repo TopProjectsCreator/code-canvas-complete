@@ -89,6 +89,9 @@ const RootRoute = () => {
   return <Navigate to={choice} replace />;
 };
 
+const isOAuthConsentPath = () =>
+  typeof window !== "undefined" && window.location.pathname === "/.lovable/oauth/consent";
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -101,6 +104,7 @@ const App = () => (
           <InboxNotifier />
           <OnboardingManager />
           <DiscordProvider>
+          {isOAuthConsentPath() ? <OAuthConsent /> : (
           <BrowserRouter basename={getGitHubPagesBasename()}>
             <Routes>
               <Route path="/" element={<RootRoute />} />
@@ -154,6 +158,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          )}
           </DiscordProvider>
         </TooltipProvider>
         </OnboardingProvider>
