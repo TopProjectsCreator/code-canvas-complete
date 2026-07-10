@@ -32,6 +32,7 @@ import OAuthConsent from "./pages/OAuthConsent";
 import LinkDiscord from "./pages/LinkDiscord";
 import ResetPassword from "./pages/ResetPassword";
 import OAuthHostsAdmin from "./pages/admin/OAuthHosts";
+import MCP from "./pages/MCP";
 import RedactorLanding from "./pages/redactor/Landing";
 import RedactorAuth from "./pages/redactor/Auth";
 import RedactorDashboard from "./pages/redactor/Dashboard";
@@ -136,6 +137,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/link-discord" element={<LinkDiscord />} />
               <Route path="/admin/oauth-hosts" element={<OAuthHostsAdmin />} />
+              <Route path="/mcp" element={<MCP />} />
               {/* Redactor routes — public */}
               <Route path="/redactor" element={<RedactorLanding />} />
               <Route path="/redactor/auth" element={<RedactorAuth />} />
