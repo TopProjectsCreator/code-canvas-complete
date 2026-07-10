@@ -44,7 +44,7 @@ if (isPreviewHost || isInIframe) {
   }).catch((err) => {
     console.warn('Failed to unregister service workers:', err);
   });
-} else if (!isGitHubPages) {
+} else if (import.meta.env.PROD && !isGitHubPages && !window.location.pathname.startsWith("/.lovable/")) {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
     navigator.serviceWorker.addEventListener("controllerchange", () => {
