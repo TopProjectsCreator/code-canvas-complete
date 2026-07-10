@@ -837,6 +837,106 @@
           ]
         },
         "outputSchema": null
+      },
+      {
+        "name": "create_snapshot",
+        "title": "Create project snapshot",
+        "description": "Create a named restore-point (snapshot) of a project's current file state. The AI should call this before making potentially destructive changes so the user can roll back via list_history / restore_snapshot.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "detail": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "snapshot",
+                "pre-edit",
+                "pre-delete",
+                "pre-run",
+                "manual"
+              ]
+            }
+          },
+          "required": [
+            "project_id",
+            "label"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_history",
+        "title": "List project history",
+        "description": "List snapshot restore-points for a project the user owns. Each entry includes the label, type, detail, and timestamp. Use the id with restore_snapshot to roll back.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "project_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          "required": [
+            "project_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "restore_snapshot",
+        "title": "Restore project snapshot",
+        "description": "Restore a project's files to a previous snapshot state. The snapshot id comes from list_history. This is a destructive operation — the current files will be overwritten.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "snapshot_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          "required": [
+            "snapshot_id"
+          ]
+        },
+        "outputSchema": null
       }
     ]
   }
