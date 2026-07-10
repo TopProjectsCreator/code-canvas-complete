@@ -167,6 +167,7 @@ export default function MCP() {
       <Seo
         title="Connect CodeCanvas MCP — Claude, Codex, OpenCode, Cursor"
         description="Wire CodeCanvas into your AI coding agent over Model Context Protocol. Copy-paste setup for Claude Code, Codex CLI, OpenCode, and Cursor."
+        path="/mcp"
       />
 
       {/* Ambient background */}
