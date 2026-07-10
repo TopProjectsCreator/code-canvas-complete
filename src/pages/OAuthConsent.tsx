@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2, ShieldCheck } from "lucide-react";
+import { AuthDialog } from "@/components/auth/AuthDialog";
 
 // Minimal typed shim for the beta supabase.auth.oauth namespace.
 type OAuthDetails = {
