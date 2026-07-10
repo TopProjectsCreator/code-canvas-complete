@@ -6,7 +6,12 @@ import { VitePWA } from "vite-plugin-pwa";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/supabase/vite";
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://xlmvlplazxrouscupidi.supabase.co";
+  const supabasePublishableKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhsbXZscGxhenhyb3VzY3VwaWRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5NjYyNjQsImV4cCI6MjA4NTU0MjI2NH0.j5b8QH6RusxDfJ21Fsp7A-ILDPPTL4r6ZpmO_OFoqT8";
+  const supabaseProjectId = process.env.VITE_SUPABASE_PROJECT_ID || "xlmvlplazxrouscupidi";
+
+  return ({
   base: '/',
   server: {
     host: "0.0.0.0",
@@ -124,6 +129,9 @@ export default defineConfig(({ mode }) => ({
     }),
   ].filter(Boolean),
   define: {
+    'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(supabaseUrl),
+    'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(supabasePublishableKey),
+    'import.meta.env.VITE_SUPABASE_PROJECT_ID': JSON.stringify(supabaseProjectId),
     ...(process.env.VITE_DEPLOY_PLATFORM !== undefined && {
       'import.meta.env.VITE_DEPLOY_PLATFORM': JSON.stringify(process.env.VITE_DEPLOY_PLATFORM),
     }),
@@ -133,4 +141,5 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-}));
+  });
+});

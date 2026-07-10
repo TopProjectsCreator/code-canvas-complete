@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,8 +24,9 @@ const oauthApi = () =>
   }).oauth;
 
 export default function OAuthConsent() {
-  const [params] = useSearchParams();
-  const authorizationId = params.get("authorization_id") ?? "";
+  const authorizationId = typeof window === "undefined"
+    ? ""
+    : new URLSearchParams(window.location.search).get("authorization_id") ?? "";
   const [details, setDetails] = useState<OAuthDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
