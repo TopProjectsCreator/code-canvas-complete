@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2, ShieldCheck } from "lucide-react";
+import { AuthDialog } from "@/components/auth/AuthDialog";
 
 // Minimal typed shim for the beta supabase.auth.oauth namespace.
 type OAuthDetails = {
@@ -30,32 +31,36 @@ export default function OAuthConsent() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [checkedSession, setCheckedSession] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!authorizationId) return setError("Missing authorization_id");
+    const { data: sess } = await supabase.auth.getSession();
+    if (!sess.session) {
+      setCheckedSession(true);
+      setAuthOpen(true);
+      return;
+    }
+    setAuthOpen(false);
+    setUserEmail(sess.session.user.email ?? null);
+    const { data, error } = await oauthApi().getAuthorizationDetails(authorizationId);
+    if (error) return setError(error.message);
+    const immediate = data?.redirect_url ?? data?.redirect_to;
+    if (immediate && !data?.client) {
+      window.location.href = immediate;
+      return;
+    }
+    setDetails(data);
+  }, [authorizationId]);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!authorizationId) return setError("Missing authorization_id");
-      const { data: sess } = await supabase.auth.getSession();
-      if (!sess.session) {
-        const next = window.location.pathname + window.location.search;
-        window.location.href = "/auth-bridge?next=" + encodeURIComponent(next);
-        return;
-      }
-      setUserEmail(sess.session.user.email ?? null);
-      const { data, error } = await oauthApi().getAuthorizationDetails(authorizationId);
-      if (!active) return;
-      if (error) return setError(error.message);
-      const immediate = data?.redirect_url ?? data?.redirect_to;
-      if (immediate && !data?.client) {
-        window.location.href = immediate;
-        return;
-      }
-      setDetails(data);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [authorizationId]);
+    void load();
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session) void load();
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [load]);
 
   async function decide(approve: boolean) {
     setBusy(true);
@@ -81,6 +86,22 @@ export default function OAuthConsent() {
           <h1 className="text-lg font-semibold text-destructive">Authorization error</h1>
           <p className="text-sm text-muted-foreground">{error}</p>
         </Card>
+      </div>
+    );
+  }
+
+  if (checkedSession && !details) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <Card className="max-w-md w-full p-6 space-y-4 text-center">
+          <ShieldCheck className="h-6 w-6 text-primary mx-auto" />
+          <h1 className="text-lg font-semibold">Sign in to continue</h1>
+          <p className="text-sm text-muted-foreground">
+            Sign in to your CodeCanvas account to authorize this app.
+          </p>
+          <Button onClick={() => setAuthOpen(true)}>Sign in</Button>
+        </Card>
+        <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
       </div>
     );
   }
