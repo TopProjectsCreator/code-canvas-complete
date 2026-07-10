@@ -922,6 +922,93 @@ var send_message_default = defineTool27({
   }
 });
 
+// src/lib/mcp/tools/create-snapshot.ts
+import { defineTool as defineTool28 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z26 } from "npm:zod@^4.4.3";
+var create_snapshot_default = defineTool28({
+  name: "create_snapshot",
+  title: "Create project snapshot",
+  description: "Create a named restore-point (snapshot) of a project's current file state. The AI should call this before making potentially destructive changes so the user can roll back via list_history / restore_snapshot.",
+  inputSchema: {
+    project_id: z26.string().uuid(),
+    label: z26.string().min(1).max(200),
+    detail: z26.string().max(500).optional(),
+    type: z26.enum(["snapshot", "pre-edit", "pre-delete", "pre-run", "manual"]).optional()
+  },
+  annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
+  handler: async ({ project_id, label, detail, type }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { project, error } = await loadProject(ctx, project_id);
+    if (error) return err(error);
+    if (project.user_id !== ctx.getUserId()) {
+      return err("Only the project owner can create snapshots.");
+    }
+    const { data, error: insertErr } = await userClient(ctx).from("project_snapshots").insert({
+      project_id,
+      user_id: ctx.getUserId(),
+      type: type ?? "snapshot",
+      label,
+      detail,
+      files: project.files
+    }).select("id, created_at").single();
+    if (insertErr) return err(insertErr.message);
+    return ok({
+      snapshot_id: data.id,
+      created_at: data.created_at
+    });
+  }
+});
+
+// src/lib/mcp/tools/list-history.ts
+import { defineTool as defineTool29 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z27 } from "npm:zod@^4.4.3";
+var list_history_default = defineTool29({
+  name: "list_history",
+  title: "List project history",
+  description: "List snapshot restore-points for a project the user owns. Each entry includes the label, type, detail, and timestamp. Use the id with restore_snapshot to roll back.",
+  inputSchema: {
+    project_id: z27.string().uuid(),
+    limit: z27.number().int().min(1).max(200).optional()
+  },
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  handler: async ({ project_id, limit }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const { data, error } = await userClient(ctx).from("project_snapshots").select("id, type, label, detail, created_at").eq("project_id", project_id).eq("user_id", ctx.getUserId()).order("created_at", { ascending: false }).limit(limit ?? 50);
+    if (error) return err(error.message);
+    return ok({ history: data ?? [] });
+  }
+});
+
+// src/lib/mcp/tools/restore-snapshot.ts
+import { defineTool as defineTool30 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z28 } from "npm:zod@^4.4.3";
+var restore_snapshot_default = defineTool30({
+  name: "restore_snapshot",
+  title: "Restore project snapshot",
+  description: "Restore a project's files to a previous snapshot state. The snapshot id comes from list_history. This is a destructive operation \u2014 the current files will be overwritten.",
+  inputSchema: {
+    snapshot_id: z28.string().uuid()
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  handler: async ({ snapshot_id }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    const sb = userClient(ctx);
+    const { data: snap, error: snapErr } = await sb.from("project_snapshots").select("project_id, files, label").eq("id", snapshot_id).eq("user_id", ctx.getUserId()).single();
+    if (snapErr) return err("Snapshot not found or access denied.");
+    if (!snap) return err("Snapshot not found.");
+    const { error: updateErr } = await sb.from("projects").update({ files: snap.files }).eq("id", snap.project_id).eq("user_id", ctx.getUserId());
+    if (updateErr) return err(updateErr.message);
+    return ok({
+      restored: true,
+      project_id: snap.project_id,
+      snapshot_label: snap.label
+    });
+  }
+});
+
 // src/lib/mcp/index.ts
 var projectRef = "xlmvlplazxrouscupidi";
 var mcp_default = defineMcp({
@@ -967,7 +1054,11 @@ var mcp_default = defineMcp({
     get_preview_url_default,
     // Messaging
     list_messages_default,
-    send_message_default
+    send_message_default,
+    // History / snapshots
+    create_snapshot_default,
+    list_history_default,
+    restore_snapshot_default
   ]
 });
 
