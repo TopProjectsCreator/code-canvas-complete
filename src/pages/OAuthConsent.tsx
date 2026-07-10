@@ -31,32 +31,36 @@ export default function OAuthConsent() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [checkedSession, setCheckedSession] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!authorizationId) return setError("Missing authorization_id");
+    const { data: sess } = await supabase.auth.getSession();
+    if (!sess.session) {
+      setCheckedSession(true);
+      setAuthOpen(true);
+      return;
+    }
+    setAuthOpen(false);
+    setUserEmail(sess.session.user.email ?? null);
+    const { data, error } = await oauthApi().getAuthorizationDetails(authorizationId);
+    if (error) return setError(error.message);
+    const immediate = data?.redirect_url ?? data?.redirect_to;
+    if (immediate && !data?.client) {
+      window.location.href = immediate;
+      return;
+    }
+    setDetails(data);
+  }, [authorizationId]);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!authorizationId) return setError("Missing authorization_id");
-      const { data: sess } = await supabase.auth.getSession();
-      if (!sess.session) {
-        const next = window.location.pathname + window.location.search;
-        window.location.href = "/auth-bridge?next=" + encodeURIComponent(next);
-        return;
-      }
-      setUserEmail(sess.session.user.email ?? null);
-      const { data, error } = await oauthApi().getAuthorizationDetails(authorizationId);
-      if (!active) return;
-      if (error) return setError(error.message);
-      const immediate = data?.redirect_url ?? data?.redirect_to;
-      if (immediate && !data?.client) {
-        window.location.href = immediate;
-        return;
-      }
-      setDetails(data);
-    })();
-    return () => {
-      active = false;
-    };
-  }, [authorizationId]);
+    void load();
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session) void load();
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [load]);
 
   async function decide(approve: boolean) {
     setBusy(true);
