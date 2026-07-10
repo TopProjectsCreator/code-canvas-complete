@@ -76,6 +76,7 @@ export default defineConfig(({ mode }) => ({
         navigateFallback: "index.html",
         navigateFallbackDenylist: [
           /^\/~oauth/,
+          /^\/\.lovable\//,
           /^\/auth-bridge/,
           /^\/auth-link/,
           /^\/auth-logout/,
