@@ -32,6 +32,7 @@ import OAuthConsent from "./pages/OAuthConsent";
 import LinkDiscord from "./pages/LinkDiscord";
 import ResetPassword from "./pages/ResetPassword";
 import OAuthHostsAdmin from "./pages/admin/OAuthHosts";
+import MCP from "./pages/MCP";
 import RedactorLanding from "./pages/redactor/Landing";
 import RedactorAuth from "./pages/redactor/Auth";
 import RedactorDashboard from "./pages/redactor/Dashboard";
