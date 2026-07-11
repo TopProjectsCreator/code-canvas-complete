@@ -68,24 +68,38 @@ transport = "http"`,
     accent: "from-cyan-500/20 via-cyan-500/5 to-transparent",
     steps: [
       {
-        title: "Edit opencode.json",
-        body: "Add CodeCanvas under mcp. OpenCode supports remote MCP with OAuth out of the box.",
-        code: `{
+        title: "Setup",
+        kind: "split",
+        options: [
+          {
+            title: "Option 1 — Just ask opencode",
+            body: "Copy this prompt and paste it to opencode. It'll add CodeCanvas and handle the OAuth login.",
+            code: `Install this MCP server and help me login: ${MCP_URL}`,
+            lang: "text",
+          },
+          {
+            title: "Option 2 — Do it yourself",
+            body: "Add CodeCanvas to your config and authenticate manually.",
+            codes: [
+              {
+                code: `{
   "mcp": {
     "codecanvas": {
       "type": "remote",
       "url": "${MCP_URL}",
-      "enabled": true
+      "oauth": {}
     }
   }
 }`,
-        lang: "json",
-      },
-      {
-        title: "Run opencode",
-        body: "Launch opencode in your project. It'll open a browser tab for the CodeCanvas OAuth handshake.",
-        code: `opencode`,
-        lang: "bash",
+                lang: "json",
+              },
+              {
+                code: "opencode mcp auth codecanvas",
+                lang: "bash",
+              },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -110,6 +124,118 @@ transport = "http"`,
       {
         title: "Sign in",
         body: "Cursor prompts to authenticate on first use. Approve in the browser and you're in.",
+      },
+    ],
+  },
+  {
+    key: "pi",
+    name: "Pi",
+    tagline: "The minimal, extensible coding agent",
+    accent: "from-amber-500/20 via-amber-500/5 to-transparent",
+    steps: [
+      {
+        title: "Setup",
+        kind: "split",
+        options: [
+          {
+            title: "Option 1 — Just ask Pi",
+            body: "Copy this prompt and paste it to Pi. It'll install the MCP adapter, add CodeCanvas, and handle the OAuth login.",
+            code: `Install the pi-mcp-adapter extension, add this MCP server, and help me login: ${MCP_URL}`,
+            lang: "text",
+          },
+          {
+            title: "Option 2 — Do it yourself",
+            body: "Install the adapter, configure CodeCanvas, and authenticate manually.",
+            codes: [
+              {
+                code: "pi install npm:pi-mcp-adapter",
+                lang: "bash",
+              },
+              {
+                code: `{
+  "mcpServers": {
+    "codecanvas": {
+      "url": "${MCP_URL}",
+      "auth": "oauth"
+    }
+  }
+}`,
+                lang: "json",
+              },
+              {
+                code: "/mcp-auth codecanvas",
+                lang: "text",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    key: "hermes",
+    name: "Hermes",
+    tagline: "The self-improving AI coding agent",
+    accent: "from-purple-500/20 via-purple-500/5 to-transparent",
+    steps: [
+      {
+        title: "Setup",
+        kind: "split",
+        options: [
+          {
+            title: "Option 1 — Just ask Hermes",
+            body: "Copy this prompt and paste it to Hermes. It'll add CodeCanvas and handle the OAuth login.",
+            code: `Add this MCP server and help me login: ${MCP_URL}`,
+            lang: "text",
+          },
+          {
+            title: "Option 2 — Do it yourself",
+            body: "Add CodeCanvas to ~/.hermes/config.yaml. Hermes auto-discovers OAuth on first use.",
+            codes: [
+              {
+                code: `mcp_servers:
+  codecanvas:
+    url: "${MCP_URL}"
+    auth: oauth`,
+                lang: "yaml",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    key: "openclaw",
+    name: "OpenClaw",
+    tagline: "The open-source AI agent platform",
+    accent: "from-red-500/20 via-red-500/5 to-transparent",
+    steps: [
+      {
+        title: "Setup",
+        kind: "split",
+        options: [
+          {
+            title: "Option 1 — Just ask OpenClaw",
+            body: "Copy this prompt and paste it to OpenClaw. It'll add CodeCanvas and handle the OAuth login.",
+            code: `Install this MCP server and help me login: ${MCP_URL}`,
+            lang: "text",
+          },
+          {
+            title: "Option 2 — Do it yourself",
+            body: "Add the server and authenticate manually.",
+            codes: [
+              {
+                code: `openclaw mcp add codecanvas --url ${MCP_URL} --transport streamable-http --auth oauth`,
+                lang: "bash",
+              },
+              {
+                code: "openclaw mcp login codecanvas",
+                lang: "bash",
+              },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -165,8 +291,8 @@ export default function MCP() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Seo
-        title="Connect CodeCanvas MCP — Claude, Codex, OpenCode, Cursor"
-        description="Wire CodeCanvas into your AI coding agent over Model Context Protocol. Copy-paste setup for Claude Code, Codex CLI, OpenCode, and Cursor."
+        title="Connect CodeCanvas MCP — Claude, Codex, OpenCode, Cursor, Pi, Hermes, OpenClaw"
+        description="Wire CodeCanvas into your AI coding agent over Model Context Protocol. Copy-paste setup for Claude Code, Codex CLI, OpenCode, Cursor, Pi, Hermes, and OpenClaw."
         path="/mcp"
       />
 
@@ -307,10 +433,67 @@ export default function MCP() {
                     </div>
                     <div className="pt-1">
                       <div className="mb-1 text-base font-semibold">{step.title}</div>
-                      {step.body && (
-                        <p className="mb-3 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+                      {step.kind === "split" && step.options ? (
+                        <div className="relative">
+                          <div className="absolute left-1/2 top-4 z-10 hidden -translate-x-1/2 sm:flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card font-mono text-[10px] font-bold text-muted-foreground">
+                            OR
+                          </div>
+                          <div className="grid gap-5 sm:grid-cols-2">
+                            {step.options.map((opt, j) => (
+                              <div
+                                key={j}
+                                className={`relative rounded-xl border ${
+                                  j === 0
+                                    ? "border-primary/20 bg-gradient-to-b from-primary/[0.04] to-transparent"
+                                    : "border-border/60 bg-card/30"
+                                } p-5 pt-4`}
+                              >
+                                {j === 0 && (
+                                  <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-primary/10" />
+                                )}
+                                <div className="mb-3 flex items-center gap-2.5">
+                                  <div
+                                    className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                                      j === 0
+                                        ? "bg-primary/15 text-primary"
+                                        : "bg-muted text-muted-foreground"
+                                    } font-mono text-[11px] font-bold`}
+                                  >
+                                    {j === 0 ? "A" : "B"}
+                                  </div>
+                                  <div className="text-sm font-semibold">{opt.title}</div>
+                                </div>
+                                {opt.body && (
+                                  <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
+                                    {opt.body}
+                                  </p>
+                                )}
+                                <div className="space-y-2.5">
+                                  {(opt.codes ?? (opt.code ? [opt.code] : [])).map((entry, k) => {
+                                    const code = typeof entry === "string" ? entry : entry.code;
+                                    const lang = typeof entry === "string" ? (opt.lang ?? "bash") : (entry.lang ?? "bash");
+                                    return (
+                                      <div key={k} className="relative pl-7">
+                                        <div className="absolute left-0 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-muted font-mono text-[9px] font-bold text-muted-foreground">
+                                          {k + 1}
+                                        </div>
+                                        <CodeBlock code={code} lang={lang} />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {step.body && (
+                            <p className="mb-3 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+                          )}
+                          {step.code && <CodeBlock code={step.code} lang={step.lang} />}
+                        </>
                       )}
-                      {step.code && <CodeBlock code={step.code} lang={step.lang} />}
                     </div>
                   </li>
                 ))}
