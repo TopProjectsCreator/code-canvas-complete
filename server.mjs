@@ -2443,11 +2443,14 @@ app.get('/api/replit/container/:sessionId/files', async (req, res) => {
       let entries;
       try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
       for (const entry of entries) {
-        if (entry.name.startsWith('.')) continue;
+        // Skip the container's own bootstrap file so it isn't surfaced as a
+        // project file, but do surface user dotfiles like .env, .npmrc, etc.
+        if (!prefix && entry.name === '.bashrc') continue;
+        if (SKIP.has(entry.name)) continue;
         const full = path.join(dir, entry.name);
         const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
         if (entry.isDirectory()) {
-          if (!SKIP.has(entry.name)) walk(full, rel);
+          walk(full, rel);
         } else if (entry.isFile()) {
           try {
             const stat = fs.statSync(full);
