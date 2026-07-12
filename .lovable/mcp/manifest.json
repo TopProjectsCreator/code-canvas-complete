@@ -774,6 +774,196 @@
         "outputSchema": null
       },
       {
+        "name": "create_container",
+        "title": "Create persistent container",
+        "description": "Create a new persistent shell container with an isolated filesystem and a long-running bash process. The container preserves state between commands (current directory, environment variables, installed packages, etc.). Returns a sessionId that must be used with container_exec, container_write_file, container_read_file, container_list_files, and destroy_container.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "projectName": {
+              "description": "Optional friendly name for the container project.",
+              "type": "string"
+            },
+            "files": {
+              "description": "Optional initial files to seed into the container's filesystem.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "content": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "path",
+                  "content"
+                ]
+              }
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "container_exec",
+        "title": "Execute command in container",
+        "description": "Run a bash command in an existing container session. The command runs in the persistent bash process so state is preserved: current working directory, environment variables, installed packages, aliases, etc. Returns stdout and exit code. Use this to run build tools, install packages, start servers, or any shell operation.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The session ID returned by create_container."
+            },
+            "command": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Bash command or multi-line script to run."
+            },
+            "timeout_ms": {
+              "description": "Timeout in milliseconds (default 30000, max 120000).",
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 120000
+            }
+          },
+          "required": [
+            "sessionId",
+            "command"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "container_write_file",
+        "title": "Write file to container",
+        "description": "Write a file into a container session's filesystem. Creates parent directories as needed. Use this to add source code, configuration files, or data files to the container before running build commands.",
+        "annotations": {
+          "readOnlyHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The session ID returned by create_container."
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "File path within the container (e.g. 'src/index.ts' or 'package.json')."
+            },
+            "content": {
+              "type": "string",
+              "description": "File content."
+            }
+          },
+          "required": [
+            "sessionId",
+            "path",
+            "content"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "container_read_file",
+        "title": "Read file from container",
+        "description": "Read a file from a container session's filesystem. Returns the file content as a string. Use this to inspect generated output, read build artifacts, check configuration files, or examine logs.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The session ID returned by create_container."
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "File path within the container (e.g. 'dist/output.json' or 'src/index.ts')."
+            }
+          },
+          "required": [
+            "sessionId",
+            "path"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "container_list_files",
+        "title": "List files in container",
+        "description": "List all files and directories in a container session's filesystem. Returns an array of file paths and sizes. Use this to explore the container's working directory, verify file structure, or find generated outputs.",
+        "annotations": {
+          "readOnlyHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The session ID returned by create_container."
+            }
+          },
+          "required": [
+            "sessionId"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "destroy_container",
+        "title": "Destroy container",
+        "description": "Destroy a container session and clean up all its resources. Kills the persistent bash process, removes the isolated filesystem directory, and frees server resources. Always call this when you are done with a container to avoid resource leaks.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "sessionId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The session ID returned by create_container to destroy."
+            }
+          },
+          "required": [
+            "sessionId"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
         "name": "list_messages",
         "title": "List inbox messages",
         "description": "List the signed-in user's inbox messages.",
