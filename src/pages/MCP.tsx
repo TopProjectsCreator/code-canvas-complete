@@ -239,6 +239,103 @@ transport = "http"`,
       },
     ],
   },
+  {
+    key: "cline",
+    name: "Cline",
+    tagline: "The open-source VS Code coding agent",
+    accent: "from-sky-500/20 via-sky-500/5 to-transparent",
+    steps: [
+      {
+        title: "Setup",
+        kind: "split",
+        options: [
+          {
+            title: "Option A — Just ask Cline",
+            body: "Copy this prompt and paste it to Cline. It'll add CodeCanvas and handle the OAuth login.",
+            code: `Install this MCP server and help me login: ${MCP_URL}`,
+            lang: "text",
+          },
+          {
+            title: "Option B — Use the MCP Servers UI",
+            body: [
+              "Open Cline's MCP Servers panel:",
+              "1. Click the MCP Servers icon (stacked servers) in Cline's top toolbar",
+              "2. Open the Configure tab",
+              "3. Go to the Remote Servers tab",
+              "4. Enter codecanvas as the server name",
+              "5. Paste the MCP URL",
+              "6. Set Transport Type to Streamable HTTP",
+              "7. Click Add Server",
+              "",
+              "Cline will connect and handle OAuth automatically.",
+            ].join("\n"),
+          },
+          {
+            title: "Option C — Manual config",
+            body: "Edit ~/.cline/mcp.json and add CodeCanvas under mcpServers.",
+            codes: [
+              {
+                code: `{
+  "mcpServers": {
+    "codecanvas": {
+      "type": "streamableHttp",
+      "url": "${MCP_URL}"
+    }
+  }
+}`,
+                lang: "json",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    key: "kilo",
+    name: "Kilo Code",
+    tagline: "The VS Code AI coding agent with 500+ models",
+    accent: "from-teal-500/20 via-teal-500/5 to-transparent",
+    steps: [
+      {
+        title: "Setup",
+        kind: "split",
+        options: [
+          {
+            title: "Option A — Just ask Kilo Code",
+            body: "Copy this prompt and paste it to Kilo Code. It'll add CodeCanvas and handle the OAuth login.",
+            code: `Install this MCP server and help me login: ${MCP_URL}`,
+            lang: "text",
+          },
+          {
+            title: "Option B — Do it yourself",
+            body: [
+              "Via the Settings UI:",
+              "1. Click the Kilo Code icon in the sidebar to open Settings",
+              "2. Go to Agent Behaviour → MCP Servers tab",
+              "3. Click Add Server, enter the URL, set type to remote",
+              "4. Save — OAuth is handled automatically.",
+              "",
+              "Or edit your kilo.jsonc directly:",
+            ].join("\n"),
+            codes: [
+              {
+                code: `{
+  "mcp": {
+    "codecanvas": {
+      "type": "remote",
+      "url": "${MCP_URL}"
+    }
+  }
+}`,
+                lang: "json",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 function CodeBlock({ code, lang }: { code: string; lang?: string }) {
@@ -285,14 +382,15 @@ const features = [
 export default function MCP() {
   const [active, setActive] = useState<ClientKey>("claude");
   const [mounted, setMounted] = useState(false);
+  const [splitIdx, setSplitIdx] = useState(0);
   useEffect(() => setMounted(true), []);
   const client = clients.find((c) => c.key === active)!;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Seo
-        title="Connect CodeCanvas MCP — Claude, Codex, OpenCode, Cursor, Pi, Hermes, OpenClaw"
-        description="Wire CodeCanvas into your AI coding agent over Model Context Protocol. Copy-paste setup for Claude Code, Codex CLI, OpenCode, Cursor, Pi, Hermes, and OpenClaw."
+        title="Connect CodeCanvas MCP — Claude, Codex, OpenCode, Cursor, Pi, Hermes, OpenClaw, Cline, Kilo Code"
+        description="Wire CodeCanvas into your AI coding agent over Model Context Protocol. Copy-paste setup for Claude Code, Codex CLI, OpenCode, Cursor, Pi, Hermes, OpenClaw, Cline, and Kilo Code."
         path="/mcp"
       />
 
@@ -434,58 +532,120 @@ export default function MCP() {
                     <div className="pt-1">
                       <div className="mb-1 text-base font-semibold">{step.title}</div>
                       {step.kind === "split" && step.options ? (
-                        <div className="relative">
-                          <div className="absolute left-1/2 top-4 z-10 hidden -translate-x-1/2 sm:flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card font-mono text-[10px] font-bold text-muted-foreground">
-                            OR
-                          </div>
-                          <div className="grid gap-5 sm:grid-cols-2">
-                            {step.options.map((opt, j) => (
-                              <div
-                                key={j}
-                                className={`relative rounded-xl border ${
-                                  j === 0
-                                    ? "border-primary/20 bg-gradient-to-b from-primary/[0.04] to-transparent"
-                                    : "border-border/60 bg-card/30"
-                                } p-5 pt-4`}
-                              >
-                                {j === 0 && (
-                                  <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-primary/10" />
-                                )}
-                                <div className="mb-3 flex items-center gap-2.5">
-                                  <div
-                                    className={`flex h-6 w-6 items-center justify-center rounded-full ${
-                                      j === 0
-                                        ? "bg-primary/15 text-primary"
-                                        : "bg-muted text-muted-foreground"
-                                    } font-mono text-[11px] font-bold`}
+                        step.options.length > 2 ? (
+                          <div>
+                            <div className="mb-4 flex gap-2">
+                              {step.options.map((opt, j) => (
+                                <button
+                                  key={j}
+                                  onClick={() => setSplitIdx(j)}
+                                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-mono text-xs transition-colors ${
+                                    splitIdx === j
+                                      ? "border-primary/40 bg-primary/10 text-primary"
+                                      : "border-border/60 bg-card/40 text-muted-foreground hover:text-foreground"
+                                  }`}
+                                >
+                                  <span
+                                    className={`flex h-4 w-4 items-center justify-center rounded-full ${
+                                      splitIdx === j
+                                        ? "bg-primary/20"
+                                        : "bg-muted"
+                                    } font-mono text-[9px] font-bold`}
                                   >
-                                    {j === 0 ? "A" : "B"}
+                                    {j === 0 ? "A" : j === 1 ? "B" : "C"}
+                                  </span>
+                                  {opt.title.replace(/Option [A-C] — /, "")}
+                                </button>
+                              ))}
+                            </div>
+                            {(() => {
+                              const opt = step.options[splitIdx];
+                              return (
+                                <div className="rounded-xl border border-primary/20 bg-gradient-to-b from-primary/[0.04] to-transparent p-5 pt-4">
+                                  <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-primary/10" />
+                                  <div className="mb-3 flex items-center gap-2.5">
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/15 text-primary font-mono text-[11px] font-bold">
+                                      {splitIdx === 0 ? "A" : splitIdx === 1 ? "B" : "C"}
+                                    </div>
+                                    <div className="text-sm font-semibold">{opt.title}</div>
                                   </div>
-                                  <div className="text-sm font-semibold">{opt.title}</div>
-                                </div>
-                                {opt.body && (
-                                  <p className="mb-3 text-xs leading-relaxed text-muted-foreground">
-                                    {opt.body}
-                                  </p>
-                                )}
-                                <div className="space-y-2.5">
-                                  {(opt.codes ?? (opt.code ? [opt.code] : [])).map((entry, k) => {
-                                    const code = typeof entry === "string" ? entry : entry.code;
-                                    const lang = typeof entry === "string" ? (opt.lang ?? "bash") : (entry.lang ?? "bash");
-                                    return (
-                                      <div key={k} className="relative pl-7">
-                                        <div className="absolute left-0 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-muted font-mono text-[9px] font-bold text-muted-foreground">
-                                          {k + 1}
+                                  {opt.body && (
+                                    <p className="mb-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-line">
+                                      {opt.body}
+                                    </p>
+                                  )}
+                                  <div className="space-y-2.5">
+                                    {(opt.codes ?? (opt.code ? [opt.code] : [])).map((entry, k) => {
+                                      const code = typeof entry === "string" ? entry : entry.code;
+                                      const lang = typeof entry === "string" ? (opt.lang ?? "bash") : (entry.lang ?? "bash");
+                                      return (
+                                        <div key={k} className="relative pl-7">
+                                          <div className="absolute left-0 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-muted font-mono text-[9px] font-bold text-muted-foreground">
+                                            {k + 1}
+                                          </div>
+                                          <CodeBlock code={code} lang={lang} />
                                         </div>
-                                        <CodeBlock code={code} lang={lang} />
-                                      </div>
-                                    );
-                                  })}
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })()}
                           </div>
-                        </div>
+                        ) : (
+                          <div className="relative">
+                            <div className="absolute left-1/2 top-4 z-10 hidden -translate-x-1/2 sm:flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card font-mono text-[10px] font-bold text-muted-foreground">
+                              OR
+                            </div>
+                            <div className="grid gap-5 sm:grid-cols-2">
+                              {step.options.map((opt, j) => (
+                                <div
+                                  key={j}
+                                  className={`relative rounded-xl border ${
+                                    j === 0
+                                      ? "border-primary/20 bg-gradient-to-b from-primary/[0.04] to-transparent"
+                                      : "border-border/60 bg-card/30"
+                                  } p-5 pt-4`}
+                                >
+                                  {j === 0 && (
+                                    <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-primary/10" />
+                                  )}
+                                  <div className="mb-3 flex items-center gap-2.5">
+                                    <div
+                                      className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                                        j === 0
+                                          ? "bg-primary/15 text-primary"
+                                          : "bg-muted text-muted-foreground"
+                                      } font-mono text-[11px] font-bold`}
+                                    >
+                                      {j === 0 ? "A" : "B"}
+                                    </div>
+                                    <div className="text-sm font-semibold">{opt.title}</div>
+                                  </div>
+                                  {opt.body && (
+                                    <p className="mb-3 text-xs leading-relaxed text-muted-foreground whitespace-pre-line">
+                                      {opt.body}
+                                    </p>
+                                  )}
+                                  <div className="space-y-2.5">
+                                    {(opt.codes ?? (opt.code ? [opt.code] : [])).map((entry, k) => {
+                                      const code = typeof entry === "string" ? entry : entry.code;
+                                      const lang = typeof entry === "string" ? (opt.lang ?? "bash") : (entry.lang ?? "bash");
+                                      return (
+                                        <div key={k} className="relative pl-7">
+                                          <div className="absolute left-0 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-muted font-mono text-[9px] font-bold text-muted-foreground">
+                                            {k + 1}
+                                          </div>
+                                          <CodeBlock code={code} lang={lang} />
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
                       ) : (
                         <>
                           {step.body && (

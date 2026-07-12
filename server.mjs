@@ -2079,6 +2079,396 @@ app.post('/api/replit/execute', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// MCP Container Session Manager — persistent bash sessions for AI agents
+// Each session gets an isolated temp dir + persistent PTY bash process.
+// ---------------------------------------------------------------------------
+
+const containerSessions = new Map();
+
+function getContainerUserId(req) {
+  // Try Supabase JWT first, then Replit user ID header
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith('Bearer ')) return auth.slice(7); // raw token, validated per-request
+  return req.headers['x-replit-user-id'] || null;
+}
+
+async function validateContainerToken(token) {
+  // Validate Supabase JWT and return userId
+  const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.id || null;
+  } catch { return null; }
+}
+
+async function resolveContainerUserId(req) {
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith('Bearer ')) {
+    return await validateContainerToken(auth.slice(7));
+  }
+  return req.headers['x-replit-user-id'] || null;
+}
+
+function sanitizeContainerPath(filePath) {
+  return filePath.replace(/^[./\\]+/, '').replace(/\.\.\//g, '');
+}
+
+function createContainerSession(userId, projectName, files) {
+  const sessionId = randomUUID();
+  const projectDir = path.join(tmpdir(), `mcp-container-${userId}-${sessionId}`);
+
+  fs.mkdirSync(projectDir, { recursive: true });
+
+  // Write initial files
+  for (const { path: fp, content } of (files || [])) {
+    if (!fp || typeof content !== 'string') continue;
+    const safe = sanitizeContainerPath(fp);
+    if (!safe) continue;
+    const fullPath = path.join(projectDir, safe);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, content, 'utf8');
+  }
+
+  // Write .bashrc with safety limits
+  const safeName = (projectName || 'mcp')
+    .toString().replace(/['"\\`$\x00-\x1f]/g, '_').slice(0, 64) || 'mcp';
+
+  const bashrcLines = [
+    '# CodeCanvas MCP Container',
+    '[ -f /etc/bash.bashrc ] && source /etc/bash.bashrc',
+    `CANVAS_PROJECT='${safeName}'`,
+    '__canvas_prompt() {',
+    '  local p="${PWD/#$HOME/$CANVAS_PROJECT}"',
+    '  PS1="\\[\\033[01;36m\\]${p}\\[\\033[00m\\]\\[\\033[01m\\]\\$\\[\\033[00m\\] "',
+    '}',
+    "PROMPT_COMMAND='__canvas_prompt'",
+    'ulimit -u 2048',
+    'ulimit -f 204800',
+    'kill() {',
+    '  for _arg in "$@"; do',
+    '    if [[ "$_arg" == "-1" ]]; then',
+    '      echo -e "\\033[31mBlocked: kill -1 is not permitted.\\033[0m" >&2',
+    '      return 1',
+    '    fi',
+    '  done',
+    '  command kill "$@"',
+    '}',
+  ].join('\n') + '\n';
+  fs.writeFileSync(path.join(projectDir, '.bashrc'), bashrcLines, 'utf8');
+
+  // Spawn persistent PTY bash
+  const ptyProcess = pty.spawn('bash', ['--rcfile', path.join(projectDir, '.bashrc')], {
+    name: 'xterm-256color',
+    cols: 128,
+    rows: 40,
+    cwd: projectDir,
+    env: {
+      ...process.env,
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+      HOME: projectDir,
+    },
+  });
+
+  const session = {
+    sessionId,
+    userId,
+    projectDir,
+    ptyProcess,
+    createdAt: Date.now(),
+    lastUsedAt: Date.now(),
+    cmdQueue: [],
+    activeCmd: null,
+    outputBuf: '',
+    idleTimer: null,
+  };
+
+  // Route PTY output to the active command or discard
+  ptyProcess.onData((data) => {
+    if (!session.activeCmd) return;
+    session.outputBuf += data;
+    const endIdx = session.outputBuf.indexOf('__MCP_DONE__:');
+    if (endIdx !== -1) {
+      const after = session.outputBuf.slice(endIdx);
+      const m = after.match(/__MCP_DONE__:(\d+)/);
+      const exitCode = m ? parseInt(m[1], 10) : -1;
+      const startIdx = session.outputBuf.indexOf('__MCP_START__');
+      let clean = session.outputBuf;
+      if (startIdx !== -1) {
+        clean = session.outputBuf.slice(startIdx + 14, endIdx);
+      }
+      clean = clean.trim();
+      const resolve = session.activeCmd.resolve;
+      if (session.activeCmd.timer) clearTimeout(session.activeCmd.timer);
+      session.outputBuf = '';
+      session.activeCmd = null;
+      resolve({ stdout: clean, exitCode });
+      processContainerQueue(session);
+    }
+  });
+
+  ptyProcess.onExit(() => {
+    if (session.activeCmd) {
+      session.activeCmd.reject(new Error('Container process exited'));
+      session.activeCmd = null;
+    }
+    containerSessions.delete(sessionId);
+  });
+
+  containerSessions.set(sessionId, session);
+  scheduleContainerCleanup(session);
+  return session;
+}
+
+function processContainerQueue(session) {
+  if (session.cmdQueue.length === 0) {
+    session.activeCmd = null;
+    return;
+  }
+  const cmd = session.cmdQueue.shift();
+  session.activeCmd = cmd;
+  session.lastUsedAt = Date.now();
+  session.ptyProcess.write(`__MCP_START__\n${cmd.command}\n__MCP_DONE__:$?\n`);
+}
+
+function execInContainer(session, command, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const entry = {
+      command,
+      resolve,
+      reject,
+      timer: setTimeout(() => {
+        const idx = session.cmdQueue.indexOf(entry);
+        if (idx !== -1) session.cmdQueue.splice(idx, 1);
+        if (session.activeCmd === entry) {
+          session.activeCmd = null;
+          session.outputBuf = '';
+        }
+        reject(new Error('Command timed out'));
+      }, timeoutMs),
+    };
+    session.cmdQueue.push(entry);
+    if (!session.activeCmd) processContainerQueue(session);
+  });
+}
+
+function scheduleContainerCleanup(session) {
+  if (session.idleTimer) clearTimeout(session.idleTimer);
+  session.idleTimer = setTimeout(() => {
+    // Only clean up if no active command and queue is empty
+    if (!session.activeCmd && session.cmdQueue.length === 0) {
+      try { session.ptyProcess.kill(); } catch {}
+      try { rmSync(session.projectDir, { recursive: true, force: true }); } catch {}
+      containerSessions.delete(session.sessionId);
+      console.log(`[MCP-Container] Cleaned up idle session ${session.sessionId}`);
+    }
+  }, 30 * 60 * 1000); // 30 min idle timeout
+}
+
+// ── Container REST endpoints ─────────────────────────────────────────────
+
+// Create container
+app.post('/api/replit/container', async (req, res) => {
+  try {
+    const userId = await resolveContainerUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { projectName, files } = req.body || {};
+    const session = createContainerSession(userId, projectName, files);
+    console.log(`[MCP-Container] Created ${session.sessionId} for user ${userId}`);
+
+    res.status(201).json({
+      sessionId: session.sessionId,
+      projectDir: session.projectDir,
+      createdAt: session.createdAt,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Execute command in container
+app.post('/api/replit/container/:sessionId/exec', async (req, res) => {
+  try {
+    const userId = await resolveContainerUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const session = containerSessions.get(req.params.sessionId);
+    if (!session) return res.status(404).json({ error: 'Container not found' });
+    if (session.userId !== userId) return res.status(403).json({ error: 'Access denied' });
+
+    const { command, timeout_ms } = req.body || {};
+    if (!command || !command.trim()) return res.status(400).json({ error: 'No command provided' });
+
+    // Check for blocked commands
+    if (isBlockedCommand(command)) {
+      return res.json({ stdout: '', stderr: `Blocked: '${command.trim().split(/\s+/)[0]}' is not permitted.`, exitCode: -1 });
+    }
+
+    scheduleContainerCleanup(session); // reset idle timer
+    const result = await execInContainer(session, command, timeout_ms || 30000);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Write file to container
+app.post('/api/replit/container/:sessionId/write-file', async (req, res) => {
+  try {
+    const userId = await resolveContainerUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const session = containerSessions.get(req.params.sessionId);
+    if (!session) return res.status(404).json({ error: 'Container not found' });
+    if (session.userId !== userId) return res.status(403).json({ error: 'Access denied' });
+
+    const { path: filePath, content } = req.body || {};
+    if (!filePath || typeof content !== 'string') return res.status(400).json({ error: 'path and content required' });
+
+    const safe = sanitizeContainerPath(filePath);
+    if (!safe) return res.status(400).json({ error: 'Invalid path' });
+
+    const fullPath = path.join(session.projectDir, safe);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, content, 'utf8');
+
+    scheduleContainerCleanup(session);
+    res.json({ success: true, path: safe });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Read file from container
+app.get('/api/replit/container/:sessionId/read-file', async (req, res) => {
+  try {
+    const userId = await resolveContainerUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const session = containerSessions.get(req.params.sessionId);
+    if (!session) return res.status(404).json({ error: 'Container not found' });
+    if (session.userId !== userId) return res.status(403).json({ error: 'Access denied' });
+
+    const filePath = req.query.path;
+    if (!filePath) return res.status(400).json({ error: 'path query parameter required' });
+
+    const safe = sanitizeContainerPath(filePath);
+    if (!safe) return res.status(400).json({ error: 'Invalid path' });
+
+    const fullPath = path.join(session.projectDir, safe);
+    if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'File not found' });
+    if (fs.statSync(fullPath).isDirectory()) return res.status(400).json({ error: 'Path is a directory' });
+
+    scheduleContainerCleanup(session);
+    const content = fs.readFileSync(fullPath, 'utf-8');
+    res.json({ content });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List files in container
+app.get('/api/replit/container/:sessionId/files', async (req, res) => {
+  try {
+    const userId = await resolveContainerUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const session = containerSessions.get(req.params.sessionId);
+    if (!session) return res.status(404).json({ error: 'Container not found' });
+    if (session.userId !== userId) return res.status(403).json({ error: 'Access denied' });
+
+    const files = [];
+    const MAX_SIZE = 512 * 1024;
+    const SKIP = new Set(['node_modules', '.git', '__pycache__', '.cache', 'dist', 'build', '.next', '.turbo', 'coverage']);
+
+    (function walk(dir, prefix) {
+      let entries;
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const entry of entries) {
+        if (entry.name.startsWith('.')) continue;
+        const full = path.join(dir, entry.name);
+        const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+        if (entry.isDirectory()) {
+          if (!SKIP.has(entry.name)) walk(full, rel);
+        } else if (entry.isFile()) {
+          try {
+            const stat = fs.statSync(full);
+            if (stat.size > MAX_SIZE) continue;
+            files.push({ path: rel, size: stat.size });
+          } catch { continue; }
+        }
+      }
+    })(session.projectDir, '');
+
+    scheduleContainerCleanup(session);
+    res.json({ files });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete/destroy container
+app.delete('/api/replit/container/:sessionId', async (req, res) => {
+  try {
+    const userId = await resolveContainerUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const session = containerSessions.get(req.params.sessionId);
+    if (!session) return res.status(404).json({ error: 'Container not found' });
+    if (session.userId !== userId) return res.status(403).json({ error: 'Access denied' });
+
+    if (session.idleTimer) clearTimeout(session.idleTimer);
+    if (session.activeCmd) {
+      session.activeCmd.reject(new Error('Container destroyed'));
+      session.activeCmd = null;
+    }
+    session.cmdQueue.forEach(c => { if (c.timer) clearTimeout(c.timer); c.reject(new Error('Container destroyed')); });
+    session.cmdQueue = [];
+
+    try { session.ptyProcess.kill(); } catch {}
+    try { rmSync(session.projectDir, { recursive: true, force: true }); } catch {}
+    containerSessions.delete(session.sessionId);
+
+    console.log(`[MCP-Container] Destroyed ${session.sessionId} for user ${userId}`);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List all containers for the current user
+app.get('/api/replit/container', async (req, res) => {
+  try {
+    const userId = await resolveContainerUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const sessions = [];
+    for (const [id, s] of containerSessions) {
+      if (s.userId === userId) {
+        sessions.push({
+          sessionId: id,
+          createdAt: s.createdAt,
+          lastUsedAt: s.lastUsedAt,
+          idleFor: Date.now() - s.lastUsedAt,
+          hasActiveCmd: s.activeCmd !== null,
+          queueLength: s.cmdQueue.length,
+        });
+      }
+    }
+    res.json({ containers: sessions });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Preview proxy — forwards requests to user project dev servers
 // (e.g. npm run dev, python -m http.server, etc.)
 // Security: only proxies to localhost, restricted port range.

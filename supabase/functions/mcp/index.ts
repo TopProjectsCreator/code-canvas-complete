@@ -870,16 +870,253 @@ var get_preview_url_default = defineTool25({
   }
 });
 
-// src/lib/mcp/tools/list-messages.ts
+// src/lib/mcp/tools/create-container.ts
 import { defineTool as defineTool26 } from "npm:@lovable.dev/mcp-js@0.20.0";
 import { z as z24 } from "npm:zod@^4.4.3";
-var list_messages_default = defineTool26({
+var SERVER_URL = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var create_container_default = defineTool26({
+  name: "create_container",
+  title: "Create persistent container",
+  description: "Create a new persistent shell container with an isolated filesystem and a long-running bash process. The container preserves state between commands (current directory, environment variables, installed packages, etc.). Returns a sessionId that must be used with container_exec, container_write_file, container_read_file, container_list_files, and destroy_container.",
+  inputSchema: {
+    projectName: z24.string().optional().describe("Optional friendly name for the container project."),
+    files: z24.array(z24.object({
+      path: z24.string(),
+      content: z24.string()
+    })).optional().describe("Optional initial files to seed into the container's filesystem.")
+  },
+  annotations: { readOnlyHint: false, openWorldHint: true },
+  handler: async ({ projectName, files }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    try {
+      const res = await fetch(`${SERVER_URL}/api/replit/container`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ctx.getToken()}`
+        },
+        body: JSON.stringify({ projectName, files })
+      });
+      const text = await res.text();
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = { raw: text };
+      }
+      if (!res.ok) return err(`Failed to create container (${res.status}): ${text.slice(0, 500)}`);
+      return ok(parsed);
+    } catch (e) {
+      return err(`Container creation error: ${e.message}`);
+    }
+  }
+});
+
+// src/lib/mcp/tools/container-exec.ts
+import { defineTool as defineTool27 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z25 } from "npm:zod@^4.4.3";
+var SERVER_URL2 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var container_exec_default = defineTool27({
+  name: "container_exec",
+  title: "Execute command in container",
+  description: "Run a bash command in an existing container session. The command runs in the persistent bash process so state is preserved: current working directory, environment variables, installed packages, aliases, etc. Returns stdout and exit code. Use this to run build tools, install packages, start servers, or any shell operation.",
+  inputSchema: {
+    sessionId: z25.string().min(1).describe("The session ID returned by create_container."),
+    command: z25.string().min(1).describe("Bash command or multi-line script to run."),
+    timeout_ms: z25.number().int().min(1e3).max(12e4).optional().describe("Timeout in milliseconds (default 30000, max 120000).")
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+  handler: async ({ sessionId, command, timeout_ms }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    try {
+      const res = await fetch(`${SERVER_URL2}/api/replit/container/${encodeURIComponent(sessionId)}/exec`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ctx.getToken()}`
+        },
+        body: JSON.stringify({ command, timeout_ms: timeout_ms ?? 3e4 })
+      });
+      const text = await res.text();
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = { raw: text };
+      }
+      if (!res.ok) return err(`Container exec failed (${res.status}): ${text.slice(0, 500)}`);
+      return ok(parsed);
+    } catch (e) {
+      return err(`Container exec error: ${e.message}`);
+    }
+  }
+});
+
+// src/lib/mcp/tools/container-write-file.ts
+import { defineTool as defineTool28 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z26 } from "npm:zod@^4.4.3";
+var SERVER_URL3 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var container_write_file_default = defineTool28({
+  name: "container_write_file",
+  title: "Write file to container",
+  description: "Write a file into a container session's filesystem. Creates parent directories as needed. Use this to add source code, configuration files, or data files to the container before running build commands.",
+  inputSchema: {
+    sessionId: z26.string().min(1).describe("The session ID returned by create_container."),
+    path: z26.string().min(1).describe("File path within the container (e.g. 'src/index.ts' or 'package.json')."),
+    content: z26.string().describe("File content.")
+  },
+  annotations: { readOnlyHint: false, openWorldHint: true },
+  handler: async ({ sessionId, path, content }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    try {
+      const res = await fetch(`${SERVER_URL3}/api/replit/container/${encodeURIComponent(sessionId)}/write-file`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${ctx.getToken()}`
+        },
+        body: JSON.stringify({ path, content })
+      });
+      const text = await res.text();
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = { raw: text };
+      }
+      if (!res.ok) return err(`Container write-file failed (${res.status}): ${text.slice(0, 500)}`);
+      return ok(parsed);
+    } catch (e) {
+      return err(`Container write-file error: ${e.message}`);
+    }
+  }
+});
+
+// src/lib/mcp/tools/container-read-file.ts
+import { defineTool as defineTool29 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z27 } from "npm:zod@^4.4.3";
+var SERVER_URL4 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var container_read_file_default = defineTool29({
+  name: "container_read_file",
+  title: "Read file from container",
+  description: "Read a file from a container session's filesystem. Returns the file content as a string. Use this to inspect generated output, read build artifacts, check configuration files, or examine logs.",
+  inputSchema: {
+    sessionId: z27.string().min(1).describe("The session ID returned by create_container."),
+    path: z27.string().min(1).describe("File path within the container (e.g. 'dist/output.json' or 'src/index.ts').")
+  },
+  annotations: { readOnlyHint: true, openWorldHint: true },
+  handler: async ({ sessionId, path }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    try {
+      const res = await fetch(`${SERVER_URL4}/api/replit/container/${encodeURIComponent(sessionId)}/read-file?path=${encodeURIComponent(path)}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${ctx.getToken()}`
+        }
+      });
+      const text = await res.text();
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = { raw: text };
+      }
+      if (!res.ok) return err(`Container read-file failed (${res.status}): ${text.slice(0, 500)}`);
+      return ok(parsed);
+    } catch (e) {
+      return err(`Container read-file error: ${e.message}`);
+    }
+  }
+});
+
+// src/lib/mcp/tools/container-list-files.ts
+import { defineTool as defineTool30 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z28 } from "npm:zod@^4.4.3";
+var SERVER_URL5 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var container_list_files_default = defineTool30({
+  name: "container_list_files",
+  title: "List files in container",
+  description: "List all files and directories in a container session's filesystem. Returns an array of file paths and sizes. Use this to explore the container's working directory, verify file structure, or find generated outputs.",
+  inputSchema: {
+    sessionId: z28.string().min(1).describe("The session ID returned by create_container.")
+  },
+  annotations: { readOnlyHint: true, openWorldHint: true },
+  handler: async ({ sessionId }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    try {
+      const res = await fetch(`${SERVER_URL5}/api/replit/container/${encodeURIComponent(sessionId)}/files`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${ctx.getToken()}`
+        }
+      });
+      const text = await res.text();
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = { raw: text };
+      }
+      if (!res.ok) return err(`Container list-files failed (${res.status}): ${text.slice(0, 500)}`);
+      return ok(parsed);
+    } catch (e) {
+      return err(`Container list-files error: ${e.message}`);
+    }
+  }
+});
+
+// src/lib/mcp/tools/destroy-container.ts
+import { defineTool as defineTool31 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z29 } from "npm:zod@^4.4.3";
+var SERVER_URL6 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
+var destroy_container_default = defineTool31({
+  name: "destroy_container",
+  title: "Destroy container",
+  description: "Destroy a container session and clean up all its resources. Kills the persistent bash process, removes the isolated filesystem directory, and frees server resources. Always call this when you are done with a container to avoid resource leaks.",
+  inputSchema: {
+    sessionId: z29.string().min(1).describe("The session ID returned by create_container to destroy.")
+  },
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
+  handler: async ({ sessionId }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
+    try {
+      const res = await fetch(`${SERVER_URL6}/api/replit/container/${encodeURIComponent(sessionId)}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${ctx.getToken()}`
+        }
+      });
+      const text = await res.text();
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = { raw: text };
+      }
+      if (!res.ok) return err(`Container destroy failed (${res.status}): ${text.slice(0, 500)}`);
+      return ok(parsed);
+    } catch (e) {
+      return err(`Container destroy error: ${e.message}`);
+    }
+  }
+});
+
+// src/lib/mcp/tools/list-messages.ts
+import { defineTool as defineTool32 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z30 } from "npm:zod@^4.4.3";
+var list_messages_default = defineTool32({
   name: "list_messages",
   title: "List inbox messages",
   description: "List the signed-in user's inbox messages.",
   inputSchema: {
-    unread_only: z24.boolean().optional(),
-    limit: z24.number().int().min(1).max(100).optional()
+    unread_only: z30.boolean().optional(),
+    limit: z30.number().int().min(1).max(100).optional()
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ unread_only, limit }, ctx) => {
@@ -894,17 +1131,17 @@ var list_messages_default = defineTool26({
 });
 
 // src/lib/mcp/tools/send-message.ts
-import { defineTool as defineTool27 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z25 } from "npm:zod@^4.4.3";
-var send_message_default = defineTool27({
+import { defineTool as defineTool33 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z31 } from "npm:zod@^4.4.3";
+var send_message_default = defineTool33({
   name: "send_message",
   title: "Send inbox message",
   description: "Send a message to another CodeCanvas user by user id.",
   inputSchema: {
-    recipient_id: z25.string().uuid(),
-    subject: z25.string().min(1).max(200),
-    body_html: z25.string().min(1).max(2e4),
-    kind: z25.string().max(40).optional()
+    recipient_id: z31.string().uuid(),
+    subject: z31.string().min(1).max(200),
+    body_html: z31.string().min(1).max(2e4),
+    kind: z31.string().max(40).optional()
   },
   annotations: { readOnlyHint: false, openWorldHint: false },
   handler: async ({ recipient_id, subject, body_html, kind }, ctx) => {
@@ -923,17 +1160,17 @@ var send_message_default = defineTool27({
 });
 
 // src/lib/mcp/tools/create-snapshot.ts
-import { defineTool as defineTool28 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z26 } from "npm:zod@^4.4.3";
-var create_snapshot_default = defineTool28({
+import { defineTool as defineTool34 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z32 } from "npm:zod@^4.4.3";
+var create_snapshot_default = defineTool34({
   name: "create_snapshot",
   title: "Create project snapshot",
   description: "Create a named restore-point (snapshot) of a project's current file state. The AI should call this before making potentially destructive changes so the user can roll back via list_history / restore_snapshot.",
   inputSchema: {
-    project_id: z26.string().uuid(),
-    label: z26.string().min(1).max(200),
-    detail: z26.string().max(500).optional(),
-    type: z26.enum(["snapshot", "pre-edit", "pre-delete", "pre-run", "manual"]).optional()
+    project_id: z32.string().uuid(),
+    label: z32.string().min(1).max(200),
+    detail: z32.string().max(500).optional(),
+    type: z32.enum(["snapshot", "pre-edit", "pre-delete", "pre-run", "manual"]).optional()
   },
   annotations: { readOnlyHint: false, idempotentHint: false, openWorldHint: false },
   handler: async ({ project_id, label, detail, type }, ctx) => {
@@ -961,15 +1198,15 @@ var create_snapshot_default = defineTool28({
 });
 
 // src/lib/mcp/tools/list-history.ts
-import { defineTool as defineTool29 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z27 } from "npm:zod@^4.4.3";
-var list_history_default = defineTool29({
+import { defineTool as defineTool35 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z33 } from "npm:zod@^4.4.3";
+var list_history_default = defineTool35({
   name: "list_history",
   title: "List project history",
   description: "List snapshot restore-points for a project the user owns. Each entry includes the label, type, detail, and timestamp. Use the id with restore_snapshot to roll back.",
   inputSchema: {
-    project_id: z27.string().uuid(),
-    limit: z27.number().int().min(1).max(200).optional()
+    project_id: z33.string().uuid(),
+    limit: z33.number().int().min(1).max(200).optional()
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ project_id, limit }, ctx) => {
@@ -982,14 +1219,14 @@ var list_history_default = defineTool29({
 });
 
 // src/lib/mcp/tools/restore-snapshot.ts
-import { defineTool as defineTool30 } from "npm:@lovable.dev/mcp-js@0.20.0";
-import { z as z28 } from "npm:zod@^4.4.3";
-var restore_snapshot_default = defineTool30({
+import { defineTool as defineTool36 } from "npm:@lovable.dev/mcp-js@0.20.0";
+import { z as z34 } from "npm:zod@^4.4.3";
+var restore_snapshot_default = defineTool36({
   name: "restore_snapshot",
   title: "Restore project snapshot",
   description: "Restore a project's files to a previous snapshot state. The snapshot id comes from list_history. This is a destructive operation \u2014 the current files will be overwritten.",
   inputSchema: {
-    snapshot_id: z28.string().uuid()
+    snapshot_id: z34.string().uuid()
   },
   annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
   handler: async ({ snapshot_id }, ctx) => {
@@ -1015,7 +1252,7 @@ var mcp_default = defineMcp({
   name: "codecanvas-mcp",
   title: "CodeCanvas MCP",
   version: "0.2.0",
-  instructions: "CodeCanvas MCP: everything the in-app AI assistant can do \u2014 sign in via OAuth to browse and edit your canvases, read/write files, run code in the execution sandbox, leave code comments, request reviews, star/bookmark, and manage inbox messages. Public discovery tools (search_public_canvases, get_featured_canvases, get_canvas_count) work without auth.",
+  instructions: "CodeCanvas MCP: everything the in-app AI assistant can do \u2014 sign in via OAuth to browse and edit your canvases, read/write files, run code in the execution sandbox, create and manage persistent containers (isolated bash + filesystem that preserves state between commands!), leave code comments, request reviews, star/bookmark, and manage inbox messages. Public discovery tools (search_public_canvases, get_featured_canvases, get_canvas_count) work without auth.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated"
@@ -1052,6 +1289,13 @@ var mcp_default = defineMcp({
     run_code_default,
     run_shell_default,
     get_preview_url_default,
+    // Container sessions (persistent bash + isolated filesystem)
+    create_container_default,
+    container_exec_default,
+    container_write_file_default,
+    container_read_file_default,
+    container_list_files_default,
+    destroy_container_default,
     // Messaging
     list_messages_default,
     send_message_default,

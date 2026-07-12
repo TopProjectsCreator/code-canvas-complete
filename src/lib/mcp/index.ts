@@ -28,6 +28,12 @@ import listReviews from "./tools/list-reviews";
 import runCode from "./tools/run-code";
 import runShell from "./tools/run-shell";
 import getPreviewUrl from "./tools/get-preview-url";
+import createContainer from "./tools/create-container";
+import containerExec from "./tools/container-exec";
+import containerWriteFile from "./tools/container-write-file";
+import containerReadFile from "./tools/container-read-file";
+import containerListFiles from "./tools/container-list-files";
+import destroyContainer from "./tools/destroy-container";
 import listMessages from "./tools/list-messages";
 import sendMessage from "./tools/send-message";
 import createSnapshot from "./tools/create-snapshot";
@@ -44,7 +50,7 @@ export default defineMcp({
   title: "CodeCanvas MCP",
   version: "0.2.0",
   instructions:
-    "CodeCanvas MCP: everything the in-app AI assistant can do — sign in via OAuth to browse and edit your canvases, read/write files, run code in the execution sandbox, leave code comments, request reviews, star/bookmark, and manage inbox messages. Public discovery tools (search_public_canvases, get_featured_canvases, get_canvas_count) work without auth.",
+    "CodeCanvas MCP: everything the in-app AI assistant can do — sign in via OAuth to browse and edit your canvases, read/write files, run code in the execution sandbox, create and manage persistent containers (isolated bash + filesystem that preserves state between commands!), leave code comments, request reviews, star/bookmark, and manage inbox messages. Public discovery tools (search_public_canvases, get_featured_canvases, get_canvas_count) work without auth.",
   auth: auth.oauth.issuer({
     issuer: `https://${projectRef}.supabase.co/auth/v1`,
     acceptedAudiences: "authenticated",
@@ -81,6 +87,13 @@ export default defineMcp({
     runCode,
     runShell,
     getPreviewUrl,
+    // Container sessions (persistent bash + isolated filesystem)
+    createContainer,
+    containerExec,
+    containerWriteFile,
+    containerReadFile,
+    containerListFiles,
+    destroyContainer,
     // Messaging
     listMessages,
     sendMessage,
