@@ -84,6 +84,35 @@ The IDE header shows who is currently active in the project:
 - Click an avatar to jump to their current cursor position
 - Status indicators (active, idle, offline)
 
+## Discord Rich Presence
+
+Show what you're working on directly in Discord as a live activity status. When you have CodeCanvas open in a Discord Embedded App SDK context, your Discord profile displays your current CodeCanvas activity — the file you're editing, the project you're in, whether you're running code, and more.
+
+### How it works
+
+Discord Rich Presence syncs your CodeCanvas session to Discord automatically while you're working in the Discord client. Your status updates in real time as you switch between files, projects, and execution.
+
+### Customizing your presence
+
+Configure what others see from **Settings → Connections → Discord**:
+
+- **Show elapsed time** — toggle whether a clock counter appears on your activity
+- **Landing** — what displays when you're on the home screen (default: "Canvas IDE — Looking at home")
+- **Editing** — shows the current file name and language (default: off, with `{fileName}` and `{language}` placeholders)
+- **Running** — shows when code is executing (default: off, with `{fileName}` placeholder)
+
+Use `{fileName}`, `{language}`, and `{projectName}` placeholders in your custom details and state text — they are replaced with live values automatically.
+
+### Presence states
+
+| Context | Default details | Default state |
+|---|---|---|
+| Landing | Canvas IDE | Getting started |
+| Editing | Editing `{fileName}` | Working in `{language}` |
+| Running | Running `{fileName}` | Executing |
+
+When multiple contexts are enabled, the active one is chosen automatically based on what you're doing. Elapsed time tracking starts when you first open CodeCanvas and persists across file switches.
+
 <Note>
   WebRTC rooms, inline comments, and session recordings keep AI-centric teamwork connected. Use recordings and context pins to hand off work without losing any context.
 </Note>

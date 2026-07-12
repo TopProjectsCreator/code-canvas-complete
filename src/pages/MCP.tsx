@@ -6,7 +6,7 @@ import { Seo } from "@/components/Seo";
 
 const MCP_URL = "https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp";
 
-type ClientKey = "claude" | "codex" | "opencode" | "cursor";
+type ClientKey = "claude" | "codex" | "opencode" | "cursor" | "pi" | "hermes" | "openclaw" | "cline" | "kilo" | "zed" | "aider";
 
 const clients: {
   key: ClientKey;
@@ -336,6 +336,76 @@ transport = "http"`,
       },
     ],
   },
+  {
+    key: "zed",
+    name: "Zed",
+    tagline: "The high-performance Rust code editor",
+    accent: "from-pink-500/20 via-pink-500/5 to-transparent",
+    steps: [
+      {
+        title: "Setup",
+        kind: "split",
+        options: [
+          {
+            title: "Option A — Just ask Zed",
+            body: "Copy this prompt and paste it to Zed's agent. It'll add CodeCanvas and handle the OAuth login.",
+            code: `Install this MCP server and help me login: ${MCP_URL}`,
+            lang: "text",
+          },
+          {
+            title: "Option B — Do it yourself",
+            body: [
+              "Via the Agent Panel UI:",
+              "1. Open Agent Panel → Settings",
+              "2. Click Add Custom Server",
+              "3. Enter name \"codecanvas\" and paste the MCP URL",
+              "4. Save — Zed prompts for OAuth automatically when no Authorization header is set.",
+              "",
+              "Or edit ~/.config/zed/settings.json directly:",
+            ].join("\n"),
+            codes: [
+              {
+                code: `{
+  "context_servers": {
+    "codecanvas": {
+      "url": "${MCP_URL}"
+    }
+  }
+}`,
+                lang: "json",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    key: "aider",
+    name: "Aider",
+    tagline: "The terminal-native AI pair programmer",
+    accent: "from-yellow-500/20 via-yellow-500/5 to-transparent",
+    steps: [
+      {
+        title: "Setup",
+        kind: "split",
+        options: [
+          {
+            title: "Option A — Just ask Aider",
+            body: "Copy this prompt and paste it to Aider. It'll use the MCP URL to connect.",
+            code: `Install this MCP server and help me login: ${MCP_URL}`,
+            lang: "text",
+          },
+          {
+            title: "Option B — Do it yourself",
+            body: "Aider works best through its git-native CLI. Use the URL directly or set up the mcpm-aider bridge for MCP tool access.",
+            code: MCP_URL,
+            lang: "text",
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 function CodeBlock({ code, lang }: { code: string; lang?: string }) {
@@ -389,8 +459,8 @@ export default function MCP() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Seo
-        title="Connect CodeCanvas MCP — Claude, Codex, OpenCode, Cursor, Pi, Hermes, OpenClaw, Cline, Kilo Code"
-        description="Wire CodeCanvas into your AI coding agent over Model Context Protocol. Copy-paste setup for Claude Code, Codex CLI, OpenCode, Cursor, Pi, Hermes, OpenClaw, Cline, and Kilo Code."
+        title="Connect CodeCanvas MCP — Claude, Codex, OpenCode, Cursor, Pi, Hermes, OpenClaw, Cline, Kilo Code, Zed, Aider"
+        description="Wire CodeCanvas into your AI coding agent over Model Context Protocol. Copy-paste setup for Claude Code, Codex CLI, OpenCode, Cursor, Pi, Hermes, OpenClaw, Cline, Kilo Code, Zed, and Aider."
         path="/mcp"
       />
 
@@ -485,7 +555,7 @@ export default function MCP() {
               </h2>
             </div>
             <div className="hidden font-mono text-xs text-muted-foreground sm:block">
-              {clients.length} clients supported
+              {clients.length} clients — every major AI coding agent
             </div>
           </div>
 

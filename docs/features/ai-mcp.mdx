@@ -58,6 +58,162 @@ The most powerful setups combine both:
 
 This results in AI responses that are contextually grounded in your real infrastructure.
 
+## CodeCanvas as an MCP server
+
+CodeCanvas also exposes its own MCP server that external AI coding agents can connect to. This lets agents like Claude Code, OpenCode, Cline, and others interact with your canvases, files, code execution sandbox, comments, and reviews directly — the same tools the in-app assistant uses, now available from any MCP-compatible client.
+
+**MCP endpoint:**
+
+```
+https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp
+```
+
+The server uses **OAuth 2.1** via Supabase Auth. Every authenticated request runs under your identity and respects your project's Row-Level Security policies.
+
+### What's exposed
+
+| Category | Tools |
+|---|---|
+| **Canvases** | `list_my_canvases`, `get_canvas`, `create_canvas`, `delete_canvas`, `fork_canvas`, `update_canvas_meta` |
+| **Files** | `list_files`, `read_file`, `write_file`, `delete_file`, `search_in_canvas` |
+| **Execution** | `run_code`, `run_shell`, `get_preview_url` |
+| **Reviews** | `add_comment`, `list_comments`, `resolve_comment`, `request_review`, `list_reviews` |
+| **Discovery** | `star_canvas`, `bookmark_canvas`, `search_public_canvases`, `get_featured_canvases`, `get_canvas_count` |
+| **Messaging** | `list_messages`, `send_message` |
+| **History** | `create_snapshot`, `list_history`, `restore_snapshot` |
+| **Identity** | `whoami` |
+
+### Quick setup (any agent)
+
+Copy this prompt and paste it to your AI coding agent:
+
+```
+Install this MCP server and help me login: https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp
+```
+
+The agent will add the server and walk you through the OAuth flow.
+
+### Manual setup by agent
+
+**Claude Code**
+```bash
+claude mcp add --transport http codecanvas \
+  https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp
+```
+Then run `/mcp` inside Claude Code, pick `codecanvas`, and authenticate.
+
+**OpenCode**
+Add to `opencode.json`:
+```json
+{
+  "mcp": {
+    "codecanvas": {
+      "type": "remote",
+      "url": "https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp",
+      "oauth": {}
+    }
+  }
+}
+```
+Then run `opencode mcp auth codecanvas`.
+
+**Cline (VS Code)**
+Use the MCP Servers UI: click the icon in Cline's toolbar → Configure → Remote Servers → enter name `codecanvas`, paste the URL, set transport to Streamable HTTP.
+Or add to `~/.cline/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "codecanvas": {
+      "type": "streamableHttp",
+      "url": "https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp"
+    }
+  }
+}
+```
+
+**Codex CLI**
+Add to `~/.codex/config.toml`:
+```toml
+[mcp_servers.codecanvas]
+url = "https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp"
+transport = "http"
+```
+
+**Cursor**
+Add to `~/.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "codecanvas": {
+      "url": "https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp"
+    }
+  }
+}
+```
+
+**Pi**
+```bash
+pi install npm:pi-mcp-adapter
+```
+Then add to `.mcp.json`:
+```json
+{
+  "mcpServers": {
+    "codecanvas": {
+      "url": "https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp",
+      "auth": "oauth"
+    }
+  }
+}
+```
+
+**Hermes**
+Add to `~/.hermes/config.yaml`:
+```yaml
+mcp_servers:
+  codecanvas:
+    url: "https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp"
+    auth: oauth
+```
+
+**OpenClaw**
+```bash
+openclaw mcp add codecanvas \
+  --url https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp \
+  --transport streamable-http \
+  --auth oauth
+openclaw mcp login codecanvas
+```
+
+**Kilo Code**
+Use the Settings UI: Kilo Code icon → Agent Behaviour → MCP Servers → Add Server.
+Or edit `kilo.jsonc`:
+```json
+{
+  "mcp": {
+    "codecanvas": {
+      "type": "remote",
+      "url": "https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp"
+    }
+  }
+}
+```
+
+**Zed**
+Open Agent Panel → Settings → Add Custom Server. Enter name and URL.
+Or edit `~/.config/zed/settings.json`:
+```json
+{
+  "context_servers": {
+    "codecanvas": {
+      "url": "https://xlmvlplazxrouscupidi.supabase.co/functions/v1/mcp"
+    }
+  }
+}
+```
+
+All OAuth-enabled agents handle the browser login flow automatically on first use. See the [/mcp](/mcp) page for interactive setup guides.
+
 ## Prompt architecture
 
 Every AI request includes three layers:
