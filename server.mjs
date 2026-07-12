@@ -2194,19 +2194,35 @@ function createContainerSession(userId, projectName, files) {
     idleTimer: null,
   };
 
-  // Route PTY output to the active command or discard
+  // Route PTY output to the active command, drain state, or discard
   ptyProcess.onData((data) => {
+    // Draining: waiting for a sync marker after a timeout/abort so that any
+    // stale output from the aborted command is flushed before we start the
+    // next queued command. Without this, late output (including a stale
+    // __MCP_DONE__ marker) would be attributed to the next command.
+    if (session.draining) {
+      session.outputBuf += data;
+      if (session.drainMarker && session.outputBuf.includes(session.drainMarker)) {
+        session.draining = false;
+        session.drainMarker = null;
+        session.outputBuf = '';
+        processContainerQueue(session);
+      }
+      return;
+    }
     if (!session.activeCmd) return;
     session.outputBuf += data;
-    const endIdx = session.outputBuf.indexOf('__MCP_DONE__:');
+    const doneMarker = session.activeCmd.doneMarker || '__MCP_DONE__:';
+    const endIdx = session.outputBuf.indexOf(doneMarker);
     if (endIdx !== -1) {
       const after = session.outputBuf.slice(endIdx);
-      const m = after.match(/__MCP_DONE__:(\d+)/);
+      const m = after.match(new RegExp(doneMarker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\d+)'));
       const exitCode = m ? parseInt(m[1], 10) : -1;
-      const startIdx = session.outputBuf.indexOf('__MCP_START__');
+      const startMarker = session.activeCmd.startMarker || '__MCP_START__';
+      const startIdx = session.outputBuf.indexOf(startMarker);
       let clean = session.outputBuf;
       if (startIdx !== -1) {
-        clean = session.outputBuf.slice(startIdx + 14, endIdx);
+        clean = session.outputBuf.slice(startIdx + startMarker.length, endIdx);
       }
       clean = clean.trim();
       const resolve = session.activeCmd.resolve;
@@ -2220,6 +2236,7 @@ function createContainerSession(userId, projectName, files) {
 
   ptyProcess.onExit(() => {
     if (session.activeCmd) {
+      if (session.activeCmd.timer) clearTimeout(session.activeCmd.timer);
       session.activeCmd.reject(new Error('Container process exited'));
       session.activeCmd = null;
     }
@@ -2232,14 +2249,38 @@ function createContainerSession(userId, projectName, files) {
 }
 
 function processContainerQueue(session) {
+  if (session.draining) return;
   if (session.cmdQueue.length === 0) {
     session.activeCmd = null;
     return;
   }
   const cmd = session.cmdQueue.shift();
   session.activeCmd = cmd;
+  session.outputBuf = '';
   session.lastUsedAt = Date.now();
-  session.ptyProcess.write(`__MCP_START__\n${cmd.command}\n__MCP_DONE__:$?\n`);
+  // Unique per-command markers so stale output from an aborted command
+  // can never satisfy a later command's done marker.
+  const nonce = randomUUID().replace(/-/g, '');
+  cmd.startMarker = `__MCP_START_${nonce}__`;
+  cmd.doneMarker = `__MCP_DONE_${nonce}__:`;
+  // Start the timeout at exec-start, not at queue-push time, so commands
+  // queued behind a slow one don't race their timeout against another
+  // command's runtime.
+  if (typeof cmd.startTimer === 'function') cmd.startTimer();
+  session.ptyProcess.write(
+    `echo ${cmd.startMarker}\n${cmd.command}\necho "${cmd.doneMarker}$?"\n`,
+  );
+}
+
+function beginContainerDrain(session) {
+  session.activeCmd = null;
+  session.outputBuf = '';
+  session.draining = true;
+  const nonce = randomUUID().replace(/-/g, '');
+  session.drainMarker = `__MCP_DRAIN_${nonce}__`;
+  // Ctrl-C to interrupt whatever's running, then a unique echo we can wait for.
+  try { session.ptyProcess.write('\x03'); } catch {}
+  try { session.ptyProcess.write(`echo ${session.drainMarker}\n`); } catch {}
 }
 
 function execInContainer(session, command, timeoutMs) {
@@ -2248,18 +2289,23 @@ function execInContainer(session, command, timeoutMs) {
       command,
       resolve,
       reject,
-      timer: setTimeout(() => {
-        const idx = session.cmdQueue.indexOf(entry);
-        if (idx !== -1) session.cmdQueue.splice(idx, 1);
+      timer: null,
+    };
+    entry.startTimer = () => {
+      entry.timer = setTimeout(() => {
         if (session.activeCmd === entry) {
-          session.activeCmd = null;
-          session.outputBuf = '';
+          // Abort the still-running command and drain PTY output before the
+          // next queued command runs, so leftover output can't poison it.
+          beginContainerDrain(session);
+        } else {
+          const idx = session.cmdQueue.indexOf(entry);
+          if (idx !== -1) session.cmdQueue.splice(idx, 1);
         }
         reject(new Error('Command timed out'));
-      }, timeoutMs),
+      }, timeoutMs);
     };
     session.cmdQueue.push(entry);
-    if (!session.activeCmd) processContainerQueue(session);
+    if (!session.activeCmd && !session.draining) processContainerQueue(session);
   });
 }
 
