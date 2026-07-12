@@ -2116,7 +2116,12 @@ async function resolveContainerUserId(req) {
 }
 
 function sanitizeContainerPath(filePath) {
-  return filePath.replace(/^[./\\]+/, '').replace(/\.\.\//g, '');
+  // Split on path separators and drop empty segments, `.`, and `..` (traversal).
+  // Leading dots on filenames (e.g. `.env`, `.gitignore`) are preserved.
+  const parts = String(filePath)
+    .split(/[/\\]+/)
+    .filter((p) => p && p !== '.' && p !== '..');
+  return parts.join('/');
 }
 
 function createContainerSession(userId, projectName, files) {
