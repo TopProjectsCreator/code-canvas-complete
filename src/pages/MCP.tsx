@@ -13,7 +13,7 @@ const clients: {
   name: string;
   tagline: string;
   accent: string;
-  steps: { title: string; body?: string; code?: string; lang?: string }[];
+  steps: any[];
 }[] = [
   {
     key: "claude",
