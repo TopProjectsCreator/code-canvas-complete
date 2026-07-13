@@ -129,21 +129,39 @@ export type Database = {
       }
       allowed_oauth_return_hosts: {
         Row: {
+          admin_notes: string | null
+          app_name: string
           created_at: string
           host: string
+          logo_url: string | null
           note: string | null
+          owner_id: string | null
+          public_description: string | null
+          status: string
           updated_at: string
         }
         Insert: {
+          admin_notes?: string | null
+          app_name: string
           created_at?: string
           host: string
+          logo_url?: string | null
           note?: string | null
+          owner_id?: string | null
+          public_description?: string | null
+          status?: string
           updated_at?: string
         }
         Update: {
+          admin_notes?: string | null
+          app_name?: string
           created_at?: string
           host?: string
+          logo_url?: string | null
           note?: string | null
+          owner_id?: string | null
+          public_description?: string | null
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -1533,7 +1551,30 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      oauth_apps_public: {
+        Row: {
+          app_name: string | null
+          created_at: string | null
+          host: string | null
+          logo_url: string | null
+          public_description: string | null
+        }
+        Insert: {
+          app_name?: string | null
+          created_at?: string | null
+          host?: string | null
+          logo_url?: string | null
+          public_description?: string | null
+        }
+        Update: {
+          app_name?: string | null
+          created_at?: string | null
+          host?: string | null
+          logo_url?: string | null
+          public_description?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       decrement_extension_installs: {
@@ -1551,6 +1592,10 @@ export type Database = {
       increment_extension_installs: {
         Args: { ext_id: string }
         Returns: undefined
+      }
+      is_oauth_return_host_allowed: {
+        Args: { _host: string }
+        Returns: boolean
       }
       is_team_member: {
         Args: { _team_id: string; _user_id: string }
