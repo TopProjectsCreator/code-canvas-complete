@@ -605,7 +605,7 @@ export default function MCP() {
                         step.options.length > 2 ? (
                           <div>
                             <div className="mb-4 flex gap-2">
-                              {step.options.map((opt, j) => (
+                              {step.options.map((opt: any, j: number) => (
                                 <button
                                   key={j}
                                   onClick={() => setSplitIdx(j)}
@@ -645,7 +645,7 @@ export default function MCP() {
                                     </p>
                                   )}
                                   <div className="space-y-2.5">
-                                    {(opt.codes ?? (opt.code ? [opt.code] : [])).map((entry, k) => {
+                                    {(opt.codes ?? (opt.code ? [opt.code] : [])).map((entry: any, k: number) => {
                                       const code = typeof entry === "string" ? entry : entry.code;
                                       const lang = typeof entry === "string" ? (opt.lang ?? "bash") : (entry.lang ?? "bash");
                                       return (
@@ -668,7 +668,7 @@ export default function MCP() {
                               OR
                             </div>
                             <div className="grid gap-5 sm:grid-cols-2">
-                              {step.options.map((opt, j) => (
+                              {step.options.map((opt: any, j: number) => (
                                 <div
                                   key={j}
                                   className={`relative rounded-xl border ${
@@ -698,7 +698,7 @@ export default function MCP() {
                                     </p>
                                   )}
                                   <div className="space-y-2.5">
-                                    {(opt.codes ?? (opt.code ? [opt.code] : [])).map((entry, k) => {
+                                    {(opt.codes ?? (opt.code ? [opt.code] : [])).map((entry: any, k: number) => {
                                       const code = typeof entry === "string" ? entry : entry.code;
                                       const lang = typeof entry === "string" ? (opt.lang ?? "bash") : (entry.lang ?? "bash");
                                       return (
