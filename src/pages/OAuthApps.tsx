@@ -107,7 +107,7 @@ const OAuthAppsPublic = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Seo title="OAuth integrations directory" description="Apps and services approved to use the CodeCanvas auth bridge." />
+      <Seo title="OAuth integrations directory" description="Apps and services approved to use the CodeCanvas auth bridge." path="/oauth-apps" />
       <div className="max-w-5xl mx-auto p-6 space-y-8">
         <header className="flex items-start justify-between gap-4 flex-wrap">
           <div>
