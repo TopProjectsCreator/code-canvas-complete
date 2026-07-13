@@ -27,11 +27,7 @@ export const isHostAllowed = async (host: string): Promise<boolean> => {
   // Bridge host is always allowed.
   if (normalized === BRIDGE_HOST) return true;
   try {
-    const { data, error } = await supabase
-      .from('allowed_oauth_return_hosts')
-      .select('host')
-      .eq('host', normalized)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('is_oauth_return_host_allowed', { _host: normalized });
     if (error) return false;
     return !!data;
   } catch {
