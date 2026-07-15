@@ -34,6 +34,10 @@ import ResetPassword from "./pages/ResetPassword";
 import OAuthHostsAdmin from "./pages/admin/OAuthHosts";
 import OAuthAppsPublic from "./pages/OAuthApps";
 import MCP from "./pages/MCP";
+import ThreadsLayout from "./pages/threads/ThreadsLayout";
+import ThreadsList from "./pages/threads/ThreadsList";
+import ThreadDetail from "./pages/threads/ThreadDetail";
+import CreateThread from "./pages/threads/CreateThread";
 import RedactorLanding from "./pages/redactor/Landing";
 import RedactorAuth from "./pages/redactor/Auth";
 import RedactorDashboard from "./pages/redactor/Dashboard";
@@ -168,6 +172,12 @@ const App = () => isOAuthConsentPath() ? <OAuthConsentShell /> : (
                 <Route path="/redactor/proxy-keys" element={<RedactorProxyKeys />} />
                 <Route path="/redactor/rules" element={<RedactorRules />} />
                 <Route path="/redactor/logs" element={<RedactorLogs />} />
+              </Route>
+              {/* Threads routes */}
+              <Route path="/threads" element={<ThreadsLayout />}>
+                <Route index element={<ThreadsList />} />
+                <Route path="new" element={<CreateThread />} />
+                <Route path=":id" element={<ThreadDetail />} />
               </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

@@ -5,15 +5,24 @@ const ALLOWED_TAGS = new Set([
   'BR',
   'CODE',
   'EM',
+  'FIGCAPTION',
+  'FIGURE',
+  'H1',
+  'H2',
+  'H3',
   'I',
+  'IMG',
   'LI',
   'OL',
   'P',
   'PRE',
   'S',
+  'SOURCE',
   'STRONG',
   'U',
   'UL',
+  'VIDEO',
+  'AUDIO',
 ]);
 
 const escapeHtml = (value: string) => value
@@ -56,6 +65,48 @@ export const sanitizeRichText = (value: string) => {
     }
 
     if (tag === 'BR') return '<br>';
+
+    if (tag === 'IMG') {
+      const src = el.getAttribute('src') || '';
+      const alt = el.getAttribute('alt') || '';
+      const width = el.getAttribute('width') || '';
+      const height = el.getAttribute('height') || '';
+      const attrs = [`src="${escapeHtml(src)}"`];
+      if (alt) attrs.push(`alt="${escapeHtml(alt)}"`);
+      if (width) attrs.push(`width="${escapeHtml(width)}"`);
+      if (height) attrs.push(`height="${escapeHtml(height)}"`);
+      if (!src.startsWith('http')) return '';
+      return `<img ${attrs.join(' ')} />`;
+    }
+
+    if (tag === 'VIDEO') {
+      const src = el.getAttribute('src') || '';
+      const controls = el.hasAttribute('controls');
+      if (!src.startsWith('http') && src) return '';
+      const attrs = [`src="${escapeHtml(src)}"`];
+      if (controls) attrs.push('controls');
+      attrs.push('class="max-w-full rounded"');
+      return `<video ${attrs.join(' ')}>${children}</video>`;
+    }
+
+    if (tag === 'AUDIO') {
+      const src = el.getAttribute('src') || '';
+      const controls = el.hasAttribute('controls');
+      if (!src.startsWith('http') && src) return '';
+      const attrs = [`src="${escapeHtml(src)}"`];
+      if (controls) attrs.push('controls');
+      attrs.push('class="w-full"');
+      return `<audio ${attrs.join(' ')}>${children}</audio>`;
+    }
+
+    if (tag === 'SOURCE') {
+      const src = el.getAttribute('src') || '';
+      const type = el.getAttribute('type') || '';
+      if (!src.startsWith('http') && src) return '';
+      const attrs = [`src="${escapeHtml(src)}"`];
+      if (type) attrs.push(`type="${escapeHtml(type)}"`);
+      return `<source ${attrs.join(' ')} />`;
+    }
 
     return `<${tag.toLowerCase()}>${children}</${tag.toLowerCase()}>`;
   };
