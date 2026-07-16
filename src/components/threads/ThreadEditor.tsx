@@ -88,6 +88,57 @@ export function ThreadEditor({
     setShowEmoji(false);
   };
 
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items || !onUploadMedia) return;
+
+    for (const item of Array.from(items)) {
+      if (item.kind === 'file') {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+        try {
+          const url = await onUploadMedia(file);
+          const isVideo = file.type.startsWith('video/');
+          const isAudio = file.type.startsWith('audio/');
+          if (isVideo) {
+            exec('insertHTML', `<video src="${url}" controls class="max-w-full rounded"></video>`);
+          } else if (isAudio) {
+            exec('insertHTML', `<audio src="${url}" controls class="w-full"></audio>`);
+          } else {
+            exec('insertHTML', `<img src="${url}" alt="Pasted image" class="max-w-full rounded" />`);
+          }
+        } catch {
+          // upload failed, paste falls through naturally
+        }
+        return;
+      }
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0 || !onUploadMedia) return;
+
+    e.preventDefault();
+    for (const file of Array.from(files)) {
+      try {
+        const url = await onUploadMedia(file);
+        const isVideo = file.type.startsWith('video/');
+        const isAudio = file.type.startsWith('audio/');
+        if (isVideo) {
+          exec('insertHTML', `<video src="${url}" controls class="max-w-full rounded"></video>`);
+        } else if (isAudio) {
+          exec('insertHTML', `<audio src="${url}" controls class="w-full"></audio>`);
+        } else {
+          exec('insertHTML', `<img src="${url}" alt="${file.name}" class="max-w-full rounded" />`);
+        }
+      } catch {
+        // handled by caller
+      }
+    }
+  };
+
   return (
     <div className={cn('rounded-lg border border-border bg-background', className)}>
       <div className="flex flex-wrap gap-0.5 border-b border-border px-2 py-1.5">
@@ -151,6 +202,8 @@ export function ThreadEditor({
             emitChange();
           }}
           onInput={emitChange}
+          onPaste={handlePaste}
+          onDrop={handleDrop}
         />
       </div>
     </div>
