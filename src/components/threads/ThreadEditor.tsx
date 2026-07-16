@@ -59,6 +59,10 @@ export function ThreadEditor({
 
   const handleMediaUpload = async (accept: string) => {
     if (!onUploadMedia) return;
+
+    const sel = window.getSelection();
+    const savedRange = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = accept;
@@ -66,18 +70,54 @@ export function ThreadEditor({
       const file = input.files?.[0];
       if (!file) return;
       try {
-        const url = await onUploadMedia(file);
-        const isVideo = file.type.startsWith('video/');
-        const isAudio = file.type.startsWith('audio/');
-        if (isVideo) {
-          exec('insertHTML', `<video src="${url}" controls class="max-w-full rounded"></video>`);
-        } else if (isAudio) {
-          exec('insertHTML', `<audio src="${url}" controls class="w-full"></audio>`);
-        } else {
-          exec('insertHTML', `<img src="${url}" alt="${file.name}" class="max-w-full rounded" />`);
+        editorRef.current?.focus();
+        if (savedRange) {
+          const newSel = window.getSelection();
+          newSel?.removeAllRanges();
+          newSel?.addRange(savedRange);
         }
-      } catch {
-        // handled by caller
+
+        const url = await onUploadMedia(file);
+
+        const el = document.createElement(
+          file.type.startsWith('video/') ? 'video' :
+          file.type.startsWith('audio/') ? 'audio' : 'img'
+        ) as HTMLImageElement | HTMLVideoElement | HTMLAudioElement;
+
+        el.src = url;
+        if (el instanceof HTMLImageElement) {
+          el.alt = file.name;
+          el.className = 'max-w-full rounded';
+        } else if (el instanceof HTMLVideoElement) {
+          el.controls = true;
+          el.className = 'max-w-full rounded';
+        } else if (el instanceof HTMLAudioElement) {
+          el.controls = true;
+          el.className = 'w-full';
+        }
+
+        const range = window.getSelection()?.getRangeAt(0);
+        if (range) {
+          range.deleteContents();
+          range.insertNode(el);
+          range.setStartAfter(el);
+          range.collapse(true);
+        }
+
+        emitChange();
+      } catch (err) {
+        console.error('Media upload failed:', err);
+        const msg = err instanceof Error ? err.message : 'Upload failed';
+        const placeholder = document.createElement('span');
+        placeholder.textContent = `[Upload failed: ${msg}]`;
+        placeholder.style.color = 'red';
+        const range = window.getSelection()?.getRangeAt(0);
+        if (range) {
+          range.insertNode(placeholder);
+          range.setStartAfter(placeholder);
+          range.collapse(true);
+        }
+        emitChange();
       }
     };
     input.click();

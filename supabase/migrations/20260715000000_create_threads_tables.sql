@@ -1,5 +1,6 @@
 -- Threads: Reddit-like discussion feature
 -- Adds karma to profiles, creates threads, comments, votes tables, and storage bucket
+-- Fully idempotent — safe to run multiple times
 
 -- Add karma column to profiles
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS karma integer NOT NULL DEFAULT 0;
@@ -50,12 +51,17 @@ CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON comments(parent_id);
 CREATE INDEX IF NOT EXISTS idx_votes_user_thread ON votes(user_id, thread_id);
 CREATE INDEX IF NOT EXISTS idx_votes_user_comment ON votes(user_id, comment_id);
 
--- Row Level Security
+-- Row Level Security (safe to run multiple times)
 ALTER TABLE threads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE votes ENABLE ROW LEVEL SECURITY;
 
--- Threads: anyone can SELECT, only authenticated can INSERT/UPDATE/DELETE their own
+-- Threads policies
+DO $$ BEGIN DROP POLICY IF EXISTS "Threads are publicly viewable" ON threads; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Authenticated users can create threads" ON threads; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Authors can update their own threads" ON threads; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Authors can delete their own threads" ON threads; END $$;
+
 CREATE POLICY "Threads are publicly viewable"
   ON threads FOR SELECT
   USING (true);
@@ -73,7 +79,12 @@ CREATE POLICY "Authors can delete their own threads"
   ON threads FOR DELETE
   USING (author_id = auth.uid());
 
--- Comments: anyone can SELECT, only authenticated can INSERT/UPDATE/DELETE
+-- Comments policies
+DO $$ BEGIN DROP POLICY IF EXISTS "Comments are publicly viewable" ON comments; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Authenticated users can create comments" ON comments; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Authors can update their own comments" ON comments; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Authors can delete their own comments" ON comments; END $$;
+
 CREATE POLICY "Comments are publicly viewable"
   ON comments FOR SELECT
   USING (true);
@@ -91,7 +102,12 @@ CREATE POLICY "Authors can delete their own comments"
   ON comments FOR DELETE
   USING (author_id = auth.uid());
 
--- Votes: only authenticated can manage their own votes
+-- Votes policies
+DO $$ BEGIN DROP POLICY IF EXISTS "Anyone can view votes" ON votes; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Authenticated users can vote" ON votes; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Users can update their own votes" ON votes; END $$;
+DO $$ BEGIN DROP POLICY IF EXISTS "Users can delete their own votes" ON votes; END $$;
+
 CREATE POLICY "Anyone can view votes"
   ON votes FOR SELECT
   USING (true);
@@ -108,6 +124,11 @@ CREATE POLICY "Users can update their own votes"
 CREATE POLICY "Users can delete their own votes"
   ON votes FOR DELETE
   USING (user_id = auth.uid());
+
+-- Create storage bucket for media uploads
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('threads-media', 'threads-media', true)
+ON CONFLICT (id) DO NOTHING;
 
 -- Function: update thread vote_score
 CREATE OR REPLACE FUNCTION update_thread_vote_score()
