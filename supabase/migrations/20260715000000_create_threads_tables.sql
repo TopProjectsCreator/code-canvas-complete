@@ -177,27 +177,44 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Triggers
-DROP TRIGGER IF EXISTS trigger_update_thread_vote_score ON votes;
-CREATE TRIGGER trigger_update_thread_vote_score
-  AFTER INSERT OR UPDATE OR DELETE ON votes
+-- Triggers for thread vote score
+DROP TRIGGER IF EXISTS trigger_insert_update_thread_vote ON votes;
+CREATE TRIGGER trigger_insert_update_thread_vote
+  AFTER INSERT OR UPDATE ON votes
   FOR EACH ROW
-  WHEN (NEW.thread_id IS NOT NULL OR OLD.thread_id IS NOT NULL)
+  WHEN (NEW.thread_id IS NOT NULL)
   EXECUTE FUNCTION update_thread_vote_score();
 
-DROP TRIGGER IF EXISTS trigger_update_comment_vote_score ON votes;
-CREATE TRIGGER trigger_update_comment_vote_score
-  AFTER INSERT OR UPDATE OR DELETE ON votes
+DROP TRIGGER IF EXISTS trigger_delete_thread_vote ON votes;
+CREATE TRIGGER trigger_delete_thread_vote
+  AFTER DELETE ON votes
   FOR EACH ROW
-  WHEN (NEW.comment_id IS NOT NULL OR OLD.comment_id IS NOT NULL)
+  WHEN (OLD.thread_id IS NOT NULL)
+  EXECUTE FUNCTION update_thread_vote_score();
+
+-- Triggers for comment vote score
+DROP TRIGGER IF EXISTS trigger_insert_update_comment_vote ON votes;
+CREATE TRIGGER trigger_insert_update_comment_vote
+  AFTER INSERT OR UPDATE ON votes
+  FOR EACH ROW
+  WHEN (NEW.comment_id IS NOT NULL)
   EXECUTE FUNCTION update_comment_vote_score();
 
+DROP TRIGGER IF EXISTS trigger_delete_comment_vote ON votes;
+CREATE TRIGGER trigger_delete_comment_vote
+  AFTER DELETE ON votes
+  FOR EACH ROW
+  WHEN (OLD.comment_id IS NOT NULL)
+  EXECUTE FUNCTION update_comment_vote_score();
+
+-- Trigger for thread comment count
 DROP TRIGGER IF EXISTS trigger_update_thread_comment_count ON comments;
 CREATE TRIGGER trigger_update_thread_comment_count
   AFTER INSERT OR DELETE ON comments
   FOR EACH ROW
   EXECUTE FUNCTION update_thread_comment_count();
 
+-- Trigger for author karma
 DROP TRIGGER IF EXISTS trigger_update_author_karma ON votes;
 CREATE TRIGGER trigger_update_author_karma
   AFTER INSERT OR UPDATE OR DELETE ON votes

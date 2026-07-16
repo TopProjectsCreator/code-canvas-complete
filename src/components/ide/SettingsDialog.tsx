@@ -97,7 +97,7 @@ type ValidationState = 'idle' | 'validating' | 'valid' | 'invalid';
 
 const POLLINATIONS_AUTH_URL = 'https://enter.pollinations.ai/authorize';
 const POLLINATIONS_OAUTH_STATE_KEY = 'code-canvas:pollinations-oauth-state';
-const POLLINATIONS_CLIENT_ID = import.meta.env.VITE_POLLINATIONS_CLIENT_ID as string | undefined;
+const POLLINATIONS_CLIENT_ID = (import.meta.env.VITE_POLLINATIONS_CLIENT_ID || import.meta.env.VITE_POLLINATIONS_API_APP_KEY) as string | undefined;
 
 function createOAuthState(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
