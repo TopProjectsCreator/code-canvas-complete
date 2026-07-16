@@ -158,36 +158,10 @@ const OAuthHostsAdmin = () => {
   const approved = rows.filter(r => r.status === 'approved');
   const rejected = rows.filter(r => r.status === 'rejected');
 
-  const Row = ({ r }: { r: HostRow }) => {
-    const [notes, setNotes] = useState(r.admin_notes || '');
-    return (
-      <div className="rounded-lg border border-border p-4 space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0">
-            {r.logo_url ? <img src={r.logo_url} alt="" className="w-10 h-10 rounded object-cover border border-border" /> : <div className="w-10 h-10 rounded bg-muted" />}
-            <div className="min-w-0">
-              <div className="font-medium truncate">{r.app_name}</div>
-              <code className="text-xs text-muted-foreground">{r.host}</code>
-              {r.public_description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.public_description}</p>}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Badge variant={r.status === 'approved' ? 'default' : r.status === 'pending' ? 'secondary' : 'destructive'}>{r.status}</Badge>
-            {r.status !== 'approved' && <Button size="icon" variant="ghost" onClick={() => setStatus(r.host, 'approved')} title="Approve"><Check className="w-4 h-4" /></Button>}
-            {r.status !== 'rejected' && <Button size="icon" variant="ghost" onClick={() => setStatus(r.host, 'rejected')} title="Reject"><X className="w-4 h-4" /></Button>}
-            <Button size="icon" variant="ghost" onClick={() => handleDelete(r.host)}><Trash2 className="w-4 h-4" /></Button>
-          </div>
-        </div>
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <Label className="text-xs">Admin notes (private)</Label>
-            <Textarea value={notes} onChange={e => setNotes(e.target.value)} className="min-h-[60px] text-xs" />
-          </div>
-          <Button size="sm" variant="outline" onClick={() => saveNotes(r.host, notes)}>Save notes</Button>
-        </div>
-      </div>
-    );
-  };
+  const renderRow = (r: HostRow) => (
+    <Row key={r.host} r={r} onSetStatus={setStatus} onDelete={handleDelete} onSaveNotes={saveNotes} />
+  );
+
 
   return (
     <div className="min-h-screen bg-background p-6">
