@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { VoteButtons } from './VoteButtons';
 import { MediaRenderer } from './MediaRenderer';
 import { ThreadEditor } from './ThreadEditor';
-import { sanitizeRichText, richTextToPlainText } from '@/lib/richText';
+
 import type { CommentRow } from '@/hooks/useThreads';
 
 interface CommentTreeProps {
