@@ -12,7 +12,7 @@ export function MediaRenderer({ content, className = '' }: MediaRendererProps) {
 
   return (
     <div
-      className={`prose prose-sm max-w-none dark:prose-invert break-words ${className}`}
+      className={`prose prose-sm prose-invert max-w-none break-words ${className}`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

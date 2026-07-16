@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,16 +12,12 @@ import { VoteButtons } from '@/components/threads/VoteButtons';
 import { MediaRenderer } from '@/components/threads/MediaRenderer';
 import { CommentTree } from '@/components/threads/CommentTree';
 import { ThreadEditor } from '@/components/threads/ThreadEditor';
-import { useThread, useVote, useCreateComment, useMediaUpload, type ThreadRow, type CommentRow } from '@/hooks/useThreads';
+import { fetchThread, vote, createComment, uploadMedia, type ThreadRow, type CommentRow } from '@/hooks/useThreads';
 
 export default function ThreadDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { fetchThread } = useThread();
-  const { vote } = useVote();
-  const { createComment } = useCreateComment();
-  const { uploadMedia } = useMediaUpload();
 
   const [thread, setThread] = useState<ThreadRow | null>(null);
   const [comments, setComments] = useState<CommentRow[]>([]);
@@ -29,23 +25,24 @@ export default function ThreadDetail() {
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = () => {
     if (!id) return;
     setLoading(true);
-    try {
-      const data = await fetchThread(id, user?.id);
-      setThread(data.thread);
-      setComments(data.comments);
-    } catch (err: any) {
-      toast({ title: 'Failed to load thread', description: err.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [id, fetchThread, user?.id, toast]);
+    fetchThread(id, user?.id)
+      .then((data) => {
+        setThread(data.thread);
+        setComments(data.comments);
+      })
+      .catch((err) => {
+        toast({ title: 'Failed to load thread', description: err?.message || String(err), variant: 'destructive' });
+      })
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     load();
-  }, [load]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user?.id]);
 
   const handleVote = async (targetType: 'thread' | 'comment', targetId: string, value: number) => {
     if (!user) {
@@ -56,7 +53,7 @@ export default function ThreadDetail() {
       await vote(user.id, targetType, targetId, value);
       load();
     } catch (err: any) {
-      toast({ title: 'Vote failed', description: err.message, variant: 'destructive' });
+      toast({ title: 'Vote failed', description: err?.message || String(err), variant: 'destructive' });
     }
   };
 
@@ -74,7 +71,7 @@ export default function ThreadDetail() {
       setNewComment('');
       load();
     } catch (err: any) {
-      toast({ title: 'Failed to post', description: err.message, variant: 'destructive' });
+      toast({ title: 'Failed to post', description: err?.message || String(err), variant: 'destructive' });
     } finally {
       setPosting(false);
     }

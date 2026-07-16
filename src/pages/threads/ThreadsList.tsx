@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, MessageSquare, Flame, Clock, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { VoteButtons } from '@/components/threads/VoteButtons';
 import { richTextToPlainText } from '@/lib/richText';
-import { useThreadsList, useVote, type SortMode, type ThreadRow } from '@/hooks/useThreads';
+import { fetchThreadsList, vote, type SortMode, type ThreadRow } from '@/hooks/useThreads';
 
 export default function ThreadsList() {
   const { user } = useAuth();
@@ -20,28 +20,26 @@ export default function ThreadsList() {
   const [sort, setSort] = useState<SortMode>(sortParam);
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const { fetchThreads } = useThreadsList(sort);
-  const { vote } = useVote();
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchThreads(user?.id);
-      setThreads(data);
-    } catch (err: any) {
-      toast({ title: 'Failed to load threads', description: err.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchThreads, user?.id, toast]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   useEffect(() => {
     setSearchParams({ sort }, { replace: true });
   }, [sort, setSearchParams]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchThreadsList(sort, user?.id)
+      .then((data) => {
+        if (!cancelled) setThreads(data);
+      })
+      .catch((err) => {
+        if (!cancelled) toast({ title: 'Failed to load threads', description: err?.message || String(err), variant: 'destructive' });
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [sort, user?.id, toast]);
 
   const handleVote = async (targetId: string, value: number) => {
     if (!user) {
@@ -50,9 +48,10 @@ export default function ThreadsList() {
     }
     try {
       await vote(user.id, 'thread', targetId, value);
-      load();
+      const data = await fetchThreadsList(sort, user?.id);
+      setThreads(data);
     } catch (err: any) {
-      toast({ title: 'Vote failed', description: err.message, variant: 'destructive' });
+      toast({ title: 'Vote failed', description: err?.message || String(err), variant: 'destructive' });
     }
   };
 

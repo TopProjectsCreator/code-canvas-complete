@@ -10,7 +10,7 @@ import { Seo } from '@/components/Seo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { ThreadEditor } from '@/components/threads/ThreadEditor';
-import { useCreateThread, useMediaUpload } from '@/hooks/useThreads';
+import { createThread, uploadMedia } from '@/hooks/useThreads';
 
 const CATEGORIES = [
   'General',
@@ -25,8 +25,6 @@ export default function CreateThread() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { createThread } = useCreateThread();
-  const { uploadMedia } = useMediaUpload();
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -57,16 +55,11 @@ export default function CreateThread() {
 
     setSubmitting(true);
     try {
-      const threadId = await createThread(
-        user.id,
-        title,
-        content,
-        category || null,
-      );
+      const threadId = await createThread(user.id, title, content, category || null);
       toast({ title: 'Thread created!' });
       navigate(`/threads/${threadId}`);
     } catch (err: any) {
-      toast({ title: 'Failed to create thread', description: err.message, variant: 'destructive' });
+      toast({ title: 'Failed to create thread', description: err?.message || String(err), variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

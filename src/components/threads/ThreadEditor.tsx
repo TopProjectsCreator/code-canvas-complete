@@ -195,7 +195,7 @@ export function ThreadEditor({
           ref={editorRef}
           contentEditable
           suppressContentEditableWarning
-          className={cn('px-3 py-3 text-sm outline-none prose prose-sm max-w-none dark:prose-invert', minHeightClassName)}
+          className={cn('px-3 py-3 text-sm outline-none prose prose-sm prose-invert max-w-none', minHeightClassName)}
           onFocus={() => setFocused(true)}
           onBlur={() => {
             setFocused(false);
