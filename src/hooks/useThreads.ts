@@ -262,6 +262,60 @@ export async function vote(
   }
 }
 
+export async function updateThread(
+  id: string,
+  title: string,
+  content: string,
+  category?: string | null,
+): Promise<void> {
+  const safeContent = sanitizeRichText(content);
+  const { error } = await supabase
+    .from('threads')
+    .update({
+      title: title.trim(),
+      content: safeContent,
+      category: category || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function deleteThread(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('threads')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function updateComment(
+  id: string,
+  content: string,
+): Promise<void> {
+  const safeContent = sanitizeRichText(content);
+  const { error } = await supabase
+    .from('comments')
+    .update({
+      content: safeContent,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function deleteComment(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('comments')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
 export async function uploadMedia(
   file: File,
   userId: string,

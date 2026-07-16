@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MessageSquare, ChevronDown, ChevronRight } from 'lucide-react';
+import { MessageSquare, ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { VoteButtons } from './VoteButtons';
 import { MediaRenderer } from './MediaRenderer';
 import { ThreadEditor } from './ThreadEditor';
-
 import type { CommentRow } from '@/hooks/useThreads';
 
 interface CommentTreeProps {
@@ -15,10 +19,12 @@ interface CommentTreeProps {
   currentUserId: string | null | undefined;
   onVote: (targetType: 'thread' | 'comment', targetId: string, value: number) => void;
   onReply: (parentId: string, content: string, depth: number) => Promise<void>;
+  onEdit?: (commentId: string, content: string) => Promise<void>;
+  onDelete?: (commentId: string) => Promise<void>;
   onUploadMedia?: (file: File) => Promise<string>;
 }
 
-export function CommentTree({ comments, currentUserId, onVote, onReply, onUploadMedia }: CommentTreeProps) {
+export function CommentTree({ comments, currentUserId, onVote, onReply, onEdit, onDelete, onUploadMedia }: CommentTreeProps) {
   return (
     <div className="space-y-3">
       {comments.map((comment) => (
@@ -28,6 +34,8 @@ export function CommentTree({ comments, currentUserId, onVote, onReply, onUpload
           currentUserId={currentUserId}
           onVote={onVote}
           onReply={onReply}
+          onEdit={onEdit}
+          onDelete={onDelete}
           onUploadMedia={onUploadMedia}
         />
       ))}
@@ -43,14 +51,21 @@ interface CommentItemProps {
   currentUserId: string | null | undefined;
   onVote: (targetType: 'thread' | 'comment', targetId: string, value: number) => void;
   onReply: (parentId: string, content: string, depth: number) => Promise<void>;
+  onEdit?: (commentId: string, content: string) => Promise<void>;
+  onDelete?: (commentId: string) => Promise<void>;
   onUploadMedia?: (file: File) => Promise<string>;
 }
 
-function CommentItem({ comment, currentUserId, onVote, onReply, onUploadMedia }: CommentItemProps) {
+function CommentItem({ comment, currentUserId, onVote, onReply, onEdit, onDelete, onUploadMedia }: CommentItemProps) {
   const [showReply, setShowReply] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [replying, setReplying] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState(comment.content);
+  const [saving, setSaving] = useState(false);
+
+  const isAuthor = currentUserId === comment.author_id;
 
   const handleSubmitReply = async () => {
     if (!replyContent.trim() || !currentUserId) return;
@@ -61,6 +76,26 @@ function CommentItem({ comment, currentUserId, onVote, onReply, onUploadMedia }:
       setShowReply(false);
     } finally {
       setReplying(false);
+    }
+  };
+
+  const handleStartEdit = () => {
+    setEditContent(comment.content);
+    setEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditing(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editContent.trim() || !onEdit) return;
+    setSaving(true);
+    try {
+      await onEdit(comment.id, editContent);
+      setEditing(false);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -100,6 +135,21 @@ function CommentItem({ comment, currentUserId, onVote, onReply, onUploadMedia }:
               <ChevronRight className="h-3 w-3" />
               Show comment
             </button>
+          ) : editing ? (
+            <div className="space-y-2">
+              <ThreadEditor
+                value={editContent}
+                onChange={setEditContent}
+                minHeightClassName="min-h-[80px]"
+                onUploadMedia={onUploadMedia}
+              />
+              <div className="flex gap-2 justify-end">
+                <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={saving}>Cancel</Button>
+                <Button size="sm" onClick={handleSaveEdit} disabled={!editContent.trim() || saving}>
+                  {saving ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+            </div>
           ) : (
             <>
               <MediaRenderer content={comment.content} className="text-sm" />
@@ -119,6 +169,40 @@ function CommentItem({ comment, currentUserId, onVote, onReply, onUploadMedia }:
                     <MessageSquare className="h-3 w-3" />
                     Reply
                   </button>
+                )}
+                {isAuthor && onEdit && (
+                  <button
+                    onClick={handleStartEdit}
+                    className="text-xs text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </button>
+                )}
+                {isAuthor && onDelete && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <button className="text-xs text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                        <Trash2 className="h-3 w-3" />
+                        Delete
+                      </button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete comment?</AlertDialogTitle>
+                        <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() => onDelete(comment.id)}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 )}
               </div>
 
@@ -153,6 +237,8 @@ function CommentItem({ comment, currentUserId, onVote, onReply, onUploadMedia }:
             currentUserId={currentUserId}
             onVote={onVote}
             onReply={onReply}
+            onEdit={onEdit}
+            onDelete={onDelete}
             onUploadMedia={onUploadMedia}
           />
         </div>

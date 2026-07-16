@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Seo } from '@/components/Seo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -12,18 +19,25 @@ import { VoteButtons } from '@/components/threads/VoteButtons';
 import { MediaRenderer } from '@/components/threads/MediaRenderer';
 import { CommentTree } from '@/components/threads/CommentTree';
 import { ThreadEditor } from '@/components/threads/ThreadEditor';
-import { fetchThread, vote, createComment, uploadMedia, type ThreadRow, type CommentRow } from '@/hooks/useThreads';
+import { fetchThread, vote, createComment, uploadMedia, updateThread, deleteThread, updateComment, deleteComment, type ThreadRow, type CommentRow } from '@/hooks/useThreads';
 
 export default function ThreadDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [thread, setThread] = useState<ThreadRow | null>(null);
   const [comments, setComments] = useState<CommentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [posting, setPosting] = useState(false);
+  const [editing, setEditing] = useState(searchParams.get('edit') === '1');
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -32,6 +46,10 @@ export default function ThreadDetail() {
       .then((data) => {
         setThread(data.thread);
         setComments(data.comments);
+        setEditTitle(data.thread.title);
+        setEditContent(data.thread.content);
+        setEditCategory(data.thread.category || '');
+        setEditing(searchParams.get('edit') === '1');
       })
       .catch((err) => {
         toast({ title: 'Failed to load thread', description: err?.message || String(err), variant: 'destructive' });
@@ -82,6 +100,56 @@ export default function ThreadDetail() {
     return uploadMedia(file, user.id);
   };
 
+  const handleStartEdit = () => {
+    setEditTitle(thread!.title);
+    setEditContent(thread!.content);
+    setEditCategory(thread!.category || '');
+    setEditing(true);
+    setSearchParams({ edit: '1' }, { replace: true });
+  };
+
+  const handleCancelEdit = () => {
+    setEditing(false);
+    setSearchParams({}, { replace: true });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!id || !editTitle.trim() || !user) return;
+    setSaving(true);
+    try {
+      await updateThread(id, editTitle, editContent, editCategory || null);
+      toast({ title: 'Thread updated' });
+      setEditing(false);
+      setSearchParams({}, { replace: true });
+      load();
+    } catch (err: any) {
+      toast({ title: 'Failed to update', description: err?.message || String(err), variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteThread = async () => {
+    if (!id) return;
+    try {
+      await deleteThread(id);
+      toast({ title: 'Thread deleted' });
+      navigate('/threads');
+    } catch (err: any) {
+      toast({ title: 'Failed to delete', description: err?.message || String(err), variant: 'destructive' });
+    }
+  };
+
+  const handleEditComment = async (commentId: string, content: string) => {
+    await updateComment(commentId, content);
+    load();
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    await deleteComment(commentId);
+    load();
+  };
+
   if (loading) {
     return (
       <div className="animate-pulse space-y-4">
@@ -123,34 +191,106 @@ export default function ThreadDetail() {
             onVote={(value) => handleVote('thread', thread.id, value)}
           />
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold leading-snug mb-2">{thread.title}</h1>
-
-            <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4">
-              <span className="flex items-center gap-1.5">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={thread.author?.avatar_url || undefined} />
-                  <AvatarFallback className="text-[8px]">{displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <Link to={`/profile/${thread.author_id}`} className="font-medium text-foreground hover:text-primary transition-colors">
-                  {displayName}
-                </Link>
-              </span>
-              <span>{timeAgo}</span>
-              {thread.category && (
-                <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
-                  {thread.category}
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <MessageSquare className="h-3.5 w-3.5" />
-                {thread.comment_count} comments
-              </span>
-            </div>
-
-            {thread.content && (
+            {editing ? (
+              <div className="space-y-4">
+                <Input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="text-lg font-bold"
+                  placeholder="Title"
+                />
+                <ThreadEditor
+                  value={editContent}
+                  onChange={setEditContent}
+                  minHeightClassName="min-h-[200px]"
+                  onUploadMedia={handleUploadMedia}
+                />
+                <Select value={editCategory} onValueChange={setEditCategory}>
+                  <SelectTrigger className="w-64">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="General">General</SelectItem>
+                    <SelectItem value="Showcase">Showcase</SelectItem>
+                    <SelectItem value="Questions">Questions</SelectItem>
+                    <SelectItem value="Feedback">Feedback</SelectItem>
+                    <SelectItem value="Tutorial">Tutorial</SelectItem>
+                    <SelectItem value="Show & Tell">Show & Tell</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" onClick={handleCancelEdit} disabled={saving}>Cancel</Button>
+                  <Button onClick={handleSaveEdit} disabled={!editTitle.trim() || saving}>
+                    {saving ? 'Saving...' : 'Save'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
               <>
-                <Separator className="mb-4" />
-                <MediaRenderer content={thread.content} />
+                <div className="flex items-start justify-between gap-2">
+                  <h1 className="text-xl font-bold leading-snug mb-2">{thread.title}</h1>
+                  {user?.id === thread.author_id && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleStartEdit}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete thread?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={handleDeleteThread}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4">
+                  <span className="flex items-center gap-1.5">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={thread.author?.avatar_url || undefined} />
+                      <AvatarFallback className="text-[8px]">{displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    <Link to={`/profile/${thread.author_id}`} className="font-medium text-foreground hover:text-primary transition-colors">
+                      {displayName}
+                    </Link>
+                  </span>
+                  <span>{timeAgo}</span>
+                  {thread.category && (
+                    <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
+                      {thread.category}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    {thread.comment_count} comments
+                  </span>
+                </div>
+
+                {thread.content && (
+                  <>
+                    <Separator className="mb-4" />
+                    <MediaRenderer content={thread.content} />
+                  </>
+                )}
               </>
             )}
           </div>
@@ -167,6 +307,8 @@ export default function ThreadDetail() {
           currentUserId={user?.id}
           onVote={handleVote}
           onReply={handleReply}
+          onEdit={handleEditComment}
+          onDelete={handleDeleteComment}
           onUploadMedia={handleUploadMedia}
         />
 

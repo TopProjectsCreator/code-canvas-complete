@@ -1,20 +1,29 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, MessageSquare, Flame, Clock, TrendingUp } from 'lucide-react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Plus, MessageSquare, Flame, Clock, TrendingUp, Trash2, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Seo } from '@/components/Seo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { VoteButtons } from '@/components/threads/VoteButtons';
 import { richTextToPlainText } from '@/lib/richText';
-import { fetchThreadsList, vote, type SortMode, type ThreadRow } from '@/hooks/useThreads';
+import { fetchThreadsList, vote, deleteThread, type SortMode, type ThreadRow } from '@/hooks/useThreads';
 
 export default function ThreadsList() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const sortParam = (searchParams.get('sort') as SortMode) || 'hot';
   const [sort, setSort] = useState<SortMode>(sortParam);
@@ -52,6 +61,16 @@ export default function ThreadsList() {
       setThreads(data);
     } catch (err: any) {
       toast({ title: 'Vote failed', description: err?.message || String(err), variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (threadId: string) => {
+    try {
+      await deleteThread(threadId);
+      setThreads((prev) => prev.filter((t) => t.id !== threadId));
+      toast({ title: 'Thread deleted' });
+    } catch (err: any) {
+      toast({ title: 'Failed to delete', description: err?.message || String(err), variant: 'destructive' });
     }
   };
 
@@ -150,6 +169,44 @@ export default function ThreadsList() {
                         <MessageSquare className="h-3 w-3" />
                         {thread.comment_count}
                       </Link>
+                      {user?.id === thread.author_id && (
+                        <AlertDialog>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground">
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="text-xs">
+                              <DropdownMenuItem onSelect={() => navigate(`/threads/${thread.id}?edit=1`)}>
+                                Edit
+                              </DropdownMenuItem>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem className="text-destructive">
+                                  Delete
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete thread?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. The thread and all its comments will be permanently deleted.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => handleDelete(thread.id)}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </div>
                   </div>
                 </div>
