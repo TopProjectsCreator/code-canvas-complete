@@ -722,7 +722,6 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
-          karma: number
           updated_at: string
           user_id: string
         }
@@ -731,7 +730,6 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
-          karma?: number
           updated_at?: string
           user_id: string
         }
@@ -740,162 +738,10 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
-          karma?: number
           updated_at?: string
           user_id?: string
         }
         Relationships: []
-      }
-      threads: {
-        Row: {
-          id: string
-          author_id: string
-          title: string
-          content: string
-          vote_score: number
-          comment_count: number
-          category: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          author_id: string
-          title: string
-          content?: string
-          vote_score?: number
-          comment_count?: number
-          category?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          author_id?: string
-          title?: string
-          content?: string
-          vote_score?: number
-          comment_count?: number
-          category?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "threads_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
-      comments: {
-        Row: {
-          id: string
-          thread_id: string
-          parent_id: string | null
-          author_id: string
-          content: string
-          vote_score: number
-          depth: number
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          thread_id: string
-          parent_id?: string | null
-          author_id: string
-          content: string
-          vote_score?: number
-          depth?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          thread_id?: string
-          parent_id?: string | null
-          author_id?: string
-          content?: string
-          vote_score?: number
-          depth?: number
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "comments_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "threads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "comments_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "comments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "comments_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
-      votes: {
-        Row: {
-          id: string
-          user_id: string
-          thread_id: string | null
-          comment_id: string | null
-          value: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          thread_id?: string | null
-          comment_id?: string | null
-          value: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          thread_id?: string | null
-          comment_id?: string | null
-          value?: number
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "votes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "votes_thread_id_fkey"
-            columns: ["thread_id"]
-            isOneToOne: false
-            referencedRelation: "threads"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "votes_comment_id_fkey"
-            columns: ["comment_id"]
-            isOneToOne: false
-            referencedRelation: "comments"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       project_bookmarks: {
         Row: {
