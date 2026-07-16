@@ -267,6 +267,64 @@ export type Database = {
           },
         ]
       }
+      comments: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string | null
+          depth: number
+          id: string
+          parent_id: string | null
+          thread_id: string
+          updated_at: string | null
+          vote_score: number
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string | null
+          depth?: number
+          id?: string
+          parent_id?: string | null
+          thread_id: string
+          updated_at?: string | null
+          vote_score?: number
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string | null
+          depth?: number
+          id?: string
+          parent_id?: string | null
+          thread_id?: string
+          updated_at?: string | null
+          vote_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       context_pins: {
         Row: {
           content: string
@@ -722,6 +780,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          karma: number
           updated_at: string
           user_id: string
         }
@@ -730,6 +789,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          karma?: number
           updated_at?: string
           user_id: string
         }
@@ -738,6 +798,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          karma?: number
           updated_at?: string
           user_id?: string
         }
@@ -1471,6 +1532,50 @@ export type Database = {
         }
         Relationships: []
       }
+      threads: {
+        Row: {
+          author_id: string
+          category: string | null
+          comment_count: number
+          content: string
+          created_at: string | null
+          id: string
+          title: string
+          updated_at: string | null
+          vote_score: number
+        }
+        Insert: {
+          author_id: string
+          category?: string | null
+          comment_count?: number
+          content?: string
+          created_at?: string | null
+          id?: string
+          title: string
+          updated_at?: string | null
+          vote_score?: number
+        }
+        Update: {
+          author_id?: string
+          category?: string | null
+          comment_count?: number
+          content?: string
+          created_at?: string | null
+          id?: string
+          title?: string
+          updated_at?: string | null
+          vote_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "threads_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       user_api_keys: {
         Row: {
           api_key: string
@@ -1515,6 +1620,55 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      votes: {
+        Row: {
+          comment_id: string | null
+          created_at: string | null
+          id: string
+          thread_id: string | null
+          user_id: string
+          value: number
+        }
+        Insert: {
+          comment_id?: string | null
+          created_at?: string | null
+          id?: string
+          thread_id?: string | null
+          user_id: string
+          value: number
+        }
+        Update: {
+          comment_id?: string | null
+          created_at?: string | null
+          id?: string
+          thread_id?: string | null
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "votes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "votes_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "votes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       webauthn_credentials: {
         Row: {

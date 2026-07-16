@@ -25,7 +25,7 @@ export default function ThreadsLayout() {
           <div className="flex items-center gap-3">
             {user ? (
               <Link to={`/profile/${user.id}`} className="flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">{profile?.karma ?? 0}</span>
+                <span className="text-muted-foreground">{(profile as any)?.karma ?? 0}</span>
                 <Avatar className="h-7 w-7">
                   <AvatarImage src={profile?.avatar_url || undefined} />
                   <AvatarFallback className="text-[10px]">
