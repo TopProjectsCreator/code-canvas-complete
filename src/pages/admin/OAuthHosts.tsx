@@ -24,6 +24,48 @@ interface HostRow {
 const normalizeHost = (raw: string) =>
   raw.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 
+interface RowProps {
+  r: HostRow;
+  onSetStatus: (host: string, status: HostRow['status']) => void;
+  onDelete: (host: string) => void;
+  onSaveNotes: (host: string, notes: string) => void;
+}
+
+const Row = ({ r, onSetStatus, onDelete, onSaveNotes }: RowProps) => {
+  const [notes, setNotes] = useState(r.admin_notes || '');
+  const dirty = notes !== (r.admin_notes || '');
+  return (
+    <div className="rounded-lg border border-border p-4 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          {r.logo_url ? <img src={r.logo_url} alt="" className="w-10 h-10 rounded object-cover border border-border" /> : <div className="w-10 h-10 rounded bg-muted" />}
+          <div className="min-w-0">
+            <div className="font-medium truncate">{r.app_name}</div>
+            <code className="text-xs text-muted-foreground">{r.host}</code>
+            {r.public_description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.public_description}</p>}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Badge variant={r.status === 'approved' ? 'default' : r.status === 'pending' ? 'secondary' : 'destructive'}>{r.status}</Badge>
+          {r.status !== 'approved' && <Button size="icon" variant="ghost" onClick={() => onSetStatus(r.host, 'approved')} title="Approve"><Check className="w-4 h-4" /></Button>}
+          {r.status !== 'rejected' && <Button size="icon" variant="ghost" onClick={() => onSetStatus(r.host, 'rejected')} title="Reject"><X className="w-4 h-4" /></Button>}
+          <Button size="icon" variant="ghost" onClick={() => onDelete(r.host)}><Trash2 className="w-4 h-4" /></Button>
+        </div>
+      </div>
+      <div className="flex gap-2 items-end">
+        <div className="flex-1">
+          <Label className="text-xs flex items-center gap-2">
+            Admin notes (private)
+            {dirty && <span className="text-[10px] text-amber-500 font-normal">• unsaved</span>}
+          </Label>
+          <Textarea value={notes} onChange={e => setNotes(e.target.value)} className="min-h-[60px] text-xs" />
+        </div>
+        <Button size="sm" variant="outline" disabled={!dirty} onClick={() => onSaveNotes(r.host, notes)}>Save notes</Button>
+      </div>
+    </div>
+  );
+};
+
 const OAuthHostsAdmin = () => {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
@@ -116,36 +158,10 @@ const OAuthHostsAdmin = () => {
   const approved = rows.filter(r => r.status === 'approved');
   const rejected = rows.filter(r => r.status === 'rejected');
 
-  const Row = ({ r }: { r: HostRow }) => {
-    const [notes, setNotes] = useState(r.admin_notes || '');
-    return (
-      <div className="rounded-lg border border-border p-4 space-y-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0">
-            {r.logo_url ? <img src={r.logo_url} alt="" className="w-10 h-10 rounded object-cover border border-border" /> : <div className="w-10 h-10 rounded bg-muted" />}
-            <div className="min-w-0">
-              <div className="font-medium truncate">{r.app_name}</div>
-              <code className="text-xs text-muted-foreground">{r.host}</code>
-              {r.public_description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.public_description}</p>}
-            </div>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Badge variant={r.status === 'approved' ? 'default' : r.status === 'pending' ? 'secondary' : 'destructive'}>{r.status}</Badge>
-            {r.status !== 'approved' && <Button size="icon" variant="ghost" onClick={() => setStatus(r.host, 'approved')} title="Approve"><Check className="w-4 h-4" /></Button>}
-            {r.status !== 'rejected' && <Button size="icon" variant="ghost" onClick={() => setStatus(r.host, 'rejected')} title="Reject"><X className="w-4 h-4" /></Button>}
-            <Button size="icon" variant="ghost" onClick={() => handleDelete(r.host)}><Trash2 className="w-4 h-4" /></Button>
-          </div>
-        </div>
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <Label className="text-xs">Admin notes (private)</Label>
-            <Textarea value={notes} onChange={e => setNotes(e.target.value)} className="min-h-[60px] text-xs" />
-          </div>
-          <Button size="sm" variant="outline" onClick={() => saveNotes(r.host, notes)}>Save notes</Button>
-        </div>
-      </div>
-    );
-  };
+  const renderRow = (r: HostRow) => (
+    <Row key={r.host} r={r} onSetStatus={setStatus} onDelete={handleDelete} onSaveNotes={saveNotes} />
+  );
+
 
   return (
     <div className="min-h-screen bg-background p-6">
@@ -182,17 +198,17 @@ const OAuthHostsAdmin = () => {
             {pending.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Pending requests ({pending.length})</h2>
-                {pending.map(r => <Row key={r.host} r={r} />)}
+                {pending.map(renderRow)}
               </section>
             )}
             <section className="space-y-3">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Approved ({approved.length})</h2>
-              {approved.length === 0 ? <p className="text-sm text-muted-foreground">No approved integrations.</p> : approved.map(r => <Row key={r.host} r={r} />)}
+              {approved.length === 0 ? <p className="text-sm text-muted-foreground">No approved integrations.</p> : approved.map(renderRow)}
             </section>
             {rejected.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Rejected ({rejected.length})</h2>
-                {rejected.map(r => <Row key={r.host} r={r} />)}
+                {rejected.map(renderRow)}
               </section>
             )}
           </>
