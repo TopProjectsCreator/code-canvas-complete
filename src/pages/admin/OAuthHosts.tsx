@@ -198,17 +198,17 @@ const OAuthHostsAdmin = () => {
             {pending.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Pending requests ({pending.length})</h2>
-                {pending.map(r => {renderRow(r)})}
+                {pending.map(renderRow)}
               </section>
             )}
             <section className="space-y-3">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Approved ({approved.length})</h2>
-              {approved.length === 0 ? <p className="text-sm text-muted-foreground">No approved integrations.</p> : approved.map(r => {renderRow(r)})}
+              {approved.length === 0 ? <p className="text-sm text-muted-foreground">No approved integrations.</p> : approved.map(renderRow)}
             </section>
             {rejected.length > 0 && (
               <section className="space-y-3">
                 <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Rejected ({rejected.length})</h2>
-                {rejected.map(r => {renderRow(r)})}
+                {rejected.map(renderRow)}
               </section>
             )}
           </>
