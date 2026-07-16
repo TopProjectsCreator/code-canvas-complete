@@ -9,7 +9,7 @@ import { Seo } from '@/components/Seo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { VoteButtons } from '@/components/threads/VoteButtons';
-import { sanitizeRichText, richTextToPlainText } from '@/lib/richText';
+import { richTextToPlainText } from '@/lib/richText';
 import { useThreadsList, useVote, type SortMode, type ThreadRow } from '@/hooks/useThreads';
 
 export default function ThreadsList() {
