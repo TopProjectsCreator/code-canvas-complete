@@ -185,6 +185,16 @@ export default function ThreadsList() {
                         <MessageSquare className="h-3 w-3" />
                         {thread.comment_count}
                       </Link>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePin(thread.id, !thread.pinned)}
+                          title={thread.pinned ? 'Unpin thread' : 'Pin thread'}
+                          className="ml-auto flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {thread.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
                       {user?.id === thread.author_id && (
                         <AlertDialog>
                           <DropdownMenu>
