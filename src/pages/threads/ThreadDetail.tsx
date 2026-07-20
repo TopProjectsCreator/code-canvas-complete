@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Pencil, Trash2, Presentation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,6 +12,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ThreadWhiteboard } from '@/components/threads/ThreadWhiteboard';
 import { Seo } from '@/components/Seo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -40,6 +42,7 @@ export default function ThreadDetail() {
   const [editCategory, setEditCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const { categories } = useThreadCategories();
+  const [whiteboardOpen, setWhiteboardOpen] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -232,10 +235,15 @@ export default function ThreadDetail() {
               <>
                 <div className="flex items-start justify-between gap-2">
                   <h1 className="text-xl font-bold leading-snug mb-2">{thread.title}</h1>
-                  {user?.id === thread.author_id && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleStartEdit}>
-                        <Pencil className="h-4 w-4" />
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setWhiteboardOpen(true)}>
+                      <Presentation className="h-4 w-4" />
+                      Whiteboard
+                    </Button>
+                    {user?.id === thread.author_id && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleStartEdit}>
+                          <Pencil className="h-4 w-4" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
