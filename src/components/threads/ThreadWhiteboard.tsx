@@ -35,6 +35,7 @@ export function ThreadWhiteboard({ threadId }: Props) {
         setInitial({
           elements: Array.isArray(s.elements) ? s.elements : [],
           appState: { ...(s.appState || {}), viewBackgroundColor: s.appState?.viewBackgroundColor || '#ffffff' },
+          files: s.files || {},
         });
       }
       setReady(true);
