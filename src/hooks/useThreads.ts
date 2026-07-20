@@ -17,6 +17,7 @@ export type ThreadRow = {
   vote_score: number;
   comment_count: number;
   category: string | null;
+  pinned: boolean;
   created_at: string;
   updated_at: string;
   author?: AuthorInfo | null;
