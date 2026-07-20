@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, MessageSquare, Flame, Clock, TrendingUp, MoreHorizontal } from 'lucide-react';
+import { Plus, MessageSquare, Flame, Clock, TrendingUp, MoreHorizontal, Pin, PinOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -18,10 +18,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { VoteButtons } from '@/components/threads/VoteButtons';
 import { richTextToPlainText } from '@/lib/richText';
-import { fetchThreadsList, vote, deleteThread, type SortMode, type ThreadRow } from '@/hooks/useThreads';
+import { fetchThreadsList, vote, deleteThread, setThreadPinned, type SortMode, type ThreadRow } from '@/hooks/useThreads';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 export default function ThreadsList() {
   const { user } = useAuth();
+  const isAdmin = useIsAdmin();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -71,6 +73,17 @@ export default function ThreadsList() {
       toast({ title: 'Thread deleted' });
     } catch (err: any) {
       toast({ title: 'Failed to delete', description: err?.message || String(err), variant: 'destructive' });
+    }
+  };
+
+  const handleTogglePin = async (threadId: string, pinned: boolean) => {
+    try {
+      await setThreadPinned(threadId, pinned);
+      const data = await fetchThreadsList(sort, user?.id);
+      setThreads(data);
+      toast({ title: pinned ? 'Thread pinned' : 'Thread unpinned' });
+    } catch (err: any) {
+      toast({ title: 'Failed to update pin', description: err?.message || String(err), variant: 'destructive' });
     }
   };
 
@@ -142,8 +155,11 @@ export default function ThreadsList() {
                   />
                   <div className="flex-1 min-w-0">
                     <Link to={`/threads/${thread.id}`} className="block">
-                      <h3 className="font-medium text-foreground leading-snug hover:text-primary transition-colors">
-                        {thread.title}
+                      <h3 className="font-medium text-foreground leading-snug hover:text-primary transition-colors flex items-center gap-1.5">
+                        {thread.pinned && (
+                          <Pin className="h-3.5 w-3.5 text-primary shrink-0 fill-current" aria-label="Pinned" />
+                        )}
+                        <span>{thread.title}</span>
                       </h3>
                     </Link>
                     {preview && (
@@ -169,6 +185,16 @@ export default function ThreadsList() {
                         <MessageSquare className="h-3 w-3" />
                         {thread.comment_count}
                       </Link>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePin(thread.id, !thread.pinned)}
+                          title={thread.pinned ? 'Unpin thread' : 'Pin thread'}
+                          className="ml-auto flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {thread.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+                        </button>
+                      )}
                       {user?.id === thread.author_id && (
                         <AlertDialog>
                           <DropdownMenu>

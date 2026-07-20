@@ -17,6 +17,7 @@ export type ThreadRow = {
   vote_score: number;
   comment_count: number;
   category: string | null;
+  pinned: boolean;
   created_at: string;
   updated_at: string;
   author?: AuthorInfo | null;
@@ -85,6 +86,9 @@ export async function fetchThreadsList(sort: SortMode, userId?: string | null): 
   if (sort === 'hot') {
     threads.sort((a, b) => computeHotness(b.vote_score, b.created_at) - computeHotness(a.vote_score, a.created_at));
   }
+
+  // Pinned threads always first (stable relative to sort mode)
+  threads.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
 
   const authorIds = [...new Set(threads.map(t => t.author_id))];
   const authorMap = await fetchAuthors(authorIds);
@@ -290,6 +294,15 @@ export async function deleteThread(id: string): Promise<void> {
 
   if (error) throw error;
 }
+
+export async function setThreadPinned(id: string, pinned: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('threads')
+    .update({ pinned })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 
 export async function updateComment(
   id: string,
