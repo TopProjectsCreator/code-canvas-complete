@@ -58,6 +58,10 @@ export function ThreadWhiteboard({ threadId }: Props) {
           const scene = row.scene as Scene;
           if (!scene?.elements) return;
           applyingRemoteRef.current = true;
+          const files = scene.files ? Object.values(scene.files) : [];
+          if (files.length && apiRef.current.addFiles) {
+            apiRef.current.addFiles(files);
+          }
           apiRef.current.updateScene({ elements: scene.elements });
           applyingRemoteRef.current = false;
         }
