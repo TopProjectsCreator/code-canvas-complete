@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, MessageSquare, Flame, Clock, TrendingUp, MoreHorizontal, Pin, PinOff } from 'lucide-react';
+import { Plus, MessageSquare, Flame, Clock, TrendingUp, MoreHorizontal, Pin, PinOff, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import { VoteButtons } from '@/components/threads/VoteButtons';
 import { richTextToPlainText } from '@/lib/richText';
 import { fetchThreadsList, vote, deleteThread, setThreadPinned, type SortMode, type ThreadRow } from '@/hooks/useThreads';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
+import { ManageCategoriesDialog } from '@/components/threads/ManageCategoriesDialog';
 
 export default function ThreadsList() {
   const { user } = useAuth();
@@ -28,6 +29,7 @@ export default function ThreadsList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const sortParam = (searchParams.get('sort') as SortMode) || 'hot';
+  const [manageOpen, setManageOpen] = useState(false);
   const [sort, setSort] = useState<SortMode>(sortParam);
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,13 +94,22 @@ export default function ThreadsList() {
       <Seo title="Threads — Community" description="Browse community threads" path="/threads" />
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Threads</h1>
-        <Button asChild>
-          <Link to="/threads/new">
-            <Plus className="h-4 w-4 mr-2" />
-            New Thread
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Button variant="outline" onClick={() => setManageOpen(true)}>
+              <Tag className="h-4 w-4 mr-2" />
+              Categories
+            </Button>
+          )}
+          <Button asChild>
+            <Link to="/threads/new">
+              <Plus className="h-4 w-4 mr-2" />
+              New Thread
+            </Link>
+          </Button>
+        </div>
       </div>
+      <ManageCategoriesDialog open={manageOpen} onOpenChange={setManageOpen} />
 
       <Tabs value={sort} onValueChange={(v) => setSort(v as SortMode)} className="mb-6">
         <TabsList>
