@@ -20,6 +20,7 @@ import { MediaRenderer } from '@/components/threads/MediaRenderer';
 import { CommentTree } from '@/components/threads/CommentTree';
 import { ThreadEditor } from '@/components/threads/ThreadEditor';
 import { fetchThread, vote, createComment, uploadMedia, updateThread, deleteThread, updateComment, deleteComment, type ThreadRow, type CommentRow } from '@/hooks/useThreads';
+import { useThreadCategories } from '@/hooks/useThreadCategories';
 
 export default function ThreadDetail() {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +39,7 @@ export default function ThreadDetail() {
   const [editContent, setEditContent] = useState('');
   const [editCategory, setEditCategory] = useState('');
   const [saving, setSaving] = useState(false);
+  const { categories } = useThreadCategories();
 
   const load = () => {
     if (!id) return;
@@ -214,12 +216,9 @@ export default function ThreadDetail() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="General">General</SelectItem>
-                    <SelectItem value="Showcase">Showcase</SelectItem>
-                    <SelectItem value="Questions">Questions</SelectItem>
-                    <SelectItem value="Feedback">Feedback</SelectItem>
-                    <SelectItem value="Tutorial">Tutorial</SelectItem>
-                    <SelectItem value="Show & Tell">Show & Tell</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <div className="flex gap-2 justify-end">

@@ -11,15 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { ThreadEditor } from '@/components/threads/ThreadEditor';
 import { createThread, uploadMedia } from '@/hooks/useThreads';
-
-const CATEGORIES = [
-  'General',
-  'Showcase',
-  'Questions',
-  'Feedback',
-  'Tutorial',
-  'Show & Tell',
-];
+import { useThreadCategories } from '@/hooks/useThreadCategories';
 
 export default function CreateThread() {
   const { user } = useAuth();
@@ -30,6 +22,7 @@ export default function CreateThread() {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const { categories } = useThreadCategories();
 
   if (!user) {
     return (
@@ -106,8 +99,8 @@ export default function CreateThread() {
               <SelectValue placeholder="Select a category (optional)" />
             </SelectTrigger>
             <SelectContent>
-              {CATEGORIES.map((cat) => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+              {categories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
