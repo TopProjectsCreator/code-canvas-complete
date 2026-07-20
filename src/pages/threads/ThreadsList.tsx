@@ -155,8 +155,11 @@ export default function ThreadsList() {
                   />
                   <div className="flex-1 min-w-0">
                     <Link to={`/threads/${thread.id}`} className="block">
-                      <h3 className="font-medium text-foreground leading-snug hover:text-primary transition-colors">
-                        {thread.title}
+                      <h3 className="font-medium text-foreground leading-snug hover:text-primary transition-colors flex items-center gap-1.5">
+                        {thread.pinned && (
+                          <Pin className="h-3.5 w-3.5 text-primary shrink-0 fill-current" aria-label="Pinned" />
+                        )}
+                        <span>{thread.title}</span>
                       </h3>
                     </Link>
                     {preview && (
