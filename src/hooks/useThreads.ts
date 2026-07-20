@@ -301,6 +301,8 @@ export async function setThreadPinned(id: string, pinned: boolean): Promise<void
     .update({ pinned })
     .eq('id', id);
   if (error) throw error;
+}
+
 
 export async function updateComment(
   id: string,
