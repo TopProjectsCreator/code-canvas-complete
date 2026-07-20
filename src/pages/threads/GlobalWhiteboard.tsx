@@ -94,6 +94,7 @@ export default function GlobalWhiteboard() {
       setInitial({
         elements: [...elements, ...additions],
         appState: { ...(scene.appState || {}), viewBackgroundColor: scene.appState?.viewBackgroundColor || '#fafaf9' },
+        files: scene.files || {},
       });
       setReady(true);
     })();
