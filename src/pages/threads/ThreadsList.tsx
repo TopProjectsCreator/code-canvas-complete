@@ -76,6 +76,17 @@ export default function ThreadsList() {
     }
   };
 
+  const handleTogglePin = async (threadId: string, pinned: boolean) => {
+    try {
+      await setThreadPinned(threadId, pinned);
+      const data = await fetchThreadsList(sort, user?.id);
+      setThreads(data);
+      toast({ title: pinned ? 'Thread pinned' : 'Thread unpinned' });
+    } catch (err: any) {
+      toast({ title: 'Failed to update pin', description: err?.message || String(err), variant: 'destructive' });
+    }
+  };
+
   return (
     <div>
       <Seo title="Threads — Community" description="Browse community threads" path="/threads" />
