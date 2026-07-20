@@ -8,7 +8,7 @@ interface Props {
   threadId: string;
 }
 
-type Scene = { elements: any[]; appState?: any };
+type Scene = { elements: any[]; appState?: any; files?: Record<string, any> };
 
 export function ThreadWhiteboard({ threadId }: Props) {
   const { user } = useAuth();
