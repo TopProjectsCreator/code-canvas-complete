@@ -40,7 +40,7 @@ export default function ThreadDetail() {
   const [editCategory, setEditCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const { categories } = useThreadCategories();
-  const [whiteboardOpen, setWhiteboardOpen] = useState(false);
+  
 
   const load = () => {
     if (!id) return;
