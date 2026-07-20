@@ -1540,6 +1540,7 @@ export type Database = {
           content: string
           created_at: string | null
           id: string
+          pinned: boolean
           title: string
           updated_at: string | null
           vote_score: number
@@ -1551,6 +1552,7 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          pinned?: boolean
           title: string
           updated_at?: string | null
           vote_score?: number
@@ -1562,6 +1564,7 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          pinned?: boolean
           title?: string
           updated_at?: string | null
           vote_score?: number
