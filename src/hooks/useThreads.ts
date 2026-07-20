@@ -87,6 +87,9 @@ export async function fetchThreadsList(sort: SortMode, userId?: string | null): 
     threads.sort((a, b) => computeHotness(b.vote_score, b.created_at) - computeHotness(a.vote_score, a.created_at));
   }
 
+  // Pinned threads always first (stable relative to sort mode)
+  threads.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
   const authorIds = [...new Set(threads.map(t => t.author_id))];
   const authorMap = await fetchAuthors(authorIds);
 
