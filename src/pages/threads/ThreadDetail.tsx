@@ -236,9 +236,11 @@ export default function ThreadDetail() {
                 <div className="flex items-start justify-between gap-2">
                   <h1 className="text-xl font-bold leading-snug mb-2">{thread.title}</h1>
                   <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setWhiteboardOpen(true)}>
-                      <Presentation className="h-4 w-4" />
-                      Whiteboard
+                    <Button asChild variant="outline" size="sm" className="h-8 gap-1.5">
+                      <Link to="/threads/whiteboard">
+                        <Presentation className="h-4 w-4" />
+                        Whiteboard
+                      </Link>
                     </Button>
                     {user?.id === thread.author_id && (
                       <>
