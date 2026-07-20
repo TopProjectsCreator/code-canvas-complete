@@ -353,18 +353,6 @@ export default function ThreadDetail() {
         )}
       </div>
 
-      <Dialog open={whiteboardOpen} onOpenChange={setWhiteboardOpen}>
-        <DialogContent className="max-w-[95vw] w-[95vw] h-[92vh] p-0 gap-0 overflow-hidden flex flex-col">
-          <DialogHeader className="px-4 py-2 border-b shrink-0">
-            <DialogTitle className="text-sm font-medium">
-              Live whiteboard — {thread?.title}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 min-h-0">
-            {id && <ThreadWhiteboard threadId={id} />}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
