@@ -80,13 +80,24 @@ export function ThreadWhiteboard({ threadId }: Props) {
     };
   }, [ready, threadId, user?.id]);
 
-  const persist = useCallback(async (elements: readonly any[], appState: any) => {
+  const persist = useCallback(async (elements: readonly any[], appState: any, files: Record<string, any>) => {
     if (!user) return;
+    const referenced = new Set(
+      (elements as any[])
+        .filter((el) => el?.type === 'image' && el?.fileId && !el?.isDeleted)
+        .map((el) => el.fileId as string)
+    );
+    const trimmedFiles: Record<string, any> = {};
+    for (const [k, v] of Object.entries(files || {})) {
+      if (referenced.has(k)) trimmedFiles[k] = v;
+    }
     const scene: Scene = {
       elements: elements as any[],
       appState: { viewBackgroundColor: appState?.viewBackgroundColor || '#ffffff' },
+      files: trimmedFiles,
     };
-    const hash = String(elements.length) + ':' + (elements[elements.length - 1]?.version || 0);
+    const filesHash = Object.keys(trimmedFiles).sort().join(',');
+    const hash = String(elements.length) + ':' + (elements[elements.length - 1]?.version || 0) + ':' + filesHash;
     if (hash === lastSentHashRef.current) return;
     lastSentHashRef.current = hash;
     await supabase.from('thread_whiteboards').upsert({
@@ -97,10 +108,10 @@ export function ThreadWhiteboard({ threadId }: Props) {
     }, { onConflict: 'thread_id' });
   }, [threadId, user]);
 
-  const onChange = useCallback((elements: readonly any[], appState: any) => {
+  const onChange = useCallback((elements: readonly any[], appState: any, files: Record<string, any>) => {
     if (applyingRemoteRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => persist(elements, appState), 400);
+    debounceRef.current = setTimeout(() => persist(elements, appState, files || {}), 400);
   }, [persist]);
 
   useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
