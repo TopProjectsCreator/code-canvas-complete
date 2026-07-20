@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Seo } from '@/components/Seo';
 import { Button } from '@/components/ui/button';
 
-type Scene = { elements: any[]; appState?: any };
+type Scene = { elements: any[]; appState?: any; files?: Record<string, any> };
 
 const BOARD_ID = 'threads';
 const CARD_W = 240;
