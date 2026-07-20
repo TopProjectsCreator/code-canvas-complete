@@ -18,10 +18,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { VoteButtons } from '@/components/threads/VoteButtons';
 import { richTextToPlainText } from '@/lib/richText';
-import { fetchThreadsList, vote, deleteThread, type SortMode, type ThreadRow } from '@/hooks/useThreads';
+import { fetchThreadsList, vote, deleteThread, setThreadPinned, type SortMode, type ThreadRow } from '@/hooks/useThreads';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 
 export default function ThreadsList() {
   const { user } = useAuth();
+  const isAdmin = useIsAdmin();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
