@@ -112,6 +112,18 @@ export default function GlobalWhiteboard() {
       .channel(`global_whiteboard:${BOARD_ID}`, {
         config: { presence: { key: user?.id || crypto.randomUUID() } },
       })
+      .on('broadcast', { event: 'scene' }, (msg: any) => {
+        const p = msg.payload || {};
+        if (!apiRef.current || p.clientId === clientIdRef.current) return;
+        if (!Array.isArray(p.elements)) return;
+        applyingRemoteRef.current = true;
+        if (p.files && apiRef.current.addFiles) {
+          const arr = Object.values(p.files);
+          if (arr.length) apiRef.current.addFiles(arr);
+        }
+        apiRef.current.updateScene({ elements: p.elements });
+        applyingRemoteRef.current = false;
+      })
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'global_whiteboard', filter: `id=eq.${BOARD_ID}` },
@@ -153,7 +165,9 @@ export default function GlobalWhiteboard() {
           await channel.track({ online_at: new Date().toISOString() });
         }
       });
+    channelRef.current = channel;
     return () => {
+      channelRef.current = null;
       supabase.removeChannel(channel);
     };
   }, [ready, user?.id]);
