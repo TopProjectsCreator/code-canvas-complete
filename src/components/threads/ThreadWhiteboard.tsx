@@ -52,6 +52,18 @@ export function ThreadWhiteboard({ threadId }: Props) {
     if (!ready) return;
     const channel = supabase
       .channel(`whiteboard:${threadId}`, { config: { presence: { key: user?.id || crypto.randomUUID() } } })
+      .on('broadcast', { event: 'scene' }, (msg: any) => {
+        const p = msg.payload || {};
+        if (!apiRef.current || p.clientId === clientIdRef.current) return;
+        if (!Array.isArray(p.elements)) return;
+        applyingRemoteRef.current = true;
+        if (p.files && apiRef.current.addFiles) {
+          const arr = Object.values(p.files);
+          if (arr.length) apiRef.current.addFiles(arr);
+        }
+        apiRef.current.updateScene({ elements: p.elements });
+        applyingRemoteRef.current = false;
+      })
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'thread_whiteboards', filter: `thread_id=eq.${threadId}` },
@@ -79,7 +91,9 @@ export function ThreadWhiteboard({ threadId }: Props) {
           await channel.track({ online_at: new Date().toISOString() });
         }
       });
+    channelRef.current = channel;
     return () => {
+      channelRef.current = null;
       supabase.removeChannel(channel);
     };
   }, [ready, threadId, user?.id]);
@@ -112,13 +126,46 @@ export function ThreadWhiteboard({ threadId }: Props) {
     }, { onConflict: 'thread_id' });
   }, [threadId, user]);
 
+  const broadcastScene = useCallback((elements: readonly any[], files: Record<string, any>) => {
+    const ch = channelRef.current;
+    if (!ch) return;
+    const referenced = new Set(
+      (elements as any[])
+        .filter((el) => el?.type === 'image' && el?.fileId && !el?.isDeleted)
+        .map((el) => el.fileId as string)
+    );
+    const trimmedFiles: Record<string, any> = {};
+    for (const [k, v] of Object.entries(files || {})) {
+      if (referenced.has(k)) trimmedFiles[k] = v;
+    }
+    ch.send({
+      type: 'broadcast',
+      event: 'scene',
+      payload: { clientId: clientIdRef.current, elements, files: trimmedFiles },
+    });
+  }, []);
+
   const onChange = useCallback((elements: readonly any[], appState: any, files: Record<string, any>) => {
     if (applyingRemoteRef.current) return;
+    const now = Date.now();
+    if (now - broadcastThrottleRef.current >= 50) {
+      broadcastThrottleRef.current = now;
+      broadcastScene(elements, files || {});
+    } else {
+      if (pendingBroadcastRef.current) clearTimeout(pendingBroadcastRef.current);
+      pendingBroadcastRef.current = setTimeout(() => {
+        broadcastThrottleRef.current = Date.now();
+        broadcastScene(elements, files || {});
+      }, 50);
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => persist(elements, appState, files || {}), 400);
-  }, [persist]);
+    debounceRef.current = setTimeout(() => persist(elements, appState, files || {}), 500);
+  }, [persist, broadcastScene]);
 
-  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (pendingBroadcastRef.current) clearTimeout(pendingBroadcastRef.current);
+  }, []);
 
   if (!ready) {
     return <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">Loading whiteboard…</div>;
