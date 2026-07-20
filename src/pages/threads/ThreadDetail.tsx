@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Pencil, Trash2, Presentation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,6 +12,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ThreadWhiteboard } from '@/components/threads/ThreadWhiteboard';
 import { Seo } from '@/components/Seo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -40,6 +42,7 @@ export default function ThreadDetail() {
   const [editCategory, setEditCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const { categories } = useThreadCategories();
+  const [whiteboardOpen, setWhiteboardOpen] = useState(false);
 
   const load = () => {
     if (!id) return;
@@ -232,37 +235,43 @@ export default function ThreadDetail() {
               <>
                 <div className="flex items-start justify-between gap-2">
                   <h1 className="text-xl font-bold leading-snug mb-2">{thread.title}</h1>
-                  {user?.id === thread.author_id && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleStartEdit}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete thread?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={handleDeleteThread}
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setWhiteboardOpen(true)}>
+                      <Presentation className="h-4 w-4" />
+                      Whiteboard
+                    </Button>
+                    {user?.id === thread.author_id && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleStartEdit}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete thread?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={handleDeleteThread}
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4">
@@ -341,6 +350,19 @@ export default function ThreadDetail() {
           </Card>
         )}
       </div>
+
+      <Dialog open={whiteboardOpen} onOpenChange={setWhiteboardOpen}>
+        <DialogContent className="max-w-[95vw] w-[95vw] h-[92vh] p-0 gap-0 overflow-hidden flex flex-col">
+          <DialogHeader className="px-4 py-2 border-b shrink-0">
+            <DialogTitle className="text-sm font-medium">
+              Live whiteboard — {thread?.title}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0">
+            {id && <ThreadWhiteboard threadId={id} />}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
