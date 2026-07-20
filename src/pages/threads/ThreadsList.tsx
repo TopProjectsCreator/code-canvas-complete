@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, MessageSquare, Flame, Clock, TrendingUp, MoreHorizontal, Pin, PinOff, Tag } from 'lucide-react';
+import { Plus, MessageSquare, Flame, Clock, TrendingUp, MoreHorizontal, Pin, PinOff, Tag, Presentation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -99,6 +99,12 @@ export default function ThreadsList() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Threads</h1>
         <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link to="/threads/whiteboard">
+              <Presentation className="h-4 w-4 mr-2" />
+              Whiteboard
+            </Link>
+          </Button>
           {isAdmin && (
             <Button variant="outline" onClick={() => setManageOpen(true)}>
               <Tag className="h-4 w-4 mr-2" />

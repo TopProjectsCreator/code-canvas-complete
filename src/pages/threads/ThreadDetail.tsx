@@ -12,8 +12,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ThreadWhiteboard } from '@/components/threads/ThreadWhiteboard';
 import { Seo } from '@/components/Seo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -42,7 +40,7 @@ export default function ThreadDetail() {
   const [editCategory, setEditCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const { categories } = useThreadCategories();
-  const [whiteboardOpen, setWhiteboardOpen] = useState(false);
+  
 
   const load = () => {
     if (!id) return;
@@ -236,9 +234,11 @@ export default function ThreadDetail() {
                 <div className="flex items-start justify-between gap-2">
                   <h1 className="text-xl font-bold leading-snug mb-2">{thread.title}</h1>
                   <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setWhiteboardOpen(true)}>
-                      <Presentation className="h-4 w-4" />
-                      Whiteboard
+                    <Button asChild variant="outline" size="sm" className="h-8 gap-1.5">
+                      <Link to="/threads/whiteboard">
+                        <Presentation className="h-4 w-4" />
+                        Whiteboard
+                      </Link>
                     </Button>
                     {user?.id === thread.author_id && (
                       <>
@@ -351,18 +351,6 @@ export default function ThreadDetail() {
         )}
       </div>
 
-      <Dialog open={whiteboardOpen} onOpenChange={setWhiteboardOpen}>
-        <DialogContent className="max-w-[95vw] w-[95vw] h-[92vh] p-0 gap-0 overflow-hidden flex flex-col">
-          <DialogHeader className="px-4 py-2 border-b shrink-0">
-            <DialogTitle className="text-sm font-medium">
-              Live whiteboard — {thread?.title}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 min-h-0">
-            {id && <ThreadWhiteboard threadId={id} />}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

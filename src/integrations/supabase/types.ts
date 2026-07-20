@@ -557,6 +557,30 @@ export type Database = {
         }
         Relationships: []
       }
+      global_whiteboard: {
+        Row: {
+          created_at: string
+          id: string
+          scene: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          scene?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          scene?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       inbox_rules: {
         Row: {
           actions: Json
