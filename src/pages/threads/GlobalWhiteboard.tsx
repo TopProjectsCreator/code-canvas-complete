@@ -1,21 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye, Pencil, Users } from 'lucide-react';
 import { Excalidraw, convertToExcalidrawElements } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Seo } from '@/components/Seo';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
 
 type Scene = { elements: any[]; appState?: any; files?: Record<string, any> };
+type PeerRole = 'editor' | 'viewer';
+interface PeerStats { added: number; modified: number; deleted: number }
+interface PeerMeta {
+  user_id: string;
+  display_name: string;
+  email?: string | null;
+  online_at: string;
+  stats: PeerStats;
+}
 
 const BOARD_ID = 'threads';
 const CARD_W = 240;
 const CARD_H = 96;
 
 function scatterPos(i: number) {
-  // scatter cards in a loose grid
   const cols = 5;
   const col = i % cols;
   const row = Math.floor(i / cols);
@@ -54,6 +65,7 @@ function buildThreadCard(thread: { id: string; title: string; category: string |
 
 export default function GlobalWhiteboard() {
   const { user } = useAuth();
+  const isAdmin = useIsAdmin();
   const apiRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const [initial, setInitial] = useState<Scene>({ elements: [], appState: { viewBackgroundColor: '#fafaf9' } });
@@ -64,7 +76,21 @@ export default function GlobalWhiteboard() {
   const clientIdRef = useRef<string>(Math.random().toString(36).slice(2));
   const lastSentHashRef = useRef<string>('');
   const applyingRemoteRef = useRef(false);
-  const [peerCount, setPeerCount] = useState(1);
+
+  // Peer/presence state
+  const [peers, setPeers] = useState<PeerMeta[]>([]);
+  // Per-user permission overrides set by admins (userId -> role). Ephemeral.
+  const [permissions, setPermissions] = useState<Record<string, PeerRole>>({});
+  const myRole: PeerRole = user ? (permissions[user.id] ?? 'editor') : 'viewer';
+
+  // Track authored diffs locally, then publish via presence.track
+  const prevElementsRef = useRef<Map<string, { version: number; isDeleted: boolean }>>(new Map());
+  const myStatsRef = useRef<PeerStats>({ added: 0, modified: 0, deleted: 0 });
+
+  const myDisplayName =
+    (user?.user_metadata as { display_name?: string })?.display_name ||
+    user?.email?.split('@')[0] ||
+    'Guest';
 
   // Load scene, then reconcile with existing threads
   useEffect(() => {
@@ -81,9 +107,7 @@ export default function GlobalWhiteboard() {
       const threads = threadsRes.data || [];
 
       const presentIds = new Set(
-        elements
-          .map((el: any) => el?.customData?.threadId)
-          .filter(Boolean)
+        elements.map((el: any) => el?.customData?.threadId).filter(Boolean)
       );
 
       let idx = elements.length;
@@ -95,8 +119,15 @@ export default function GlobalWhiteboard() {
         }
       }
 
+      const merged = [...elements, ...additions];
+      const initMap = new Map<string, { version: number; isDeleted: boolean }>();
+      for (const el of merged) {
+        if (el?.id) initMap.set(el.id, { version: el.version || 0, isDeleted: !!el.isDeleted });
+      }
+      prevElementsRef.current = initMap;
+
       setInitial({
-        elements: [...elements, ...additions],
+        elements: merged,
         appState: { ...(scene.appState || {}), viewBackgroundColor: scene.appState?.viewBackgroundColor || '#fafaf9' },
         files: scene.files || {},
       });
@@ -105,12 +136,13 @@ export default function GlobalWhiteboard() {
     return () => { cancelled = true; };
   }, []);
 
-  // Realtime: remote scene updates + presence + new threads
+  // Realtime: remote scene, presence, new threads, permission changes
   useEffect(() => {
     if (!ready) return;
+    const presenceKey = user?.id || `guest-${clientIdRef.current}`;
     const channel = supabase
       .channel(`global_whiteboard:${BOARD_ID}`, {
-        config: { presence: { key: user?.id || crypto.randomUUID() } },
+        config: { presence: { key: presenceKey } },
       })
       .on('broadcast', { event: 'scene' }, (msg: any) => {
         const p = msg.payload || {};
@@ -124,6 +156,11 @@ export default function GlobalWhiteboard() {
         apiRef.current.updateScene({ elements: p.elements });
         applyingRemoteRef.current = false;
       })
+      .on('broadcast', { event: 'permission' }, (msg: any) => {
+        const p = msg.payload || {};
+        if (!p.userId || !p.role) return;
+        setPermissions((prev) => ({ ...prev, [p.userId]: p.role }));
+      })
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'global_whiteboard', filter: `id=eq.${BOARD_ID}` },
@@ -135,9 +172,7 @@ export default function GlobalWhiteboard() {
           if (!scene?.elements) return;
           applyingRemoteRef.current = true;
           const files = scene.files ? Object.values(scene.files) : [];
-          if (files.length && apiRef.current.addFiles) {
-            apiRef.current.addFiles(files);
-          }
+          if (files.length && apiRef.current.addFiles) apiRef.current.addFiles(files);
           apiRef.current.updateScene({ elements: scene.elements });
           applyingRemoteRef.current = false;
         }
@@ -157,12 +192,25 @@ export default function GlobalWhiteboard() {
         }
       )
       .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        setPeerCount(Math.max(1, Object.keys(state).length));
+        const state = channel.presenceState<PeerMeta>();
+        const list: PeerMeta[] = [];
+        for (const key of Object.keys(state)) {
+          const metas = state[key];
+          const last = metas && metas[metas.length - 1];
+          if (last && last.user_id) list.push(last);
+        }
+        list.sort((a, b) => a.display_name.localeCompare(b.display_name));
+        setPeers(list);
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ online_at: new Date().toISOString() });
+        if (status === 'SUBSCRIBED' && user) {
+          await channel.track({
+            user_id: user.id,
+            display_name: myDisplayName,
+            email: user.email,
+            online_at: new Date().toISOString(),
+            stats: myStatsRef.current,
+          } satisfies PeerMeta);
         }
       });
     channelRef.current = channel;
@@ -170,11 +218,27 @@ export default function GlobalWhiteboard() {
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [ready, user?.id]);
+  }, [ready, user?.id, myDisplayName]);
+
+  // Republish presence when my stats change (throttled)
+  const republishStatsThrottleRef = useRef<number>(0);
+  const republishStats = useCallback(() => {
+    const ch = channelRef.current;
+    if (!ch || !user) return;
+    const now = Date.now();
+    if (now - republishStatsThrottleRef.current < 400) return;
+    republishStatsThrottleRef.current = now;
+    ch.track({
+      user_id: user.id,
+      display_name: myDisplayName,
+      email: user.email,
+      online_at: new Date().toISOString(),
+      stats: myStatsRef.current,
+    } satisfies PeerMeta);
+  }, [user, myDisplayName]);
 
   const persist = useCallback(async (elements: readonly any[], appState: any, files: Record<string, any>) => {
     if (!user) return;
-    // Only keep files still referenced by image elements
     const referenced = new Set(
       (elements as any[])
         .filter((el) => el?.type === 'image' && el?.fileId && !el?.isDeleted)
@@ -223,9 +287,48 @@ export default function GlobalWhiteboard() {
     });
   }, []);
 
+  const diffAndAttribute = useCallback((elements: readonly any[]) => {
+    const prev = prevElementsRef.current;
+    const next = new Map<string, { version: number; isDeleted: boolean }>();
+    let added = 0, modified = 0, deleted = 0;
+    for (const el of elements as any[]) {
+      if (!el?.id) continue;
+      const cur = { version: el.version || 0, isDeleted: !!el.isDeleted };
+      next.set(el.id, cur);
+      const before = prev.get(el.id);
+      if (!before) {
+        if (!cur.isDeleted) added++;
+      } else {
+        if (!before.isDeleted && cur.isDeleted) deleted++;
+        else if (cur.version > before.version && !cur.isDeleted) modified++;
+      }
+    }
+    prevElementsRef.current = next;
+    if (added || modified || deleted) {
+      myStatsRef.current = {
+        added: myStatsRef.current.added + added,
+        modified: myStatsRef.current.modified + modified,
+        deleted: myStatsRef.current.deleted + deleted,
+      };
+      republishStats();
+    }
+  }, [republishStats]);
+
   const onChange = useCallback((elements: readonly any[], appState: any, files: Record<string, any>) => {
-    if (applyingRemoteRef.current) return;
-    // Live broadcast throttled to ~50ms for smooth remote movement
+    if (applyingRemoteRef.current) {
+      // still track prev state to avoid attributing remote changes to us
+      const next = new Map<string, { version: number; isDeleted: boolean }>();
+      for (const el of elements as any[]) {
+        if (el?.id) next.set(el.id, { version: el.version || 0, isDeleted: !!el.isDeleted });
+      }
+      prevElementsRef.current = next;
+      return;
+    }
+    if (myRole === 'viewer') {
+      // Revert any local edits by re-applying prev scene
+      return;
+    }
+    diffAndAttribute(elements);
     const now = Date.now();
     if (now - broadcastThrottleRef.current >= 50) {
       broadcastThrottleRef.current = now;
@@ -237,15 +340,33 @@ export default function GlobalWhiteboard() {
         broadcastScene(elements, files || {});
       }, 50);
     }
-    // Durable persist debounced
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => persist(elements, appState, files || {}), 600);
-  }, [persist, broadcastScene]);
+  }, [persist, broadcastScene, diffAndAttribute, myRole]);
 
   useEffect(() => () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (pendingBroadcastRef.current) clearTimeout(pendingBroadcastRef.current);
   }, []);
+
+  const setPeerPermission = useCallback((targetUserId: string, role: PeerRole) => {
+    const ch = channelRef.current;
+    setPermissions((prev) => ({ ...prev, [targetUserId]: role }));
+    if (ch) {
+      ch.send({
+        type: 'broadcast',
+        event: 'permission',
+        payload: { userId: targetUserId, role, setBy: user?.id },
+      });
+    }
+  }, [user?.id]);
+
+  const totalNet = useMemo(() => {
+    return peers.reduce((sum, p) => sum + (p.stats?.added || 0) - (p.stats?.deleted || 0), 0);
+  }, [peers]);
+
+  const peerCount = Math.max(1, peers.length);
+  const effectiveViewMode = !user || myRole === 'viewer';
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
@@ -263,9 +384,90 @@ export default function GlobalWhiteboard() {
             Every thread is a card. Move, connect, and annotate — everyone sees it live.
           </div>
         </div>
-        <div className="rounded-full bg-muted px-3 py-1 text-xs font-medium">
-          {peerCount} {peerCount === 1 ? 'person' : 'people'} here
-        </div>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <button className="rounded-full bg-muted hover:bg-muted/70 px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" />
+              {peerCount} {peerCount === 1 ? 'person' : 'people'} here
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-96 p-0">
+            <div className="px-4 py-3 border-b">
+              <div className="text-sm font-semibold">Live collaborators</div>
+              <div className="text-xs text-muted-foreground">
+                Net {totalNet >= 0 ? '+' : ''}{totalNet} shapes this session
+                {isAdmin && ' · you can change per-user permissions'}
+              </div>
+            </div>
+            <div className="max-h-80 overflow-y-auto divide-y">
+              {peers.length === 0 && (
+                <div className="px-4 py-6 text-sm text-muted-foreground text-center">
+                  No one is online yet.
+                </div>
+              )}
+              {peers.map((p) => {
+                const role: PeerRole = permissions[p.user_id] ?? 'editor';
+                const net = (p.stats?.added || 0) - (p.stats?.deleted || 0);
+                const isSelf = p.user_id === user?.id;
+                return (
+                  <div key={p.user_id} className="px-4 py-3 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+                      {(p.display_name || '?').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium truncate">{p.display_name}</span>
+                        {isSelf && <Badge variant="secondary" className="text-[10px] px-1 py-0">you</Badge>}
+                        <Badge
+                          variant={role === 'viewer' ? 'outline' : 'default'}
+                          className="text-[10px] px-1 py-0 gap-0.5"
+                        >
+                          {role === 'viewer' ? <Eye className="h-2.5 w-2.5" /> : <Pencil className="h-2.5 w-2.5" />}
+                          {role}
+                        </Badge>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        <span className="text-green-600 dark:text-green-400">+{p.stats?.added || 0}</span>
+                        {' · '}
+                        <span>~{p.stats?.modified || 0}</span>
+                        {' · '}
+                        <span className="text-red-600 dark:text-red-400">−{p.stats?.deleted || 0}</span>
+                        {' · net '}
+                        <span className="font-medium text-foreground">{net >= 0 ? '+' : ''}{net}</span>
+                      </div>
+                    </div>
+                    {isAdmin && !isSelf && (
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant={role === 'editor' ? 'default' : 'outline'}
+                          className="h-7 px-2 text-[11px] gap-1"
+                          onClick={() => setPeerPermission(p.user_id, 'editor')}
+                        >
+                          <Pencil className="h-3 w-3" /> Editor
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={role === 'viewer' ? 'default' : 'outline'}
+                          className="h-7 px-2 text-[11px] gap-1"
+                          onClick={() => setPeerPermission(p.user_id, 'viewer')}
+                        >
+                          <Eye className="h-3 w-3" /> Viewer
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {!isAdmin && (
+              <div className="px-4 py-2 border-t text-[11px] text-muted-foreground">
+                Only admins can change viewer/editor permissions.
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
       <div className="flex-1 min-h-0">
         {ready ? (
@@ -273,7 +475,7 @@ export default function GlobalWhiteboard() {
             initialData={initial}
             onChange={onChange}
             excalidrawAPI={(api: any) => { apiRef.current = api; }}
-            viewModeEnabled={!user}
+            viewModeEnabled={effectiveViewMode}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
@@ -281,9 +483,11 @@ export default function GlobalWhiteboard() {
           </div>
         )}
       </div>
-      {!user && (
+      {effectiveViewMode && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-background/90 backdrop-blur border px-4 py-2 text-xs shadow">
-          Sign in to draw and move cards. View-only mode.
+          {!user
+            ? 'Sign in to draw and move cards. View-only mode.'
+            : 'An admin has set you to viewer. View-only mode.'}
         </div>
       )}
     </div>
