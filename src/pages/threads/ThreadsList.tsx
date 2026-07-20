@@ -46,7 +46,11 @@ export default function ThreadsList() {
         if (!cancelled) setThreads(data);
       })
       .catch((err) => {
-        if (!cancelled) toast({ title: 'Failed to load threads', description: err?.message || String(err), variant: 'destructive' });
+        if (!cancelled) {
+          console.error('[threads] load failed', err);
+          const desc = err?.message || err?.error_description || err?.hint || JSON.stringify(err);
+          toast({ title: 'Failed to load threads', description: desc, variant: 'destructive' });
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
