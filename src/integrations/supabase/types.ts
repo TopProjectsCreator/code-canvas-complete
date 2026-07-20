@@ -1559,6 +1559,38 @@ export type Database = {
         }
         Relationships: []
       }
+      thread_whiteboards: {
+        Row: {
+          created_at: string
+          scene: Json
+          thread_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          scene?: Json
+          thread_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          scene?: Json
+          thread_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "thread_whiteboards_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: true
+            referencedRelation: "threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       threads: {
         Row: {
           author_id: string
