@@ -32,6 +32,8 @@ import OAuthConsent from "./pages/OAuthConsent";
 import LinkDiscord from "./pages/LinkDiscord";
 import ResetPassword from "./pages/ResetPassword";
 import OAuthHostsAdmin from "./pages/admin/OAuthHosts";
+import OnlineUsersAdmin from "./pages/admin/OnlineUsers";
+import { PresenceTrackerMount } from "./components/PresenceTrackerMount";
 import OAuthAppsPublic from "./pages/OAuthApps";
 import MCP from "./pages/MCP";
 import ThreadsLayout from "./pages/threads/ThreadsLayout";
@@ -123,6 +125,7 @@ const App = () => isOAuthConsentPath() ? <OAuthConsentShell /> : (
           <OfflineDialog />
           <InboxNotifier />
           <OnboardingManager />
+          <PresenceTrackerMount />
           <DiscordProvider>
           <BrowserRouter basename={getGitHubPagesBasename()}>
             <Routes>
@@ -160,6 +163,7 @@ const App = () => isOAuthConsentPath() ? <OAuthConsentShell /> : (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/link-discord" element={<LinkDiscord />} />
               <Route path="/admin/oauth-hosts" element={<OAuthHostsAdmin />} />
+              <Route path="/admin/online-users" element={<OnlineUsersAdmin />} />
               <Route path="/oauth-apps" element={<OAuthAppsPublic />} />
               <Route path="/mcp" element={<MCP />} />
               {/* Redactor routes — public */}
