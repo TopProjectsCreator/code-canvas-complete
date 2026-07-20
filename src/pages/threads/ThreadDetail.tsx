@@ -205,12 +205,15 @@ export default function ThreadDetail() {
                   minHeightClassName="min-h-[200px]"
                   onUploadMedia={handleUploadMedia}
                 />
-                <Select value={editCategory} onValueChange={setEditCategory}>
+                <Select
+                  value={editCategory || 'none'}
+                  onValueChange={(v) => setEditCategory(v === 'none' ? '' : v)}
+                >
                   <SelectTrigger className="w-64">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     <SelectItem value="General">General</SelectItem>
                     <SelectItem value="Showcase">Showcase</SelectItem>
                     <SelectItem value="Questions">Questions</SelectItem>
