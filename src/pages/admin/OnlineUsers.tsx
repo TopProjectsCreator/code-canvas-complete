@@ -18,8 +18,8 @@ interface PresenceMeta {
   path?: string;
 }
 
-type AppRole = 'admin' | 'moderator' | 'user';
-const ALL_ROLES: AppRole[] = ['admin', 'moderator', 'user'];
+type AppRole = 'admin' | 'user';
+const ALL_ROLES: AppRole[] = ['admin', 'user'];
 
 export default function OnlineUsers() {
   const { user, loading: authLoading } = useAuth();
