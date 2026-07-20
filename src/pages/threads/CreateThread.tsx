@@ -22,6 +22,7 @@ export default function CreateThread() {
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const { categories } = useThreadCategories();
 
   if (!user) {
     return (
