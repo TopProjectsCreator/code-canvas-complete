@@ -295,6 +295,13 @@ export async function deleteThread(id: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function setThreadPinned(id: string, pinned: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('threads')
+    .update({ pinned })
+    .eq('id', id);
+  if (error) throw error;
+
 export async function updateComment(
   id: string,
   content: string,
