@@ -1532,6 +1532,33 @@ export type Database = {
         }
         Relationships: []
       }
+      thread_categories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       threads: {
         Row: {
           author_id: string
