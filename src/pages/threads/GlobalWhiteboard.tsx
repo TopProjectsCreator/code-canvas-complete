@@ -204,13 +204,48 @@ export default function GlobalWhiteboard() {
     );
   }, [user]);
 
+  const broadcastScene = useCallback((elements: readonly any[], files: Record<string, any>) => {
+    const ch = channelRef.current;
+    if (!ch) return;
+    const referenced = new Set(
+      (elements as any[])
+        .filter((el) => el?.type === 'image' && el?.fileId && !el?.isDeleted)
+        .map((el) => el.fileId as string)
+    );
+    const trimmedFiles: Record<string, any> = {};
+    for (const [k, v] of Object.entries(files || {})) {
+      if (referenced.has(k)) trimmedFiles[k] = v;
+    }
+    ch.send({
+      type: 'broadcast',
+      event: 'scene',
+      payload: { clientId: clientIdRef.current, elements, files: trimmedFiles },
+    });
+  }, []);
+
   const onChange = useCallback((elements: readonly any[], appState: any, files: Record<string, any>) => {
     if (applyingRemoteRef.current) return;
+    // Live broadcast throttled to ~50ms for smooth remote movement
+    const now = Date.now();
+    if (now - broadcastThrottleRef.current >= 50) {
+      broadcastThrottleRef.current = now;
+      broadcastScene(elements, files || {});
+    } else {
+      if (pendingBroadcastRef.current) clearTimeout(pendingBroadcastRef.current);
+      pendingBroadcastRef.current = setTimeout(() => {
+        broadcastThrottleRef.current = Date.now();
+        broadcastScene(elements, files || {});
+      }, 50);
+    }
+    // Durable persist debounced
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => persist(elements, appState, files || {}), 500);
-  }, [persist]);
+    debounceRef.current = setTimeout(() => persist(elements, appState, files || {}), 600);
+  }, [persist, broadcastScene]);
 
-  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (pendingBroadcastRef.current) clearTimeout(pendingBroadcastRef.current);
+  }, []);
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
