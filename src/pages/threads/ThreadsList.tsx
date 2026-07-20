@@ -99,6 +99,12 @@ export default function ThreadsList() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Threads</h1>
         <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link to="/threads/whiteboard">
+              <Presentation className="h-4 w-4 mr-2" />
+              Whiteboard
+            </Link>
+          </Button>
           {isAdmin && (
             <Button variant="outline" onClick={() => setManageOpen(true)}>
               <Tag className="h-4 w-4 mr-2" />
