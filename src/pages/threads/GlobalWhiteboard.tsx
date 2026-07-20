@@ -58,6 +58,10 @@ export default function GlobalWhiteboard() {
   const [ready, setReady] = useState(false);
   const [initial, setInitial] = useState<Scene>({ elements: [], appState: { viewBackgroundColor: '#fafaf9' } });
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const broadcastThrottleRef = useRef<number>(0);
+  const pendingBroadcastRef = useRef<ReturnType<typeof setTimeout>>();
+  const channelRef = useRef<any>(null);
+  const clientIdRef = useRef<string>(Math.random().toString(36).slice(2));
   const lastSentHashRef = useRef<string>('');
   const applyingRemoteRef = useRef(false);
   const [peerCount, setPeerCount] = useState(1);
@@ -108,6 +112,18 @@ export default function GlobalWhiteboard() {
       .channel(`global_whiteboard:${BOARD_ID}`, {
         config: { presence: { key: user?.id || crypto.randomUUID() } },
       })
+      .on('broadcast', { event: 'scene' }, (msg: any) => {
+        const p = msg.payload || {};
+        if (!apiRef.current || p.clientId === clientIdRef.current) return;
+        if (!Array.isArray(p.elements)) return;
+        applyingRemoteRef.current = true;
+        if (p.files && apiRef.current.addFiles) {
+          const arr = Object.values(p.files);
+          if (arr.length) apiRef.current.addFiles(arr);
+        }
+        apiRef.current.updateScene({ elements: p.elements });
+        applyingRemoteRef.current = false;
+      })
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'global_whiteboard', filter: `id=eq.${BOARD_ID}` },
@@ -149,7 +165,9 @@ export default function GlobalWhiteboard() {
           await channel.track({ online_at: new Date().toISOString() });
         }
       });
+    channelRef.current = channel;
     return () => {
+      channelRef.current = null;
       supabase.removeChannel(channel);
     };
   }, [ready, user?.id]);
@@ -186,13 +204,48 @@ export default function GlobalWhiteboard() {
     );
   }, [user]);
 
+  const broadcastScene = useCallback((elements: readonly any[], files: Record<string, any>) => {
+    const ch = channelRef.current;
+    if (!ch) return;
+    const referenced = new Set(
+      (elements as any[])
+        .filter((el) => el?.type === 'image' && el?.fileId && !el?.isDeleted)
+        .map((el) => el.fileId as string)
+    );
+    const trimmedFiles: Record<string, any> = {};
+    for (const [k, v] of Object.entries(files || {})) {
+      if (referenced.has(k)) trimmedFiles[k] = v;
+    }
+    ch.send({
+      type: 'broadcast',
+      event: 'scene',
+      payload: { clientId: clientIdRef.current, elements, files: trimmedFiles },
+    });
+  }, []);
+
   const onChange = useCallback((elements: readonly any[], appState: any, files: Record<string, any>) => {
     if (applyingRemoteRef.current) return;
+    // Live broadcast throttled to ~50ms for smooth remote movement
+    const now = Date.now();
+    if (now - broadcastThrottleRef.current >= 50) {
+      broadcastThrottleRef.current = now;
+      broadcastScene(elements, files || {});
+    } else {
+      if (pendingBroadcastRef.current) clearTimeout(pendingBroadcastRef.current);
+      pendingBroadcastRef.current = setTimeout(() => {
+        broadcastThrottleRef.current = Date.now();
+        broadcastScene(elements, files || {});
+      }, 50);
+    }
+    // Durable persist debounced
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => persist(elements, appState, files || {}), 500);
-  }, [persist]);
+    debounceRef.current = setTimeout(() => persist(elements, appState, files || {}), 600);
+  }, [persist, broadcastScene]);
 
-  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (pendingBroadcastRef.current) clearTimeout(pendingBroadcastRef.current);
+  }, []);
 
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
