@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Seo } from "@/components/Seo";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import {
   Gauge,
   Globe,
   Layers,
+  MessageSquare,
   Orbit,
   Radar,
   Rocket,
@@ -546,6 +547,106 @@ export default function Landing() {
             </div>
           </div>
         </section>
+
+        <section className="relative px-6 py-24 border-t border-primary/10 bg-primary/[0.01]">
+          <div className="mx-auto max-w-6xl">
+            <div className="mb-12 text-center">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1 font-mono text-[10px] uppercase tracking-[0.3em] text-primary">
+                More surfaces
+              </div>
+              <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">Not just an IDE — an all-in-one platform</h2>
+              <p className="mt-4 text-muted-foreground max-w-2xl mx-auto">
+                Hover a card to meet the logo — click to open the tool.
+              </p>
+            </div>
+
+            <InfiniteMarquee>
+              <Link
+                to="/redactor"
+                className="group/card flex-[0_0_auto] w-[150px] h-[150px] rounded-2xl border border-[#2dd4bf]/50 bg-card/40 backdrop-blur-sm flex flex-col items-center justify-center text-center no-underline text-foreground overflow-hidden transition-all duration-300 hover:w-[300px] hover:h-[180px] hover:shadow-[0_0_44px_rgba(45,212,191,0.30)]"
+              >
+                <div className="flex flex-col items-center gap-2 transition-opacity duration-200 group-hover/card:opacity-0">
+                  <img src="/redactor-logo.png" alt="Redactor" className="w-12 h-12 object-contain" />
+                  <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">Redactor</span>
+                </div>
+                <div className="absolute inset-0 p-4 flex flex-col justify-center gap-1.5 text-left opacity-0 transition-opacity duration-300 group-hover/card:opacity-100">
+                  <h4 className="m-0 text-sm font-semibold text-[#2dd4bf]">Redactor</h4>
+                  <p className="m-0 text-xs leading-relaxed text-muted-foreground">AI gateway proxy — strips API keys, PII &amp; secrets from every prompt before they reach OpenAI, Anthropic, Gemini &amp; 12+ providers.</p>
+                </div>
+              </Link>
+
+              <Link
+                to="/threads"
+                className="group/card flex-[0_0_auto] w-[150px] h-[150px] rounded-2xl border border-primary/50 bg-card/40 backdrop-blur-sm flex flex-col items-center justify-center text-center no-underline text-foreground overflow-hidden transition-all duration-300 hover:w-[300px] hover:h-[180px] hover:shadow-[0_0_44px_hsl(var(--primary)/0.30)]"
+              >
+                <div className="flex flex-col items-center gap-2 transition-opacity duration-200 group-hover/card:opacity-0">
+                  <MessageSquare className="w-12 h-12 text-primary" />
+                  <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">Threads</span>
+                </div>
+                <div className="absolute inset-0 p-4 flex flex-col justify-center gap-1.5 text-left opacity-0 transition-opacity duration-300 group-hover/card:opacity-100">
+                  <h4 className="m-0 text-sm font-semibold text-primary">Threads</h4>
+                  <p className="m-0 text-xs leading-relaxed text-muted-foreground">Community board — start discussions, vote, and pin threads with rich text and categories.</p>
+                </div>
+              </Link>
+
+              <Link
+                to="/redactor"
+                className="group/card flex-[0_0_auto] w-[150px] h-[150px] rounded-2xl border border-[#2dd4bf]/50 bg-card/40 backdrop-blur-sm flex flex-col items-center justify-center text-center no-underline text-foreground overflow-hidden transition-all duration-300 hover:w-[300px] hover:h-[180px] hover:shadow-[0_0_44px_rgba(45,212,191,0.30)]"
+              >
+                <div className="flex flex-col items-center gap-2 transition-opacity duration-200 group-hover/card:opacity-0">
+                  <img src="/redactor-logo.png" alt="Redactor" className="w-12 h-12 object-contain" />
+                  <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">Redactor</span>
+                </div>
+                <div className="absolute inset-0 p-4 flex flex-col justify-center gap-1.5 text-left opacity-0 transition-opacity duration-300 group-hover/card:opacity-100">
+                  <h4 className="m-0 text-sm font-semibold text-[#2dd4bf]">Redactor</h4>
+                  <p className="m-0 text-xs leading-relaxed text-muted-foreground">AI gateway proxy — strips API keys, PII &amp; secrets from every prompt before they reach OpenAI, Anthropic, Gemini &amp; 12+ providers.</p>
+                </div>
+              </Link>
+
+              <Link
+                to="/threads"
+                className="group/card flex-[0_0_auto] w-[150px] h-[150px] rounded-2xl border border-primary/50 bg-card/40 backdrop-blur-sm flex flex-col items-center justify-center text-center no-underline text-foreground overflow-hidden transition-all duration-300 hover:w-[300px] hover:h-[180px] hover:shadow-[0_0_44px_hsl(var(--primary)/0.30)]"
+              >
+                <div className="flex flex-col items-center gap-2 transition-opacity duration-200 group-hover/card:opacity-0">
+                  <MessageSquare className="w-12 h-12 text-primary" />
+                  <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">Threads</span>
+                </div>
+                <div className="absolute inset-0 p-4 flex flex-col justify-center gap-1.5 text-left opacity-0 transition-opacity duration-300 group-hover/card:opacity-100">
+                  <h4 className="m-0 text-sm font-semibold text-primary">Threads</h4>
+                  <p className="m-0 text-xs leading-relaxed text-muted-foreground">Community board — start discussions, vote, and pin threads with rich text and categories.</p>
+                </div>
+              </Link>
+
+              <Link
+                to="/redactor"
+                className="group/card flex-[0_0_auto] w-[150px] h-[150px] rounded-2xl border border-[#2dd4bf]/50 bg-card/40 backdrop-blur-sm flex flex-col items-center justify-center text-center no-underline text-foreground overflow-hidden transition-all duration-300 hover:w-[300px] hover:h-[180px] hover:shadow-[0_0_44px_rgba(45,212,191,0.30)]"
+              >
+                <div className="flex flex-col items-center gap-2 transition-opacity duration-200 group-hover/card:opacity-0">
+                  <img src="/redactor-logo.png" alt="Redactor" className="w-12 h-12 object-contain" />
+                  <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">Redactor</span>
+                </div>
+                <div className="absolute inset-0 p-4 flex flex-col justify-center gap-1.5 text-left opacity-0 transition-opacity duration-300 group-hover/card:opacity-100">
+                  <h4 className="m-0 text-sm font-semibold text-[#2dd4bf]">Redactor</h4>
+                  <p className="m-0 text-xs leading-relaxed text-muted-foreground">AI gateway proxy — strips API keys, PII &amp; secrets from every prompt before they reach OpenAI, Anthropic, Gemini &amp; 12+ providers.</p>
+                </div>
+              </Link>
+
+              <Link
+                to="/threads"
+                className="group/card flex-[0_0_auto] w-[150px] h-[150px] rounded-2xl border border-primary/50 bg-card/40 backdrop-blur-sm flex flex-col items-center justify-center text-center no-underline text-foreground overflow-hidden transition-all duration-300 hover:w-[300px] hover:h-[180px] hover:shadow-[0_0_44px_hsl(var(--primary)/0.30)]"
+              >
+                <div className="flex flex-col items-center gap-2 transition-opacity duration-200 group-hover/card:opacity-0">
+                  <MessageSquare className="w-12 h-12 text-primary" />
+                  <span className="font-mono text-[10px] tracking-[0.18em] uppercase text-muted-foreground">Threads</span>
+                </div>
+                <div className="absolute inset-0 p-4 flex flex-col justify-center gap-1.5 text-left opacity-0 transition-opacity duration-300 group-hover/card:opacity-100">
+                  <h4 className="m-0 text-sm font-semibold text-primary">Threads</h4>
+                  <p className="m-0 text-xs leading-relaxed text-muted-foreground">Community board — start discussions, vote, and pin threads with rich text and categories.</p>
+                </div>
+              </Link>
+            </InfiniteMarquee>
+          </div>
+        </section>
       </main>
       <footer className="relative z-10 border-t border-border/40 px-6 py-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 text-sm text-muted-foreground sm:flex-row">
@@ -560,6 +661,61 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function InfiniteMarquee({ children }: { children: React.ReactNode }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    let rafId: number;
+    let paused = false;
+
+    const onEnter = () => { paused = true; };
+    const onLeave = () => { paused = false; };
+    track.addEventListener('mouseenter', onEnter);
+    track.addEventListener('mouseleave', onLeave);
+
+    const GAP = 16;
+
+    const tick = () => {
+      if (!paused) {
+        track.scrollLeft += 1;
+        const first = track.firstElementChild as HTMLElement | null;
+        if (first && track.scrollLeft >= first.offsetWidth + GAP) {
+          track.appendChild(first);
+          track.scrollLeft -= first.offsetWidth + GAP;
+        }
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      track.removeEventListener('mouseenter', onEnter);
+      track.removeEventListener('mouseleave', onLeave);
+    };
+  }, []);
+
+  return (
+    <div
+      className="relative overflow-hidden"
+      style={{
+        WebkitMaskImage: "linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent)",
+        maskImage: "linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent)",
+      }}
+    >
+      <div
+        ref={trackRef}
+        className="flex gap-4 py-4"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
