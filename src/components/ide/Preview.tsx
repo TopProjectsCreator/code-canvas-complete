@@ -22,6 +22,7 @@ import {
   Camera,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { appendPreviewLogEntry } from './previewLogUtils';
 
 interface PreviewProps {
   htmlContent: string;
@@ -161,22 +162,22 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === 'console') {
-        setConsoleLogs(prev => [...prev, {
+        setConsoleLogs(prev => appendPreviewLogEntry(prev, {
           id: Math.random().toString(36).slice(2),
           type: e.data.level || 'log',
           message: e.data.message,
           timestamp: new Date(),
-        }]);
+        }));
       }
       if (e.data?.type === 'network') {
-        setNetworkLogs(prev => [...prev, {
+        setNetworkLogs(prev => appendPreviewLogEntry(prev, {
           id: Math.random().toString(36).slice(2),
           method: e.data.method,
           url: e.data.url,
           status: e.data.status,
           time: e.data.time || 0,
           timestamp: new Date(),
-        }]);
+        }));
       }
       if (e.data?.type === 'seo-result' && typeof e.data.html === 'string') {
         const html = e.data.html;
