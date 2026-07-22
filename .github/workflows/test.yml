@@ -38,3 +38,5 @@ jobs:
             2. Detail the issue, affected file path(s), line numbers, and suggest a resolution.
             
             If everything looks clean, do not create an issue.
+            
+            Do not attempt to save anything outside the working directory.
