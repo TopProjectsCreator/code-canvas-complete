@@ -1,4 +1,4 @@
-name: Scheduled OpenCode Review
+name: Daily Review
 
 on:
   schedule:
@@ -34,9 +34,10 @@ jobs:
             Inspect the repository for potential bugs, security vulnerabilities, edge-case failures, or severe performance issues.
             
             If you find a potential issue:
-            1. Open a new GitHub Issue titled "🔍 [OpenCode Scan] Potential issue detected".
+            1. Open a new GitHub Issue titled "[UNVERIFIED] Potential issue detected".
+              For example: "[UNVERIFIED] "Unsaved changes" indicator never resets after reverting all edits"
             2. Detail the issue, affected file path(s), line numbers, and suggest a resolution.
-            
+              
             If everything looks clean, do not create an issue.
             
             Do not attempt to save anything outside the working directory.
