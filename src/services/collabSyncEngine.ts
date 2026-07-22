@@ -202,9 +202,10 @@ class ComponentCursor {
 
     if (current.type === 'insert') {
       if (limit === undefined || limit >= current.text.length - this.offset) {
+        const text = current.text.slice(this.offset);
         this.index += 1;
         this.offset = 0;
-        return { type: 'insert', text: current.text.slice(this.offset) };
+        return { type: 'insert', text };
       }
 
       const text = current.text.slice(this.offset, this.offset + limit);

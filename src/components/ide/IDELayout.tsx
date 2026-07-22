@@ -644,6 +644,22 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     void discordPresence(activeFilePath, selectedTemplate, currentProject?.name || localProjectName, isRunning, ctx);
   }, [discordPresence, activeFilePath, selectedTemplate, currentProject?.name, localProjectName, isRunning]);
 
+  const fileStructureKey = useMemo(() => {
+    const parts: string[] = [];
+    const collect = (nodes: FileNode[], parentPath = "") => {
+      nodes.forEach((node) => {
+        const nextPath = parentPath ? `${parentPath}/${node.name}` : node.name;
+        if (node.type === "file") {
+          parts.push(`${node.id}:${nextPath}`);
+          return;
+        }
+        if (node.children) collect(node.children, nextPath);
+      });
+    };
+    collect(files);
+    return parts.join("|");
+  }, [files]);
+
   useEffect(() => {
     const engine = collabEngineRef.current;
     engine.reset();
@@ -661,7 +677,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     };
 
     registerNodes(files);
-  }, [files, fileContents]);
+  }, [fileStructureKey]);
 
   useEffect(() => {
     const remoteUpdate = collab.remoteFileUpdate;

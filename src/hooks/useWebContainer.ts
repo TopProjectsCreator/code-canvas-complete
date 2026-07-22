@@ -109,6 +109,7 @@ export const useWebContainer = () => {
 
     const process = await instance.spawn(command, args);
     let outputBuffer = '';
+    let stderrBuffer = '';
 
     const writer = new WritableStream<string>({
       write(chunk) {
@@ -116,14 +117,23 @@ export const useWebContainer = () => {
       },
     });
 
+    const stderrWriter = new WritableStream<string>({
+      write(chunk) {
+        stderrBuffer += chunk;
+      },
+    });
+
     const pipePromise = process.output.pipeTo(writer);
+    const stderrPipePromise = process.error?.pipeTo(stderrWriter);
     const exitCode = await process.exit;
     await pipePromise;
+    if (stderrPipePromise) await stderrPipePromise;
 
     const stdout = toLines(outputBuffer);
+    const stderr = toLines(stderrBuffer);
     return {
       stdout,
-      stderr: [],
+      stderr,
       exitCode,
     };
   }, []);

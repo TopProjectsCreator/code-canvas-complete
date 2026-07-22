@@ -1118,7 +1118,7 @@ app.post('/api/replit/ai/generate-command', async (req, res) => {
   if (!prompt) return res.status(400).json({ error: 'prompt required' });
   const keys = _aiKeys[uid] || {};
   const provider = keys.openai ? 'openai' : keys.anthropic ? 'anthropic' : keys.google ? 'google' : null;
-  const apiKey = provider ? keys[provider] : null;
+  const apiKey = provider ? keys[provider]?.api_key : null;
   if (!apiKey) return res.status(400).json({ error: 'No AI API key configured. Add a key in Settings → AI Keys.' });
   const system = 'You are a shell command generator. Given a description, output ONLY the shell command — no explanation, no markdown, no backticks. One line only.';
   try {
@@ -1294,13 +1294,32 @@ app.post('/api/replit/ai/identify-part', async (req, res) => {
   if (!apiKey) return res.status(400).json({ error: 'No AI API key configured' });
   const prompt = `Identify this part for ${platform || 'general'} use.\nName: ${partName}\nVendor URL: ${vendorUrl || 'n/a'}\nReturn JSON with fields description, manufacturer, partNumber, category, specifications, compatibleWith, tips.`;
   try {
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'Return only JSON.' }, { role: 'user', content: prompt }], max_tokens: 500 }),
-    });
-    const d = await r.json();
-    const text = d.choices?.[0]?.message?.content || '{}';
+    let text = '{}';
+    if (provider === 'openai') {
+      const r = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'Return only JSON.' }, { role: 'user', content: prompt }], max_tokens: 500 }),
+      });
+      const d = await r.json();
+      text = d.choices?.[0]?.message?.content || '{}';
+    } else if (provider === 'anthropic') {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-haiku-20240307', system: 'Return only JSON.', messages: [{ role: 'user', content: prompt }], max_tokens: 500 }),
+      });
+      const d = await r.json();
+      text = d.content?.[0]?.text || '{}';
+    } else if (provider === 'google') {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: `Return only JSON.\n\n${prompt}` }] }], generationConfig: { maxOutputTokens: 500 } }),
+      });
+      const d = await r.json();
+      text = d.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    }
     res.json(JSON.parse(text.replace(/```json|```/g, '').trim() || '{}'));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1965,7 +1984,10 @@ function finishExec(proc, tmpDir, stdin, res, timeoutMs = 30000) {
   proc.stdout.on('data', (d) => { stdoutBuf += d.toString(); });
   proc.stderr.on('data', (d) => { stderrBuf += d.toString(); });
 
+  let responded = false;
   proc.on('close', (exitCode) => {
+    if (responded) return;
+    responded = true;
     clearTimeout(timer);
     try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
 
@@ -1984,6 +2006,8 @@ function finishExec(proc, tmpDir, stdin, res, timeoutMs = 30000) {
   });
 
   proc.on('error', (err) => {
+    if (responded) return;
+    responded = true;
     clearTimeout(timer);
     try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
     return res.json({ output: [], error: err.message, executedAt: new Date().toISOString() });
@@ -2046,7 +2070,10 @@ app.post('/api/replit/execute', (req, res) => {
       compile.stderr.on('data', (d) => { compileErr += d.toString(); });
       compile.stdout.on('data', () => {}); // drain
 
+      let compileResponded = false;
       compile.on('close', (exitCode) => {
+        if (compileResponded) return;
+        compileResponded = true;
         if (exitCode !== 0) {
           try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
           const cleanErr = compileErr.replace(new RegExp(tmpDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\/', 'g'), '').trim();
@@ -2057,6 +2084,8 @@ app.post('/api/replit/execute', (req, res) => {
       });
 
       compile.on('error', (err) => {
+        if (compileResponded) return;
+        compileResponded = true;
         try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
         return res.json({ output: [], error: `Compiler error: ${err.message}`, executedAt: new Date().toISOString() });
       });
@@ -2240,6 +2269,11 @@ function createContainerSession(userId, projectName, files) {
       session.activeCmd.reject(new Error('Container process exited'));
       session.activeCmd = null;
     }
+    for (const cmd of session.cmdQueue) {
+      if (cmd.timer) clearTimeout(cmd.timer);
+      cmd.reject(new Error('Container process exited'));
+    }
+    session.cmdQueue = [];
     containerSessions.delete(sessionId);
   });
 
@@ -2806,7 +2840,8 @@ httpServer.on('upgrade', (request, socket, head) => {
     if (!m) { socket.destroy(); return; }
     const port = parseInt(m[1], 10);
     if (isNaN(port) || port < PREVIEW_PORT_MIN || port > PREVIEW_PORT_MAX) { socket.destroy(); return; }
-    const wsPath = url.pathname.replace(/^\/api\/preview\/\d+/, '') + (url.search || '') || '/';
+    const rawPath = url.pathname.replace(/^\/api\/preview\/\d+/, '') || '/';
+    const wsPath = rawPath + (url.search || '');
     const proxyReq = http.request({
       hostname: 'localhost',
       port,

@@ -68,6 +68,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     const subscription = authProvider.onAuthStateChange(async (event, nextSession) => {
       try {
         setSession(nextSession);
@@ -91,18 +93,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             pd.deletion_scheduled_at = null;
           }
 
-          setProfile(pd);
+          if (!cancelled) setProfile(pd);
         } else {
-          setProfile(null);
+          if (!cancelled) setProfile(null);
         }
       } catch (err) {
         console.error('Auth state change error:', err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     });
 
     authProvider.getSession().then(({ session: initialSession }) => {
+      if (cancelled) return;
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
 
@@ -114,12 +117,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .single()
           .then(
             (result: any) => {
-              setProfile(result.data as Profile | null);
-              setLoading(false);
+              if (!cancelled) {
+                setProfile(result.data as Profile | null);
+                setLoading(false);
+              }
             },
             (err: unknown) => {
               console.error('Failed to fetch profile:', err);
-              setLoading(false);
+              if (!cancelled) setLoading(false);
             }
           );
       } else {
@@ -127,10 +132,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }).catch((err) => {
       console.error('Failed to get session:', err);
-      setLoading(false);
+      if (!cancelled) setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [authProvider]);
 
   const signOut = async () => {

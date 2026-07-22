@@ -16,14 +16,16 @@ export function useOfflineProject() {
   const { user } = useAuth();
   const { toast } = useToast();
   const syncStarted = useRef(false);
+  const userIdRef = useRef(user?.id ?? null);
+  userIdRef.current = user?.id ?? null;
 
   // Start auto-sync once
   useEffect(() => {
     if (!syncStarted.current) {
       syncStarted.current = true;
-      startAutoSync(() => user?.id ?? null);
+      startAutoSync(() => userIdRef.current);
     }
-  }, [user]);
+  }, []);
 
   // Listen for sync completion
   useEffect(() => {

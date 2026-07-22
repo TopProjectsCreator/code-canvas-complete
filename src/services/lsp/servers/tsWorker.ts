@@ -60,11 +60,11 @@ function createLanguageService() {
   const host: any = {
     getScriptFileNames: () => Array.from(files.keys()),
     getScriptVersion: (fileName: string) => {
-      const entry = files.get(fileName);
+      const entry = files.get(getCanonicalFileName(fileName));
       return entry ? String(entry.version) : "0";
     },
     getScriptSnapshot: (fileName: string) => {
-      const entry = files.get(fileName);
+      const entry = files.get(getCanonicalFileName(fileName));
       if (!entry) return undefined;
       return ts!.ScriptSnapshot.fromString(entry.content);
     },
@@ -187,7 +187,7 @@ function handleMessage(msg: any): void {
         const uri = params.textDocument.uri;
         const text = params.textDocument.text;
         const fn = uriToFileName(uri);
-        if (fn) files.set(fn, { content: text, version: 1 });
+        if (fn) files.set(getCanonicalFileName(fn), { content: text, version: 1 });
         updateAndPublish(uri, sendNotification);
         break;
       }
@@ -198,8 +198,9 @@ function handleMessage(msg: any): void {
         const text = params.contentChanges[0].text;
         const fn = uriToFileName(uri);
         if (fn) {
-          const entry = files.get(fn);
-          files.set(fn, { content: text, version: (entry?.version ?? 0) + 1 });
+          const canonicalFn = getCanonicalFileName(fn);
+          const entry = files.get(canonicalFn);
+          files.set(canonicalFn, { content: text, version: (entry?.version ?? 0) + 1 });
         }
         updateAndPublish(uri, sendNotification);
         break;
@@ -208,7 +209,7 @@ function handleMessage(msg: any): void {
       case "textDocument/didClose": {
         const params = msg.params as any;
         const fn = uriToFileName(params.textDocument.uri);
-        if (fn) files.delete(fn);
+        if (fn) files.delete(getCanonicalFileName(fn));
         break;
       }
 
@@ -305,7 +306,7 @@ function handleMessage(msg: any): void {
       case "textDocument/formatting": {
         const params = msg.params as any;
         const fileName = uriToFileName(params.textDocument.uri);
-        const entry = fileName ? files.get(fileName) : undefined;
+        const entry = fileName ? files.get(getCanonicalFileName(fileName)) : undefined;
         if (!languageService || !fileName || !entry) { sendResponse([]); break; }
         const edits = languageService.getFormattingEditsForDocument(fileName, { tabSize: 2, insertSpaces: true, newLineCharacter: "\n" });
         sendResponse(edits.map((edit: any) => ({
@@ -339,12 +340,12 @@ function handleMessage(msg: any): void {
 }
 
 function uriToFileName(uri: string): string | null {
-  const parts = uri.replace("file://", "").split("/");
-  return parts[parts.length - 1] ?? null;
+  const path = uri.replace("file:///", "").replace("file://", "");
+  return path || null;
 }
 
 function getLineAndChar(fileName: string, offset: number): { line: number; character: number } {
-  const entry = files.get(fileName);
+  const entry = files.get(getCanonicalFileName(fileName));
   if (!entry) return { line: 0, character: 0 };
   const text = entry.content;
   let line = 0;
@@ -359,7 +360,7 @@ function getLineAndChar(fileName: string, offset: number): { line: number; chara
 }
 
 function getOffset(fileName: string, line: number, character: number): number {
-  const entry = files.get(fileName);
+  const entry = files.get(getCanonicalFileName(fileName));
   if (!entry) return 0;
   const text = entry.content;
   let currentLine = 0;
