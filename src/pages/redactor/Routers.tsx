@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -111,51 +111,164 @@ function SortableStepCard({ step, index, onEdit, onDelete, onToggle }: {
   );
 }
 
-function TestResults({ results, isOpen }: { results: any[]; isOpen: boolean }) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [results]);
+function TestResults({ results, isOpen, totalSteps }: { results: any[]; isOpen: boolean; totalSteps: number }) {
   if (!isOpen || results.length === 0) return null;
-  const doneEvent = results.find((r) => r.type === "done");
-  const stepResults = results.filter((r) => r.type !== "done");
+  const doneEvent = results.find((r: any) => r.type === "done");
+  const stepEvents = results.filter((r: any) => r.type !== "done");
+
+  // Build step state map: track the final state of each step
+  const stepStates: Record<number, { type: string; event?: any }> = {};
+  for (const evt of stepEvents) {
+    const step = evt.step as number;
+    // probe is overwritten by error/success, error is overwritten by success
+    if (evt.type === "probe") {
+      if (!stepStates[step] || stepStates[step].type === "pending") stepStates[step] = { type: "probing", event: evt };
+    } else if (evt.type === "error") {
+      stepStates[step] = { type: "error", event: evt };
+    } else if (evt.type === "success") {
+      stepStates[step] = { type: "success", event: evt };
+    }
+  }
+
+  // Determine which steps to show (all steps up to the last probed or total)
+  const maxStep = Math.max(totalSteps, ...Object.keys(stepStates).map(Number));
+
+  function getStepColor(state: string): string {
+    switch (state) {
+      case "probing": return "border-amber-500 bg-amber-500/10";
+      case "success": return "border-green-500 bg-green-500/10";
+      case "error": return "border-red-500 bg-red-500/10";
+      case "skipped": return "border-muted-foreground/30 bg-muted/20";
+      default: return "border-muted-foreground/30 bg-muted/30";
+    }
+  }
+
+  function getLineColor(state: string): string {
+    switch (state) {
+      case "probing": return "border-amber-500/60";
+      case "success": return "border-green-500/60";
+      case "error": return "border-red-500/40";
+      default: return "border-muted-foreground/20";
+    }
+  }
+
+  function getIcon(state: string) {
+    switch (state) {
+      case "probing": return <Loader2 className="size-4 text-amber-500 animate-spin" />;
+      case "success": return <Check className="size-4 text-green-500" />;
+      case "error": return <X className="size-4 text-red-500" />;
+      default: return <div className="size-2 rounded-full bg-muted-foreground/30" />;
+    }
+  }
+
+  // Determine which steps come after success (skipped)
+  let succeededAt: number | null = null;
+  if (doneEvent?.succeeded_at) succeededAt = doneEvent.succeeded_at;
+  // Also check if a success event exists in stepStates
+  if (!succeededAt) {
+    for (const [stepStr, state] of Object.entries(stepStates)) {
+      if (state.type === "success") succeededAt = Number(stepStr);
+    }
+  }
+
+  // Get the step data from the router config (passed via results)
+  const stepData: Record<number, { model: string; shape: string }> = {};
+  for (const evt of stepEvents) {
+    if (evt.type === "probe" && evt.step) {
+      stepData[evt.step] = { model: evt.model, shape: evt.shape };
+    }
+  }
 
   return (
     <div className="mt-4 border rounded-lg overflow-hidden">
       <div className="bg-muted/50 px-4 py-2 font-medium text-sm">Test Results</div>
-      <div ref={scrollRef} className="max-h-96 overflow-y-auto p-4 space-y-4">
-        {stepResults.map((result, i) => {
-          if (result.type === "probe") return (
-            <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" /><span>Trying step {result.step}: {result.model} ({result.shape})...</span>
-            </div>
-          );
-          if (result.type === "error") return (
-            <div key={i} className="border border-red-500/30 rounded-lg p-3 bg-red-500/5">
-              <div className="flex items-center gap-2">
-                <X className="size-4 text-red-500" /><span className="font-medium">Step {result.step} failed</span>
-                <Badge variant="outline" className="text-red-500">{result.status}</Badge>
-                <span className="text-xs text-muted-foreground">{result.latency_ms}ms</span>
+      <div className="p-6">
+        {/* Start node */}
+        <div className="flex items-center gap-3 ml-3">
+          <div className="relative flex flex-col items-center">
+            <div className="size-3 rounded-full bg-primary z-10" />
+            <div className="w-0.5 h-6 bg-primary/30" />
+          </div>
+          <span className="text-sm font-medium text-muted-foreground">Request</span>
+        </div>
+
+        {/* Step stops */}
+        {Array.from({ length: maxStep }, (_, i) => i + 1).map((stepNum) => {
+          const state = stepStates[stepNum];
+          const isLast = stepNum === maxStep;
+          const isAfterSuccess = succeededAt !== null && stepNum > succeededAt;
+          const currentState = isAfterSuccess ? "skipped" : (state?.type ?? "pending");
+          const data = stepData[stepNum];
+
+          return (
+            <div key={stepNum} className="flex items-start gap-3 ml-3">
+              {/* Line connector */}
+              <div className="flex flex-col items-center">
+                <div className={`w-0.5 ${isLast ? "h-4" : "h-8"} border-l-2 ${isAfterSuccess && !state ? "border-dashed" : ""} ${getLineColor(currentState)}`} />
+                <div className={`size-7 rounded-full border-2 flex items-center justify-center z-10 ${getStepColor(currentState)}`}>
+                  {getIcon(currentState)}
+                </div>
               </div>
-              <div className="mt-2 text-xs text-muted-foreground font-mono break-all">{result.message?.slice(0, 200)}</div>
-            </div>
-          );
-          if (result.type === "success") return (
-            <div key={i} className="border border-green-500/30 rounded-lg p-3 bg-green-500/5">
-              <div className="flex items-center gap-2">
-                <Check className="size-4 text-green-500" /><span className="font-medium">Step {result.step} succeeded</span>
-                <Badge variant="outline" className="text-green-500">{result.status}</Badge>
-                <span className="text-xs text-muted-foreground">{result.latency_ms}ms</span>
+
+              {/* Stop content */}
+              <div className={`-mt-1 pb-4 flex-1 ${isAfterSuccess && !state ? "opacity-40" : ""}`}>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-muted-foreground">Step {stepNum}</span>
+                  {data && (
+                    <>
+                      <Badge className={getShapeColor(data.shape)} variant="outline">
+                        {getShapeLabel(data.shape)}
+                      </Badge>
+                      <span className="text-sm font-medium">{data.model}</span>
+                    </>
+                  )}
+                </div>
+
+                {/* Status details */}
+                {state?.event && state.type === "error" && (
+                  <div className="mt-1 text-xs text-red-500">
+                    {state.event.status} — {state.event.message?.slice(0, 100)}
+                    {state.event.latency_ms != null && <span className="text-muted-foreground ml-1">({state.event.latency_ms}ms)</span>}
+                  </div>
+                )}
+                {state?.event && state.type === "success" && (
+                  <div className="mt-1 text-xs text-green-600">
+                    {state.event.status} OK
+                    {state.event.latency_ms != null && <span className="text-muted-foreground ml-1">({state.event.latency_ms}ms)</span>}
+                  </div>
+                )}
+                {state?.event && state.type === "success" && state.event.response_text && (
+                  <div className="mt-2 text-xs bg-background rounded border p-2 font-mono whitespace-pre-wrap break-all max-h-24 overflow-y-auto">
+                    {state.event.response_text.slice(0, 300)}
+                  </div>
+                )}
+                {currentState === "skipped" && !state && (
+                  <div className="mt-1 text-xs text-muted-foreground italic">Skipped</div>
+                )}
+                {currentState === "pending" && (
+                  <div className="mt-1 text-xs text-muted-foreground italic">Waiting...</div>
+                )}
               </div>
-              <div className="mt-2 text-sm bg-background rounded p-2 font-mono">{result.response_text?.slice(0, 500)}</div>
-              {result.usage && <div className="mt-2 text-xs text-muted-foreground">Tokens: {result.usage.input_tokens ?? 0} in / {result.usage.output_tokens ?? 0} out</div>}
             </div>
           );
-          return null;
         })}
+
+        {/* End node */}
         {doneEvent && (
-          <div className="border-t pt-3 mt-3">
-            <div className="flex items-center gap-4 text-sm">
-              <span>Tried {doneEvent.steps_tried.length} step(s){doneEvent.succeeded_at ? `, succeeded at step ${doneEvent.succeeded_at}` : " — all failed"}</span>
-              <span className="text-muted-foreground">Total: {doneEvent.total_latency_ms}ms</span>
+          <div className="flex items-center gap-3 ml-3">
+            <div className="flex flex-col items-center">
+              <div className="w-0.5 h-4 border-l-2 border-dashed border-muted-foreground/20" />
+              <div className="size-3 rounded-full bg-muted-foreground/30 z-10" />
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {doneEvent.succeeded_at ? (
+                <span className="text-green-600 font-medium">Done — succeeded at step {doneEvent.succeeded_at}</span>
+              ) : (
+                <span className="text-red-500 font-medium">Done — all steps failed</span>
+              )}
+              {doneEvent.total_latency_ms != null && (
+                <span className="ml-2">({doneEvent.total_latency_ms}ms total)</span>
+              )}
             </div>
           </div>
         )}
@@ -367,7 +480,7 @@ export default function RedactorRouters() {
           <Button onClick={handleRunTest} disabled={testRunning || (steps ?? []).length === 0}>
             {testRunning ? <><Loader2 className="size-4 mr-2 animate-spin" />Testing...</> : <><Zap className="size-4 mr-2" />Run test</>}
           </Button>
-          <TestResults results={testResults} isOpen={testResults.length > 0} />
+          <TestResults results={testResults} isOpen={testResults.length > 0} totalSteps={(steps ?? []).length} />
         </CardContent>
       </Card>
 

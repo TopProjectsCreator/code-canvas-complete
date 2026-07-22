@@ -61,21 +61,26 @@ export default function RedactorPlayground() {
   useEffect(() => {
     setChatModelError("");
     let ignore = false;
-    supabase
-      .from("redactor_model_pricing")
-      .select("model_id, provider_id")
-      .order("model_id")
-      .then(({ data, error }) => {
+    fetch("https://models.dev/api.json")
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data: Record<string, { models?: Record<string, unknown> }>) => {
         if (ignore) return;
-        if (error) {
-          setChatModelError(error.message);
-          return;
+        const all: string[] = [];
+        for (const [providerId, provider] of Object.entries(data)) {
+          if (!provider.models) continue;
+          for (const modelId of Object.keys(provider.models)) {
+            all.push(`${providerId}/${modelId}`);
+          }
         }
-        const models = [...new Set(data?.map((r) => r.provider_id + "/" + r.model_id) ?? [])];
-        const bare = [...new Set(data?.map((r) => r.model_id) ?? [])];
-        const all = [...new Set([...bare, ...models])].sort();
+        all.sort();
         setChatModels(all);
         if (all.length > 0) setChatModel(all[0]);
+      })
+      .catch((err) => {
+        if (!ignore) setChatModelError(err.message ?? String(err));
       });
     return () => { ignore = true; };
   }, []);
@@ -101,7 +106,8 @@ export default function RedactorPlayground() {
 
       const slash = chatModel.indexOf("/");
       const provider = slash > 0 ? (PROVIDER_MAP[chatModel.slice(0, slash)] ?? chatModel.slice(0, slash)) : undefined;
-      const body: Record<string, unknown> = { model: chatModel, messages: [...chatMessages, userMsg] };
+      const model = slash > 0 ? chatModel.slice(slash + 1) : chatModel;
+      const body: Record<string, unknown> = { model, messages: [...chatMessages, userMsg] };
       if (provider) body.provider = provider;
 
       const res = await fetch("/api/oauth/ai/chat", {
@@ -433,10 +439,10 @@ export default function RedactorPlayground() {
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   placeholder="Type a message\u2026"
-                  disabled={chatBusy || chatModels.length === 0}
+                  disabled={chatBusy}
                   className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
                 />
-                <Button type="submit" disabled={chatBusy || !chatInput.trim() || chatModels.length === 0}>
+                <Button type="submit" disabled={chatBusy || !chatInput.trim()}>
                   {chatBusy ? "Thinking\u2026" : "Send"}
                 </Button>
               </form>
