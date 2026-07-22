@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { toast } from 'sonner';
 
 export interface ChatAttachment {
   id: string;
@@ -106,14 +107,29 @@ export function useAttachments() {
     const parts: Array<{ type: string; text?: string; image_url?: { url: string }; }> = [
       { type: 'text', text },
     ];
+    let skippedCount = 0;
 
     for (const att of atts) {
-      // All file types are sent as image_url with data URI - the gateway/model handles them
+      if (!att.mimeType.startsWith('image/') || !att.base64) {
+        skippedCount += 1;
+        continue;
+      }
+
       parts.push({
         type: 'image_url',
         image_url: { url: `data:${att.mimeType};base64,${att.base64}` },
       });
     }
+
+    if (skippedCount > 0) {
+      toast.error(
+        skippedCount === 1
+          ? '1 non-image attachment was skipped. AI chat currently supports image attachments only.'
+          : `${skippedCount} non-image attachments were skipped. AI chat currently supports image attachments only.`,
+      );
+    }
+
+    if (parts.length === 1) return text;
 
     return parts;
   }, []);
