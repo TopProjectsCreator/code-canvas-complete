@@ -3,8 +3,8 @@ name: Scheduled OpenCode Review
 on:
   schedule:
     # Runs every day at 02:20 AM UTC to beat the midnight API rate-limit rush
-    - cron: '31 18 * * *'
-  # Allows you to test and trigger the action manually from the Actions tab
+    - cron: '20 2 * * *'
+  # Allows manual runs anytime from the GitHub Actions tab
   workflow_dispatch:
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-      issues: write  # Required so OpenCode can create an issue
+      issues: write  # Required so OpenCode can create issues
 
     steps:
       - name: Checkout repository
@@ -26,17 +26,15 @@ jobs:
       - name: Run OpenCode Scanner
         uses: anomalyco/opencode/github@latest
         env:
-          # Replace with your actual LLM API key set in Repo Settings -> Secrets
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENCODE_API_KEY: "" # Keyless / Free tier model endpoint
         with:
-          model: anthropic/claude-sonnet-4-20250514
-          # Pass the workflow token so OpenCode can interact with the GitHub API
+          model: opencode/big-pickle
           github_token: ${{ secrets.GITHUB_TOKEN }}
           prompt: |
             Inspect the repository for potential bugs, security vulnerabilities, edge-case failures, or severe performance issues.
             
-            If you find a high-priority problem:
-            1. Create a new GitHub Issue titled "🔍 [OpenCode Scan] Potential issue detected in <module/file>".
-            2. Provide a clear explanation of the issue, affected file path(s), line numbers, and a suggested fix.
+            If you find a potential issue:
+            1. Open a new GitHub Issue titled "🔍 [OpenCode Scan] Potential issue detected".
+            2. Detail the issue, affected file path(s), line numbers, and suggest a resolution.
             
-            If no high-priority issues are found, do not create an issue.
+            If everything looks clean, do not create an issue.
