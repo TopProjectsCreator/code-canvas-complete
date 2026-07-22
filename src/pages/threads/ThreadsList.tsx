@@ -166,7 +166,7 @@ export default function ThreadsList() {
             const timeAgo = getTimeAgo(thread.created_at);
 
             return (
-              <Card key={thread.id} className="p-3 hover:bg-accent/50 transition-colors">
+              <Card key={thread.id} className="group p-3 hover:bg-accent/50 transition-colors">
                 <div className="flex gap-3">
                   <VoteButtons
                     score={thread.vote_score}
