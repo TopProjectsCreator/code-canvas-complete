@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChevronRight, ChevronDown, Plus, MoreHorizontal, Trash2, Edit2, Download } from 'lucide-react';
 import { FileNode } from '@/types/ide';
 import { FileIcon } from './FileIcon';
@@ -90,6 +90,7 @@ const FileItem = ({
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(node.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  const itemRef = useRef<HTMLDivElement>(null);
 
   const handleClick = () => {
     if (isRenaming) return;
@@ -125,9 +126,25 @@ const FileItem = ({
   const isActive = node.id === activeFileId;
   const isRoot = level === 0 && node.type === 'folder';
 
+  useEffect(() => {
+    if (!showMenu) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (itemRef.current && !itemRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
+
   return (
     <div>
       <div
+        ref={itemRef}
         className={cn(
           'flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors rounded-sm group relative',
           isActive 
@@ -139,7 +156,6 @@ const FileItem = ({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => {
           setIsHovered(false);
-          if (!showMenu) setShowMenu(false);
         }}
         onContextMenu={(e) => {
           e.preventDefault();
