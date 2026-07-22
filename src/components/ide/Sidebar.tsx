@@ -175,8 +175,9 @@ export const Sidebar = ({
         continue;
       }
       
-      if (file.content) {
-        const lines = file.content.split('\n');
+      const content = fileContents[file.id] ?? file.content ?? '';
+      if (content) {
+        const lines = content.split('\n');
         lines.forEach((line, index) => {
           const lowerLine = line.toLowerCase();
           let searchStart = 0;
@@ -201,7 +202,7 @@ export const Sidebar = ({
     }
 
     return results;
-  }, [searchQuery, files]);
+  }, [searchQuery, files, fileContents]);
 
   const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'svg'];
   const officeExtensions = ['docx', 'xlsx', 'pptx'];
