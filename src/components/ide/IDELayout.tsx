@@ -21,6 +21,7 @@ import { SaveProjectDialog } from "./SaveProjectDialog";
 import { ShareDialog } from "./ShareDialog";
 import { GitProviderImportDialog } from "./GitProviderImportDialog";
 import { CollabDialog } from "./CollabDialog";
+import { hasTrackedFileContentChanges } from "./unsavedChanges";
 import { useCollaboration } from "@/hooks/useCollaboration";
 import { useDiscord } from "@/contexts/DiscordContext";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -2183,10 +2184,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
   // Track unsaved changes
   useEffect(() => {
-    if (Object.keys(fileContents).length > 0) {
+    const hasTrackedChanges = hasTrackedFileContentChanges(fileContents, originalFileContents);
+    if (hasTrackedChanges) {
       setHasUnsavedChanges(true);
+    } else if (Object.keys(fileContents).length > 0) {
+      setHasUnsavedChanges(false);
     }
-  }, [fileContents]);
+  }, [fileContents, originalFileContents]);
 
   // Auto-save to IndexedDB for offline-capable templates (debounced 3s)
   useEffect(() => {
