@@ -41,3 +41,5 @@ jobs:
             
             Do not attempt to save anything outside the working directory.
             When writing a issue focus on the user experience. For example say that "User cant upload a attachment in threads and instead receives a 'RLS error'" rather than "On file threadsupload.tsx, there is a malformed brackets that is preventing the upload". The description SHOULD have info about the code, but the title should not!  
+            DONT flag security issues there is a seperate security scanner.
+            1 issue per problem, DONT do a monorepo.
