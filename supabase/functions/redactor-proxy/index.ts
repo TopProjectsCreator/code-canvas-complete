@@ -1,7 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.108.2";
 import { redactJson, rehydrate, transformJsonStrings } from "./redaction.ts";
-import { getProvider, resolveModelRouting, type ProviderDef } from "./providers.ts";
-import { translateRequest, translateResponse, translateStreamChunk, translateStreamChunks, createOpenaiToAnthropicTransformer, createGeminiToAnthropicTransformer, createAnthropicToGeminiTransformer, type Shape } from "./translate.ts";
+import { getProvider, resolveModelRouting, buildEndpointPath, getAuthStyleForShape, type ProviderDef, type RouterConfig, type RouterStep } from "./providers.ts";
+import { translateRequest, translateResponse, translateStreamChunk, translateStreamChunks, createOpenaiToAnthropicTransformer, createGeminiToAnthropicTransformer, createAnthropicToGeminiTransformer, detectShape, type Shape } from "./translate.ts";
 import { redactImagesInBody } from "./image-redaction.ts";
 import { redactVideosInBody, serveRedactedVideo } from "./video-redaction.ts";
 
@@ -194,38 +194,40 @@ async function authenticateProxyKey(
 ): Promise<AuthedProxyKey> {
   if (!authHeader) throw new ProxyError(401, "Missing Authorization header");
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-  if (!token.startsWith("lvp_")) throw new ProxyError(401, "Invalid proxy key format");
-  const hash = await hashProxyKey(token);
 
-  const { data: rows, error } = await supabase
-    .from("redactor_proxy_keys")
-    .select("id, user_id, allowed_providers, log_requests, revoked_at, expires_at, rate_limit_rpm, ip_allowlist, monthly_cap_usd, redact_images, redact_videos")
-    .eq("key_hash", hash);
+  // Try proxy key auth
+  if (token.startsWith("lvp_")) {
+    const hash = await hashProxyKey(token);
+    const { data: rows, error } = await supabase
+      .from("redactor_proxy_keys")
+      .select("id, user_id, allowed_providers, log_requests, revoked_at, expires_at, rate_limit_rpm, ip_allowlist, monthly_cap_usd, redact_images, redact_videos")
+      .eq("key_hash", hash);
 
-  if (error || !rows || rows.length === 0) throw new ProxyError(401, "Unknown or revoked proxy key");
-  const keyObj = rows[0];
-  if (keyObj.revoked_at) throw new ProxyError(401, "Proxy key has been revoked");
-  if (keyObj.expires_at && new Date(keyObj.expires_at).getTime() < Date.now()) {
-    throw new ProxyError(401, "Proxy key has expired");
+    if (error || !rows || rows.length === 0) throw new ProxyError(401, "Unknown or revoked proxy key");
+    const keyObj = rows[0];
+    if (keyObj.revoked_at) throw new ProxyError(401, "Proxy key has been revoked");
+    if (keyObj.expires_at && new Date(keyObj.expires_at).getTime() < Date.now()) {
+      throw new ProxyError(401, "Proxy key has expired");
+    }
+
+    supabase.from("redactor_proxy_keys").update({ last_used_at: new Date().toISOString() }).eq("id", keyObj.id).then(undefined, () => {});
+
+    return {
+      id: keyObj.id, userId: keyObj.user_id, allowedProviders: keyObj.allowed_providers ?? [],
+      logRequests: keyObj.log_requests ?? true, rateLimitRpm: keyObj.rate_limit_rpm ?? null,
+      ipAllowlist: keyObj.ip_allowlist ?? [], monthlyCapUsd: keyObj.monthly_cap_usd ?? null,
+      redactImages: (keyObj as any).redact_images ?? true, redactVideos: (keyObj as any).redact_videos ?? true,
+    };
   }
 
-  // Touch last_used_at (fire-and-forget)
-  supabase
-    .from("redactor_proxy_keys")
-    .update({ last_used_at: new Date().toISOString() })
-    .eq("id", keyObj.id)
-    .then(undefined, () => {});
+  // Try Supabase session token auth (for dashboard/test endpoint)
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !user) throw new ProxyError(401, "Invalid authentication token");
 
   return {
-    id: keyObj.id,
-    userId: keyObj.user_id,
-    allowedProviders: keyObj.allowed_providers ?? [],
-    logRequests: keyObj.log_requests ?? true,
-    rateLimitRpm: keyObj.rate_limit_rpm ?? null,
-    ipAllowlist: keyObj.ip_allowlist ?? [],
-    monthlyCapUsd: keyObj.monthly_cap_usd ?? null,
-    redactImages: (keyObj as any).redact_images ?? true,
-    redactVideos: (keyObj as any).redact_videos ?? true,
+    id: "__test__", userId: user.id, allowedProviders: [], logRequests: true,
+    rateLimitRpm: null, ipAllowlist: [], monthlyCapUsd: null,
+    redactImages: true, redactVideos: true,
   };
 }
 
@@ -816,6 +818,251 @@ function parsePath(url: string): { route: EndpointRoute | null; rest: string } {
   return { route: null, rest: u.pathname };
 }
 
+// ---------- Router logic ----------
+
+const shapeCache = new Map<string, { shape: string; timestamp: number }>();
+const SHAPE_CACHE_TTL = 3600_000;
+
+async function loadRouter(userId: string, routerId: string, supabase: any): Promise<RouterConfig | null> {
+  const { data: routerRows } = await supabase.from("redactor_model_routers").select("id, name, fallback_on, fallback_status_codes").eq("user_id", userId).eq("id", routerId);
+  if (!routerRows || routerRows.length === 0) return null;
+  const router = routerRows[0];
+  const { data: stepRows } = await supabase.from("redactor_router_steps").select("id, provider_key_id, base_url, encrypted_key, iv, salt, model, api_shape, enabled").eq("router_id", routerId).order("step_order");
+  const steps = (stepRows ?? []).filter((s: any) => s.enabled).map((s: any) => ({
+    id: s.id, provider_key_id: s.provider_key_id, base_url: s.base_url,
+    encrypted_key: s.encrypted_key, iv: s.iv, salt: s.salt,
+    model: s.model, api_shape: s.api_shape, enabled: s.enabled,
+  }));
+  return { id: router.id, name: router.name, fallback_on: router.fallback_on, fallback_status_codes: router.fallback_status_codes, steps };
+}
+
+async function loadRouterByName(userId: string, name: string, supabase: any): Promise<RouterConfig | null> {
+  const { data: routerRows } = await supabase.from("redactor_model_routers").select("id").eq("user_id", userId).eq("name", name);
+  if (!routerRows || routerRows.length === 0) return null;
+  return loadRouter(userId, routerRows[0].id, supabase);
+}
+
+async function resolveStepShape(step: RouterStep, apiKey: string): Promise<Shape> {
+  if (step.api_shape !== "auto") return step.api_shape as Shape;
+  const baseUrl = step.base_url || "";
+  const model = step.model;
+  const cacheKey = `${baseUrl}:${model}`;
+  const cached = shapeCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < SHAPE_CACHE_TTL) return cached.shape as Shape;
+
+  const shapes: Shape[] = ["openai", "openai-responses", "anthropic", "gemini"];
+  for (const shape of shapes) {
+    try {
+      const endpoint = buildEndpointPath(shape, model, baseUrl);
+      const url = baseUrl.replace(/\/$/, "") + endpoint;
+      const headers = new Headers({ "content-type": "application/json" });
+      const authStyle = getAuthStyleForShape(shape);
+      if (authStyle === "bearer") headers.set("authorization", `Bearer ${apiKey}`);
+      else if (authStyle === "x-api-key") { headers.set("x-api-key", apiKey); headers.set("anthropic-version", "2023-06-01"); }
+      else if (authStyle === "google") headers.set("x-goog-api-key", apiKey);
+
+      let body: Record<string, unknown>;
+      if (shape === "openai-responses") body = { model, input: "hi", max_output_tokens: 1 };
+      else if (shape === "anthropic") body = { model, messages: [{ role: "user", content: "hi" }], max_tokens: 1 };
+      else if (shape === "gemini") body = { contents: [{ role: "user", parts: [{ text: "hi" }] }] };
+      else body = { model, messages: [{ role: "user", content: "hi" }], max_tokens: 1 };
+
+      const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
+      if (res.ok) { shapeCache.set(cacheKey, { shape, timestamp: Date.now() }); return shape; }
+      if (res.status === 404 || res.status === 405) continue;
+      shapeCache.set(cacheKey, { shape, timestamp: Date.now() });
+      return shape;
+    } catch { }
+  }
+  shapeCache.set(cacheKey, { shape: "openai", timestamp: Date.now() });
+  return "openai";
+}
+
+function shouldFallback(status: number, error: unknown, router: RouterConfig): boolean {
+  const fb = router.fallback_on;
+  if (fb === "timeout") return error instanceof DOMException && error.name === "AbortError";
+  if (fb === "server_errors") return status >= 500 || (error instanceof DOMException && error.name === "AbortError");
+  if (fb === "custom") return (router.fallback_status_codes ?? []).includes(status) || (error instanceof DOMException && error.name === "AbortError");
+  return status >= 400 || (error instanceof DOMException && error.name === "AbortError");
+}
+
+function buildAuthHeaders(shape: string, apiKey: string): Record<string, string> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+  const authStyle = getAuthStyleForShape(shape);
+  if (authStyle === "bearer") headers["authorization"] = `Bearer ${apiKey}`;
+  else if (authStyle === "x-api-key") { headers["x-api-key"] = apiKey; headers["anthropic-version"] = "2023-06-01"; }
+  else if (authStyle === "google") headers["x-goog-api-key"] = apiKey;
+  return headers;
+}
+
+async function runRouter(request: Request, router: RouterConfig, sourceShape: Shape, supabase: any, proxyKey: AuthedProxyKey): Promise<Response> {
+  const startedAt = Date.now();
+  const body = await request.clone().json().catch(() => null) as Record<string, unknown> | null;
+  const customPatterns = await getUserRules(proxyKey.userId, supabase);
+  let lastError: { status: number; message: string } = { status: 500, message: "All router steps failed" };
+
+  for (let i = 0; i < router.steps.length; i++) {
+    const step = router.steps[i];
+    const stepStart = Date.now();
+    try {
+      let apiKey: string;
+      if (step.provider_key_id) {
+        const { data: keyRows } = await supabase.from("redactor_provider_keys").select("encrypted_key, iv, salt").eq("id", step.provider_key_id);
+        if (!keyRows || keyRows.length === 0) { lastError = { status: 500, message: `Step ${i + 1}: Provider key not found` }; continue; }
+        apiKey = await decryptProviderKey(keyRows[0].encrypted_key, keyRows[0].iv, keyRows[0].salt, supabase);
+      } else if (step.encrypted_key && step.iv && step.salt) {
+        apiKey = await decryptProviderKey(step.encrypted_key, step.iv, step.salt, supabase);
+      } else { lastError = { status: 500, message: `Step ${i + 1}: No API key` }; continue; }
+
+      const targetShape = await resolveStepShape(step, apiKey);
+      let upstreamBody = body ? { ...body } : {};
+      upstreamBody.model = step.model;
+      const isStream = upstreamBody.stream === true;
+
+      // Redaction pipeline
+      const imgResult = await redactImagesInBody(upstreamBody, sourceShape, { customPatterns, detectNames: false }, proxyKey.redactImages);
+      upstreamBody = imgResult.body ?? upstreamBody;
+      const videoResult = await redactVideosInBody(upstreamBody, sourceShape, { customPatterns, detectNames: false }, proxyKey.redactVideos);
+      upstreamBody = videoResult.body ?? upstreamBody;
+      const mergedMap = { ...imgResult.map, ...videoResult.map };
+      const mergedCounts = { ...imgResult.counts };
+      for (const [k, v] of Object.entries(videoResult.counts)) mergedCounts[k] = (mergedCounts[k] ?? 0) + v;
+
+      if (sourceShape !== targetShape) upstreamBody = translateRequest(upstreamBody, sourceShape, targetShape);
+      const redacted = redactJson(upstreamBody, { customPatterns, detectNames: false, seedMap: mergedMap, seedCounts: mergedCounts });
+      upstreamBody = redacted.value;
+      const sharedMap = redacted.map;
+      const redactionCounts = redacted.counts;
+
+      const baseUrl = step.base_url || "";
+      const endpoint = buildEndpointPath(targetShape, step.model, baseUrl);
+      const upstreamUrl = baseUrl.replace(/\/$/, "") + endpoint;
+      const headers = buildAuthHeaders(targetShape, apiKey);
+
+      const res = await fetch(upstreamUrl, { method: "POST", headers, body: JSON.stringify(upstreamBody), signal: AbortSignal.timeout(55000) });
+      const latencyMs = Date.now() - stepStart;
+
+      if (res.status >= 400) {
+        const errorText = await res.text().catch(() => "");
+        lastError = { status: res.status, message: errorText || `HTTP ${res.status}` };
+        writeLog({ proxyKey, providerId: `router/${router.name}` }, { status: res.status, latencyMs, model: step.model, redactions: redactionCounts, error: lastError.message }, supabase).catch(() => {});
+        if (shouldFallback(res.status, null, router)) continue;
+        return jsonError(res.status, `Router step ${i + 1} failed: ${lastError.message}`);
+      }
+
+      if (isStream && res.body) {
+        const respHeaders = new Headers({ "access-control-allow-origin": "*" });
+        res.headers.forEach((v, k) => { const lk = k.toLowerCase(); if (lk === "content-encoding" || lk === "content-length" || lk === "transfer-encoding" || lk === "connection" || lk === "access-control-allow-origin") return; respHeaders.set(k, v); });
+        if (sourceShape !== targetShape) {
+          const encoder = new TextEncoder();
+          const decoder = new TextDecoder();
+          const stream = new ReadableStream<Uint8Array>({ async start(controller) {
+            const reader = res.body!.getReader(); let pending = "";
+            try { while (true) { const { value, done } = await reader.read(); if (done) break; pending += decoder.decode(value, { stream: true }); const events = pending.split("\n"); pending = events.pop() ?? ""; for (const line of events) { const translated = translateStreamChunks(line + "\n", targetShape, sourceShape); if (translated) for (const t of translated) controller.enqueue(encoder.encode(t)); } }
+              if (pending) { const translated = translateStreamChunks(pending, targetShape, sourceShape); if (translated) for (const t of translated) controller.enqueue(encoder.encode(t)); } } catch (e) { controller.error(e); return; } controller.close(); } });
+          respHeaders.set("content-type", "text/event-stream");
+          writeLog({ proxyKey, providerId: `router/${router.name}` }, { status: 200, latencyMs: Date.now() - startedAt, model: step.model, redactions: redactionCounts }, supabase).catch(() => {});
+          return new Response(stream, { status: 200, headers: respHeaders });
+        }
+        respHeaders.set("content-type", res.headers.get("content-type") ?? "text/event-stream");
+        writeLog({ proxyKey, providerId: `router/${router.name}` }, { status: 200, latencyMs: Date.now() - startedAt, model: step.model, redactions: redactionCounts }, supabase).catch(() => {});
+        return new Response(res.body, { status: 200, headers: respHeaders });
+      }
+
+      let resBody = await res.json();
+      if (sourceShape !== targetShape) resBody = translateResponse(resBody, targetShape, sourceShape);
+      if (Object.keys(sharedMap).length > 0) resBody = transformJsonStrings(resBody, (s) => rehydrate(s, sharedMap));
+
+      const usage = extractUsage(resBody);
+      const model = extractModel(resBody, upstreamBody);
+      const pricing = await getModelCost(model, `router/${router.name}`, supabase);
+      const costUsd = usage.input != null && usage.output != null && pricing ? computeCost(usage.input, usage.output, pricing) : undefined;
+
+      const respHeaders = new Headers({ "access-control-allow-origin": "*", "content-type": "application/json" });
+      writeLog({ proxyKey, providerId: `router/${router.name}` }, { status: 200, latencyMs: Date.now() - startedAt, model: step.model, redactions: redactionCounts, inputTokens: usage.input, outputTokens: usage.output, costUsd }, supabase).catch(() => {});
+      return new Response(JSON.stringify(resBody), { status: 200, headers: respHeaders });
+    } catch (e) {
+      const isTimeout = e instanceof DOMException && e.name === "AbortError";
+      lastError = { status: isTimeout ? 504 : 500, message: isTimeout ? "Request timed out" : (e as Error).message };
+      writeLog({ proxyKey, providerId: `router/${router.name}` }, { status: lastError.status, latencyMs: Date.now() - stepStart, model: step.model, error: lastError.message }, supabase).catch(() => {});
+      if (!shouldFallback(isTimeout ? 504 : 500, e, router)) return jsonError(lastError.status, `Router step ${i + 1} failed: ${lastError.message}`);
+    }
+  }
+  return jsonError(lastError.status, `All router steps failed. Last error: ${lastError.message}`);
+}
+
+async function runRouterTest(request: Request, router: RouterConfig, sourceShape: Shape, supabase: any, proxyKey: AuthedProxyKey): Promise<Response> {
+  const body = await request.clone().json().catch(() => null) as Record<string, unknown> | null;
+  const customPatterns = await getUserRules(proxyKey.userId, supabase);
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({ async start(controller) {
+    const stepsTried: number[] = []; let succeededAt: number | null = null; let totalLatency = 0;
+    for (let i = 0; i < router.steps.length; i++) {
+      const step = router.steps[i]; const stepStart = Date.now(); stepsTried.push(i + 1);
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "probe", step: i + 1, model: step.model, shape: step.api_shape, totalSteps: router.steps.length })}\n\n`));
+      try {
+        let apiKey: string;
+        if (step.provider_key_id) {
+          const { data: keyRows } = await supabase.from("redactor_provider_keys").select("encrypted_key, iv, salt").eq("id", step.provider_key_id);
+          if (!keyRows || keyRows.length === 0) { controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", step: i + 1, status: 500, message: "Provider key not found", latency_ms: Date.now() - stepStart })}\n\n`)); continue; }
+          apiKey = await decryptProviderKey(keyRows[0].encrypted_key, keyRows[0].iv, keyRows[0].salt, supabase);
+        } else if (step.encrypted_key && step.iv && step.salt) {
+          apiKey = await decryptProviderKey(step.encrypted_key, step.iv, step.salt, supabase);
+        } else { controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", step: i + 1, status: 500, message: "No API key", latency_ms: Date.now() - stepStart })}\n\n`)); continue; }
+
+        const targetShape = await resolveStepShape(step, apiKey);
+        let upstreamBody = body ? { ...body } : {}; upstreamBody.model = step.model;
+
+        // Redaction
+        const imgResult = await redactImagesInBody(upstreamBody, sourceShape, { customPatterns, detectNames: false }, proxyKey.redactImages);
+        upstreamBody = imgResult.body ?? upstreamBody;
+        const videoResult = await redactVideosInBody(upstreamBody, sourceShape, { customPatterns, detectNames: false }, proxyKey.redactVideos);
+        upstreamBody = videoResult.body ?? upstreamBody;
+        const mergedMap = { ...imgResult.map, ...videoResult.map };
+        const mergedCounts = { ...imgResult.counts };
+        for (const [k, v] of Object.entries(videoResult.counts)) mergedCounts[k] = (mergedCounts[k] ?? 0) + v;
+        if (sourceShape !== targetShape) upstreamBody = translateRequest(upstreamBody, sourceShape, targetShape);
+        const redacted = redactJson(upstreamBody, { customPatterns, detectNames: false, seedMap: mergedMap, seedCounts: mergedCounts });
+        upstreamBody = redacted.value;
+
+        const baseUrl = step.base_url || "";
+        const endpoint = buildEndpointPath(targetShape, step.model, baseUrl);
+        const upstreamUrl = baseUrl.replace(/\/$/, "") + endpoint;
+        const headers = buildAuthHeaders(targetShape, apiKey);
+        const res = await fetch(upstreamUrl, { method: "POST", headers, body: JSON.stringify(upstreamBody), signal: AbortSignal.timeout(55000) });
+        const latency = Date.now() - stepStart; totalLatency += latency;
+
+        if (res.status >= 400) {
+          const errorText = await res.text().catch(() => "");
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", step: i + 1, status: res.status, message: errorText || `HTTP ${res.status}`, latency_ms: latency })}\n\n`));
+          continue;
+        }
+
+        let resBody = await res.json();
+        if (sourceShape !== targetShape) resBody = translateResponse(resBody, targetShape, sourceShape);
+        if (Object.keys(redacted.map).length > 0) resBody = transformJsonStrings(resBody, (s) => rehydrate(s, redacted.map));
+
+        let responseText: string;
+        if (resBody.choices?.[0]?.message?.content) responseText = resBody.choices[0].message.content;
+        else if (resBody.content?.[0]?.text) responseText = resBody.content[0].text;
+        else if (resBody.candidates?.[0]?.content?.parts?.[0]?.text) responseText = resBody.candidates[0].content.parts[0].text;
+        else if (resBody.output?.[0]?.content?.[0]?.text) responseText = resBody.output[0].content[0].text;
+        else responseText = JSON.stringify(resBody).slice(0, 500);
+
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "success", step: i + 1, status: res.status, latency_ms: latency, response_text: responseText, usage: resBody.usage })}\n\n`));
+        succeededAt = i + 1; break;
+      } catch (e) {
+        const latency = Date.now() - stepStart; totalLatency += latency;
+        const isTimeout = e instanceof DOMException && e.name === "AbortError";
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "error", step: i + 1, status: isTimeout ? 504 : 500, message: isTimeout ? "Request timed out" : (e as Error).message, latency_ms: latency })}\n\n`));
+      }
+    }
+    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done", steps_tried: stepsTried, succeeded_at: succeededAt, total_latency_ms: totalLatency })}\n\n`));
+    controller.close();
+  } });
+  return new Response(stream, { status: 200, headers: { ...corsHeaders, "content-type": "text/event-stream", "cache-control": "no-cache", "connection": "keep-alive" } });
+}
+
 // ---------- Main handler ----------
 
 Deno.serve(async (req) => {
@@ -834,23 +1081,36 @@ Deno.serve(async (req) => {
     return await serveRedactedVideo(videoMatch[1]);
   }
 
+  // ── Router test endpoint (before parsePath) ─────────────
+  const routerTestMatch = urlPath.match(/\/redactor-proxy\/router\/([^/]+)\/test$/);
+  if (routerTestMatch) {
+    try {
+      const authed = await authenticateProxyKey(req.headers.get("authorization"), supabase);
+      const routerId = routerTestMatch[1];
+      const router = await loadRouter(authed.userId, routerId, supabase);
+      if (!router) return jsonError(404, `Router '${routerId}' not found`);
+      if (authed.id !== "__test__" && authed.rateLimitRpm != null && !checkRateLimit(authed.id, authed.rateLimitRpm)) return jsonError(429, "Rate limit exceeded");
+      return await runRouterTest(req, router, "openai", supabase, authed);
+    } catch (e) {
+      if (e instanceof ProxyError) return jsonError(e.status, e.message);
+      console.error("redactor-proxy router test error", e);
+      return jsonError(500, "Internal error");
+    }
+  }
+
   try {
     const authed = await authenticateProxyKey(req.headers.get("authorization"), supabase);
 
     const { route } = parsePath(req.url);
     if (!route) return jsonError(404, "Unknown endpoint");
 
-    // Determine source shape from path
     const pathSourceShape: Shape | undefined =
       route.providerId === "anthropic" ? "anthropic" :
       route.providerId === "google" ? "gemini" :
-      route.providerId === "" || !route.providerId ? "openai" :
-      undefined;
+      route.providerId === "" || !route.providerId ? "openai" : undefined;
 
-    // If no provider is determined by the path, try the x-provider header or model inference
     let providerId = route.providerId;
 
-    // For OpenAI-shape endpoints (/v1/...), infer provider from model
     if (!providerId) {
       const ct = (req.headers.get("content-type") ?? "").toLowerCase();
       const isJson = ct.includes("application/json") || ct === "";
@@ -860,14 +1120,21 @@ Deno.serve(async (req) => {
         if (model) {
           const routed = resolveModelRouting(model);
           providerId = routed.providerId ?? "";
-          // Rewrite body with resolved model name
+
+          if (providerId === "_router") {
+            const routerName = routed.model;
+            const router = await loadRouterByName(authed.userId, routerName, supabase);
+            if (!router) return jsonError(404, `Router '${routerName}' not found`);
+            if (router.steps.length === 0) return jsonError(400, `Router '${routerName}' has no enabled steps`);
+            if (!isIPAllowed(getClientIP(req), authed.ipAllowlist)) return jsonError(403, "IP not allowed");
+            if (authed.rateLimitRpm != null && !checkRateLimit(authed.id, authed.rateLimitRpm)) return jsonError(429, "Rate limit exceeded");
+            if (!(await checkMonthlySpend(authed.id, authed.monthlyCapUsd, supabase))) return jsonError(429, "Monthly spend cap exceeded");
+            return await runRouter(req, router, pathSourceShape ?? "openai", supabase, authed);
+          }
+
           if (routed.model !== model) {
             const newBody = { ...body, model: routed.model };
-            req = new Request(req.url, {
-              method: req.method,
-              headers: req.headers,
-              body: JSON.stringify(newBody),
-            });
+            req = new Request(req.url, { method: req.method, headers: req.headers, body: JSON.stringify(newBody) });
           }
         }
       }
@@ -879,20 +1146,9 @@ Deno.serve(async (req) => {
       return jsonError(403, `Provider '${providerId}' not allowed for this key`);
     }
 
-    // IP allowlist check
-    if (!isIPAllowed(getClientIP(req), authed.ipAllowlist)) {
-      return jsonError(403, "IP not allowed");
-    }
-
-    // Rate limit check
-    if (authed.rateLimitRpm != null && !checkRateLimit(authed.id, authed.rateLimitRpm)) {
-      return jsonError(429, "Rate limit exceeded");
-    }
-
-    // Spend cap check
-    if (!(await checkMonthlySpend(authed.id, authed.monthlyCapUsd, supabase))) {
-      return jsonError(429, "Monthly spend cap exceeded");
-    }
+    if (!isIPAllowed(getClientIP(req), authed.ipAllowlist)) return jsonError(403, "IP not allowed");
+    if (authed.rateLimitRpm != null && !checkRateLimit(authed.id, authed.rateLimitRpm)) return jsonError(429, "Rate limit exceeded");
+    if (!(await checkMonthlySpend(authed.id, authed.monthlyCapUsd, supabase))) return jsonError(429, "Monthly spend cap exceeded");
 
     // Log retention cleanup (fire-and-forget, max 1/min)
     {

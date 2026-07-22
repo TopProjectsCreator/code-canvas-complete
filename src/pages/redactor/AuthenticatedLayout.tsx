@@ -1,13 +1,14 @@
 import { Outlet, Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { KeyRound, Shield, Activity, Sliders, Beaker, FileText, LogOut } from "lucide-react";
+import { KeyRound, Shield, Activity, Sliders, Beaker, FileText, GitBranch, LogOut } from "lucide-react";
 import { RedactorFavicon } from "@/redactor/components/RedactorFavicon";
 
 const NAV = [
   { to: "/redactor/dashboard", label: "Overview", icon: Activity },
   { to: "/redactor/provider-keys", label: "Provider keys", icon: Shield },
   { to: "/redactor/proxy-keys", label: "Proxy keys", icon: KeyRound },
+  { to: "/redactor/routers", label: "Routers", icon: GitBranch },
   { to: "/redactor/playground", label: "Playground", icon: Beaker },
   { to: "/redactor/rules", label: "Rules", icon: Sliders },
   { to: "/redactor/logs", label: "Logs", icon: FileText },

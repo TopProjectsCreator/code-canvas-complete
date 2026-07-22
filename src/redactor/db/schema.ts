@@ -142,3 +142,44 @@ export const requestLogs = pgTable(
     userIdx: index("request_logs_user_idx").on(t.userId, t.createdAt),
   }),
 );
+
+// ----- Model Routers -----
+export const modelRouters = pgTable(
+  "redactor_model_routers",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    fallbackOn: text("fallback_on").notNull().default("all"),
+    fallbackStatusCodes: integer("fallback_status_codes").array(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t: any) => ({
+    userIdx: index("model_routers_user_idx").on(t.userId),
+    userNameIdx: uniqueIndex("model_routers_user_name_idx").on(t.userId, t.name),
+  }),
+);
+
+export const routerSteps = pgTable(
+  "redactor_router_steps",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+    routerId: text("router_id").notNull().references(() => modelRouters.id, { onDelete: "cascade" }),
+    stepOrder: integer("step_order").notNull(),
+    providerKeyId: text("provider_key_id").references(() => providerKeys.id, { onDelete: "set null" }),
+    baseUrl: text("base_url"),
+    encryptedKey: text("encrypted_key"),
+    iv: text("iv"),
+    salt: text("salt"),
+    model: text("model").notNull(),
+    apiShape: text("api_shape").notNull().default("auto"),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t: any) => ({
+    routerIdx: index("router_steps_router_idx").on(t.routerId),
+    routerOrderIdx: uniqueIndex("router_steps_router_order_idx").on(t.routerId, t.stepOrder),
+  }),
+);

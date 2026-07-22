@@ -337,3 +337,126 @@ export async function listLogs(): Promise<RequestLog[]> {
     proxyKeyId: r.proxy_key_id,
   }));
 }
+
+// ---------- Model Routers ----------
+
+export interface ModelRouter {
+  id: string;
+  name: string;
+  fallbackOn: string;
+  fallbackStatusCodes: number[] | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RouterStep {
+  id: string;
+  routerId: string;
+  stepOrder: number;
+  providerKeyId: string | null;
+  baseUrl: string | null;
+  model: string;
+  apiShape: string;
+  enabled: boolean;
+  createdAt: string;
+  providerLabel?: string;
+  providerName?: string;
+}
+
+export async function listRouters(): Promise<ModelRouter[]> {
+  const res: any = await db.from("redactor_model_routers").select("*").order("created_at", { ascending: false });
+  const { data, error } = res;
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({
+    id: r.id, name: r.name, fallbackOn: r.fallback_on,
+    fallbackStatusCodes: r.fallback_status_codes, createdAt: r.created_at, updatedAt: r.updated_at,
+  }));
+}
+
+export async function createRouter(opts: { name: string; fallbackOn?: string; fallbackStatusCodes?: number[] }): Promise<ModelRouter> {
+  const userId = await requireUserId();
+  const id = nanoid();
+  const res: any = await db.from("redactor_model_routers").insert({
+    id, user_id: userId, name: opts.name,
+    fallback_on: opts.fallbackOn ?? "all", fallback_status_codes: opts.fallbackStatusCodes ?? null,
+  });
+  const { error } = res;
+  if (error) throw error;
+  return { id, name: opts.name, fallbackOn: opts.fallbackOn ?? "all", fallbackStatusCodes: opts.fallbackStatusCodes ?? null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+}
+
+export async function updateRouter(id: string, opts: { name?: string; fallbackOn?: string; fallbackStatusCodes?: number[] }): Promise<void> {
+  const updates: Record<string, unknown> = {};
+  if (opts.name !== undefined) updates.name = opts.name;
+  if (opts.fallbackOn !== undefined) updates.fallback_on = opts.fallbackOn;
+  if (opts.fallbackStatusCodes !== undefined) updates.fallback_status_codes = opts.fallbackStatusCodes;
+  const res: any = await db.from("redactor_model_routers").update(updates).eq("id", id);
+  const { error } = res;
+  if (error) throw error;
+}
+
+export async function deleteRouter(id: string): Promise<void> {
+  const res: any = await db.from("redactor_model_routers").delete().eq("id", id);
+  const { error } = res;
+  if (error) throw error;
+}
+
+export async function listRouterSteps(routerId: string): Promise<RouterStep[]> {
+  const res: any = await db.from("redactor_router_steps").select("*, redactor_provider_keys(label, provider)").eq("router_id", routerId).order("step_order");
+  const { data, error } = res;
+  if (error) throw error;
+  return (data ?? []).map((r: any) => ({
+    id: r.id, routerId: r.router_id, stepOrder: r.step_order, providerKeyId: r.provider_key_id,
+    baseUrl: r.base_url, model: r.model, apiShape: r.api_shape, enabled: r.enabled, createdAt: r.created_at,
+    providerLabel: r.redactor_provider_keys?.label, providerName: r.redactor_provider_keys?.provider,
+  }));
+}
+
+export async function addRouterStep(opts: { routerId: string; stepOrder?: number; providerKeyId?: string; baseUrl?: string; apiKey?: string; model: string; apiShape?: string }): Promise<RouterStep> {
+  const userId = await requireUserId();
+  let stepOrder = opts.stepOrder;
+  if (stepOrder === undefined) {
+    const { data: existing } = await db.from("redactor_router_steps").select("step_order").eq("router_id", opts.routerId).order("step_order", { ascending: false }).limit(1);
+    stepOrder = (existing?.[0]?.step_order ?? 0) + 1;
+  }
+  const id = nanoid();
+  let encryptedKey: string | null = null, iv: string | null = null, salt: string | null = null;
+  if (opts.apiKey && !opts.providerKeyId) {
+    try {
+      const { data, error } = await supabase.functions.invoke("redactor-crypto", { body: { action: "encrypt-provider-key", apiKey: opts.apiKey } });
+      if (error || !data) throw error ?? new Error("Encryption failed");
+      encryptedKey = data.ciphertext; iv = data.iv; salt = data.salt;
+    } catch { throw new Error("Encryption unavailable"); }
+  }
+  const res: any = await db.from("redactor_router_steps").insert({
+    id, user_id: userId, router_id: opts.routerId, step_order: stepOrder,
+    provider_key_id: opts.providerKeyId ?? null, base_url: opts.baseUrl ?? null,
+    encrypted_key: encryptedKey, iv, salt, model: opts.model, api_shape: opts.apiShape ?? "auto", enabled: true,
+  });
+  const { error } = res;
+  if (error) throw error;
+  return { id, routerId: opts.routerId, stepOrder: stepOrder!, providerKeyId: opts.providerKeyId ?? null, baseUrl: opts.baseUrl ?? null, model: opts.model, apiShape: opts.apiShape ?? "auto", enabled: true, createdAt: new Date().toISOString() };
+}
+
+export async function updateRouterStep(id: string, opts: { enabled?: boolean; apiShape?: string; model?: string; baseUrl?: string }): Promise<void> {
+  const updates: Record<string, unknown> = {};
+  if (opts.enabled !== undefined) updates.enabled = opts.enabled;
+  if (opts.apiShape !== undefined) updates.api_shape = opts.apiShape;
+  if (opts.model !== undefined) updates.model = opts.model;
+  if (opts.baseUrl !== undefined) updates.base_url = opts.baseUrl;
+  const res: any = await db.from("redactor_router_steps").update(updates).eq("id", id);
+  const { error } = res;
+  if (error) throw error;
+}
+
+export async function deleteRouterStep(id: string): Promise<void> {
+  const res: any = await db.from("redactor_router_steps").delete().eq("id", id);
+  const { error } = res;
+  if (error) throw error;
+}
+
+export async function reorderRouterSteps(routerId: string, stepIds: string[]): Promise<void> {
+  await Promise.all(stepIds.map((stepId, index) =>
+    db.from("redactor_router_steps").update({ step_order: index + 1 }).eq("id", stepId).eq("router_id", routerId)
+  ));
+}

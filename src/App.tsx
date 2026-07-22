@@ -47,6 +47,7 @@ import RedactorDashboard from "./pages/redactor/Dashboard";
 import RedactorPlayground from "./pages/redactor/Playground";
 import RedactorProviderKeys from "./pages/redactor/ProviderKeys";
 import RedactorProxyKeys from "./pages/redactor/ProxyKeys";
+import RedactorRouters from "./pages/redactor/Routers";
 import RedactorRules from "./pages/redactor/Rules";
 import RedactorLogs from "./pages/redactor/Logs";
 import RedactorAuthenticatedLayout from "./pages/redactor/AuthenticatedLayout";
@@ -175,6 +176,7 @@ const App = () => isOAuthConsentPath() ? <OAuthConsentShell /> : (
                 <Route path="/redactor/playground" element={<RedactorPlayground />} />
                 <Route path="/redactor/provider-keys" element={<RedactorProviderKeys />} />
                 <Route path="/redactor/proxy-keys" element={<RedactorProxyKeys />} />
+                <Route path="/redactor/routers" element={<RedactorRouters />} />
                 <Route path="/redactor/rules" element={<RedactorRules />} />
                 <Route path="/redactor/logs" element={<RedactorLogs />} />
               </Route>

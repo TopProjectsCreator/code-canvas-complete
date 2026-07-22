@@ -6,18 +6,32 @@
 export interface ProviderDef {
   id: string;
   name: string;
-  /** Default base URL of the upstream API. */
   baseUrl: string;
-  /** The header used to authenticate. "bearer" => Authorization: Bearer <key>. */
   authStyle: "bearer" | "x-api-key" | "google";
-  /** Native API shape — used to decide if we need to translate. */
-  shape: "openai" | "anthropic" | "gemini";
-  /** Model-name prefixes that should auto-route to this provider. */
+  shape: "openai" | "anthropic" | "gemini" | "openai-responses";
   modelPrefixes?: string[];
-  /** Docs URL for the dashboard hint. */
   docsUrl?: string;
-  /** Regex describing what a real key typically looks like (for hint UX only). */
   keyPattern?: string;
+}
+
+export interface RouterStep {
+  id: string;
+  provider_key_id: string | null;
+  base_url: string | null;
+  encrypted_key: string | null;
+  iv: string | null;
+  salt: string | null;
+  model: string;
+  api_shape: string;
+  enabled: boolean;
+}
+
+export interface RouterConfig {
+  id: string;
+  name: string;
+  fallback_on: string;
+  fallback_status_codes: number[] | null;
+  steps: RouterStep[];
 }
 
 export const PROVIDERS: ProviderDef[] = [
@@ -183,6 +197,11 @@ export function resolveModelRouting(model: string): {
   providerId: string | undefined;
   model: string;
 } {
+  // Tier 0: Router prefix
+  if (model.startsWith("router/")) {
+    return { providerId: "_router", model: model.slice("router/".length) };
+  }
+  // Tier 1: Explicit provider/ prefix
   const slash = model.indexOf("/");
   if (slash > 0) {
     const head = model.slice(0, slash);
@@ -196,6 +215,7 @@ export function resolveModelRouting(model: string): {
       return { providerId: match.id, model: rest };
     }
   }
+  // Tier 2: modelPrefixes heuristics
   for (const p of PROVIDERS) {
     if (!p.modelPrefixes) continue;
     if (p.modelPrefixes.some((pref) => model.startsWith(pref))) {
@@ -203,5 +223,23 @@ export function resolveModelRouting(model: string): {
     }
   }
   return { providerId: undefined, model };
+}
+
+export function buildEndpointPath(shape: string, model: string, _baseUrl?: string): string {
+  switch (shape) {
+    case "openai": return "/chat/completions";
+    case "openai-responses": return "/responses";
+    case "anthropic": return "/messages";
+    case "gemini": return `/models/${model}:generateContent`;
+    default: return "/chat/completions";
+  }
+}
+
+export function getAuthStyleForShape(shape: string): "bearer" | "x-api-key" | "google" {
+  switch (shape) {
+    case "anthropic": return "x-api-key";
+    case "gemini": return "google";
+    default: return "bearer";
+  }
 }
 

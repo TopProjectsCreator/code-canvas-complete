@@ -927,9 +927,133 @@ function tryParse(s: string): unknown | null {
   }
 }
 
+// ---------- OpenAI Responses API Translation ----------
+
+function openaiResponsesToOpenaiReq(body: Record<string, unknown>): Record<string, unknown> {
+  const input = body.input;
+  let messages: Record<string, unknown>[] = [];
+  if (typeof input === "string") {
+    messages = [{ role: "user", content: input }];
+  } else if (Array.isArray(input)) {
+    messages = input.map((item: Record<string, unknown>) => ({
+      role: item.role ?? "user",
+      content: item.content ?? item.text ?? "",
+    }));
+  }
+  const out: Record<string, unknown> = { model: body.model, messages };
+  if (body.instructions) messages.unshift({ role: "system", content: body.instructions });
+  if (body.temperature != null) out.temperature = body.temperature;
+  if (body.max_output_tokens != null) out.max_tokens = body.max_output_tokens;
+  if (body.top_p != null) out.top_p = body.top_p;
+  if (body.stop) out.stop = Array.isArray(body.stop) ? body.stop : [body.stop];
+  if (body.tools) out.tools = body.tools;
+  if (body.tool_choice) out.tool_choice = body.tool_choice;
+  if (body.response_format) out.response_format = body.response_format;
+  if (body.stream) out.stream = body.stream;
+  return out;
+}
+
+function openaiToOpenaiResponsesReq(body: Record<string, unknown>): Record<string, unknown> {
+  const rawMessages = body.messages;
+  const messages = Array.isArray(rawMessages) ? (rawMessages as Array<Record<string, unknown>>) : [];
+  const systemMsg = messages.find((m) => m.role === "system");
+  const nonSystemMsgs = messages.filter((m) => m.role !== "system");
+  const out: Record<string, unknown> = {
+    model: body.model,
+    input: nonSystemMsgs.map((m) => ({ role: m.role, content: typeof m.content === "string" ? m.content : JSON.stringify(m.content) })),
+  };
+  if (systemMsg) out.instructions = typeof systemMsg.content === "string" ? systemMsg.content : JSON.stringify(systemMsg.content);
+  if (body.temperature != null) out.temperature = body.temperature;
+  if (body.max_tokens != null) out.max_output_tokens = body.max_tokens;
+  if (body.top_p != null) out.top_p = body.top_p;
+  if (body.stop) out.stop = Array.isArray(body.stop) ? body.stop : [body.stop];
+  if (body.tools) out.tools = body.tools;
+  if (body.tool_choice) out.tool_choice = body.tool_choice;
+  if (body.response_format) out.response_format = body.response_format;
+  if (body.stream) out.stream = body.stream;
+  return out;
+}
+
+function openaiResponsesToOpenaiRes(body: Record<string, unknown>): Record<string, unknown> {
+  const output = body.output as Array<Record<string, unknown>> | undefined;
+  const messageOutput = output?.find((o) => o.type === "message");
+  const content = messageOutput?.content as Array<Record<string, unknown>> | undefined;
+  const textBlock = content?.find((c) => c.type === "output_text");
+  const text = (textBlock?.text as string) ?? "";
+  return {
+    id: body.id ?? `resp-${Date.now()}`, object: "chat.completion",
+    created: Math.floor(Date.now() / 1000), model: body.model,
+    choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: "stop" }],
+    usage: body.usage ? { prompt_tokens: (body.usage as any).input_tokens, completion_tokens: (body.usage as any).output_tokens, total_tokens: ((body.usage as any).input_tokens ?? 0) + ((body.usage as any).output_tokens ?? 0) } : undefined,
+  };
+}
+
+function openaiToOpenaiResponsesRes(body: Record<string, unknown>): Record<string, unknown> {
+  const choices = body.choices as Array<Record<string, unknown>> | undefined;
+  const choice = choices?.[0];
+  const message = choice?.message as Record<string, unknown> | undefined;
+  const text = (message?.content as string) ?? "";
+  return {
+    id: body.id ?? `resp-${Date.now()}`, object: "response",
+    status: choice?.finish_reason === "stop" ? "completed" : "in_progress",
+    model: body.model,
+    output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text }] }],
+    usage: body.usage ? { input_tokens: (body.usage as any).prompt_tokens, output_tokens: (body.usage as any).completion_tokens } : undefined,
+  };
+}
+
+function openaiResponsesToOpenaiSSE(line: string): string | null {
+  if (!line.startsWith("data: ")) return null;
+  const payload = line.slice(6).trim();
+  if (payload === "[DONE]") return "data: [DONE]\n\n";
+  const json = tryParse(payload);
+  if (!json) return null;
+  const ev = json as Record<string, unknown>;
+  const type = ev.type as string;
+  if (type === "response.created" || type === "response.in_progress") {
+    const resp = ev.response as Record<string, unknown> | undefined;
+    return `data: ${JSON.stringify({ id: resp?.id, object: "chat.completion.chunk", created: Math.floor(Date.now() / 1000), model: resp?.model, choices: [{ index: 0, delta: { role: "assistant", content: "" }, finish_reason: null }] })}\n\n`;
+  }
+  if (type === "response.content_part.delta") {
+    const delta = ev.delta as Record<string, unknown> | undefined;
+    return `data: ${JSON.stringify({ object: "chat.completion.chunk", choices: [{ index: 0, delta: { content: (delta?.text as string) ?? "" }, finish_reason: null }] })}\n\n`;
+  }
+  if (type === "response.completed") {
+    const resp = ev.response as Record<string, unknown> | undefined;
+    const usage = resp?.usage as Record<string, unknown> | undefined;
+    return `data: ${JSON.stringify({ object: "chat.completion.chunk", choices: [{ index: 0, delta: {}, finish_reason: "stop" }], usage: usage ? { prompt_tokens: usage.input_tokens, completion_tokens: usage.output_tokens, total_tokens: (usage.input_tokens as number) + (usage.output_tokens as number) } : undefined })}\n\n`;
+  }
+  return null;
+}
+
+function openaiToOpenaiResponsesSSE(line: string): string | null {
+  if (!line.startsWith("data: ")) return null;
+  const payload = line.slice(6).trim();
+  if (payload === "[DONE]") return "data: [DONE]\n\n";
+  const json = tryParse(payload);
+  if (!json) return null;
+  const choices = (json as Record<string, unknown>).choices as Array<Record<string, unknown>> | undefined;
+  const choice = choices?.[0];
+  if (!choice) return null;
+  const delta = choice.delta as Record<string, unknown> | undefined;
+  const content = (delta?.content as string) ?? "";
+  const finishReason = choice.finish_reason as string | undefined;
+  const usage = (json as Record<string, unknown>).usage as Record<string, unknown> | undefined;
+  if (delta?.role === "assistant" && !content) {
+    return `data: ${JSON.stringify({ type: "response.created", response: { id: `resp-${Date.now()}`, model: (json as Record<string, unknown>).model, status: "in_progress" } })}\n\n`;
+  }
+  if (content) {
+    return `data: ${JSON.stringify({ type: "response.content_part.delta", delta: { type: "text", text: content } })}\n\n`;
+  }
+  if (finishReason) {
+    return `data: ${JSON.stringify({ type: "response.completed", response: { id: `resp-${Date.now()}`, status: "completed", usage: usage ? { input_tokens: usage.prompt_tokens, output_tokens: usage.completion_tokens } : undefined } })}\n\n`;
+  }
+  return null;
+}
+
 // ---------- Public API ----------
 
-export type Shape = "openai" | "anthropic" | "gemini";
+export type Shape = "openai" | "openai-responses" | "anthropic" | "gemini";
 
 export function translateRequest(
   body: Record<string, unknown>,
@@ -937,11 +1061,16 @@ export function translateRequest(
   to: Shape,
 ): Record<string, unknown> {
   if (from === to) return body;
+  if (from === "openai-responses" && to === "openai") return openaiResponsesToOpenaiReq(body);
+  if (from === "openai" && to === "openai-responses") return openaiToOpenaiResponsesReq(body);
+  if (from === "openai-responses" && to === "anthropic") return openaiToAnthropicReq(openaiResponsesToOpenaiReq(body));
+  if (from === "openai-responses" && to === "gemini") return openaiToGeminiReq(openaiResponsesToOpenaiReq(body));
+  if (from === "anthropic" && to === "openai-responses") return openaiToOpenaiResponsesReq(anthropicToOpenaiReq(body));
+  if (from === "gemini" && to === "openai-responses") return openaiToOpenaiResponsesReq(geminiToOpenaiReq(body));
   if (from === "openai" && to === "anthropic") return openaiToAnthropicReq(body);
   if (from === "openai" && to === "gemini") return openaiToGeminiReq(body);
   if (from === "gemini" && to === "openai") return geminiToOpenaiReq(body);
   if (from === "anthropic" && to === "openai") return anthropicToOpenaiReq(body);
-  // Cross compose for gemini ↔ anthropic
   if (from === "gemini" && to === "anthropic") return openaiToAnthropicReq(geminiToOpenaiReq(body));
   if (from === "anthropic" && to === "gemini") return openaiToGeminiReq(anthropicToOpenaiReq(body));
   return body;
@@ -953,11 +1082,16 @@ export function translateResponse(
   to: Shape,
 ): Record<string, unknown> {
   if (from === to) return body;
+  if (from === "openai-responses" && to === "openai") return openaiResponsesToOpenaiRes(body);
+  if (from === "openai" && to === "openai-responses") return openaiToOpenaiResponsesRes(body);
+  if (from === "openai-responses" && to === "anthropic") return openaiToAnthropicRes(openaiResponsesToOpenaiRes(body));
+  if (from === "openai-responses" && to === "gemini") return openaiToGeminiRes(openaiResponsesToOpenaiRes(body));
+  if (from === "anthropic" && to === "openai-responses") return openaiToOpenaiResponsesRes(anthropicToOpenaiRes(body));
+  if (from === "gemini" && to === "openai-responses") return openaiToOpenaiResponsesRes(geminiToOpenaiRes(body));
   if (from === "anthropic" && to === "openai") return anthropicToOpenaiRes(body);
   if (from === "gemini" && to === "openai") return geminiToOpenaiRes(body);
   if (from === "openai" && to === "gemini") return openaiToGeminiRes(body);
   if (from === "openai" && to === "anthropic") return openaiToAnthropicRes(body);
-  // Cross compose for gemini ↔ anthropic
   if (from === "gemini" && to === "anthropic") return openaiToAnthropicRes(geminiToOpenaiRes(body));
   if (from === "anthropic" && to === "gemini") return openaiToGeminiRes(anthropicToOpenaiRes(body));
   return body;
@@ -969,34 +1103,24 @@ export function translateStreamChunk(
   to: Shape,
 ): string | null {
   if (from === to) return null;
+  if (from === "openai-responses" && to === "openai") return openaiResponsesToOpenaiSSE(line);
+  if (from === "openai" && to === "openai-responses") return openaiToOpenaiResponsesSSE(line);
   if (from === "gemini" && to === "openai") return geminiToOpenaiSSE(line);
   if (from === "anthropic" && to === "openai") return anthropicToOpenaiSSE(line);
   return null;
 }
 
-/**
- * Translate a stream chunk where the result may be multiple lines (e.g. SSE → Anthropic).
- * Returns an array of lines to emit, or null if no output.
- */
 export function translateStreamChunks(
   line: string,
   from: Shape,
   to: Shape,
 ): string[] | null {
   if (from === to) return null;
-  if (from === "gemini" && to === "openai") {
-    const r = geminiToOpenaiSSE(line);
-    return r ? [r] : null;
-  }
-  if (from === "anthropic" && to === "openai") {
-    const r = anthropicToOpenaiSSE(line);
-    return r ? [r] : null;
-  }
-  if (from === "openai" && to === "gemini") {
-    const r = openaiToGeminiSSE(line);
-    return r ? [r] : null;
-  }
-  // openai → anthropic requires stateful transformer; use createOpenaiToAnthropicTransformer()
+  if (from === "openai-responses" && to === "openai") { const r = openaiResponsesToOpenaiSSE(line); return r ? [r] : null; }
+  if (from === "openai" && to === "openai-responses") { const r = openaiToOpenaiResponsesSSE(line); return r ? [r] : null; }
+  if (from === "gemini" && to === "openai") { const r = geminiToOpenaiSSE(line); return r ? [r] : null; }
+  if (from === "anthropic" && to === "openai") { const r = anthropicToOpenaiSSE(line); return r ? [r] : null; }
+  if (from === "openai" && to === "gemini") { const r = openaiToGeminiSSE(line); return r ? [r] : null; }
   return null;
 }
 
