@@ -97,6 +97,15 @@ export default function ThreadsList() {
     }
   };
 
+  const filteredThreads = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return threads;
+    return threads.filter((t) => {
+      const hay = `${t.title} ${richTextToPlainText(t.content)} ${t.category ?? ''} ${t.author?.display_name ?? ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [threads, search]);
+
   return (
     <div>
       <Seo title="Threads — Community" description="Browse community threads" path="/threads" />
