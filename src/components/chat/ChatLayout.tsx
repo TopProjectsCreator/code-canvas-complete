@@ -6,7 +6,7 @@ import { useChatMessages } from '@/hooks/useChatMessages'
 import { usePresence } from '@/hooks/usePresence'
 import { useChatMentions } from '@/hooks/useChatMentions'
 import { useChatStore } from '@/contexts/ChatContext'
-import { supabase } from '@/integrations/supabase/client'
+
 import { Button } from '@/components/ui/button'
 import { Loader2, Menu } from 'lucide-react'
 
@@ -25,7 +25,8 @@ import { ChannelDetailsDialog } from './Dialogs/ChannelDetailsDialog'
 import { InvitePeopleDialog } from './Dialogs/InvitePeopleDialog'
 import { SetUserStatusDialog } from './Dialogs/SetUserStatusDialog'
 import { ChatSearchDialog } from './Dialogs/ChatSearchDialog'
-import type { ChatChannel, ChatChannelMember, ProfileBrief, SearchResult } from '@/lib/chat/chatTypes'
+import type { ChatChannel, ChatChannelMember, ProfileBrief } from '@/lib/chat/chatTypes'
+import type { SearchResult } from '@/lib/chat/chatSearch'
 
 interface ChatLayoutProps {
   workspaceId?: string
@@ -47,7 +48,7 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
 
   const { channels, dmChannels, loading: chLoading, createChannel, joinChannel, leaveChannel, updateChannel, deleteChannel, fetchMembers } = useChannels(activeWorkspace?.id ?? null)
   const { messages, loading: msgLoading, loadingMore, hasMore, sending, sendMessage, deleteMessage, addReaction, removeReaction, loadMore, updateLastRead } = useChatMessages(activeChannel?.id ?? null)
-  const { presenceMap, updateStatus, updateCustomStatus, isOnline } = usePresence(activeWorkspace?.id ?? null)
+  const { presenceMap, updateCustomStatus } = usePresence(activeWorkspace?.id ?? null)
   const { mentionSuggestions, searchUsers, notifyMentions } = useChatMentions()
 
   const [createChannelOpen, setCreateChannelOpen] = useState(false)
@@ -57,7 +58,7 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
   const [invitePeopleOpen, setInvitePeopleOpen] = useState(false)
   const [userStatusOpen, setUserStatusOpen] = useState(false)
   const [channelMembers, setChannelMembers] = useState<(ChatChannelMember & { profile?: ProfileBrief })[]>([])
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
+  const [unreadCounts] = useState<Record<string, number>>({})
   const isAdmin = activeChannel
     ? channelMembers.some(m => m.user_id === user?.id && m.role === 'admin')
     : false
@@ -104,9 +105,10 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
 
   const handleSend = useCallback(async (text: string, files: File[]) => {
     if (!text.trim() && files.length === 0) return
-    const result = await sendMessage({ body: text }, files.length > 0 ? files : undefined)
+    if (!activeChannel) return
+    const result = await sendMessage({ channel_id: activeChannel.id, body: text }, files.length > 0 ? files : undefined)
     if (result.data && activeWorkspace) {
-      await notifyMentions(text, activeChannel?.id ?? '', activeWorkspace.id)
+      await notifyMentions(text, activeChannel.id, activeWorkspace.id)
     }
   }, [sendMessage, notifyMentions, activeChannel, activeWorkspace])
 
