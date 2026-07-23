@@ -41,7 +41,7 @@ export default function ThreadDetail() {
   const [editCategory, setEditCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const { categories } = useThreadCategories();
-  
+  const { markRead } = useReadThreads();
 
   const load = () => {
     if (!id) return;
@@ -54,6 +54,7 @@ export default function ThreadDetail() {
         setEditContent(data.thread.content);
         setEditCategory(data.thread.category || '');
         setEditing(searchParams.get('edit') === '1');
+        markRead(data.thread.id, data.thread.updated_at);
       })
       .catch((err) => {
         toast({ title: 'Failed to load thread', description: err?.message || String(err), variant: 'destructive' });
