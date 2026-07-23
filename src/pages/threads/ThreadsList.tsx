@@ -194,15 +194,22 @@ export default function ThreadsList() {
             <Link to="/threads/new">Create a thread</Link>
           </Button>
         </div>
+      ) : filteredThreads.length === 0 ? (
+        <div className="text-center py-16">
+          <Search className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+          <h2 className="text-lg font-medium mb-2">No threads match your search</h2>
+          <p className="text-sm text-muted-foreground">Try a different keyword.</p>
+        </div>
       ) : (
         <div className="space-y-2">
-          {threads.map((thread) => {
+          {filteredThreads.map((thread) => {
             const displayName = thread.author?.display_name || 'anonymous';
             const preview = richTextToPlainText(thread.content).slice(0, 150);
             const timeAgo = getTimeAgo(thread.created_at);
+            const unread = isUnread(thread.id, thread.updated_at);
 
             return (
-              <Card key={thread.id} className="group p-3 hover:bg-accent/50 transition-colors">
+              <Card key={thread.id} className={`group p-3 hover:bg-accent/50 transition-colors ${unread ? 'border-l-2 border-l-primary' : ''}`}>
                 <div className="flex gap-3">
                   <VoteButtons
                     score={thread.vote_score}
@@ -212,7 +219,10 @@ export default function ThreadsList() {
                   />
                   <div className="flex-1 min-w-0">
                     <Link to={`/threads/${thread.id}`} className="block">
-                      <h3 className="font-medium text-foreground leading-snug hover:text-primary transition-colors flex items-center gap-1.5">
+                      <h3 className={`leading-snug hover:text-primary transition-colors flex items-center gap-1.5 ${unread ? 'font-semibold text-foreground' : 'font-medium text-foreground/80'}`}>
+                        {unread && (
+                          <span className="h-2 w-2 rounded-full bg-primary shrink-0" aria-label="Unread" />
+                        )}
                         {thread.pinned && (
                           <Pin className="h-3.5 w-3.5 text-primary shrink-0 fill-current" aria-label="Pinned" />
                         )}
