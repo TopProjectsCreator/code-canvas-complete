@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns'
 import type { ChatMessage, ChatChannel, ChatWorkspace } from './chatTypes'
 

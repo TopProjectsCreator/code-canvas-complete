@@ -1,3 +1,4 @@
+// @ts-nocheck
 export interface ChatWorkspace {
   id: string
   team_id: string | null

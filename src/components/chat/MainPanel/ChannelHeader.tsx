@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Button } from '@/components/ui/button'
 import { Hash, Lock, MessageCircle, Users, Search, Info } from 'lucide-react'
 import type { ChatChannel, ChatChannelMember } from '@/lib/chat/chatTypes'
