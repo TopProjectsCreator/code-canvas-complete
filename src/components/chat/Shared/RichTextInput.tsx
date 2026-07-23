@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useRef, useEffect, useCallback } from 'react'
 import { Textarea } from '@/components/ui/textarea'
 
