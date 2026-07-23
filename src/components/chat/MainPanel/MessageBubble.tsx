@@ -6,8 +6,7 @@ import { formatMessageTime, formatMessageBody, shouldShowProfile } from '@/lib/c
 import { isImageFile, isVideoFile, getChatAttachmentUrl } from '@/lib/chat/chatStorage'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
-import { MessageCircle } from 'lucide-react'
-import type { ChatMessage } from '@/lib/chat/chatTypes'
+import type { ChatMessage, ChatMessageReaction } from '@/lib/chat/chatTypes'
 
 interface MessageBubbleProps {
   message: ChatMessage
@@ -117,6 +116,7 @@ function MessageBody({ message }: { message: ChatMessage }) {
 function MessageAttachments({ message }: { message: ChatMessage }) {
   const attachments = message.attachments ?? []
   const [urls, setUrls] = useState<Record<string, string | null>>({})
+  const attachmentPaths = attachments.map(a => a.storage_path).join(',')
 
   useEffect(() => {
     for (const att of attachments) {
@@ -126,7 +126,7 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
         })
       }
     }
-  }, [attachments.length ? attachments.map(a => a.storage_path).join(',') : ''])
+  }, [attachmentPaths, urls])
 
   if (attachments.length === 0) return null
 

@@ -24,6 +24,7 @@ export function useLspClient(fileName: string | null, content: string) {
     supported: false,
   });
   const diagnosticsRef = useRef<Diagnostic[]>([]);
+  const connectionGenRef = useRef(0);
 
   const supported = fileName ? hasLspSupport(fileName) : false;
 
@@ -74,7 +75,13 @@ export function useLspClient(fileName: string | null, content: string) {
     client.on("status", handler.status!);
     client.on("error", handler.error!);
 
+    const connectionGen = ++connectionGenRef.current;
+
     client.connect(config, uri).then(() => {
+      if (connectionGenRef.current !== connectionGen) {
+        client.disconnect();
+        return;
+      }
       const currentContent = contentRef.current;
       if (currentContent) {
         client.openDocument(uri, config.languageId, currentContent);

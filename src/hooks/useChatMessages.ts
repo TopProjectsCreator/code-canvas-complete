@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { subscribeToChannelMessages } from '@/lib/chat/chatRealtime'
-import type { ChatMessage, NewMessage } from '@/lib/chat/chatTypes'
+import type { ChatMessage, ChatMessageReaction, ChatMessageAttachment, NewMessage } from '@/lib/chat/chatTypes'
 import { uploadChatAttachment } from '@/lib/chat/chatStorage'
 
 const PAGE_SIZE = 50
@@ -59,24 +59,23 @@ export function useChatMessages(channelId: string | null) {
 
     const fetched = (data ?? []) as unknown as ChatMessage[]
 
+    const countMap: Record<string, number> = {}
     if (fetched.length > 0) {
       const msgIds = fetched.map(m => m.id)
       const { data: replies } = await supabase
         .from('chat_messages')
         .select('parent_id')
         .in('parent_id', msgIds)
-      const countMap: Record<string, number> = {}
       if (replies) {
         for (const row of replies as { parent_id: string }[]) {
           countMap[row.parent_id] = (countMap[row.parent_id] ?? 0) + 1
         }
       }
-      for (const msg of fetched) {
-        msg.reply_count = countMap[msg.id] ?? 0
-      }
     }
 
-    const sorted = fetched.reverse()
+    const sorted = fetched
+      .map(msg => ({ ...msg, reply_count: countMap[msg.id] ?? 0 }))
+      .reverse()
 
     if (cursor) {
       setMessages(prev => [...sorted, ...prev])

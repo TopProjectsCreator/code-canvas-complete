@@ -21,7 +21,6 @@ import { CommentTree } from '@/components/threads/CommentTree';
 import { ThreadEditor } from '@/components/threads/ThreadEditor';
 import { fetchThread, vote, createComment, uploadMedia, updateThread, deleteThread, updateComment, deleteComment, type ThreadRow, type CommentRow } from '@/hooks/useThreads';
 import { useThreadCategories } from '@/hooks/useThreadCategories';
-import { useReadThreads } from '@/hooks/useReadThreads';
 
 export default function ThreadDetail() {
   const { id } = useParams<{ id: string }>();
@@ -41,7 +40,7 @@ export default function ThreadDetail() {
   const [editCategory, setEditCategory] = useState('');
   const [saving, setSaving] = useState(false);
   const { categories } = useThreadCategories();
-  const { markRead } = useReadThreads();
+  
 
   const load = () => {
     if (!id) return;
@@ -54,7 +53,6 @@ export default function ThreadDetail() {
         setEditContent(data.thread.content);
         setEditCategory(data.thread.category || '');
         setEditing(searchParams.get('edit') === '1');
-        markRead(data.thread.id, data.thread.updated_at);
       })
       .catch((err) => {
         toast({ title: 'Failed to load thread', description: err?.message || String(err), variant: 'destructive' });
@@ -82,8 +80,12 @@ export default function ThreadDetail() {
 
   const handleReply = async (parentId: string, content: string, depth: number) => {
     if (!user || !id) return;
-    await createComment(user.id, id, content, parentId, depth);
-    load();
+    try {
+      await createComment(user.id, id, content, parentId, depth);
+      load();
+    } catch (err: any) {
+      toast({ title: 'Failed to reply', description: err?.message || String(err), variant: 'destructive' });
+    }
   };
 
   const handlePostComment = async () => {
@@ -146,13 +148,21 @@ export default function ThreadDetail() {
   };
 
   const handleEditComment = async (commentId: string, content: string) => {
-    await updateComment(commentId, content);
-    load();
+    try {
+      await updateComment(commentId, content);
+      load();
+    } catch (err: any) {
+      toast({ title: 'Failed to edit comment', description: err?.message || String(err), variant: 'destructive' });
+    }
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    await deleteComment(commentId);
-    load();
+    try {
+      await deleteComment(commentId);
+      load();
+    } catch (err: any) {
+      toast({ title: 'Failed to delete comment', description: err?.message || String(err), variant: 'destructive' });
+    }
   };
 
   if (loading) {

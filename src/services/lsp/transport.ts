@@ -146,6 +146,7 @@ export class ReplitTransport extends BaseTransport {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(public languageId: string) {
     super();
@@ -189,6 +190,10 @@ export class ReplitTransport extends BaseTransport {
   }
 
   disconnect(): void {
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
     this.reconnectAttempts = this.maxReconnectAttempts;
     this.ws?.close();
     this.ws = null;
@@ -208,7 +213,10 @@ export class ReplitTransport extends BaseTransport {
     }
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-    setTimeout(() => this.connect().catch(() => {}), delay);
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null;
+      this.connect().catch(() => {});
+    }, delay);
   }
 }
 
