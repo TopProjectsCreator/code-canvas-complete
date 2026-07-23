@@ -21,6 +21,7 @@ import { CommentTree } from '@/components/threads/CommentTree';
 import { ThreadEditor } from '@/components/threads/ThreadEditor';
 import { fetchThread, vote, createComment, uploadMedia, updateThread, deleteThread, updateComment, deleteComment, type ThreadRow, type CommentRow } from '@/hooks/useThreads';
 import { useThreadCategories } from '@/hooks/useThreadCategories';
+import { useReadThreads } from '@/hooks/useReadThreads';
 
 export default function ThreadDetail() {
   const { id } = useParams<{ id: string }>();
