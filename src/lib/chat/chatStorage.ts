@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client'
-import type { ChatMessageAttachment } from './chatTypes'
+
 
 export async function uploadChatAttachment(
   file: File,

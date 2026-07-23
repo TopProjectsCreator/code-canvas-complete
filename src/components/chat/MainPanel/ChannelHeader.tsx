@@ -1,12 +1,12 @@
 import { Button } from '@/components/ui/button'
-import { Hash, Lock, MessageCircle, Users, Search, Info } from 'lucide-react'
+import { Hash, Lock, MessageCircle, Search, Info } from 'lucide-react'
 import type { ChatChannel, ChatChannelMember } from '@/lib/chat/chatTypes'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 interface ChannelHeaderProps {
   channel: ChatChannel
   memberCount: number
-  members?: (ChatChannelMember & { profile?: { display_name?: string; avatar_url?: string } })[]
+  members?: (ChatChannelMember & { profile?: { display_name?: string | null; avatar_url?: string | null } })[]
   onSearch: () => void
   onDetails: () => void
 }
@@ -33,7 +33,7 @@ export function ChannelHeader({ channel, memberCount, members, onSearch, onDetai
           <div className="flex -space-x-1.5 mr-1">
             {members.slice(0, 3).map((m) => (
               <Avatar key={m.id} className="h-5 w-5 border border-background">
-                <AvatarImage src={m.profile?.avatar_url} />
+                <AvatarImage src={m.profile?.avatar_url ?? undefined} />
                 <AvatarFallback className="text-[8px]">
                   {(m.profile?.display_name ?? '?')[0]}
                 </AvatarFallback>

@@ -124,7 +124,7 @@ export const useWebContainer = () => {
     });
 
     const pipePromise = process.output.pipeTo(writer);
-    const stderrPipePromise = process.error?.pipeTo(stderrWriter);
+    const stderrPipePromise = (process as unknown as { error?: ReadableStream<string> }).error?.pipeTo(stderrWriter);
     const exitCode = await process.exit;
     await pipePromise;
     if (stderrPipePromise) await stderrPipePromise;

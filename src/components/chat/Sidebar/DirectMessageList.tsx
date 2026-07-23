@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ChannelListItem } from './ChannelListItem'
 import { Button } from '@/components/ui/button'
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
-import type { ChatChannel, ProfileBrief } from '@/lib/chat/chatTypes'
+import type { ChatChannel } from '@/lib/chat/chatTypes'
 
 interface DirectMessageListProps {
   dmChannels: ChatChannel[]

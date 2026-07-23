@@ -54,9 +54,6 @@ export function MessageList({
     }
   }, [loadingMore, hasMore, onLoadMore])
 
-  const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [])
 
   if (loading) {
     return (

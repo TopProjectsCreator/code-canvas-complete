@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { subscribeToChannelMessages } from '@/lib/chat/chatRealtime'
-import type { ChatMessage, ChatMessageReaction, ChatMessageAttachment, NewMessage } from '@/lib/chat/chatTypes'
+import type { ChatMessage, NewMessage } from '@/lib/chat/chatTypes'
 import { uploadChatAttachment } from '@/lib/chat/chatStorage'
 
 const PAGE_SIZE = 50
