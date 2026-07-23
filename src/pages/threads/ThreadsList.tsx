@@ -35,6 +35,8 @@ export default function ThreadsList() {
   const [sort, setSort] = useState<SortMode>(sortParam);
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const { isUnread, markAllRead } = useReadThreads();
 
   useEffect(() => {
     setSearchParams({ sort }, { replace: true });
