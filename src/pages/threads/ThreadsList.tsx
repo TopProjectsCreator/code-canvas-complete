@@ -134,6 +134,29 @@ export default function ThreadsList() {
       </div>
       <ManageCategoriesDialog open={manageOpen} onOpenChange={setManageOpen} />
 
+      <div className="flex items-center gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search threads by title, content, category, or author…"
+            className="pl-9"
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => markAllRead(threads)}
+          disabled={threads.length === 0}
+          title="Mark all threads as read"
+        >
+          <CheckCheck className="h-4 w-4 mr-2" />
+          Mark all read
+        </Button>
+      </div>
+
+
       <Tabs value={sort} onValueChange={(v) => setSort(v as SortMode)} className="mb-6">
         <TabsList>
           <TabsTrigger value="hot" className="flex items-center gap-1.5">
