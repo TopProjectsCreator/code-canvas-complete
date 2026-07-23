@@ -101,6 +101,9 @@ export function useCollaboration(projectId: string | undefined) {
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const workspaceChannelRef = useRef<RealtimeChannel | null>(null);
   const sessionIdRef = useRef(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}`);
+  const fileUpdateQueueRef = useRef<RemoteFileUpdate[]>([]);
+  const filePatchQueueRef = useRef<RemoteFilePatch[]>([]);
+  const flushScheduledRef = useRef(false);
 
   const enrichProfiles = useCallback(async <T extends { user_id: string }>(rows: T[]) => {
     const userIds = [...new Set(rows.map((row) => row.user_id))];
@@ -186,8 +189,12 @@ export function useCollaboration(projectId: string | undefined) {
 
   useEffect(() => {
     if (!projectId || !user) return;
+    let cancelled = false;
     setLoading(true);
-    Promise.all([fetchCollaborators(), fetchComments(), fetchReviews()]).finally(() => setLoading(false));
+    Promise.all([fetchCollaborators(), fetchComments(), fetchReviews()]).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [fetchCollaborators, fetchComments, fetchReviews, projectId, user]);
 
   useEffect(() => {
@@ -260,6 +267,26 @@ export function useCollaboration(projectId: string | undefined) {
     };
   }, [fetchComments, projectId, user]);
 
+  const flushFileUpdates = useCallback(() => {
+    if (flushScheduledRef.current) return;
+    flushScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      flushScheduledRef.current = false;
+      // Drain all queued updates, keeping only the latest per type
+      let latestUpdate: RemoteFileUpdate | null = null;
+      while (fileUpdateQueueRef.current.length > 0) {
+        latestUpdate = fileUpdateQueueRef.current.shift()!;
+      }
+      if (latestUpdate) setRemoteFileUpdate(latestUpdate);
+
+      let latestPatch: RemoteFilePatch | null = null;
+      while (filePatchQueueRef.current.length > 0) {
+        latestPatch = filePatchQueueRef.current.shift()!;
+      }
+      if (latestPatch) setRemoteFilePatch(latestPatch);
+    });
+  }, []);
+
   useEffect(() => {
     if (!projectId || !user) return;
 
@@ -272,7 +299,7 @@ export function useCollaboration(projectId: string | undefined) {
       .on('broadcast', { event: 'file-update' }, ({ payload }) => {
         const message = payload as RemoteFileUpdate & { sessionId?: string };
         if (!message || message.updatedBy === user.id || message.sessionId === sessionIdRef.current) return;
-        setRemoteFileUpdate({
+        fileUpdateQueueRef.current.push({
           fileId: message.fileId,
           filePath: message.filePath,
           content: message.content,
@@ -280,12 +307,14 @@ export function useCollaboration(projectId: string | undefined) {
           updatedByName: message.updatedByName,
           updatedAt: message.updatedAt,
         });
+        flushFileUpdates();
       })
       .on('broadcast', { event: 'file-patch' }, ({ payload }) => {
         const envelope = payload as RemoteFilePatch & { sessionId?: string };
         if (!envelope || envelope.updatedBy === user.id || envelope.sessionId === sessionIdRef.current) return;
         if (!isRemotePatchEnvelope(envelope)) return;
-        setRemoteFilePatch(envelope);
+        filePatchQueueRef.current.push(envelope);
+        flushFileUpdates();
       })
       .subscribe();
 
@@ -295,7 +324,7 @@ export function useCollaboration(projectId: string | undefined) {
       }
       void supabase.removeChannel(channel);
     };
-  }, [projectId, user]);
+  }, [projectId, user, flushFileUpdates]);
 
   const updatePresence = useCallback(async (updates: Partial<PresenceState>) => {
     if (!projectId || !user) return;

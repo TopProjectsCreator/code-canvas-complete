@@ -205,8 +205,12 @@ export function solveConstraints(
   let iter = 0
   let residual = Infinity
 
+  const nConstraints = constraints.length
+  if (nConstraints === 0) {
+    return { params, converged: true, iterations: 0, residual: 0 }
+  }
+
   while (iter < maxIter) {
-    const nConstraints = constraints.length
     const nParams = params.points.length * 2 + params.radii.length
 
     const C = new Float64Array(nConstraints)

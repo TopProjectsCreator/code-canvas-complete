@@ -40,6 +40,23 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
   const userIdRef = useRef('');
   const roomNameRef = useRef(roomName);
   roomNameRef.current = roomName;
+  const audioEnabledRef = useRef(audioEnabled);
+  const videoEnabledRef = useRef(videoEnabled);
+  const mountedRef = useRef(true);
+  const isTogglingRef = useRef(false);
+
+  useEffect(() => {
+    audioEnabledRef.current = audioEnabled;
+  }, [audioEnabled]);
+
+  useEffect(() => {
+    videoEnabledRef.current = videoEnabled;
+  }, [videoEnabled]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const updatePeersList = useCallback(() => {
     const peerList: VoiceVideoPeer[] = [];
@@ -216,11 +233,13 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
               event: 'join',
               payload: { userId: userIdRef.current, displayName: displayNameRef.current },
             });
+            if (!mountedRef.current) return;
             setIsInRoom(true);
             setConnecting(false);
           }
         });
     } catch (err) {
+      if (!mountedRef.current) return;
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('Permission denied') || msg.includes('NotAllowedError')) {
         toast({ title: 'Microphone access denied', description: 'Allow microphone access to join voice/video rooms.', variant: 'destructive' });
@@ -267,67 +286,72 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
           channelRef.current.send({
             type: 'broadcast',
             event: 'mute-state',
-            payload: { userId: userIdRef.current, audioEnabled: enabled, videoEnabled },
+            payload: { userId: userIdRef.current, audioEnabled: enabled, videoEnabled: videoEnabledRef.current },
           });
         }
       }
     }
-  }, [videoEnabled]);
+  }, []);
 
   const toggleVideo = useCallback(async () => {
-    if (!localStreamRef.current) return;
+    if (!localStreamRef.current || isTogglingRef.current) return;
+    isTogglingRef.current = true;
 
-    const willBeEnabled = !videoEnabled;
+    try {
+      const willBeEnabled = !videoEnabledRef.current;
 
-    if (willBeEnabled) {
-      try {
-        const videoStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-        const videoTrack = videoStream.getVideoTracks()[0];
-        localStreamRef.current.addTrack(videoTrack);
-        setVideoEnabled(true);
+      if (willBeEnabled) {
+        try {
+          const videoStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+          const videoTrack = videoStream.getVideoTracks()[0];
+          localStreamRef.current.addTrack(videoTrack);
+          setVideoEnabled(true);
 
-        peerConnectionsRef.current.forEach((pc) => {
-          pc.pc.addTrack(videoTrack, localStreamRef.current!);
-        });
-
-        setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
-
-        if (channelRef.current) {
-          channelRef.current.send({
-            type: 'broadcast',
-            event: 'mute-state',
-            payload: { userId: userIdRef.current, audioEnabled, videoEnabled: true },
+          peerConnectionsRef.current.forEach((pc) => {
+            pc.pc.addTrack(videoTrack, localStreamRef.current!);
           });
-        }
-      } catch {
-        toast({ title: 'Camera access denied', description: 'Allow camera access to enable video.', variant: 'destructive' });
-      }
-    } else {
-      const videoTrack = localStreamRef.current.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.stop();
-        localStreamRef.current.removeTrack(videoTrack);
-        setVideoEnabled(false);
 
-        peerConnectionsRef.current.forEach((pc) => {
-          const sender = pc.pc.getSenders().find((s) => s.track?.kind === 'video');
-          if (sender) {
-            pc.pc.removeTrack(sender);
+          setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+
+          if (channelRef.current) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'mute-state',
+              payload: { userId: userIdRef.current, audioEnabled: audioEnabledRef.current, videoEnabled: true },
+            });
           }
-        });
+        } catch {
+          toast({ title: 'Camera access denied', description: 'Allow camera access to enable video.', variant: 'destructive' });
+        }
+      } else {
+        const videoTrack = localStreamRef.current.getVideoTracks()[0];
+        if (videoTrack) {
+          videoTrack.stop();
+          localStreamRef.current.removeTrack(videoTrack);
+          setVideoEnabled(false);
 
-        setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
-
-        if (channelRef.current) {
-          channelRef.current.send({
-            type: 'broadcast',
-            event: 'mute-state',
-            payload: { userId: userIdRef.current, audioEnabled, videoEnabled: false },
+          peerConnectionsRef.current.forEach((pc) => {
+            const sender = pc.pc.getSenders().find((s) => s.track?.kind === 'video');
+            if (sender) {
+              pc.pc.removeTrack(sender);
+            }
           });
+
+          setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+
+          if (channelRef.current) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'mute-state',
+              payload: { userId: userIdRef.current, audioEnabled: audioEnabledRef.current, videoEnabled: false },
+            });
+          }
         }
       }
+    } finally {
+      isTogglingRef.current = false;
     }
-  }, [audioEnabled, videoEnabled, toast]);
+  }, [toast]);
 
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {

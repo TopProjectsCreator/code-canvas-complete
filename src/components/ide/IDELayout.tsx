@@ -62,6 +62,7 @@ interface IDELayoutProps {
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
+const TERMINAL_HISTORY_CAP = 500;
 
 // Initial Git state
 const initialGitState: GitState = {
@@ -330,7 +331,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       // Capture snapshot of current state for rollback
       const snapshot =
         type === "file-edit" || type === "file-create" || type === "file-delete" || type === "template-change"
-          ? { files: JSON.parse(JSON.stringify(files)), fileContents: { ...fileContents } }
+          ? { files: structuredClone(files), fileContents: { ...fileContents } }
           : undefined;
       setHistoryEntries((prev) =>
         [
@@ -1637,16 +1638,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         });
       }
 
-      setTerminalHistory((prev) => [...prev, inputLine, ...outputLines]);
+      setTerminalHistory((prev) => [...prev, inputLine, ...outputLines].slice(-TERMINAL_HISTORY_CAP));
 
       addHistoryEntry("terminal-command", `Ran: ${command}`, isError ? "Error" : undefined);
 
       if (!isError) {
         window.setTimeout(() => {
-          setFiles((prev) => {
-            const clone = JSON.parse(JSON.stringify(prev)) as FileNode[];
-            return clone;
-          });
+          setFiles((prev) => prev);
         }, 100);
       }
     },
@@ -1701,33 +1699,25 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           description: `No package manager detected for "${selectedTemplate || "current"}" project type.`,
           variant: "destructive",
         });
-        setTerminalHistory((prev) => [
-          ...prev,
-          {
+        setTerminalHistory((prev) => [...prev, {
             id: generateId(),
             type: "error",
             content: `❌ Cannot install "${packageName}": unsupported project type.`,
             timestamp: new Date(),
-          },
-        ]);
+          }].slice(-TERMINAL_HISTORY_CAP));
         return;
       }
 
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
+      setTerminalHistory((prev) => [...prev, {
           id: generateId(),
           type: "info",
           content: `📦 Installing ${packageName}...`,
           timestamp: new Date(),
-        },
-      ]);
+        }].slice(-TERMINAL_HISTORY_CAP));
 
       const result = await executeShellCommand(command);
 
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
+      setTerminalHistory((prev) => [...prev, {
           id: generateId(),
           type: result.error ? "error" : "output",
           content: result.error
@@ -1740,8 +1730,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           type: "output" as const,
           content: line,
           timestamp: new Date(),
-        })),
-      ]);
+        }))].slice(-TERMINAL_HISTORY_CAP));
 
       if (result.error) {
         toast({
@@ -1985,30 +1974,24 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     setIsRunning(true);
 
     // Add running message
-    setTerminalHistory((prev) => [
-      ...prev,
-      {
+    setTerminalHistory((prev) => [...prev, {
         id: generateId(),
         type: "info",
         content: `🚀 Running ${fileToRun!.name}...`,
         timestamp: new Date(),
-      },
-    ]);
+      }].slice(-TERMINAL_HISTORY_CAP));
 
     // Execute the code
     const result = await executeCode(code, language);
 
     // Add output to terminal
     if (result.error) {
-      setTerminalHistory((prev) => [
-        ...prev,
-        {
+      setTerminalHistory((prev) => [...prev, {
           id: generateId(),
           type: "error",
           content: result.error!,
           timestamp: new Date(),
-        },
-      ]);
+        }].slice(-TERMINAL_HISTORY_CAP));
     } else if (result.output.length > 0) {
       const outputLines: TerminalLine[] = result.output.map((line) => ({
         id: generateId(),
@@ -2016,19 +1999,16 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         content: line,
         timestamp: new Date(),
       }));
-      setTerminalHistory((prev) => [...prev, ...outputLines]);
+      setTerminalHistory((prev) => [...prev, ...outputLines].slice(-TERMINAL_HISTORY_CAP));
     }
 
     // Add completion message
-    setTerminalHistory((prev) => [
-      ...prev,
-      {
+    setTerminalHistory((prev) => [...prev, {
         id: generateId(),
         type: "info",
         content: `✅ Finished running ${fileToRun!.name}`,
         timestamp: new Date(),
-      },
-    ]);
+      }].slice(-TERMINAL_HISTORY_CAP));
 
     // Keep preview running for HTML/web files so the iframe stays visible
     if (!result.isPreview) {
@@ -2216,6 +2196,16 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     if (offlineSaveTimerRef.current) clearTimeout(offlineSaveTimerRef.current);
     offlineSaveTimerRef.current = setTimeout(() => {
       // Apply in-memory edits to file tree before saving
+      if (Object.keys(fileContents).length === 0) {
+        saveLocally(
+          files,
+          selectedTemplate,
+          localProjectName,
+          currentProject?.id ? `remote-${currentProject.id}` : undefined,
+          currentProject?.id,
+        );
+        return;
+      }
       const mergedFiles = JSON.parse(JSON.stringify(files)) as FileNode[];
       const applyEdits = (nodes: FileNode[]) => {
         for (const node of nodes) {

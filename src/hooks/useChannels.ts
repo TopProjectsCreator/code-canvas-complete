@@ -13,7 +13,6 @@ export function useChannels(workspaceId: string | null) {
     if (!user || !workspaceId) {
       setChannels([])
       setDmChannels([])
-      setLoading(false)
       return
     }
 
@@ -40,11 +39,15 @@ export function useChannels(workspaceId: string | null) {
       setChannels(allChannels.filter(c => !c.is_dm))
       setDmChannels(allChannels.filter(c => c.is_dm))
     }
-    setLoading(false)
   }, [user, workspaceId])
 
   useEffect(() => {
-    fetchChannels()
+    let cancelled = false;
+    setLoading(true);
+    fetchChannels().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [fetchChannels])
 
   const fetchMembers = useCallback(async (channelId: string) => {

@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
 import { subscribeToChannelMessages } from '@/lib/chat/chatRealtime'
 import type { ChatMessage, ChatMessageReaction, ChatMessageAttachment, NewMessage } from '@/lib/chat/chatTypes'
-import { uploadChatAttachment } from '@/lib/chat/chatStorage'
+import { uploadChatAttachment, deleteChatAttachment } from '@/lib/chat/chatStorage'
 
 const PAGE_SIZE = 50
 
@@ -181,13 +181,17 @@ export function useChatMessages(channelId: string | null) {
       for (const file of files) {
         const result = await uploadChatAttachment(file, user.id, message.id)
         if ('error' in result) continue
-        await supabase.from('chat_message_attachments').insert({
+        const { error: insertError } = await supabase.from('chat_message_attachments').insert({
           message_id: message.id,
           file_name: file.name,
           file_size: file.size,
           file_type: file.type,
           storage_path: result.storage_path,
         })
+        if (insertError) {
+          console.error('Failed to save attachment record:', insertError)
+          await deleteChatAttachment(result.storage_path)
+        }
       }
     }
 
@@ -211,31 +215,43 @@ export function useChatMessages(channelId: string | null) {
   const addReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!user) return
 
-    await supabase
-      .from('chat_message_reactions')
-      .insert({ message_id: messageId, user_id: user.id, emoji })
-      .maybeSingle()
+    try {
+      await supabase
+        .from('chat_message_reactions')
+        .insert({ message_id: messageId, user_id: user.id, emoji })
+        .maybeSingle()
+    } catch (err) {
+      console.error('Failed to add reaction:', err)
+    }
   }, [user])
 
   const removeReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!user) return
 
-    await supabase
-      .from('chat_message_reactions')
-      .delete()
-      .eq('message_id', messageId)
-      .eq('user_id', user.id)
-      .eq('emoji', emoji)
+    try {
+      await supabase
+        .from('chat_message_reactions')
+        .delete()
+        .eq('message_id', messageId)
+        .eq('user_id', user.id)
+        .eq('emoji', emoji)
+    } catch (err) {
+      console.error('Failed to remove reaction:', err)
+    }
   }, [user])
 
   const updateLastRead = useCallback(async () => {
     if (!user || !channelId) return
 
-    await supabase
-      .from('chat_channel_members')
-      .update({ last_read_at: new Date().toISOString() })
-      .eq('channel_id', channelId)
-      .eq('user_id', user.id)
+    try {
+      await supabase
+        .from('chat_channel_members')
+        .update({ last_read_at: new Date().toISOString() })
+        .eq('channel_id', channelId)
+        .eq('user_id', user.id)
+    } catch (err) {
+      console.error('Failed to update last read:', err)
+    }
   }, [user, channelId])
 
   return {

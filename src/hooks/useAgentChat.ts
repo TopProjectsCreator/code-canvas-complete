@@ -149,11 +149,15 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (messages.some(m => m.isStreaming)) return;
-    try {
-      localStorage.setItem(chatStorageKey(currentProjectId), JSON.stringify(messages));
-    } catch {
-      // ignore quota errors
-    }
+    const timer = setTimeout(() => {
+      try {
+        const trimmed = messages.length > 200 ? messages.slice(-200) : messages;
+        localStorage.setItem(chatStorageKey(currentProjectId), JSON.stringify(trimmed));
+      } catch {
+        // ignore quota errors
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
   }, [messages, currentProjectId]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState<string | null>(null);

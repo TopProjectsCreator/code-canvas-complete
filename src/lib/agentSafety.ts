@@ -210,9 +210,9 @@ const scoreMatches = (matches: ShellCommandRiskMatch[]): number => {
 
 const confidenceFromMatches = (matches: ShellCommandRiskMatch[], segments: number): number => {
   if (matches.length === 0) return 0.98;
-  const base = 0.55 + Math.min(0.35, matches.length * 0.07);
-  const segmentFactor = Math.min(0.1, Math.max(0, segments - 1) * 0.03);
-  return Number(Math.min(0.99, base + segmentFactor).toFixed(2));
+  const base = 0.98 - Math.min(0.43, matches.length * 0.07);
+  const segmentFactor = Math.min(0.05, Math.max(0, segments - 1) * 0.01);
+  return Number(Math.max(0.1, base - segmentFactor).toFixed(2));
 };
 
 const buildSummary = (riskLevel: CommandRiskLevel, matches: ShellCommandRiskMatch[]): string => {

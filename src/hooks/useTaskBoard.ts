@@ -137,11 +137,13 @@ export function useTaskBoard(projectId: string = 'default') {
   }, [saveSnapshot]);
 
   const moveTaskToColumn = useCallback((id: string, newStatus: TaskStatus) => {
-    const siblings = tasks.filter(t => t.status === newStatus && t.id !== id && !t.parentId);
-    const maxOrder = siblings.length > 0 ? Math.max(...siblings.map(t => t.sortOrder)) : 0;
     saveSnapshot(`Move task to ${newStatus}`);
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: newStatus, sortOrder: maxOrder + 1 } : t));
-  }, [tasks, saveSnapshot]);
+    setTasks(prev => {
+      const siblings = prev.filter(t => t.status === newStatus && t.id !== id && !t.parentId);
+      const maxOrder = siblings.length > 0 ? Math.max(...siblings.map(t => t.sortOrder)) : 0;
+      return prev.map(t => t.id === id ? { ...t, status: newStatus, sortOrder: maxOrder + 1 } : t);
+    });
+  }, [saveSnapshot]);
 
   const planFeature = useCallback((featureName: string, taskTitles: string[]) => {
     saveSnapshot(`Plan feature: ${featureName}`);

@@ -11,7 +11,6 @@ export function useWorkspaces() {
   const fetchWorkspaces = useCallback(async () => {
     if (!user) {
       setWorkspaces([])
-      setLoading(false)
       return
     }
 
@@ -27,11 +26,15 @@ export function useWorkspaces() {
     } else {
       setWorkspaces(data ?? [])
     }
-    setLoading(false)
   }, [user])
 
   useEffect(() => {
-    fetchWorkspaces()
+    let cancelled = false;
+    setLoading(true);
+    fetchWorkspaces().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
   }, [fetchWorkspaces])
 
   const createWorkspace = useCallback(async (name: string, description?: string) => {

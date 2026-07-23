@@ -2,7 +2,9 @@ import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns'
 import type { ChatMessage, ChatChannel } from './chatTypes'
 
 export function formatMessageTime(dateStr: string): string {
+  if (!dateStr) return ''
   const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return ''
   if (isToday(date)) return format(date, 'h:mm a')
   if (isYesterday(date)) return 'Yesterday ' + format(date, 'h:mm a')
   if (date.getFullYear() === new Date().getFullYear()) return format(date, 'MMM d, h:mm a')
@@ -10,14 +12,19 @@ export function formatMessageTime(dateStr: string): string {
 }
 
 export function formatMessageDateSeparator(dateStr: string): string {
+  if (!dateStr) return ''
   const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return ''
   if (isToday(date)) return 'Today'
   if (isYesterday(date)) return 'Yesterday'
   return format(date, 'MMMM d, yyyy')
 }
 
 export function formatRelativeTime(dateStr: string): string {
-  return formatDistanceToNow(new Date(dateStr), { addSuffix: true })
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return ''
+  return formatDistanceToNow(date, { addSuffix: true })
 }
 
 export function getChannelDisplayName(channel: ChatChannel): string {
@@ -26,8 +33,10 @@ export function getChannelDisplayName(channel: ChatChannel): string {
 }
 
 export function isSameDay(d1: string, d2: string): boolean {
+  if (!d1 || !d2) return false
   const a = new Date(d1)
   const b = new Date(d2)
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return false
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
 

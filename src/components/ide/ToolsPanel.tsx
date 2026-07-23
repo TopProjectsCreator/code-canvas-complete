@@ -18,20 +18,8 @@ import {
   FileCog,
   WandSparkles,
 } from 'lucide-react';
-import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
 
 type HabitLog = Record<string, boolean>;
 
@@ -506,7 +494,7 @@ export const ToolsPanel = () => {
   const [scanPreview, setScanPreview] = useState('');
 
   const [converterMode, setConverterMode] = useState<ConverterMode>('image');
-  const ffmpegRef = useRef<FFmpeg | null>(null);
+  const ffmpegRef = useRef<any>(null);
   const [convertFile, setConvertFile] = useState<File | null>(null);
   const [convertSourceUrlInput, setConvertSourceUrlInput] = useState('');
   const [convertSourceUrl, setConvertSourceUrl] = useState('');
@@ -823,6 +811,10 @@ export const ToolsPanel = () => {
     }
 
     const pdfData = await loadBinaryFromSelectedSource();
+    const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist');
+    if (!GlobalWorkerOptions.workerSrc) {
+      GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+    }
     const pdf = await getDocument({ data: pdfData }).promise;
     const pages: string[] = [];
 
@@ -858,6 +850,7 @@ export const ToolsPanel = () => {
   const runPdfToDocxConversion = async () => {
     const pages = await extractPdfPages();
     const baseName = (selectedSource?.name ?? 'converted').replace(/\.[^.]+$/, '');
+    const { Document, Packer, Paragraph, TextRun } = await import('docx');
     const document = new Document({
       sections: [{
         properties: {},
@@ -900,6 +893,7 @@ export const ToolsPanel = () => {
     setFfmpegStatus('Loading browser media engine...');
 
     try {
+      const { FFmpeg } = await import('@ffmpeg/ffmpeg');
       const ffmpeg = ffmpegRef.current ?? new FFmpeg();
       ffmpegRef.current = ffmpeg;
 
