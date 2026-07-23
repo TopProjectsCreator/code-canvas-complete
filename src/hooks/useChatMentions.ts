@@ -36,7 +36,7 @@ export function useChatMentions() {
     setMentionSuggestions((profiles ?? []) as ProfileBrief[])
   }, [])
 
-  const notifyMentions = useCallback(async (body: string, channelId: string, workspaceId: string) => {
+  const notifyMentions = useCallback(async (body: string, channelId: string, _workspaceId: string) => {
     const mentions = parseMentions(body)
     if (mentions.length === 0 || !user) return
 

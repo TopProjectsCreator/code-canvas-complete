@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Loader2, Hash, Lock, MessageCircle, Copy, Check } from 'lucide-react'
 import type { ChatChannel, ChatChannelMember, ProfileBrief } from '@/lib/chat/chatTypes'
-import { useAuth } from '@/contexts/AuthContext'
+
 
 interface ChannelDetailsDialogProps {
   open: boolean
@@ -24,7 +24,7 @@ interface ChannelDetailsDialogProps {
 export function ChannelDetailsDialog({
   open, onOpenChange, channel, members, onUpdate, onLeave, onDelete, isAdmin
 }: ChannelDetailsDialogProps) {
-  const { user } = useAuth()
+  
   const [topic, setTopic] = useState('')
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)

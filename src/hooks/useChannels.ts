@@ -61,7 +61,7 @@ export function useChannels(workspaceId: string | null) {
       return []
     }
 
-    return (data ?? []) as (ChatChannelMember & { profile: ProfileBrief })[]
+    return (data ?? []) as unknown as (ChatChannelMember & { profile: ProfileBrief })[]
   }, [])
 
   const createChannel = useCallback(async (

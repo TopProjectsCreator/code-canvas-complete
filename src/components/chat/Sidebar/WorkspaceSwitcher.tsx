@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { ChevronDown, Plus, Settings, LogOut } from 'lucide-react'
+import { ChevronDown, Plus, Settings } from 'lucide-react'
 import type { ChatWorkspace } from '@/lib/chat/chatTypes'
 
 interface WorkspaceSwitcherProps {

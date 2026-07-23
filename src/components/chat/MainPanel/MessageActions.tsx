@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { MessageCircle, SmilePlus, Share2, Pin, Trash2 } from 'lucide-react'
+import { MessageCircle, SmilePlus, Trash2 } from 'lucide-react'
 
 interface MessageActionsProps {
   onReply: () => void
@@ -9,7 +9,7 @@ interface MessageActionsProps {
   isPinned?: boolean
 }
 
-export function MessageActions({ onReply, onReact, onDelete, canDelete, isPinned }: MessageActionsProps) {
+export function MessageActions({ onReply, onReact, onDelete, canDelete }: MessageActionsProps) {
   return (
     <div className="absolute -top-3 right-2 flex items-center gap-0.5 bg-popover border border-border rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10">
       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onReact}>

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+
 import { Hash, MessageCircle, Loader2 } from 'lucide-react'
 import { searchMessages, type SearchResult } from '@/lib/chat/chatSearch'
 import { formatMessageTime } from '@/lib/chat/chatHelpers'

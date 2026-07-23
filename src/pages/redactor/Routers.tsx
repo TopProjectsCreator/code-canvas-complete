@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -297,7 +297,7 @@ export default function RedactorRouters() {
   const [stepApiKey, setStepApiKey] = useState("");
   const [stepModel, setStepModel] = useState("");
   const [stepApiShape, setStepApiShape] = useState("auto");
-  const [testDialogOpen, setTestDialogOpen] = useState(false);
+  
   const [testResults, setTestResults] = useState<any[]>([]);
   const [testRunning, setTestRunning] = useState(false);
   const [testMessage, setTestMessage] = useState("Say hello in one word");
@@ -317,7 +317,7 @@ export default function RedactorRouters() {
 
   async function handleSaveRouterSettings() {
     if (!selectedRouter) return;
-    await updateRouter(selectedRouter.id, { name: selectedRouter.name, fallbackOn: selectedRouter.fallbackOn, fallbackStatusCodes: selectedRouter.fallbackStatusCodes });
+    await updateRouter(selectedRouter.id, { name: selectedRouter.name, fallbackOn: selectedRouter.fallbackOn, fallbackStatusCodes: selectedRouter.fallbackStatusCodes ?? undefined });
     qc.invalidateQueries({ queryKey: ["redactor-routers"] }); toast.success("Settings saved");
   }
 

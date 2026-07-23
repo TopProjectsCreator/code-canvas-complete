@@ -1,6 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react'
 import { create } from 'zustand'
-import type { ChatWorkspace, ChatChannel, ChatMessage, ChatUserPresence } from '@/lib/chat/chatTypes'
+import type { ChatWorkspace, ChatChannel, ChatMessage } from '@/lib/chat/chatTypes'
 
 interface ChatState {
   activeWorkspace: ChatWorkspace | null

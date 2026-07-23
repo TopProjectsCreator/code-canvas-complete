@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { RichTextInput } from '../Shared/RichTextInput'
 import { FileUpload } from '../Shared/FileUpload'
 import { EmojiPicker } from '../Shared/EmojiPicker'
@@ -33,7 +33,7 @@ export function MessageInput({
   const [files, setFiles] = useState<FilePreview[]>([])
   const [showMentions, setShowMentions] = useState(false)
   const [mentionIndex, setMentionIndex] = useState(0)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  
 
   const handleSend = useCallback(() => {
     if (!text.trim() && files.length === 0) return

@@ -5,7 +5,7 @@ import { createPresenceChannel } from '@/lib/chat/chatRealtime'
 import type { ChatUserPresence } from '@/lib/chat/chatTypes'
 
 export function usePresence(workspaceId: string | null) {
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
   const [presenceMap, setPresenceMap] = useState<Record<string, ChatUserPresence>>({})
   const channelRef = useRef<ReturnType<typeof createPresenceChannel> | null>(null)
 
@@ -34,7 +34,7 @@ export function usePresence(workspaceId: string | null) {
       .on('presence', { event: 'join' }, ({ key, newPresences }) => {
         setPresenceMap(prev => ({
           ...prev,
-          [key]: newPresences[0] as ChatUserPresence,
+          [key]: newPresences[0] as unknown as ChatUserPresence,
         }))
       })
       .on('presence', { event: 'leave' }, ({ key }) => {

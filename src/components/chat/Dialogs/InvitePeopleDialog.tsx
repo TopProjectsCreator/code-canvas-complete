@@ -15,7 +15,7 @@ interface InvitePeopleDialogProps {
   onInvite: (userId: string) => Promise<{ error?: string }>
 }
 
-export function InvitePeopleDialog({ open, onOpenChange, channelId, workspaceId, onInvite }: InvitePeopleDialogProps) {
+export function InvitePeopleDialog({ open, onOpenChange, channelId, workspaceId: _workspaceId, onInvite }: InvitePeopleDialogProps) {
   const [search, setSearch] = useState('')
   const [results, setResults] = useState<ProfileBrief[]>([])
   const [searching, setSearching] = useState(false)

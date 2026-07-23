@@ -1,5 +1,5 @@
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns'
-import type { ChatMessage, ChatChannel, ChatWorkspace } from './chatTypes'
+import type { ChatMessage, ChatChannel } from './chatTypes'
 
 export function formatMessageTime(dateStr: string): string {
   const date = new Date(dateStr)
