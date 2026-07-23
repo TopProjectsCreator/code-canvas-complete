@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useRef, useCallback } from 'react'
 import { RichTextInput } from '../Shared/RichTextInput'
 import { FileUpload } from '../Shared/FileUpload'

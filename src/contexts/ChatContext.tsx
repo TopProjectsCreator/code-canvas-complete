@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createContext, useContext, type ReactNode } from 'react'
 import { create } from 'zustand'
 import type { ChatWorkspace, ChatChannel, ChatMessage, ChatUserPresence } from '@/lib/chat/chatTypes'

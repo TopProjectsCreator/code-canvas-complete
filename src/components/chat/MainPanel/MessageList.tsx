@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useEffect, useRef, useCallback } from 'react'
 import { MessageBubble } from './MessageBubble'
 import { formatMessageDateSeparator, isSameDay, formatRelativeTime } from '@/lib/chat/chatHelpers'

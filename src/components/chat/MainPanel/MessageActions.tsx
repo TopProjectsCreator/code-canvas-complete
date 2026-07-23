@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Button } from '@/components/ui/button'
 import { MessageCircle, SmilePlus, Share2, Pin, Trash2 } from 'lucide-react'
 

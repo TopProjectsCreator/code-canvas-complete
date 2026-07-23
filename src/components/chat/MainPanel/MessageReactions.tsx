@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { cn } from '@/lib/utils'
 import type { ChatMessageReaction } from '@/lib/chat/chatTypes'
 

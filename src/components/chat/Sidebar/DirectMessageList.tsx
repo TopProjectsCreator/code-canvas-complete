@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState } from 'react'
 import { ChannelListItem } from './ChannelListItem'
 import { Button } from '@/components/ui/button'
