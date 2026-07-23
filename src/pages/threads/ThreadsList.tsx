@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { Plus, MessageSquare, Flame, Clock, TrendingUp, MoreHorizontal, Pin, PinOff, Tag, Presentation } from 'lucide-react';
+import { Plus, MessageSquare, Flame, Clock, TrendingUp, MoreHorizontal, Pin, PinOff, Tag, Presentation, Search, CheckCheck } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { useReadThreads } from '@/hooks/useReadThreads';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
@@ -33,6 +35,8 @@ export default function ThreadsList() {
   const [sort, setSort] = useState<SortMode>(sortParam);
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const { isUnread, markAllRead } = useReadThreads();
 
   useEffect(() => {
     setSearchParams({ sort }, { replace: true });
@@ -93,6 +97,15 @@ export default function ThreadsList() {
     }
   };
 
+  const filteredThreads = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return threads;
+    return threads.filter((t) => {
+      const hay = `${t.title} ${richTextToPlainText(t.content)} ${t.category ?? ''} ${t.author?.display_name ?? ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [threads, search]);
+
   return (
     <div>
       <Seo title="Threads — Community" description="Browse community threads" path="/threads" />
@@ -120,6 +133,29 @@ export default function ThreadsList() {
         </div>
       </div>
       <ManageCategoriesDialog open={manageOpen} onOpenChange={setManageOpen} />
+
+      <div className="flex items-center gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search threads by title, content, category, or author…"
+            className="pl-9"
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => markAllRead(threads)}
+          disabled={threads.length === 0}
+          title="Mark all threads as read"
+        >
+          <CheckCheck className="h-4 w-4 mr-2" />
+          Mark all read
+        </Button>
+      </div>
+
 
       <Tabs value={sort} onValueChange={(v) => setSort(v as SortMode)} className="mb-6">
         <TabsList>
@@ -158,15 +194,22 @@ export default function ThreadsList() {
             <Link to="/threads/new">Create a thread</Link>
           </Button>
         </div>
+      ) : filteredThreads.length === 0 ? (
+        <div className="text-center py-16">
+          <Search className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+          <h2 className="text-lg font-medium mb-2">No threads match your search</h2>
+          <p className="text-sm text-muted-foreground">Try a different keyword.</p>
+        </div>
       ) : (
         <div className="space-y-2">
-          {threads.map((thread) => {
+          {filteredThreads.map((thread) => {
             const displayName = thread.author?.display_name || 'anonymous';
             const preview = richTextToPlainText(thread.content).slice(0, 150);
             const timeAgo = getTimeAgo(thread.created_at);
+            const unread = isUnread(thread.id, thread.updated_at);
 
             return (
-              <Card key={thread.id} className="group p-3 hover:bg-accent/50 transition-colors">
+              <Card key={thread.id} className={`group p-3 hover:bg-accent/50 transition-colors ${unread ? 'border-l-2 border-l-primary' : ''}`}>
                 <div className="flex gap-3">
                   <VoteButtons
                     score={thread.vote_score}
@@ -176,7 +219,10 @@ export default function ThreadsList() {
                   />
                   <div className="flex-1 min-w-0">
                     <Link to={`/threads/${thread.id}`} className="block">
-                      <h3 className="font-medium text-foreground leading-snug hover:text-primary transition-colors flex items-center gap-1.5">
+                      <h3 className={`leading-snug hover:text-primary transition-colors flex items-center gap-1.5 ${unread ? 'font-semibold text-foreground' : 'font-medium text-foreground/80'}`}>
+                        {unread && (
+                          <span className="h-2 w-2 rounded-full bg-primary shrink-0" aria-label="Unread" />
+                        )}
                         {thread.pinned && (
                           <Pin className="h-3.5 w-3.5 text-primary shrink-0 fill-current" aria-label="Pinned" />
                         )}

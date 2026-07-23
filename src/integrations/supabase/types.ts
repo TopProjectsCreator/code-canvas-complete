@@ -1048,6 +1048,36 @@ export type Database = {
         }
         Relationships: []
       }
+      redactor_model_routers: {
+        Row: {
+          created_at: string
+          fallback_on: string
+          fallback_status_codes: number[] | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fallback_on?: string
+          fallback_status_codes?: number[] | null
+          id: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fallback_on?: string
+          fallback_status_codes?: number[] | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       redactor_provider_keys: {
         Row: {
           base_url: string | null
@@ -1220,6 +1250,69 @@ export type Database = {
             columns: ["proxy_key_id"]
             isOneToOne: false
             referencedRelation: "redactor_proxy_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      redactor_router_steps: {
+        Row: {
+          api_shape: string
+          base_url: string | null
+          created_at: string
+          enabled: boolean
+          encrypted_key: string | null
+          id: string
+          iv: string | null
+          model: string
+          provider_key_id: string | null
+          router_id: string
+          salt: string | null
+          step_order: number
+          user_id: string
+        }
+        Insert: {
+          api_shape?: string
+          base_url?: string | null
+          created_at?: string
+          enabled?: boolean
+          encrypted_key?: string | null
+          id: string
+          iv?: string | null
+          model: string
+          provider_key_id?: string | null
+          router_id: string
+          salt?: string | null
+          step_order: number
+          user_id: string
+        }
+        Update: {
+          api_shape?: string
+          base_url?: string | null
+          created_at?: string
+          enabled?: boolean
+          encrypted_key?: string | null
+          id?: string
+          iv?: string | null
+          model?: string
+          provider_key_id?: string | null
+          router_id?: string
+          salt?: string | null
+          step_order?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "redactor_router_steps_provider_key_id_fkey"
+            columns: ["provider_key_id"]
+            isOneToOne: false
+            referencedRelation: "redactor_provider_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "redactor_router_steps_router_id_fkey"
+            columns: ["router_id"]
+            isOneToOne: false
+            referencedRelation: "redactor_model_routers"
             referencedColumns: ["id"]
           },
         ]
