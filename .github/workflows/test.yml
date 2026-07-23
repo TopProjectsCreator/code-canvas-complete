@@ -34,8 +34,9 @@ jobs:
             Inspect the repository for potential bugs, security vulnerabilities, edge-case failures, or severe performance issues.
             
             If you find a potential issue:
-            1. Open a new GitHub Issue titled "[UNVERIFIED] Potential issue detected".
+            1. Open a new GitHub Issue titled "[UNVERIFIED] ___ISSUE____" Where ___ISSUE___ is a blank for you to fill in the issue with.
               For example: "[UNVERIFIED] "Unsaved changes" indicator never resets after reverting all edits"
+              DO NOT DO SOMETHING LIKE "[UNVERIFIED] Stale setTimeout in LSP transport reconnection causes orphaned WebSocket connections!" MAKE SURE THE TITLE SHOWS EXACTLY WHAT GOES ON TO THE USER IN A CLIENT FACING MANNER LIKE "[UNVERIFIED] Uploading a file to a canvas doesnt work."
             2. Detail the issue, affected file path(s), line numbers, and suggest a resolution.
               
             If everything looks clean, do not create an issue.
