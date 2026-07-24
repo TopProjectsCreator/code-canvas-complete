@@ -483,11 +483,11 @@ export default function GlobalWhiteboard() {
       </div>
       <div className="flex-1 min-h-0">
         {ready ? (
-          <Excalidraw
-            initialData={initial}
-            onChange={onChange}
-            excalidrawAPI={(api: any) => { apiRef.current = api; }}
-            viewModeEnabled={effectiveViewMode}
+          <MemoExcalidraw
+            initial={initial}
+            onChange={stableOnChange}
+            onApi={stableExcalidrawAPI}
+            viewMode={effectiveViewMode}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-sm text-muted-foreground">
