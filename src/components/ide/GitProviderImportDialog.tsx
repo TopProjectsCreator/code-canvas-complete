@@ -27,7 +27,7 @@ export const GitProviderImportDialog = ({ open, onOpenChange, onImport }: GitPro
     const provider = detectProvider(urlOrFullName) || 'github';
     const files = await importRepository(urlOrFullName, provider);
     if (files && files.length > 0) {
-      onImport(files, files[0].name);
+      onImport(files, urlOrFullName);
       onOpenChange(false);
       setRepoUrl('');
     }

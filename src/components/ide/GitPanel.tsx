@@ -13,10 +13,13 @@ import {
   Download,
   MoreHorizontal,
   Clock,
+  Link,
+  Loader2,
 } from 'lucide-react';
-import { GitState, GitChange } from '@/types/ide';
+import { GitState, GitChange, GitRemote } from '@/types/ide';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
 
 interface GitPanelProps {
   gitState: GitState;
@@ -27,6 +30,9 @@ interface GitPanelProps {
   onCreateBranch: (name: string) => void;
   onSwitchBranch: (name: string) => void;
   onInitRepo: () => void;
+  onPull: () => Promise<void>;
+  onPush: () => Promise<void>;
+  onSetRemote: (url: string) => void;
 }
 
 export const GitPanel = ({
@@ -38,6 +44,9 @@ export const GitPanel = ({
   onCreateBranch,
   onSwitchBranch,
   onInitRepo,
+  onPull,
+  onPush,
+  onSetRemote,
 }: GitPanelProps) => {
   const [commitMessage, setCommitMessage] = useState('');
   const [isChangesExpanded, setIsChangesExpanded] = useState(true);
@@ -45,13 +54,18 @@ export const GitPanel = ({
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
   const [newBranchName, setNewBranchName] = useState('');
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
+  const [showRemoteConfig, setShowRemoteConfig] = useState(false);
+  const [remoteUrlInput, setRemoteUrlInput] = useState('');
+  const [isPullPushLoading, setIsPullPushLoading] = useState(false);
 
   const currentBranch = gitState.branches.find(b => b.name === gitState.currentBranch);
 
-  const handleCommit = () => {
+  const handleCommit = async () => {
     if (!commitMessage.trim() || gitState.changes.length === 0) return;
-    onCommit(commitMessage.trim());
-    setCommitMessage('');
+    try {
+      await onCommit(commitMessage.trim());
+      setCommitMessage('');
+    } catch {}
   };
 
   const handleCreateBranch = () => {
@@ -60,6 +74,49 @@ export const GitPanel = ({
     setNewBranchName('');
     setIsCreatingBranch(false);
     setIsBranchDropdownOpen(false);
+  };
+
+  const handlePull = async () => {
+    if (isPullPushLoading) return;
+    if (!gitState.remote && !showRemoteConfig) {
+      setShowRemoteConfig(true);
+      return;
+    }
+    if (!gitState.remote) return;
+    setIsPullPushLoading(true);
+    try {
+      await onPull();
+      toast.success('Pull completed successfully');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Pull failed');
+    } finally {
+      setIsPullPushLoading(false);
+    }
+  };
+
+  const handlePush = async () => {
+    if (isPullPushLoading) return;
+    if (!gitState.remote && !showRemoteConfig) {
+      setShowRemoteConfig(true);
+      return;
+    }
+    if (!gitState.remote) return;
+    setIsPullPushLoading(true);
+    try {
+      await onPush();
+      toast.success('Push completed successfully');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Push failed');
+    } finally {
+      setIsPullPushLoading(false);
+    }
+  };
+
+  const handleSetRemote = () => {
+    if (!remoteUrlInput.trim()) return;
+    onSetRemote(remoteUrlInput.trim());
+    setRemoteUrlInput('');
+    setShowRemoteConfig(false);
   };
 
   const getStatusIcon = (status: GitChange['status']) => {
@@ -112,14 +169,66 @@ export const GitPanel = ({
           <span className="text-sm font-medium">Source Control</span>
         </div>
         <div className="flex items-center gap-1">
-          <button className="p-1 rounded hover:bg-accent text-muted-foreground">
-            <RefreshCw className="w-4 h-4" />
+          <button
+            onClick={() => setShowRemoteConfig(!showRemoteConfig)}
+            className={cn(
+              "p-1 rounded hover:bg-accent transition-colors",
+              showRemoteConfig ? "text-primary" : "text-muted-foreground"
+            )}
+            title="Configure remote"
+          >
+            <Link className="w-4 h-4" />
           </button>
           <button className="p-1 rounded hover:bg-accent text-muted-foreground">
             <MoreHorizontal className="w-4 h-4" />
           </button>
         </div>
       </div>
+
+      {/* Remote config */}
+      {showRemoteConfig && (
+        <div className="px-3 py-2 border-b border-border bg-accent/20">
+          {gitState.remote ? (
+            <div className="text-xs text-muted-foreground space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-foreground">Remote:</span>
+                <span className="truncate flex-1">{gitState.remote.url}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-foreground">Branch:</span>
+                <span>{gitState.remote.branch}</span>
+              </div>
+              <button
+                onClick={() => {
+                  setRemoteUrlInput(gitState.remote!.url);
+                  setShowRemoteConfig(true);
+                }}
+                className="text-xs text-primary hover:underline mt-1"
+              >
+                Change remote
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={remoteUrlInput}
+                onChange={(e) => setRemoteUrlInput(e.target.value)}
+                placeholder="https://github.com/owner/repo.git"
+                className="flex-1 px-2 py-1 text-xs bg-background border border-border rounded"
+                onKeyDown={(e) => e.key === 'Enter' && handleSetRemote()}
+              />
+              <button
+                onClick={handleSetRemote}
+                disabled={!remoteUrlInput.trim()}
+                className="p-1 rounded bg-primary text-primary-foreground disabled:opacity-50"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Branch selector */}
       <div className="px-3 py-2 border-b border-border">
@@ -299,7 +408,7 @@ export const GitPanel = ({
                         <p className="text-sm font-medium truncate">{commit.message}</p>
                         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                           <span className="font-mono">{commit.id.slice(0, 7)}</span>
-                          <span>•</span>
+                          <span>&bull;</span>
                           <Clock className="w-3 h-3" />
                           <span>{formatTimeAgo(commit.timestamp)}</span>
                         </div>
@@ -315,13 +424,49 @@ export const GitPanel = ({
 
       {/* Footer actions */}
       <div className="flex items-center gap-2 px-3 py-2 border-t border-border">
-        <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm rounded-md hover:bg-accent transition-colors text-muted-foreground">
-          <Download className="w-4 h-4" />
-          Pull
+        <button
+          onClick={handlePull}
+          disabled={isPullPushLoading || gitState.isPulling || gitState.isPushing}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors",
+            isPullPushLoading
+              ? "bg-muted text-muted-foreground cursor-not-allowed"
+              : "hover:bg-accent text-muted-foreground"
+          )}
+          title={
+            !gitState.remote
+              ? "No remote configured - click to set one up"
+              : "Pull latest changes from remote"
+          }
+        >
+          {isPullPushLoading || gitState.isPulling ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4" />
+          )}
+          {isPullPushLoading || gitState.isPulling ? 'Pulling...' : 'Pull'}
         </button>
-        <button className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm rounded-md hover:bg-accent transition-colors text-muted-foreground">
-          <Upload className="w-4 h-4" />
-          Push
+        <button
+          onClick={handlePush}
+          disabled={isPullPushLoading || gitState.isPushing || gitState.isPulling}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors",
+            isPullPushLoading
+              ? "bg-muted text-muted-foreground cursor-not-allowed"
+              : "hover:bg-accent text-muted-foreground"
+          )}
+          title={
+            !gitState.remote
+              ? "No remote configured - click to set one up"
+              : "Push commits to remote"
+          }
+        >
+          {isPullPushLoading || gitState.isPushing ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Upload className="w-4 h-4" />
+          )}
+          {isPullPushLoading || gitState.isPushing ? 'Pushing...' : 'Push'}
         </button>
       </div>
     </div>

@@ -56,6 +56,9 @@ interface SidebarProps {
   onGitCreateBranch: (name: string) => void;
   onGitSwitchBranch: (name: string) => void;
   onGitInitRepo: () => void;
+  onGitPull: () => Promise<void>;
+  onGitPush: () => Promise<void>;
+  onGitSetRemote: (url: string) => void;
   onUpdateFileContent: (fileId: string, content: string) => void;
   workflows: Workflow[];
   onRunWorkflow: (workflow: Workflow) => void;
@@ -90,6 +93,9 @@ export const Sidebar = ({
   onGitCreateBranch,
   onGitSwitchBranch,
   onGitInitRepo,
+  onGitPull,
+  onGitPush,
+  onGitSetRemote,
   onUpdateFileContent,
   workflows,
   onRunWorkflow,
@@ -594,6 +600,9 @@ export const Sidebar = ({
             onCreateBranch={onGitCreateBranch}
             onSwitchBranch={onGitSwitchBranch}
             onInitRepo={onGitInitRepo}
+            onPull={onGitPull}
+            onPush={onGitPush}
+            onSetRemote={onGitSetRemote}
           />
         )}
 

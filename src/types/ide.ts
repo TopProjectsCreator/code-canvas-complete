@@ -50,11 +50,21 @@ export interface GitChange {
   originalContent?: string;
 }
 
+export interface GitRemote {
+  url: string;
+  owner: string;
+  repo: string;
+  branch: string;
+}
+
 export interface GitState {
   branches: GitBranch[];
   currentBranch: string;
   changes: GitChange[];
   isInitialized: boolean;
+  remote: GitRemote | null;
+  isPulling: boolean;
+  isPushing: boolean;
 }
 
 // Workflow types

@@ -37,6 +37,7 @@ import { ScratchArchive, importScratchArchive } from "@/services/scratchSb3";
 import { createDataProvider } from "@/integrations/data/provider";
 import { buildProjectShareUrl } from "@/lib/publishing";
 import { useGitProviderImport } from "@/hooks/useGitProviderImport";
+import { useGitOperations } from "@/hooks/useGitOperations";
 import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
 import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/collabSyncEngine";
 import { useOfflineProject } from "@/hooks/useOfflineProject";
@@ -70,6 +71,9 @@ const initialGitState: GitState = {
   currentBranch: "main",
   changes: [],
   isInitialized: false,
+  remote: null,
+  isPulling: false,
+  isPushing: false,
 };
 
 // Get default workflows based on template
@@ -323,6 +327,14 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const { executeCode, executeShellCommand, resetReplitShell } = useCodeExecution();
   const collab = useCollaboration(currentProject?.id);
   const { importRepository: gitProviderImport } = useGitProviderImport();
+  const {
+    commit: gitCommit, pull: gitPull, push: gitPush,
+    initRepo: gitInitRepoOp, createBranch: gitCreateBranchOp,
+    switchBranch: gitSwitchBranchOp, setRemoteUrl: gitSetRemoteUrl,
+    parseRemoteUrl, buildGitState,
+    operation: gitOperation, operationError: gitOperationError,
+    clearError: gitClearError,
+  } = useGitOperations();
   const { saveLocally, isOfflineCapable: checkOffline } = useOfflineProject();
   const offlineSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -763,6 +775,26 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     };
     checkNewFiles(files);
 
+    // Check for deleted files
+    const currentFileIds = new Set<string>();
+    const collectIds = (nodes: FileNode[]) => {
+      nodes.forEach((node) => {
+        if (node.type === "file") currentFileIds.add(node.id);
+        if (node.children) collectIds(node.children);
+      });
+    };
+    collectIds(files);
+    Object.entries(originalFileContents).forEach(([fileId, content]) => {
+      if (!currentFileIds.has(fileId) && !changes.find((c) => c.fileId === fileId)) {
+        changes.push({
+          fileId,
+          fileName: fileId.split("/").pop() || fileId,
+          status: "deleted",
+          originalContent: content,
+        });
+      }
+    });
+
     setGitState((prev) => ({ ...prev, changes }));
   }, [fileContents, files, originalFileContents, gitState.isInitialized]);
 
@@ -805,6 +837,9 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       currentBranch: "main",
       branches: [{ name: "main", isActive: true, commits: [initialCommit] }],
       changes: [],
+      remote: null,
+      isPulling: false,
+      isPushing: false,
     });
 
     setTerminalHistory((prev) => [
@@ -819,18 +854,24 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   }, [files, fileContents]);
 
   const handleGitCommit = useCallback(
-    (message: string) => {
+    async (message: string) => {
       if (gitState.changes.length === 0) return;
+
+      try {
+        await gitCommit(message, files, fileContents, gitState.remote);
+      } catch (err) {
+        toast({ title: "Commit failed", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+        throw err;
+      }
 
       const commit: GitCommit = {
         id: generateId(),
         message,
         timestamp: new Date(),
-        author: "You",
+        author: gitState.remote?.owner || "You",
         files: gitState.changes.map((c) => c.fileName),
       };
 
-      // Update original contents to current
       const newOriginals = { ...originalFileContents };
       gitState.changes.forEach((change) => {
         if (change.status !== "deleted") {
@@ -862,7 +903,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       addHistoryEntry("git-commit", `Committed: "${message}"`, `${gitState.changes.length} file(s)`);
     },
-    [gitState.changes, files, fileContents, originalFileContents, addHistoryEntry],
+    [gitState.changes, gitState.remote, files, fileContents, originalFileContents, addHistoryEntry, gitCommit],
   );
 
   const handleGitStageFile = useCallback((_fileId: string) => {
@@ -931,6 +972,51 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       },
     ]);
   }, []);
+
+  // Git remote handlers
+  const handleGitPull = useCallback(async () => {
+    const remote = gitState.remote;
+    if (!remote) throw new Error('No remote configured');
+    setGitState(prev => ({ ...prev, isPulling: true }));
+    try {
+      const { state, updatedFiles } = await gitPull(remote.url, remote.branch, files, fileContents, remote);
+      setFileContents(prev => ({ ...prev, ...updatedFiles }));
+      setGitState(state);
+      setOriginalFileContents(prev => ({ ...prev, ...updatedFiles }));
+      addHistoryEntry('git-commit', 'Pulled from remote');
+    } catch (err) {
+      setGitState(prev => ({ ...prev, isPulling: false }));
+      throw err;
+    }
+  }, [gitState.remote, files, fileContents, gitPull, addHistoryEntry]);
+
+  const handleGitPush = useCallback(async () => {
+    const remote = gitState.remote;
+    if (!remote) throw new Error('No remote configured');
+    setGitState(prev => ({ ...prev, isPushing: true }));
+    try {
+      const state = await gitPush(remote.url, remote.branch, files, fileContents, remote);
+      setGitState(state);
+      addHistoryEntry('git-commit', 'Pushed to remote');
+    } catch (err) {
+      setGitState(prev => ({ ...prev, isPushing: false }));
+      throw err;
+    }
+  }, [gitState.remote, files, fileContents, gitPush, addHistoryEntry]);
+
+  const handleGitSetRemote = useCallback((url: string) => {
+    const remote = parseRemoteUrl(url);
+    gitSetRemoteUrl(url).catch((err) => {
+      toast({ title: "Failed to save remote", description: err instanceof Error ? err.message : "Unknown error", variant: "destructive" });
+    });
+    setGitState(prev => ({ ...prev, remote }));
+    setTerminalHistory(prev => [...prev, {
+      id: generateId(),
+      type: 'info',
+      content: `🔗 Configured remote: ${url}`,
+      timestamp: new Date(),
+    }]);
+  }, [parseRemoteUrl, gitSetRemoteUrl, toast]);
 
   // Workflow handlers
   const handleRunWorkflow = useCallback(
@@ -2308,9 +2394,18 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
   // Handle Git import
   const handleGitImport = useCallback(
-    (importedFiles: FileNode[], repoName: string) => {
+    (importedFiles: FileNode[], repoUrl: string) => {
       setFiles(importedFiles);
       setSelectedTemplate("javascript"); // Default template for imported repos
+
+      // Extract display name from URL
+      const displayName = repoUrl.includes('/') ? repoUrl.split('/').filter(Boolean).pop()?.replace(/\.git$/, '') || repoUrl : repoUrl;
+
+      // Initialize git repo and detect remote from URL
+      gitInitRepoOp('main').then(newState => {
+        const remote = parseRemoteUrl(repoUrl);
+        setGitState({ ...newState, remote: remote.owner ? remote : null });
+      }).catch(() => {});
       setFileContents({});
       setOpenTabs([]);
       setActiveTabId(null);
@@ -2330,7 +2425,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       toast({
         title: "Repository imported",
-        description: `Successfully imported "${repoName}"`,
+        description: `Successfully imported "${displayName}"`,
       });
 
       setTerminalHistory((prev) => [
@@ -2338,12 +2433,12 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         {
           id: generateId(),
           type: "info",
-          content: `📦 Imported GitHub repository: ${repoName}`,
+          content: `📦 Imported repository: ${displayName}`,
           timestamp: new Date(),
         },
       ]);
     },
-    [toast],
+    [toast, gitInitRepoOp, parseRemoteUrl],
   );
 
   // Handle rename project
@@ -2523,6 +2618,9 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                 onGitCreateBranch={handleGitCreateBranch}
                 onGitSwitchBranch={handleGitSwitchBranch}
                 onGitInitRepo={handleGitInitRepo}
+                onGitPull={handleGitPull}
+                onGitPush={handleGitPush}
+                onGitSetRemote={handleGitSetRemote}
                 onUpdateFileContent={handleContentChange}
                 workflows={workflows}
                 onRunWorkflow={handleRunWorkflow}
@@ -2578,6 +2676,9 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
               onGitCreateBranch={handleGitCreateBranch}
               onGitSwitchBranch={handleGitSwitchBranch}
               onGitInitRepo={handleGitInitRepo}
+              onGitPull={handleGitPull}
+              onGitPush={handleGitPush}
+              onGitSetRemote={handleGitSetRemote}
               onUpdateFileContent={handleContentChange}
               workflows={workflows}
               onRunWorkflow={handleRunWorkflow}
