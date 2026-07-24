@@ -28,6 +28,7 @@ import { AnimatedCounter } from "@/components/landing/AnimatedCounter";
 import BubbleField from "@/components/landing/BubbleField";
 import { CodeCanvasLogo } from "@/components/brand/CodeCanvasLogo";
 import { useLandingStats } from "@/hooks/useLandingStats";
+import { AuthDialog } from "@/components/auth/AuthDialog";
 
 const missionBlocks = [
   {
