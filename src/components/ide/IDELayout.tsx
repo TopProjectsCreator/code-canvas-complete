@@ -1803,7 +1803,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       setTerminalHistory((prev) => [...prev, {
           id: generateId(),
-          type: result.error ? "error" : "output",
+          type: (result.error ? "error" : "output") as const,
           content: result.error
             ? `❌ Failed to install "${packageName}": ${result.error}`
             : `✅ Package "${packageName}" installed successfully`,
