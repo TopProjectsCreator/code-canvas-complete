@@ -231,5 +231,5 @@ export async function getStatusMatrix(): Promise<Array<[string, number, number, 
 }
 
 export async function flush() {
-  await fs.flush()
+  // LightningFS auto-persists via IndexedDB; no-op flush retained for API compatibility.
 }
