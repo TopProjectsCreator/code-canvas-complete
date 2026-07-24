@@ -14,11 +14,15 @@ import {
   Clock,
   Link,
   Loader2,
+  AlertTriangle,
+  CheckCircle2,
+  RotateCcw,
+  X,
 } from 'lucide-react';
 import { GitState, GitChange } from '@/types/ide';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { toast } from 'sonner';
+import { useGitStatus } from '@/hooks/useGitOperations';
 
 interface GitPanelProps {
   gitState: GitState;
