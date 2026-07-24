@@ -187,6 +187,11 @@ export const GitPanel = ({
         </div>
       </div>
 
+      {/* Git operation status */}
+      <GitStatusBanner status={gitStatus} />
+
+
+
       {/* Remote config */}
       {showRemoteConfig && (
         <div className="px-3 py-2 border-b border-border bg-accent/20">
