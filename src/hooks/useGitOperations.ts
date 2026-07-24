@@ -11,7 +11,7 @@ export function useGitOperations() {
   const { user } = useAuth()
   const [operation, setOperation] = useState<GitOperation>('idle')
   const [operationError, setOperationError] = useState<string | null>(null)
-  const [operationProgress, setOperationProgress] = useState<string>('')
+  const [operationProgress] = useState<string>('')
   const initializedRef = useRef(false)
 
   const getAuth = useCallback(async (): Promise<{ username: string; password: string } | null> => {
