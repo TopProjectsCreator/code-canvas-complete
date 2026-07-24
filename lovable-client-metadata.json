@@ -1,0 +1,9 @@
+{
+  "client_name": "OpenClaw",
+  "client_uri": "https://openclaw-main-production-c690.up.railway.app",
+  "redirect_uris": ["http://127.0.0.1:8989/oauth/callback"],
+  "token_endpoint_auth_method": "none",
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "scope": "offline projects:read projects:write projects:create workspaces:read workspaces:write"
+}
