@@ -28,6 +28,7 @@ import { AnimatedCounter } from "@/components/landing/AnimatedCounter";
 import BubbleField from "@/components/landing/BubbleField";
 import { CodeCanvasLogo } from "@/components/brand/CodeCanvasLogo";
 import { useLandingStats } from "@/hooks/useLandingStats";
+import { AuthDialog } from "@/components/auth/AuthDialog";
 
 const missionBlocks = [
   {
@@ -103,6 +104,7 @@ const floatingBadges = ["Realtime AI Pairing", "All in one IDE", "Live Team Pres
 export default function Landing() {
   const navigate = useNavigate();
   const { stats } = useLandingStats();
+  const [authOpen, setAuthOpen] = useState(false);
 
   const agentsLabel = stats.activeAgents > 0 ? "AI Agents Live" : "Total Prompts";
   const agentsValue = stats.activeAgents > 0
@@ -216,7 +218,7 @@ export default function Landing() {
           <CodeCanvasLogo />
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => navigate("/compare")}>Compare</Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/editor")}>Sign In</Button>
+            <Button variant="ghost" size="sm" onClick={() => setAuthOpen(true)}>Sign In</Button>
             <Button size="sm" onClick={() => navigate("/editor")} className="gap-1.5 shadow-lg shadow-primary/30">
               Enter Grid <ArrowRight className="h-3.5 w-3.5" />
             </Button>
@@ -661,6 +663,7 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </div>
   );
 }

@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { ArrowLeft, MessagesSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Seo } from '@/components/Seo';
+import { AuthDialog } from '@/components/auth/AuthDialog';
 
 export default function ThreadsLayout() {
   const { user, profile } = useAuth();
+  const [authOpen, setAuthOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
@@ -34,8 +37,8 @@ export default function ThreadsLayout() {
                 </Avatar>
               </Link>
             ) : (
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/landing">Sign in</Link>
+              <Button variant="outline" size="sm" onClick={() => setAuthOpen(true)}>
+                Sign in
               </Button>
             )}
           </div>
@@ -44,6 +47,7 @@ export default function ThreadsLayout() {
       <main className="max-w-4xl mx-auto px-4 py-6">
         <Outlet />
       </main>
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </div>
   );
 }
