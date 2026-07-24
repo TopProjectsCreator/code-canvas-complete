@@ -60,6 +60,7 @@ export const GitPanel = ({
   const [showRemoteConfig, setShowRemoteConfig] = useState(false);
   const [remoteUrlInput, setRemoteUrlInput] = useState('');
   const [isPullPushLoading, setIsPullPushLoading] = useState(false);
+  const gitStatus = useGitStatus();
 
   const currentBranch = gitState.branches.find(b => b.name === gitState.currentBranch);
 
