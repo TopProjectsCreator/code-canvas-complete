@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import * as gitService from '@/services/gitService'
 import type { GitState, GitRemote, GitBranch, GitChange, FileNode } from '@/types/ide'
@@ -7,11 +8,77 @@ const CORS_PROXY = 'https://cors.isomorphic-git.org'
 
 type GitOperation = 'idle' | 'initializing' | 'pulling' | 'pushing' | 'committing' | 'branching'
 
+export interface GitProgress {
+  stage: string
+  loaded: number
+  total: number
+}
+
+export interface GitLastResult {
+  label: string
+  status: 'success' | 'error'
+  message: string
+  at: number
+}
+
+interface GitStatusState {
+  operation: GitOperation
+  operationLabel: string | null
+  error: string | null
+  progress: GitProgress | null
+  lastResult: GitLastResult | null
+  lastFailed: { label: string; retry: () => Promise<unknown> } | null
+}
+
+// Module-level shared status store so both IDELayout and GitPanel see the same state.
+const initialStatus: GitStatusState = {
+  operation: 'idle',
+  operationLabel: null,
+  error: null,
+  progress: null,
+  lastResult: null,
+  lastFailed: null,
+}
+let sharedStatus: GitStatusState = initialStatus
+const statusListeners = new Set<(s: GitStatusState) => void>()
+
+function setStatus(patch: Partial<GitStatusState>) {
+  sharedStatus = { ...sharedStatus, ...patch }
+  statusListeners.forEach((l) => l(sharedStatus))
+}
+
+export function useGitStatus() {
+  const [snapshot, setSnapshot] = useState<GitStatusState>(sharedStatus)
+  useEffect(() => {
+    const fn = (s: GitStatusState) => setSnapshot(s)
+    statusListeners.add(fn)
+    // Sync in case status changed between render and effect.
+    setSnapshot(sharedStatus)
+    return () => {
+      statusListeners.delete(fn)
+    }
+  }, [])
+  return {
+    ...snapshot,
+    clearError: useCallback(() => setStatus({ error: null, lastFailed: null }), []),
+    dismissLastResult: useCallback(() => setStatus({ lastResult: null }), []),
+    retry: useCallback(async () => {
+      const lf = sharedStatus.lastFailed
+      if (!lf) return
+      try {
+        await lf.retry()
+      } catch {
+        // Errors are already surfaced via the hook's wrapper.
+      }
+    }, []),
+  }
+}
+
 export function useGitOperations() {
   const { user } = useAuth()
   const [operation, setOperation] = useState<GitOperation>('idle')
   const [operationError, setOperationError] = useState<string | null>(null)
-  const [operationProgress] = useState<string>('')
+  const [operationProgress, setOperationProgress] = useState<string>('')
   const initializedRef = useRef(false)
 
   const getAuth = useCallback(async (): Promise<{ username: string; password: string } | null> => {
@@ -70,22 +137,60 @@ export function useGitOperations() {
     return { branches, currentBranch, changes, isInitialized: true, remote, isPulling: false, isPushing: false }
   }, [ensureInit])
 
-  const initRepo = useCallback(async (defaultBranch: string = 'main'): Promise<GitState> => {
-    setOperation('initializing')
+  // Central runner that publishes status + toasts + tracks retry.
+  const run = useCallback(async <T,>(
+    op: Exclude<GitOperation, 'idle'>,
+    label: string,
+    fn: () => Promise<T>,
+    retryFactory: () => () => Promise<T>,
+  ): Promise<T> => {
+    setOperation(op)
     setOperationError(null)
+    setOperationProgress('')
+    setStatus({
+      operation: op,
+      operationLabel: label,
+      error: null,
+      progress: null,
+    })
     try {
-      await gitService.initRepo(defaultBranch)
-      initializedRef.current = true
-      const branches: GitBranch[] = [{ name: defaultBranch, isActive: true, commits: [] }]
-      return { branches, currentBranch: defaultBranch, changes: [], isInitialized: true, remote: null, isPulling: false, isPushing: false }
+      const result = await fn()
+      setStatus({
+        operation: 'idle',
+        operationLabel: null,
+        progress: null,
+        error: null,
+        lastFailed: null,
+        lastResult: { label, status: 'success', message: `${label} completed`, at: Date.now() },
+      })
+      toast.success(`${label} completed`)
+      return result
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to initialize repository'
+      const msg = err instanceof Error ? err.message : `Failed to ${label.toLowerCase()}`
       setOperationError(msg)
+      setStatus({
+        operation: 'idle',
+        operationLabel: null,
+        progress: null,
+        error: msg,
+        lastFailed: { label, retry: retryFactory() },
+        lastResult: { label, status: 'error', message: msg, at: Date.now() },
+      })
+      toast.error(`${label} failed: ${msg}`)
       throw err
     } finally {
       setOperation('idle')
     }
   }, [])
+
+  const initRepo = useCallback(async (defaultBranch: string = 'main'): Promise<GitState> => {
+    return run('initializing', 'Initialize repository', async () => {
+      await gitService.initRepo(defaultBranch)
+      initializedRef.current = true
+      const branches: GitBranch[] = [{ name: defaultBranch, isActive: true, commits: [] }]
+      return { branches, currentBranch: defaultBranch, changes: [], isInitialized: true, remote: null, isPulling: false, isPushing: false }
+    }, () => () => initRepo(defaultBranch))
+  }, [run])
 
   const commit = useCallback(async (
     message: string,
@@ -93,23 +198,15 @@ export function useGitOperations() {
     fileContents: Record<string, string>,
     remote: GitRemote | null,
   ): Promise<GitState> => {
-    setOperation('committing')
-    setOperationError(null)
-    try {
+    return run('committing', 'Commit', async () => {
       await ensureInit()
       const flatFiles = flattenFiles(files, fileContents)
       await gitService.writeFiles(flatFiles)
       await gitService.stageAll()
       await gitService.createCommit(message, { name: user?.email ?? 'User', email: user?.email ?? 'user@example.com' })
       return await buildGitState(files, fileContents, remote)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to commit'
-      setOperationError(msg)
-      throw err
-    } finally {
-      setOperation('idle')
-    }
-  }, [ensureInit, buildGitState, user])
+    }, () => () => commit(message, files, fileContents, remote))
+  }, [run, ensureInit, buildGitState, user])
 
   const pull = useCallback(async (
     url: string,
@@ -119,9 +216,7 @@ export function useGitOperations() {
     remote: GitRemote | null,
     onProgress?: (stage: string, progress: number, total: number) => void,
   ): Promise<{ state: GitState; updatedFiles: Record<string, string> }> => {
-    setOperation('pulling')
-    setOperationError(null)
-    try {
+    return run('pulling', 'Pull', async () => {
       await ensureInit()
       const flatFiles = flattenFiles(files, fileContents)
       await gitService.writeFiles(flatFiles)
@@ -129,7 +224,11 @@ export function useGitOperations() {
       await gitService.createCommit('WIP: auto-save before pull', { name: user?.email ?? 'User', email: user?.email ?? 'user@example.com' }).catch(() => {})
 
       const auth = await getAuth()
-      await gitService.pullFromRemote(url, branch, auth, CORS_PROXY, onProgress)
+      await gitService.pullFromRemote(url, branch, auth, CORS_PROXY, (stage, loaded, total) => {
+        setStatus({ progress: { stage, loaded, total } })
+        setOperationProgress(stage)
+        onProgress?.(stage, loaded, total)
+      })
 
       const pulled = await gitService.readFiles()
       const updatedFiles: Record<string, string> = {}
@@ -139,14 +238,8 @@ export function useGitOperations() {
       const mergedFileContents = { ...fileContents, ...updatedFiles }
       const newState = await buildGitState(files, mergedFileContents, remote)
       return { state: { ...newState, isPulling: false }, updatedFiles }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to pull'
-      setOperationError(msg)
-      throw err
-    } finally {
-      setOperation('idle')
-    }
-  }, [ensureInit, buildGitState, getAuth, user])
+    }, () => () => pull(url, branch, files, fileContents, remote, onProgress))
+  }, [run, ensureInit, buildGitState, getAuth, user])
 
   const push = useCallback(async (
     url: string,
@@ -157,9 +250,7 @@ export function useGitOperations() {
     onProgress?: (stage: string, progress: number, total: number) => void,
     onMessage?: (msg: string) => void,
   ): Promise<GitState> => {
-    setOperation('pushing')
-    setOperationError(null)
-    try {
+    return run('pushing', 'Push', async () => {
       await ensureInit()
       const flatFiles = flattenFiles(files, fileContents)
       await gitService.writeFiles(flatFiles)
@@ -167,19 +258,17 @@ export function useGitOperations() {
       await gitService.createCommit('WIP: auto-save before push', { name: user?.email ?? 'User', email: user?.email ?? 'user@example.com' }).catch(() => {})
 
       const auth = await getAuth()
-      const ok = await gitService.pushToRemote(url, branch, auth, CORS_PROXY, onProgress, onMessage)
+      const ok = await gitService.pushToRemote(url, branch, auth, CORS_PROXY, (stage, loaded, total) => {
+        setStatus({ progress: { stage, loaded, total } })
+        setOperationProgress(stage)
+        onProgress?.(stage, loaded, total)
+      }, onMessage)
       if (!ok) {
         throw new Error('Push failed. Check that you have write access and the remote URL is correct.')
       }
       return await buildGitState(files, fileContents, remote)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to push'
-      setOperationError(msg)
-      throw err
-    } finally {
-      setOperation('idle')
-    }
-  }, [ensureInit, buildGitState, getAuth, user])
+    }, () => () => push(url, branch, files, fileContents, remote, onProgress, onMessage))
+  }, [run, ensureInit, buildGitState, getAuth, user])
 
   const createBranch = useCallback(async (
     name: string,
@@ -187,20 +276,12 @@ export function useGitOperations() {
     fileContents: Record<string, string>,
     remote: GitRemote | null,
   ): Promise<GitState> => {
-    setOperation('branching')
-    setOperationError(null)
-    try {
+    return run('branching', `Create branch ${name}`, async () => {
       await ensureInit()
       await gitService.createBranch(name, true)
       return await buildGitState(files, fileContents, remote)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to create branch'
-      setOperationError(msg)
-      throw err
-    } finally {
-      setOperation('idle')
-    }
-  }, [ensureInit, buildGitState])
+    }, () => () => createBranch(name, files, fileContents, remote))
+  }, [run, ensureInit, buildGitState])
 
   const switchBranch = useCallback(async (
     name: string,
@@ -208,20 +289,12 @@ export function useGitOperations() {
     fileContents: Record<string, string>,
     remote: GitRemote | null,
   ): Promise<GitState> => {
-    setOperation('branching')
-    setOperationError(null)
-    try {
+    return run('branching', `Switch to ${name}`, async () => {
       await ensureInit()
       await gitService.checkoutBranch(name)
       return await buildGitState(files, fileContents, remote)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to switch branch'
-      setOperationError(msg)
-      throw err
-    } finally {
-      setOperation('idle')
-    }
-  }, [ensureInit, buildGitState])
+    }, () => () => switchBranch(name, files, fileContents, remote))
+  }, [run, ensureInit, buildGitState])
 
   const setRemoteUrl = useCallback(async (url: string): Promise<void> => {
     await ensureInit()
@@ -272,7 +345,10 @@ export function useGitOperations() {
     operation,
     operationError,
     operationProgress,
-    clearError: () => setOperationError(null),
+    clearError: () => {
+      setOperationError(null)
+      setStatus({ error: null, lastFailed: null })
+    },
   }
 }
 
@@ -320,7 +396,6 @@ function detectChanges(
   }
   walk(nodes)
 
-  // Detect deleted files
   if (originalFileContents) {
     for (const [fileId, content] of Object.entries(originalFileContents)) {
       if (!currentFileIds.has(fileId)) {
