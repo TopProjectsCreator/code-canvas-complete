@@ -505,3 +505,30 @@ export default function GlobalWhiteboard() {
     </div>
   );
 }
+
+// Isolate Excalidraw from parent re-renders. Presence updates (setPeers) re-render
+// GlobalWhiteboard on every realtime sync; without memoization, Excalidraw sees
+// new callback identities each render and cascades into React error #185.
+interface MemoExcalidrawProps {
+  initial: Scene;
+  onChange: (elements: readonly any[], appState: any, files: Record<string, any>) => void;
+  onApi: (api: any) => void;
+  viewMode: boolean;
+}
+const MemoExcalidraw = memo(
+  function MemoExcalidraw({ initial, onChange, onApi, viewMode }: MemoExcalidrawProps) {
+    return (
+      <Excalidraw
+        initialData={initial}
+        onChange={onChange}
+        excalidrawAPI={onApi}
+        viewModeEnabled={viewMode}
+      />
+    );
+  },
+  (prev, next) =>
+    prev.initial === next.initial &&
+    prev.onChange === next.onChange &&
+    prev.onApi === next.onApi &&
+    prev.viewMode === next.viewMode,
+);
