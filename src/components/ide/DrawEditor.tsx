@@ -16,7 +16,7 @@ export function DrawEditor({ file, onContentChange }: DrawEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [elements, setElements] = useState<any[]>([]);
+  const [elementCount, setElementCount] = useState(0);
 
   const initialData = useMemo(() => {
     if (file.content) {
