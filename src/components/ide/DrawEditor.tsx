@@ -16,7 +16,7 @@ export function DrawEditor({ file, onContentChange }: DrawEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [elements, setElements] = useState<any[]>([]);
+  const [elementCount, setElementCount] = useState(0);
 
   const initialData = useMemo(() => {
     if (file.content) {
@@ -29,9 +29,13 @@ export function DrawEditor({ file, onContentChange }: DrawEditorProps) {
     return { elements: [], appState: { viewBackgroundColor: "#ffffff" } };
   }, [file.id]);
 
+  const lastCountRef = useRef(0);
   const onChange = useCallback(
     (elements: readonly any[], appState: any, files: any) => {
-      setElements([...elements]);
+      if (elements.length !== lastCountRef.current) {
+        lastCountRef.current = elements.length;
+        setElementCount(elements.length);
+      }
       setIsDirty(true);
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       debounceTimer.current = setTimeout(() => {
@@ -118,7 +122,7 @@ export function DrawEditor({ file, onContentChange }: DrawEditorProps) {
       </div>
       <div className="flex items-center gap-2 px-3 py-1 bg-background border-t border-border shrink-0">
         <Layers className="w-3 h-3 text-muted-foreground" />
-        <span className="text-xs text-muted-foreground">{elements.length}</span>
+        <span className="text-xs text-muted-foreground">{elementCount}</span>
       </div>
     </div>
   );

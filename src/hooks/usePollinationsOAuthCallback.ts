@@ -31,7 +31,7 @@ export function usePollinationsOAuthCallback(saveApiKey: (provider: AIProvider, 
       return;
     }
 
-    if (!verifier) {
+    if (!verifier || !code) {
       toast({ title: 'Pollinations connection failed', description: 'OAuth session expired. Please try connecting again.', variant: 'destructive' });
       return;
     }
