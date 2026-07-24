@@ -2402,7 +2402,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       // Initialize git repo and detect remote from URL
       gitInitRepoOp('main').then(newState => {
         const remote = parseRemoteUrl(repoUrl);
-        setGitState({ ...newState, remote: remote.owner ? remote : null });
+        setGitState({ ...newState, remote: remote && remote.owner ? remote : null });
       }).catch(() => {});
       setFileContents({});
       setOpenTabs([]);
