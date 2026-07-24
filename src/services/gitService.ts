@@ -185,7 +185,7 @@ export async function listBranches(): Promise<string[]> {
 
 export async function listRemoteBranches(remoteUrl: string, corsProxy: string = 'https://cors.isomorphic-git.org'): Promise<string[]> {
   try {
-    const info = await git.getRemoteInfo({ fs: fs.promises, http, url: remoteUrl, corsProxy })
+    const info = await git.getRemoteInfo({ http, url: remoteUrl, corsProxy })
     return Object.keys(info.refs?.heads ?? {})
   } catch {
     return []
