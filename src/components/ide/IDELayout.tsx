@@ -261,13 +261,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const [terminalHistory, setTerminalHistory] = useState<TerminalLine[]>([
     {
       id: "1",
-      type: "info",
+      type: "info" as const,
       content: '🚀 Welcome to Canvas Shell! Type "help" for available commands.',
       timestamp: new Date(),
     },
     {
       id: "2",
-      type: "output",
+      type: "output" as const,
       content: "Click Run to execute your code, or type commands below.",
       timestamp: new Date(),
     },
@@ -329,12 +329,10 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const { importRepository: gitProviderImport } = useGitProviderImport();
   const {
     commit: gitCommit, pull: gitPull, push: gitPush,
-    initRepo: gitInitRepoOp, createBranch: gitCreateBranchOp,
-    switchBranch: gitSwitchBranchOp, setRemoteUrl: gitSetRemoteUrl,
-    parseRemoteUrl, buildGitState,
-    operation: gitOperation, operationError: gitOperationError,
-    clearError: gitClearError,
+    initRepo: gitInitRepoOp, setRemoteUrl: gitSetRemoteUrl,
+    parseRemoteUrl,
   } = useGitOperations();
+
   const { saveLocally, isOfflineCapable: checkOffline } = useOfflineProject();
   const offlineSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -846,7 +844,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       ...prev,
       {
         id: generateId(),
-        type: "info",
+        type: "info" as const,
         content: "📦 Initialized Git repository with initial commit",
         timestamp: new Date(),
       },
@@ -895,7 +893,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         ...prev,
         {
           id: generateId(),
-          type: "info",
+          type: "info" as const,
           content: `✓ Committed: "${message}" (${gitState.changes.length} file${gitState.changes.length !== 1 ? "s" : ""})`,
           timestamp: new Date(),
         },
@@ -946,7 +944,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         ...prev,
         {
           id: generateId(),
-          type: "info",
+          type: "info" as const,
           content: `🌿 Created and switched to branch: ${name}`,
           timestamp: new Date(),
         },
@@ -966,7 +964,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       ...prev,
       {
         id: generateId(),
-        type: "info",
+        type: "info" as const,
         content: `🔀 Switched to branch: ${name}`,
         timestamp: new Date(),
       },
@@ -1027,13 +1025,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         ...prev,
         {
           id: generateId(),
-          type: "info",
+          type: "info" as const,
           content: `⚡ Running workflow: ${workflow.name}`,
           timestamp: new Date(),
         },
         {
           id: generateId(),
-          type: "input",
+          type: "input" as const,
           content: `$ ${workflow.command}`,
           timestamp: new Date(),
         },
@@ -1099,7 +1097,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       ...prev,
       {
         id: generateId(),
-        type: "info",
+        type: "info" as const,
         content: `✨ Created workflow: ${workflow.name}`,
         timestamp: new Date(),
       },
@@ -1120,7 +1118,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           ...prev,
           {
             id: generateId(),
-            type: "info",
+            type: "info" as const,
             content: `🗑️ Deleted workflow: ${workflow.name}`,
             timestamp: new Date(),
           },
@@ -1188,7 +1186,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       ...prev,
       {
         id: generateId(),
-        type: "info",
+        type: "info" as const,
         content: "⏹ Stopped.",
         timestamp: new Date(),
       },
@@ -1441,14 +1439,14 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       );
       setTerminalHistory((prev) => [
         ...prev,
-        { id: generateId(), type: "info", content: `📦 Imported Scratch project: ${file.name}`, timestamp: new Date() },
+        { id: generateId(), type: "info" as const, content: `📦 Imported Scratch project: ${file.name}`, timestamp: new Date() },
       ]);
     } catch (error) {
       setTerminalHistory((prev) => [
         ...prev,
         {
           id: generateId(),
-          type: "error",
+          type: "error" as const,
           content: `❌ Failed to import Scratch project (.sb/.sb2/.sb3): ${error instanceof Error ? error.message : 'unknown error'}`,
           timestamp: new Date(),
         },
@@ -1695,7 +1693,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       const inputLine: TerminalLine = {
         id: generateId(),
-        type: "input",
+        type: "input" as const,
         content: command,
         timestamp: new Date(),
       };
@@ -1712,13 +1710,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         setIsRunning(true);
         outputLines.push({
           id: generateId(),
-          type: "info",
+          type: "info" as const,
           content: "🚀 Starting development server...",
           timestamp: new Date(),
         });
         outputLines.push({
           id: generateId(),
-          type: "output",
+          type: "output" as const,
           content: "Server started at https://my-canvas.codecanvas.app",
           timestamp: new Date(),
         });
@@ -1787,7 +1785,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         });
         setTerminalHistory((prev) => [...prev, {
             id: generateId(),
-            type: "error",
+            type: "error" as const,
             content: `❌ Cannot install "${packageName}": unsupported project type.`,
             timestamp: new Date(),
           }].slice(-TERMINAL_HISTORY_CAP));
@@ -1796,7 +1794,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       setTerminalHistory((prev) => [...prev, {
           id: generateId(),
-          type: "info",
+          type: "info" as const,
           content: `📦 Installing ${packageName}...`,
           timestamp: new Date(),
         }].slice(-TERMINAL_HISTORY_CAP));
@@ -1805,7 +1803,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       setTerminalHistory((prev) => [...prev, {
           id: generateId(),
-          type: result.error ? "error" : "output",
+          type: (result.error ? "error" : "output") as "error" | "output",
           content: result.error
             ? `❌ Failed to install "${packageName}": ${result.error}`
             : `✅ Package "${packageName}" installed successfully`,
@@ -1924,8 +1922,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       setIsRunning(true);
       setTerminalHistory((prev) => [
         ...prev,
-        { id: generateId(), type: "info", content: "🚀 Starting React app...", timestamp: new Date() },
-        { id: generateId(), type: "output", content: "⚛️ React app rendered in preview", timestamp: new Date() },
+        { id: generateId(), type: "info" as const, content: "🚀 Starting React app...", timestamp: new Date() },
+        { id: generateId(), type: "output" as const, content: "⚛️ React app rendered in preview", timestamp: new Date() },
       ]);
       return;
     }
@@ -1936,7 +1934,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         ...prev,
         {
           id: generateId(),
-          type: "info",
+          type: "info" as const,
           content: "🏁 Scratch green flag started in workspace preview.",
           timestamp: new Date(),
         },
@@ -1950,7 +1948,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         ...prev,
         {
           id: generateId(),
-          type: "info",
+          type: "info" as const,
           content:
             '🔧 Ready to go! Use "Upload to Board" to flash your Arduino, or try the simulator to test your circuit virtually.',
           timestamp: new Date(),
@@ -1988,7 +1986,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         ...prev,
         {
           id: generateId(),
-          type: "error",
+          type: "error" as const,
           content: "No file to run. Open a file or create one first.",
           timestamp: new Date(),
         },
@@ -2043,13 +2041,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         ...prev,
         {
           id: generateId(),
-          type: "info",
+          type: "info" as const,
           content: `🚀 Running ${fileToRun!.name}...`,
           timestamp: new Date(),
         },
         {
           id: generateId(),
-          type: "info",
+          type: "info" as const,
           content: `📝 This program needs input. Enter values below:`,
           timestamp: new Date(),
         },
@@ -2062,7 +2060,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     // Add running message
     setTerminalHistory((prev) => [...prev, {
         id: generateId(),
-        type: "info",
+        type: "info" as const,
         content: `🚀 Running ${fileToRun!.name}...`,
         timestamp: new Date(),
       }].slice(-TERMINAL_HISTORY_CAP));
@@ -2074,7 +2072,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     if (result.error) {
       setTerminalHistory((prev) => [...prev, {
           id: generateId(),
-          type: "error",
+          type: "error" as const,
           content: result.error!,
           timestamp: new Date(),
         }].slice(-TERMINAL_HISTORY_CAP));
@@ -2091,7 +2089,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     // Add completion message
     setTerminalHistory((prev) => [...prev, {
         id: generateId(),
-        type: "info",
+        type: "info" as const,
         content: `✅ Finished running ${fileToRun!.name}`,
         timestamp: new Date(),
       }].slice(-TERMINAL_HISTORY_CAP));
@@ -2115,7 +2113,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       if (result.error) {
         setTerminalHistory((prev) => [
           ...prev,
-          { id: generateId(), type: "error", content: result.error!, timestamp: new Date() },
+          { id: generateId(), type: "error" as const, content: result.error!, timestamp: new Date() },
         ]);
       } else if (result.output.length > 0) {
         const outputLines: TerminalLine[] = result.output.map((line) => ({
@@ -2129,7 +2127,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       setTerminalHistory((prev) => [
         ...prev,
-        { id: generateId(), type: "info", content: `✅ Finished`, timestamp: new Date() },
+        { id: generateId(), type: "info" as const, content: `✅ Finished`, timestamp: new Date() },
       ]);
       setIsRunning(false);
     },
@@ -2404,7 +2402,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       // Initialize git repo and detect remote from URL
       gitInitRepoOp('main').then(newState => {
         const remote = parseRemoteUrl(repoUrl);
-        setGitState({ ...newState, remote: remote.owner ? remote : null });
+        setGitState({ ...newState, remote: remote && remote.owner ? remote : null });
       }).catch(() => {});
       setFileContents({});
       setOpenTabs([]);
@@ -2432,7 +2430,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         ...prev,
         {
           id: generateId(),
-          type: "info",
+          type: "info" as const,
           content: `📦 Imported repository: ${displayName}`,
           timestamp: new Date(),
         },
@@ -3007,7 +3005,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                 ...prev,
                 {
                   id: generateId(),
-                  type: "info",
+                  type: "info" as const,
                   content: `🎨 Theme changed to: ${themeName}`,
                   timestamp: new Date(),
                 },
@@ -3021,7 +3019,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
                 ...prev,
                 {
                   id: generateId(),
-                  type: "info",
+                  type: "info" as const,
                   content: `🎨 Created and applied custom theme: "${themeName}"`,
                   timestamp: new Date(),
                 },

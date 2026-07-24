@@ -6,7 +6,8 @@ import { formatMessageTime, formatMessageBody, shouldShowProfile } from '@/lib/c
 import { isImageFile, isVideoFile, getChatAttachmentUrl } from '@/lib/chat/chatStorage'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
-import type { ChatMessage, ChatMessageReaction } from '@/lib/chat/chatTypes'
+import { MessageCircle } from 'lucide-react'
+import type { ChatMessage } from '@/lib/chat/chatTypes'
 
 interface MessageBubbleProps {
   message: ChatMessage

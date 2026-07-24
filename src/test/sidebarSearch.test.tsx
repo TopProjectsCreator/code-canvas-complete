@@ -41,6 +41,9 @@ const gitState: GitState = {
   currentBranch: "main",
   changes: [],
   isInitialized: false,
+  remote: null,
+  isPulling: false,
+  isPushing: false,
 };
 
 const files: FileNode[] = [
@@ -73,6 +76,9 @@ describe("Sidebar search", () => {
         onGitCreateBranch={noop}
         onGitSwitchBranch={noop}
         onGitInitRepo={noop}
+        onGitPull={async () => {}}
+        onGitPush={async () => {}}
+        onGitSetRemote={noop}
         onUpdateFileContent={noop}
         workflows={[]}
         onRunWorkflow={noop}

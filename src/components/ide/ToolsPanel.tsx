@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { GlobalWorkerOptions } from 'pdfjs-dist';
+import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Line } from 'recharts';
 
 type HabitLog = Record<string, boolean>;
 

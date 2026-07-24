@@ -30,6 +30,15 @@ export async function isRepoInitialized(): Promise<boolean> {
   }
 }
 
+async function mkdirp(path: string) {
+  const parts = path.split('/').filter(Boolean)
+  let cur = ''
+  for (const part of parts) {
+    cur += '/' + part
+    try { await fs.promises.mkdir(cur) } catch {}
+  }
+}
+
 export async function writeFiles(
   files: Array<{ path: string; content: string }>,
 ) {
@@ -37,9 +46,7 @@ export async function writeFiles(
   for (const file of files) {
     const fullPath = dir + '/' + file.path
     const parentDir = fullPath.substring(0, fullPath.lastIndexOf('/'))
-    try {
-      await fs.promises.mkdir(parentDir, { recursive: true })
-    } catch {}
+    await mkdirp(parentDir)
     await fs.promises.writeFile(fullPath, file.content)
   }
 }
@@ -60,7 +67,7 @@ export async function readFiles(): Promise<Array<{ path: string; content: string
       if (stat.isDirectory()) {
         results.push(...await readDirRecursive(fullPath))
       } else {
-        const content = await fs.promises.readFile(fullPath, 'utf-8')
+        const content = (await fs.promises.readFile(fullPath, 'utf-8')) as unknown as string
         const relativePath = fullPath.startsWith(dir + '/') ? fullPath.slice(dir.length + 1) : fullPath
         results.push({ path: relativePath, content })
       }
@@ -178,7 +185,7 @@ export async function listBranches(): Promise<string[]> {
 
 export async function listRemoteBranches(remoteUrl: string, corsProxy: string = 'https://cors.isomorphic-git.org'): Promise<string[]> {
   try {
-    const info = await git.getRemoteInfo({ fs: fs.promises, http, url: remoteUrl, corsProxy })
+    const info = await git.getRemoteInfo({ http, url: remoteUrl, corsProxy })
     return Object.keys(info.refs?.heads ?? {})
   } catch {
     return []
@@ -195,7 +202,7 @@ export async function checkoutBranch(name: string) {
 
 export async function getCurrentBranch(): Promise<string> {
   try {
-    return await git.currentBranch({ fs: fs.promises, dir })
+    return (await git.currentBranch({ fs: fs.promises, dir })) ?? 'main'
   } catch {
     return 'main'
   }
@@ -224,5 +231,5 @@ export async function getStatusMatrix(): Promise<Array<[string, number, number, 
 }
 
 export async function flush() {
-  await fs.flush()
+  // LightningFS auto-persists via IndexedDB; no-op flush retained for API compatibility.
 }

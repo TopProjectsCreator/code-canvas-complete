@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import * as gitService from '@/services/gitService'
-import type { GitState, GitRemote, GitBranch, GitCommit, GitChange, FileNode } from '@/types/ide'
+import type { GitState, GitRemote, GitBranch, GitChange, FileNode } from '@/types/ide'
 
 const CORS_PROXY = 'https://cors.isomorphic-git.org'
 
@@ -11,7 +11,7 @@ export function useGitOperations() {
   const { user } = useAuth()
   const [operation, setOperation] = useState<GitOperation>('idle')
   const [operationError, setOperationError] = useState<string | null>(null)
-  const [operationProgress, setOperationProgress] = useState<string>('')
+  const [operationProgress] = useState<string>('')
   const initializedRef = useRef(false)
 
   const getAuth = useCallback(async (): Promise<{ username: string; password: string } | null> => {
@@ -126,7 +126,7 @@ export function useGitOperations() {
       const flatFiles = flattenFiles(files, fileContents)
       await gitService.writeFiles(flatFiles)
       await gitService.stageAll()
-      await gitService.commit('WIP: auto-save before pull', { name: user?.email ?? 'User', email: user?.email ?? 'user@example.com' }).catch(() => {})
+      await gitService.createCommit('WIP: auto-save before pull', { name: user?.email ?? 'User', email: user?.email ?? 'user@example.com' }).catch(() => {})
 
       const auth = await getAuth()
       await gitService.pullFromRemote(url, branch, auth, CORS_PROXY, onProgress)

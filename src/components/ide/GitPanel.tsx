@@ -8,7 +8,6 @@ import {
   Check, 
   ChevronDown, 
   ChevronRight,
-  RefreshCw,
   Upload,
   Download,
   MoreHorizontal,
@@ -16,7 +15,7 @@ import {
   Link,
   Loader2,
 } from 'lucide-react';
-import { GitState, GitChange, GitRemote } from '@/types/ide';
+import { GitState, GitChange } from '@/types/ide';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
