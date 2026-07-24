@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import { ArrowLeft, MessagesSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Seo } from '@/components/Seo';
+import { AuthDialog } from '@/components/auth/AuthDialog';
 
 export default function ThreadsLayout() {
   const { user, profile } = useAuth();
+  const [authOpen, setAuthOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
