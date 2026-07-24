@@ -103,6 +103,7 @@ const floatingBadges = ["Realtime AI Pairing", "All in one IDE", "Live Team Pres
 export default function Landing() {
   const navigate = useNavigate();
   const { stats } = useLandingStats();
+  const [authOpen, setAuthOpen] = useState(false);
 
   const agentsLabel = stats.activeAgents > 0 ? "AI Agents Live" : "Total Prompts";
   const agentsValue = stats.activeAgents > 0
