@@ -67,7 +67,7 @@ export async function readFiles(): Promise<Array<{ path: string; content: string
       if (stat.isDirectory()) {
         results.push(...await readDirRecursive(fullPath))
       } else {
-        const content = await fs.promises.readFile(fullPath, 'utf-8')
+        const content = (await fs.promises.readFile(fullPath, 'utf-8')) as unknown as string
         const relativePath = fullPath.startsWith(dir + '/') ? fullPath.slice(dir.length + 1) : fullPath
         results.push({ path: relativePath, content })
       }
