@@ -662,6 +662,7 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </div>
   );
 }
