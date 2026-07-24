@@ -202,7 +202,7 @@ export async function checkoutBranch(name: string) {
 
 export async function getCurrentBranch(): Promise<string> {
   try {
-    return await git.currentBranch({ fs: fs.promises, dir })
+    return (await git.currentBranch({ fs: fs.promises, dir })) ?? 'main'
   } catch {
     return 'main'
   }
