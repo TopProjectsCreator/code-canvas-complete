@@ -324,8 +324,7 @@ export default function GlobalWhiteboard() {
       prevElementsRef.current = next;
       return;
     }
-    if (myRole === 'viewer') {
-      // Revert any local edits by re-applying prev scene
+    if (myRoleRef.current === 'viewer') {
       return;
     }
     diffAndAttribute(elements);
@@ -342,7 +341,20 @@ export default function GlobalWhiteboard() {
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => persist(elements, appState, files || {}), 600);
-  }, [persist, broadcastScene, diffAndAttribute, myRole]);
+  }, [persist, broadcastScene, diffAndAttribute]);
+
+  // Keep a stable ref so the callback passed to Excalidraw never changes identity.
+  const myRoleRef = useRef<PeerRole>(myRole);
+  useEffect(() => { myRoleRef.current = myRole; }, [myRole]);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  const stableOnChange = useCallback(
+    (elements: readonly any[], appState: any, files: Record<string, any>) => {
+      onChangeRef.current(elements, appState, files);
+    },
+    [],
+  );
+  const stableExcalidrawAPI = useCallback((api: any) => { apiRef.current = api; }, []);
 
   useEffect(() => () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
