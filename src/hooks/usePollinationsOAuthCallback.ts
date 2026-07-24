@@ -12,7 +12,6 @@ export function usePollinationsOAuthCallback(saveApiKey: (provider: AIProvider, 
     const code = params.get('code');
     const error = params.get('error');
     if (!code && !error) return;
-    if (!code) return;
 
     const returnedState = params.get('state');
     const redirectUri = `${window.location.origin}${window.location.pathname}${window.location.search}`;
