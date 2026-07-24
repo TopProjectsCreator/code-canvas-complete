@@ -37,10 +37,20 @@ export default function ThreadsLayout() {
                 </Avatar>
               </Link>
             ) : (
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/landing">Sign in</Link>
+              <Button variant="outline" size="sm" onClick={() => setAuthOpen(true)}>
+                Sign in
               </Button>
             )}
+          </div>
+        </div>
+      </header>
+      <main className="max-w-4xl mx-auto px-4 py-6">
+        <Outlet />
+      </main>
+      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
+    </div>
+  );
+}
           </div>
         </div>
       </header>
