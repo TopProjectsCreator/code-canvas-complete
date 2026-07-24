@@ -76,8 +76,8 @@ describe("Sidebar search", () => {
         onGitCreateBranch={noop}
         onGitSwitchBranch={noop}
         onGitInitRepo={noop}
-        onGitPull={noop}
-        onGitPush={noop}
+        onGitPull={async () => {}}
+        onGitPush={async () => {}}
         onGitSetRemote={noop}
         onUpdateFileContent={noop}
         workflows={[]}
