@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import * as gitService from '@/services/gitService'
-import type { GitState, GitRemote, GitBranch, GitCommit, GitChange, FileNode } from '@/types/ide'
+import type { GitState, GitRemote, GitBranch, GitChange, FileNode } from '@/types/ide'
 
 const CORS_PROXY = 'https://cors.isomorphic-git.org'
 
