@@ -14,6 +14,8 @@ import { useTheme, themeInfo, IDETheme } from '@/contexts/ThemeContext';
 import { useToast } from '@/hooks/use-toast';
 import { useApiKeys, AIProvider, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
+import { startPollinationsOAuth } from '@/lib/pollinations-oauth';
+import { usePollinationsOAuthCallback } from '@/hooks/usePollinationsOAuthCallback';
 import { supabase } from '@/integrations/supabase/client';
 import { isInDiscord, loadDiscordPresenceConfig, saveDiscordPresenceConfig, defaultPresenceConfig } from '@/lib/discord';
 import type { DiscordPresenceConfig } from '@/lib/discord';
@@ -94,15 +96,6 @@ function validateKeyFormat(provider: AIProvider, key: string): string | null {
 }
 
 type ValidationState = 'idle' | 'validating' | 'valid' | 'invalid';
-
-const POLLINATIONS_AUTH_URL = 'https://enter.pollinations.ai/authorize';
-const POLLINATIONS_OAUTH_STATE_KEY = 'code-canvas:pollinations-oauth-state';
-const POLLINATIONS_CLIENT_ID = (import.meta.env.VITE_POLLINATIONS_CLIENT_ID || import.meta.env.VITE_POLLINATIONS_API_APP_KEY) as string | undefined;
-
-function createOAuthState(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: SettingsDialogProps) => {
   const { user, profile, updateProfile, signOut, scheduleDeletion, cancelDeletion } = useAuth();
@@ -329,52 +322,11 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
     ? displayName.slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() || 'U';
 
-  const startPollinationsOAuth = () => {
-    const state = createOAuthState();
-    localStorage.setItem(POLLINATIONS_OAUTH_STATE_KEY, state);
-    const redirectUri = `${window.location.origin}${window.location.pathname}${window.location.search}`;
-    const params = new URLSearchParams({
-      redirect_uri: redirectUri,
-      state,
-      models: 'openai,openai-large,openai-fast,mistral,deepseek,qwen-coder',
-      expiry: '30',
-      budget: '25',
-    });
-    if (POLLINATIONS_CLIENT_ID?.startsWith('pk_')) {
-      params.set('client_id', POLLINATIONS_CLIENT_ID);
-    }
-    window.location.assign(`${POLLINATIONS_AUTH_URL}?${params.toString()}`);
+  const handleStartPollinationsOAuth = () => {
+    void startPollinationsOAuth();
   };
 
-  useEffect(() => {
-    if (!user || typeof window === 'undefined' || !window.location.hash) return;
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
-    const apiKey = hashParams.get('api_key');
-    const error = hashParams.get('error');
-    if (!apiKey && !error) return;
-
-    const returnedState = hashParams.get('state');
-    const expectedState = localStorage.getItem(POLLINATIONS_OAUTH_STATE_KEY);
-    localStorage.removeItem(POLLINATIONS_OAUTH_STATE_KEY);
-    window.history.replaceState(null, document.title, `${window.location.pathname}${window.location.search}`);
-
-    if (!expectedState || returnedState !== expectedState) {
-      toast({ title: 'Pollinations connection blocked', description: 'OAuth state did not match. Please try connecting again.', variant: 'destructive' });
-      return;
-    }
-
-    if (error) {
-      toast({ title: 'Pollinations connection cancelled', description: error, variant: 'destructive' });
-      return;
-    }
-
-    if (!apiKey?.startsWith('sk_')) {
-      toast({ title: 'Pollinations connection failed', description: 'Pollinations did not return a valid user key.', variant: 'destructive' });
-      return;
-    }
-
-    void saveApiKey('pollinations', apiKey);
-  }, [user, saveApiKey, toast]);
+  usePollinationsOAuthCallback(saveApiKey);
 
   const themes = Object.keys(themeInfo) as IDETheme[];
   const existingKeys = new Set(apiKeys.map(k => k.provider));
@@ -761,7 +713,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                                 </button>
                               </>
                             ) : provider === 'pollinations' ? (
-                              <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={startPollinationsOAuth}>
+                              <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={handleStartPollinationsOAuth}>
                                 Connect
                               </Button>
                             ) : (

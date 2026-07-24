@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,8 @@ import { useApiKeys, AIProvider, PROVIDER_INFO } from '@/hooks/useApiKeys';
 import { supabase } from '@/integrations/supabase/client';
 import { isReplitLikePlatform } from '@/lib/platform';
 import { cn } from '@/lib/utils';
+import { startPollinationsOAuth } from '@/lib/pollinations-oauth';
+import { usePollinationsOAuthCallback } from '@/hooks/usePollinationsOAuthCallback';
 
 interface ApiKeysDialogProps {
   open: boolean;
@@ -62,15 +64,6 @@ function validateKeyFormat(provider: AIProvider, key: string): string | null {
 }
 
 type ValidationState = 'idle' | 'validating' | 'valid' | 'invalid';
-
-const POLLINATIONS_AUTH_URL = 'https://enter.pollinations.ai/authorize';
-const POLLINATIONS_OAUTH_STATE_KEY = 'code-canvas:pollinations-oauth-state';
-const POLLINATIONS_CLIENT_ID = (import.meta.env.VITE_POLLINATIONS_CLIENT_ID || import.meta.env.VITE_POLLINATIONS_API_APP_KEY) as string | undefined;
-
-function createOAuthState(): string {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
   const { apiKeys, saveApiKey, deleteApiKey, loading, getUsageForTier } = useApiKeys();
@@ -144,32 +137,11 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
 
   const existingKeys = new Set(apiKeys.map(k => k.provider));
 
-  const startPollinationsOAuth = () => {
-    const state = createOAuthState();
-    localStorage.setItem(POLLINATIONS_OAUTH_STATE_KEY, state);
-    const params = new URLSearchParams({
-      redirect_uri: `${window.location.origin}${window.location.pathname}${window.location.search}`,
-      state,
-      models: 'openai,openai-large,openai-fast,mistral,deepseek,qwen-coder',
-      expiry: '30',
-      budget: '25',
-    });
-    if (POLLINATIONS_CLIENT_ID?.startsWith('pk_')) params.set('client_id', POLLINATIONS_CLIENT_ID);
-    window.location.assign(`${POLLINATIONS_AUTH_URL}?${params.toString()}`);
+  const handleStartPollinationsOAuth = () => {
+    void startPollinationsOAuth();
   };
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.location.hash) return;
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
-    const apiKey = hashParams.get('api_key');
-    if (!apiKey) return;
-    const returnedState = hashParams.get('state');
-    const expectedState = localStorage.getItem(POLLINATIONS_OAUTH_STATE_KEY);
-    if (!expectedState || returnedState !== expectedState || !apiKey.startsWith('sk_')) return;
-    localStorage.removeItem(POLLINATIONS_OAUTH_STATE_KEY);
-    window.history.replaceState(null, document.title, `${window.location.pathname}${window.location.search}`);
-    void saveApiKey('pollinations', apiKey);
-  }, [saveApiKey]);
+  usePollinationsOAuthCallback(saveApiKey);
 
   const tiers = [
     { id: 'pro', label: 'Pro', icon: '💎', limit: 5 },
@@ -255,7 +227,7 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
                           </button>
                         </>
                       ) : provider === 'pollinations' ? (
-                        <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={startPollinationsOAuth}>
+                        <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={handleStartPollinationsOAuth}>
                           Connect
                         </Button>
                       ) : (

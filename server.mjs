@@ -150,6 +150,50 @@ app.post('/api/oauth/token/refresh', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Pollinations OAuth — token exchange proxy (PKCE)
+// ---------------------------------------------------------------------------
+
+app.post('/api/oauth/pollinations/token', async (req, res) => {
+  try {
+    const { code, client_id, redirect_uri, code_verifier } = req.body || {};
+    if (!code || !client_id || !redirect_uri || !code_verifier) {
+      return res.status(400).json({ error: 'Missing required parameters: code, client_id, redirect_uri, code_verifier' });
+    }
+
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      client_id,
+      redirect_uri,
+      code_verifier,
+    });
+
+    const resp = await fetch('https://enter.pollinations.ai/api/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    });
+
+    let data;
+    try {
+      data = await resp.json();
+    } catch {
+      data = { error: `Pollinations returned non-JSON response (${resp.status})` };
+    }
+
+    if (!resp.ok) {
+      console.error('[Pollinations] Token exchange error:', JSON.stringify(data));
+      return res.status(resp.status).json({ error: data.error_description || data.error || 'Token exchange failed' });
+    }
+
+    res.json({ access_token: data.access_token, token_type: data.token_type, expires_in: data.expires_in, scope: data.scope });
+  } catch (err) {
+    console.error('[Pollinations] Token exchange exception:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // OAuth — create a Redactor proxy key for the external app
 // ---------------------------------------------------------------------------
 
