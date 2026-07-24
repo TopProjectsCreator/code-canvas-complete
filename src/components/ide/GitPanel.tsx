@@ -89,9 +89,8 @@ export const GitPanel = ({
     setIsPullPushLoading(true);
     try {
       await onPull();
-      toast.success('Pull completed successfully');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Pull failed');
+    } catch {
+      // Toast + status handled centrally by useGitOperations.
     } finally {
       setIsPullPushLoading(false);
     }
@@ -107,9 +106,8 @@ export const GitPanel = ({
     setIsPullPushLoading(true);
     try {
       await onPush();
-      toast.success('Push completed successfully');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Push failed');
+    } catch {
+      // Toast + status handled centrally by useGitOperations.
     } finally {
       setIsPullPushLoading(false);
     }
