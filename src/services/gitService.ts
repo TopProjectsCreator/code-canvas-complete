@@ -30,6 +30,15 @@ export async function isRepoInitialized(): Promise<boolean> {
   }
 }
 
+async function mkdirp(path: string) {
+  const parts = path.split('/').filter(Boolean)
+  let cur = ''
+  for (const part of parts) {
+    cur += '/' + part
+    try { await fs.promises.mkdir(cur) } catch {}
+  }
+}
+
 export async function writeFiles(
   files: Array<{ path: string; content: string }>,
 ) {
@@ -37,9 +46,7 @@ export async function writeFiles(
   for (const file of files) {
     const fullPath = dir + '/' + file.path
     const parentDir = fullPath.substring(0, fullPath.lastIndexOf('/'))
-    try {
-      await fs.promises.mkdir(parentDir, { recursive: true })
-    } catch {}
+    await mkdirp(parentDir)
     await fs.promises.writeFile(fullPath, file.content)
   }
 }
