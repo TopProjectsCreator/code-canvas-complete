@@ -29,9 +29,13 @@ export function DrawEditor({ file, onContentChange }: DrawEditorProps) {
     return { elements: [], appState: { viewBackgroundColor: "#ffffff" } };
   }, [file.id]);
 
+  const lastCountRef = useRef(0);
   const onChange = useCallback(
     (elements: readonly any[], appState: any, files: any) => {
-      setElements([...elements]);
+      if (elements.length !== lastCountRef.current) {
+        lastCountRef.current = elements.length;
+        setElementCount(elements.length);
+      }
       setIsDirty(true);
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
       debounceTimer.current = setTimeout(() => {
