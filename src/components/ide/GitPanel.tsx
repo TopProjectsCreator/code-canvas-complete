@@ -480,6 +480,104 @@ export const GitPanel = ({
   );
 };
 
+type GitStatusValue = ReturnType<typeof useGitStatus>;
+
+const GitStatusBanner = ({ status }: { status: GitStatusValue }) => {
+  const { operation, operationLabel, progress, error, lastFailed, lastResult, retry, clearError, dismissLastResult } = status;
+  const isRunning = operation !== 'idle';
+  const showError = !isRunning && !!error;
+  const showSuccess = !isRunning && !error && lastResult?.status === 'success';
+
+  if (!isRunning && !showError && !showSuccess) return null;
+
+  const pct = progress && progress.total > 0
+    ? Math.min(100, Math.round((progress.loaded / progress.total) * 100))
+    : null;
+
+  return (
+    <div
+      className={cn(
+        'px-3 py-2 border-b border-border text-xs',
+        isRunning && 'bg-primary/5',
+        showError && 'bg-destructive/10',
+        showSuccess && 'bg-green-500/10',
+      )}
+      role="status"
+      aria-live="polite"
+    >
+      {isRunning && (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2 text-foreground">
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+            <span className="font-medium">{operationLabel ?? 'Working'}...</span>
+            {progress?.stage && (
+              <span className="text-muted-foreground truncate">
+                {progress.stage}{pct !== null ? ` (${pct}%)` : ''}
+              </span>
+            )}
+          </div>
+          <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn(
+                'h-full bg-primary transition-all',
+                pct === null && 'w-1/3 animate-pulse',
+              )}
+              style={pct !== null ? { width: `${pct}%` } : undefined}
+            />
+          </div>
+        </div>
+      )}
+
+      {showError && (
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-destructive flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-foreground">
+              {lastFailed?.label ?? 'Git operation'} failed
+            </div>
+            <div className="text-muted-foreground break-words">{error}</div>
+          </div>
+          <div className="flex items-center gap-1">
+            {lastFailed && (
+              <button
+                onClick={() => { void retry(); }}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+                title="Retry the failed operation"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Retry
+              </button>
+            )}
+            <button
+              onClick={clearError}
+              className="p-1 rounded hover:bg-accent text-muted-foreground"
+              title="Dismiss"
+              aria-label="Dismiss error"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showSuccess && lastResult && (
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />
+          <span className="flex-1 text-foreground">{lastResult.message}</span>
+          <button
+            onClick={dismissLastResult}
+            className="p-1 rounded hover:bg-accent text-muted-foreground"
+            title="Dismiss"
+            aria-label="Dismiss"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 function formatTimeAgo(date: Date): string {
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
