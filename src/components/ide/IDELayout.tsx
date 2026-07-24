@@ -329,12 +329,10 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const { importRepository: gitProviderImport } = useGitProviderImport();
   const {
     commit: gitCommit, pull: gitPull, push: gitPush,
-    initRepo: gitInitRepoOp, createBranch: gitCreateBranchOp,
-    switchBranch: gitSwitchBranchOp, setRemoteUrl: gitSetRemoteUrl,
-    parseRemoteUrl, buildGitState,
-    operation: gitOperation, operationError: gitOperationError,
-    clearError: gitClearError,
+    initRepo: gitInitRepoOp, setRemoteUrl: gitSetRemoteUrl,
+    parseRemoteUrl,
   } = useGitOperations();
+
   const { saveLocally, isOfflineCapable: checkOffline } = useOfflineProject();
   const offlineSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
