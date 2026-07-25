@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Seo } from "@/components/Seo";
 import { supabase } from "@/integrations/supabase/client";
@@ -669,56 +669,24 @@ export default function Landing() {
 }
 
 function InfiniteMarquee({ children }: { children: React.ReactNode }) {
-  const trackRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    let rafId: number;
-    let paused = false;
-
-    const onEnter = () => { paused = true; };
-    const onLeave = () => { paused = false; };
-    track.addEventListener('mouseenter', onEnter);
-    track.addEventListener('mouseleave', onLeave);
-
-    const GAP = 16;
-
-    const tick = () => {
-      if (!paused) {
-        track.scrollLeft += 1;
-        const first = track.firstElementChild as HTMLElement | null;
-        if (first && track.scrollLeft >= first.offsetWidth + GAP) {
-          track.appendChild(first);
-          track.scrollLeft -= first.offsetWidth + GAP;
-        }
-      }
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      track.removeEventListener('mouseenter', onEnter);
-      track.removeEventListener('mouseleave', onLeave);
-    };
-  }, []);
-
+  const items = React.Children.toArray(children);
   return (
     <div
-      className="relative overflow-hidden"
+      className="group/marquee relative overflow-hidden"
       style={{
         WebkitMaskImage: "linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent)",
         maskImage: "linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent)",
       }}
     >
       <div
-        ref={trackRef}
-        className="flex gap-4 py-4"
-        style={{ scrollbarWidth: 'none' }}
+        className="flex gap-4 py-4 w-max animate-[marquee-left_60s_linear_infinite] group-hover/marquee:[animation-play-state:paused]"
       >
-        {children}
+        {items}
+        {items.map((child, i) =>
+          React.isValidElement(child) ? React.cloneElement(child, { key: `dup-${i}` }) : child
+        )}
       </div>
+      <style>{`@keyframes marquee-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
     </div>
   );
 }
