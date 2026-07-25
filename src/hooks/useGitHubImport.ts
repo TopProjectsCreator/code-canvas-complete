@@ -2,12 +2,20 @@ import { useState, useCallback } from 'react';
 import { FileNode } from '@/types/ide';
 import { getFileLanguage } from '@/data/defaultFiles';
 
-interface GitHubFile {
-  name: string;
+interface GitHubTreeItem {
   path: string;
-  type: 'file' | 'dir';
-  download_url: string | null;
+  mode: string;
+  type: 'blob' | 'tree' | 'commit';
   sha: string;
+  size?: number;
+  url: string;
+}
+
+interface GitHubTreeResponse {
+  sha: string;
+  url: string;
+  tree: GitHubTreeItem[];
+  truncated: boolean;
 }
 
 interface GitHubFileContentResponse {
@@ -26,9 +34,12 @@ interface GitHubRepo {
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
-const MAX_IMPORT_DEPTH = 12;
 
 const ALLOWED_HIDDEN_NAMES = new Set(['.gitignore', '.tutorial']);
+
+const SKIPPED_DIRECTORIES = new Set([
+  'node_modules', 'dist', 'build', '.git', '__pycache__', 'venv',
+]);
 
 const BINARY_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.ico', '.webp', '.svg', '.avif',
@@ -72,6 +83,8 @@ const EXT_TO_MIME: Record<string, string> = {
   flv: 'video/x-flv',
 };
 
+const CONCURRENT_FETCH_LIMIT = 10;
+
 const isLikelyTextFile = (name: string) => {
   const lower = name.toLowerCase();
   const lastDot = lower.lastIndexOf('.');
@@ -93,16 +106,213 @@ const getMimeType = (name: string): string => {
   return EXT_TO_MIME[ext] || 'application/octet-stream';
 };
 
+const shouldSkipPath = (segments: string[]): boolean => {
+  return segments.some(s => SKIPPED_DIRECTORIES.has(s));
+};
+
+const shouldSkipFile = (name: string): boolean => {
+  return name.startsWith('.') && !ALLOWED_HIDDEN_NAMES.has(name);
+};
+
+const fetchFileTree = async (
+  owner: string,
+  repo: string,
+  branch: string
+): Promise<GitHubTreeItem[]> => {
+  const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    if (branch === 'main') {
+      const masterUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`;
+      const masterResponse = await fetch(masterUrl);
+      if (masterResponse.ok) {
+        const data: GitHubTreeResponse = await masterResponse.json();
+        return data.tree;
+      }
+    }
+    throw new Error(`Failed to fetch file tree: ${response.statusText}`);
+  }
+
+  const data: GitHubTreeResponse = await response.json();
+  return data.tree;
+};
+
+const fetchFileContent = async (
+  owner: string,
+  repo: string,
+  path: string,
+  branch: string,
+  asDataUrl?: boolean
+): Promise<string> => {
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch file: ${response.statusText}`);
+  }
+
+  const data: GitHubFileContentResponse = await response.json();
+
+  if (data.encoding === 'base64' && typeof data.content === 'string') {
+    const rawBase64 = data.content.replace(/\n/g, '');
+    if (asDataUrl) {
+      const mime = getMimeType(path);
+      return `data:${mime};base64,${rawBase64}`;
+    }
+    return atob(rawBase64);
+  }
+
+  if (typeof data.content === 'string') {
+    return data.content;
+  }
+
+  throw new Error('Unsupported file content format');
+};
+
+interface TreeBuildResult {
+  rootNodes: FileNode[];
+  filesToFetch: { path: string; asDataUrl: boolean }[];
+  nodeIdToPath: Map<string, string>;
+}
+
+const buildTreeFromFlatList = (items: GitHubTreeItem[]): TreeBuildResult => {
+  const nodeMap = new Map<string, FileNode>();
+  const rootNodes: FileNode[] = [];
+  const filesToFetch: { path: string; asDataUrl: boolean }[] = [];
+  const nodeIdToPath = new Map<string, string>();
+
+  const sortedItems = [...items].sort((a, b) => a.path.localeCompare(b.path));
+
+  for (const item of sortedItems) {
+    const segments = item.path.split('/');
+    const name = segments[segments.length - 1];
+
+    if (shouldSkipPath(segments.slice(0, -1))) continue;
+    if (item.type === 'blob' && shouldSkipFile(name)) continue;
+
+    if (item.type === 'tree') {
+      nodeMap.set(item.path, {
+        id: generateId(),
+        name,
+        type: 'folder',
+        children: [],
+      });
+    } else if (item.type === 'blob') {
+      const isText = isLikelyTextFile(name);
+      const isBinary = isViewableBinaryFile(name);
+      const id = generateId();
+
+      if (!isText && !isBinary) {
+        nodeMap.set(item.path, {
+          id,
+          name,
+          type: 'file',
+          language: getFileLanguage(name),
+          content: `// Binary file: ${name}\n// This file type is not editable in the browser.`,
+        });
+      } else {
+        nodeMap.set(item.path, {
+          id,
+          name,
+          type: 'file',
+          language: getFileLanguage(name),
+        });
+        nodeIdToPath.set(id, item.path);
+        filesToFetch.push({ path: item.path, asDataUrl: isBinary });
+      }
+    }
+  }
+
+  for (const item of sortedItems) {
+    const node = nodeMap.get(item.path);
+    if (!node) continue;
+
+    const segments = item.path.split('/');
+    if (segments.length === 1) {
+      rootNodes.push(node);
+    } else {
+      const parentPath = segments.slice(0, -1).join('/');
+      const parent = nodeMap.get(parentPath);
+      if (parent && parent.type === 'folder') {
+        parent.children!.push(node);
+      }
+    }
+  }
+
+  return { rootNodes, filesToFetch, nodeIdToPath };
+};
+
+const attachContentToTree = (
+  rootNodes: FileNode[],
+  contentMap: Map<string, string>,
+  nodeIdToPath: Map<string, string>
+): void => {
+  const attach = (nodes: FileNode[]): void => {
+    for (const node of nodes) {
+      if (node.type === 'file' && node.content === undefined) {
+        const path = nodeIdToPath.get(node.id);
+        if (path !== undefined) {
+          const content = contentMap.get(path);
+          if (content !== undefined) {
+            node.content = content;
+          }
+        }
+      } else if (node.type === 'folder' && node.children) {
+        attach(node.children);
+      }
+    }
+  };
+  attach(rootNodes);
+};
+
+const fetchContentsBatch = async (
+  owner: string,
+  repo: string,
+  branch: string,
+  items: { path: string; asDataUrl: boolean }[],
+  onProgress: (msg: string) => void,
+  total: number
+): Promise<Map<string, string>> => {
+  const results = new Map<string, string>();
+  let completed = 0;
+
+  for (let i = 0; i < items.length; i += CONCURRENT_FETCH_LIMIT) {
+    const batch = items.slice(i, i + CONCURRENT_FETCH_LIMIT);
+    const promises = batch.map(async (item) => {
+      try {
+        const content = await fetchFileContent(owner, repo, item.path, branch, item.asDataUrl);
+        return { path: item.path, content };
+      } catch {
+        console.warn(`Skipped ${item.path}: failed to fetch`);
+        return null;
+      }
+    });
+
+    const batchResults = await Promise.all(promises);
+    for (const result of batchResults) {
+      if (result) {
+        results.set(result.path, result.content);
+      }
+    }
+
+    completed += batch.length;
+    const lastName = batch[batch.length - 1]?.path.split('/').pop() || '';
+    onProgress(`Fetching files (${Math.min(completed, total)}/${total}): ${lastName}...`);
+  }
+
+  return results;
+};
+
 export const useGitHubImport = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
-  const parseGitHubUrl = (url: string): { owner: string; repo: string; branch?: string } | null => {
-    // Support various GitHub URL formats
+  const parseGitHubUrl = (url: string): { owner: string; repo: string } | null => {
     const patterns = [
       /github\.com\/([^\/]+)\/([^\/\s#?]+)/,
-      /^([^\/]+)\/([^\/\s#?]+)$/, // owner/repo format
+      /^([^\/]+)\/([^\/\s#?]+)$/,
     ];
 
     for (const pattern of patterns) {
@@ -118,166 +328,14 @@ export const useGitHubImport = () => {
   };
 
   const fetchRepoInfo = async (owner: string, repo: string): Promise<GitHubRepo | null> => {
-    try {
-      const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Repository not found. Make sure it exists and is public.');
-        }
-        throw new Error(`Failed to fetch repository: ${response.statusText}`);
-      }
-      return await response.json();
-    } catch (err) {
-      throw err;
-    }
-  };
-
-  const fetchDirectoryContents = async (
-    owner: string,
-    repo: string,
-    path: string = '',
-    branch: string = 'main'
-  ): Promise<GitHubFile[]> => {
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
-    const response = await fetch(url);
-    
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
     if (!response.ok) {
-      // Try with 'master' branch if 'main' fails
-      if (branch === 'main') {
-        const masterUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=master`;
-        const masterResponse = await fetch(masterUrl);
-        if (masterResponse.ok) {
-          return await masterResponse.json();
-        }
+      if (response.status === 404) {
+        throw new Error('Repository not found. Make sure it exists and is public.');
       }
-      throw new Error(`Failed to fetch contents: ${response.statusText}`);
+      throw new Error(`Failed to fetch repository: ${response.statusText}`);
     }
-    
     return await response.json();
-  };
-
-  const fetchFileContent = async (
-    owner: string,
-    repo: string,
-    path: string,
-    branch: string,
-    asDataUrl?: boolean
-  ): Promise<string> => {
-    const response = await fetch(
-      `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`
-    );
-    if (!response.ok) {
-      throw new Error(`Failed to fetch file: ${response.statusText}`);
-    }
-
-    const data: GitHubFileContentResponse = await response.json();
-
-    if (data.encoding === 'base64' && typeof data.content === 'string') {
-      const rawBase64 = data.content.replace(/\n/g, '');
-      if (asDataUrl) {
-        const mime = getMimeType(path);
-        return `data:${mime};base64,${rawBase64}`;
-      }
-      return atob(rawBase64);
-    }
-
-    if (typeof data.content === 'string') {
-      return data.content;
-    }
-
-    throw new Error('Unsupported file content format');
-  };
-
-  const buildFileTree = async (
-    owner: string,
-    repo: string,
-    path: string,
-    branch: string,
-    depth: number = 0
-  ): Promise<FileNode[]> => {
-    // Limit depth to prevent runaway recursion while still supporting deeply nested SDKs
-    // like FTC repositories (e.g. TeamCode/src/main/java/org/firstinspires/ftc/teamcode).
-    if (depth > MAX_IMPORT_DEPTH) {
-      return [];
-    }
-
-    const contents = await fetchDirectoryContents(owner, repo, path, branch);
-    const nodes: FileNode[] = [];
-
-    for (const item of contents) {
-      // Skip hidden files and common non-essential files, but allow supported hidden entries
-      if (item.name.startsWith('.') && !ALLOWED_HIDDEN_NAMES.has(item.name)) {
-        continue;
-      }
-      
-      // Skip node_modules, dist, build folders
-      if (['node_modules', 'dist', 'build', '.git', '__pycache__', 'venv'].includes(item.name)) {
-        continue;
-      }
-
-      if (item.type === 'dir') {
-        setImportProgress(`Scanning ${item.path}...`);
-        const children = await buildFileTree(owner, repo, item.path, branch, depth + 1);
-        nodes.push({
-          id: generateId(),
-          name: item.name,
-          type: 'folder',
-          children,
-        });
-      } else if (item.type === 'file') {
-        if (isLikelyTextFile(item.name)) {
-          setImportProgress(`Fetching ${item.name}...`);
-          try {
-            const content = await fetchFileContent(owner, repo, item.path, branch);
-            nodes.push({
-              id: generateId(),
-              name: item.name,
-              type: 'file',
-              language: getFileLanguage(item.name),
-              content,
-            });
-          } catch {
-            // Skip files that fail to fetch
-            console.warn(`Skipped ${item.name}: failed to fetch`);
-          }
-        } else if (isViewableBinaryFile(item.name)) {
-          setImportProgress(`Fetching ${item.name}...`);
-          try {
-            const content = await fetchFileContent(owner, repo, item.path, branch, true);
-            nodes.push({
-              id: generateId(),
-              name: item.name,
-              type: 'file',
-              language: getFileLanguage(item.name),
-              content,
-            });
-          } catch {
-            console.warn(`Skipped ${item.name}: failed to fetch binary content`);
-            nodes.push({
-              id: generateId(),
-              name: item.name,
-              type: 'file',
-              language: getFileLanguage(item.name),
-              content: `// Binary file: ${item.name}\n// This file type is not editable in the browser.`,
-            });
-          }
-        } else {
-          // Add non-text, non-viewable binary files without content
-          nodes.push({
-            id: generateId(),
-            name: item.name,
-            type: 'file',
-            language: getFileLanguage(item.name),
-            content: `// Binary file: ${item.name}\n// This file type is not editable in the browser.`,
-          });
-        }
-      }
-
-      // Small delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 50));
-    }
-
-    return nodes;
   };
 
   const importRepository = useCallback(async (urlOrPath: string): Promise<FileNode[] | null> => {
@@ -299,15 +357,27 @@ export const useGitHubImport = () => {
         throw new Error('Could not fetch repository information');
       }
 
-      setImportProgress('Building file tree...');
-      const children = await buildFileTree(owner, repo, '', repoInfo.default_branch);
+      const branch = repoInfo.default_branch;
 
-      // Create root folder with repo name
+      setImportProgress('Fetching file tree...');
+      const treeItems = await fetchFileTree(owner, repo, branch);
+
+      setImportProgress('Building file tree...');
+      const { rootNodes, filesToFetch, nodeIdToPath } = buildTreeFromFlatList(treeItems);
+
+      if (filesToFetch.length > 0) {
+        setImportProgress(`Fetching ${filesToFetch.length} files...`);
+        const contentMap = await fetchContentsBatch(
+          owner, repo, branch, filesToFetch, setImportProgress, filesToFetch.length
+        );
+        attachContentToTree(rootNodes, contentMap, nodeIdToPath);
+      }
+
       const rootNode: FileNode = {
         id: 'root',
         name: repoInfo.name,
         type: 'folder',
-        children,
+        children: rootNodes,
       };
 
       setImportProgress('Import complete!');
@@ -324,7 +394,7 @@ export const useGitHubImport = () => {
 
   const searchRepositories = useCallback(async (query: string): Promise<GitHubRepo[]> => {
     if (!query.trim()) return [];
-    
+
     try {
       const response = await fetch(
         `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&per_page=10&sort=stars`
