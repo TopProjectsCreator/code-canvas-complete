@@ -177,6 +177,39 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const shellSessionIdRef = useRef<string | null>(null);
   const messagesRef = useRef<AgentMessage[]>(messages);
   messagesRef.current = messages;
+
+  // Streaming optimization: throttle state updates to avoid O(n) array copies on every token
+  const streamingContentRef = useRef<string>('');
+  const lastStreamUpdateRef = useRef<number>(0);
+  const streamUpdateRafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (streamUpdateRafRef.current !== null) {
+        cancelAnimationFrame(streamUpdateRafRef.current);
+      }
+    };
+  }, []);
+
+  const updateStreamingMessage = useCallback((msgId: string, content: string) => {
+    streamingContentRef.current = content;
+    const now = Date.now();
+    if (now - lastStreamUpdateRef.current >= 100) {
+      if (streamUpdateRafRef.current !== null) {
+        cancelAnimationFrame(streamUpdateRafRef.current);
+        streamUpdateRafRef.current = null;
+      }
+      lastStreamUpdateRef.current = now;
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content, isStreaming: true } : m));
+    } else if (streamUpdateRafRef.current === null) {
+      streamUpdateRafRef.current = requestAnimationFrame(() => {
+        streamUpdateRafRef.current = null;
+        lastStreamUpdateRef.current = Date.now();
+        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: streamingContentRef.current, isStreaming: true } : m));
+      });
+    }
+  }, []);
+
   const aiProvider = useMemo(() => createAIProvider(), []);
 
   // Broadcast active-agent presence while loading so the landing page can show live count
@@ -1142,7 +1175,10 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           }
         }]
       };
-      setMessages(prev => [...prev, userMessage, assistantMessage]);
+      setMessages(prev => {
+        const next = [...prev, userMessage, assistantMessage];
+        return next.length > 200 ? next.slice(-200) : next;
+      });
       return;
     }
 
@@ -1172,7 +1208,10 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     }
 
     const userMessage: AgentMessage = { id: generateId(), role: 'user', content: messageContent };
-    setMessages(prev => [...prev, userMessage]);
+    setMessages(prev => {
+      const next = [...prev, userMessage];
+      return next.length > 200 ? next.slice(-200) : next;
+    });
     setIsLoading(true);
     setCurrentStep('Thinking...');
 
@@ -1233,7 +1272,10 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
       if (!response.body) throw new Error('No response body');
 
-      setMessages(prev => [...prev, { id: assistantId, role: 'assistant', content: '', isStreaming: true }]);
+      setMessages(prev => {
+        const next = [...prev, { id: assistantId, role: 'assistant', content: '', isStreaming: true }];
+        return next.length > 200 ? next.slice(-200) : next;
+      });
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -1265,13 +1307,19 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
               else if (fullContent.includes('<generate_pptx')) { setCurrentStep('Preparing presentation...'); }
               else { setCurrentStep(null); }
               
-              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: fullContent, isStreaming: true } : m));
+              updateStreamingMessage(assistantId, fullContent);
             }
           } catch {
             buffer = line + '\n' + buffer;
             break;
           }
         }
+      }
+
+      // Cancel any pending throttled streaming update before finalizing
+      if (streamUpdateRafRef.current !== null) {
+        cancelAnimationFrame(streamUpdateRafRef.current);
+        streamUpdateRafRef.current = null;
       }
 
       // Final processing
@@ -1557,15 +1605,18 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         if (loopProcessed.content || loopProcessed.steps.length > 0) {
           const followUpId = generateId();
           assistantId = followUpId;
-          setMessages(prev => [...prev, {
-            id: followUpId,
-            role: 'assistant',
-            content: loopProcessed.content,
-            steps: loopProcessed.steps,
-            hasCodeChanges: loopProcessed.hasCodeChanges,
-            questions: loopProcessed.questions,
-            widgets: loopProcessed.widgets,
-          }]);
+          setMessages(prev => {
+            const next = [...prev, {
+              id: followUpId,
+              role: 'assistant',
+              content: loopProcessed.content,
+              steps: loopProcessed.steps,
+              hasCodeChanges: loopProcessed.hasCodeChanges,
+              questions: loopProcessed.questions,
+              widgets: loopProcessed.widgets,
+            }];
+            return next.length > 200 ? next.slice(-200) : next;
+          });
         }
 
         // If the AI says it's done, stop looping
