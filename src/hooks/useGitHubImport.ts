@@ -348,8 +348,9 @@ export const useGitHubImport = () => {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const parseGitHubUrl = (url: string): { owner: string; repo: string } | null => {
+  const parseGitHubUrl = (url: string): { owner: string; repo: string; branch?: string } | null => {
     const patterns = [
+      /github\.com\/([^\/]+)\/([^\/]+)\/tree\/([^\/\s#?]+)/,
       /github\.com\/([^\/]+)\/([^\/\s#?]+)/,
       /^([^\/]+)\/([^\/\s#?]+)$/,
     ];
@@ -360,6 +361,7 @@ export const useGitHubImport = () => {
         return {
           owner: match[1],
           repo: match[2].replace(/\.git$/, ''),
+          ...(match[3] ? { branch: match[3] } : {}),
         };
       }
     }
@@ -410,7 +412,7 @@ export const useGitHubImport = () => {
         throw new Error('Could not fetch repository information');
       }
 
-      const branch = repoInfo.default_branch;
+      const branch = parsed.branch || repoInfo.default_branch;
 
       setImportProgress('Fetching file tree...');
       const treeItems = await fetchFileTree(owner, repo, branch, token, signal);
