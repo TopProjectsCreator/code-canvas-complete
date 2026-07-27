@@ -247,7 +247,7 @@ const OAuthHostsAdmin = () => {
   const rejected = rows.filter(r => r.status === 'rejected');
 
   const renderRow = (r: HostRow) => (
-    <Row key={r.host} r={r} onSetStatus={setStatus} onDelete={handleDelete} onSaveNotes={saveNotes} />
+    <Row key={r.host} r={r} onSetStatus={setStatus} onDelete={handleDelete} onSaveNotes={saveNotes} onSaveEdit={saveEdit} />
   );
 
 
