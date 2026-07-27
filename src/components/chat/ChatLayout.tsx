@@ -25,7 +25,7 @@ import { ChannelDetailsDialog } from './Dialogs/ChannelDetailsDialog'
 import { InvitePeopleDialog } from './Dialogs/InvitePeopleDialog'
 import { SetUserStatusDialog } from './Dialogs/SetUserStatusDialog'
 import { ChatSearchDialog } from './Dialogs/ChatSearchDialog'
-import type { ChatChannel, ChatChannelMember, ProfileBrief } from '@/lib/chat/chatTypes'
+import type { ChatChannel, ChatChannelMember, ChatMessage, ProfileBrief } from '@/lib/chat/chatTypes'
 import type { SearchResult } from '@/lib/chat/chatSearch'
 
 interface ChatLayoutProps {
@@ -112,7 +112,7 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
     }
   }, [sendMessage, notifyMentions, activeChannel, activeWorkspace])
 
-  const handleReply = useCallback((message: any) => {
+  const handleReply = useCallback((message: ChatMessage) => {
     setActiveThread(message)
   }, [setActiveThread])
 

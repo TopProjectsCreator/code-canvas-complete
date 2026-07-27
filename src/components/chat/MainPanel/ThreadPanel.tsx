@@ -25,6 +25,10 @@ export function ThreadPanel({ parentMessage, onClose }: ThreadPanelProps) {
   useEffect(() => {
     if (!parentMessage) return
 
+    let cancelled = false
+    setLoading(true)
+    setReplies([])
+
     supabase
       .from('chat_messages')
       .select(`
@@ -33,9 +37,18 @@ export function ThreadPanel({ parentMessage, onClose }: ThreadPanelProps) {
       `)
       .eq('parent_id', parentMessage.id)
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) {
+          console.error('Error fetching thread replies:', error)
+          setLoading(false)
+          return
+        }
         setReplies((data ?? []) as unknown as ChatMessage[])
         setLoading(false)
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false)
       })
 
     const sub = subscribeToChannelMessages(
@@ -49,12 +62,17 @@ export function ThreadPanel({ parentMessage, onClose }: ThreadPanelProps) {
           .eq('user_id', newMsg.user_id)
           .single()
           .then(({ data: profile }) => {
-            setReplies(prev => [...prev, { ...newMsg, profile: profile ?? undefined } as ChatMessage])
+            if (!cancelled) {
+              setReplies(prev => [...prev, { ...newMsg, profile: profile ?? undefined } as ChatMessage])
+            }
           })
       }
     )
 
-    return () => { sub.unsubscribe() }
+    return () => {
+      cancelled = true
+      sub.unsubscribe()
+    }
   }, [parentMessage])
 
   useEffect(() => {
