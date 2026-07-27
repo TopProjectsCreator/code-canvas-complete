@@ -3,22 +3,112 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Button } from '@/components/ui/button'
 import { SmilePlus } from 'lucide-react'
 
-const EMOJI_CATEGORIES = [
+interface EmojiItem {
+  emoji: string
+  name: string
+  keywords: string[]
+}
+
+const EMOJI_CATEGORIES: { name: string; emojis: EmojiItem[] }[] = [
   {
     name: 'Smileys',
-    emojis: ['😀', '😂', '🤣', '😊', '😍', '🥰', '😎', '🤩', '😢', '😭', '😤', '😡', '🥳', '🤔', '🙄', '😴', '🤗', '🤭', '🫣', '😬'],
+    emojis: [
+      { emoji: '😀', name: 'grinning face', keywords: ['smile', 'happy'] },
+      { emoji: '😂', name: 'face with tears of joy', keywords: ['laugh', 'funny'] },
+      { emoji: '🤣', name: 'rolling on the floor laughing', keywords: ['rofl', 'laugh'] },
+      { emoji: '😊', name: 'smiling face with smiling eyes', keywords: ['blush', 'shy'] },
+      { emoji: '😍', name: 'smiling face with heart-eyes', keywords: ['love', 'crush'] },
+      { emoji: '🥰', name: 'smiling face with hearts', keywords: ['love', 'adore'] },
+      { emoji: '😎', name: 'smiling face with sunglasses', keywords: ['cool', 'sun'] },
+      { emoji: '🤩', name: 'star-struck', keywords: ['star', 'wow'] },
+      { emoji: '😢', name: 'crying face', keywords: ['sad', 'cry'] },
+      { emoji: '😭', name: 'loudly crying face', keywords: ['sad', 'sob'] },
+      { emoji: '😤', name: 'face with steam from nose', keywords: ['angry', 'frustrated'] },
+      { emoji: '😡', name: 'pouting face', keywords: ['angry', 'mad'] },
+      { emoji: '🥳', name: 'partying face', keywords: ['party', 'celebrate'] },
+      { emoji: '🤔', name: 'thinking face', keywords: ['think', 'hmm'] },
+      { emoji: '🙄', name: 'face with rolling eyes', keywords: ['eyeroll', 'annoyed'] },
+      { emoji: '😴', name: 'sleeping face', keywords: ['sleep', 'zzz'] },
+      { emoji: '🤗', name: 'hugging face', keywords: ['hug', 'comfort'] },
+      { emoji: '🤭', name: 'face with hand over mouth', keywords: ['oops', 'giggle'] },
+      { emoji: '🫣', name: 'face with peeking eye', keywords: ['peek', 'shy'] },
+      { emoji: '😬', name: 'grimacing face', keywords: ['awkward', 'nervous'] },
+    ],
   },
   {
     name: 'Gestures',
-    emojis: ['👍', '👎', '👏', '🙌', '🎉', '❤️', '🔥', '💯', '✅', '❌', '⭐', '💪', '🚀', '👀', '🙏', '💜', '💙', '💚', '💛', '🧡'],
+    emojis: [
+      { emoji: '👍', name: 'thumbs up', keywords: ['yes', 'ok', 'like'] },
+      { emoji: '👎', name: 'thumbs down', keywords: ['no', 'dislike'] },
+      { emoji: '👏', name: 'clapping hands', keywords: ['clap', 'applause'] },
+      { emoji: '🙌', name: 'raising hands', keywords: ['hooray', 'celebrate'] },
+      { emoji: '🎉', name: 'party popper', keywords: ['party', 'celebrate', 'tada'] },
+      { emoji: '❤️', name: 'red heart', keywords: ['love', 'heart', 'like'] },
+      { emoji: '🔥', name: 'fire', keywords: ['hot', 'lit', 'flame'] },
+      { emoji: '💯', name: 'hundred points', keywords: ['perfect', 'score', '100'] },
+      { emoji: '✅', name: 'check mark button', keywords: ['done', 'ok', 'check'] },
+      { emoji: '❌', name: 'cross mark', keywords: ['no', 'wrong', 'cancel'] },
+      { emoji: '⭐', name: 'star', keywords: ['favorite', 'rating'] },
+      { emoji: '💪', name: 'flexed biceps', keywords: ['strong', 'muscle', 'power'] },
+      { emoji: '🚀', name: 'rocket', keywords: ['launch', 'space', 'ship'] },
+      { emoji: '👀', name: 'eyes', keywords: ['see', 'look', 'watch'] },
+      { emoji: '🙏', name: 'folded hands', keywords: ['please', 'thank', 'pray'] },
+      { emoji: '💜', name: 'purple heart', keywords: ['love', 'heart'] },
+      { emoji: '💙', name: 'blue heart', keywords: ['love', 'heart'] },
+      { emoji: '💚', name: 'green heart', keywords: ['love', 'heart'] },
+      { emoji: '💛', name: 'yellow heart', keywords: ['love', 'heart'] },
+      { emoji: '🧡', name: 'orange heart', keywords: ['love', 'heart'] },
+    ],
   },
   {
     name: 'Objects',
-    emojis: ['📁', '📂', '📄', '📝', '📌', '🔗', '📎', '🖊️', '✂️', '🔒', '🔓', '💡', '🔧', '📦', '🏆', '🎯', '🧠', '⚡', '🛠️', '📊'],
+    emojis: [
+      { emoji: '📁', name: 'file folder', keywords: ['file', 'folder'] },
+      { emoji: '📂', name: 'open file folder', keywords: ['file', 'folder', 'open'] },
+      { emoji: '📄', name: 'page facing up', keywords: ['page', 'document'] },
+      { emoji: '📝', name: 'memo', keywords: ['write', 'note', 'memo'] },
+      { emoji: '📌', name: 'pushpin', keywords: ['pin', 'tack'] },
+      { emoji: '🔗', name: 'link', keywords: ['chain', 'url', 'link'] },
+      { emoji: '📎', name: 'paperclip', keywords: ['clip', 'attach'] },
+      { emoji: '🖊️', name: 'pen', keywords: ['write', 'pen'] },
+      { emoji: '✂️', name: 'scissors', keywords: ['cut', 'scissors'] },
+      { emoji: '🔒', name: 'locked', keywords: ['lock', 'secure', 'private'] },
+      { emoji: '🔓', name: 'unlocked', keywords: ['unlock', 'open', 'public'] },
+      { emoji: '💡', name: 'light bulb', keywords: ['idea', 'light', 'bulb'] },
+      { emoji: '🔧', name: 'wrench', keywords: ['tool', 'fix', 'spanner'] },
+      { emoji: '📦', name: 'package', keywords: ['box', 'package', 'delivery'] },
+      { emoji: '🏆', name: 'trophy', keywords: ['trophy', 'winner', 'award'] },
+      { emoji: '🎯', name: 'direct hit', keywords: ['target', 'dart', 'bullseye'] },
+      { emoji: '🧠', name: 'brain', keywords: ['brain', 'smart', 'think'] },
+      { emoji: '⚡', name: 'high voltage', keywords: ['lightning', 'thunder', 'electric'] },
+      { emoji: '🛠️', name: 'hammer and wrench', keywords: ['tool', 'repair', 'fix'] },
+      { emoji: '📊', name: 'bar chart', keywords: ['chart', 'graph', 'stats'] },
+    ],
   },
   {
     name: 'Common',
-    emojis: ['🎉', '👍', '❤️', '🔥', '✅', '🙌', '💯', '🎊', '🚀', '👏', '💪', '⭐', '🥳', '✨', '💡', '🎈', '🏅', '💎', '👑', '🌟'],
+    emojis: [
+      { emoji: '🎉', name: 'party popper', keywords: ['party', 'celebrate', 'tada'] },
+      { emoji: '👍', name: 'thumbs up', keywords: ['yes', 'ok', 'like'] },
+      { emoji: '❤️', name: 'red heart', keywords: ['love', 'heart'] },
+      { emoji: '🔥', name: 'fire', keywords: ['hot', 'lit', 'flame'] },
+      { emoji: '✅', name: 'check mark button', keywords: ['done', 'ok', 'check'] },
+      { emoji: '🙌', name: 'raising hands', keywords: ['hooray', 'celebrate'] },
+      { emoji: '💯', name: 'hundred points', keywords: ['perfect', 'score', '100'] },
+      { emoji: '🎊', name: 'confetti ball', keywords: ['party', 'confetti'] },
+      { emoji: '🚀', name: 'rocket', keywords: ['launch', 'space', 'ship'] },
+      { emoji: '👏', name: 'clapping hands', keywords: ['clap', 'applause'] },
+      { emoji: '💪', name: 'flexed biceps', keywords: ['strong', 'muscle', 'power'] },
+      { emoji: '⭐', name: 'star', keywords: ['favorite', 'rating'] },
+      { emoji: '🥳', name: 'partying face', keywords: ['party', 'celebrate'] },
+      { emoji: '✨', name: 'sparkles', keywords: ['sparkle', 'magic', 'shiny'] },
+      { emoji: '💡', name: 'light bulb', keywords: ['idea', 'light', 'bulb'] },
+      { emoji: '🎈', name: 'balloon', keywords: ['party', 'balloon'] },
+      { emoji: '🏅', name: 'sports medal', keywords: ['medal', 'winner', 'award'] },
+      { emoji: '💎', name: 'gem stone', keywords: ['diamond', 'gem', 'precious'] },
+      { emoji: '👑', name: 'crown', keywords: ['king', 'queen', 'royal'] },
+      { emoji: '🌟', name: 'glowing star', keywords: ['star', 'glow', 'shining'] },
+    ],
   },
 ]
 
@@ -33,7 +123,13 @@ export function EmojiPicker({ onSelect, trigger }: EmojiPickerProps) {
 
   const filtered = search
     ? EMOJI_CATEGORIES.flatMap(c =>
-        c.emojis.filter(e => e.includes(search))
+        c.emojis.filter(e => {
+          const q = search.toLowerCase()
+          return (
+            e.name.toLowerCase().includes(q) ||
+            e.keywords.some(k => k.includes(q))
+          )
+        })
       ).slice(0, 30)
     : null
 
@@ -58,13 +154,13 @@ export function EmojiPicker({ onSelect, trigger }: EmojiPickerProps) {
         <div className="max-h-60 overflow-y-auto">
           {filtered ? (
             <div className="grid grid-cols-8 gap-1">
-              {filtered.map((emoji) => (
+              {filtered.map((item) => (
                 <button
-                  key={emoji}
+                  key={item.emoji}
                   className="h-8 w-8 flex items-center justify-center rounded hover:bg-accent text-lg cursor-pointer"
-                  onClick={() => { onSelect(emoji); setOpen(false); setSearch('') }}
+                  onClick={() => { onSelect(item.emoji); setOpen(false); setSearch('') }}
                 >
-                  {emoji}
+                  {item.emoji}
                 </button>
               ))}
               {filtered.length === 0 && (
@@ -76,13 +172,13 @@ export function EmojiPicker({ onSelect, trigger }: EmojiPickerProps) {
               <div key={cat.name} className="mb-2">
                 <p className="text-[10px] font-medium text-muted-foreground uppercase mb-1">{cat.name}</p>
                 <div className="grid grid-cols-8 gap-1">
-                  {cat.emojis.map((emoji) => (
+                  {cat.emojis.map((item) => (
                     <button
-                      key={emoji}
+                      key={item.emoji}
                       className="h-8 w-8 flex items-center justify-center rounded hover:bg-accent text-lg cursor-pointer"
-                      onClick={() => { onSelect(emoji); setOpen(false) }}
+                      onClick={() => { onSelect(item.emoji); setOpen(false) }}
                     >
-                      {emoji}
+                      {item.emoji}
                     </button>
                   ))}
                 </div>
