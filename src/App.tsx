@@ -166,6 +166,7 @@ const App = () => isOAuthConsentPath() ? <OAuthConsentShell /> : (
               <Route path="/link-discord" element={<LinkDiscord />} />
               <Route path="/admin/oauth-hosts" element={<OAuthHostsAdmin />} />
               <Route path="/admin/online-users" element={<OnlineUsersAdmin />} />
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/oauth-apps" element={<OAuthAppsPublic />} />
               <Route path="/mcp" element={<MCP />} />
               {/* Redactor routes — public */}
