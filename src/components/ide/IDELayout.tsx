@@ -2112,7 +2112,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         setTerminalHistory((prev) => [
           ...prev,
           { id: generateId(), type: "error" as const, content: result.error!, timestamp: new Date() },
-        ]);
+        ].slice(-TERMINAL_HISTORY_CAP));
       } else if (result.output.length > 0) {
         const outputLines: TerminalLine[] = result.output.map((line) => ({
           id: generateId(),
@@ -2120,13 +2120,13 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           content: line,
           timestamp: new Date(),
         }));
-        setTerminalHistory((prev) => [...prev, ...outputLines]);
+        setTerminalHistory((prev) => [...prev, ...outputLines].slice(-TERMINAL_HISTORY_CAP));
       }
 
       setTerminalHistory((prev) => [
         ...prev,
         { id: generateId(), type: "info" as const, content: `✅ Finished`, timestamp: new Date() },
-      ]);
+      ].slice(-TERMINAL_HISTORY_CAP));
       setIsRunning(false);
     },
     [stdinPrompt, executeCode],
