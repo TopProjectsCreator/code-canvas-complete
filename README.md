@@ -998,5 +998,196 @@ Coming soon! We are finalizing the GitHub Actions and documentation for a seamle
 
 ---
 
+## ⌨️ CLI (`cc`)
+
+Code Canvas includes a command-line interface for managing your workspace, redactor, threads, and AI tools directly from the terminal.
+
+<details>
+<summary><b>Installation</b></summary>
+
+**From source (Go 1.25+):**
+```bash
+cd cli
+make build        # Builds to dist/cc
+make install      # Installs to $GOPATH/bin
+```
+
+**Cross-compile for all platforms:**
+```bash
+make build-all    # Produces linux/darwin/windows amd64+arm64 binaries
+```
+</details>
+
+<details>
+<summary><b>Configuration</b></summary>
+
+On first run, create your config:
+```bash
+cc auth login --token <your-supabase-jwt>
+```
+
+This stores credentials in `~/.cc/config.json`. You can also set:
+```bash
+cc --server https://your-server.com auth status
+```
+</details>
+
+<details>
+<summary><b>Shell Completions</b></summary>
+
+```bash
+cc completions bash > ~/.bashrc.d/cc-completions   # Bash
+cc completions zsh  > ~/.zsh/completions/_cc        # Zsh
+cc completions fish > ~/.config/fish/completions/cc.fish  # Fish
+```
+</details>
+
+<details>
+<summary><b>Authentication</b></summary>
+
+```bash
+cc auth login                          # Browser OAuth login
+cc auth login --token <jwt>            # Direct token login
+cc auth status                         # Show current session
+cc auth logout                         # Clear credentials
+```
+</details>
+
+<details>
+<summary><b>Redactor (AI API Gateway)</b></summary>
+
+```bash
+# Proxy key management
+cc redactor proxy-keys list            # List all proxy keys
+cc redactor proxy-keys create \        # Create a new key
+  --name "My App" \
+  --providers openai,anthropic \
+  --rate-limit 60
+cc redactor proxy-keys revoke <id>     # Revoke a key
+
+# Provider key management
+cc redactor provider-keys list         # List provider keys
+cc redactor provider-keys add \        # Add a provider key
+  --provider openai \
+  --label "My OpenAI" \
+  --api-key sk-proj-...
+cc redactor provider-keys delete <id>  # Delete a key
+
+# Custom redaction rules
+cc redactor rules list                 # List rules
+cc redactor rules add \                # Add a rule
+  --pattern "PROJ-[0-9]{6}" \
+  --label "Project ID"
+cc redactor rules delete <id>          # Delete a rule
+
+# Request logs
+cc redactor logs list --limit 20       # Show last 20 requests
+cc redactor logs stats                 # Monthly usage stats
+
+# Model routers (fallback chains)
+cc redactor routers list               # List routers
+cc redactor routers create --name "Production Fallback"
+cc redactor routers steps <router-id>  # Show router steps
+cc redactor routers add-step \         # Add a fallback step
+  --router <id> \
+  --provider-key <key-id> \
+  --model gpt-4o
+
+# Text redaction
+cc redactor redact text "alice@example.com"  # Redact a string
+cc redactor redact text --file prompt.txt    # Redact a file
+cat secrets.log | cc redactor redact pipe    # Redact from stdin
+```
+</details>
+
+<details>
+<summary><b>Threads (Community)</b></summary>
+
+```bash
+cc threads list --sort hot             # List threads (hot/new/top)
+cc threads show <id>                   # View thread with comments
+cc threads create \                    # Create a thread
+  --title "Best practices" \
+  --content "What patterns do you follow..."
+cc threads comment \                   # Post a comment
+  --thread <id> \
+  --content "Great point!"
+cc threads vote --id <id> --up         # Upvote
+cc threads vote --id <id> --down       # Downvote
+cc threads pin <id>                    # Pin a thread
+cc threads delete <id>                 # Delete a thread
+cc threads categories list             # List categories
+cc threads me                           # Your karma & activity
+```
+</details>
+
+<details>
+<summary><b>IDE Tools</b></summary>
+
+```bash
+# Run code
+cc ide run --lang python --stdin "print('hello')"
+cc ide run --lang javascript --file server.js
+cc ide run --lang rust < main.rs
+
+# Workspace management
+cc ide workspace create --name my-app  # Create a workspace
+cc ide workspace list                  # List workspaces
+cc ide workspace status <id>           # Workspace details
+cc ide workspace destroy <id>          # Destroy a workspace
+
+# Shell commands in workspace
+cc ide exec "npm install" --workspace <id>
+
+# File operations
+cc ide files list --workspace <id>                    # List files
+cc ide files read --workspace <id> --path src/main.py # Read file
+cc ide files write --workspace <id> --path README.md --content "# Hi"
+
+# AI tools
+cc ide ai chat -m "explain this function"             # Chat with AI
+cc ide ai chat -m "review this" --file main.py        # Chat with file context
+cc ide ai image --prompt "a sunset" --provider openai # Generate image
+cc ide ai video --prompt "waves" --provider runway    # Generate video
+cc ide ai 3d --prompt "low-poly tree" --provider sloyd # Generate 3D model
+cc ide ai command "find large files"                   # NL to shell command
+
+# AI provider management
+cc ide ai providers list               # List configured providers
+cc ide ai providers add --provider openai --api-key sk-...
+cc ide ai providers models openai      # List available models
+
+# MCP servers
+cc ide ai mcp list                     # List MCP servers
+cc ide ai mcp add --name "GitHub" --url "https://..."
+
+# Agent skills
+cc ide ai skills list                  # List installed skills
+cc ide ai skills library --search "python"  # Browse community skills
+
+# Git operations
+cc ide git status                      # Working tree status
+cc ide git commit -m "fix: bug"        # Commit changes
+
+# Vulnerability scanning
+cc ide scan                            # Scan package.json
+cc ide scan --file requirements.txt    # Scan Python deps
+```
+</details>
+
+<details>
+<summary><b>Global Flags</b></summary>
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--server URL` | Code Canvas server URL | `http://localhost:3001` |
+| `--token TOKEN` | Auth token (overrides config) | — |
+| `--output FORMAT` | Output format: `table`, `json`, `yaml` | `table` |
+| `--quiet` | Suppress non-essential output | `false` |
+| `--verbose` | Show debug information | `false` |
+</details>
+
+---
+
 ## 📄 License & Contributing
 Licensed under [license.md](license.md). Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
