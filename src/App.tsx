@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -94,8 +94,8 @@ function LandingDiscordUpdater({ children }: { children: React.ReactNode }) {
 }
 
 const RootRoute = () => {
+  const choice = useMemo(() => getLandingVariant(), []);
   if (isPublishedHost()) return <Index />;
-  const choice = getLandingVariant();
   if (choice === "/landing") return <LandingDiscordUpdater><Landing /></LandingDiscordUpdater>;
   return <Navigate to={choice} replace />;
 };
