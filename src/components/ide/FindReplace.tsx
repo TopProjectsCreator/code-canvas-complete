@@ -60,8 +60,10 @@ export const FindReplace = ({
       setMatches(foundMatches);
       if (foundMatches.length > 0 && currentMatchIndex >= foundMatches.length) {
         setCurrentMatchIndex(0);
+        onHighlightChange(foundMatches, 0);
+      } else {
+        onHighlightChange(foundMatches, foundMatches.length > 0 ? currentMatchIndex : -1);
       }
-      onHighlightChange(foundMatches, foundMatches.length > 0 ? currentMatchIndex : -1);
     } catch (e) {
       // Invalid regex, ignore
       setMatches([]);
