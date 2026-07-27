@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Plus, ExternalLink } from 'lucide-react';
+import { Loader2, Plus, ExternalLink, Search } from 'lucide-react';
 import { Seo } from '@/components/Seo';
 
 interface PublicApp {
@@ -37,6 +37,18 @@ const OAuthAppsPublic = () => {
   const [editingHost, setEditingHost] = useState<string | null>(null);
   const [form, setForm] = useState({ host: '', app_name: '', logo_url: '', public_description: '' });
   const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredApps = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return apps;
+    return apps.filter(
+      app =>
+        app.app_name.toLowerCase().includes(q) ||
+        app.host.toLowerCase().includes(q) ||
+        (app.public_description && app.public_description.toLowerCase().includes(q)),
+    );
+  }, [apps, searchQuery]);
 
   const load = async () => {
     setLoading(true);
@@ -119,15 +131,27 @@ const OAuthAppsPublic = () => {
           <Button onClick={openSubmit} className="gap-2"><Plus className="w-4 h-4" />Submit integration</Button>
         </header>
 
+        <div className="relative max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by name, host, or description"
+            className="pl-8"
+          />
+        </div>
+
         {loading ? (
           <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : (
           <section>
             {apps.length === 0 ? (
               <p className="text-sm text-muted-foreground">No integrations yet.</p>
+            ) : filteredApps.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No matching integrations.</p>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {apps.map(app => (
+                {filteredApps.map(app => (
                   <button
                     key={app.host}
                     onClick={() => setSelected(app)}
