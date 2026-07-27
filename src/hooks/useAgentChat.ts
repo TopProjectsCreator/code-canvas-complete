@@ -127,8 +127,9 @@ const loadPersistedMessages = (projectId?: string | null): AgentMessage[] => {
     if (!raw) return [WELCOME_MESSAGE];
     const parsed = JSON.parse(raw) as AgentMessage[];
     if (!Array.isArray(parsed) || parsed.length === 0) return [WELCOME_MESSAGE];
-    // Strip transient flags
-    return parsed.map(m => ({ ...m, isStreaming: false }));
+    // Strip transient flags and trim to bound memory usage
+    const trimmed = parsed.length > 200 ? parsed.slice(-200) : parsed;
+    return trimmed.map(m => ({ ...m, isStreaming: false }));
   } catch {
     return [WELCOME_MESSAGE];
   }
@@ -178,36 +179,17 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const messagesRef = useRef<AgentMessage[]>(messages);
   messagesRef.current = messages;
 
-  // Streaming optimization: throttle state updates to avoid O(n) array copies on every token
-  const streamingContentRef = useRef<string>('');
-  const lastStreamUpdateRef = useRef<number>(0);
-  const streamUpdateRafRef = useRef<number | null>(null);
+  // Streaming performance: throttle state updates to avoid O(n) array copies on every token
+  const streamingAssistantIdRef = useRef<string | null>(null);
+  const streamingFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const streamingFlushPendingRef = useRef(false);
 
   useEffect(() => {
     return () => {
-      if (streamUpdateRafRef.current !== null) {
-        cancelAnimationFrame(streamUpdateRafRef.current);
+      if (streamingFlushTimerRef.current) {
+        clearTimeout(streamingFlushTimerRef.current);
       }
     };
-  }, []);
-
-  const updateStreamingMessage = useCallback((msgId: string, content: string) => {
-    streamingContentRef.current = content;
-    const now = Date.now();
-    if (now - lastStreamUpdateRef.current >= 100) {
-      if (streamUpdateRafRef.current !== null) {
-        cancelAnimationFrame(streamUpdateRafRef.current);
-        streamUpdateRafRef.current = null;
-      }
-      lastStreamUpdateRef.current = now;
-      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content, isStreaming: true } : m));
-    } else if (streamUpdateRafRef.current === null) {
-      streamUpdateRafRef.current = requestAnimationFrame(() => {
-        streamUpdateRafRef.current = null;
-        lastStreamUpdateRef.current = Date.now();
-        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: streamingContentRef.current, isStreaming: true } : m));
-      });
-    }
   }, []);
 
   const aiProvider = useMemo(() => createAIProvider(), []);
@@ -1276,6 +1258,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         const next = [...prev, { id: assistantId, role: 'assistant', content: '', isStreaming: true }];
         return next.length > 200 ? next.slice(-200) : next;
       });
+      streamingAssistantIdRef.current = assistantId;
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -1307,7 +1290,21 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
               else if (fullContent.includes('<generate_pptx')) { setCurrentStep('Preparing presentation...'); }
               else { setCurrentStep(null); }
               
-              updateStreamingMessage(assistantId, fullContent);
+              // Throttled state update: batch streaming updates to ~10/sec instead of 30-100/sec
+              if (!streamingFlushPendingRef.current) {
+                streamingFlushPendingRef.current = true;
+                streamingFlushTimerRef.current = setTimeout(() => {
+                  streamingFlushTimerRef.current = null;
+                  streamingFlushPendingRef.current = false;
+                  const aid = streamingAssistantIdRef.current;
+                  if (!aid) return;
+                  const throttled = (chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent)) as ReturnType<typeof processAgentResponse>;
+                  setMessages(prev => {
+                    const trimmed = prev.length > 200 ? prev.slice(-200) : prev;
+                    return trimmed.map(m => m.id === aid ? { ...m, ...throttled, isStreaming: true } : m);
+                  });
+                }, 100);
+              }
             }
           } catch {
             buffer = line + '\n' + buffer;
@@ -1316,11 +1313,13 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         }
       }
 
-      // Cancel any pending throttled streaming update before finalizing
-      if (streamUpdateRafRef.current !== null) {
-        cancelAnimationFrame(streamUpdateRafRef.current);
-        streamUpdateRafRef.current = null;
+      // Cancel any pending throttled streaming update before final flush
+      if (streamingFlushTimerRef.current) {
+        clearTimeout(streamingFlushTimerRef.current);
+        streamingFlushTimerRef.current = null;
       }
+      streamingFlushPendingRef.current = false;
+      streamingAssistantIdRef.current = null;
 
       // Final processing
       const processed = (chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent)) as ReturnType<typeof processAgentResponse>;
