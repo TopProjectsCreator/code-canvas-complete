@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { acquirePresence } from '@/lib/onlineUsersPresence';
 
 /**
  * Joins the global "online-users" presence channel while the user is signed in.
@@ -11,29 +11,16 @@ export function usePresenceTracker() {
 
   useEffect(() => {
     if (!user) return;
-    const channel = supabase.channel('online-users', {
-      config: { presence: { key: user.id } },
+    const release = acquirePresence(user.id, {
+      user_id: user.id,
+      email: user.email,
+      display_name:
+        (user.user_metadata as { display_name?: string })?.display_name ||
+        user.email?.split('@')[0] ||
+        'User',
+      online_at: new Date().toISOString(),
+      path: window.location.pathname,
     });
-
-    channel
-      .on('presence', { event: 'sync' }, () => {})
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({
-            user_id: user.id,
-            email: user.email,
-            display_name:
-              (user.user_metadata as { display_name?: string })?.display_name ||
-              user.email?.split('@')[0] ||
-              'User',
-            online_at: new Date().toISOString(),
-            path: window.location.pathname,
-          });
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return release;
   }, [user?.id]);
 }
