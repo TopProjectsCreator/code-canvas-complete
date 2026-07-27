@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { FileNode } from '@/types/ide';
 import { getFileLanguage } from '@/data/defaultFiles';
 
@@ -33,7 +33,17 @@ interface GitHubRepo {
   default_branch: string;
 }
 
-const generateId = () => Math.random().toString(36).substring(2, 9);
+let idCounter = 0;
+const generateId = () => `n${++idCounter}_${Math.random().toString(36).substring(2, 7)}`;
+
+const decodeBase64Utf8 = (base64: string): string => {
+  const raw = atob(base64);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) {
+    bytes[i] = raw.charCodeAt(i);
+  }
+  return new TextDecoder('utf-8').decode(bytes);
+};
 
 const ALLOWED_HIDDEN_NAMES = new Set(['.gitignore', '.tutorial']);
 
@@ -114,27 +124,46 @@ const shouldSkipFile = (name: string): boolean => {
   return name.startsWith('.') && !ALLOWED_HIDDEN_NAMES.has(name);
 };
 
+const buildAuthHeaders = (token?: string): Record<string, string> => {
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
+};
+
 const fetchFileTree = async (
   owner: string,
   repo: string,
-  branch: string
+  branch: string,
+  token?: string,
+  signal?: AbortSignal
 ): Promise<GitHubTreeItem[]> => {
+  const headers = buildAuthHeaders(token);
   const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
-  const response = await fetch(url);
+  const response = await fetch(url, { headers, signal });
 
   if (!response.ok) {
     if (branch === 'main') {
       const masterUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/master?recursive=1`;
-      const masterResponse = await fetch(masterUrl);
+      const masterResponse = await fetch(masterUrl, { headers, signal });
       if (masterResponse.ok) {
         const data: GitHubTreeResponse = await masterResponse.json();
+        if (data.truncated) {
+          console.warn('Repository tree was truncated by GitHub (>100k entries). Some files may be missing.');
+        }
         return data.tree;
       }
+      throw new Error(
+        `Failed to fetch file tree: tried 'main' (${response.statusText}) and 'master' (${masterResponse.statusText})`
+      );
     }
     throw new Error(`Failed to fetch file tree: ${response.statusText}`);
   }
 
   const data: GitHubTreeResponse = await response.json();
+  if (data.truncated) {
+    console.warn('Repository tree was truncated by GitHub (>100k entries). Some files may be missing.');
+  }
   return data.tree;
 };
 
@@ -143,10 +172,15 @@ const fetchFileContent = async (
   repo: string,
   path: string,
   branch: string,
-  asDataUrl?: boolean
+  asDataUrl?: boolean,
+  token?: string,
+  signal?: AbortSignal
 ): Promise<string> => {
+  const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+  const headers = buildAuthHeaders(token);
   const response = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`
+    `https://api.github.com/repos/${owner}/${repo}/contents/${encodedPath}?ref=${branch}`,
+    { headers, signal }
   );
   if (!response.ok) {
     throw new Error(`Failed to fetch file: ${response.statusText}`);
@@ -160,7 +194,7 @@ const fetchFileContent = async (
       const mime = getMimeType(path);
       return `data:${mime};base64,${rawBase64}`;
     }
-    return atob(rawBase64);
+    return decodeBase64Utf8(rawBase64);
   }
 
   if (typeof data.content === 'string') {
@@ -200,10 +234,10 @@ const buildTreeFromFlatList = (items: GitHubTreeItem[]): TreeBuildResult => {
       });
     } else if (item.type === 'blob') {
       const isText = isLikelyTextFile(name);
-      const isBinary = isViewableBinaryFile(name);
+      const isViewable = isViewableBinaryFile(name);
       const id = generateId();
 
-      if (!isText && !isBinary) {
+      if (!isText && !isViewable) {
         nodeMap.set(item.path, {
           id,
           name,
@@ -219,7 +253,7 @@ const buildTreeFromFlatList = (items: GitHubTreeItem[]): TreeBuildResult => {
           language: getFileLanguage(name),
         });
         nodeIdToPath.set(id, item.path);
-        filesToFetch.push({ path: item.path, asDataUrl: isBinary });
+        filesToFetch.push({ path: item.path, asDataUrl: isViewable });
       }
     }
   }
@@ -272,27 +306,31 @@ const fetchContentsBatch = async (
   branch: string,
   items: { path: string; asDataUrl: boolean }[],
   onProgress: (msg: string) => void,
-  total: number
-): Promise<Map<string, string>> => {
-  const results = new Map<string, string>();
+  total: number,
+  token?: string,
+  signal?: AbortSignal
+): Promise<{ contentMap: Map<string, string>; failed: string[] }> => {
+  const contentMap = new Map<string, string>();
+  const failed: string[] = [];
   let completed = 0;
 
   for (let i = 0; i < items.length; i += CONCURRENT_FETCH_LIMIT) {
     const batch = items.slice(i, i + CONCURRENT_FETCH_LIMIT);
     const promises = batch.map(async (item) => {
       try {
-        const content = await fetchFileContent(owner, repo, item.path, branch, item.asDataUrl);
+        const content = await fetchFileContent(owner, repo, item.path, branch, item.asDataUrl, token, signal);
         return { path: item.path, content };
       } catch {
-        console.warn(`Skipped ${item.path}: failed to fetch`);
-        return null;
+        return { path: item.path, error: true as const };
       }
     });
 
     const batchResults = await Promise.all(promises);
     for (const result of batchResults) {
-      if (result) {
-        results.set(result.path, result.content);
+      if ('error' in result) {
+        failed.push(result.path);
+      } else {
+        contentMap.set(result.path, result.content);
       }
     }
 
@@ -301,13 +339,14 @@ const fetchContentsBatch = async (
     onProgress(`Fetching files (${Math.min(completed, total)}/${total}): ${lastName}...`);
   }
 
-  return results;
+  return { contentMap, failed };
 };
 
 export const useGitHubImport = () => {
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const parseGitHubUrl = (url: string): { owner: string; repo: string } | null => {
     const patterns = [
@@ -327,8 +366,17 @@ export const useGitHubImport = () => {
     return null;
   };
 
-  const fetchRepoInfo = async (owner: string, repo: string): Promise<GitHubRepo | null> => {
-    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+  const fetchRepoInfo = async (
+    owner: string,
+    repo: string,
+    token?: string,
+    signal?: AbortSignal
+  ): Promise<GitHubRepo | null> => {
+    const headers = buildAuthHeaders(token);
+    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+      headers,
+      signal,
+    });
     if (!response.ok) {
       if (response.status === 404) {
         throw new Error('Repository not found. Make sure it exists and is public.');
@@ -338,7 +386,12 @@ export const useGitHubImport = () => {
     return await response.json();
   };
 
-  const importRepository = useCallback(async (urlOrPath: string): Promise<FileNode[] | null> => {
+  const importRepository = useCallback(async (urlOrPath: string, token?: string): Promise<FileNode[] | null> => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
     setIsImporting(true);
     setError(null);
     setImportProgress('Parsing URL...');
@@ -352,7 +405,7 @@ export const useGitHubImport = () => {
       const { owner, repo } = parsed;
 
       setImportProgress('Fetching repository info...');
-      const repoInfo = await fetchRepoInfo(owner, repo);
+      const repoInfo = await fetchRepoInfo(owner, repo, token, signal);
       if (!repoInfo) {
         throw new Error('Could not fetch repository information');
       }
@@ -360,16 +413,18 @@ export const useGitHubImport = () => {
       const branch = repoInfo.default_branch;
 
       setImportProgress('Fetching file tree...');
-      const treeItems = await fetchFileTree(owner, repo, branch);
+      const treeItems = await fetchFileTree(owner, repo, branch, token, signal);
 
       setImportProgress('Building file tree...');
       const { rootNodes, filesToFetch, nodeIdToPath } = buildTreeFromFlatList(treeItems);
 
+      let failedFiles: string[] = [];
       if (filesToFetch.length > 0) {
         setImportProgress(`Fetching ${filesToFetch.length} files...`);
-        const contentMap = await fetchContentsBatch(
-          owner, repo, branch, filesToFetch, setImportProgress, filesToFetch.length
+        const { contentMap, failed } = await fetchContentsBatch(
+          owner, repo, branch, filesToFetch, setImportProgress, filesToFetch.length, token, signal
         );
+        failedFiles = failed;
         attachContentToTree(rootNodes, contentMap, nodeIdToPath);
       }
 
@@ -380,10 +435,15 @@ export const useGitHubImport = () => {
         children: rootNodes,
       };
 
-      setImportProgress('Import complete!');
+      if (failedFiles.length > 0) {
+        setImportProgress(`Import complete with ${failedFiles.length} file(s) skipped.`);
+      } else {
+        setImportProgress('Import complete!');
+      }
       return [rootNode];
 
     } catch (err) {
+      if (signal.aborted) return null;
       const message = err instanceof Error ? err.message : 'Failed to import repository';
       setError(message);
       return null;
@@ -407,6 +467,12 @@ export const useGitHubImport = () => {
     } catch {
       return [];
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
   }, []);
 
   return {
