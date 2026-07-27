@@ -103,6 +103,21 @@ const detectMathShortcut = (input: string): { explanation?: string; solution?: s
     const a = Number(quadMatch[1] === '' || quadMatch[1] === '+' ? 1 : quadMatch[1] === '-' ? -1 : quadMatch[1]);
     const b = Number((quadMatch[2] || '').replace(/\s+/g, ''));
     const c = Number((quadMatch[3] || '').replace(/\s+/g, ''));
+    if (a === 0) {
+      if (b === 0) {
+        return {
+          expression: normalized,
+          explanation: `With a=0 and b=0, this equation reduces to c=0.`,
+          solution: c === 0 ? 'All x are solutions (identity).' : 'No solution (contradiction).'
+        };
+      }
+      const root = -c / b;
+      return {
+        expression: normalized,
+        explanation: `This is a linear equation (a=0). Solving ${b}x + ${c} = 0.`,
+        solution: `x = ${Number(root.toFixed(6))}`
+      };
+    }
     const discriminant = b * b - 4 * a * c;
     if (discriminant >= 0) {
       const root1 = (-b + Math.sqrt(discriminant)) / (2 * a);
