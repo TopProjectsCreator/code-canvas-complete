@@ -6,6 +6,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { sanitizeRichText } from '@/lib/richText';
+import { useToast } from '@/hooks/use-toast';
 
 const EMOJI_LIST = [
   '😀', '😂', '🤣', '😊', '😎', '🥳', '😍', '🤩',
@@ -36,6 +37,7 @@ export function ThreadEditor({
   const editorRef = useRef<HTMLDivElement>(null);
   const [focused, setFocused] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const el = editorRef.current;
@@ -107,17 +109,11 @@ export function ThreadEditor({
         emitChange();
       } catch (err) {
         console.error('Media upload failed:', err);
-        const msg = err instanceof Error ? err.message : 'Upload failed';
-        const placeholder = document.createElement('span');
-        placeholder.textContent = `[Upload failed: ${msg}]`;
-        placeholder.style.color = 'red';
-        const range = window.getSelection()?.getRangeAt(0);
-        if (range) {
-          range.insertNode(placeholder);
-          range.setStartAfter(placeholder);
-          range.collapse(true);
-        }
-        emitChange();
+        toast({
+          title: 'Upload failed',
+          description: err instanceof Error ? err.message : 'Upload failed',
+          variant: 'destructive',
+        });
       }
     };
     input.click();
