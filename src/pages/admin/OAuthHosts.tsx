@@ -269,7 +269,19 @@ const OAuthHostsAdmin = () => {
           <form onSubmit={handleAdd} className="rounded-lg border border-border p-4 grid gap-3 sm:grid-cols-2">
             <div><Label>App name *</Label><Input value={form.app_name} onChange={e => setForm({ ...form, app_name: e.target.value })} required /></div>
             <div><Label>Host *</Label><Input value={form.host} onChange={e => setForm({ ...form, host: e.target.value })} placeholder="myapp.example.com" required /></div>
-            <div className="sm:col-span-2"><Label>Logo URL</Label><Input value={form.logo_url} onChange={e => setForm({ ...form, logo_url: e.target.value })} /></div>
+            <div className="sm:col-span-2">
+              <Label>Logo URL</Label>
+              <div className="flex gap-2">
+                <Input value={form.logo_url} onChange={e => setForm({ ...form, logo_url: e.target.value })} />
+                <Button type="button" size="sm" variant="outline" asChild>
+                  <label className="cursor-pointer gap-1 inline-flex items-center">
+                    <Upload className="w-4 h-4" />
+                    <input type="file" accept="image/*" className="hidden" onChange={e => handleFormUpload(e.target.files?.[0])} />
+                  </label>
+                </Button>
+              </div>
+              {form.logo_url && <img src={form.logo_url} alt="" className="mt-2 w-10 h-10 rounded object-cover border border-border" />}
+            </div>
             <div className="sm:col-span-2"><Label>Public description</Label><Textarea value={form.public_description} onChange={e => setForm({ ...form, public_description: e.target.value })} /></div>
             <div className="sm:col-span-2"><Label>Admin notes (private)</Label><Textarea value={form.admin_notes} onChange={e => setForm({ ...form, admin_notes: e.target.value })} /></div>
             <div className="sm:col-span-2 flex gap-2">
