@@ -9,14 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, ShieldOff, User as UserIcon, Wifi } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-interface PresenceMeta {
-  user_id: string;
-  email?: string;
-  display_name?: string;
-  online_at?: string;
-  path?: string;
-}
+import { acquirePresence, subscribePresence, type PresenceMeta } from '@/lib/onlineUsersPresence';
 
 type AppRole = 'admin' | 'user';
 const ALL_ROLES: AppRole[] = ['admin', 'user'];
@@ -29,43 +22,26 @@ export default function OnlineUsers() {
   const [roles, setRoles] = useState<Record<string, Set<AppRole>>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
-  // Join presence channel to observe all online users.
+  // Join the shared presence channel and observe all online users.
   useEffect(() => {
-    if (!isAdmin) return;
-    const channel = supabase.channel('online-users', {
-      config: { presence: { key: user?.id ?? 'admin-observer' } },
+    if (!isAdmin || !user) return;
+    const release = acquirePresence(user.id, {
+      user_id: user.id,
+      email: user.email,
+      display_name:
+        (user.user_metadata as { display_name?: string })?.display_name ||
+        user.email?.split('@')[0] ||
+        'Admin',
+      online_at: new Date().toISOString(),
+      path: window.location.pathname,
     });
-
-    const sync = () => {
-      const state = channel.presenceState<PresenceMeta>();
-      const flat: Record<string, PresenceMeta> = {};
-      for (const key of Object.keys(state)) {
-        const metas = state[key];
-        if (metas && metas.length) flat[key] = metas[metas.length - 1];
-      }
-      setOnline(flat);
-    };
-
-    channel
-      .on('presence', { event: 'sync' }, sync)
-      .on('presence', { event: 'join' }, sync)
-      .on('presence', { event: 'leave' }, sync)
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED' && user) {
-          await channel.track({
-            user_id: user.id,
-            email: user.email,
-            display_name: 'Admin',
-            online_at: new Date().toISOString(),
-            path: window.location.pathname,
-          });
-        }
-      });
-
+    const unsub = subscribePresence(setOnline);
     return () => {
-      supabase.removeChannel(channel);
+      unsub();
+      release();
     };
   }, [isAdmin, user?.id]);
+
 
   const userIds = useMemo(() => Object.keys(online), [online]);
 
