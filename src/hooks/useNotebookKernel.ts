@@ -11,9 +11,11 @@ export function useNotebookKernel() {
   const { executeCode, isExecuting } = useCodeExecution();
   const [kernel, setKernel] = useState<KernelState>({ status: "idle", error: null });
   const executionCountRef = useRef(0);
+  const executionIdRef = useRef(0);
 
   const runCell = useCallback(
     async (code: string, language: string): Promise<{ outputs: NbOutput[]; executionCount: number }> => {
+      const execId = ++executionIdRef.current;
       setKernel({ status: "running", error: null });
       executionCountRef.current += 1;
       const count = executionCountRef.current;
@@ -39,6 +41,7 @@ export function useNotebookKernel() {
             });
           }
         }
+        if (execId !== executionIdRef.current) return { outputs, executionCount: count };
         setKernel({ status: "ready", error: null });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -48,6 +51,7 @@ export function useNotebookKernel() {
           evalue: msg,
           traceback: [msg],
         });
+        if (execId !== executionIdRef.current) return { outputs, executionCount: count };
         setKernel({ status: "error", error: msg });
       }
 
