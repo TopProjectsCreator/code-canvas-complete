@@ -12,45 +12,51 @@ interface ExecutionResult {
   isPreview?: boolean;
 }
 
+const JS_EXECUTION_TIMEOUT_MS = 5_000;
+
 /**
- * In-browser JavaScript fallback. Used when WebContainer is unavailable and
- * the user is offline (so the cloud executor isn't reachable either).
+ * In-browser JavaScript fallback. Runs user code inside a Web Worker so that
+ * infinite loops or long-running scripts cannot freeze the main thread. A hard
+ * timeout terminates the worker if execution exceeds {@link JS_EXECUTION_TIMEOUT_MS}.
  */
 async function runJavaScriptInBrowser(code: string): Promise<ExecutionResult> {
-  const output: string[] = [];
-  const capture = (level: 'log' | 'warn' | 'error') => (...args: unknown[]) => {
-    output.push(
-      args
-        .map((a) => {
-          if (typeof a === 'string') return a;
-          try { return JSON.stringify(a); } catch { return String(a); }
-        })
-        .join(' '),
+  return new Promise<ExecutionResult>((resolve) => {
+    const worker = new Worker(
+      new URL('../workers/jsExecutor.worker.ts', import.meta.url),
+      { type: 'module' },
     );
-    if (level === 'error') {
-       
-      console.error(...args);
-    }
-  };
-  const sandboxConsole = {
-    log: capture('log'),
-    info: capture('log'),
-    warn: capture('warn'),
-    error: capture('error'),
-  };
-  try {
-     
-    const fn = new Function('console', `return (async () => { ${code}\n})();`);
-    const result = await fn(sandboxConsole);
-    if (result !== undefined) output.push(String(result));
-    return { output, error: null, executedAt: new Date().toISOString() };
-  } catch (err) {
-    return {
-      output,
-      error: err instanceof Error ? err.message : String(err),
-      executedAt: new Date().toISOString(),
+
+    const timer = setTimeout(() => {
+      worker.terminate();
+      resolve({
+        output: [],
+        error: `⏱️ Execution timed out after ${JS_EXECUTION_TIMEOUT_MS / 1000}s. The code may contain an infinite loop.`,
+        executedAt: new Date().toISOString(),
+      });
+    }, JS_EXECUTION_TIMEOUT_MS);
+
+    worker.onmessage = (e: MessageEvent<{ output: string[]; error: string | null }>) => {
+      clearTimeout(timer);
+      worker.terminate();
+      resolve({
+        output: e.data.output,
+        error: e.data.error,
+        executedAt: new Date().toISOString(),
+      });
     };
-  }
+
+    worker.onerror = (err) => {
+      clearTimeout(timer);
+      worker.terminate();
+      resolve({
+        output: [],
+        error: err.message || 'Worker execution error',
+        executedAt: new Date().toISOString(),
+      });
+    };
+
+    worker.postMessage({ type: 'execute', code });
+  });
 }
 
 // ---------------------------------------------------------------------------
