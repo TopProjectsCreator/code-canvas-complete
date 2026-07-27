@@ -209,6 +209,24 @@ const OAuthHostsAdmin = () => {
     else toast({ title: 'Saved' });
   };
 
+  const saveEdit = async (host: string, patch: { app_name: string; logo_url: string | null; public_description: string | null }) => {
+    const { error } = await supabase.from('allowed_oauth_return_hosts').update(patch).eq('host', host);
+    if (error) { toast({ title: 'Failed', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Saved' });
+    refresh();
+  };
+
+  const handleFormUpload = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      const url = await uploadLogo(file, form.host || form.app_name || 'app');
+      setForm(f => ({ ...f, logo_url: url }));
+      toast({ title: 'Logo uploaded' });
+    } catch (err) {
+      toast({ title: 'Upload failed', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
+    }
+  };
+
   if (authLoading || isAdmin === null) {
     return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
