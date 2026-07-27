@@ -835,11 +835,19 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     content = afterPackages;
 
     const { theme, cleanContent: afterTheme } = parseThemeChanges(content);
-    if (theme) { allSteps.push({ id: generateId(), type: 'tool_call', content: `Changing theme to: ${theme}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'set_theme', arguments: { theme }, status: 'pending' } }); }
+    if (theme) {
+      allSteps.push({ id: generateId(), type: 'tool_call', content: `Changing theme to: ${theme}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'set_theme', arguments: { theme }, status: 'pending' } });
+      const themeKey = `theme:${theme}`;
+      if (callbacksRef.current.onSetTheme && !executedActionsRef.current.has(themeKey)) { executedActionsRef.current.add(themeKey); callbacksRef.current.onSetTheme(theme); }
+    }
     content = afterTheme;
 
     const { customTheme, cleanContent: afterCustomTheme } = parseCustomThemeCreation(content);
-    if (customTheme) { allSteps.push({ id: generateId(), type: 'tool_call', content: `Creating custom theme: ${customTheme.name}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'create_custom_theme', arguments: { name: customTheme.name, colors: customTheme.colors as unknown as Record<string, unknown> }, status: 'pending' } }); }
+    if (customTheme) {
+      allSteps.push({ id: generateId(), type: 'tool_call', content: `Creating custom theme: ${customTheme.name}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'create_custom_theme', arguments: { name: customTheme.name, colors: customTheme.colors as unknown as Record<string, unknown> }, status: 'pending' } });
+      const customThemeKey = `custom_theme:${customTheme.name}`;
+      if (callbacksRef.current.onCreateCustomTheme && !executedActionsRef.current.has(customThemeKey)) { executedActionsRef.current.add(customThemeKey); callbacksRef.current.onCreateCustomTheme(customTheme.name, customTheme.colors); }
+    }
     content = afterCustomTheme;
 
     const { imagePrompts, cleanContent: afterImages } = parseImageGenerations(content);
@@ -876,6 +884,14 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     gitActions.forEach(action => {
       const labelMap: Record<string, string> = { git_init: 'Initialize Git repository', git_commit: `Commit: "${action.message}"`, git_create_branch: `Create branch: ${action.branchName}`, git_import: `Import repo: ${action.url}` };
       allSteps.push({ id: generateId(), type: 'tool_call', content: labelMap[action.type] || action.type, timestamp: new Date(), toolCall: { id: generateId(), name: action.type as ToolCall['name'], arguments: { message: action.message, branchName: action.branchName, url: action.url } as Record<string, unknown>, status: 'pending' } });
+      const gitKey = `git:${action.type}:${action.message || action.branchName || action.url || ''}`;
+      if (!executedActionsRef.current.has(gitKey)) {
+        executedActionsRef.current.add(gitKey);
+        if (action.type === 'git_init') { callbacksRef.current.onGitInit?.(); }
+        else if (action.type === 'git_commit') { callbacksRef.current.onGitCommit?.(action.message || ''); }
+        else if (action.type === 'git_create_branch') { callbacksRef.current.onGitCreateBranch?.(action.branchName || ''); }
+        else if (action.type === 'git_import') { callbacksRef.current.onGitImport?.(action.url || ''); }
+      }
     });
     content = afterGit;
 
@@ -883,6 +899,22 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     shareActions.forEach(action => {
       const labelMap: Record<string, string> = { make_public: 'Make project public', make_private: 'Make project private', get_project_link: 'Get project link', share_twitter: 'Share on Twitter', share_linkedin: 'Share on LinkedIn', share_email: 'Share via Email', fork_project: 'Fork project', star_project: 'Star project', view_history: 'View history', ask_user: action.question ? `Question: "${action.question}"` : 'Ask user a question', save_project: 'Save project', run_project: 'Run project' };
       allSteps.push({ id: generateId(), type: 'tool_call', content: labelMap[action.type] || action.type, timestamp: new Date(), toolCall: { id: generateId(), name: action.type as ToolCall['name'], arguments: action.question ? { question: action.question } : {}, status: 'pending' } });
+      const shareKey = `share:${action.type}:${action.question || ''}`;
+      if (!executedActionsRef.current.has(shareKey)) {
+        executedActionsRef.current.add(shareKey);
+        if (action.type === 'make_public') { callbacksRef.current.onMakePublic?.(); }
+        else if (action.type === 'make_private') { callbacksRef.current.onMakePrivate?.(); }
+        else if (action.type === 'get_project_link') { callbacksRef.current.onGetProjectLink?.(); }
+        else if (action.type === 'share_twitter') { callbacksRef.current.onShareTwitter?.(); }
+        else if (action.type === 'share_linkedin') { callbacksRef.current.onShareLinkedin?.(); }
+        else if (action.type === 'share_email') { callbacksRef.current.onShareEmail?.(); }
+        else if (action.type === 'fork_project') { callbacksRef.current.onForkProject?.(); }
+        else if (action.type === 'star_project') { callbacksRef.current.onStarProject?.(); }
+        else if (action.type === 'view_history') { callbacksRef.current.onViewHistory?.(); }
+        else if (action.type === 'ask_user') { callbacksRef.current.onAskUser?.(action.question || ''); }
+        else if (action.type === 'save_project') { callbacksRef.current.onSaveProject?.(); }
+        else if (action.type === 'run_project') { callbacksRef.current.onRunProject?.(); }
+      }
     });
     content = afterShare;
 
