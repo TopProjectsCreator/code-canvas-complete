@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { 
   Palette, Coins, Dices, Calculator as CalcIcon, Loader2, 
@@ -89,15 +89,28 @@ const DiceRollWidget = ({ widget }: { widget: ChatWidget }) => {
   const sides = Number(widget.config?.sides) || 6;
   const [result, setResult] = useState<number | null>(null);
   const [rolling, setRolling] = useState(false);
+  const intervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   const roll = () => {
+    if (intervalRef.current !== null) {
+      clearInterval(intervalRef.current);
+    }
     setRolling(true);
     let count = 0;
-    const interval = setInterval(() => {
+    intervalRef.current = window.setInterval(() => {
       setResult(Math.floor(Math.random() * sides) + 1);
       count++;
       if (count >= 10) {
-        clearInterval(interval);
+        clearInterval(intervalRef.current!);
+        intervalRef.current = null;
         setResult(Math.floor(Math.random() * sides) + 1);
         setRolling(false);
       }
