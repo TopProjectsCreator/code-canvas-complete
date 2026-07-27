@@ -33,6 +33,7 @@ import LinkDiscord from "./pages/LinkDiscord";
 import ResetPassword from "./pages/ResetPassword";
 import OAuthHostsAdmin from "./pages/admin/OAuthHosts";
 import OnlineUsersAdmin from "./pages/admin/OnlineUsers";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import { PresenceTrackerMount } from "./components/PresenceTrackerMount";
 import OAuthAppsPublic from "./pages/OAuthApps";
 import MCP from "./pages/MCP";
@@ -165,6 +166,7 @@ const App = () => isOAuthConsentPath() ? <OAuthConsentShell /> : (
               <Route path="/link-discord" element={<LinkDiscord />} />
               <Route path="/admin/oauth-hosts" element={<OAuthHostsAdmin />} />
               <Route path="/admin/online-users" element={<OnlineUsersAdmin />} />
+              <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/oauth-apps" element={<OAuthAppsPublic />} />
               <Route path="/mcp" element={<MCP />} />
               {/* Redactor routes — public */}
