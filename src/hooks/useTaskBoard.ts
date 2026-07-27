@@ -1,24 +1,24 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Task, TaskStatus, TaskPriority } from '@/types/task';
 
-const STORAGE_KEY = 'taskboard_tasks';
+const STORAGE_KEY_PREFIX = 'taskboard_tasks_';
 const MAX_UNDO = 30;
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
 }
 
-function loadTasks(): Task[] {
+function loadTasks(projectId: string): Task[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY_PREFIX + projectId);
     if (raw) return JSON.parse(raw);
   } catch {}
   return [];
 }
 
-function saveTasks(tasks: Task[]) {
+function saveTasks(projectId: string, tasks: Task[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    localStorage.setItem(STORAGE_KEY_PREFIX + projectId, JSON.stringify(tasks));
   } catch {}
 }
 
@@ -28,7 +28,7 @@ interface Snapshot {
 }
 
 export function useTaskBoard(projectId: string = 'default') {
-  const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
+  const [tasks, setTasks] = useState<Task[]>(() => loadTasks(projectId));
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const undoStack = useRef<Snapshot[]>([]);
@@ -37,10 +37,20 @@ export function useTaskBoard(projectId: string = 'default') {
   const listenersRef = useRef<Set<() => void>>(new Set());
 
   useEffect(() => {
+    undoStack.current = [];
+    redoStack.current = [];
+    setCanUndo(false);
+    setCanRedo(false);
+    const loaded = loadTasks(projectId);
+    currentTasksRef.current = loaded;
+    setTasks(loaded);
+  }, [projectId]);
+
+  useEffect(() => {
     currentTasksRef.current = tasks;
-    saveTasks(tasks);
+    saveTasks(projectId, tasks);
     listenersRef.current.forEach(fn => fn());
-  }, [tasks]);
+  }, [tasks, projectId]);
 
   const subscribe = useCallback((fn: () => void) => {
     listenersRef.current.add(fn);
