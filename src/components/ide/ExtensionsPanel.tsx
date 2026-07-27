@@ -495,22 +495,27 @@ export const ExtensionsPanel = ({
 
   const publishExtension = async (ext: ExtensionRecord) => {
     setSaving(true);
-    if (isReplit) {
-      const r = await fetch('/api/replit/extensions/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ extension_id: ext.id, version: ext.version, source_bundle_url: `extensions/${ext.slug}/${ext.version}/bundle.zip` }),
-      });
-      if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || 'Publish failed');
-    } else {
-      await supabase.functions.invoke('publish-extension', {
-        body: { extension_id: ext.id, version: ext.version, source_bundle_url: `extensions/${ext.slug}/${ext.version}/bundle.zip` },
-      });
+    try {
+      if (isReplit) {
+        const r = await fetch('/api/replit/extensions/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ extension_id: ext.id, version: ext.version, source_bundle_url: `extensions/${ext.slug}/${ext.version}/bundle.zip` }),
+        });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || 'Publish failed');
+      } else {
+        await supabase.functions.invoke('publish-extension', {
+          body: { extension_id: ext.id, version: ext.version, source_bundle_url: `extensions/${ext.slug}/${ext.version}/bundle.zip` },
+        });
+      }
+      toast.success('Published to store!');
+      await fetchMyExtensions();
+      await fetchStore();
+    } catch (err: any) {
+      toast.error(err.message || 'Publish failed');
+    } finally {
+      setSaving(false);
     }
-    toast.success('Published to store!');
-    await fetchMyExtensions();
-    await fetchStore();
-    setSaving(false);
   };
 
   const deleteExtension = async (id: string) => {
