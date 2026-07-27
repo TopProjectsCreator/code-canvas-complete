@@ -95,7 +95,7 @@ export function MessageBubble({ message, prevMessage, onReply, onDelete, onAddRe
       )}
       <MessageActions
         onReply={onReply}
-        onReact={() => {}}
+        onAddReaction={onAddReaction}
         onDelete={isOwn ? onDelete : undefined}
         canDelete={isOwn}
       />
