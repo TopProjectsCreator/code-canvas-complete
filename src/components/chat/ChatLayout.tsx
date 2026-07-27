@@ -25,6 +25,7 @@ import { ChannelDetailsDialog } from './Dialogs/ChannelDetailsDialog'
 import { InvitePeopleDialog } from './Dialogs/InvitePeopleDialog'
 import { SetUserStatusDialog } from './Dialogs/SetUserStatusDialog'
 import { ChatSearchDialog } from './Dialogs/ChatSearchDialog'
+import { StartDMDialog } from './Dialogs/StartDMDialog'
 import type { ChatChannel, ChatChannelMember, ProfileBrief } from '@/lib/chat/chatTypes'
 import type { SearchResult } from '@/lib/chat/chatSearch'
 
@@ -46,7 +47,7 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
     searchOpen, setSearchOpen,
   } = store
 
-  const { channels, dmChannels, loading: chLoading, createChannel, joinChannel, leaveChannel, updateChannel, deleteChannel, fetchMembers } = useChannels(activeWorkspace?.id ?? null)
+  const { channels, dmChannels, loading: chLoading, createChannel, createDMChannel, joinChannel, leaveChannel, updateChannel, deleteChannel, fetchMembers } = useChannels(activeWorkspace?.id ?? null)
   const { messages, loading: msgLoading, loadingMore, hasMore, sending, sendMessage, deleteMessage, addReaction, removeReaction, loadMore, updateLastRead } = useChatMessages(activeChannel?.id ?? null)
   const { presenceMap, updateCustomStatus } = usePresence(activeWorkspace?.id ?? null)
   const { mentionSuggestions, searchUsers, notifyMentions } = useChatMentions()
@@ -57,6 +58,7 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
   const [channelDetailsOpen, setChannelDetailsOpen] = useState(false)
   const [invitePeopleOpen, setInvitePeopleOpen] = useState(false)
   const [userStatusOpen, setUserStatusOpen] = useState(false)
+  const [startDMOpen, setStartDMOpen] = useState(false)
   const [channelMembers, setChannelMembers] = useState<(ChatChannelMember & { profile?: ProfileBrief })[]>([])
   const [unreadCounts] = useState<Record<string, number>>({})
   const isAdmin = activeChannel
@@ -186,7 +188,7 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
               dmChannels={dmChannels}
               activeChannelId={activeChannel?.id ?? null}
               onSelect={handleSelectChannel}
-              onStartDM={() => {}}
+              onStartDM={() => setStartDMOpen(true)}
               unreadCounts={unreadCounts}
             />
           </div>
@@ -302,6 +304,13 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
         onOpenChange={setSearchOpen}
         workspaceId={activeWorkspace?.id ?? null}
         onSelectMessage={handleSearchSelect}
+      />
+      <StartDMDialog
+        open={startDMOpen}
+        onOpenChange={setStartDMOpen}
+        workspaceId={activeWorkspace?.id ?? ''}
+        onCreateDM={createDMChannel}
+        onSelectChannel={handleSelectChannel}
       />
     </div>
   )
