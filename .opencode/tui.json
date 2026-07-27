@@ -1,5 +1,6 @@
 {
   "plugin": [
-    "@adtention/opencode"
+    "@adtention/opencode",
+    "@prevalentware/opencode-goal-plugin"
   ]
 }
