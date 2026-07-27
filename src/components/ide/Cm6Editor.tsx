@@ -8,7 +8,7 @@ import {
   useMemo,
 } from "react";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightSpecialChars } from "@codemirror/view";
-import { EditorState, Compartment, type Extension } from "@codemirror/state";
+import { EditorState, EditorSelection, Compartment, type Extension } from "@codemirror/state";
 import { defaultKeymap, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, indentOnInput, foldGutter, foldKeymap } from "@codemirror/language";
 import { closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
@@ -165,8 +165,12 @@ export const Cm6Editor = forwardRef<Cm6EditorHandle, Cm6EditorProps>(
       if (!view) return;
       const currentDoc = view.state.doc.toString();
       if (currentDoc !== content) {
+        const cursorPos = view.state.selection.main.head;
         view.dispatch({
           changes: { from: 0, to: currentDoc.length, insert: content },
+          selection: EditorSelection.single(
+            Math.min(cursorPos, content.length)
+          ),
         });
       }
     }, [content]);
