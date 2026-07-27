@@ -49,7 +49,7 @@ const downloadFile = (node: FileNode, currentContent?: string) => {
   a.href = url;
   a.download = node.name;
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 100);
 };
 
 interface FileTreeProps {
