@@ -149,6 +149,7 @@ export function useChannels(workspaceId: string | null) {
     if (error) return { error: error.message }
 
     setChannels(prev => prev.filter(c => c.id !== channelId))
+    setDmChannels(prev => prev.filter(c => c.id !== channelId))
     return {}
   }, [])
 
