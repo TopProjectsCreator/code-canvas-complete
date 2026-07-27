@@ -101,6 +101,93 @@ export function useChannels(workspaceId: string | null) {
     return { data }
   }, [user, workspaceId])
 
+  const createDMChannel = useCallback(async (targetUserId: string) => {
+    if (!user || !workspaceId) return { error: 'Not authenticated or no workspace' }
+
+    const { data: existingMembers } = await supabase
+      .from('chat_channel_members')
+      .select('channel_id')
+      .eq('user_id', user.id)
+
+    const myChannelIds = (existingMembers ?? []).map(r => r.channel_id)
+
+    if (myChannelIds.length > 0) {
+      const { data: dmCandidates } = await supabase
+        .from('chat_channels')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('is_dm', true)
+        .in('id', myChannelIds)
+
+      const dmIds = (dmCandidates ?? []).map(c => c.id)
+
+      if (dmIds.length > 0) {
+        const { data: targetMembers } = await supabase
+          .from('chat_channel_members')
+          .select('channel_id')
+          .eq('user_id', targetUserId)
+          .in('channel_id', dmIds)
+
+        const shared = (targetMembers ?? []).map(m => m.channel_id)
+        if (shared.length > 0) {
+          const { data: existing } = await supabase
+            .from('chat_channels')
+            .select('*')
+            .eq('id', shared[0])
+            .single()
+
+          if (existing) {
+            setDmChannels(prev => prev.some(c => c.id === existing.id) ? prev : [...prev, existing])
+            return { data: existing }
+          }
+        }
+      }
+    }
+
+    const { data: targetProfile } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('user_id', targetUserId)
+      .single()
+
+    const { data: myProfile } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('user_id', user.id)
+      .single()
+
+    const name = `${myProfile?.display_name ?? 'User'}, ${targetProfile?.display_name ?? 'User'}`
+
+    const { data: channel, error } = await supabase
+      .from('chat_channels')
+      .insert({
+        workspace_id: workspaceId,
+        name,
+        is_dm: true,
+        is_private: true,
+        created_by: user.id,
+      })
+      .select()
+      .single()
+
+    if (error) return { error: error.message }
+
+    const { error: memberError } = await supabase
+      .from('chat_channel_members')
+      .insert([
+        { channel_id: channel.id, user_id: user.id, role: 'admin' },
+        { channel_id: channel.id, user_id: targetUserId },
+      ])
+
+    if (memberError) {
+      await supabase.from('chat_channels').delete().eq('id', channel.id)
+      return { error: memberError.message }
+    }
+
+    setDmChannels(prev => [...prev, channel])
+    return { data: channel }
+  }, [user, workspaceId])
+
   const joinChannel = useCallback(async (channelId: string) => {
     if (!user) return { error: 'Not authenticated' }
 
@@ -158,6 +245,7 @@ export function useChannels(workspaceId: string | null) {
     loading,
     fetchMembers,
     createChannel,
+    createDMChannel,
     joinChannel,
     leaveChannel,
     updateChannel,
