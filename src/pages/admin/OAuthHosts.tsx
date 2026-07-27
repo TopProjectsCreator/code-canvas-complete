@@ -24,16 +24,58 @@ interface HostRow {
 const normalizeHost = (raw: string) =>
   raw.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 
+async function uploadLogo(file: File, hostHint: string): Promise<string> {
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+  const safe = hostHint.replace(/[^a-z0-9-]/gi, '-') || 'logo';
+  const path = `oauth-logos/${safe}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
+  if (error) throw error;
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 interface RowProps {
   r: HostRow;
   onSetStatus: (host: string, status: HostRow['status']) => void;
   onDelete: (host: string) => void;
   onSaveNotes: (host: string, notes: string) => void;
+  onSaveEdit: (host: string, patch: { app_name: string; logo_url: string | null; public_description: string | null }) => Promise<void>;
 }
 
-const Row = ({ r, onSetStatus, onDelete, onSaveNotes }: RowProps) => {
+const Row = ({ r, onSetStatus, onDelete, onSaveNotes, onSaveEdit }: RowProps) => {
+  const { toast } = useToast();
   const [notes, setNotes] = useState(r.admin_notes || '');
+  const [editing, setEditing] = useState(false);
+  const [edit, setEdit] = useState({ app_name: r.app_name, logo_url: r.logo_url || '', public_description: r.public_description || '' });
+  const [uploading, setUploading] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
   const dirty = notes !== (r.admin_notes || '');
+
+  const handleUpload = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const url = await uploadLogo(file, r.host);
+      setEdit(e => ({ ...e, logo_url: url }));
+      toast({ title: 'Logo uploaded' });
+    } catch (err) {
+      toast({ title: 'Upload failed', description: err instanceof Error ? err.message : String(err), variant: 'destructive' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    setSavingEdit(true);
+    await onSaveEdit(r.host, {
+      app_name: edit.app_name.trim(),
+      logo_url: edit.logo_url.trim() || null,
+      public_description: edit.public_description.trim() || null,
+    });
+    setSavingEdit(false);
+    setEditing(false);
+  };
+
   return (
     <div className="rounded-lg border border-border p-4 space-y-2">
       <div className="flex items-start justify-between gap-3">
@@ -47,11 +89,39 @@ const Row = ({ r, onSetStatus, onDelete, onSaveNotes }: RowProps) => {
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <Badge variant={r.status === 'approved' ? 'default' : r.status === 'pending' ? 'secondary' : 'destructive'}>{r.status}</Badge>
+          <Button size="icon" variant="ghost" onClick={() => setEditing(v => !v)} title="Edit"><Pencil className="w-4 h-4" /></Button>
           {r.status !== 'approved' && <Button size="icon" variant="ghost" onClick={() => onSetStatus(r.host, 'approved')} title="Approve"><Check className="w-4 h-4" /></Button>}
           {r.status !== 'rejected' && <Button size="icon" variant="ghost" onClick={() => onSetStatus(r.host, 'rejected')} title="Reject"><X className="w-4 h-4" /></Button>}
           <Button size="icon" variant="ghost" onClick={() => onDelete(r.host)}><Trash2 className="w-4 h-4" /></Button>
         </div>
       </div>
+
+      {editing && (
+        <div className="grid gap-3 sm:grid-cols-2 rounded-md border border-border p-3 bg-muted/30">
+          <div><Label className="text-xs">App name</Label><Input value={edit.app_name} onChange={e => setEdit({ ...edit, app_name: e.target.value })} /></div>
+          <div>
+            <Label className="text-xs">Logo URL</Label>
+            <div className="flex gap-2">
+              <Input value={edit.logo_url} onChange={e => setEdit({ ...edit, logo_url: e.target.value })} placeholder="https://…" />
+              <Button type="button" size="sm" variant="outline" asChild disabled={uploading}>
+                <label className="cursor-pointer gap-1 inline-flex items-center">
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  <input type="file" accept="image/*" className="hidden" onChange={e => handleUpload(e.target.files?.[0])} />
+                </label>
+              </Button>
+            </div>
+            {edit.logo_url && <img src={edit.logo_url} alt="" className="mt-2 w-10 h-10 rounded object-cover border border-border" />}
+          </div>
+          <div className="sm:col-span-2"><Label className="text-xs">Public description</Label><Textarea value={edit.public_description} onChange={e => setEdit({ ...edit, public_description: e.target.value })} /></div>
+          <div className="sm:col-span-2 flex gap-2">
+            <Button size="sm" onClick={handleSaveEdit} disabled={savingEdit || !edit.app_name.trim()}>
+              {savingEdit && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Save
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { setEdit({ app_name: r.app_name, logo_url: r.logo_url || '', public_description: r.public_description || '' }); setEditing(false); }}>Cancel</Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2 items-end">
         <div className="flex-1">
           <Label className="text-xs flex items-center gap-2">
