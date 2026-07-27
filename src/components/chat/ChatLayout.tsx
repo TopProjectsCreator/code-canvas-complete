@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useWorkspaces } from '@/hooks/useWorkspaces'
 import { useChannels } from '@/hooks/useChannels'
@@ -26,6 +26,7 @@ import { InvitePeopleDialog } from './Dialogs/InvitePeopleDialog'
 import { SetUserStatusDialog } from './Dialogs/SetUserStatusDialog'
 import { ChatSearchDialog } from './Dialogs/ChatSearchDialog'
 import { StartDMDialog } from './Dialogs/StartDMDialog'
+import { supabase } from '@/integrations/supabase/client'
 import type { ChatChannel, ChatChannelMember, ProfileBrief } from '@/lib/chat/chatTypes'
 import type { SearchResult } from '@/lib/chat/chatSearch'
 
@@ -60,7 +61,8 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
   const [userStatusOpen, setUserStatusOpen] = useState(false)
   const [startDMOpen, setStartDMOpen] = useState(false)
   const [channelMembers, setChannelMembers] = useState<(ChatChannelMember & { profile?: ProfileBrief })[]>([])
-  const [unreadCounts] = useState<Record<string, number>>({})
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
+  const activeChannelRef = useRef<string | null>(null)
   const isAdmin = activeChannel
     ? channelMembers.some(m => m.user_id === user?.id && m.role === 'admin')
     : false
@@ -100,8 +102,91 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
     }
   }, [activeChannel, activeWorkspace])
 
+  useEffect(() => {
+    activeChannelRef.current = activeChannel?.id ?? null
+  }, [activeChannel])
+
+  const fetchUnreadCounts = useCallback(async () => {
+    if (!user) return
+    const allChannels = [...channels, ...dmChannels]
+    if (allChannels.length === 0) return
+
+    const channelIds = allChannels.map(c => c.id)
+
+    const { data: memberData } = await supabase
+      .from('chat_channel_members')
+      .select('channel_id, last_read_at')
+      .eq('user_id', user.id)
+      .in('channel_id', channelIds)
+
+    if (!memberData) return
+
+    const lastReadMap = new Map<string, string | null>()
+    for (const row of memberData) {
+      lastReadMap.set(row.channel_id, row.last_read_at)
+    }
+
+    const counts: Record<string, number> = {}
+
+    for (const ch of allChannels) {
+      const lastRead = lastReadMap.get(ch.id)
+      let query = supabase
+        .from('chat_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('channel_id', ch.id)
+        .is('parent_id', null)
+        .neq('user_id', user.id)
+
+      if (lastRead) {
+        query = query.gt('created_at', lastRead)
+      }
+
+      const { count } = await query
+      counts[ch.id] = count ?? 0
+    }
+
+    setUnreadCounts(counts)
+  }, [user, channels, dmChannels])
+
+  useEffect(() => {
+    if (!chLoading && (channels.length > 0 || dmChannels.length > 0)) {
+      fetchUnreadCounts()
+    }
+  }, [chLoading, channels, dmChannels, fetchUnreadCounts])
+
+  useEffect(() => {
+    if (!user) return
+
+    const channel = supabase
+      .channel('chat-global-unread')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+        },
+        (payload) => {
+          const newMsg = payload.new as { channel_id: string; user_id: string; parent_id: string | null }
+          if (newMsg.user_id === user.id) return
+          if (newMsg.channel_id === activeChannelRef.current) return
+          if (newMsg.parent_id) return
+          setUnreadCounts(prev => ({
+            ...prev,
+            [newMsg.channel_id]: (prev[newMsg.channel_id] ?? 0) + 1,
+          }))
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user])
+
   const handleSelectChannel = useCallback(async (channel: ChatChannel) => {
     setActiveChannel(channel)
+    setUnreadCounts(prev => ({ ...prev, [channel.id]: 0 }))
     await updateLastRead()
   }, [setActiveChannel, updateLastRead])
 
