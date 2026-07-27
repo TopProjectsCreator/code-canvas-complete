@@ -80,6 +80,11 @@ export function useGitOperations() {
   const [operationError, setOperationError] = useState<string | null>(null)
   const [operationProgress, setOperationProgress] = useState<string>('')
   const initializedRef = useRef(false)
+  const commitRef = useRef<(message: string, files: FileNode[], fileContents: Record<string, string>, remote: GitRemote | null) => Promise<GitState>>(null!)
+  const pullRef = useRef<(url: string, branch: string, files: FileNode[], fileContents: Record<string, string>, remote: GitRemote | null, onProgress?: (stage: string, progress: number, total: number) => void) => Promise<{ state: GitState; updatedFiles: Record<string, string> }>>(null!)
+  const pushRef = useRef<(url: string, branch: string, files: FileNode[], fileContents: Record<string, string>, remote: GitRemote | null, onProgress?: (stage: string, progress: number, total: number) => void, onMessage?: (msg: string) => void) => Promise<GitState>>(null!)
+  const createBranchRef = useRef<(name: string, files: FileNode[], fileContents: Record<string, string>, remote: GitRemote | null) => Promise<GitState>>(null!)
+  const switchBranchRef = useRef<(name: string, files: FileNode[], fileContents: Record<string, string>, remote: GitRemote | null) => Promise<GitState>>(null!)
 
   const getAuth = useCallback(async (): Promise<{ username: string; password: string } | null> => {
     if (!user) return null
@@ -205,8 +210,9 @@ export function useGitOperations() {
       await gitService.stageAll()
       await gitService.createCommit(message, { name: user?.email ?? 'User', email: user?.email ?? 'user@example.com' })
       return await buildGitState(files, fileContents, remote)
-    }, () => () => commit(message, files, fileContents, remote))
+    }, () => () => commitRef.current(message, files, fileContents, remote))
   }, [run, ensureInit, buildGitState, user])
+  commitRef.current = commit
 
   const pull = useCallback(async (
     url: string,
@@ -238,8 +244,9 @@ export function useGitOperations() {
       const mergedFileContents = { ...fileContents, ...updatedFiles }
       const newState = await buildGitState(files, mergedFileContents, remote)
       return { state: { ...newState, isPulling: false }, updatedFiles }
-    }, () => () => pull(url, branch, files, fileContents, remote, onProgress))
+    }, () => () => pullRef.current(url, branch, files, fileContents, remote, onProgress))
   }, [run, ensureInit, buildGitState, getAuth, user])
+  pullRef.current = pull
 
   const push = useCallback(async (
     url: string,
@@ -267,8 +274,9 @@ export function useGitOperations() {
         throw new Error('Push failed. Check that you have write access and the remote URL is correct.')
       }
       return await buildGitState(files, fileContents, remote)
-    }, () => () => push(url, branch, files, fileContents, remote, onProgress, onMessage))
+    }, () => () => pushRef.current(url, branch, files, fileContents, remote, onProgress, onMessage))
   }, [run, ensureInit, buildGitState, getAuth, user])
+  pushRef.current = push
 
   const createBranch = useCallback(async (
     name: string,
@@ -280,8 +288,9 @@ export function useGitOperations() {
       await ensureInit()
       await gitService.createBranch(name, true)
       return await buildGitState(files, fileContents, remote)
-    }, () => () => createBranch(name, files, fileContents, remote))
+    }, () => () => createBranchRef.current(name, files, fileContents, remote))
   }, [run, ensureInit, buildGitState])
+  createBranchRef.current = createBranch
 
   const switchBranch = useCallback(async (
     name: string,
@@ -293,8 +302,9 @@ export function useGitOperations() {
       await ensureInit()
       await gitService.checkoutBranch(name)
       return await buildGitState(files, fileContents, remote)
-    }, () => () => switchBranch(name, files, fileContents, remote))
+    }, () => () => switchBranchRef.current(name, files, fileContents, remote))
   }, [run, ensureInit, buildGitState])
+  switchBranchRef.current = switchBranch
 
   const setRemoteUrl = useCallback(async (url: string): Promise<void> => {
     await ensureInit()
