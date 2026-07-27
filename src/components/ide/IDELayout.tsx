@@ -1460,22 +1460,20 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
   const handleTabClose = useCallback(
     (tabId: string) => {
-      setOpenTabs((prev) => {
-        const newTabs = prev.filter((tab) => tab.id !== tabId);
+      setOpenTabs((prev) => prev.filter((tab) => tab.id !== tabId));
 
-        // If closing active tab, activate another
-        if (activeTabId === tabId && newTabs.length > 0) {
-          const closedIndex = prev.findIndex((tab) => tab.id === tabId);
+      if (activeTabId === tabId) {
+        const closedIndex = openTabs.findIndex((tab) => tab.id === tabId);
+        const newTabs = openTabs.filter((tab) => tab.id !== tabId);
+        if (newTabs.length > 0) {
           const newActiveIndex = Math.min(closedIndex, newTabs.length - 1);
           setActiveTabId(newTabs[newActiveIndex].id);
-        } else if (newTabs.length === 0) {
+        } else {
           setActiveTabId(null);
         }
-
-        return newTabs;
-      });
+      }
     },
-    [activeTabId],
+    [activeTabId, openTabs],
   );
 
   const handleContentChange = useCallback(
