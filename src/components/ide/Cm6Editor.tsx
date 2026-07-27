@@ -39,32 +39,6 @@ interface Cm6EditorProps {
 }
 
 const LINE_HEIGHT = 24;
-const languageCompartment = new Compartment();
-const customExtensionsCompartment = new Compartment();
-
-const baseExtensions: Extension[] = [
-  lineNumbers(),
-  highlightActiveLine(),
-  highlightSpecialChars(),
-  foldGutter(),
-  indentOnInput(),
-  bracketMatching(),
-  closeBrackets(),
-  highlightSelectionMatches(),
-  ...cm6Theme,
-  presenceExtension,
-  oneDark,
-  keymap.of([
-    ...closeBracketsKeymap,
-    ...defaultKeymap,
-    ...searchKeymap,
-    ...historyKeymap,
-    ...foldKeymap,
-    ...lintKeymap,
-    ...completionKeymap,
-    indentWithTab,
-  ]),
-];
 
 export const Cm6Editor = forwardRef<Cm6EditorHandle, Cm6EditorProps>(
   (
@@ -90,6 +64,36 @@ export const Cm6Editor = forwardRef<Cm6EditorHandle, Cm6EditorProps>(
 
     onChangeRef.current = onChange;
     onCursorChangeRef.current = onCursorChange;
+
+    const languageCompartment = useMemo(() => new Compartment(), []);
+    const customExtensionsCompartment = useMemo(() => new Compartment(), []);
+
+    const baseExtensions: Extension[] = useMemo(
+      () => [
+        lineNumbers(),
+        highlightActiveLine(),
+        highlightSpecialChars(),
+        foldGutter(),
+        indentOnInput(),
+        bracketMatching(),
+        closeBrackets(),
+        highlightSelectionMatches(),
+        ...cm6Theme,
+        presenceExtension,
+        oneDark,
+        keymap.of([
+          ...closeBracketsKeymap,
+          ...defaultKeymap,
+          ...searchKeymap,
+          ...historyKeymap,
+          ...foldKeymap,
+          ...lintKeymap,
+          ...completionKeymap,
+          indentWithTab,
+        ]),
+      ],
+      [],
+    );
 
     const languageExtensions = useMemo(
       () => getLanguageExtension(fileName, language),
