@@ -13,6 +13,7 @@ import { PROVIDER_MODELS, AIProvider } from '@/hooks/useApiKeys';
 import ReactMarkdown from 'react-markdown';
 import { useAttachments } from '@/hooks/useAttachments';
 import { isReplitLikePlatform } from '@/lib/platform';
+import { readWithTimeout } from '@/lib/streamTimeout';
 
 
 interface ModelConfig {
@@ -309,7 +310,7 @@ export function AIComparisonPanel() {
         let tokenCount = 0;
 
         while (true) {
-          const { done, value } = await reader.read();
+          const { done, value } = await readWithTimeout(reader);
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
           for (const line of chunk.split('\n')) {
