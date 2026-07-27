@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { RichTextInput } from '../Shared/RichTextInput'
 import { formatMessageTime, formatMessageBody } from '@/lib/chat/chatHelpers'
-import { X, Loader2, Send } from 'lucide-react'
+import { X, Loader2, Send, AlertCircle, RefreshCw } from 'lucide-react'
 import { subscribeToChannelMessages } from '@/lib/chat/chatRealtime'
 import type { ChatMessage } from '@/lib/chat/chatTypes'
 
@@ -18,12 +18,14 @@ export function ThreadPanel({ parentMessage, onClose }: ThreadPanelProps) {
   const { user } = useAuth()
   const [replies, setReplies] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [replyText, setReplyText] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!parentMessage) return
+  const fetchReplies = useCallback(() => {
+    setLoading(true)
+    setError(null)
 
     supabase
       .from('chat_messages')
@@ -33,10 +35,22 @@ export function ThreadPanel({ parentMessage, onClose }: ThreadPanelProps) {
       `)
       .eq('parent_id', parentMessage.id)
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
+      .then(({ data, error: queryError }) => {
+        if (queryError) throw queryError
         setReplies((data ?? []) as unknown as ChatMessage[])
         setLoading(false)
       })
+      .catch((err) => {
+        console.error('Failed to load thread replies:', err)
+        setLoading(false)
+        setError(err.message ?? 'Failed to load replies')
+      })
+  }, [parentMessage])
+
+  useEffect(() => {
+    if (!parentMessage) return
+
+    fetchReplies()
 
     const sub = subscribeToChannelMessages(
       parentMessage.channel_id,
@@ -55,7 +69,7 @@ export function ThreadPanel({ parentMessage, onClose }: ThreadPanelProps) {
     )
 
     return () => { sub.unsubscribe() }
-  }, [parentMessage])
+  }, [parentMessage, fetchReplies])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -112,6 +126,15 @@ export function ThreadPanel({ parentMessage, onClose }: ThreadPanelProps) {
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-8 gap-3">
+            <AlertCircle className="h-8 w-8 text-destructive" />
+            <p className="text-sm text-muted-foreground text-center">{error}</p>
+            <Button variant="outline" size="sm" onClick={fetchReplies}>
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              Retry
+            </Button>
           </div>
         ) : (
           <div className="py-2">
