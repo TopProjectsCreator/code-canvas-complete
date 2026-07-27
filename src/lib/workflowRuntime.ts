@@ -523,8 +523,8 @@ export const parseWorkflowDsl = (command: string): WorkflowStepDefinition[] => {
     throw new WorkflowDslError('Workflow command must define at least one step');
   }
 
-  const maybeDsl = lines.some((line) => line.includes(':'));
-  if (!maybeDsl || (lines.length === 1 && !lines[0].match(/^[a-zA-Z][a-zA-Z0-9_-]*\s*:/))) {
+  const maybeDsl = lines.every((line) => /^[a-zA-Z][a-zA-Z0-9_-]*\s*:/.test(line));
+  if (!maybeDsl) {
     return [defaultStepFromCommand(normalized)];
   }
 
