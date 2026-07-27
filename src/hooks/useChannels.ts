@@ -109,6 +109,21 @@ export function useChannels(workspaceId: string | null) {
       .insert({ channel_id: channelId, user_id: user.id })
 
     if (error) return { error: error.message }
+
+    const { data: channelData } = await supabase
+      .from('chat_channels')
+      .select('*')
+      .eq('id', channelId)
+      .single()
+
+    if (channelData) {
+      if (channelData.is_dm) {
+        setDmChannels(prev => [...prev, channelData])
+      } else {
+        setChannels(prev => [...prev, channelData])
+      }
+    }
+
     return {}
   }, [user])
 
