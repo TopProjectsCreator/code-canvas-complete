@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, AppWindow, Users, MessagesSquare, FolderGit2, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Loader2, AppWindow, Users, MessagesSquare, FolderGit2, ShieldCheck, ArrowRight, BarChart3 } from 'lucide-react';
 
 interface Stats {
   apps: number;
@@ -64,6 +64,7 @@ const AdminDashboard = () => {
     { to: '/admin/oauth-hosts', icon: AppWindow, title: 'OAuth Apps', desc: 'Manage app icons, names, descriptions, and approvals.', badge: stats ? `${stats.approvedApps} approved · ${stats.pendingApps} pending` : '' },
     { to: '/admin/online-users', icon: Users, title: 'Online Users', desc: 'See who is online and manage roles in realtime.', badge: stats ? `${stats.admins} admins` : '' },
     { to: '/threads', icon: MessagesSquare, title: 'Community Threads', desc: 'Pin threads, manage categories, moderate content.', badge: stats ? `${stats.threads} threads` : '' },
+    { to: '/admin/usage', icon: BarChart3, title: 'Usage Analytics', desc: 'Charts and graphs of platform activity, projects, threads, and AI usage.', badge: '' },
     { to: '/oauth-apps', icon: FolderGit2, title: 'Public App Directory', desc: 'View the public-facing OAuth apps page.', badge: '' },
   ];
 

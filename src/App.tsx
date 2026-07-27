@@ -34,6 +34,7 @@ import ResetPassword from "./pages/ResetPassword";
 import OAuthHostsAdmin from "./pages/admin/OAuthHosts";
 import OnlineUsersAdmin from "./pages/admin/OnlineUsers";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import UsageAnalytics from "./pages/admin/UsageAnalytics";
 import { PresenceTrackerMount } from "./components/PresenceTrackerMount";
 import OAuthAppsPublic from "./pages/OAuthApps";
 import MCP from "./pages/MCP";
@@ -167,6 +168,7 @@ const App = () => isOAuthConsentPath() ? <OAuthConsentShell /> : (
               <Route path="/admin/oauth-hosts" element={<OAuthHostsAdmin />} />
               <Route path="/admin/online-users" element={<OnlineUsersAdmin />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/usage" element={<UsageAnalytics />} />
               <Route path="/oauth-apps" element={<OAuthAppsPublic />} />
               <Route path="/mcp" element={<MCP />} />
               {/* Redactor routes — public */}
