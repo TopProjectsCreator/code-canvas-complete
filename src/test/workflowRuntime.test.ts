@@ -21,6 +21,18 @@ describe('workflowRuntime.parseWorkflowDsl', () => {
     });
   });
 
+  it('treats multi-line shell commands with colons as plain commands', () => {
+    const steps1 = parseWorkflowDsl('echo "URL: https://example.com"\necho done');
+    expect(steps1).toHaveLength(1);
+    expect(steps1[0].id).toBe('step_1');
+    expect(steps1[0].command).toContain('URL: https://example.com');
+
+    const steps2 = parseWorkflowDsl('cat file.txt | grep "Error:" > errors.log');
+    expect(steps2).toHaveLength(1);
+    expect(steps2[0].id).toBe('step_1');
+    expect(steps2[0].command).toContain('Error:');
+  });
+
   it('parses a multi-step workflow with metadata', () => {
     const steps = parseWorkflowDsl(`
       build: npm run build
