@@ -33,13 +33,18 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!userId) return;
     const load = async () => {
-      const [profileRes, projectsRes] = await Promise.all([
-        supabase.from('profiles').select('id, user_id, display_name, avatar_url, created_at').eq('user_id', userId).maybeSingle(),
-        supabase.from('projects').select('id, name, description, language, stars_count, updated_at').eq('user_id', userId).eq('is_public', true).order('updated_at', { ascending: false }),
-      ]);
-      setProfile(profileRes.data);
-      setProjects(projectsRes.data || []);
-      setLoading(false);
+      try {
+        const [profileRes, projectsRes] = await Promise.all([
+          supabase.from('profiles').select('id, user_id, display_name, avatar_url, created_at').eq('user_id', userId).maybeSingle(),
+          supabase.from('projects').select('id, name, description, language, stars_count, updated_at').eq('user_id', userId).eq('is_public', true).order('updated_at', { ascending: false }),
+        ]);
+        setProfile(profileRes.data);
+        setProjects(projectsRes.data || []);
+      } catch (err) {
+        console.error('Failed to load profile:', err);
+      } finally {
+        setLoading(false);
+      }
     };
     load();
   }, [userId]);
