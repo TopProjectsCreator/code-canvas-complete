@@ -686,7 +686,6 @@ function InfiniteMarquee({ children }: { children: React.ReactNode }) {
           React.isValidElement(child) ? React.cloneElement(child, { key: `dup-${i}` }) : child
         )}
       </div>
-      <style>{`@keyframes marquee-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }`}</style>
     </div>
   );
 }

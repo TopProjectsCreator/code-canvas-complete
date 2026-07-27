@@ -465,6 +465,11 @@
     100% { transform: translateX(-50%); }
   }
 
+  @keyframes marquee-left {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
   @keyframes pulse-soft {
     0%, 100% { opacity: 0.35; transform: scale(1); }
     50% { opacity: 0.6; transform: scale(1.08); }
