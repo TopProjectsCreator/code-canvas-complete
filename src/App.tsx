@@ -34,6 +34,7 @@ import ResetPassword from "./pages/ResetPassword";
 import OAuthHostsAdmin from "./pages/admin/OAuthHosts";
 import OnlineUsersAdmin from "./pages/admin/OnlineUsers";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import UsageAnalytics from "./pages/admin/UsageAnalytics";
 import { PresenceTrackerMount } from "./components/PresenceTrackerMount";
 import OAuthAppsPublic from "./pages/OAuthApps";
 import MCP from "./pages/MCP";
