@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Heart, Wind, Lightbulb, RefreshCcw, Coffee } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,8 @@ const BREATH_CYCLE = [
 export function CalmDownDialog({ open, onOpenChange }: CalmDownDialogProps) {
   const [phase, setPhase] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(BREATH_CYCLE[0].seconds);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
 
   useEffect(() => {
     if (!open) {
@@ -51,18 +53,16 @@ export function CalmDownDialog({ open, onOpenChange }: CalmDownDialogProps) {
     const id = setInterval(() => {
       setSecondsLeft(prev => {
         if (prev <= 1) {
-          setPhase(p => {
-            const next = (p + 1) % BREATH_CYCLE.length;
-            setSecondsLeft(BREATH_CYCLE[next].seconds);
-            return next;
-          });
-          return BREATH_CYCLE[(phase + 1) % BREATH_CYCLE.length].seconds;
+          const next = (phaseRef.current + 1) % BREATH_CYCLE.length;
+          phaseRef.current = next;
+          setPhase(next);
+          return BREATH_CYCLE[next].seconds;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [open, phase]);
+  }, [open]);
 
   const current = BREATH_CYCLE[phase];
 
