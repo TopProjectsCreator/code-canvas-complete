@@ -14,22 +14,16 @@ import { useProjects, type Project } from '@/hooks/useProjects';
 /* Hooks                                                                       */
 /* -------------------------------------------------------------------------- */
 
-const useTicker = (ms: number) => {
-  const [t, setT] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setT(v => v + 1), ms);
-    return () => clearInterval(id);
-  }, [ms]);
-  return t;
-};
+const timeStore = { tick: 0, fast: 0, elapsed: 0 };
 
-const useElapsed = () => {
-  const [s, setS] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setS(v => v + 1), 1000);
-    return () => clearInterval(id);
-  }, []);
-  return s;
+const TimeTracker = () => {
+  useFrame(({ clock }) => {
+    const t = clock.elapsedTime;
+    timeStore.elapsed = Math.floor(t);
+    timeStore.tick = Math.floor(t / 0.8);
+    timeStore.fast = Math.floor(t / 0.12);
+  });
+  return null;
 };
 
 const fmtElapsed = (s: number) => {
@@ -473,27 +467,61 @@ const ProjectsScreen = ({ projects, loading, isAuthed, navigate }: { projects: P
   );
 };
 
-const TelemetryScreen = ({ tick, fast }: { tick: number; fast: number }) => {
-  const cpu = 30 + Math.round(20 * (Math.sin(tick * 0.5) + 1) / 2);
-  const gpu = 56 + Math.round(28 * (Math.sin(tick * 0.31) + 1) / 2);
-  const tps = 1200 + Math.round(450 * (Math.sin(tick * 0.4 + 1) + 1) / 2);
-  const lat = Math.max(8, 18 + Math.round(8 * Math.sin(tick * 0.6)));
-  const bars = useMemo(() => Array.from({ length: 26 }, (_, i) => {
-    const x = (Math.sin(fast * 0.4 + i * 0.6) + Math.sin(fast * 0.13 + i * 1.3)) * 0.5 + 0.5;
-    return Math.max(0.1, Math.min(1, x));
-  }), [fast]);
+const TelemetryScreen = () => {
+  const cpuValRef = useRef<HTMLDivElement>(null);
+  const gpuValRef = useRef<HTMLDivElement>(null);
+  const tpsValRef = useRef<HTMLDivElement>(null);
+  const latValRef = useRef<HTMLDivElement>(null);
+  const throughputValRef = useRef<HTMLDivElement>(null);
+  const barsRef = useRef<HTMLDivElement[]>([]);
+  const vectorWidthRef = useRef<HTMLDivElement>(null);
+  const vectorCountRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let rafId: number;
+    let prevTick = -1;
+    let prevFast = -1;
+    const update = () => {
+      const { tick, fast } = timeStore;
+      if (tick !== prevTick || fast !== prevFast) {
+        prevTick = tick;
+        prevFast = fast;
+        const cpu = 30 + Math.round(20 * (Math.sin(tick * 0.5) + 1) / 2);
+        const gpu = 56 + Math.round(28 * (Math.sin(tick * 0.31) + 1) / 2);
+        const tps = 1200 + Math.round(450 * (Math.sin(tick * 0.4 + 1) + 1) / 2);
+        const lat = Math.max(8, 18 + Math.round(8 * Math.sin(tick * 0.6)));
+        if (cpuValRef.current) cpuValRef.current.textContent = `${cpu}%`;
+        if (gpuValRef.current) gpuValRef.current.textContent = `${gpu}%`;
+        if (tpsValRef.current) tpsValRef.current.textContent = `${tps}`;
+        if (latValRef.current) latValRef.current.textContent = `${lat} ms`;
+        if (throughputValRef.current) throughputValRef.current.textContent = `${(4123 + tick * 7).toLocaleString()} req`;
+        for (let i = 0; i < barsRef.current.length; i++) {
+          const bar = barsRef.current[i];
+          if (!bar) continue;
+          const x = (Math.sin(fast * 0.4 + i * 0.6) + Math.sin(fast * 0.13 + i * 1.3)) * 0.5 + 0.5;
+          bar.style.height = `${Math.max(10, Math.min(100, x * 100))}%`;
+        }
+        if (vectorWidthRef.current) vectorWidthRef.current.style.width = `${60 + (tick % 40)}%`;
+        if (vectorCountRef.current) vectorCountRef.current.textContent = `${(2_400_000 + tick * 23).toLocaleString()} embeddings · 768d`;
+      }
+      rafId = requestAnimationFrame(update);
+    };
+    rafId = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
   return (
     <ScreenChrome title="Live Telemetry" accent="#f59e0b">
       <div className="grid grid-cols-2 gap-3">
         {[
-          { label: 'CPU',      value: `${cpu}%`,    sub: 'cluster avg' },
-          { label: 'GPU',      value: `${gpu}%`,    sub: 'A100 ×4' },
-          { label: 'Tokens/s', value: `${tps}`,     sub: 'streaming' },
-          { label: 'Latency',  value: `${lat} ms`,  sub: 'p50 edge' },
+          { label: 'CPU',      valueRef: cpuValRef,    sub: 'cluster avg', init: '30%' },
+          { label: 'GPU',      valueRef: gpuValRef,    sub: 'A100 ×4',    init: '56%' },
+          { label: 'Tokens/s', valueRef: tpsValRef,    sub: 'streaming',  init: '1200' },
+          { label: 'Latency',  valueRef: latValRef,    sub: 'p50 edge',   init: '18 ms' },
         ].map((s) => (
           <div key={s.label} className="rounded-md border border-white/10 bg-black/40 p-3">
             <div className="text-[10px] uppercase tracking-widest text-amber-300">{s.label}</div>
-            <div className="font-mono text-2xl mt-1">{s.value}</div>
+            <div ref={s.valueRef} className="font-mono text-2xl mt-1">{s.init}</div>
             <div className="text-[10px] text-slate-500">{s.sub}</div>
           </div>
         ))}
@@ -501,14 +529,15 @@ const TelemetryScreen = ({ tick, fast }: { tick: number; fast: number }) => {
       <div className="mt-4 rounded-md border border-white/10 bg-black/40 p-3">
         <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-amber-300">
           <span className="flex items-center gap-1.5"><Gauge className="w-3 h-3" /> Throughput</span>
-          <span className="font-mono">{(4123 + tick * 7).toLocaleString()} req</span>
+          <span ref={throughputValRef} className="font-mono">4,123 req</span>
         </div>
         <div className="flex items-end gap-[3px] h-16 mt-2">
-          {bars.map((h, i) => (
+          {Array.from({ length: 26 }, (_, i) => (
             <div
               key={i}
+              ref={(el) => { if (el) barsRef.current[i] = el; }}
               className="flex-1 rounded-sm bg-gradient-to-t from-amber-500/60 to-fuchsia-400/80 transition-all duration-300"
-              style={{ height: `${h * 100}%` }}
+              style={{ height: '10%' }}
             />
           ))}
         </div>
@@ -517,48 +546,60 @@ const TelemetryScreen = ({ tick, fast }: { tick: number; fast: number }) => {
         <div className="text-[10px] uppercase tracking-widest text-amber-300">Vector index</div>
         <div className="mt-2 h-1.5 rounded-full bg-white/5 overflow-hidden">
           <div
+            ref={vectorWidthRef}
             className="h-full bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-amber-300"
-            style={{ width: `${60 + (tick % 40)}%`, transition: 'width 0.6s ease' }}
+            style={{ width: '60%', transition: 'width 0.6s ease' }}
           />
         </div>
-        <div className="font-mono text-[10px] text-slate-500 mt-1">
-          {(2_400_000 + tick * 23).toLocaleString()} embeddings · 768d
+        <div ref={vectorCountRef} className="font-mono text-[10px] text-slate-500 mt-1">
+          2,400,000 embeddings · 768d
         </div>
       </div>
     </ScreenChrome>
   );
 };
 
-const ActivityScreen = ({ tick, path }: { tick: number; path: string }) => {
-  const lines = useMemo(() => {
-    const events = [
-      `→ analyzing intent for ${path || '/'}`,
-      `→ neural index lookup (k=7)`,
-      `→ closest match : /editor · score 0.91`,
-      `→ closest match : /landing · score 0.86`,
-      `→ closest match : /docs · score 0.74`,
-      `✓ recovery suggestions ready`,
-      `· agent-${(tick % 9) + 1} reporting nominal`,
-      `· edge-${(tick % 4) + 1} sync ok`,
-    ];
-    const out: string[] = [];
-    for (let i = 0; i <= tick % events.length; i++) out.push(events[i]);
-    return out;
-  }, [tick, path]);
+const ActivityScreen = ({ path }: { path: string }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let rafId: number;
+    let prevTick = -1;
+    const update = () => {
+      const { tick } = timeStore;
+      if (tick !== prevTick) {
+        prevTick = tick;
+        const events = [
+          `→ analyzing intent for ${path || '/'}`,
+          `→ neural index lookup (k=7)`,
+          `→ closest match : /editor · score 0.91`,
+          `→ closest match : /landing · score 0.86`,
+          `→ closest match : /docs · score 0.74`,
+          `✓ recovery suggestions ready`,
+          `· agent-${(tick % 9) + 1} reporting nominal`,
+          `· edge-${(tick % 4) + 1} sync ok`,
+        ];
+        const count = tick % events.length;
+        if (containerRef.current) {
+          let html = '';
+          for (let i = 0; i <= count; i++) {
+            const l = events[i];
+            const cls = l.startsWith('✓') ? 'text-emerald-300' : l.startsWith('→') ? 'text-cyan-300' : 'text-slate-400';
+            html += `<div class="${cls}"><span class="text-slate-600 mr-3">${(i + 1).toString().padStart(2, '0')}</span>${l}</div>`;
+          }
+          html += `<div class="text-fuchsia-300"><span class="text-slate-600 mr-3">${(count + 2).toString().padStart(2, '0')}</span>▌<span class="animate-pulse">_</span></div>`;
+          containerRef.current.innerHTML = html;
+        }
+      }
+      rafId = requestAnimationFrame(update);
+    };
+    rafId = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(rafId);
+  }, [path]);
+
   return (
     <ScreenChrome title="Router Activity" accent="#a78bfa">
-      <div className="font-mono text-[13px] leading-7 space-y-1">
-        {lines.map((l, i) => (
-          <div key={i} className={l.startsWith('✓') ? 'text-emerald-300' : l.startsWith('→') ? 'text-cyan-300' : 'text-slate-400'}>
-            <span className="text-slate-600 mr-3">{(i + 1).toString().padStart(2, '0')}</span>
-            {l}
-          </div>
-        ))}
-        <div className="text-fuchsia-300">
-          <span className="text-slate-600 mr-3">{(lines.length + 1).toString().padStart(2, '0')}</span>
-          ▌<span className="animate-pulse">_</span>
-        </div>
-      </div>
+      <div ref={containerRef} className="font-mono text-[13px] leading-7 space-y-1" />
     </ScreenChrome>
   );
 };
@@ -588,10 +629,32 @@ const NotFound = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { projects, loading, fetchProjects } = useProjects();
-  const tick = useTicker(800);
-  const fast = useTicker(120);
-  const elapsed = useElapsed();
   const [locked, setLocked] = useState(false);
+  const statusRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let rafId: number;
+    let prevTick = -1;
+    let prevElapsed = -1;
+    const update = () => {
+      const { tick, elapsed } = timeStore;
+      if (tick !== prevTick || elapsed !== prevElapsed) {
+        prevTick = tick;
+        prevElapsed = elapsed;
+        if (statusRef.current) {
+          const anomaly = statusRef.current.querySelector('[data-anomaly]');
+          const uptime = statusRef.current.querySelector('[data-uptime]');
+          const region = statusRef.current.querySelector('[data-region]');
+          if (anomaly) anomaly.textContent = `ROUTE ANOMALY 0x${(0xc04 + tick % 256).toString(16).toUpperCase()}`;
+          if (uptime) uptime.textContent = fmtElapsed(elapsed);
+          if (region) region.textContent = `region edge-${(tick % 4) + 1}`;
+        }
+      }
+      rafId = requestAnimationFrame(update);
+    };
+    rafId = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 
   useEffect(() => {
     console.error('404 Error: User attempted to access non-existent route:', location.pathname);
@@ -625,6 +688,8 @@ const NotFound = () => {
         style={{ background: 'transparent' }}
       >
         <Suspense fallback={null}>
+          <TimeTracker />
+
           {/* Lighting */}
           <ambientLight intensity={0.25} color="#6366f1" />
           <pointLight position={[0, 4.5, -8]} color="#22d3ee" intensity={20} distance={18} />
@@ -683,7 +748,7 @@ const NotFound = () => {
             height={3}
             glow="#a78bfa"
           >
-            <ActivityScreen tick={tick} path={location.pathname} />
+            <ActivityScreen path={location.pathname} />
           </Screen>
 
           {/* Right wall — Telemetry */}
@@ -694,7 +759,7 @@ const NotFound = () => {
             height={3.4}
             glow="#f59e0b"
           >
-            <TelemetryScreen tick={tick} fast={fast} />
+            <TelemetryScreen />
           </Screen>
 
           {/* Right wall — Quick Nav buttons */}
@@ -718,17 +783,17 @@ const NotFound = () => {
       </CanvasErrorBoundary>
 
       {/* Top status bar */}
-      <div className="absolute top-0 inset-x-0 z-10 flex items-center gap-3 px-5 py-2.5 bg-black/60 backdrop-blur border-b border-white/10 text-[11px] font-mono pointer-events-none">
+      <div ref={statusRef} className="absolute top-0 inset-x-0 z-10 flex items-center gap-3 px-5 py-2.5 bg-black/60 backdrop-blur border-b border-white/10 text-[11px] font-mono pointer-events-none">
         <div className="flex items-center gap-1.5 text-fuchsia-300">
           <Sparkles className="w-3.5 h-3.5" />
           <span className="font-semibold tracking-wider">CODECANVAS // 3D AI CONTROL ROOM</span>
         </div>
         <div className="text-slate-500">·</div>
-        <div className="text-amber-300">ROUTE ANOMALY 0x{(0xc04 + tick % 256).toString(16).toUpperCase()}</div>
+        <div data-anomaly className="text-amber-300">ROUTE ANOMALY 0xC04</div>
         <div className="flex-1" />
         <div className="hidden md:flex items-center gap-3 text-slate-400">
-          <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-emerald-400" /> uptime {fmtElapsed(elapsed)}</span>
-          <span>region edge-{(tick % 4) + 1}</span>
+          <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-emerald-400" /> uptime <span data-uptime>{fmtElapsed(0)}</span></span>
+          <span data-region>region edge-1</span>
         </div>
       </div>
 
