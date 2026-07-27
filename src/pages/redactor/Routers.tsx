@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { GripVertical, Plus, Trash2, ArrowDown, Zap, Check, X, Loader2, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
+import { readWithTimeout } from "@/lib/streamTimeout";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -376,7 +377,7 @@ export default function RedactorRouters() {
       const reader = response.body?.getReader(); if (!reader) throw new Error("No response body");
       const decoder = new TextDecoder(); let buffer = "";
       while (true) {
-        const { done, value } = await reader.read(); if (done) break;
+        const { done, value } = await readWithTimeout(reader); if (done) break;
         buffer += decoder.decode(value, { stream: true }); const lines = buffer.split("\n"); buffer = lines.pop() ?? "";
         for (const line of lines) { if (line.startsWith("data: ")) { try { setTestResults((prev) => [...prev, JSON.parse(line.slice(6))]); } catch {} } }
       }

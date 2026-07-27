@@ -7,6 +7,7 @@ import { Workflow } from '@/types/ide';
 import { CustomThemeColors } from '@/contexts/ThemeContext';
 import { createAIProvider } from '@/integrations/ai/provider';
 import { isPotentiallyDestructiveShellCommand } from '@/lib/agentSafety';
+import { readWithTimeout } from '@/lib/streamTimeout';
 import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 import { generatePresentationPptx, parsePptxSpec, type PptxSpec } from '@/lib/pptxGenerator';
 import { 
@@ -1205,7 +1206,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       let buffer = '';
 
       while (true) {
-        const { done, value } = await reader.read();
+        const { done, value } = await readWithTimeout(reader);
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
 
@@ -1493,7 +1494,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         let followContent = '';
 
         while (true) {
-          const { done, value } = await followReader.read();
+          const { done, value } = await readWithTimeout(followReader);
           if (done) break;
           followBuffer += followDecoder.decode(value, { stream: true });
 
