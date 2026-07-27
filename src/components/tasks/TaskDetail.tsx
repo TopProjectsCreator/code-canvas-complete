@@ -36,7 +36,7 @@ export function TaskDetail({
   const [subtaskTitle, setSubtaskTitle] = useState('');
 
   useEffect(() => {
-    if (task) {
+    if (task && !editing) {
       setTitle(task.title);
       setDescription(task.description);
       setStatus(task.status);
@@ -44,7 +44,7 @@ export function TaskDetail({
       setDeadline(task.deadline || '');
       setAssignee(task.assignee || '');
     }
-  }, [task]);
+  }, [task?.id]);
 
   if (!task) return null;
 
