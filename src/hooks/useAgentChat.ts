@@ -176,6 +176,36 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const shellSessionIdRef = useRef<string | null>(null);
   const aiProvider = useMemo(() => createAIProvider(), []);
 
+  // ── Stable refs to avoid recreating callbacks on every render ──
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+
+  const isLoadingRef = useRef(isLoading);
+  isLoadingRef.current = isLoading;
+
+  const callbacksRef = useRef({
+    onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage,
+    onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch,
+    onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter,
+    onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory,
+    onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile,
+    onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI,
+    selectedModel, byokProvider, byokModel, byokBaseUrl,
+    offlineModeEnabled, offlineModelId, chatOnlyMode,
+    autonomyConfig, workflows,
+  });
+  callbacksRef.current = {
+    onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage,
+    onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch,
+    onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter,
+    onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory,
+    onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile,
+    onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI,
+    selectedModel, byokProvider, byokModel, byokBaseUrl,
+    offlineModeEnabled, offlineModelId, chatOnlyMode,
+    autonomyConfig, workflows,
+  };
+
   // Broadcast active-agent presence while loading so the landing page can show live count
   useEffect(() => {
     if (!isLoading) return;
@@ -812,7 +842,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     codeChanges.forEach(cc => {
       allSteps.push({ id: generateId(), type: 'code_change', content: cc.description, timestamp: new Date(), codeChange: cc });
       const ccKey = `code:${cc.fileName}:${cc.description}`;
-      if (onCodeChange && !executedActionsRef.current.has(ccKey)) { executedActionsRef.current.add(ccKey); onCodeChange(cc); }
+      if (callbacksRef.current.onCodeChange && !executedActionsRef.current.has(ccKey)) { executedActionsRef.current.add(ccKey); callbacksRef.current.onCodeChange(cc); }
     });
     content = afterGeneratedTests;
 
@@ -820,7 +850,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     workflowActions.forEach(wa => {
       allSteps.push({ id: generateId(), type: 'tool_call', content: `Creating workflow: ${wa.name}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'create_workflow', arguments: { ...wa } as Record<string, unknown>, status: 'completed' } });
       const wfKey = `workflow:${wa.name}:${wa.command}`;
-      if (onCreateWorkflow && !executedActionsRef.current.has(wfKey)) { executedActionsRef.current.add(wfKey); onCreateWorkflow({ name: wa.name, type: wa.type, command: wa.command, description: wa.description, trigger: wa.trigger }); }
+      if (callbacksRef.current.onCreateWorkflow && !executedActionsRef.current.has(wfKey)) { executedActionsRef.current.add(wfKey); callbacksRef.current.onCreateWorkflow({ name: wa.name, type: wa.type, command: wa.command, description: wa.description, trigger: wa.trigger }); }
     });
     content = afterWorkflows;
 
@@ -828,7 +858,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     packages.forEach(pkg => {
       allSteps.push({ id: generateId(), type: 'tool_call', content: `Installing package: ${pkg}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'install_package', arguments: { name: pkg }, status: 'completed' } });
       const pkgKey = `pkg:${pkg}`;
-      if (onInstallPackage && !executedActionsRef.current.has(pkgKey)) { executedActionsRef.current.add(pkgKey); onInstallPackage(pkg); }
+      if (callbacksRef.current.onInstallPackage && !executedActionsRef.current.has(pkgKey)) { executedActionsRef.current.add(pkgKey); callbacksRef.current.onInstallPackage(pkg); }
     });
     content = afterPackages;
 
@@ -862,10 +892,10 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     const { uiActions, cleanContent: afterUI } = parseUIActions(content);
     uiActions.forEach(action => {
       allSteps.push({ id: generateId(), type: 'tool_call', content: `UI action: ${action.type === 'generate' ? 'Generating UI' : 'Modifying UI'}`, timestamp: new Date(), toolCall: { id: generateId(), name: 'generate_ui', arguments: { type: action.type, description: action.description }, status: 'completed' } });
-      if (action.type === 'generate' && onGenerateUI) {
-        onGenerateUI(action.nodes || [], action.description);
-      } else if (action.type === 'modify' && onModifyUI) {
-        onModifyUI(action.selector || '', action.props || {}, action.description);
+      if (action.type === 'generate' && callbacksRef.current.onGenerateUI) {
+        callbacksRef.current.onGenerateUI(action.nodes || [], action.description);
+      } else if (action.type === 'modify' && callbacksRef.current.onModifyUI) {
+        callbacksRef.current.onModifyUI(action.selector || '', action.props || {}, action.description);
       }
     });
     content = afterUI;
@@ -893,7 +923,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     const { actions: fileActions, cleanContent: afterFileActions } = parseFileManagementActions(content);
     fileActions.forEach((action) => {
       if (action.type === 'rename') {
-        onRenameFile?.(action.oldName, action.newName);
+        callbacksRef.current.onRenameFile?.(action.oldName, action.newName);
         allSteps.push({
           id: generateId(),
           type: 'tool_call',
@@ -908,7 +938,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         });
       }
       if (action.type === 'move') {
-        onRenameFile?.(action.from, action.to);
+        callbacksRef.current.onRenameFile?.(action.from, action.to);
         allSteps.push({
           id: generateId(),
           type: 'tool_call',
@@ -923,7 +953,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         });
       }
       if (action.type === 'delete') {
-        onDeleteFile?.(action.name);
+        callbacksRef.current.onDeleteFile?.(action.name);
         allSteps.push({
           id: generateId(),
           type: 'tool_call',
@@ -933,7 +963,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         });
       }
       if (action.type === 'create') {
-        onCreateFile?.(action.name, action.fileType, action.content);
+        callbacksRef.current.onCreateFile?.(action.name, action.fileType, action.content);
         allSteps.push({
           id: generateId(),
           type: 'tool_call',
@@ -948,7 +978,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         });
       }
       if (action.type === 'duplicate') {
-        onDuplicateFile?.(action.sourceName, action.targetName);
+        callbacksRef.current.onDuplicateFile?.(action.sourceName, action.targetName);
         allSteps.push({
           id: generateId(),
           type: 'tool_call',
@@ -963,7 +993,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         });
       }
       if (action.type === 'open') {
-        onOpenFile?.(action.name);
+        callbacksRef.current.onOpenFile?.(action.name);
         allSteps.push({
           id: generateId(),
           type: 'tool_call',
@@ -978,7 +1008,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         });
       }
       if (action.type === 'append') {
-        onAppendToFile?.(action.name, action.content);
+        callbacksRef.current.onAppendToFile?.(action.name, action.content);
         allSteps.push({
           id: generateId(),
           type: 'tool_call',
@@ -1052,7 +1082,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       automationQueries,
       isDone,
     };
-  }, [onCodeChange, onCreateWorkflow, onInstallPackage, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, canUseShellOnPlatform, onGenerateUI, onModifyUI]);
+  }, []);
 
   const downloadOfflineModel = useCallback(async (model: string) => {
     setIsDownloadingOfflineModel(true);
@@ -1085,7 +1115,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       projectId?: string | null;
     } = {}
   ) => {
-    if (!messageContent.trim() || isLoading) return;
+    if (!messageContent.trim() || isLoadingRef.current) return;
     executedActionsRef.current.clear();
 
     const mathShortcut = detectMathShortcut(messageContent);
@@ -1111,10 +1141,10 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       return;
     }
 
-    if (offlineModeEnabled) {
+    if (callbacksRef.current.offlineModeEnabled) {
       try {
         setCurrentStep('Loading offline model...');
-        await offlineLLM.initialize(offlineModelId, setCurrentStep);
+        await offlineLLM.initialize(callbacksRef.current.offlineModelId, setCurrentStep);
         setCurrentStep('Generating locally...');
         const localReply = await offlineLLM.chat(messageContent);
         setMessages(prev => [...prev, { id: generateId(), role: 'assistant', content: localReply || 'Local model returned an empty response.' }]);
@@ -1148,7 +1178,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       abortControllerRef.current = new AbortController();
       
       // Build messages array, using multimodal content for the latest user message if provided
-      const historyMessages = messages.slice(1).map(m => ({ role: m.role, content: m.content }));
+      const historyMessages = messagesRef.current.slice(1).map(m => ({ role: m.role, content: m.content }));
       const latestUserMsg = {
         role: 'user' as const,
         content: context.multimodalContent || messageContent,
@@ -1162,13 +1192,13 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
         ],
         currentFile: context.currentFile ? { name: context.currentFile.name, language: context.currentFile.language, content: context.currentFile.content?.slice(0, 10000) } : null,
         consoleErrors: context.consoleErrors || null,
-        workflows: context.workflows || workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
-        agentMode: chatOnlyMode ? false : true,
-        chatOnlyMode,
-        model: selectedModel,
-        byokProvider: aiProvider.allowsBYOK ? (byokProvider || undefined) : undefined,
-        byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
-        byokBaseUrl: aiProvider.allowsBYOK ? (byokBaseUrl || undefined) : undefined,
+        workflows: context.workflows || callbacksRef.current.workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
+        agentMode: callbacksRef.current.chatOnlyMode ? false : true,
+        chatOnlyMode: callbacksRef.current.chatOnlyMode,
+        model: callbacksRef.current.selectedModel,
+        byokProvider: aiProvider.allowsBYOK ? (callbacksRef.current.byokProvider || undefined) : undefined,
+        byokModel: aiProvider.allowsBYOK ? (callbacksRef.current.byokModel || undefined) : undefined,
+        byokBaseUrl: aiProvider.allowsBYOK ? (callbacksRef.current.byokBaseUrl || undefined) : undefined,
         template: context.template,
         automationConfig: context.automationConfig || null,
         projectId: context.projectId || null,
@@ -1230,7 +1260,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
               else if (fullContent.includes('<generate_pptx')) { setCurrentStep('Preparing presentation...'); }
               else { setCurrentStep(null); }
               
-              const processed = (chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent)) as ReturnType<typeof processAgentResponse>;
+              const processed = (callbacksRef.current.chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent)) as ReturnType<typeof processAgentResponse>;
 
               setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, ...processed, isStreaming: true } : m));
             }
@@ -1242,7 +1272,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       }
 
       // Final processing
-      const processed = (chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent)) as ReturnType<typeof processAgentResponse>;
+      const processed = (callbacksRef.current.chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent)) as ReturnType<typeof processAgentResponse>;
       setMessages(prev => prev.map(m => m.id === assistantId ? { 
         ...m, 
         content: processed.content, 
@@ -1333,10 +1363,10 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
             const dataUrl = await generatePresentationPptx(spec);
 
             // Save to file tree
-            onCreateFile?.(fileName, 'file', dataUrl);
+            callbacksRef.current.onCreateFile?.(fileName, 'file', dataUrl);
             // Open the file after state update settles
-            if (onOpenFile) {
-              setTimeout(() => onOpenFile(fileName), 150);
+            if (callbacksRef.current.onOpenFile) {
+              setTimeout(() => callbacksRef.current.onOpenFile?.(fileName), 150);
             }
 
             // Mark step as completed
@@ -1374,7 +1404,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
 
       for (let iteration = 0; iteration < MAX_AGENT_ITERATIONS; iteration++) {
         // If the AI signaled it's done, or there are no actionable tool calls, stop
-        const hasShell = loopProcessed.shellCommands && loopProcessed.shellCommands.length > 0 && (autonomyConfig?.shell !== false);
+        const hasShell = loopProcessed.shellCommands && loopProcessed.shellCommands.length > 0 && (callbacksRef.current.autonomyConfig?.shell !== false);
         if (loopProcessed.isDone && !hasShell) break;
         if (!hasShell) break; // No shell commands to execute = nothing to loop on
 
@@ -1385,7 +1415,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           if (executedActionsRef.current.has(shellKey)) continue;
           executedActionsRef.current.add(shellKey);
 
-          if (autonomyConfig?.blockDestructiveShell && isPotentiallyDestructiveShellCommand(cmd)) {
+          if (callbacksRef.current.autonomyConfig?.blockDestructiveShell && isPotentiallyDestructiveShellCommand(cmd)) {
             const blockedReason = `Blocked potentially destructive shell command: ${cmd}`;
             shellExecutionSummaries.push({ command: cmd, output: blockedReason, success: false });
             setMessages(prev => prev.map(m => {
@@ -1473,12 +1503,12 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           messages: conversationSoFar,
           currentFile: context.currentFile ? { name: context.currentFile.name, language: context.currentFile.language, content: context.currentFile.content?.slice(0, 10000) } : null,
           consoleErrors: context.consoleErrors || null,
-          workflows: context.workflows || workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
+          workflows: context.workflows || callbacksRef.current.workflows?.map(w => ({ name: w.name, type: w.type, command: w.command })) || null,
           agentMode: true,
-          model: selectedModel,
-          byokProvider: aiProvider.allowsBYOK ? (byokProvider || undefined) : undefined,
-          byokModel: aiProvider.allowsBYOK ? (byokModel || undefined) : undefined,
-          byokBaseUrl: aiProvider.allowsBYOK ? (byokBaseUrl || undefined) : undefined,
+          model: callbacksRef.current.selectedModel,
+          byokProvider: aiProvider.allowsBYOK ? (callbacksRef.current.byokProvider || undefined) : undefined,
+          byokModel: aiProvider.allowsBYOK ? (callbacksRef.current.byokModel || undefined) : undefined,
+          byokBaseUrl: aiProvider.allowsBYOK ? (callbacksRef.current.byokBaseUrl || undefined) : undefined,
           projectId: context.projectId || null,
         }, {
           accessToken: session.access_token,
@@ -1548,7 +1578,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       setCurrentStep(null);
       abortControllerRef.current = null;
     }
-  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, chatOnlyMode, autonomyConfig, processAgentResponse, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI, workflows, aiProvider]);
+  }, [processAgentResponse, aiProvider]);
 
   const applyCodeChange = useCallback((change: CodeChange) => {
     if (onApplyCode) {
