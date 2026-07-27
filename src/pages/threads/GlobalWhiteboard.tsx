@@ -10,6 +10,7 @@ import { Seo } from '@/components/Seo';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 type Scene = { elements: any[]; appState?: any; files?: Record<string, any> };
 type PeerRole = 'editor' | 'viewer';
@@ -66,6 +67,7 @@ function buildThreadCard(thread: { id: string; title: string; category: string |
 export default function GlobalWhiteboard() {
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
+  const { toast } = useToast();
   const apiRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const [initial, setInitial] = useState<Scene>({ elements: [], appState: { viewBackgroundColor: '#fafaf9' } });
@@ -257,7 +259,7 @@ export default function GlobalWhiteboard() {
     const hash = String(elements.length) + ':' + (elements[elements.length - 1]?.version || 0) + ':' + filesHash;
     if (hash === lastSentHashRef.current) return;
     lastSentHashRef.current = hash;
-    await supabase.from('global_whiteboard').upsert(
+    const { error } = await supabase.from('global_whiteboard').upsert(
       {
         id: BOARD_ID,
         scene: scene as any,
@@ -266,6 +268,7 @@ export default function GlobalWhiteboard() {
       },
       { onConflict: 'id' }
     );
+    if (error) throw error;
   }, [user]);
 
   const broadcastScene = useCallback((elements: readonly any[], files: Record<string, any>) => {
@@ -340,7 +343,14 @@ export default function GlobalWhiteboard() {
       }, 50);
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => persist(elements, appState, files || {}), 600);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        await persist(elements, appState, files || {});
+      } catch (err) {
+        console.error('[Whiteboard] Save failed:', err);
+        toast({ title: 'Whiteboard save failed', description: 'Your changes may not be saved.', variant: 'destructive' });
+      }
+    }, 600);
   }, [persist, broadcastScene, diffAndAttribute]);
 
   // Keep a stable ref so the callback passed to Excalidraw never changes identity.

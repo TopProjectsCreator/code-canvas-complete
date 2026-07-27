@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { MessageActions } from './MessageActions'
 import { MessageReactions } from './MessageReactions'
@@ -6,7 +6,7 @@ import { formatMessageTime, formatMessageBody, shouldShowProfile } from '@/lib/c
 import { isImageFile, isVideoFile, getChatAttachmentUrl } from '@/lib/chat/chatStorage'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn } from '@/lib/utils'
-import { MessageCircle } from 'lucide-react'
+import { MessageCircle, AlertCircle, RefreshCw } from 'lucide-react'
 import type { ChatMessage } from '@/lib/chat/chatTypes'
 
 interface MessageBubbleProps {
@@ -117,17 +117,33 @@ function MessageBody({ message }: { message: ChatMessage }) {
 function MessageAttachments({ message }: { message: ChatMessage }) {
   const attachments = message.attachments ?? []
   const [urls, setUrls] = useState<Record<string, string | null>>({})
+  const [errors, setErrors] = useState<Record<string, boolean>>({})
   const attachmentPaths = attachments.map(a => a.storage_path).join(',')
+  const mountedRef = useRef(true)
+
+  const fetchUrl = useCallback((att: { storage_path: string }) => {
+    getChatAttachmentUrl(att.storage_path)
+      .then((url) => {
+        if (mountedRef.current) {
+          setUrls(prev => ({ ...prev, [att.storage_path]: url }))
+        }
+      })
+      .catch(() => {
+        if (mountedRef.current) {
+          setErrors(prev => ({ ...prev, [att.storage_path]: true }))
+        }
+      })
+  }, [])
 
   useEffect(() => {
+    mountedRef.current = true
     for (const att of attachments) {
-      if (!urls[att.storage_path]) {
-        getChatAttachmentUrl(att.storage_path).then((url) => {
-          setUrls(prev => ({ ...prev, [att.storage_path]: url }))
-        })
+      if (!urls[att.storage_path] && !errors[att.storage_path]) {
+        fetchUrl(att)
       }
     }
-  }, [attachmentPaths, urls])
+    return () => { mountedRef.current = false }
+  }, [attachmentPaths, urls, errors, fetchUrl])
 
   if (attachments.length === 0) return null
 
@@ -135,7 +151,36 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
     <div className="flex flex-wrap gap-2 mt-1">
       {attachments.map((att) => {
         const url = urls[att.storage_path]
+        const failed = errors[att.storage_path]
+
+        if (failed) {
+          return (
+            <div
+              key={att.id}
+              className="flex items-center gap-2 px-3 py-2 rounded-md bg-destructive/10 text-xs text-destructive border border-destructive/20"
+            >
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{att.file_name}</p>
+                <p className="text-[10px]">Failed to load</p>
+              </div>
+              <button
+                onClick={() => {
+                  setErrors(prev => { const next = { ...prev }; delete next[att.storage_path]; return next })
+                  setUrls(prev => { const next = { ...prev }; delete next[att.storage_path]; return next })
+                  fetchUrl(att)
+                }}
+                className="p-1 rounded hover:bg-destructive/20 cursor-pointer"
+                title="Retry"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </button>
+            </div>
+          )
+        }
+
         if (!url) return null
+
         if (isImageFile(att.file_type)) {
           return (
             <a key={att.id} href={url} target="_blank" rel="noopener noreferrer" className="max-w-[300px]">
