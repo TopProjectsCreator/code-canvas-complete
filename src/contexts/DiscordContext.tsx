@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useCallback, useRef, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useCallback, useState, ReactNode } from 'react';
 import { DiscordSDK } from "@discord/embedded-app-sdk";
 import { initDiscordSdk, getDiscordSdk, getDiscordAuth, isInDiscord, updateRichPresence } from '@/lib/discord';
 
@@ -35,8 +35,8 @@ export const DiscordProvider = ({ children }: { children: ReactNode }) => {
   const [channelName, setChannelName] = useState<string | null>(null);
   const [guildName, setGuildName] = useState<string | null>(null);
   const [guildAvatar, setGuildAvatar] = useState<string | null>(null);
-  const discordSdkRef = useRef<DiscordSDK | null>(null);
-  const authRef = useRef<any>(null);
+  const [discordSdk, setDiscordSdk] = useState<DiscordSDK | null>(null);
+  const [auth, setAuth] = useState<any>(null);
 
   const updatePresence = useCallback(async (fileName?: string | null, language?: string | null, projectName?: string | null, isRunning?: boolean, context?: 'landing' | 'editing' | 'running' | 'idle') => {
     await updateRichPresence(fileName, language, projectName, isRunning, context);
@@ -63,8 +63,8 @@ export const DiscordProvider = ({ children }: { children: ReactNode }) => {
 
       const sdk = getDiscordSdk()!;
       const authData = getDiscordAuth();
-      discordSdkRef.current = sdk;
-      authRef.current = authData;
+      setDiscordSdk(sdk);
+      setAuth(authData);
 
       try {
         if (sdk.channelId != null && sdk.guildId != null) {
@@ -105,8 +105,8 @@ export const DiscordProvider = ({ children }: { children: ReactNode }) => {
 
   const value: DiscordContextType = {
     isDiscordActivity,
-    discordSdk: discordSdkRef.current,
-    auth: authRef.current,
+    discordSdk: discordSdk,
+    auth: auth,
     channelName,
     guildName,
     guildAvatar,
