@@ -225,10 +225,24 @@ export const useProjects = () => {
         // Unstar
         await dataProvider.deleteStarById(existing.id);
         
+        setProjects(prev => prev.map(p => {
+          if (p.id === projectId) {
+            return { ...p, stars_count: (p.stars_count ?? 0) - 1 };
+          }
+          return p;
+        }));
+        
         toast({ title: 'Removed star' });
       } else {
         // Star
         await dataProvider.createStar(projectId, user.id);
+        
+        setProjects(prev => prev.map(p => {
+          if (p.id === projectId) {
+            return { ...p, stars_count: (p.stars_count ?? 0) + 1 };
+          }
+          return p;
+        }));
         
         toast({ title: 'Starred!' });
       }
