@@ -1625,12 +1625,18 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         }
       }
 
-      const applyUpdates = (nodes: FileNode[], prefix = ""): FileNode[] => {
+      const applyUpdates = (
+        nodes: FileNode[],
+        prefix = "",
+        contentUpdates: Record<string, string> = {},
+      ): FileNode[] => {
         let changed = false;
         const nextNodes = nodes.map((node) => {
           const currentPath = prefix ? `${prefix}/${node.name}` : node.name;
           if (node.type === "folder") {
-            const nextChildren = node.children ? applyUpdates(node.children, currentPath) : node.children;
+            const nextChildren = node.children
+              ? applyUpdates(node.children, currentPath, contentUpdates)
+              : node.children;
             if (nextChildren !== node.children) {
               changed = true;
               return { ...node, children: nextChildren };
@@ -1642,7 +1648,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
           if (!update) return node;
           changed = true;
           if (update.content !== undefined) {
-            setFileContents((prev) => ({ ...prev, [node.id]: update.content ?? "" }));
+            contentUpdates[node.id] = update.content ?? "";
           }
           return {
             ...node,
@@ -1670,13 +1676,18 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
         }));
 
         for (const added of addedNodes) {
-          setFileContents((prev) => ({ ...prev, [added.id]: added.content || "" }));
+          contentUpdates[added.id] = added.content || "";
         }
 
         return [...nextNodes, ...addedNodes];
       };
 
-      setFiles(applyUpdates(files));
+      const contentUpdates: Record<string, string> = {};
+      const nextTree = applyUpdates(files, "", contentUpdates);
+      if (Object.keys(contentUpdates).length > 0) {
+        setFileContents((prev) => ({ ...prev, ...contentUpdates }));
+      }
+      setFiles(nextTree);
     },
     [fileContents, files],
   );
