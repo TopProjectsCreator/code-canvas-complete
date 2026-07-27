@@ -174,6 +174,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const abortControllerRef = useRef<AbortController | null>(null);
   const executedActionsRef = useRef<Set<string>>(new Set());
   const shellSessionIdRef = useRef<string | null>(null);
+  const messagesRef = useRef<AgentMessage[]>(messages);
+  messagesRef.current = messages;
   const aiProvider = useMemo(() => createAIProvider(), []);
 
   // Broadcast active-agent presence while loading so the landing page can show live count
@@ -1148,7 +1150,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       abortControllerRef.current = new AbortController();
       
       // Build messages array, using multimodal content for the latest user message if provided
-      const historyMessages = messages.slice(1).map(m => ({ role: m.role, content: m.content }));
+      const historyMessages = messagesRef.current.slice(1).map(m => ({ role: m.role, content: m.content }));
       const latestUserMsg = {
         role: 'user' as const,
         content: context.multimodalContent || messageContent,
@@ -1230,9 +1232,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
               else if (fullContent.includes('<generate_pptx')) { setCurrentStep('Preparing presentation...'); }
               else { setCurrentStep(null); }
               
-              const processed = (chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent)) as ReturnType<typeof processAgentResponse>;
-
-              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, ...processed, isStreaming: true } : m));
+              setMessages(prev => prev.map(m => m.id === assistantId ? { ...m, content: fullContent, isStreaming: true } : m));
             }
           } catch {
             buffer = line + '\n' + buffer;
@@ -1548,7 +1548,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       setCurrentStep(null);
       abortControllerRef.current = null;
     }
-  }, [isLoading, messages, onCodeChange, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, chatOnlyMode, autonomyConfig, processAgentResponse, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI, workflows, aiProvider]);
+  }, [isLoading, onCodeChange, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, chatOnlyMode, autonomyConfig, processAgentResponse, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI, workflows, aiProvider]);
 
   const applyCodeChange = useCallback((change: CodeChange) => {
     if (onApplyCode) {
