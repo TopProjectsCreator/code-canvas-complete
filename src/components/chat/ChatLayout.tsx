@@ -107,6 +107,9 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
     if (!text.trim() && files.length === 0) return
     if (!activeChannel) return
     const result = await sendMessage({ channel_id: activeChannel.id, body: text }, files.length > 0 ? files : undefined)
+    if (result.error) {
+      throw new Error(result.error)
+    }
     if (result.data && activeWorkspace) {
       await notifyMentions(text, activeChannel.id, activeWorkspace.id)
     }

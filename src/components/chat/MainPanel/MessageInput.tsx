@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { toast } from 'sonner'
 import { RichTextInput } from '../Shared/RichTextInput'
 import { FileUpload } from '../Shared/FileUpload'
 import { EmojiPicker } from '../Shared/EmojiPicker'
@@ -13,7 +14,7 @@ interface FilePreview {
 }
 
 interface MessageInputProps {
-  onSend: (text: string, files: File[]) => void
+  onSend: (text: string, files: File[]) => Promise<void> | void
   sending: boolean
   disabled?: boolean
   placeholder?: string
@@ -35,11 +36,15 @@ export function MessageInput({
   const [mentionIndex, setMentionIndex] = useState(0)
   
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     if (!text.trim() && files.length === 0) return
-    onSend(text, files.map(f => f.file))
-    setText('')
-    setFiles([])
+    try {
+      await onSend(text, files.map(f => f.file))
+      setText('')
+      setFiles([])
+    } catch {
+      toast.error('Failed to send message. Please try again.')
+    }
   }, [text, files, onSend])
 
   const handleAddFiles = useCallback((fileList: FileList) => {
