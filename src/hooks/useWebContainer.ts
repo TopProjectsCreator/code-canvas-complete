@@ -92,9 +92,12 @@ export const useWebContainer = () => {
     return () => {
       listeners.delete(handleStateChange);
       subscriberCount = Math.max(0, subscriberCount - 1);
-      if (subscriberCount === 0 && container) {
-        container.teardown();
-        container = null;
+      if (subscriberCount === 0) {
+        bootPromise = null;
+        if (container) {
+          container.teardown();
+          container = null;
+        }
         setState({ status: 'idle', error: null });
       }
     };
@@ -151,6 +154,7 @@ export const useWebContainer = () => {
   }, []);
 
   const teardown = useCallback(() => {
+    bootPromise = null;
     if (container) {
       container.teardown();
       container = null;
