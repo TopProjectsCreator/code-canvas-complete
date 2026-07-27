@@ -59,12 +59,18 @@ export function useMCPAndSkills() {
         setMcpServers((servers as MCPServer[]) || []);
         setSkills((sk as AgentSkill[]) || []);
       } else {
-        const [{ data: servers }, { data: sk }] = await Promise.all([
+        const [serverResult, skillResult] = await Promise.all([
           supabase.from('mcp_servers').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
           supabase.from('agent_skills').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
         ]);
-        setMcpServers((servers as MCPServer[]) || []);
-        setSkills((sk as AgentSkill[]) || []);
+        if (serverResult.error) {
+          toast({ title: 'Error', description: `Failed to load MCP servers: ${serverResult.error.message}`, variant: 'destructive' });
+        }
+        if (skillResult.error) {
+          toast({ title: 'Error', description: `Failed to load agent skills: ${skillResult.error.message}`, variant: 'destructive' });
+        }
+        setMcpServers((serverResult.data as MCPServer[]) || []);
+        setSkills((skillResult.data as AgentSkill[]) || []);
       }
     } finally {
       setLoading(false);
