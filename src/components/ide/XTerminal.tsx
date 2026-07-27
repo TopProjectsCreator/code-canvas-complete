@@ -75,7 +75,8 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
 
   // True after the first init message has been sent to the server.
   const initSentRef = useRef(false);
-  const lastSyncedSignatureRef = useRef('');
+  const fileHashesRef = useRef<Map<string, number>>(new Map());
+  const fileOrderRef = useRef<string[]>([]);
 
   // True when we are waiting for the next shell prompt (command in-flight).
   const awaitingPromptRef = useRef(false);
@@ -88,15 +89,70 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
   const [dismissed, setDismissed] = useState(false);
   const detectedPortsRef = useRef<Set<number>>(new Set());
 
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!initSentRef.current) return;
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     if (!projectFiles?.length) return;
-    const signature = projectFiles.map((file) => `${file.path}\u0000${file.content}`).join('\u0001');
-    if (signature === lastSyncedSignatureRef.current) return;
-    lastSyncedSignatureRef.current = signature;
-    ws.send(JSON.stringify({ type: 'sync-files', files: projectFiles }));
+
+    // FNV-1a 32-bit hash for a single string
+    const fnv1a = (str: string): number => {
+      let h = 0x811c9dc5;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = (h * 0x01000193) >>> 0;
+      }
+      return h;
+    };
+
+    // Incrementally update per-file hashes: only re-hash files whose
+    // content or path changed since last run.
+    const prevHashes = fileHashesRef.current;
+    const prevOrder = fileOrderRef.current;
+    const newHashes = new Map<string, number>();
+    let changed = false;
+
+    for (const file of projectFiles) {
+      const prev = prevHashes.get(file.path);
+      if (prev !== undefined) {
+        newHashes.set(file.path, prev);
+      } else {
+        newHashes.set(file.path, fnv1a(file.path + '\0' + file.content));
+        changed = true;
+      }
+    }
+
+    // Check for removed files
+    if (!changed && prevOrder.length !== projectFiles.length) {
+      changed = true;
+    }
+
+    // Check for content changes in existing files
+    if (!changed) {
+      for (const file of projectFiles) {
+        const prev = prevHashes.get(file.path);
+        if (prev !== fnv1a(file.path + '\0' + file.content)) {
+          newHashes.set(file.path, fnv1a(file.path + '\0' + file.content));
+          changed = true;
+          break;
+        }
+      }
+    }
+
+    fileHashesRef.current = newHashes;
+    fileOrderRef.current = projectFiles.map((f) => f.path);
+
+    if (!changed) return;
+
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      const currentWs = wsRef.current;
+      if (currentWs?.readyState === WebSocket.OPEN) {
+        currentWs.send(JSON.stringify({ type: 'sync-files', files: projectFiles }));
+      }
+    }, 300);
   }, [projectFiles]);
 
   // Refit + refocus when this tab becomes active
@@ -270,6 +326,7 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
       fitAddonRef.current = null;
       termRef.current = null;
       wsRef.current = null;
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     };
   }, []);
 
