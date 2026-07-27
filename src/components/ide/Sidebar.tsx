@@ -262,8 +262,9 @@ export const Sidebar = ({
 
   // Read files one at a time (sequentially) so multiple large uploads don't
   // pile up in memory and freeze the tab.
-  const readFilesSequentially = async (files: File[]): Promise<Array<{ name: string; content: string; language: string }>> => {
-    const out: Array<{ name: string; content: string; language: string }> = [];
+  const readFilesSequentially = async (files: File[]): Promise<{ succeeded: Array<{ name: string; content: string; language: string }>; failed: Array<{ name: string; reason: string }> }> => {
+    const succeeded: Array<{ name: string; content: string; language: string }> = [];
+    const failed: Array<{ name: string; reason: string }> = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       const isLarge = file.size >= LARGE_FILE_BYTES;
@@ -274,16 +275,21 @@ export const Sidebar = ({
             toast.loading(`Uploading ${file.name} (${Math.round(ratio * 100)}%)`, { id: toastId, duration: Infinity });
           }
         });
-        if (toastId !== null) toast.success(`Uploaded ${file.name}`, { id: toastId });
-        out.push(result);
-      } catch {
+        if (result.content === '') {
+          if (toastId !== null) toast.error(`Failed to upload ${file.name}`, { id: toastId });
+          failed.push({ name: file.name, reason: 'File could not be read' });
+        } else {
+          if (toastId !== null) toast.success(`Uploaded ${file.name}`, { id: toastId });
+          succeeded.push(result);
+        }
+      } catch (err) {
         if (toastId !== null) toast.error(`Failed to upload ${file.name}`, { id: toastId });
-        out.push({ name: file.name, content: '', language: getFileLanguage(file.name) });
+        failed.push({ name: file.name, reason: err instanceof Error ? err.message : 'Unknown error' });
       }
       // yield to the event loop between files so the UI stays responsive
       await new Promise((r) => setTimeout(r, 0));
     }
-    return out;
+    return { succeeded, failed };
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -302,9 +308,17 @@ export const Sidebar = ({
 
     const toRead = supported.filter((file) => !isScratchArchiveFile(file.name));
 
-    void readFilesSequentially(toRead).then((files) => {
-      if (files.length > 0) onUploadFiles(files);
-    });
+    readFilesSequentially(toRead)
+      .then(({ succeeded, failed }) => {
+        if (succeeded.length > 0) onUploadFiles(succeeded);
+        if (failed.length > 0) {
+          const names = failed.map((f) => f.name).join(', ');
+          toast.error(`Failed to read ${failed.length} file${failed.length !== 1 ? 's' : ''}: ${names}`);
+        }
+      })
+      .catch(() => {
+        toast.error('Failed to read uploaded files');
+      });
 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -355,9 +369,17 @@ export const Sidebar = ({
       .forEach((file) => onImportScratchProject?.(file));
 
     const toRead = Array.from(supported).filter((file) => !isScratchArchiveFile(file.name));
-    void readFilesSequentially(toRead).then((files) => {
-      if (files.length > 0) onUploadFiles(files);
-    });
+    readFilesSequentially(toRead)
+      .then(({ succeeded, failed }) => {
+        if (succeeded.length > 0) onUploadFiles(succeeded);
+        if (failed.length > 0) {
+          const names = failed.map((f) => f.name).join(', ');
+          toast.error(`Failed to read ${failed.length} file${failed.length !== 1 ? 's' : ''}: ${names}`);
+        }
+      })
+      .catch(() => {
+        toast.error('Failed to read uploaded files');
+      });
   };
 
 
