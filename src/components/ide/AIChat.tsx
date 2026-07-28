@@ -1006,30 +1006,48 @@ export const AIChat = ({
 
   // Resizable width
   const [panelWidth, setPanelWidth] = useState(320);
-  const isResizingRef = useRef(false);
   const startXRef = useRef(0);
   const startWidthRef = useRef(320);
+  const mouseMoveHandlerRef = useRef<((e: MouseEvent) => void) | null>(null);
+  const mouseUpHandlerRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (mouseMoveHandlerRef.current) {
+        document.removeEventListener('mousemove', mouseMoveHandlerRef.current);
+        mouseMoveHandlerRef.current = null;
+      }
+      if (mouseUpHandlerRef.current) {
+        document.removeEventListener('mouseup', mouseUpHandlerRef.current);
+        mouseUpHandlerRef.current = null;
+      }
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, []);
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    isResizingRef.current = true;
     startXRef.current = e.clientX;
     startWidthRef.current = panelWidth;
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizingRef.current) return;
       const delta = startXRef.current - e.clientX;
       const newWidth = Math.max(280, Math.min(700, startWidthRef.current + delta));
       setPanelWidth(newWidth);
     };
 
     const handleMouseUp = () => {
-      isResizingRef.current = false;
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      mouseMoveHandlerRef.current = null;
+      mouseUpHandlerRef.current = null;
     };
+
+    mouseMoveHandlerRef.current = handleMouseMove;
+    mouseUpHandlerRef.current = handleMouseUp;
 
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
