@@ -117,6 +117,20 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
   const [validation, setValidation] = useState<ValidationState>('idle');
   const [validationError, setValidationError] = useState<string>('');
+  const [justSaved, setJustSaved] = useState(false);
+
+  useEffect(() => {
+    if (!justSaved) return;
+    const timer = setTimeout(() => {
+      setEditingProvider(null);
+      setKeyInput('');
+      setBaseUrlInput('');
+      setValidation('idle');
+      setValidationError('');
+      setJustSaved(false);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [justSaved]);
 
   // Appearance sub-view state
   type AppearanceView = 'main' | 'creator' | 'library' | { type: 'edit'; theme: CustomTheme };
@@ -300,13 +314,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
     setValidation('valid');
     const success = await saveApiKey(editingProvider, keyInput.trim(), baseUrlInput.trim() || undefined);
     if (success) {
-      setTimeout(() => {
-        setEditingProvider(null);
-        setKeyInput('');
-        setBaseUrlInput('');
-        setValidation('idle');
-        setValidationError('');
-      }, 800);
+      setJustSaved(true);
     }
   };
 
