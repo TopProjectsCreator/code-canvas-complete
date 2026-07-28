@@ -49,10 +49,14 @@ export default function RedactorPlayground() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Revoke previous blob URL when a new one replaces it
+  // Revoke previous blob URLs when new ones replace them
   useEffect(() => {
     return () => { if (imagePreview) URL.revokeObjectURL(imagePreview); };
   }, [imagePreview]);
+
+  useEffect(() => {
+    return () => { if (redactedImageUrl) URL.revokeObjectURL(redactedImageUrl); };
+  }, [redactedImageUrl]);
 
   useEffect(() => {
     return () => abortRef.current?.abort();
