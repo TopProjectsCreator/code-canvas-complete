@@ -8,6 +8,10 @@ export interface SnapPoint {
 }
 
 const SNAP_THRESHOLD = 12
+const INTERSECTION_THROTTLE_MS = 100
+
+let _lastIntersectionTime = 0
+let _cachedIntersections: { x: number; y: number }[] = []
 
 function dist(a: { x: number; y: number }, b: { x: number; y: number }): number {
   const dx = a.x - b.x
@@ -125,21 +129,28 @@ export function findSnapPoint(
   }
 
   if (snapToIntersection && ents.length >= 2) {
-    for (let i = 0; i < ents.length; i++) {
-      const segsA = getEntitySegments(ents[i])
-      for (let j = i + 1; j < ents.length; j++) {
-        const segsB = getEntitySegments(ents[j])
-        for (const sA of segsA) {
-          for (const sB of segsB) {
-            const pt = lineIntersection(sA[0], sA[1], sB[0], sB[1])
-            if (pt) {
-              const d = dist(mousePos, pt)
-              if (d < threshold) {
-                candidates.push({ point: { ...pt, type: 'intersection' }, dist: d })
-              }
+    const now = Date.now()
+    if (now - _lastIntersectionTime >= INTERSECTION_THROTTLE_MS) {
+      const pts: { x: number; y: number }[] = []
+      for (let i = 0; i < ents.length; i++) {
+        const segsA = getEntitySegments(ents[i])
+        for (let j = i + 1; j < ents.length; j++) {
+          const segsB = getEntitySegments(ents[j])
+          for (const sA of segsA) {
+            for (const sB of segsB) {
+              const pt = lineIntersection(sA[0], sA[1], sB[0], sB[1])
+              if (pt) pts.push(pt)
             }
           }
         }
+      }
+      _lastIntersectionTime = now
+      _cachedIntersections = pts
+    }
+    for (const pt of _cachedIntersections) {
+      const d = dist(mousePos, pt)
+      if (d < threshold) {
+        candidates.push({ point: { ...pt, type: 'intersection' }, dist: d })
       }
     }
   }
