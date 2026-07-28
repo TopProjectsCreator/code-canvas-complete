@@ -3112,6 +3112,257 @@ function getOrCreateLsProcess(language, entry, ws, connectionId) {
 }
 
 // ---------------------------------------------------------------------------
+// LSP REST API — Wraps LSP operations behind HTTP endpoints for the CLI
+// ---------------------------------------------------------------------------
+
+function lspRestHandler(language, content, requestMethod, extraParams) {
+  return new Promise((resolve, reject) => {
+    const entry = findLspEntry(language);
+    if (!entry) {
+      return reject(new Error(`No LSP server for language: ${language}`));
+    }
+
+    let lsProcess;
+    try {
+      lsProcess = spawn(entry.command, entry.args, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env },
+      });
+    } catch (err) {
+      return reject(new Error(`Failed to spawn language server: ${err.message}`));
+    }
+
+    let readBuffer = '';
+    let contentLength = -1;
+    const responses = {};
+    let responseCount = 0;
+    let expectedResponses = 1;
+    let resolved = false;
+
+    if (requestMethod === 'textDocument/publishDiagnostics') {
+      expectedResponses = 0;
+    }
+
+    lsProcess.stdout.on('data', (chunk) => {
+      readBuffer += chunk.toString();
+      while (readBuffer.length > 0) {
+        if (contentLength < 0) {
+          const headerEnd = readBuffer.indexOf('\r\n\r\n');
+          if (headerEnd === -1) break;
+          const header = readBuffer.substring(0, headerEnd);
+          const match = header.match(/Content-Length:\s*(\d+)/i);
+          if (match) contentLength = parseInt(match[1], 10);
+          else contentLength = 0;
+          readBuffer = readBuffer.substring(headerEnd + 4);
+        }
+        if (contentLength >= 0 && readBuffer.length >= contentLength) {
+          const body = readBuffer.substring(0, contentLength);
+          readBuffer = readBuffer.substring(contentLength);
+          contentLength = -1;
+          try {
+            const msg = JSON.parse(body);
+            if (msg.id !== undefined && msg.id !== null) {
+              responses[msg.id] = msg;
+              responseCount++;
+              if (responseCount >= expectedResponses && !resolved) {
+                resolved = true;
+                cleanup();
+                resolve(responses);
+              }
+            } else if (msg.method === 'textDocument/publishDiagnostics' && requestMethod === 'textDocument/publishDiagnostics') {
+              responses['diagnostics'] = msg;
+              responseCount++;
+              if (responseCount >= expectedResponses && !resolved) {
+                cleanup();
+                resolve(responses);
+              }
+            }
+          } catch {}
+        } else {
+          break;
+        }
+      }
+    });
+
+    lsProcess.stderr.on('data', () => {});
+    lsProcess.on('error', (err) => {
+      clearInterval(waitForInit);
+      reject(err);
+    });
+    lsProcess.on('close', () => {
+      clearInterval(waitForInit);
+      if (!resolved && Object.keys(responses).length > 0) {
+        resolved = true;
+        resolve(responses);
+      }
+    });
+
+    const extMap = { python: 'py', css: 'css', html: 'html', json: 'json', markdown: 'md', xml: 'xml', sql: 'sql', yaml: 'yaml', bash: 'sh', javascript: 'js', typescript: 'ts' };
+    const uri = `file:///tmp/rest-lsp-${language}.${extMap[language] || language}`;
+
+    const cleanup = () => {
+      try {
+        lsProcess.stdin.write(lspEncode({ jsonrpc: '2.0', method: 'textDocument/didClose', params: { textDocument: { uri } } }));
+        lsProcess.stdin.write(lspEncode({ jsonrpc: '2.0', id: 99999, method: 'shutdown', params: {} }));
+        lsProcess.stdin.write(lspEncode({ jsonrpc: '2.0', method: 'exit', params: null }));
+      } catch {}
+      setTimeout(() => { try { lsProcess.kill(); } catch {} }, 200);
+    };
+
+    const initMsg = { jsonrpc: '2.0', id: 1, method: 'initialize', params: {
+      processId: null, clientInfo: { name: 'cc-cli', version: '1.0.0' },
+      capabilities: {
+        textDocument: {
+          completion: { completionItem: { snippetSupport: true } },
+          hover: { contentFormat: ['markdown', 'plaintext'] },
+          definition: {}, references: {}, formatting: {},
+          synchronization: { didSave: true },
+        },
+      },
+    }};
+    lsProcess.stdin.write(lspEncode(initMsg));
+
+    let initDone = false;
+    const waitForInit = setInterval(() => {
+      if (responses[1]) {
+        clearInterval(waitForInit);
+        initDone = true;
+        lsProcess.stdin.write(lspEncode({ jsonrpc: '2.0', method: 'initialized', params: {} }));
+        lsProcess.stdin.write(lspEncode({ jsonrpc: '2.0', method: 'textDocument/didOpen', params: {
+          textDocument: { uri, languageId: language, version: 1, text: content },
+        }}));
+
+        setTimeout(() => {
+          const msg = { jsonrpc: '2.0', id: 2, method: requestMethod, params: { textDocument: { uri }, ...extraParams } };
+          lsProcess.stdin.write(lspEncode(msg));
+        }, 100);
+      }
+    }, 10);
+
+    setTimeout(() => {
+      clearInterval(waitForInit);
+      if (!resolved) {
+        cleanup();
+        if (Object.keys(responses).length > 0) {
+          resolved = true;
+          resolve(responses);
+        } else {
+          reject(new Error('LSP request timed out'));
+        }
+      }
+    }, 15000);
+  });
+}
+
+app.post('/api/lsp/diagnostics', async (req, res) => {
+  try {
+    const uid = await resolveContainerUserId(req);
+    if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    const { language, content } = req.body || {};
+    if (!language || content === undefined) {
+      return res.status(400).json({ error: 'language and content are required' });
+    }
+    const responses = await lspRestHandler(language, content, 'textDocument/publishDiagnostics', {});
+    const diag = responses['diagnostics'];
+    res.json(diag ? diag.params : { diagnostics: [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/lsp/completions', async (req, res) => {
+  try {
+    const uid = await resolveContainerUserId(req);
+    if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    const { language, content, line, col, uri } = req.body || {};
+    if (!language || content === undefined || line === undefined || col === undefined) {
+      return res.status(400).json({ error: 'language, content, line, and col are required' });
+    }
+    const responses = await lspRestHandler(language, content, 'textDocument/completion', {
+      position: { line, character: col },
+      context: { triggerKind: 1 },
+    });
+    const result = responses[2]?.result;
+    res.json(result || { items: [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/lsp/hover', async (req, res) => {
+  try {
+    const uid = await resolveContainerUserId(req);
+    if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    const { language, content, line, col } = req.body || {};
+    if (!language || content === undefined || line === undefined || col === undefined) {
+      return res.status(400).json({ error: 'language, content, line, and col are required' });
+    }
+    const responses = await lspRestHandler(language, content, 'textDocument/hover', {
+      position: { line, character: col },
+    });
+    const result = responses[2]?.result;
+    res.json(result || null);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/lsp/definition', async (req, res) => {
+  try {
+    const uid = await resolveContainerUserId(req);
+    if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    const { language, content, line, col } = req.body || {};
+    if (!language || content === undefined || line === undefined || col === undefined) {
+      return res.status(400).json({ error: 'language, content, line, and col are required' });
+    }
+    const responses = await lspRestHandler(language, content, 'textDocument/definition', {
+      position: { line, character: col },
+    });
+    const result = responses[2]?.result;
+    res.json(result || null);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/lsp/references', async (req, res) => {
+  try {
+    const uid = await resolveContainerUserId(req);
+    if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    const { language, content, line, col } = req.body || {};
+    if (!language || content === undefined || line === undefined || col === undefined) {
+      return res.status(400).json({ error: 'language, content, line, and col are required' });
+    }
+    const responses = await lspRestHandler(language, content, 'textDocument/references', {
+      position: { line, character: col },
+      context: { includeDeclaration: true },
+    });
+    const result = responses[2]?.result;
+    res.json(result || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/lsp/formatting', async (req, res) => {
+  try {
+    const uid = await resolveContainerUserId(req);
+    if (!uid) return res.status(401).json({ error: 'Unauthorized' });
+    const { language, content } = req.body || {};
+    if (!language || content === undefined) {
+      return res.status(400).json({ error: 'language and content are required' });
+    }
+    const responses = await lspRestHandler(language, content, 'textDocument/formatting', {
+      options: { tabSize: 2, insertSpaces: true },
+    });
+    const result = responses[2]?.result;
+    res.json(result || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Command safety filter
 // Checks a fully-typed shell line (before the user hits Enter) against a list
 // of patterns that could damage the host environment or other sessions.
@@ -3168,7 +3419,7 @@ wss.on('connection', (ws, req) => {
         const parsed = JSON.parse(str);
         if (parsed.type !== 'init') return; // drop anything until init
 
-        const { projectId, projectName, files = [], cols = 80, rows = 24 } = parsed;
+        const { projectId, projectName, files = [], cols = 80, rows = 24, supabaseToken } = parsed;
 
         // Always use a temp dir — never the workspace root.
         const resolvedId = projectId || connSessionId;
@@ -3189,6 +3440,17 @@ wss.on('connection', (ws, req) => {
           }
 
           console.log(`[PTY] projectDir=${projectDir}  startCwd=${cwd}`);
+
+          // Copy cc CLI binary into the project's local bin for terminal access
+          try {
+            const ccBin = path.join(__dirname, 'public', 'cc');
+            const localBin = path.join(projectDir, '.local', 'bin');
+            if (fs.existsSync(ccBin)) {
+              fs.mkdirSync(localBin, { recursive: true });
+              fs.copyFileSync(ccBin, path.join(localBin, 'cc'));
+              fs.chmodSync(path.join(localBin, 'cc'), 0o755);
+            }
+          } catch {}
 
           // Sanitise the project name for safe embedding in a bash variable.
           const safeProjectName = (projectName || 'project')
@@ -3223,6 +3485,19 @@ wss.on('connection', (ws, req) => {
             '  command kill "$@"',
             '}',
           ];
+          // Auto-install and auto-auth the cc CLI
+          if (supabaseToken) {
+            const safeToken = supabaseToken.replace(/['"\\`$\x00-\x1f]/g, '_').slice(0, 2048);
+            bashrc.push(
+              `export CC_TOKEN='${safeToken}'`,
+            );
+          }
+          bashrc.push(
+            '# Auto-install cc CLI if available',
+            'if [ -f "$HOME/.local/bin/cc" ]; then',
+            '  export PATH="$HOME/.local/bin:$PATH"',
+            'fi',
+          );
           if (isReplitDev) {
             bashrc.push(
               '# Override sudo message — only on Replit',

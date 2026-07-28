@@ -1166,8 +1166,24 @@ cc ide ai skills list                  # List installed skills
 cc ide ai skills library --search "python"  # Browse community skills
 
 # Git operations
-cc ide git status                      # Working tree status
-cc ide git commit -m "fix: bug"        # Commit changes
+cc ide git --workspace <id> status      # Working tree status
+cc ide git --workspace <id> init        # Initialize repo
+cc ide git --workspace <id> add .       # Stage all files
+cc ide git --workspace <id> commit -m "msg"  # Commit
+cc ide git --workspace <id> log         # Show history
+cc ide git --workspace <id> diff        # Show changes
+cc ide git --workspace <id> branch      # List branches
+cc ide git --workspace <id> checkout main  # Switch branch
+cc ide git --workspace <id> remote list # List remotes
+cc ide git --workspace <id> remote add origin https://...  # Add remote
+
+# Language server features
+cc ide lsp diagnostics --file main.py                      # Errors/warnings
+cc ide lsp complete --file main.py --line 10 --col 5       # Completions
+cc ide lsp hover --file main.py --line 10 --col 5          # Hover info
+cc ide lsp definition --file main.py --line 10 --col 5     # Go to definition
+cc ide lsp references --file main.py --line 10 --col 5     # Find references
+cc ide lsp format --file main.py                           # Format file
 
 # Vulnerability scanning
 cc ide scan                            # Scan package.json

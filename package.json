@@ -8,6 +8,7 @@
     "dev": "vite",
     "server:replit": "node server.mjs",
     "prebuild": "bunx tsx scripts/generate-sitemap.ts && node scripts/patch-scratch-vm.mjs",
+    "build:cli": "cd cli && GOOS=linux GOARCH=amd64 go build -ldflags '-s -w' -o ../public/cc .",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { ExternalLink, X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface ProjectFile {
   path: string;
@@ -217,9 +218,14 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
     const ws = new WebSocket(`${wsProtocol}//${window.location.host}/api/replit/pty`);
     wsRef.current = ws;
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
       fitAddon.fit();
       const files = projectFilesRef.current ?? [];
+      let token = '';
+      try {
+        const { data } = await supabase.auth.getSession();
+        token = data?.session?.access_token ?? '';
+      } catch {}
       ws.send(JSON.stringify({
         type: 'init',
         projectId: projectIdRef.current ?? null,
@@ -227,6 +233,7 @@ export const XTerminal = ({ projectFiles, projectId, projectName, isActive = tru
         files,
         cols: term.cols,
         rows: term.rows,
+        supabaseToken: token,
       }));
       initSentRef.current = true;
 

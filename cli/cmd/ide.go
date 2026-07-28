@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/codecanvas/cli/internal/client"
+	"github.com/codecanvas/cli/internal/output"
 )
 
 func NewIDECmd() *cobra.Command {
@@ -1481,7 +1483,7 @@ func newIDEGitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "git",
 		Short: "Git operations",
-		Long:  "Git operations for workspace management.",
+		Long:  "Git operations for workspace management. Requires --workspace flag.",
 	}
 
 	cmd.AddCommand(newGitStatusCmd())
@@ -1491,156 +1493,640 @@ func newIDEGitCmd() *cobra.Command {
 	cmd.AddCommand(newGitLogCmd())
 	cmd.AddCommand(newGitDiffCmd())
 	cmd.AddCommand(newGitBranchCmd())
+	cmd.AddCommand(newGitCheckoutCmd())
+	cmd.AddCommand(newGitRemoteCmd())
 
 	return cmd
 }
 
+func shellEscape(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+}
+
+func gitExecCmd(workspace, gitCmd string) error {
+	c, err := client.NewClient()
+	if err != nil {
+		return err
+	}
+	body := map[string]interface{}{
+		"command":    gitCmd,
+		"timeout_ms": 30000,
+	}
+	resp, err := c.POST("/api/replit/container/"+workspace+"/exec", body)
+	if err != nil {
+		return err
+	}
+	var result map[string]interface{}
+	if err := json.Unmarshal(resp.Body, &result); err != nil {
+		if len(resp.Body) > 0 {
+			return fmt.Errorf("unexpected response: %s", string(resp.Body))
+		}
+		return fmt.Errorf("empty response from server")
+	}
+	if output, ok := result["output"].(string); ok {
+		fmt.Print(output)
+	}
+	if stderr, ok := result["stderr"].(string); ok && stderr != "" {
+		fmt.Fprint(os.Stderr, stderr)
+	}
+	return nil
+}
+
 func newGitStatusCmd() *cobra.Command {
-	return &cobra.Command{
+	var workspace string
+	cmd := &cobra.Command{
 		Use:   "status",
-		Short: "Git status",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Git operations require a workspace. Use: cc ide workspace create")
+		Short: "Show working tree status",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if workspace == "" { return fmt.Errorf("--workspace is required") }
 			return nil
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return gitExecCmd(workspace, "git status")
+		},
 	}
+	cmd.Flags().StringVar(&workspace, "workspace", "", "Workspace ID (required)")
+	return cmd
 }
 
 func newGitInitCmd() *cobra.Command {
-	return &cobra.Command{
+	var workspace string
+	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize git repository",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Git operations require a workspace. Use: cc ide workspace create")
+		Short: "Initialize a new git repository",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if workspace == "" { return fmt.Errorf("--workspace is required") }
 			return nil
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return gitExecCmd(workspace, "git init")
+		},
 	}
+	cmd.Flags().StringVar(&workspace, "workspace", "", "Workspace ID (required)")
+	return cmd
 }
 
 func newGitAddCmd() *cobra.Command {
-	return &cobra.Command{
+	var workspace string
+	var all bool
+	cmd := &cobra.Command{
 		Use:   "add [files...]",
-		Short: "Add files to git",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Git operations require a workspace. Use: cc ide workspace create")
+		Short: "Add files to the staging area",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if workspace == "" { return fmt.Errorf("--workspace is required") }
 			return nil
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			gitCmd := "git add"
+			if all || len(args) == 0 {
+				gitCmd += " ."
+			} else {
+				for _, a := range args {
+					gitCmd += " " + shellEscape(a)
+				}
+			}
+			return gitExecCmd(workspace, gitCmd)
+		},
 	}
+	cmd.Flags().StringVar(&workspace, "workspace", "", "Workspace ID (required)")
+	cmd.Flags().BoolVarP(&all, "all", "A", false, "Stage all files")
+	return cmd
 }
 
 func newGitCommitCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "commit [message]",
-		Short: "Create a git commit",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Git operations require a workspace. Use: cc ide workspace create")
+	var workspace string
+	var message string
+	cmd := &cobra.Command{
+		Use:   "commit",
+		Short: "Create a new commit",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if workspace == "" { return fmt.Errorf("--workspace is required") }
+			if message == "" { return fmt.Errorf("--message is required") }
 			return nil
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return gitExecCmd(workspace, "git commit -m "+shellEscape(message))
+		},
 	}
+	cmd.Flags().StringVar(&workspace, "workspace", "", "Workspace ID (required)")
+	cmd.Flags().StringVarP(&message, "message", "m", "", "Commit message (required)")
+	return cmd
 }
 
 func newGitLogCmd() *cobra.Command {
-	return &cobra.Command{
+	var workspace string
+	var limit int
+	cmd := &cobra.Command{
 		Use:   "log",
-		Short: "Show git log",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Git operations require a workspace. Use: cc ide workspace create")
+		Short: "Show commit history",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if workspace == "" { return fmt.Errorf("--workspace is required") }
+			if limit < 1 { limit = 10 }
 			return nil
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return gitExecCmd(workspace, fmt.Sprintf("git log --oneline -%d", limit))
+		},
 	}
+	cmd.Flags().StringVar(&workspace, "workspace", "", "Workspace ID (required)")
+	cmd.Flags().IntVarP(&limit, "limit", "n", 10, "Number of commits to show")
+	return cmd
 }
 
 func newGitDiffCmd() *cobra.Command {
-	return &cobra.Command{
+	var workspace string
+	var staged bool
+	cmd := &cobra.Command{
 		Use:   "diff",
-		Short: "Show git diff",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Git operations require a workspace. Use: cc ide workspace create")
+		Short: "Show file changes",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if workspace == "" { return fmt.Errorf("--workspace is required") }
 			return nil
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			gitCmd := "git diff"
+			if staged {
+				gitCmd += " --cached"
+			}
+			return gitExecCmd(workspace, gitCmd)
+		},
 	}
+	cmd.Flags().StringVar(&workspace, "workspace", "", "Workspace ID (required)")
+	cmd.Flags().BoolVar(&staged, "staged", false, "Show staged changes")
+	return cmd
 }
 
 func newGitBranchCmd() *cobra.Command {
-	return &cobra.Command{
+	var workspace string
+	var create string
+	cmd := &cobra.Command{
 		Use:   "branch [name]",
 		Short: "List or create branches",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Git operations require a workspace. Use: cc ide workspace create")
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if workspace == "" { return fmt.Errorf("--workspace is required") }
 			return nil
 		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if create != "" {
+				return gitExecCmd(workspace, "git branch "+shellEscape(create))
+			}
+			if len(args) > 0 {
+				return gitExecCmd(workspace, "git branch "+shellEscape(args[0]))
+			}
+			return gitExecCmd(workspace, "git branch")
+		},
 	}
+	cmd.Flags().StringVar(&workspace, "workspace", "", "Workspace ID (required)")
+	cmd.Flags().StringVar(&create, "create", "", "Create a new branch with this name")
+	return cmd
+}
+
+func newGitCheckoutCmd() *cobra.Command {
+	var workspace string
+	cmd := &cobra.Command{
+		Use:   "checkout [branch]",
+		Short: "Switch to a branch",
+		Args:  cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if workspace == "" { return fmt.Errorf("--workspace is required") }
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return gitExecCmd(workspace, "git checkout "+shellEscape(args[0]))
+		},
+	}
+	cmd.Flags().StringVar(&workspace, "workspace", "", "Workspace ID (required)")
+	return cmd
+}
+
+func newGitRemoteCmd() *cobra.Command {
+	var workspace string
+	cmd := &cobra.Command{
+		Use:   "remote",
+		Short: "Manage remote repositories",
+	}
+	addCmd := &cobra.Command{
+		Use:   "add [name] [url]",
+		Short: "Add a remote",
+		Args:  cobra.ExactArgs(2),
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if workspace == "" { return fmt.Errorf("--workspace is required") }
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return gitExecCmd(workspace, "git remote add "+shellEscape(args[0])+" "+shellEscape(args[1]))
+		},
+	}
+	listCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List remotes",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if workspace == "" { return fmt.Errorf("--workspace is required") }
+			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return gitExecCmd(workspace, "git remote -v")
+		},
+	}
+	addCmd.Flags().StringVar(&workspace, "workspace", "", "Workspace ID (required)")
+	listCmd.Flags().StringVar(&workspace, "workspace", "", "Workspace ID (required)")
+	cmd.AddCommand(addCmd, listCmd)
+	cmd.Flags().StringVar(&workspace, "workspace", "", "Workspace ID (required)")
+	return cmd
 }
 
 func newIDELspCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lsp",
 		Short: "Language server features",
-		Long:  "Language server protocol features for code intelligence.",
+		Long:  "Language server protocol features: diagnostics, completions, hover, definition, references, formatting.",
 	}
 
 	cmd.AddCommand(newLspDiagnosticsCmd())
-	cmd.AddCommand(newLspGotoCmd())
-	cmd.AddCommand(newLspReferencesCmd())
+	cmd.AddCommand(newLspCompleteCmd())
 	cmd.AddCommand(newLspHoverCmd())
-	cmd.AddCommand(newLspRenameCmd())
+	cmd.AddCommand(newLspDefinitionCmd())
+	cmd.AddCommand(newLspReferencesCmd())
+	cmd.AddCommand(newLspFormatCmd())
 
 	return cmd
 }
 
+func detectLanguage(filePath string) string {
+	ext := filePath
+	if i := strings.LastIndex(filePath, "."); i >= 0 {
+		ext = filePath[i+1:]
+	}
+	switch ext {
+	case "py":
+		return "python"
+	case "css", "scss", "less":
+		return "css"
+	case "html", "htm":
+		return "html"
+	case "json", "jsonc":
+		return "json"
+	case "md", "mdx":
+		return "markdown"
+	case "xml", "xsl", "xslt", "svg":
+		return "xml"
+	case "sql":
+		return "sql"
+	case "yaml", "yml":
+		return "yaml"
+	case "sh", "bash":
+		return "bash"
+	case "ts", "mts", "cts", "tsx":
+		return "typescript"
+	case "js", "mjs", "cjs", "jsx":
+		return "javascript"
+	default:
+		return ext
+	}
+}
+
+func lspRequestBody(language, filePath, content string, line, col *int) (map[string]interface{}, string) {
+	if language == "" {
+		language = detectLanguage(filePath)
+	}
+	body := map[string]interface{}{
+		"language": language,
+		"content":  content,
+	}
+	if line != nil && col != nil {
+		body["line"] = *line
+		body["col"] = *col
+	}
+	return body, language
+}
+
 func newLspDiagnosticsCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "diagnostics [file]",
-		Short: "Get diagnostics",
+	var file, language string
+	cmd := &cobra.Command{
+		Use:   "diagnostics --file <path>",
+		Short: "Get diagnostics (errors/warnings) for a file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("LSP features require running in the IDE web UI.")
+			if file == "" { return fmt.Errorf("--file is required") }
+			data, err := os.ReadFile(file)
+			if err != nil { return fmt.Errorf("reading file: %w", err) }
+			body, _ := lspRequestBody(language, file, string(data), nil, nil)
+			c, err := client.NewClient()
+			if err != nil { return err }
+			resp, err := c.POST("/api/lsp/diagnostics", body)
+			if err != nil { return err }
+			var result map[string]interface{}
+			if err := json.Unmarshal(resp.Body, &result); err != nil {
+				fmt.Println(string(resp.Body))
+				return nil
+			}
+			diags, _ := result["diagnostics"].([]interface{})
+			if len(diags) == 0 {
+				output.PrintSuccess("No diagnostics found")
+				return nil
+			}
+			for _, d := range diags {
+				diag, _ := d.(map[string]interface{})
+				msg, _ := diag["message"].(string)
+				severity, _ := diag["severity"].(float64)
+				sev := "INFO"
+				switch severity {
+				case 1: sev = output.Red("ERROR")
+				case 2: sev = output.Yellow("WARN")
+				case 3: sev = output.Cyan("INFO")
+				case 4: sev = output.Cyan("Hint")
+				}
+				range_ := diag["range"].(map[string]interface{})
+				start := range_["start"].(map[string]interface{})
+				line, _ := start["line"].(float64)
+				char, _ := start["character"].(float64)
+				fmt.Printf("  %s [%d:%d] %s\n", sev, int(line)+1, int(char)+1, msg)
+			}
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&file, "file", "", "File path (required)")
+	cmd.Flags().StringVar(&language, "language", "", "Language override (auto-detected from extension)")
+	return cmd
 }
 
-func newLspGotoCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "goto [file] [line] [column]",
-		Short: "Go to definition",
+func newLspCompleteCmd() *cobra.Command {
+	var file, language string
+	var line, col int
+	cmd := &cobra.Command{
+		Use:   "complete --file <path> --line <n> --col <n>",
+		Short: "Get code completions at a position",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("LSP features require running in the IDE web UI.")
+			if file == "" { return fmt.Errorf("--file is required") }
+			data, err := os.ReadFile(file)
+			if err != nil { return fmt.Errorf("reading file: %w", err) }
+			body, _ := lspRequestBody(language, file, string(data), &line, &col)
+			c, err := client.NewClient()
+			if err != nil { return err }
+			resp, err := c.POST("/api/lsp/completions", body)
+			if err != nil { return err }
+			var result interface{}
+			if err := json.Unmarshal(resp.Body, &result); err != nil {
+				fmt.Println(string(resp.Body))
+				return nil
+			}
+			switch r := result.(type) {
+			case map[string]interface{}:
+				items, _ := r["items"].([]interface{})
+				for _, item := range items {
+					it, _ := item.(map[string]interface{})
+					label, _ := it["label"].(string)
+					detail, _ := it["detail"].(string)
+					if detail != "" {
+						fmt.Printf("  %s  %s\n", label, output.Cyan(detail))
+					} else {
+						fmt.Printf("  %s\n", label)
+					}
+				}
+			case []interface{}:
+				for _, item := range r {
+					it, _ := item.(map[string]interface{})
+					label, _ := it["label"].(string)
+					fmt.Printf("  %s\n", label)
+				}
+			}
 			return nil
 		},
 	}
-}
-
-func newLspReferencesCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "references [file] [line] [column]",
-		Short: "Find references",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("LSP features require running in the IDE web UI.")
-			return nil
-		},
-	}
+	cmd.Flags().StringVar(&file, "file", "", "File path (required)")
+	cmd.Flags().StringVar(&language, "language", "", "Language override")
+	cmd.Flags().IntVar(&line, "line", 0, "Line number (0-indexed)")
+	cmd.Flags().IntVar(&col, "col", 0, "Column number (0-indexed)")
+	return cmd
 }
 
 func newLspHoverCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "hover [file] [line] [column]",
-		Short: "Show hover information",
+	var file, language string
+	var line, col int
+	cmd := &cobra.Command{
+		Use:   "hover --file <path> --line <n> --col <n>",
+		Short: "Show hover information at a position",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("LSP features require running in the IDE web UI.")
+			if file == "" { return fmt.Errorf("--file is required") }
+			data, err := os.ReadFile(file)
+			if err != nil { return fmt.Errorf("reading file: %w", err) }
+			body, _ := lspRequestBody(language, file, string(data), &line, &col)
+			c, err := client.NewClient()
+			if err != nil { return err }
+			resp, err := c.POST("/api/lsp/hover", body)
+			if err != nil { return err }
+			var result map[string]interface{}
+			if err := json.Unmarshal(resp.Body, &result); err != nil {
+				fmt.Println(string(resp.Body))
+				return nil
+			}
+			if result == nil {
+				output.PrintInfo("No hover information")
+				return nil
+			}
+			contents := result["contents"]
+			if contents == nil {
+				output.PrintInfo("No hover information")
+				return nil
+			}
+			switch c := contents.(type) {
+			case string:
+				fmt.Println(c)
+			case map[string]interface{}:
+				fmt.Println(c["value"])
+			case []interface{}:
+				for _, item := range c {
+					if m, ok := item.(map[string]interface{}); ok {
+						if v, ok := m["value"].(string); ok {
+							fmt.Println(v)
+						}
+					} else if s, ok := item.(string); ok {
+						fmt.Println(s)
+					}
+				}
+			}
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&file, "file", "", "File path (required)")
+	cmd.Flags().StringVar(&language, "language", "", "Language override")
+	cmd.Flags().IntVar(&line, "line", 0, "Line number (0-indexed)")
+	cmd.Flags().IntVar(&col, "col", 0, "Column number (0-indexed)")
+	return cmd
 }
 
-func newLspRenameCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "rename [file] [line] [column] [new-name]",
-		Short: "Rename symbol",
+func newLspDefinitionCmd() *cobra.Command {
+	var file, language string
+	var line, col int
+	cmd := &cobra.Command{
+		Use:   "definition --file <path> --line <n> --col <n>",
+		Short: "Go to definition at a position",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("LSP features require running in the IDE web UI.")
+			if file == "" { return fmt.Errorf("--file is required") }
+			data, err := os.ReadFile(file)
+			if err != nil { return fmt.Errorf("reading file: %w", err) }
+			body, _ := lspRequestBody(language, file, string(data), &line, &col)
+			c, err := client.NewClient()
+			if err != nil { return err }
+			resp, err := c.POST("/api/lsp/definition", body)
+			if err != nil { return err }
+			var result interface{}
+			if err := json.Unmarshal(resp.Body, &result); err != nil {
+				fmt.Println(string(resp.Body))
+				return nil
+			}
+			printLocation := func(loc map[string]interface{}) {
+				uri, _ := loc["uri"].(string)
+				range_ := loc["range"].(map[string]interface{})
+				start := range_["start"].(map[string]interface{})
+				l, _ := start["line"].(float64)
+				c, _ := start["character"].(float64)
+				fmt.Printf("  %s:%d:%d\n", strings.TrimPrefix(uri, "file://"), int(l)+1, int(c)+1)
+			}
+			switch r := result.(type) {
+			case map[string]interface{}:
+				printLocation(r)
+			case []interface{}:
+				for _, loc := range r {
+					if m, ok := loc.(map[string]interface{}); ok {
+						printLocation(m)
+					}
+				}
+			case nil:
+				output.PrintInfo("No definition found")
+			}
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&file, "file", "", "File path (required)")
+	cmd.Flags().StringVar(&language, "language", "", "Language override")
+	cmd.Flags().IntVar(&line, "line", 0, "Line number (0-indexed)")
+	cmd.Flags().IntVar(&col, "col", 0, "Column number (0-indexed)")
+	return cmd
+}
+
+func newLspReferencesCmd() *cobra.Command {
+	var file, language string
+	var line, col int
+	cmd := &cobra.Command{
+		Use:   "references --file <path> --line <n> --col <n>",
+		Short: "Find all references at a position",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if file == "" { return fmt.Errorf("--file is required") }
+			data, err := os.ReadFile(file)
+			if err != nil { return fmt.Errorf("reading file: %w", err) }
+			body, _ := lspRequestBody(language, file, string(data), &line, &col)
+			c, err := client.NewClient()
+			if err != nil { return err }
+			resp, err := c.POST("/api/lsp/references", body)
+			if err != nil { return err }
+			var result []interface{}
+			if err := json.Unmarshal(resp.Body, &result); err != nil {
+				fmt.Println(string(resp.Body))
+				return nil
+			}
+			if len(result) == 0 {
+				output.PrintInfo("No references found")
+				return nil
+			}
+			for _, ref := range result {
+				loc, _ := ref.(map[string]interface{})
+				uri, _ := loc["uri"].(string)
+				range_ := loc["range"].(map[string]interface{})
+				start := range_["start"].(map[string]interface{})
+				l, _ := start["line"].(float64)
+				c, _ := start["character"].(float64)
+				fmt.Printf("  %s:%d:%d\n", strings.TrimPrefix(uri, "file://"), int(l)+1, int(c)+1)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&file, "file", "", "File path (required)")
+	cmd.Flags().StringVar(&language, "language", "", "Language override")
+	cmd.Flags().IntVar(&line, "line", 0, "Line number (0-indexed)")
+	cmd.Flags().IntVar(&col, "col", 0, "Column number (0-indexed)")
+	return cmd
+}
+
+func newLspFormatCmd() *cobra.Command {
+	var file, language string
+	cmd := &cobra.Command{
+		Use:   "format --file <path>",
+		Short: "Format a file using the language server",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if file == "" { return fmt.Errorf("--file is required") }
+			data, err := os.ReadFile(file)
+			if err != nil { return fmt.Errorf("reading file: %w", err) }
+			fileContent := string(data)
+			body, _ := lspRequestBody(language, file, fileContent, nil, nil)
+			c, err := client.NewClient()
+			if err != nil { return err }
+			resp, err := c.POST("/api/lsp/formatting", body)
+			if err != nil { return err }
+			var edits []interface{}
+			if err := json.Unmarshal(resp.Body, &edits); err != nil {
+				fmt.Println(string(resp.Body))
+				return nil
+			}
+			if len(edits) == 0 {
+				output.PrintInfo("No formatting changes")
+				return nil
+			}
+			type textEdit struct {
+				startLine, startChar, endLine, endChar int
+				newText string
+			}
+			var parsedEdits []textEdit
+			for _, e := range edits {
+				edit, _ := e.(map[string]interface{})
+				newText, _ := edit["newText"].(string)
+				range_ := edit["range"].(map[string]interface{})
+				start := range_["start"].(map[string]interface{})
+				end := range_["end"].(map[string]interface{})
+				startLine, _ := start["line"].(float64)
+				startChar, _ := start["character"].(float64)
+				endLine, _ := end["line"].(float64)
+				endChar, _ := end["character"].(float64)
+				parsedEdits = append(parsedEdits, textEdit{
+					startLine: int(startLine), startChar: int(startChar),
+					endLine: int(endLine), endChar: int(endChar),
+					newText: newText,
+				})
+			}
+			sort.Slice(parsedEdits, func(i, j int) bool {
+				if parsedEdits[i].startLine != parsedEdits[j].startLine {
+					return parsedEdits[i].startLine > parsedEdits[j].startLine
+				}
+				return parsedEdits[i].startChar > parsedEdits[j].startChar
+			})
+			lines := strings.Split(fileContent, "\n")
+			for _, ed := range parsedEdits {
+				if ed.startLine >= len(lines) { continue }
+				startIdx := ed.startLine
+				endIdx := ed.endLine
+				if startIdx == endIdx {
+					line := lines[startIdx]
+					if ed.startChar > len(line) { ed.startChar = len(line) }
+					if ed.endChar > len(line) { ed.endChar = len(line) }
+					lines[startIdx] = line[:ed.startChar] + ed.newText + line[ed.endChar:]
+				} else {
+					if ed.startChar > len(lines[startIdx]) { ed.startChar = len(lines[startIdx]) }
+					if endIdx < len(lines) && ed.endChar > len(lines[endIdx]) { ed.endChar = len(lines[endIdx]) }
+					var endLine string
+					if endIdx < len(lines) { endLine = lines[endIdx][ed.endChar:] }
+					lines[startIdx] = lines[startIdx][:ed.startChar] + ed.newText + endLine
+					lines = append(lines[:startIdx+1], lines[endIdx+1:]...)
+				}
+			}
+			if err := os.WriteFile(file, []byte(strings.Join(lines, "\n")), 0644); err != nil {
+				return fmt.Errorf("writing file: %w", err)
+			}
+			fmt.Printf("  %d formatting edits applied\n", len(edits))
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&file, "file", "", "File path (required)")
+	cmd.Flags().StringVar(&language, "language", "", "Language override")
+	return cmd
 }
 
 func newIDEScanCmd() *cobra.Command {

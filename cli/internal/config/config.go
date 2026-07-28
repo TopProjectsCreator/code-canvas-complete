@@ -95,6 +95,15 @@ func Save(cfg *Config) error {
 }
 
 func GetToken() (string, error) {
+	// Check CC_TOKEN env var first (auto-auth inside IDE terminal)
+	if token := os.Getenv("CC_TOKEN"); token != "" {
+		return token, nil
+	}
+	// Also check SUPABASE_TOKEN as a fallback
+	if token := os.Getenv("SUPABASE_TOKEN"); token != "" {
+		return token, nil
+	}
+
 	cfg, err := Load()
 	if err != nil {
 		return "", err
