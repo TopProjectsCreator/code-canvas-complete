@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -95,6 +95,7 @@ export function useTeamAdmin() {
   const [customTemplates, setCustomTemplates] = useState<TeamCustomTemplate[]>([]);
   const [spending, setSpending] = useState<TeamSpending[]>([]);
   const [loading, setLoading] = useState(false);
+  const initialTeamSet = useRef(false);
 
   const fetchTeams = useCallback(async () => {
     if (!user) return;
@@ -106,11 +107,12 @@ export function useTeamAdmin() {
       .order('created_at', { ascending: false });
     const teamList = (data || []) as unknown as Team[];
     setTeams(teamList);
-    if (teamList.length > 0 && !activeTeam) {
+    if (teamList.length > 0 && !initialTeamSet.current) {
+      initialTeamSet.current = true;
       setActiveTeam(teamList[0]);
     }
     setLoading(false);
-  }, [user, activeTeam]);
+  }, [user]);
 
   const fetchTeamData = useCallback(async (teamId: string) => {
     const [membersRes, policiesRes, formsRes, templatesRes, spendingRes] = await Promise.all([
