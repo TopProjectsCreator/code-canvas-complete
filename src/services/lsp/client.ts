@@ -27,6 +27,9 @@ export type LspEventHandler = {
 
 export class LspClient {
   private transport: LspTransport | null = null;
+  private transportMessageHandler: ((msg: LspMessage) => void) | null = null;
+  private transportStatusHandler: ((status: LspServerStatus) => void) | null = null;
+  private transportErrorHandler: ((error: string) => void) | null = null;
   private documentManager = new TextDocumentManager();
   private eventHandlers: Partial<LspEventHandler> = {};
   private currentUri: string | null = null;
@@ -62,16 +65,18 @@ export class LspClient {
     this.transport?.disconnect();
     this.transport = this.createTransport(config);
 
-    this.transport.onStatusChange((status) => {
+    this.transportStatusHandler = (status) => {
       this._connected = status === "connected";
       this.eventHandlers.status?.(status);
-    });
+    };
+    this.transport.onStatusChange(this.transportStatusHandler);
 
-    this.transport.onError((error) => {
+    this.transportErrorHandler = (error) => {
       this.eventHandlers.error?.(error);
-    });
+    };
+    this.transport.onError(this.transportErrorHandler);
 
-    this.transport.onMessage((msg) => {
+    this.transportMessageHandler = (msg) => {
       if (msg.id !== undefined && this.pendingRequests.has(msg.id)) {
         const pending = this.pendingRequests.get(msg.id)!;
         this.pendingRequests.delete(msg.id);
@@ -80,7 +85,8 @@ export class LspClient {
         return;
       }
       this.handleMessage(msg);
-    });
+    };
+    this.transport.onMessage(this.transportMessageHandler);
 
     await this.transport.connect();
     await this.initialize();
@@ -93,7 +99,15 @@ export class LspClient {
       });
       this.documentManager.closeDocument(this.currentUri);
     }
-    this.transport?.disconnect();
+    if (this.transport) {
+      if (this.transportMessageHandler) this.transport.removeMessageHandler(this.transportMessageHandler);
+      if (this.transportStatusHandler) this.transport.removeStatusHandler(this.transportStatusHandler);
+      if (this.transportErrorHandler) this.transport.removeErrorHandler(this.transportErrorHandler);
+      this.transport.disconnect();
+    }
+    this.transportMessageHandler = null;
+    this.transportStatusHandler = null;
+    this.transportErrorHandler = null;
     this.transport = null;
     this.currentUri = null;
     this.capabilities = {};
