@@ -29,6 +29,7 @@ function loadTypeScript(): Promise<void> {
     })
     .catch((err) => {
       loading = false;
+      pendingMessages.length = 0;
       postError("Failed to load TypeScript: " + err.message);
     });
 }
