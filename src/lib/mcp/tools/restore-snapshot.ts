@@ -1,6 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import { requireAuth, userClient, ok, err } from "../_shared";
+import { requireAuth, userClient, loadProject, ok, err } from "../_shared";
 
 export default defineTool({
   name: "restore_snapshot",
@@ -25,12 +25,17 @@ export default defineTool({
     if (snapErr) return err("Snapshot not found or access denied.");
     if (!snap) return err("Snapshot not found.");
 
-    const { error: updateErr } = await sb
+    const { project, error: projectError } = await loadProject(ctx, snap.project_id);
+    if (projectError) return err(projectError);
+
+    const { data: updated, error: updateErr } = await sb
       .from("projects")
       .update({ files: snap.files })
       .eq("id", snap.project_id)
-      .eq("user_id", ctx.getUserId());
+      .eq("updated_at", project.updated_at)
+      .select("id");
     if (updateErr) return err(updateErr.message);
+    if (!updated || updated.length === 0) return err("Conflict: canvas was modified by another request. Please retry.");
 
     return ok({
       restored: true,
