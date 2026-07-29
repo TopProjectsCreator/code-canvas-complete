@@ -10,6 +10,9 @@ export function snapToGrid(
   point: [number, number, number],
   gridSize: number
 ): [number, number, number] {
+  if (!gridSize || !Number.isFinite(gridSize) || gridSize <= 0) {
+    return point
+  }
   return [
     Math.round(point[0] / gridSize) * gridSize,
     Math.round(point[1] / gridSize) * gridSize,

@@ -74,7 +74,7 @@ export function SceneProperties() {
           type="number"
           className="h-7 text-xs"
           value={snap.gridSize}
-          onChange={e => setGridSize(parseFloat(e.target.value) || 1)}
+          onChange={e => setGridSize(Math.max(0.1, parseFloat(e.target.value) || 1))}
           min={0.1}
           step={1}
         />
