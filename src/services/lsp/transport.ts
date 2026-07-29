@@ -19,6 +19,9 @@ export interface LspTransport {
   onMessage(handler: (msg: LspMessage) => void): void;
   onStatusChange(handler: (status: LspServerStatus) => void): void;
   onError(handler: (error: string) => void): void;
+  removeMessageHandler(handler: (msg: LspMessage) => void): void;
+  removeStatusHandler(handler: (status: LspServerStatus) => void): void;
+  removeErrorHandler(handler: (error: string) => void): void;
 }
 
 export interface LspTransportFactory {
@@ -58,6 +61,16 @@ class BaseTransport implements LspTransport {
   }
   onError(handler: (error: string) => void) {
     this.errorHandlers.add(handler);
+  }
+
+  removeMessageHandler(handler: (msg: LspMessage) => void) {
+    this.messageHandlers.delete(handler);
+  }
+  removeStatusHandler(handler: (status: LspServerStatus) => void) {
+    this.statusHandlers.delete(handler);
+  }
+  removeErrorHandler(handler: (error: string) => void) {
+    this.errorHandlers.delete(handler);
   }
 
   protected dispatchMessage(msg: LspMessage) {
