@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   Code2,
   FileCode,
@@ -33,6 +33,7 @@ import { useAttachments } from "@/hooks/useAttachments";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { isOfflineCapable } from "@/services/offlineStorage";
 import { WifiOff } from "lucide-react";
+import { readWithTimeout } from "@/lib/streamTimeout";
 
 // Re-export the type so existing imports from this file still work
 export type { LanguageTemplate } from "@/data/templateRegistry";
@@ -132,6 +133,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
   const [isOpen, setIsOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const {
     attachments,
     fileInputRef,
@@ -163,6 +165,10 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
     return text.replace(/\[template:\w+\]/g, "").trim();
   };
 
+  const cancel = useCallback(() => {
+    abortControllerRef.current?.abort();
+  }, []);
+
   const send = async () => {
     if (!isOnline) return;
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
@@ -181,6 +187,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
     let assistantSoFar = "";
 
     try {
+      abortControllerRef.current = new AbortController();
       const {
         data: { session },
       } = await (await import("@/integrations/supabase/client")).supabase.auth.getSession();
@@ -195,6 +202,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
           messages: [...allMessages.slice(0, -1).map((m) => ({ role: m.role, content: m.content })), apiMessage],
           platform: (await import("@/lib/platform")).detectDeploymentPlatform(),
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!resp.ok || !resp.body) {
@@ -206,7 +214,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
       let buffer = "";
 
       while (true) {
-        const { done, value } = await reader.read();
+        const { done, value } = await readWithTimeout(reader);
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
 
@@ -236,13 +244,21 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
           }
         }
       }
-    } catch (err) {
-      console.error("Template assistant error:", err);
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Sorry, I couldn't process that. Try picking a template from the grid!" },
-      ]);
+    } catch (err: any) {
+      if (err?.name === "AbortError" || err?.name === "StreamTimeoutError") {
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "The request was cancelled. Try again or pick a template from the grid!" },
+        ]);
+      } else {
+        console.error("Template assistant error:", err);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "Sorry, I couldn't process that. Try picking a template from the grid!" },
+        ]);
+      }
     } finally {
+      abortControllerRef.current = null;
       setIsLoading(false);
     }
   };
@@ -362,12 +378,19 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
         ))}
         {isLoading && messages[messages.length - 1]?.role === "user" && (
           <div className="flex gap-2">
-            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
               <Bot className="w-3.5 h-3.5 text-white" />
             </div>
             <div className="bg-muted rounded-lg px-3 py-2 flex items-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
               <span className="text-xs text-muted-foreground">Thinking...</span>
+              <button
+                onClick={cancel}
+                className="ml-1 p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                title="Stop"
+              >
+                <X className="w-3 h-3" />
+              </button>
             </div>
           </div>
         )}
