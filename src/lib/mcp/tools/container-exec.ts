@@ -33,7 +33,8 @@ export default defineTool({
       if (!res.ok) return err(`Container exec failed (${res.status}): ${text.slice(0, 500)}`);
       return ok(parsed as Record<string, unknown>);
     } catch (e) {
-      return err(`Container exec error: ${(e as Error).message}`);
+      const message = e instanceof Error ? e.message : String(e);
+      return err(`Container exec error: ${message}`);
     }
   },
 });
