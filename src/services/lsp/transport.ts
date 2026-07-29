@@ -147,6 +147,7 @@ export class ReplitTransport extends BaseTransport {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+  private wsGeneration = 0;
 
   constructor(public languageId: string) {
     super();
@@ -158,10 +159,13 @@ export class ReplitTransport extends BaseTransport {
     if (this.ws?.readyState === WebSocket.OPEN) return;
     this.setStatus("connecting");
 
+    const gen = ++this.wsGeneration;
+
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(this.url);
         this.ws.onopen = () => {
+          if (gen !== this.wsGeneration) return;
           this.reconnectAttempts = 0;
           this.setStatus("connected");
           resolve();
@@ -175,6 +179,7 @@ export class ReplitTransport extends BaseTransport {
           }
         };
         this.ws.onclose = () => {
+          if (gen !== this.wsGeneration) return;
           this.setStatus("disconnected");
           this.tryReconnect();
         };
