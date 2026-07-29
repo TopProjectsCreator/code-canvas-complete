@@ -130,6 +130,9 @@ export function useChatMessages(channelId: string | null) {
               reply_count: 0,
             } as ChatMessage])
           })
+          .catch((err) => {
+            console.error('Failed to fetch profile for new message:', err);
+          })
       },
       (payload) => {
         if (!mountedRef.current || channelIdRef.current !== channelId) return
