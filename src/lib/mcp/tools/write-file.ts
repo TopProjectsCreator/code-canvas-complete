@@ -22,11 +22,14 @@ export default defineTool({
       return err("Only the canvas owner can write files.");
     }
     const nextFiles = upsertFile(project.files as FileNode[], path, content, language);
-    const { error: updateError } = await userClient(ctx)
+    const { data: updated, error: updateError } = await userClient(ctx)
       .from("projects")
       .update({ files: nextFiles })
-      .eq("id", canvas_id);
+      .eq("id", canvas_id)
+      .eq("updated_at", project.updated_at)
+      .select("id");
     if (updateError) return err(updateError.message);
+    if (!updated || updated.length === 0) return err("Conflict: canvas was modified by another request. Please retry.");
     return ok({ path, bytes: content.length });
   },
 });
