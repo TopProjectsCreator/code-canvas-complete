@@ -152,6 +152,7 @@ export class ReplitTransport extends BaseTransport {
   private reconnectDelay = 1000;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private wsGeneration = 0;
+  private pendingMessages: LspMessage[] = [];
 
   constructor(public languageId: string) {
     super();
@@ -172,6 +173,10 @@ export class ReplitTransport extends BaseTransport {
           if (gen !== this.wsGeneration) return;
           this.reconnectAttempts = 0;
           this.setStatus("connected");
+          for (const msg of this.pendingMessages) {
+            this.ws!.send(JSON.stringify(msg));
+          }
+          this.pendingMessages = [];
           resolve();
         };
         this.ws.onmessage = (e) => {
@@ -206,12 +211,17 @@ export class ReplitTransport extends BaseTransport {
     this.reconnectAttempts = this.maxReconnectAttempts;
     this.ws?.close();
     this.ws = null;
+    this.pendingMessages = [];
     this.setStatus("disconnected");
   }
 
   send(message: LspMessage): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
+    } else if (this.ws?.readyState === WebSocket.CONNECTING) {
+      this.pendingMessages.push(message);
+    } else if (this.ws) {
+      console.warn("LSP transport: dropping message while socket state is", this.ws.readyState);
     }
   }
 
