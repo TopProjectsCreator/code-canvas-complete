@@ -8,6 +8,8 @@ export interface SnapPoint {
 }
 
 const SNAP_THRESHOLD = 12
+let lastIntersectionTime = 0
+const INTERSECTION_THROTTLE_MS = 80
 
 function dist(a: { x: number; y: number }, b: { x: number; y: number }): number {
   const dx = a.x - b.x
@@ -124,7 +126,8 @@ export function findSnapPoint(
     }
   }
 
-  if (snapToIntersection && ents.length >= 2) {
+  if (snapToIntersection && ents.length >= 2 && Date.now() - lastIntersectionTime >= INTERSECTION_THROTTLE_MS) {
+    lastIntersectionTime = Date.now()
     for (let i = 0; i < ents.length; i++) {
       const segsA = getEntitySegments(ents[i])
       for (let j = i + 1; j < ents.length; j++) {
