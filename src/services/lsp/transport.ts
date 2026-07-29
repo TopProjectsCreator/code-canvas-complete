@@ -114,6 +114,10 @@ export class TypeScriptWorkerTransport extends BaseTransport {
   }
 
   disconnect(): void {
+    for (const [, { reject }] of this.pending) {
+      reject(new Error("Transport disconnected"));
+    }
+    this.pending.clear();
     this.worker?.terminate();
     this.worker = null;
     this.setStatus("disconnected");
@@ -264,6 +268,10 @@ export class OfflineWasmTransport extends BaseTransport {
   }
 
   disconnect(): void {
+    for (const [, { reject }] of this.pending) {
+      reject(new Error("Transport disconnected"));
+    }
+    this.pending.clear();
     this.worker?.terminate();
     this.worker = null;
     this.setStatus("disconnected");
