@@ -87,6 +87,10 @@ export class LspClient {
   }
 
   disconnect() {
+    for (const [, { reject }] of this.pendingRequests) {
+      reject(new Error("Client disconnected"));
+    }
+    this.pendingRequests.clear();
     if (this.currentUri) {
       this.sendNotification("textDocument/didClose", {
         textDocument: { uri: this.currentUri },
