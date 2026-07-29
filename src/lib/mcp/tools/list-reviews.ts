@@ -1,6 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import { userClient, ok, err } from "../_shared";
+import { requireAuth, userClient, ok, err } from "../_shared";
 
 export default defineTool({
   name: "list_reviews",
@@ -12,6 +12,8 @@ export default defineTool({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ canvas_id, status }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
     let q = userClient(ctx)
       .from("code_reviews")
       .select("*")
