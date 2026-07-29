@@ -221,14 +221,25 @@ const gitlab = {
     const id = encodeURIComponent(`${owner}/${repo}`);
     const allItems: { path: string; type: 'blob' | 'tree' }[] = [];
     let page = 1;
-    while (true) {
-      const r = await fetch(`https://gitlab.com/api/v4/projects/${id}/repository/tree?ref=${branch}&recursive=true&per_page=100&page=${page}`);
-      if (!r.ok) throw new Error(`Failed to fetch tree: ${r.statusText}`);
-      const items: any[] = await r.json();
-      if (items.length === 0) break;
-      allItems.push(...items.map(i => ({ path: i.path, type: (i.type === 'tree' ? 'tree' : 'blob') as 'blob' | 'tree' })));
-      if (items.length < 100) break;
-      page++;
+    const MAX_PAGES = 100;
+    const TIMEOUT_MS = 30_000;
+    while (page <= MAX_PAGES) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      try {
+        const r = await fetch(`https://gitlab.com/api/v4/projects/${id}/repository/tree?ref=${branch}&recursive=true&per_page=100&page=${page}`, { signal: controller.signal });
+        if (!r.ok) throw new Error(`Failed to fetch tree: ${r.statusText}`);
+        const items: any[] = await r.json();
+        if (items.length === 0) break;
+        allItems.push(...items.map(i => ({ path: i.path, type: (i.type === 'tree' ? 'tree' : 'blob') as 'blob' | 'tree' })));
+        if (items.length < 100) break;
+        page++;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    if (page > MAX_PAGES) {
+      console.warn('GitLab repository is very large (>10,000 files). Try importing a specific subdirectory or branch instead.');
     }
     return allItems;
   },
