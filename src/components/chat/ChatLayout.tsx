@@ -52,6 +52,15 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
   const { messages, loading: msgLoading, loadingMore, hasMore, sending, sendMessage, deleteMessage, addReaction, removeReaction, loadMore, updateLastRead } = useChatMessages(activeChannel?.id ?? null)
   const { presenceMap, updateCustomStatus } = usePresence(activeWorkspace?.id ?? null)
   const { mentionSuggestions, searchUsers, notifyMentions } = useChatMentions()
+  const mentionSearchTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const handleMentionSearch = useCallback((q: string) => {
+    if (mentionSearchTimeoutRef.current) {
+      clearTimeout(mentionSearchTimeoutRef.current)
+    }
+    mentionSearchTimeoutRef.current = setTimeout(() => {
+      if (activeChannel) searchUsers(q, activeChannel.id)
+    }, 300)
+  }, [searchUsers, activeChannel])
 
   const [createChannelOpen, setCreateChannelOpen] = useState(false)
   const [createWorkspaceOpen, setCreateWorkspaceOpen] = useState(false)
@@ -320,7 +329,7 @@ export function ChatLayout({ workspaceId, channelId }: ChatLayoutProps) {
               sending={sending}
               placeholder={`Message #${activeChannel.name}`}
               mentionSuggestions={mentionSuggestions}
-              onMentionSearch={(q) => searchUsers(q, activeChannel.id)}
+              onMentionSearch={handleMentionSearch}
             />
           </>
         ) : (
