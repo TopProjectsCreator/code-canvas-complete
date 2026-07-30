@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 
 export interface ChatAttachment {
@@ -95,14 +95,6 @@ export function useAttachments() {
       return [];
     });
   }, []);
-
-  useEffect(() => {
-    return () => {
-      attachments.forEach(a => {
-        if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
-      });
-    };
-  }, [attachments]);
 
   const openFilePicker = useCallback(() => {
     fileInputRef.current?.click();
