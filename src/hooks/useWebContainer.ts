@@ -143,13 +143,15 @@ export const useWebContainer = () => {
 
   const writeFile = useCallback(async (path: string, content: string) => {
     await bootInternal();
+    if (!container) throw new Error('WebContainer is not available');
     await ensureDirectory(path);
-    await container!.fs.writeFile(path, content);
+    await container.fs.writeFile(path, content);
   }, []);
 
   const readFile = useCallback(async (path: string) => {
     await bootInternal();
-    const file = await container!.fs.readFile(path, 'utf-8');
+    if (!container) throw new Error('WebContainer is not available');
+    const file = await container.fs.readFile(path, 'utf-8');
     return file;
   }, []);
 
