@@ -14,8 +14,21 @@ interface ExecutionResult {
 
 const JS_EXECUTION_TIMEOUT_MS = 5_000;
 
+// ---------------------------------------------------------------------------
+// Reusable Web Worker with a job queue.
+// Instead of creating a new Worker per execution, we maintain a single
+// worker and serialise requests so we never exceed Chrome's ~20-worker cap.
+// ---------------------------------------------------------------------------
+
+interface WorkerJob {
+  code: string;
+  resolve: (result: ExecutionResult) => void;
+  timeout: ReturnType<typeof setTimeout>;
+}
+
 let _jsWorker: Worker | null = null;
 let _currentJob: { resolve: (result: ExecutionResult) => void; timeout: ReturnType<typeof setTimeout> } | null = null;
+const _jobQueue: WorkerJob[] = [];
 
 function createJsWorker(): Worker {
   const worker = new Worker(
@@ -34,6 +47,7 @@ function createJsWorker(): Worker {
         executedAt: new Date().toISOString(),
       });
     }
+    dequeueAndRun();
   };
 
   worker.onerror = (err) => {
@@ -47,9 +61,18 @@ function createJsWorker(): Worker {
         executedAt: new Date().toISOString(),
       });
     }
+    dequeueAndRun();
   };
 
   return worker;
+}
+
+function dequeueAndRun(): void {
+  if (_currentJob || _jobQueue.length === 0) return;
+  const { code, resolve, timeout } = _jobQueue.shift()!;
+  _currentJob = { resolve, timeout };
+  if (!_jsWorker) _jsWorker = createJsWorker();
+  _jsWorker.postMessage({ type: 'execute', code });
 }
 
 /**
@@ -57,27 +80,41 @@ function createJsWorker(): Worker {
  * infinite loops or long-running scripts cannot freeze the main thread. A hard
  * timeout terminates the worker if execution exceeds {@link JS_EXECUTION_TIMEOUT_MS}.
  *
- * Workers are reused across calls (single worker) to avoid exhausting the
- * browser's Worker limit (~20 per page on Chrome).
+ * Workers are reused across calls (single worker with a job queue) to avoid
+ * exhausting the browser's Worker limit (~20 per page on Chrome).
  */
 async function runJavaScriptInBrowser(code: string): Promise<ExecutionResult> {
   return new Promise<ExecutionResult>((resolve) => {
     const timeout = setTimeout(() => {
+      const queueIdx = _jobQueue.findIndex((j) => j.timeout === timeout);
+      if (queueIdx !== -1) {
+        _jobQueue.splice(queueIdx, 1);
+        resolve({
+          output: [],
+          error: `⏱️ Execution timed out after ${JS_EXECUTION_TIMEOUT_MS / 1000}s. The code may contain an infinite loop.`,
+          executedAt: new Date().toISOString(),
+        });
+        return;
+      }
+
       if (_currentJob?.timeout === timeout) {
         _currentJob = null;
         _jsWorker?.terminate();
         _jsWorker = null;
+        resolve({
+          output: [],
+          error: `⏱️ Execution timed out after ${JS_EXECUTION_TIMEOUT_MS / 1000}s. The code may contain an infinite loop.`,
+          executedAt: new Date().toISOString(),
+        });
+        dequeueAndRun();
       }
-      resolve({
-        output: [],
-        error: `⏱️ Execution timed out after ${JS_EXECUTION_TIMEOUT_MS / 1000}s. The code may contain an infinite loop.`,
-        executedAt: new Date().toISOString(),
-      });
     }, JS_EXECUTION_TIMEOUT_MS);
 
-    if (!_jsWorker) _jsWorker = createJsWorker();
-    _currentJob = { resolve, timeout };
-    _jsWorker.postMessage({ type: 'execute', code });
+    _jobQueue.push({ code, resolve, timeout });
+
+    if (!_currentJob) {
+      dequeueAndRun();
+    }
   });
 }
 
