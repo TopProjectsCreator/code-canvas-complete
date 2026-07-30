@@ -50,6 +50,9 @@ export async function addProviderKey(opts: {
       body: { action: "encrypt-provider-key", apiKey: opts.apiKey },
     });
     if (error || !data) throw error ?? new Error("Encryption failed");
+    if (!data.ciphertext || !data.iv || !data.salt) {
+      throw new Error("Incomplete encryption response");
+    }
     encryptedKey = data.ciphertext;
     iv = data.iv;
     salt = data.salt;
@@ -425,6 +428,9 @@ export async function addRouterStep(opts: { routerId: string; stepOrder?: number
     try {
       const { data, error } = await supabase.functions.invoke("redactor-crypto", { body: { action: "encrypt-provider-key", apiKey: opts.apiKey } });
       if (error || !data) throw error ?? new Error("Encryption failed");
+      if (!data.ciphertext || !data.iv || !data.salt) {
+        throw new Error("Incomplete encryption response");
+      }
       encryptedKey = data.ciphertext; iv = data.iv; salt = data.salt;
     } catch { throw new Error("Encryption unavailable"); }
   }
