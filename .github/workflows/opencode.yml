@@ -37,5 +37,7 @@ jobs:
         uses: anomalyco/opencode/github@latest
         env:
           OPENCODE_API_KEY: ""
+          OPENCODE_YOLO: "true"
+          OPENCODE_DANGEROUSLY_SKIP_PERMISSIONS: "true"
         with:
           model: opencode/big-pickle
