@@ -153,7 +153,10 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
       userIdRef.current = user.id;
       displayNameRef.current = profile?.display_name || user.email?.split('@')[0] || 'User';
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const stream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({ audio: true, video: false }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Microphone request timed out')), 10000))
+      ]);
       localStreamRef.current = stream;
       setLocalStream(stream);
 
@@ -302,7 +305,10 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
 
       if (willBeEnabled) {
         try {
-          const videoStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+          const videoStream = await Promise.race([
+            navigator.mediaDevices.getUserMedia({ audio: false, video: true }),
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Camera request timed out')), 10000))
+          ]);
           const videoTrack = videoStream.getVideoTracks()[0];
           localStreamRef.current.addTrack(videoTrack);
           setVideoEnabled(true);
