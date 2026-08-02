@@ -44,17 +44,16 @@ export async function addProviderKey(opts: {
 }) {
   const userId = await requireUserId();
   const id = nanoid();
-  let encryptedKey: string, iv: string, salt: string;
-  const { data, error } = await supabase.functions.invoke("redactor-crypto", {
+  const { data, error: cryptoError } = await supabase.functions.invoke("redactor-crypto", {
     body: { action: "encrypt-provider-key", apiKey: opts.apiKey ?? "" },
   });
-  const detail = (data as any)?.error ?? error?.message;
-  if (error || !data || (data as any).error) {
+  const detail = (data as any)?.error ?? cryptoError?.message;
+  if (cryptoError || !data || (data as any).error) {
     throw new Error(`Encryption failed${detail ? `: ${detail}` : ""}`);
   }
-  encryptedKey = (data as any).ciphertext;
-  iv = (data as any).iv;
-  salt = (data as any).salt;
+  const encryptedKey = (data as any).ciphertext;
+  const iv = (data as any).iv;
+  const salt = (data as any).salt;
 
   const res: any = await db.from("redactor_provider_keys").insert({
     id,
@@ -68,6 +67,7 @@ export async function addProviderKey(opts: {
   });
   const { error } = res;
   if (error) throw error;
+
   return { ok: true };
 }
 
