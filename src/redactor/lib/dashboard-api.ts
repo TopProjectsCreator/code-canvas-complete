@@ -45,18 +45,17 @@ export async function addProviderKey(opts: {
   const userId = await requireUserId();
   const id = nanoid();
   let encryptedKey: string, iv: string, salt: string;
-  try {
-    const { data, error } = await supabase.functions.invoke("redactor-crypto", {
-      body: { action: "encrypt-provider-key", apiKey: opts.apiKey ?? "" },
-    });
-
-    if (error || !data) throw error ?? new Error("Encryption failed");
-    encryptedKey = data.ciphertext;
-    iv = data.iv;
-    salt = data.salt;
-  } catch {
-    throw new Error("Encryption unavailable — provider keys require the redactor-crypto edge function to be deployed.");
+  const { data, error } = await supabase.functions.invoke("redactor-crypto", {
+    body: { action: "encrypt-provider-key", apiKey: opts.apiKey ?? "" },
+  });
+  const detail = (data as any)?.error ?? error?.message;
+  if (error || !data || (data as any).error) {
+    throw new Error(`Encryption failed${detail ? `: ${detail}` : ""}`);
   }
+  encryptedKey = (data as any).ciphertext;
+  iv = (data as any).iv;
+  salt = (data as any).salt;
+
   const res: any = await db.from("redactor_provider_keys").insert({
     id,
     user_id: userId,
