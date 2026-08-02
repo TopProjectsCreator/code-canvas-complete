@@ -39,7 +39,7 @@ export async function listProviderKeys(): Promise<ProviderKey[]> {
 export async function addProviderKey(opts: {
   provider: string;
   label: string;
-  apiKey: string;
+  apiKey?: string;
   baseUrl?: string;
 }) {
   const userId = await requireUserId();
@@ -47,8 +47,9 @@ export async function addProviderKey(opts: {
   let encryptedKey: string, iv: string, salt: string;
   try {
     const { data, error } = await supabase.functions.invoke("redactor-crypto", {
-      body: { action: "encrypt-provider-key", apiKey: opts.apiKey },
+      body: { action: "encrypt-provider-key", apiKey: opts.apiKey ?? "" },
     });
+
     if (error || !data) throw error ?? new Error("Encryption failed");
     encryptedKey = data.ciphertext;
     iv = data.iv;
