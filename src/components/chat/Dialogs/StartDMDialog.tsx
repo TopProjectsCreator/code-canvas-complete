@@ -16,7 +16,7 @@ interface StartDMDialogProps {
   onSelectChannel: (channel: ChatChannel) => void
 }
 
-export function StartDMDialog({ open, onOpenChange, workspaceId, onCreateDM, onSelectChannel }: StartDMDialogProps) {
+export function StartDMDialog({ open, onOpenChange, onCreateDM, onSelectChannel }: StartDMDialogProps) {
   const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [results, setResults] = useState<ProfileBrief[]>([])

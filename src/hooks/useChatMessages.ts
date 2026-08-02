@@ -129,8 +129,7 @@ export function useChatMessages(channelId: string | null) {
               attachments: [],
               reply_count: 0,
             } as ChatMessage])
-          })
-          .catch((err) => {
+          }, (err: unknown) => {
             console.error('Failed to fetch profile for new message:', err);
           })
       },

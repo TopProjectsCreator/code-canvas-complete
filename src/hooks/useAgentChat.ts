@@ -1286,7 +1286,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       if (!response.body) throw new Error('No response body');
 
       setMessages(prev => {
-        const next = [...prev, { id: assistantId, role: 'assistant', content: '', isStreaming: true }];
+        const next = [...prev, { id: assistantId, role: 'assistant' as const, content: '', isStreaming: true }];
         return next.length > 200 ? next.slice(-200) : next;
       });
 
@@ -1621,7 +1621,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           setMessages(prev => {
             const next = [...prev, {
               id: followUpId,
-              role: 'assistant',
+              role: 'assistant' as const,
               content: loopProcessed.content,
               steps: loopProcessed.steps,
               hasCodeChanges: loopProcessed.hasCodeChanges,
