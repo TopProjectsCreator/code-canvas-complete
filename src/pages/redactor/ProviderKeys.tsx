@@ -96,15 +96,20 @@ export default function RedactorProviderKeys() {
               </div>
             </div>
             <div>
-              <Label>API key</Label>
+              <Label>API key {provider === "custom" && <span className="text-muted-foreground font-normal">(optional)</span>}</Label>
               <Input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                required
+                required={provider !== "custom"}
                 className="font-mono"
-                placeholder="sk-…"
+                placeholder={provider === "custom" ? "leave blank if no auth required" : "sk-…"}
               />
+              {provider === "custom" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Leave blank for OpenAI-compatible endpoints that don't require authentication.
+                </p>
+              )}
             </div>
             {provider === "custom" && (
               <div>
@@ -116,6 +121,7 @@ export default function RedactorProviderKeys() {
                 />
               </div>
             )}
+
             <Button type="submit" disabled={busy}>
               {busy ? "Saving…" : "Save key"}
             </Button>
