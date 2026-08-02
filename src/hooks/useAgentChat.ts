@@ -178,6 +178,19 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const messagesRef = useRef<AgentMessage[]>(messages);
   messagesRef.current = messages;
 
+  // Latest-callback refs so long-running async handlers never read stale props.
+  const callbacksRef = useRef({
+    onSetTheme, onCreateCustomTheme, onGitInit, onGitCommit, onGitCreateBranch, onGitImport,
+    onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail,
+    onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject,
+  });
+  callbacksRef.current = {
+    onSetTheme, onCreateCustomTheme, onGitInit, onGitCommit, onGitCreateBranch, onGitImport,
+    onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail,
+    onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject,
+  };
+
+
   // Streaming optimization: throttle state updates to avoid O(n) array copies on every token
   const streamingContentRef = useRef<string>('');
   const lastStreamUpdateRef = useRef<number>(0);
