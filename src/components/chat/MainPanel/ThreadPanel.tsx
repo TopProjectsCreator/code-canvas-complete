@@ -39,11 +39,10 @@ export function ThreadPanel({ parentMessage, onClose }: ThreadPanelProps) {
         if (queryError) throw queryError
         setReplies((data ?? []) as unknown as ChatMessage[])
         setLoading(false)
-      })
-      .catch((err) => {
+      }, (err: unknown) => {
         console.error('Failed to load thread replies:', err)
         setLoading(false)
-        setError(err.message ?? 'Failed to load replies')
+        setError(err instanceof Error ? err.message : 'Failed to load replies')
       })
   }, [parentMessage])
 
