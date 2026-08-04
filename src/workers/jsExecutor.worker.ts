@@ -10,7 +10,9 @@ self.onmessage = (e: MessageEvent<ExecuteMessage>) => {
   const capture =
     (level: 'log' | 'warn' | 'error') =>
     (...args: unknown[]) => {
+      const prefix = level === 'log' ? '' : `[${level}] `;
       output.push(
+        prefix +
         args
           .map((a) => {
             if (typeof a === 'string') return a;

@@ -14,48 +14,107 @@ interface ExecutionResult {
 
 const JS_EXECUTION_TIMEOUT_MS = 5_000;
 
-/**
- * In-browser JavaScript fallback. Runs user code inside a Web Worker so that
- * infinite loops or long-running scripts cannot freeze the main thread. A hard
- * timeout terminates the worker if execution exceeds {@link JS_EXECUTION_TIMEOUT_MS}.
- */
-async function runJavaScriptInBrowser(code: string): Promise<ExecutionResult> {
-  return new Promise<ExecutionResult>((resolve) => {
-    const worker = new Worker(
-      new URL('../workers/jsExecutor.worker.ts', import.meta.url),
-      { type: 'module' },
-    );
+// ---------------------------------------------------------------------------
+// Reusable Web Worker with a job queue.
+// Instead of creating a new Worker per execution, we maintain a single
+// worker and serialise requests so we never exceed Chrome's ~20-worker cap.
+// ---------------------------------------------------------------------------
 
-    const timer = setTimeout(() => {
-      worker.terminate();
-      resolve({
-        output: [],
-        error: `⏱️ Execution timed out after ${JS_EXECUTION_TIMEOUT_MS / 1000}s. The code may contain an infinite loop.`,
-        executedAt: new Date().toISOString(),
-      });
-    }, JS_EXECUTION_TIMEOUT_MS);
+interface WorkerJob {
+  code: string;
+  resolve: (result: ExecutionResult) => void;
+  timeout: ReturnType<typeof setTimeout>;
+}
 
-    worker.onmessage = (e: MessageEvent<{ output: string[]; error: string | null }>) => {
-      clearTimeout(timer);
-      worker.terminate();
-      resolve({
+let _jsWorker: Worker | null = null;
+let _currentJob: { resolve: (result: ExecutionResult) => void; timeout: ReturnType<typeof setTimeout> } | null = null;
+const _jobQueue: WorkerJob[] = [];
+
+function createJsWorker(): Worker {
+  const worker = new Worker(
+    new URL('../workers/jsExecutor.worker.ts', import.meta.url),
+    { type: 'module' },
+  );
+
+  worker.onmessage = (e: MessageEvent<{ output: string[]; error: string | null }>) => {
+    const job = _currentJob;
+    _currentJob = null;
+    if (job) {
+      clearTimeout(job.timeout);
+      job.resolve({
         output: e.data.output,
         error: e.data.error,
         executedAt: new Date().toISOString(),
       });
-    };
+    }
+    dequeueAndRun();
+  };
 
-    worker.onerror = (err) => {
-      clearTimeout(timer);
-      worker.terminate();
-      resolve({
+  worker.onerror = (err) => {
+    const job = _currentJob;
+    _currentJob = null;
+    if (job) {
+      clearTimeout(job.timeout);
+      job.resolve({
         output: [],
         error: err.message || 'Worker execution error',
         executedAt: new Date().toISOString(),
       });
-    };
+    }
+    dequeueAndRun();
+  };
 
-    worker.postMessage({ type: 'execute', code });
+  return worker;
+}
+
+function dequeueAndRun(): void {
+  if (_currentJob || _jobQueue.length === 0) return;
+  const { code, resolve, timeout } = _jobQueue.shift()!;
+  _currentJob = { resolve, timeout };
+  if (!_jsWorker) _jsWorker = createJsWorker();
+  _jsWorker.postMessage({ type: 'execute', code });
+}
+
+/**
+ * In-browser JavaScript fallback. Runs user code inside a Web Worker so that
+ * infinite loops or long-running scripts cannot freeze the main thread. A hard
+ * timeout terminates the worker if execution exceeds {@link JS_EXECUTION_TIMEOUT_MS}.
+ *
+ * Workers are reused across calls (single worker with a job queue) to avoid
+ * exhausting the browser's Worker limit (~20 per page on Chrome).
+ */
+async function runJavaScriptInBrowser(code: string): Promise<ExecutionResult> {
+  return new Promise<ExecutionResult>((resolve) => {
+    const timeout = setTimeout(() => {
+      const queueIdx = _jobQueue.findIndex((j) => j.timeout === timeout);
+      if (queueIdx !== -1) {
+        _jobQueue.splice(queueIdx, 1);
+        resolve({
+          output: [],
+          error: `⏱️ Execution timed out after ${JS_EXECUTION_TIMEOUT_MS / 1000}s. The code may contain an infinite loop.`,
+          executedAt: new Date().toISOString(),
+        });
+        return;
+      }
+
+      if (_currentJob?.timeout === timeout) {
+        _currentJob = null;
+        _jsWorker?.terminate();
+        _jsWorker = null;
+        resolve({
+          output: [],
+          error: `⏱️ Execution timed out after ${JS_EXECUTION_TIMEOUT_MS / 1000}s. The code may contain an infinite loop.`,
+          executedAt: new Date().toISOString(),
+        });
+        dequeueAndRun();
+      }
+    }, JS_EXECUTION_TIMEOUT_MS);
+
+    _jobQueue.push({ code, resolve, timeout });
+
+    if (!_currentJob) {
+      dequeueAndRun();
+    }
   });
 }
 

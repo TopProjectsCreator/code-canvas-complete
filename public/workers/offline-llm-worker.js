@@ -53,7 +53,7 @@ const normalizeOfflineError = (error) => {
 };
 
 self.onmessage = async (event) => {
-  const { type, model, prompt } = event.data || {};
+  const { type, model, prompt, requestId } = event.data || {};
   try {
     if (type === 'init') {
       const [modelId, quant = 'q4f16'] = String(model || '').split('@');
@@ -87,7 +87,7 @@ self.onmessage = async (event) => {
       });
 
       self.postMessage({ type: 'progress', progress: 1, text: 'Download complete' });
-      self.postMessage({ type: 'ready', model: `${modelId}@${quant}` });
+      self.postMessage({ type: 'ready', model: `${modelId}@${quant}`, requestId });
       return;
     }
 
@@ -106,7 +106,7 @@ self.onmessage = async (event) => {
         ? generated.filter(m => m.role === 'assistant').map(m => m.content).join('\n') || generated.at(-1)?.content || ''
         : typeof generated === 'string' ? generated.replace(prompt, '').trim() : '';
 
-      self.postMessage({ type: 'result', text: text.trim() || 'No response generated.' });
+      self.postMessage({ type: 'result', text: text.trim() || 'No response generated.', requestId });
       return;
     }
   } catch (error) {
@@ -115,10 +115,11 @@ self.onmessage = async (event) => {
       self.postMessage({
         type: 'error',
         error:
-          'Network error: Failed to fetch model/runtime files. This IDE runs models locally in your browser, but it must download them first. Please check your internet connection and ensure jsdelivr.net and huggingface.co are not blocked by a firewall or VPN.'
+          'Network error: Failed to fetch model/runtime files. This IDE runs models locally in your browser, but it must download them first. Please check your internet connection and ensure jsdelivr.net and huggingface.co are not blocked by a firewall or VPN.',
+        requestId
       });
       return;
     }
-    self.postMessage({ type: 'error', error: reason });
+    self.postMessage({ type: 'error', error: reason, requestId });
   }
 };

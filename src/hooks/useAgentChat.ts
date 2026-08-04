@@ -178,6 +178,19 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
   const messagesRef = useRef<AgentMessage[]>(messages);
   messagesRef.current = messages;
 
+  // Latest-callback refs so long-running async handlers never read stale props.
+  const callbacksRef = useRef({
+    onSetTheme, onCreateCustomTheme, onGitInit, onGitCommit, onGitCreateBranch, onGitImport,
+    onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail,
+    onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject,
+  });
+  callbacksRef.current = {
+    onSetTheme, onCreateCustomTheme, onGitInit, onGitCommit, onGitCreateBranch, onGitImport,
+    onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail,
+    onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject,
+  };
+
+
   // Streaming optimization: throttle state updates to avoid O(n) array copies on every token
   const streamingContentRef = useRef<string>('');
   const lastStreamUpdateRef = useRef<number>(0);
@@ -1273,7 +1286,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       if (!response.body) throw new Error('No response body');
 
       setMessages(prev => {
-        const next = [...prev, { id: assistantId, role: 'assistant', content: '', isStreaming: true }];
+        const next = [...prev, { id: assistantId, role: 'assistant' as const, content: '', isStreaming: true }];
         return next.length > 200 ? next.slice(-200) : next;
       });
 
@@ -1608,7 +1621,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
           setMessages(prev => {
             const next = [...prev, {
               id: followUpId,
-              role: 'assistant',
+              role: 'assistant' as const,
               content: loopProcessed.content,
               steps: loopProcessed.steps,
               hasCodeChanges: loopProcessed.hasCodeChanges,

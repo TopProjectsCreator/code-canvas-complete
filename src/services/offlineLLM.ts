@@ -10,12 +10,30 @@ type OfflineEvent =
 class OfflineLLMManager {
   private worker: Worker | null = null;
   private readyModel: string | null = null;
+  private requestId = 0;
+  private pending = new Map<number, { resolve: (value: unknown) => void; reject: (reason: unknown) => void }>();
 
   private ensureWorker() {
     if (this.worker) return this.worker;
     this.worker = new Worker('/workers/offline-llm-worker.js', { type: 'module' });
+    this.worker.addEventListener('message', this.onWorkerMessage);
     return this.worker;
   }
+
+  private onWorkerMessage = (event: MessageEvent<OfflineEvent & { requestId?: number }>) => {
+    const data = event.data;
+    const id = data.requestId;
+    if (id !== undefined && this.pending.has(id)) {
+      const { resolve, reject } = this.pending.get(id)!;
+      if (data.type === 'result' || data.type === 'ready') {
+        this.pending.delete(id);
+        resolve(data);
+      } else if (data.type === 'error') {
+        this.pending.delete(id);
+        reject(new Error(data.error));
+      }
+    }
+  };
 
   async initialize(model: string, onStatus?: (s: string) => void, onProgress?: (p: number, label?: string) => void) {
     const worker = this.ensureWorker();
@@ -23,42 +41,36 @@ class OfflineLLMManager {
       onProgress?.(1, 'Already downloaded');
       return;
     }
+    const id = ++this.requestId;
+    worker.postMessage({ type: 'init', model, requestId: id });
     await new Promise<void>((resolve, reject) => {
-      const onMessage = (event: MessageEvent<OfflineEvent>) => {
+      const onMessage = (event: MessageEvent<OfflineEvent & { requestId?: number }>) => {
         const data = event.data;
         if (data.type === 'status') onStatus?.(data.text);
         if (data.type === 'progress') onProgress?.(data.progress, data.text);
-        if (data.type === 'ready') {
+        if (data.type === 'ready' && data.requestId === id) {
           this.readyModel = data.model;
           worker.removeEventListener('message', onMessage);
           resolve();
         }
-        if (data.type === 'error') {
+        if (data.type === 'error' && data.requestId === id) {
           worker.removeEventListener('message', onMessage);
           reject(new Error(data.error));
         }
       };
       worker.addEventListener('message', onMessage);
-      worker.postMessage({ type: 'init', model });
     });
   }
 
   async chat(prompt: string) {
     const worker = this.ensureWorker();
+    const id = ++this.requestId;
     return await new Promise<string>((resolve, reject) => {
-      const onMessage = (event: MessageEvent<OfflineEvent>) => {
-        const data = event.data;
-        if (data.type === 'result') {
-          worker.removeEventListener('message', onMessage);
-          resolve(data.text);
-        }
-        if (data.type === 'error') {
-          worker.removeEventListener('message', onMessage);
-          reject(new Error(data.error));
-        }
-      };
-      worker.addEventListener('message', onMessage);
-      worker.postMessage({ type: 'generate', prompt });
+      this.pending.set(id, {
+        resolve: (data: unknown) => resolve((data as OfflineEvent & { text?: string }).text!),
+        reject,
+      });
+      worker.postMessage({ type: 'generate', prompt, requestId: id });
     });
   }
 }

@@ -39,26 +39,25 @@ export async function listProviderKeys(): Promise<ProviderKey[]> {
 export async function addProviderKey(opts: {
   provider: string;
   label: string;
-  apiKey: string;
+  apiKey?: string;
   baseUrl?: string;
 }) {
   const userId = await requireUserId();
   const id = nanoid();
-  let encryptedKey: string, iv: string, salt: string;
-  try {
-    const { data, error } = await supabase.functions.invoke("redactor-crypto", {
-      body: { action: "encrypt-provider-key", apiKey: opts.apiKey },
-    });
-    if (error || !data) throw error ?? new Error("Encryption failed");
-    if (!data.ciphertext || !data.iv || !data.salt) {
-      throw new Error("Incomplete encryption response");
-    }
-    encryptedKey = data.ciphertext;
-    iv = data.iv;
-    salt = data.salt;
-  } catch {
-    throw new Error("Encryption unavailable — provider keys require the redactor-crypto edge function to be deployed.");
+  const { data, error: cryptoError } = await supabase.functions.invoke("redactor-crypto", {
+    body: { action: "encrypt-provider-key", apiKey: opts.apiKey ?? "" },
+  });
+  const detail = (data as any)?.error ?? cryptoError?.message;
+  if (cryptoError || !data || (data as any).error) {
+    throw new Error(`Encryption failed${detail ? `: ${detail}` : ""}`);
   }
+  if (!data.ciphertext || !data.iv || !data.salt) {
+    throw new Error("Incomplete encryption response");
+  }
+  const encryptedKey = (data as any).ciphertext;
+  const iv = (data as any).iv;
+  const salt = (data as any).salt;
+
   const res: any = await db.from("redactor_provider_keys").insert({
     id,
     user_id: userId,
@@ -71,6 +70,7 @@ export async function addProviderKey(opts: {
   });
   const { error } = res;
   if (error) throw error;
+
   return { ok: true };
 }
 

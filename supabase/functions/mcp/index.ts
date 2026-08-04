@@ -487,8 +487,9 @@ var write_file_default = defineTool13({
       return err("Only the canvas owner can write files.");
     }
     const nextFiles = upsertFile(project.files, path, content, language);
-    const { error: updateError } = await userClient(ctx).from("projects").update({ files: nextFiles }).eq("id", canvas_id);
+    const { data: updated, error: updateError } = await userClient(ctx).from("projects").update({ files: nextFiles }).eq("id", canvas_id).eq("updated_at", project.updated_at).select("id");
     if (updateError) return err(updateError.message);
+    if (!updated || updated.length === 0) return err("Conflict: canvas was modified by another request. Please retry.");
     return ok({ path, bytes: content.length });
   }
 });
@@ -514,8 +515,9 @@ var delete_file_default = defineTool14({
       return err("Only the canvas owner can delete files.");
     }
     const nextFiles = deleteAtPath(project.files, path);
-    const { error: updateError } = await userClient(ctx).from("projects").update({ files: nextFiles }).eq("id", canvas_id);
+    const { data: updated, error: updateError } = await userClient(ctx).from("projects").update({ files: nextFiles }).eq("id", canvas_id).eq("updated_at", project.updated_at).select("id");
     if (updateError) return err(updateError.message);
+    if (!updated || updated.length === 0) return err("Conflict: canvas was modified by another request. Please retry.");
     return ok({ deleted: path });
   }
 });
@@ -602,6 +604,8 @@ var list_comments_default = defineTool17({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ canvas_id, file_path, include_resolved }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
     let q = userClient(ctx).from("code_comments").select("*").eq("project_id", canvas_id).order("created_at", { ascending: false }).limit(200);
     if (file_path) q = q.eq("file_path", file_path);
     if (!include_resolved) q = q.eq("resolved", false);
@@ -732,6 +736,8 @@ var list_reviews_default = defineTool22({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ canvas_id, status }, ctx) => {
+    const gate = requireAuth(ctx);
+    if (gate) return gate;
     let q = userClient(ctx).from("code_reviews").select("*").order("created_at", { ascending: false }).limit(100);
     if (canvas_id) q = q.eq("project_id", canvas_id);
     if (status) q = q.eq("status", status);
@@ -786,7 +792,8 @@ var run_code_default = defineTool23({
       if (!res.ok) return err(`Execution failed (${res.status}): ${text.slice(0, 500)}`);
       return ok(parsed);
     } catch (e) {
-      return err(`Execution error: ${e.message}`);
+      const message = e instanceof Error ? e.message : String(e);
+      return err(`Execution error: ${message}`);
     }
   }
 });
@@ -840,7 +847,8 @@ var run_shell_default = defineTool24({
         return err(`Shell execution failed (${res.status}): ${text.slice(0, 500)}`);
       return ok(parsed);
     } catch (e) {
-      return err(`Shell execution error: ${e.message}`);
+      const message = e instanceof Error ? e.message : String(e);
+      return err(`Shell execution error: ${message}`);
     }
   }
 });
@@ -908,7 +916,8 @@ var create_container_default = defineTool26({
       if (!res.ok) return err(`Failed to create container (${res.status}): ${text.slice(0, 500)}`);
       return ok(parsed);
     } catch (e) {
-      return err(`Container creation error: ${e.message}`);
+      const message = e instanceof Error ? e.message : String(e);
+      return err(`Container creation error: ${message}`);
     }
   }
 });
@@ -949,7 +958,8 @@ var container_exec_default = defineTool27({
       if (!res.ok) return err(`Container exec failed (${res.status}): ${text.slice(0, 500)}`);
       return ok(parsed);
     } catch (e) {
-      return err(`Container exec error: ${e.message}`);
+      const message = e instanceof Error ? e.message : String(e);
+      return err(`Container exec error: ${message}`);
     }
   }
 });
@@ -990,7 +1000,8 @@ var container_write_file_default = defineTool28({
       if (!res.ok) return err(`Container write-file failed (${res.status}): ${text.slice(0, 500)}`);
       return ok(parsed);
     } catch (e) {
-      return err(`Container write-file error: ${e.message}`);
+      const message = e instanceof Error ? e.message : String(e);
+      return err(`Container write-file error: ${message}`);
     }
   }
 });
@@ -1028,7 +1039,8 @@ var container_read_file_default = defineTool29({
       if (!res.ok) return err(`Container read-file failed (${res.status}): ${text.slice(0, 500)}`);
       return ok(parsed);
     } catch (e) {
-      return err(`Container read-file error: ${e.message}`);
+      const message = e instanceof Error ? e.message : String(e);
+      return err(`Container read-file error: ${message}`);
     }
   }
 });
@@ -1065,7 +1077,8 @@ var container_list_files_default = defineTool30({
       if (!res.ok) return err(`Container list-files failed (${res.status}): ${text.slice(0, 500)}`);
       return ok(parsed);
     } catch (e) {
-      return err(`Container list-files error: ${e.message}`);
+      const message = e instanceof Error ? e.message : String(e);
+      return err(`Container list-files error: ${message}`);
     }
   }
 });
@@ -1102,7 +1115,8 @@ var destroy_container_default = defineTool31({
       if (!res.ok) return err(`Container destroy failed (${res.status}): ${text.slice(0, 500)}`);
       return ok(parsed);
     } catch (e) {
-      return err(`Container destroy error: ${e.message}`);
+      const message = e instanceof Error ? e.message : String(e);
+      return err(`Container destroy error: ${message}`);
     }
   }
 });
@@ -1236,8 +1250,11 @@ var restore_snapshot_default = defineTool36({
     const { data: snap, error: snapErr } = await sb.from("project_snapshots").select("project_id, files, label").eq("id", snapshot_id).eq("user_id", ctx.getUserId()).single();
     if (snapErr) return err("Snapshot not found or access denied.");
     if (!snap) return err("Snapshot not found.");
-    const { error: updateErr } = await sb.from("projects").update({ files: snap.files }).eq("id", snap.project_id).eq("user_id", ctx.getUserId());
+    const { project, error: projectError } = await loadProject(ctx, snap.project_id);
+    if (projectError) return err(projectError);
+    const { data: updated, error: updateErr } = await sb.from("projects").update({ files: snap.files }).eq("id", snap.project_id).eq("updated_at", project.updated_at).select("id");
     if (updateErr) return err(updateErr.message);
+    if (!updated || updated.length === 0) return err("Conflict: canvas was modified by another request. Please retry.");
     return ok({
       restored: true,
       project_id: snap.project_id,
