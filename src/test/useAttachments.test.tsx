@@ -2,7 +2,9 @@ import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { useAttachments, type ChatAttachment } from '@/hooks/useAttachments';
 
-const toastErrorMock = vi.fn();
+const { toastErrorMock } = vi.hoisted(() => ({
+  toastErrorMock: vi.fn(),
+}));
 
 vi.mock('sonner', () => ({
   toast: {
