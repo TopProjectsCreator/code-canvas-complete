@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { exchangeCodeForToken, clearOAuthState, POLLINATIONS_OAUTH_STATE_KEY, POLLINATIONS_VERIFIER_KEY, POLLINATIONS_CLIENT_ID } from '@/lib/pollinations-oauth';
+import { exchangeCodeForToken, getPollinationsRedirectUri, clearOAuthState, POLLINATIONS_OAUTH_STATE_KEY, POLLINATIONS_VERIFIER_KEY, POLLINATIONS_CLIENT_ID } from '@/lib/pollinations-oauth';
 import type { AIProvider } from '@/hooks/useApiKeys';
 
 export function usePollinationsOAuthCallback(saveApiKey: (provider: AIProvider, key: string) => Promise<boolean>) {
@@ -14,8 +14,13 @@ export function usePollinationsOAuthCallback(saveApiKey: (provider: AIProvider, 
     if (!code && !error) return;
 
     const returnedState = params.get('state');
-    const redirectUri = `${window.location.origin}${window.location.pathname}${window.location.search}`;
-    window.history.replaceState(null, document.title, `${window.location.pathname}${window.location.search}`);
+    const redirectUri = getPollinationsRedirectUri();
+
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete('code');
+    cleanUrl.searchParams.delete('state');
+    cleanUrl.searchParams.delete('error');
+    window.history.replaceState(null, document.title, `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
 
     const expectedState = localStorage.getItem(POLLINATIONS_OAUTH_STATE_KEY);
     const verifier = localStorage.getItem(POLLINATIONS_VERIFIER_KEY);
