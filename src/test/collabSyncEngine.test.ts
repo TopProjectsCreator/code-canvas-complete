@@ -155,3 +155,73 @@ describe('CollaborationSyncEngine', () => {
     expect(result.remoteOp.baseLength).toBeGreaterThanOrEqual(0);
   });
 });
+
+describe('collab patch delivery (issues #436 / #412)', () => {
+  it('rejects a patch built on a future base version without throwing', () => {
+    const alice = new CollaborationSyncEngine();
+    alice.initializeFile('file-4', 'a.txt', 'abc');
+
+    const p1 = alice.createOutgoingPatch('file-4', 'abcd');
+    const p2 = alice.createOutgoingPatch('file-4', 'abcde');
+    expect(p1).not.toBeNull();
+    expect(p2).not.toBeNull();
+
+    // Receiver never saw p1 (it was dropped), so its engine is at version 0.
+    const bob = new CollaborationSyncEngine();
+    bob.initializeFile('file-4', 'a.txt', 'abc');
+
+    const envP2 = patchEnvelopeFromLocal(p2!, 'alice', 'Alice');
+    expect(() => bob.materializeUpdate(envP2)).not.toThrow();
+    expect(bob.materializeUpdate(envP2)).toBeNull();
+  });
+
+  it('recovers after a resync to the authoritative snapshot and retries the patch', () => {
+    const alice = new CollaborationSyncEngine();
+    alice.initializeFile('file-4', 'a.txt', 'abc');
+
+    alice.createOutgoingPatch('file-4', 'abcd');
+    const p2 = alice.createOutgoingPatch('file-4', 'abcde');
+    const envP2 = patchEnvelopeFromLocal(p2!, 'alice', 'Alice');
+
+    const bob = new CollaborationSyncEngine();
+    bob.initializeFile('file-4', 'a.txt', 'abc');
+
+    // p1 was dropped → p2 rejected.
+    expect(bob.materializeUpdate(envP2)).toBeNull();
+
+    // Resync engine from the authoritative content (what the receiver displays)
+    // re-seeded at the incoming patch's base version, then retry.
+    bob.resyncFileState('file-4', 'a.txt', 'abcd', envP2.baseVersion);
+
+    const recovered = bob.materializeUpdate(envP2);
+    expect(recovered).not.toBeNull();
+    expect(recovered?.content).toBe('abcde');
+    expect(bob.getContent('file-4')).toBe('abcde');
+  });
+
+  it('returns a conflict (no throw) when rebasing over diverged history fails', () => {
+    const engine = new CollaborationSyncEngine();
+    engine.initializeFile('file-5', 'tool.ts', 'abc');
+
+    // Local edit moves the engine to version 1 with the chain entry 'abc' -> 'abcd'.
+    engine.createOutgoingPatch('file-5', 'abcd');
+
+    // Incoming patch claims baseVersion 0 but was built on a 6-char base, so the
+    // rebase transform hits a base-length mismatch and must not throw out of the
+    // engine — it becomes a conflict the consumer can recover from.
+    const diverged: import('@/services/collabSyncEngine').RemotePatchEnvelope = {
+      fileId: 'file-5',
+      filePath: 'tool.ts',
+      version: 2,
+      baseVersion: 0,
+      patch: TextOperation.build('abcdef', 'abcdeX').serialize(),
+      checksum: 'cafebabe',
+      updatedBy: 'bob',
+      updatedByName: 'Bob',
+      updatedAt: new Date().toISOString(),
+    };
+
+    expect(() => engine.materializeUpdate(diverged)).not.toThrow();
+    expect(engine.materializeUpdate(diverged)).toBeNull();
+  });
+});
