@@ -282,6 +282,29 @@ describe("redact - custom patterns", () => {
     });
     expect(r.matches).toHaveLength(0);
   });
+
+  it("does not hang or match on empty-matching rules like a*", () => {
+    const r = redact("banana", {
+      customPatterns: [{ pattern: "a*", label: "STAR" }],
+    });
+    expect(r.matches.every((m) => m.original.length > 0)).toBe(true);
+    expect(r.matches.every((m) => m.type !== "custom" || m.original === "a")).toBe(true);
+  });
+
+  it("does not hang on .* and anchors-matching-empty rules", () => {
+    const r = redact("hello world", {
+      customPatterns: [{ pattern: ".*", label: "DOTSTAR" }, { pattern: "\\^|$", label: "EDGE" }],
+    });
+    expect(r.text.length).toBeGreaterThan(0);
+    expect(r.matches.every((m) => m.original.length > 0)).toBe(true);
+  });
+
+  it("still applies custom rules that match non-empty spans", () => {
+    const r = redact("internal id: ACME-XYZ-123", {
+      customPatterns: [{ pattern: "ACME-[A-Z]+-\\d+", label: "INTERNAL" }],
+    });
+    expect(r.text).toBe("internal id: [INTERNAL_1]");
+  });
 });
 
 describe("redact - overlap resolution", () => {
@@ -317,6 +340,21 @@ describe("rehydrate", () => {
     const map = { "[EMAIL_10]": "bob@test.org", "[EMAIL_1]": "alice@test.org" };
     const restored = rehydrate("[EMAIL_1] and [EMAIL_10]", map);
     expect(restored).toBe("alice@test.org and bob@test.org");
+  });
+
+  it("restores original values containing $ without corruption", () => {
+    const map = {
+      "[URL_1]": "https://user:pa$&ss$$wor$1d$`$'@example.com",
+      "[EMAIL_1]": "bob@test.org",
+    };
+    const restored = rehydrate("login via [URL_1] or [EMAIL_1]", map);
+    expect(restored).toBe("login via https://user:pa$&ss$$wor$1d$`$'@example.com or bob@test.org");
+  });
+
+  it("restores $ sequences that touch the redacted token directly", () => {
+    const map = { "[SECRET_1]": "$1::${2}::$&::$$" };
+    const restored = rehydrate("vault:[SECRET_1]", map);
+    expect(restored).toBe("vault:$1::${2}::$&::$$");
   });
 });
 
