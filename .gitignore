@@ -34,3 +34,5 @@ aikeys.json
 adtention-backup.json
 .adtention/
 adtention-setup.sh
+.opencode/plugin/
+.designs/
