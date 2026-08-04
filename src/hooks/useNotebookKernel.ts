@@ -41,7 +41,7 @@ export function useNotebookKernel() {
             });
           }
         }
-        if (execId !== executionIdRef.current) return { outputs, executionCount: count };
+        if (execId !== executionIdRef.current) { setKernel({ status: "idle", error: null }); return { outputs, executionCount: count }; }
         setKernel({ status: "ready", error: null });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -51,7 +51,7 @@ export function useNotebookKernel() {
           evalue: msg,
           traceback: [msg],
         });
-        if (execId !== executionIdRef.current) return { outputs, executionCount: count };
+        if (execId !== executionIdRef.current) { setKernel({ status: "idle", error: null }); return { outputs, executionCount: count }; }
         setKernel({ status: "error", error: msg });
       }
 

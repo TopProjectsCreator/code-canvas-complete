@@ -30,6 +30,8 @@ export function useLspClient(fileName: string | null, content: string) {
 
   const contentRef = useRef(content);
   contentRef.current = content;
+  const didOpenRef = useRef(false);
+  const pendingContentRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!fileName || !supported) {
@@ -48,6 +50,8 @@ export function useLspClient(fileName: string | null, content: string) {
     clientRef.current = client;
 
     setState((s) => ({ ...s, supported: true }));
+    didOpenRef.current = false;
+    pendingContentRef.current = null;
 
     const handler: LspEventHandler = {
       diagnostics: (ctx) => {
@@ -86,6 +90,12 @@ export function useLspClient(fileName: string | null, content: string) {
       if (currentContent) {
         client.openDocument(uri, config.languageId, currentContent);
       }
+      didOpenRef.current = true;
+      const pending = pendingContentRef.current;
+      if (pending !== null && pending !== currentContent) {
+        client.changeDocument(uri, pending);
+      }
+      pendingContentRef.current = null;
     }).catch(() => {
       // LSP connection failed silently - editor works without it
     });
@@ -102,9 +112,8 @@ export function useLspClient(fileName: string | null, content: string) {
   const updateContent = useCallback((newContent: string) => {
     const client = clientRef.current;
     if (!client || !client.openUri) return;
-    if (!client.connected) {
-      // Buffer: the connection will openDocument with the latest content
-      // when it completes. Store the latest so openDocument gets fresh data.
+    if (!client.connected || !didOpenRef.current) {
+      pendingContentRef.current = newContent;
       return;
     }
     client.changeDocument(client.openUri, newContent);

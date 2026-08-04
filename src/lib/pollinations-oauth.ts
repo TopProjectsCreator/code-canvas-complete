@@ -7,6 +7,10 @@ const POLLINATIONS_CLIENT_ID = (import.meta.env.VITE_POLLINATIONS_CLIENT_ID || i
 
 export { POLLINATIONS_OAUTH_STATE_KEY, POLLINATIONS_VERIFIER_KEY, POLLINATIONS_CLIENT_ID };
 
+export function getPollinationsRedirectUri(): string {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
 export function createOAuthState(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -77,6 +81,34 @@ interface TokenResponse {
   scope: string;
 }
 
+class TokenExchangeError extends Error {}
+
+async function exchangeCodeForTokenViaProxy(opts: ExchangeTokenOpts): Promise<TokenResponse> {
+  const proxyResp = await fetch(POLLINATIONS_TOKEN_PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      code: opts.code,
+      client_id: opts.clientId,
+      redirect_uri: opts.redirectUri,
+      code_verifier: opts.codeVerifier,
+    }),
+  });
+  let proxyData: Record<string, unknown>;
+  try {
+    proxyData = await proxyResp.json();
+  } catch {
+    proxyData = { error: 'Invalid response from token proxy' };
+  }
+  if (!proxyResp.ok) {
+    throw new Error((proxyData.error as string) || 'Proxy token exchange failed');
+  }
+  if (!proxyData.access_token) {
+    throw new Error((proxyData.error as string) || 'No access_token in proxy response');
+  }
+  return proxyData as unknown as TokenResponse;
+}
+
 export async function exchangeCodeForToken(opts: ExchangeTokenOpts): Promise<TokenResponse> {
   const formBody = new URLSearchParams({
     grant_type: 'authorization_code',
@@ -101,37 +133,15 @@ export async function exchangeCodeForToken(opts: ExchangeTokenOpts): Promise<Tok
       throw new TypeError('Non-JSON response from token endpoint');
     }
     if (!resp.ok) {
-      throw new Error((data.error as string) || (data.error_description as string) || `Token exchange failed (${resp.status})`);
+      throw new TokenExchangeError((data.error as string) || (data.error_description as string) || `Token exchange failed (${resp.status})`);
     }
     if (!data.access_token) {
-      throw new Error('No access_token in response');
+      throw new TokenExchangeError('No access_token in response');
     }
     return data as unknown as TokenResponse;
   } catch (err) {
-    if (err instanceof TypeError || err instanceof SyntaxError) {
-      const proxyResp = await fetch(POLLINATIONS_TOKEN_PROXY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: opts.code,
-          client_id: opts.clientId,
-          redirect_uri: opts.redirectUri,
-          code_verifier: opts.codeVerifier,
-        }),
-      });
-      let proxyData: Record<string, unknown>;
-      try {
-        proxyData = await proxyResp.json();
-      } catch {
-        proxyData = { error: 'Invalid response from token proxy' };
-      }
-      if (!proxyResp.ok) {
-        throw new Error((proxyData.error as string) || 'Proxy token exchange failed');
-      }
-      if (!proxyData.access_token) {
-        throw new Error((proxyData.error as string) || 'No access_token in proxy response');
-      }
-      return proxyData as unknown as TokenResponse;
+    if (err instanceof TypeError || err instanceof SyntaxError || err instanceof TokenExchangeError) {
+      return exchangeCodeForTokenViaProxy(opts);
     }
     throw err;
   }
@@ -151,7 +161,7 @@ export async function startPollinationsOAuth(): Promise<void> {
   const state = createOAuthState();
   const verifier = generatePKCEVerifier();
   const challenge = await generateCodeChallenge(verifier);
-  const redirectUri = `${window.location.origin}${window.location.pathname}${window.location.search}`;
+  const redirectUri = getPollinationsRedirectUri();
 
   storeOAuthState(state, verifier);
 
