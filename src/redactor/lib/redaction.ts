@@ -228,6 +228,12 @@ function collectMatches(input: string, opts: RedactOptions): Range[] {
     let m: RegExpExecArray | null;
     while ((m = re.exec(input)) !== null) {
       const text = m[0];
+      if (text.length === 0) {
+        // Zero-length match (e.g. custom rule "a*" or ".*"). Guard against an
+        // infinite loop by forcing the search to advance.
+        re.lastIndex += 1;
+        continue;
+      }
       if (p.validate && !p.validate(text)) continue;
       ranges.push({
         start: m.index,
@@ -311,7 +317,9 @@ export function rehydrate(input: string, map: Record<string, string>): string {
   for (const t of tokens) {
     // Escape regex special chars in token
     const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    out = out.replace(new RegExp(escaped, "g"), map[t]);
+    // Use a replacer function so the original value is inserted literally —
+    // a string replacement would interpret "$&", "$$", "$`", "$1", etc.
+    out = out.replace(new RegExp(escaped, "g"), () => map[t]);
   }
   return out;
 }
