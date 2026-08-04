@@ -142,30 +142,56 @@ function resolveExecuteAddress(
   return flashStartAddress;
 }
 
-async function readBytes(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  count: number,
-  timeout: number = RESPONSE_TIMEOUT
-): Promise<Uint8Array> {
-  const result = new Uint8Array(count);
-  let offset = 0;
-  const deadline = Date.now() + timeout;
+/**
+ * Reads exact byte counts from a serial stream, buffering any surplus bytes
+ * that arrive in a coalesced chunk. Without the buffer, one oversized chunk
+ * would desynchronize every subsequent response (e.g. a 4-byte word read that
+ * consumes an 8-byte chunk would lose the next response entirely).
+ */
+// Exported for unit tests.
+export class BufferedByteReader {
+  private pending = new Uint8Array(0);
 
-  while (offset < count) {
-    if (Date.now() > deadline) {
-      throw new Error(`Timeout reading ${count} bytes (got ${offset})`);
+  constructor(private readonly reader: ReadableStreamDefaultReader<Uint8Array>) {}
+
+  async readBytes(count: number, timeout: number = RESPONSE_TIMEOUT): Promise<Uint8Array> {
+    const result = new Uint8Array(count);
+    let filled = 0;
+    const deadline = Date.now() + timeout;
+
+    while (filled < count) {
+      if (this.pending.length > 0) {
+        const take = Math.min(this.pending.length, count - filled);
+        result.set(this.pending.subarray(0, take), filled);
+        filled += take;
+        this.pending = this.pending.subarray(take);
+        continue;
+      }
+
+      if (Date.now() > deadline) {
+        throw new Error(`Timeout reading ${count} bytes (got ${filled})`);
+      }
+
+      const { value, done } = await Promise.race([
+        this.reader.read(),
+        new Promise<{ value: undefined; done: true }>((_, reject) =>
+          setTimeout(() => reject(new Error(`Read timeout after ${timeout}ms`)), Math.max(100, deadline - Date.now()))
+        ),
+      ]);
+      if (done || !value) break;
+
+      const need = count - filled;
+      if (value.length <= need) {
+        result.set(value, filled);
+        filled += value.length;
+      } else {
+        result.set(value.subarray(0, need), filled);
+        filled += need;
+        this.pending = value.subarray(need);
+      }
     }
-    const { value, done } = await Promise.race([
-      reader.read(),
-      new Promise<{ value: undefined; done: true }>((_, reject) =>
-        setTimeout(() => reject(new Error(`Read timeout after ${timeout}ms`)), Math.max(100, deadline - Date.now()))
-      ),
-    ]);
-    if (done || !value) break;
-    result.set(value.subarray(0, Math.min(value.length, count - offset)), offset);
-    offset += value.length;
+    return result.subarray(0, filled);
   }
-  return result.subarray(0, offset);
 }
 
 async function readUntilPrompt(
@@ -219,6 +245,7 @@ async function drain(reader: ReadableStreamDefaultReader<Uint8Array>, ms = 200):
 class SambaConnection {
   private writer: WritableStreamDefaultWriter<Uint8Array>;
   private reader: ReadableStreamDefaultReader<Uint8Array>;
+  private byteReader: BufferedByteReader | null = null;
   private interactive = true;
 
   constructor(
@@ -243,6 +270,10 @@ class SambaConnection {
     await drain(this.reader, 100);
     this.interactive = false;
 
+    // From here on, responses are fixed-size binary — buffer surplus bytes so
+    // coalesced chunks can't desynchronize subsequent reads.
+    this.byteReader = new BufferedByteReader(this.reader);
+
     return version || 'SAM-BA';
   }
 
@@ -257,7 +288,7 @@ class SambaConnection {
       throw new Error(`Failed to parse word response: ${resp}`);
     }
 
-    const bytes = await readBytes(this.reader, 4, 1000);
+    const bytes = await this.byteReader!.readBytes(4, 1000);
     if (bytes.length < 4) throw new Error('Short read on readWord');
     return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | ((bytes[3] << 24) >>> 0);
   }

@@ -43,13 +43,15 @@ function slipEncode(data: Uint8Array): Uint8Array {
   return new Uint8Array(out);
 }
 
-async function slipReadFrame(
+// Exported for unit tests.
+export async function slipReadFrame(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   timeout = CMD_TIMEOUT
 ): Promise<Uint8Array> {
   const deadline = Date.now() + timeout;
   const frame: number[] = [];
   let inFrame = false;
+  let pendingEscape = false;
 
   while (Date.now() < deadline) {
     const { value, done } = await Promise.race([
@@ -65,13 +67,16 @@ async function slipReadFrame(
         if (inFrame && frame.length > 0) return new Uint8Array(frame);
         inFrame = true;
         frame.length = 0;
+        pendingEscape = false;
       } else if (inFrame) {
-        if (byte === SLIP_ESC) continue;
-        if (frame.length > 0 && frame[frame.length - 1] === SLIP_ESC) {
-          frame.pop();
+        if (pendingEscape) {
+          // 0xdb was consumed as the escape marker — decode the byte after it.
+          pendingEscape = false;
           if (byte === SLIP_ESC_END) frame.push(SLIP_END);
           else if (byte === SLIP_ESC_ESC) frame.push(SLIP_ESC);
           else frame.push(byte);
+        } else if (byte === SLIP_ESC) {
+          pendingEscape = true;
         } else {
           frame.push(byte);
         }
@@ -101,13 +106,48 @@ function buildCommand(opcode: number, data: Uint8Array, checksum = 0): Uint8Arra
   return pkt;
 }
 
+/**
+ * Parse the trailing status bytes of a ROM response frame.
+ * - ESP8266: 2 status bytes at the very end.
+ * - ESP32 and newer: 2 status bytes followed by 2 reserved bytes.
+ * When the chip is not known yet (sync / chip detection), try the ESP32 layout
+ * first and fall back to the ESP8266 layout.
+ */
+// Exported for unit tests.
+export function parseResponseStatus(
+  respData: Uint8Array,
+  chip?: 'esp32' | 'esp8266'
+): { status: number; dataLength: number } {
+  const len = respData.length;
+  if (len < 2) return { status: 0, dataLength: len };
+
+  if (chip === 'esp8266') {
+    const status = respData[len - 2] | (respData[len - 1] << 8);
+    return { status, dataLength: len - 2 };
+  }
+
+  if (chip === 'esp32') {
+    if (len < 4) return { status: 0, dataLength: len };
+    const status = respData[len - 4] | (respData[len - 3] << 8);
+    return { status, dataLength: len - 4 };
+  }
+
+  if (len >= 4) {
+    const esp32Status = respData[len - 4] | (respData[len - 3] << 8);
+    if (esp32Status === 0) return { status: 0, dataLength: len - 4 };
+  }
+  const esp8266Status = respData[len - 2] | (respData[len - 1] << 8);
+  return { status: esp8266Status, dataLength: len - 2 };
+}
+
 async function sendCommand(
   writer: WritableStreamDefaultWriter<Uint8Array>,
   reader: ReadableStreamDefaultReader<Uint8Array>,
   opcode: number,
   data: Uint8Array = new Uint8Array(0),
   checksum = 0,
-  timeout = CMD_TIMEOUT
+  timeout = CMD_TIMEOUT,
+  chip?: 'esp32' | 'esp8266'
 ): Promise<{ value: number; data: Uint8Array }> {
   const cmd = buildCommand(opcode, data, checksum);
   await writer.write(slipEncode(cmd));
@@ -120,14 +160,12 @@ async function sendCommand(
   const value = frame[4] | (frame[5] << 8) | (frame[6] << 16) | ((frame[7] << 24) >>> 0);
   const respData = frame.subarray(8);
 
-  if (respData.length >= 2) {
-    const status = respData[respData.length - 2];
-    if (status !== 0) {
-      throw new Error(`Command 0x${opcode.toString(16)} failed: status=${status}`);
-    }
+  const { status, dataLength } = parseResponseStatus(respData, chip);
+  if (status !== 0) {
+    throw new Error(`Command 0x${opcode.toString(16)} failed: status=${status}`);
   }
 
-  return { value, data: respData.subarray(0, respData.length - 2) };
+  return { value, data: respData.subarray(0, dataLength) };
 }
 
 async function enterBootloader(port: SerialPortLike): Promise<void> {
@@ -176,7 +214,8 @@ async function flashBegin(
   writer: WritableStreamDefaultWriter<Uint8Array>,
   reader: ReadableStreamDefaultReader<Uint8Array>,
   size: number,
-  offset: number
+  offset: number,
+  chip: 'esp32' | 'esp8266'
 ): Promise<void> {
   const numBlocks = Math.ceil(size / ESP_FLASH_WRITE_SIZE);
   const eraseSize = Math.ceil(size / FLASH_SECTOR_SIZE) * FLASH_SECTOR_SIZE;
@@ -186,14 +225,15 @@ async function flashBegin(
   dv.setUint32(4, numBlocks, true);
   dv.setUint32(8, ESP_FLASH_WRITE_SIZE, true);
   dv.setUint32(12, offset, true);
-  await sendCommand(writer, reader, ESP_FLASH_BEGIN, data, 0, FLASH_TIMEOUT);
+  await sendCommand(writer, reader, ESP_FLASH_BEGIN, data, 0, FLASH_TIMEOUT, chip);
 }
 
 async function flashBlock(
   writer: WritableStreamDefaultWriter<Uint8Array>,
   reader: ReadableStreamDefaultReader<Uint8Array>,
   blockData: Uint8Array,
-  seq: number
+  seq: number,
+  chip: 'esp32' | 'esp8266'
 ): Promise<void> {
   const header = new Uint8Array(16);
   const dv = new DataView(header.buffer);
@@ -202,18 +242,19 @@ async function flashBlock(
   const payload = new Uint8Array(header.length + blockData.length);
   payload.set(header);
   payload.set(blockData, header.length);
-  await sendCommand(writer, reader, ESP_FLASH_DATA, payload, espChecksum(blockData), FLASH_TIMEOUT);
+  await sendCommand(writer, reader, ESP_FLASH_DATA, payload, espChecksum(blockData), FLASH_TIMEOUT, chip);
 }
 
 async function flashEnd(
   writer: WritableStreamDefaultWriter<Uint8Array>,
   reader: ReadableStreamDefaultReader<Uint8Array>,
-  reboot: boolean
+  reboot: boolean,
+  chip: 'esp32' | 'esp8266'
 ): Promise<void> {
   const data = new Uint8Array(4);
   new DataView(data.buffer).setUint32(0, reboot ? 0 : 1, true);
   try {
-    await sendCommand(writer, reader, ESP_FLASH_END, data, 0, 2000);
+    await sendCommand(writer, reader, ESP_FLASH_END, data, 0, 2000, chip);
   } catch { /* board may reboot */ }
 }
 
@@ -253,7 +294,7 @@ export async function flashViaEsptool(
     const flashOffset = chip === 'esp32' ? 0x10000 : 0x0;
 
     onProgress?.('Erasing flash region...', 15);
-    await flashBegin(writer, reader, firmware.length, flashOffset);
+    await flashBegin(writer, reader, firmware.length, flashOffset, chip);
 
     const blockSize = ESP_FLASH_WRITE_SIZE;
     const totalBlocks = Math.ceil(firmware.length / blockSize);
@@ -266,11 +307,11 @@ export async function flashViaEsptool(
       chunk.set(firmware.subarray(offset, end));
       const pct = 15 + Math.round((i / totalBlocks) * 75);
       onProgress?.(`Writing block ${i + 1}/${totalBlocks}...`, pct);
-      await flashBlock(writer, reader, chunk, i);
+      await flashBlock(writer, reader, chunk, i, chip);
     }
 
     onProgress?.('Finalizing flash...', 93);
-    await flashEnd(writer, reader, true);
+    await flashEnd(writer, reader, true, chip);
     onProgress?.('Upload complete! Board is restarting.', 100);
   } finally {
     try { reader.releaseLock(); } catch { /**/ }
