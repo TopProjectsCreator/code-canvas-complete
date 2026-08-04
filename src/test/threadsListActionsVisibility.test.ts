@@ -6,7 +6,8 @@ describe("ThreadsList action visibility", () => {
   it("uses a group parent for group-hover action controls", () => {
     const source = readFileSync(resolve(process.cwd(), "src/pages/threads/ThreadsList.tsx"), "utf8");
 
-    expect(source).toContain('<Card key={thread.id} className="group p-3 hover:bg-accent/50 transition-colors">');
+    // className is a template literal so the unread border can be added conditionally.
+    expect(source).toContain('<Card key={thread.id} className={`group p-3 hover:bg-accent/50 transition-colors');
     expect(source).toContain("group-hover:opacity-100");
   });
 });
