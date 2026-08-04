@@ -97,7 +97,7 @@ export function useCollaboration(projectId: string | undefined) {
   const [inviteSuggestions, setInviteSuggestions] = useState<UserSuggestion[]>([]);
   const [inviteSearchLoading, setInviteSearchLoading] = useState(false);
   const [remoteFileUpdate, setRemoteFileUpdate] = useState<RemoteFileUpdate | null>(null);
-  const [remoteFilePatch, setRemoteFilePatch] = useState<RemoteFilePatch | null>(null);
+  const [remoteFilePatch, setRemoteFilePatch] = useState<RemoteFilePatch[]>([]);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const workspaceChannelRef = useRef<RealtimeChannel | null>(null);
   const sessionIdRef = useRef(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}`);
@@ -272,18 +272,19 @@ export function useCollaboration(projectId: string | undefined) {
     flushScheduledRef.current = true;
     requestAnimationFrame(() => {
       flushScheduledRef.current = false;
-      // Drain all queued updates, keeping only the latest per type
+      // Drain all queued full-content updates — idempotent, latest wins.
       let latestUpdate: RemoteFileUpdate | null = null;
       while (fileUpdateQueueRef.current.length > 0) {
         latestUpdate = fileUpdateQueueRef.current.shift()!;
       }
       if (latestUpdate) setRemoteFileUpdate(latestUpdate);
 
-      let latestPatch: RemoteFilePatch | null = null;
-      while (filePatchQueueRef.current.length > 0) {
-        latestPatch = filePatchQueueRef.current.shift()!;
+      // Incremental patches are versioned deltas — keeping only the last one
+      // breaks the version chain and permanently desyncs the OT engine. Deliver
+      // every queued patch in arrival order and let the consumer apply them all.
+      if (filePatchQueueRef.current.length > 0) {
+        setRemoteFilePatch(filePatchQueueRef.current.splice(0));
       }
-      if (latestPatch) setRemoteFilePatch(latestPatch);
     });
   }, []);
 

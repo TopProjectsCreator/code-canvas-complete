@@ -39,7 +39,7 @@ import { buildProjectShareUrl } from "@/lib/publishing";
 import { useGitProviderImport } from "@/hooks/useGitProviderImport";
 import { useGitOperations } from "@/hooks/useGitOperations";
 import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
-import { CollaborationSyncEngine, isRemotePatchEnvelope } from "@/services/collabSyncEngine";
+import { CollaborationSyncEngine, isRemotePatchEnvelope, type RemotePatchEnvelope } from "@/services/collabSyncEngine";
 import { useOfflineProject } from "@/hooks/useOfflineProject";
 import { AutomationTemplatePane, type AutomationBlockInstance, serializeAutomationConfig, parseAutomationConfig } from "@/components/ide/AutomationTemplatePane";
 import { DatabaseDesignerPane } from "@/components/ide/DatabaseDesignerPane";
@@ -324,6 +324,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   >([]);
   const editedFilesRef = useRef<Set<string>>(new Set());
   const collabEngineRef = useRef<CollaborationSyncEngine>(new CollaborationSyncEngine());
+  const fileContentsRef = useRef<Record<string, string>>({});
   const { executeCode, executeShellCommand, resetReplitShell } = useCodeExecution();
   const collab = useCollaboration(currentProject?.id);
   const { importRepository: gitProviderImport } = useGitProviderImport();
@@ -690,6 +691,11 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
     registerNodes(files);
   }, [fileStructureKey]);
 
+  // Keep an up-to-date mirror of file contents for the collab patch resync path.
+  useEffect(() => {
+    fileContentsRef.current = fileContents;
+  }, [fileContents]);
+
   useEffect(() => {
     const remoteUpdate = collab.remoteFileUpdate;
     if (!remoteUpdate) return;
@@ -714,27 +720,54 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
   useEffect(() => {
     const patch = collab.remoteFilePatch;
-    if (!patch || !isRemotePatchEnvelope(patch)) return;
+    if (!patch || patch.length === 0) return;
+    const engine = collabEngineRef.current;
 
-    const update = collabEngineRef.current.materializeUpdate(patch);
-    if (!update) return;
+    const applyPatchSafely = (envelope: RemotePatchEnvelope) => {
+      try {
+        return engine.materializeUpdate(envelope);
+      } catch {
+        return null;
+      }
+    };
 
-    setFileContents((prev) => {
-      if (prev[update.fileId] === update.content) return prev;
-      return { ...prev, [update.fileId]: update.content };
-    });
+    for (const envelope of patch) {
+      if (!isRemotePatchEnvelope(envelope)) continue;
 
-    setFiles((prev) => {
-      const applyUpdate = (nodes: FileNode[]): FileNode[] =>
-        nodes.map((node) => {
-          if (node.id === update.fileId && node.type === "file") {
-            return { ...node, content: update.content };
-          }
-          if (node.children) return { ...node, children: applyUpdate(node.children) };
-          return node;
-        });
-      return applyUpdate(prev);
-    });
+      // Apply incremental patches one at a time, in arrival order — their base
+      // versions are chained, so dropping/coalescing any of them would desync
+      // the OT engine and silently lose the collaborator's edits.
+      let update = applyPatchSafely(envelope);
+      if (!update) {
+        // The engine rejected the patch (typically a version gap caused by a
+        // dropped intermediate patch). Re-seed its file state from the
+        // authoritative content kept fresh by the full-content broadcasts, then
+        // retry once so the session recovers instead of desyncing forever.
+        const resyncContent = fileContentsRef.current[envelope.fileId];
+        if (resyncContent !== undefined) {
+          engine.resyncFileState(envelope.fileId, envelope.filePath, resyncContent, envelope.baseVersion);
+          update = applyPatchSafely(envelope);
+        }
+      }
+      if (!update) continue;
+
+      setFileContents((prev) => {
+        if (prev[update.fileId] === update.content) return prev;
+        return { ...prev, [update.fileId]: update.content };
+      });
+
+      setFiles((prev) => {
+        const applyUpdate = (nodes: FileNode[]): FileNode[] =>
+          nodes.map((node) => {
+            if (node.id === update.fileId && node.type === "file") {
+              return { ...node, content: update.content };
+            }
+            if (node.children) return { ...node, children: applyUpdate(node.children) };
+            return node;
+          });
+        return applyUpdate(prev);
+      });
+    }
   }, [collab.remoteFilePatch]);
 
   // Track Git changes when files are modified

@@ -1010,10 +1010,27 @@ export class CollaborativeFileState {
     }
 
     if (patch.baseVersion < this.version) {
-      for (const entry of this.chain) {
-        if (entry.version <= patch.baseVersion) continue;
-        const [, transformedIncoming] = entry.op.transform(incoming, 'right');
-        incoming = transformedIncoming;
+      try {
+        for (const entry of this.chain) {
+          if (entry.version <= patch.baseVersion) continue;
+          const [, transformedIncoming] = entry.op.transform(incoming, 'right');
+          incoming = transformedIncoming;
+        }
+      } catch (error) {
+        // Histories have diverged beyond what the rebase can reconcile (e.g. an
+        // earlier patch was dropped). Treat this as a conflict instead of letting
+        // the exception propagate and crash the receiver's editor — the consumer
+        // can recover by re-seeding from the authoritative snapshot.
+        return {
+          accepted: false,
+          conflict: {
+            reason: `Failed to rebase patch over diverged history: ${(error as Error).message}`,
+            localVersion: this.version,
+            incomingBaseVersion: patch.baseVersion,
+          },
+          content: this.content,
+          version: this.version,
+        };
       }
     }
 
@@ -1186,6 +1203,25 @@ export class CollaborationSyncEngine {
     const state = this.files.get(snapshot.fileId) || new CollaborativeFileState(snapshot.fileId, '');
     state.replaceFromSnapshot(snapshot);
     this.files.set(snapshot.fileId, state);
+  }
+
+  /**
+   * Re-seed a file's state from authoritative content so the engine can recover
+   * from a version gap (e.g. when an intermediate incremental patch was dropped
+   * and later ones were rejected). The version is set to the rejected patch's
+   * base so the next incoming patch applies cleanly.
+   */
+  resyncFileState(fileId: string, filePath: string, content: string, version: number): void {
+    const state = new CollaborativeFileState(fileId, content);
+    state.replaceFromSnapshot({
+      fileId,
+      version,
+      content,
+      updatedBy: 'session-resync',
+      updatedAt: new Date().toISOString(),
+    });
+    this.files.set(fileId, state);
+    this.pathByFileId.set(fileId, filePath);
   }
 
   exportSnapshots(updatedBy: string): FileVersionSnapshot[] {
