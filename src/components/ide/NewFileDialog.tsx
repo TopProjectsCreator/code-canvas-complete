@@ -121,7 +121,7 @@ export const NewFileDialog = ({ isOpen, onClose, onSubmit, parentFolder, default
                 setError('');
               }}
               placeholder={type === 'file' ? 'example.js' : 'my-folder'}
-              className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full px-3 py-2 bg-input border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary"
               autoFocus
             />
             {error && (

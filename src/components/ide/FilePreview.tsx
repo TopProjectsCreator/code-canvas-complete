@@ -653,7 +653,7 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
                               <input
                                 value={row[colIndex] || ''}
                                 onChange={(e) => updateCell(rowIndex, colIndex, e.target.value)}
-                                className="w-full bg-transparent border border-transparent focus:border-primary/50 focus:bg-background rounded px-1 py-0.5 text-xs outline-none"
+                                className="w-full bg-transparent border border-transparent focus:border-primary/50 focus:bg-background rounded px-1 py-0.5 text-xs outline-hidden"
                                 onKeyDown={(e) => { if (e.key === 'Escape') (e.target as HTMLInputElement).blur(); }}
                               />
                             ) : (
@@ -732,7 +732,7 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
             onChange={e => setSqliteQuery(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') runSqliteQuery(); }}
             placeholder="Enter SQL query…"
-            className="h-7 px-2 text-xs bg-muted rounded border border-border outline-none focus:border-primary w-64"
+            className="h-7 px-2 text-xs bg-muted rounded border border-border outline-hidden focus:border-primary w-64"
           />
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={runSqliteQuery}>Run</Button>
         </div>
@@ -906,7 +906,7 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
             <div className="flex-1 min-w-0 flex flex-col border-r border-border">
               <div className="px-4 py-1.5 bg-muted/30 text-xs text-muted-foreground font-medium">Source</div>
               <textarea
-                className="flex-1 p-4 text-xs font-mono bg-background text-foreground outline-none resize-none border-0"
+                className="flex-1 p-4 text-xs font-mono bg-background text-foreground outline-hidden resize-none border-0"
                 value={content}
                 readOnly
               />

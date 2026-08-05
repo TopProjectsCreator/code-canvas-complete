@@ -264,7 +264,7 @@ export default function Docs() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search docs…"
-                className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm outline-hidden ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
               />
             </label>
             <nav className="space-y-4">
