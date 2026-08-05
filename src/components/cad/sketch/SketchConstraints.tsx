@@ -83,7 +83,7 @@ export function SketchConstraints() {
           <Separator />
           <div className="space-y-1 max-h-[120px] overflow-auto">
             {sketch.constraints.map(c => (
-              <div key={c.id} className="flex items-center justify-between px-1 py-0.5 rounded hover:bg-accent/50">
+              <div key={c.id} className="flex items-center justify-between px-1 py-0.5 rounded-sm hover:bg-accent/50">
                 <span className="text-[10px] font-mono truncate">{c.type}</span>
                 <button
                   className="text-[10px] text-red-500 hover:text-red-700"

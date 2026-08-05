@@ -519,7 +519,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
               </div>
               <div className="flex items-center gap-0.5 border border-border rounded-md">
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={zoomOut} title="Zoom out"><ZoomOut className="h-3.5 w-3.5" /></Button>
-                <button onClick={zoomReset} className="text-xs font-mono w-12 text-center hover:bg-muted rounded py-1" title="Reset to 100%">{Math.round(zoom * 100)}%</button>
+                <button onClick={zoomReset} className="text-xs font-mono w-12 text-center hover:bg-muted rounded-sm py-1" title="Reset to 100%">{Math.round(zoom * 100)}%</button>
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={zoomIn} title="Zoom in"><ZoomIn className="h-3.5 w-3.5" /></Button>
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={fitToScreen} title="Fit all tables in view"><Maximize2 className="h-3.5 w-3.5" /></Button>
               </div>
@@ -579,7 +579,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                 return (
                   <div
                     key={table.name}
-                    className={`group absolute rounded-lg border bg-background shadow-sm ${selectedTable === table.name ? "ring-2 ring-primary" : ""}`}
+                    className={`group absolute rounded-lg border bg-background shadow-xs ${selectedTable === table.name ? "ring-2 ring-primary" : ""}`}
                     style={{ left: pos.x, top: pos.y, width: TABLE_WIDTH }}
                     onClick={() => setSelectedTable(table.name)}
                   >
@@ -596,7 +596,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                         )}
                         <Badge variant="secondary">{table.columns.length}</Badge>
                         <button
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-accent"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-sm hover:bg-accent"
                           onClick={(e) => { e.stopPropagation(); setDocTarget(`table:${table.name}`); }}
                           onMouseDown={(e) => e.stopPropagation()}
                           title="Link a document"
@@ -604,7 +604,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                           <Paperclip className="h-3.5 w-3.5" />
                         </button>
                         <button
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/20 text-destructive"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-sm hover:bg-destructive/20 text-destructive"
                           onClick={(e) => { e.stopPropagation(); if (confirm(`Delete table "${table.name}"?`)) deleteTable(table.name); }}
                           title="Delete table"
                         >
@@ -639,7 +639,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                               }}
                               onClick={(e) => { e.stopPropagation(); setSelectedTable(table.name); }}
                               onMouseDown={(e) => e.stopPropagation()}
-                              className="flex-1 min-w-0 bg-transparent font-mono outline-none focus:bg-muted/40 rounded px-1"
+                              className="flex-1 min-w-0 bg-transparent font-mono outline-hidden focus:bg-muted/40 rounded-sm px-1"
                             />
                             <input
                               value={col.type}
@@ -656,7 +656,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                               }}
                               onClick={(e) => { e.stopPropagation(); setSelectedTable(table.name); }}
                               onMouseDown={(e) => e.stopPropagation()}
-                              className="w-20 shrink-0 bg-transparent text-muted-foreground font-mono outline-none focus:bg-muted/40 focus:text-foreground rounded px-1 text-right"
+                              className="w-20 shrink-0 bg-transparent text-muted-foreground font-mono outline-hidden focus:bg-muted/40 focus:text-foreground rounded-sm px-1 text-right"
                             />
                             {(col.docs?.length || 0) > 0 && (
                               <span className="shrink-0 inline-flex items-center gap-0.5 text-[10px] text-muted-foreground" title={`${col.docs!.length} linked doc(s)`}>
@@ -687,7 +687,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                         );
                       })}
                       <button
-                        className="w-full text-left text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded px-1 py-0.5 flex items-center gap-1"
+                        className="w-full text-left text-muted-foreground hover:text-foreground hover:bg-muted/40 rounded-sm px-1 py-0.5 flex items-center gap-1"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedTable(table.name);
@@ -788,7 +788,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
             <Button size="sm" variant="outline" onClick={addRelationship} disabled={!newRelFrom || !newRelTo}>Add relationship</Button>
             <div className="max-h-40 overflow-auto text-xs space-y-1">
               {model.relationships.map((rel, i) => (
-                <div key={`${rel.from}-${rel.to}-${i}`} className="rounded border border-border px-2 py-1 flex items-center justify-between gap-2">
+                <div key={`${rel.from}-${rel.to}-${i}`} className="rounded-sm border border-border px-2 py-1 flex items-center justify-between gap-2">
                   <span className="truncate">{rel.type}: {rel.from} → {rel.to}</span>
                   <button onClick={() => deleteRelationship(i)} className="text-destructive hover:opacity-70 shrink-0" title="Delete relationship">
                     <Trash2 className="h-3.5 w-3.5" />
@@ -802,7 +802,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
           <div className="rounded-xl border border-border bg-card p-3 space-y-2">
             <h3 className="font-medium flex items-center gap-2"><FileText className="h-4 w-4" />Constraint documentation</h3>
             <div className="flex flex-wrap items-center gap-2">
-              <label className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-border bg-muted/40 hover:bg-muted cursor-pointer">
+              <label className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-sm border border-border bg-muted/40 hover:bg-muted cursor-pointer">
                 <Upload className="h-3.5 w-3.5" />
                 Upload PDF / Word / MD
                 <input
@@ -830,7 +830,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
                 />
               </label>
               <select
-                className="text-xs px-2 py-1 rounded border border-border bg-background"
+                className="text-xs px-2 py-1 rounded-sm border border-border bg-background"
                 defaultValue=""
                 onChange={(e) => {
                   const path = e.target.value;
@@ -851,7 +851,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
               <input
                 type="url"
                 placeholder="Paste external URL and press Enter"
-                className="text-xs px-2 py-1 rounded border border-border bg-background flex-1 min-w-[180px]"
+                className="text-xs px-2 py-1 rounded-sm border border-border bg-background flex-1 min-w-[180px]"
                 onKeyDown={(e) => {
                   if (e.key !== "Enter") return;
                   const url = (e.currentTarget.value || "").trim();
@@ -985,7 +985,7 @@ const DocLinkDialog = ({ target, model, flatFiles, onClose, onAddTableLink, onAd
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Linked documents</p>
               {existingDocs.map((d, i) => (
-                <div key={i} className="flex items-center gap-2 rounded border border-border px-2 py-1 text-xs">
+                <div key={i} className="flex items-center gap-2 rounded-sm border border-border px-2 py-1 text-xs">
                   <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   <span className="truncate flex-1">{d.label}</span>
                   <Badge variant="outline" className="text-[10px]">{d.kind || "external"}</Badge>
@@ -998,9 +998,9 @@ const DocLinkDialog = ({ target, model, flatFiles, onClose, onAddTableLink, onAd
           )}
 
           <div className="flex gap-1 border border-border rounded-md p-0.5 text-xs">
-            <button onClick={() => setMode("existing")} className={`flex-1 px-2 py-1 rounded ${mode === "existing" ? "bg-accent" : "hover:bg-muted"}`}>From canvas</button>
-            <button onClick={() => setMode("upload")} className={`flex-1 px-2 py-1 rounded ${mode === "upload" ? "bg-accent" : "hover:bg-muted"}`}><Upload className="h-3 w-3 inline mr-1" />Upload</button>
-            <button onClick={() => setMode("url")} className={`flex-1 px-2 py-1 rounded ${mode === "url" ? "bg-accent" : "hover:bg-muted"}`}>URL</button>
+            <button onClick={() => setMode("existing")} className={`flex-1 px-2 py-1 rounded-sm ${mode === "existing" ? "bg-accent" : "hover:bg-muted"}`}>From canvas</button>
+            <button onClick={() => setMode("upload")} className={`flex-1 px-2 py-1 rounded-sm ${mode === "upload" ? "bg-accent" : "hover:bg-muted"}`}><Upload className="h-3 w-3 inline mr-1" />Upload</button>
+            <button onClick={() => setMode("url")} className={`flex-1 px-2 py-1 rounded-sm ${mode === "url" ? "bg-accent" : "hover:bg-muted"}`}>URL</button>
           </div>
 
           <div className="space-y-2">
@@ -1036,7 +1036,7 @@ const DocLinkDialog = ({ target, model, flatFiles, onClose, onAddTableLink, onAd
                   type="file"
                   accept=".docx,.xlsx,.pptx,.doc,.xls,.ppt,.pdf,.md,.txt,.rtf,.odt,.ods,.odp"
                   onChange={onUpload}
-                  className="block w-full text-xs file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:bg-primary file:text-primary-foreground hover:file:opacity-80"
+                  className="block w-full text-xs file:mr-2 file:py-1 file:px-3 file:rounded-sm file:border-0 file:bg-primary file:text-primary-foreground hover:file:opacity-80"
                 />
                 <p className="text-xs text-muted-foreground">
                   Uploads are embedded as data URLs in <code>erd.schema.json</code>. Best for small specs (under ~1 MB).
@@ -1216,7 +1216,7 @@ const AttachmentCard = ({
             <button
               type="button"
               onClick={() => setPlainText((v) => !v)}
-              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+              className={`px-2 py-0.5 rounded-sm text-[10px] font-medium transition-colors ${
                 plainText
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:text-foreground"

@@ -148,7 +148,7 @@ export function EmojiPicker({ onSelect, trigger }: EmojiPickerProps) {
               {filtered.map((emojiData) => (
                 <button
                   key={emojiData.emoji}
-                  className="h-8 w-8 flex items-center justify-center rounded hover:bg-accent text-lg cursor-pointer"
+                  className="h-8 w-8 flex items-center justify-center rounded-sm hover:bg-accent text-lg cursor-pointer"
                   onClick={() => { onSelect(emojiData.emoji); setOpen(false); setSearch('') }}
                 >
                   {emojiData.emoji}
@@ -166,7 +166,7 @@ export function EmojiPicker({ onSelect, trigger }: EmojiPickerProps) {
                   {cat.emojis.map((emojiData) => (
                     <button
                       key={emojiData.emoji}
-                      className="h-8 w-8 flex items-center justify-center rounded hover:bg-accent text-lg cursor-pointer"
+                      className="h-8 w-8 flex items-center justify-center rounded-sm hover:bg-accent text-lg cursor-pointer"
                       onClick={() => { onSelect(emojiData.emoji); setOpen(false) }}
                     >
                       {emojiData.emoji}

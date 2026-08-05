@@ -322,7 +322,7 @@ const ArtifactCard = ({
           if (term && ln.toLowerCase().includes(term.toLowerCase())) {
             const parts = ln.split(new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'ig'));
             content = parts.map((p, k) => p.toLowerCase() === term.toLowerCase()
-              ? <mark key={k} className="bg-amber-400/40 text-foreground rounded-sm px-0.5">{p}</mark>
+              ? <mark key={k} className="bg-amber-400/40 text-foreground rounded-xs px-0.5">{p}</mark>
               : <span key={k}>{p}</span>);
           }
           return (
@@ -402,18 +402,18 @@ const ArtifactCard = ({
   }, [open, highlightLine, tab]);
 
   return (
-    <div ref={rootRef} className="rounded border border-border bg-background/60">
+    <div ref={rootRef} className="rounded-sm border border-border bg-background/60">
       <div className="flex items-center justify-between px-2 py-1 text-[11px] hover:bg-accent/50">
         <button onClick={() => setOpen((o) => !o)} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
           <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
           <span className="truncate font-medium">{art.stepIndex >= 0 ? `Step ${art.stepIndex}` : 'Detached'} · {art.name}</span>
           <span className={cn('rounded border px-1 text-[9px]', art.source === 'inline' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' : 'border-violet-500/40 bg-violet-500/10 text-violet-300')}>{art.source}</span>
-          <span className="rounded border border-border bg-muted/30 px-1 text-[9px] text-muted-foreground">{kind}</span>
+          <span className="rounded-sm border border-border bg-muted/30 px-1 text-[9px] text-muted-foreground">{kind}</span>
           {validation && !validation.valid && (
-            <span className="rounded border border-destructive/40 bg-destructive/10 px-1 text-[9px] text-destructive" title={validation.error}>invalid JSON</span>
+            <span className="rounded-sm border border-destructive/40 bg-destructive/10 px-1 text-[9px] text-destructive" title={validation.error}>invalid JSON</span>
           )}
           {hasDiff && (
-            <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1 text-[9px] text-amber-300" title="Differs from previous run">
+            <span className="rounded-sm border border-amber-500/40 bg-amber-500/10 px-1 text-[9px] text-amber-300" title="Differs from previous run">
               Δ +{diffStats.added}/-{diffStats.removed}
             </span>
           )}
@@ -422,11 +422,11 @@ const ArtifactCard = ({
           <button
             onClick={onDownload}
             title="Download artifact"
-            className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-accent hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded-sm border border-border px-1.5 py-0.5 text-[10px] hover:bg-accent hover:text-foreground"
           >
             <Download className="h-3 w-3" /> Download
           </button>
-          <button onClick={onRemove} title="Remove" className="rounded p-0.5 hover:bg-accent hover:text-destructive"><X className="h-3 w-3" /></button>
+          <button onClick={onRemove} title="Remove" className="rounded-sm p-0.5 hover:bg-accent hover:text-destructive"><X className="h-3 w-3" /></button>
         </span>
       </div>
       {open && (
@@ -2712,7 +2712,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search integrations..."
-              className="w-full bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+              className="w-full bg-transparent text-xs text-foreground outline-hidden placeholder:text-muted-foreground"
             />
           </div>
         </div>
@@ -2740,11 +2740,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                             draggable
                             onDragStart={(event) => event.dataTransfer.setData('text/plain', type)}
                             onClick={() => appendFromRegistry(type)}
-                            className="w-full rounded border border-border/70 bg-background/70 px-2 py-1.5 text-left hover:bg-accent/70 transition-colors"
+                            className="w-full rounded-sm border border-border/70 bg-background/70 px-2 py-1.5 text-left hover:bg-accent/70 transition-colors"
                           >
                             <div className="flex items-start justify-between gap-2">
                               <p className="text-xs font-medium text-foreground">{item.label}</p>
-                              <span className={cn('rounded border px-1 py-0.5 text-[10px] font-medium', authColor[item.auth])}>
+                              <span className={cn('rounded-sm border px-1 py-0.5 text-[10px] font-medium', authColor[item.auth])}>
                                 {authLabel[item.auth]}
                               </span>
                             </div>
@@ -2821,14 +2821,14 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                       )}
                     >
                       <div className="flex items-start gap-2">
-                        <div className="mt-0.5 rounded border border-border bg-background px-1 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        <div className="mt-0.5 rounded-sm border border-border bg-background px-1 py-0.5 text-[10px] font-semibold text-muted-foreground">
                           {index === 0 ? (isTriggerBlock(block) ? 'TRIGGER' : 'STEP 0') : `STEP ${index}`}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-foreground">{block.label}</p>
                           <p className="text-[11px] text-muted-foreground">{block.category} · {block.subcategory}</p>
                         </div>
-                        <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-medium', authColor[block.auth])}>
+                        <span className={cn('rounded-sm border px-1.5 py-0.5 text-[10px] font-medium', authColor[block.auth])}>
                           {authLabel[block.auth]}
                         </span>
                         <button
@@ -2836,7 +2836,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                             event.stopPropagation();
                             removeBlock(block.id);
                           }}
-                          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive"
+                          className="rounded-sm p-1 text-muted-foreground hover:bg-accent hover:text-destructive"
                           title="Remove block"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -2870,11 +2870,11 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                   <Code2 className="h-3.5 w-3.5 text-muted-foreground" />
                   <p className="text-xs font-medium">Generated {codeLanguage === 'nodejs' ? 'Node.js' : 'Python'}</p>
                 </div>
-                <button onClick={copyGeneratedCode} className="rounded p-1 hover:bg-accent" title="Copy">
+                <button onClick={copyGeneratedCode} className="rounded-sm p-1 hover:bg-accent" title="Copy">
                   <ClipboardCopy className="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
               </div>
-              <pre className="max-h-[300px] overflow-auto rounded border border-border bg-background p-2 text-[11px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{generatedCode}</pre>
+              <pre className="max-h-[300px] overflow-auto rounded-sm border border-border bg-background p-2 text-[11px] font-mono text-foreground ide-scrollbar whitespace-pre-wrap">{generatedCode}</pre>
             </div>
           )}
 
@@ -2885,7 +2885,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                 <p className="text-[11px] text-muted-foreground">{selectedBlock.type}</p>
               </div>
 
-              <div className="rounded border border-border bg-card/60 p-2 text-[11px] text-muted-foreground">
+              <div className="rounded-sm border border-border bg-card/60 p-2 text-[11px] text-muted-foreground">
                 <p className="font-medium text-foreground">Credential profile</p>
                 <p className="mt-1">{selectedBlock.auth === 'api_key' ? 'Requires API key' : authLabel[selectedBlock.auth]}</p>
               </div>
@@ -2915,28 +2915,28 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                 );
               })()}
 
-              <div className="rounded border border-dashed border-border p-2">
+              <div className="rounded-sm border border-dashed border-border p-2">
                 <p className="text-[11px] font-medium text-muted-foreground">Add custom parameter (for advanced use)</p>
                 <button
                   onClick={addCustomParam}
-                  className="mt-2 w-full rounded border border-border px-2 py-1.5 text-xs hover:bg-accent transition-colors"
+                  className="mt-2 w-full rounded-sm border border-border px-2 py-1.5 text-xs hover:bg-accent transition-colors"
                 >
                   Add Custom Parameter
                 </button>
               </div>
 
-              <div className="rounded border border-border p-2">
+              <div className="rounded-sm border border-border p-2">
                 <p className="text-[11px] font-medium text-muted-foreground">Advanced JSON editor</p>
                 <textarea
                   rows={8}
                   value={jsonEditorValue}
                   onChange={(event) => setJsonEditorValue(event.target.value)}
-                  className="mt-2 w-full rounded border border-border bg-input px-2 py-1.5 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="mt-2 w-full rounded-sm border border-border bg-input px-2 py-1.5 font-mono text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
                 />
                 {jsonEditorError && <p className="mt-1 text-[11px] text-destructive">{jsonEditorError}</p>}
                 <button
                   onClick={applyJsonConfig}
-                  className="mt-2 w-full rounded border border-border px-2 py-1.5 text-xs hover:bg-accent transition-colors"
+                  className="mt-2 w-full rounded-sm border border-border px-2 py-1.5 text-xs hover:bg-accent transition-colors"
                 >
                   Apply JSON Parameters
                 </button>
@@ -2958,9 +2958,9 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
               {preflight.missing.length > 0 ? (
                 <div className="space-y-1">
                   {preflight.missing.map((v) => (
-                    <div key={v} className="flex items-center justify-between rounded border border-amber-500/30 bg-amber-500/5 px-2 py-1">
+                    <div key={v} className="flex items-center justify-between rounded-sm border border-amber-500/30 bg-amber-500/5 px-2 py-1">
                       <code className="text-[11px] font-mono text-amber-200">{v}</code>
-                      <button onClick={() => { const val = window.prompt(`Set ${v}:`); if (val !== null) { window.localStorage.setItem(`env.${v}`, val); if (generatedCode) runPreflight(generatedCode); } }} className="rounded border border-amber-500/40 px-1.5 py-0.5 text-[10px] hover:bg-amber-500/10">Set</button>
+                      <button onClick={() => { const val = window.prompt(`Set ${v}:`); if (val !== null) { window.localStorage.setItem(`env.${v}`, val); if (generatedCode) runPreflight(generatedCode); } }} className="rounded-sm border border-amber-500/40 px-1.5 py-0.5 text-[10px] hover:bg-amber-500/10">Set</button>
                     </div>
                   ))}
                 </div>
@@ -2977,7 +2977,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                 <FileText className="h-3.5 w-3.5 text-muted-foreground" />
                 <p className="text-xs font-medium">Step artifacts ({filteredArtifactIndices.length}/{stepArtifacts.length})</p>
               </div>
-              <button onClick={() => artifactInputRef.current?.click()} className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] hover:bg-accent">
+              <button onClick={() => artifactInputRef.current?.click()} className="inline-flex items-center gap-1 rounded-sm border border-border px-1.5 py-0.5 text-[10px] hover:bg-accent">
                 <Upload className="h-3 w-3" /> Upload
               </button>
               <input ref={artifactInputRef} type="file" multiple className="hidden" onChange={(e) => { handleArtifactUpload(e.target.files); e.target.value = ''; }} />
@@ -2986,16 +2986,16 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
             {/* Search & type filter — visible only when at least one artifact exists */}
             {stepArtifacts.length > 0 && (
               <div className="mb-2 space-y-1.5">
-                <div className="flex items-center gap-1.5 rounded border border-border bg-background px-2 py-1">
+                <div className="flex items-center gap-1.5 rounded-sm border border-border bg-background px-2 py-1">
                   <Search className="h-3 w-3 text-muted-foreground shrink-0" />
                   <input
                     value={artifactSearch}
                     onChange={(e) => setArtifactSearch(e.target.value)}
                     placeholder="Search name, step, or content…"
-                    className="w-full bg-transparent text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    className="w-full bg-transparent text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-hidden"
                   />
                   {artifactSearch && (
-                    <button onClick={() => setArtifactSearch('')} className="rounded p-0.5 hover:bg-accent" title="Clear search">
+                    <button onClick={() => setArtifactSearch('')} className="rounded-sm p-0.5 hover:bg-accent" title="Clear search">
                       <X className="h-3 w-3 text-muted-foreground" />
                     </button>
                   )}
@@ -3010,7 +3010,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                         key={k}
                         onClick={() => toggleKindFilter(k)}
                         className={cn(
-                          'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] transition-colors',
+                          'inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[10px] transition-colors',
                           active
                             ? 'border-primary/60 bg-primary/15 text-foreground'
                             : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -3023,7 +3023,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                   {(artifactKindFilter.size > 0 || artifactSearch) && (
                     <button
                       onClick={() => { setArtifactKindFilter(new Set()); setArtifactSearch(''); }}
-                      className="ml-auto rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent"
+                      className="ml-auto rounded-sm border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-accent"
                     >
                       Reset
                     </button>
@@ -3069,10 +3069,10 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
               {showSnippets && (
                 <div className="mt-2 space-y-2">
                   {([['CLI quickstart', deploymentSnippets.cliQuickstart], ['Dockerfile', deploymentSnippets.dockerfile], ['docker-compose.yml', deploymentSnippets.dockerCompose], ['Procfile', deploymentSnippets.procfile], ['systemd unit', deploymentSnippets.systemd]] as const).map(([title, body]) => (
-                    <details key={title} className="rounded border border-border bg-background/60">
+                    <details key={title} className="rounded-sm border border-border bg-background/60">
                       <summary className="flex cursor-pointer items-center justify-between px-2 py-1 text-[11px] hover:bg-accent/50">
                         <span className="font-medium">{title}</span>
-                        <button onClick={(e) => { e.preventDefault(); navigator.clipboard.writeText(body); toast.success(`${title} copied`); }} className="rounded p-0.5 hover:bg-accent"><ClipboardCopy className="h-3 w-3 text-muted-foreground" /></button>
+                        <button onClick={(e) => { e.preventDefault(); navigator.clipboard.writeText(body); toast.success(`${title} copied`); }} className="rounded-sm p-0.5 hover:bg-accent"><ClipboardCopy className="h-3 w-3 text-muted-foreground" /></button>
                       </summary>
                       <pre className="max-h-56 overflow-auto border-t border-border bg-background p-2 text-[10px] font-mono text-foreground ide-scrollbar whitespace-pre">{body}</pre>
                     </details>
@@ -3094,15 +3094,15 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                   <p className="text-[11px] italic text-muted-foreground">No trigger firings recorded yet.</p>
                 ) : (
                   <>
-                    <button onClick={clearRunHistory} className="w-full rounded border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-destructive">Clear history</button>
+                    <button onClick={clearRunHistory} className="w-full rounded-sm border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-destructive">Clear history</button>
                     {runHistory.map((run) => {
                       const isOpen = selectedRunId === run.id;
                       const sc = run.status === 'success' ? 'border-emerald-500/40 bg-emerald-500/5 text-emerald-300' : run.status === 'halted' ? 'border-amber-500/40 bg-amber-500/5 text-amber-300' : 'border-destructive/40 bg-destructive/5 text-destructive';
                       return (
-                        <div key={run.id} className="rounded border border-border bg-background/60">
+                        <div key={run.id} className="rounded-sm border border-border bg-background/60">
                           <button onClick={() => setSelectedRunId(isOpen ? null : run.id)} className="flex w-full items-center justify-between px-2 py-1 text-left hover:bg-accent/50">
                             <span className="flex min-w-0 items-center gap-1.5">
-                              <span className={cn('rounded border px-1 text-[9px] font-medium', sc)}>{run.status}</span>
+                              <span className={cn('rounded-sm border px-1 text-[9px] font-medium', sc)}>{run.status}</span>
                               <span className="truncate text-[11px] font-medium">{run.triggerLabel}</span>
                             </span>
                             <span className="text-[10px] text-muted-foreground">{run.durationMs}ms · {new Date(run.startedAt).toLocaleTimeString()}</span>
@@ -3114,14 +3114,14 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                                 <div>Artifacts: <span className="text-foreground">{run.artifactsCount}</span></div>
                               </div>
                               {run.preflight.missing.length > 0 && (
-                                <div className="rounded border border-amber-500/30 bg-amber-500/5 p-1.5 text-[10px] text-amber-300"><AlertTriangle className="inline h-3 w-3 mr-1" />Preflight missing: {run.preflight.missing.join(', ')}</div>
+                                <div className="rounded-sm border border-amber-500/30 bg-amber-500/5 p-1.5 text-[10px] text-amber-300"><AlertTriangle className="inline h-3 w-3 mr-1" />Preflight missing: {run.preflight.missing.join(', ')}</div>
                               )}
-                              {run.errorMessage && <div className="rounded border border-destructive/40 bg-destructive/5 p-1.5 text-[10px] text-destructive font-mono">{run.errorMessage}</div>}
+                              {run.errorMessage && <div className="rounded-sm border border-destructive/40 bg-destructive/5 p-1.5 text-[10px] text-destructive font-mono">{run.errorMessage}</div>}
                               {run.finalOutputPreview && (
-                                <details><summary className="cursor-pointer text-[10px] font-medium text-muted-foreground">Final output</summary><pre className="mt-1 max-h-40 overflow-auto rounded border border-border bg-background p-1.5 text-[10px] font-mono whitespace-pre-wrap">{run.finalOutputPreview}</pre></details>
+                                <details><summary className="cursor-pointer text-[10px] font-medium text-muted-foreground">Final output</summary><pre className="mt-1 max-h-40 overflow-auto rounded-sm border border-border bg-background p-1.5 text-[10px] font-mono whitespace-pre-wrap">{run.finalOutputPreview}</pre></details>
                               )}
                               <details><summary className="cursor-pointer text-[10px] font-medium text-muted-foreground">Logs ({run.logs.length})</summary>
-                                <div className="mt-1 max-h-40 overflow-auto space-y-0.5 rounded border border-border bg-background p-1.5">
+                                <div className="mt-1 max-h-40 overflow-auto space-y-0.5 rounded-sm border border-border bg-background p-1.5">
                                   {run.logs.map((log, i) => (<p key={i} className="text-[10px] font-mono text-muted-foreground">[{log.time}] {log.text}</p>))}
                                 </div>
                               </details>
@@ -3159,7 +3159,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                       disabled={!linkable}
                       title={linkable ? `Jump to step ${log.stepIndex} artifact` : undefined}
                       className={cn(
-                        'flex w-full items-center gap-1 rounded px-1 text-left transition-colors',
+                        'flex w-full items-center gap-1 rounded-sm px-1 text-left transition-colors',
                         linkable ? 'cursor-pointer hover:bg-accent/50 hover:text-foreground' : 'cursor-default',
                       )}
                     >
@@ -3167,7 +3167,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
                       <span className="text-muted-foreground">{log.time}</span>
                       <span className="flex-1 truncate">{log.text}</span>
                       {linkable && (
-                        <span className="rounded border border-border bg-muted/30 px-1 text-[9px] text-muted-foreground">
+                        <span className="rounded-sm border border-border bg-muted/30 px-1 text-[9px] text-muted-foreground">
                           step {log.stepIndex} →
                         </span>
                       )}

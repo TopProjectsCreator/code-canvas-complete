@@ -189,7 +189,7 @@ export function MarkdownComposer({ content, onChange, placeholder = 'Write your 
         )}
       </div>
       <div ref={editorContainerRef} className="flex-1 overflow-auto p-4" onPaste={handlePaste}>
-        <div className="prose prose-sm dark:prose-invert max-w-none [&_.ProseMirror]:outline-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-muted-foreground/50 [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0">
+        <div className="prose prose-sm dark:prose-invert max-w-none [&_.ProseMirror]:outline-hidden [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-muted-foreground/50 [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0">
           <EditorContent editor={editor} />
         </div>
       </div>
@@ -205,7 +205,7 @@ function ToolbarButton({ onClick, active, children }: { onClick: () => void; act
     <button
       onClick={onClick}
       className={cn(
-        'h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors',
+        'h-7 w-7 flex items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors',
         active && 'bg-muted text-foreground',
       )}
     >

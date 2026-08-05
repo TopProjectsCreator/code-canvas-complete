@@ -266,7 +266,7 @@ export function ArduinoUploadDialog({
 
         <div className="space-y-4">
           {isInIframe && (
-            <div className="text-sm text-amber-500 bg-amber-500/10 p-3 rounded flex items-start gap-2">
+            <div className="text-sm text-amber-500 bg-amber-500/10 p-3 rounded-sm flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>Board upload (Web Serial) does not work inside iframes due to browser security restrictions. Please open this app directly in a new tab to use hardware flashing.</span>
             </div>
@@ -367,7 +367,7 @@ export function ArduinoUploadDialog({
 
           {config.uploadMethod === 'serial' && isSambaBoard && (
             <div className="space-y-2">
-              <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded space-y-2">
+              <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-sm space-y-2">
                 <p className="font-medium text-foreground">USB Serial Upload (SAM-BA Protocol)</p>
                 <ol className="list-decimal list-inside space-y-1 text-xs">
                   <li>Connect your board via USB</li>
@@ -380,21 +380,21 @@ export function ArduinoUploadDialog({
           )}
 
           {config.uploadMethod === 'serial' && AVR109_BOARDS.includes(config.boardId) && (
-            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded space-y-2">
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-sm space-y-2">
               <p className="font-medium text-foreground">USB Serial Upload (Caterina/AVR109)</p>
               <p className="text-xs">Connect via USB. The board will auto-reset into bootloader mode. You may need to select the port twice.</p>
             </div>
           )}
 
           {config.uploadMethod === 'serial' && ESP_BOARDS.includes(config.boardId) && (
-            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded space-y-2">
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-sm space-y-2">
               <p className="font-medium text-foreground">USB Serial Upload (esptool)</p>
               <p className="text-xs">Connect via USB. If auto-reset doesn't work, hold the BOOT button while clicking Upload.</p>
             </div>
           )}
 
           {config.uploadMethod === 'serial' && STM32_BOARDS.includes(config.boardId) && (
-            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded space-y-2">
+            <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-sm space-y-2">
               <p className="font-medium text-foreground">USB Serial Upload (STM32 Bootloader)</p>
               <p className="text-xs">Connect via USB. The board will enter system bootloader mode via 1200-baud touch.</p>
             </div>
@@ -402,7 +402,7 @@ export function ArduinoUploadDialog({
 
           {config.uploadMethod === 'serial' && isUf2Board && (
             <div className="space-y-2">
-              <div className="text-sm text-amber-500 bg-amber-500/10 p-2 rounded">
+              <div className="text-sm text-amber-500 bg-amber-500/10 p-2 rounded-sm">
                 This board uploads via the local uploader bridge. Enter the mounted UF2 drive path (for example <code>/Volumes/NANO33BOOT</code> or <code>E:\\</code>), then click upload.
               </div>
               <div>

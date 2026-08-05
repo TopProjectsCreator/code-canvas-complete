@@ -12,7 +12,7 @@ interface MessageActionsProps {
 
 export function MessageActions({ onReply, onAddReaction, onDelete, canDelete }: MessageActionsProps) {
   return (
-    <div className="absolute -top-3 right-2 flex items-center gap-0.5 bg-popover border border-border rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-opacity z-10">
+    <div className="absolute -top-3 right-2 flex items-center gap-0.5 bg-popover border border-border rounded-lg shadow-xs opacity-0 group-hover:opacity-100 transition-opacity z-10">
       <EmojiPicker
         onSelect={onAddReaction}
         trigger={

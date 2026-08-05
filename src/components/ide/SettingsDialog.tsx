@@ -505,7 +505,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                                   type="text"
                                   value={discordConfig.landing.details}
                                   onChange={(e) => handleDiscordSectionChange('landing', 'details', e.target.value)}
-                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                  className="w-full bg-background border border-border rounded-sm px-2 py-1 text-xs text-foreground"
                                 />
                               </div>
                               <div className="space-y-1">
@@ -514,7 +514,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                                   type="text"
                                   value={discordConfig.landing.state}
                                   onChange={(e) => handleDiscordSectionChange('landing', 'state', e.target.value)}
-                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                  className="w-full bg-background border border-border rounded-sm px-2 py-1 text-xs text-foreground"
                                 />
                               </div>
                             </div>
@@ -542,7 +542,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                                   type="text"
                                   value={discordConfig.editing.details}
                                   onChange={(e) => handleDiscordSectionChange('editing', 'details', e.target.value)}
-                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                  className="w-full bg-background border border-border rounded-sm px-2 py-1 text-xs text-foreground"
                                 />
                               </div>
                               <div className="space-y-1">
@@ -551,7 +551,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                                   type="text"
                                   value={discordConfig.editing.state}
                                   onChange={(e) => handleDiscordSectionChange('editing', 'state', e.target.value)}
-                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                  className="w-full bg-background border border-border rounded-sm px-2 py-1 text-xs text-foreground"
                                 />
                               </div>
                             </div>
@@ -579,7 +579,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                                   type="text"
                                   value={discordConfig.running.details}
                                   onChange={(e) => handleDiscordSectionChange('running', 'details', e.target.value)}
-                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                  className="w-full bg-background border border-border rounded-sm px-2 py-1 text-xs text-foreground"
                                 />
                               </div>
                               <div className="space-y-1">
@@ -588,7 +588,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                                   type="text"
                                   value={discordConfig.running.state}
                                   onChange={(e) => handleDiscordSectionChange('running', 'state', e.target.value)}
-                                  className="w-full bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                                  className="w-full bg-background border border-border rounded-sm px-2 py-1 text-xs text-foreground"
                                 />
                               </div>
                             </div>
@@ -705,18 +705,18 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                           <div className="flex items-center gap-1">
                             {info.docsUrl && (
                               <a href={info.docsUrl} target="_blank" rel="noopener noreferrer"
-                                className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+                                className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
                                 <ExternalLink className="w-3 h-3" />
                               </a>
                             )}
                             {hasKey ? (
                               <>
                                 <button onClick={() => setShowKey(prev => ({ ...prev, [provider]: !prev[provider] }))}
-                                  className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+                                  className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
                                   {showKey[provider] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                                 </button>
                                 <button onClick={() => deleteApiKey(provider)}
-                                  className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors">
+                                  className="p-1 rounded-sm hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors">
                                   <Trash2 className="w-3 h-3" />
                                 </button>
                               </>
@@ -908,7 +908,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                                 >
                                   <div className="flex gap-0.5 shrink-0">
                                     {[ct.colors.background, ct.colors.primary, ct.colors.syntaxKeyword, ct.colors.syntaxString].map((c, i) => (
-                                      <div key={i} className="w-4 h-4 rounded-sm border border-border/50" style={{ backgroundColor: c }} />
+                                      <div key={i} className="w-4 h-4 rounded-xs border border-border/50" style={{ backgroundColor: c }} />
                                     ))}
                                   </div>
                                   <span className="text-sm font-medium">{ct.name}</span>
@@ -922,21 +922,21 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                                       navigator.clipboard.writeText(url);
                                       toast({ title: 'Share link copied!' });
                                     }}
-                                    className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                                    className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                                   >
                                     <Share2 className="w-3.5 h-3.5" />
                                   </button>
                                   <button
                                     title="Edit theme"
                                     onClick={() => setAppearanceView({ type: 'edit', theme: ct })}
-                                    className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                                    className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                                   >
                                     <Pencil className="w-3.5 h-3.5" />
                                   </button>
                                   <button
                                     title="Delete theme"
                                     onClick={() => deleteCustomTheme(ct.id)}
-                                    className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                                    className="p-1 rounded-sm hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -1022,7 +1022,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                     <select
                       value={shellExecutorMode}
                       onChange={(e) => setShellExecutorMode(e.target.value as 'webcontainer' | 'wandbox')}
-                      className="bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                      className="bg-background border border-border rounded-sm px-2 py-1 text-xs text-foreground"
                     >
                       <option value="webcontainer">WebContainer (browser Node.js)</option>
                       <option value="wandbox">Wandbox API</option>
@@ -1038,7 +1038,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                     <select
                       value={pythonExecutorMode}
                       onChange={(e) => setPythonExecutorMode(e.target.value as 'auto' | 'pyodide' | 'container')}
-                      className="bg-background border border-border rounded px-2 py-1 text-xs text-foreground"
+                      className="bg-background border border-border rounded-sm px-2 py-1 text-xs text-foreground"
                     >
                       <option value="auto">Auto (Pyodide → Container)</option>
                       <option value="pyodide">Pyodide (browser Python)</option>
@@ -1058,7 +1058,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                         value={pyodideSource}
                         onChange={(e) => setPyodideSource(e.target.value)}
                         placeholder="default (pyodide/pyodide)"
-                        className="bg-background border border-border rounded px-2 py-1 text-xs text-foreground w-56"
+                        className="bg-background border border-border rounded-sm px-2 py-1 text-xs text-foreground w-56"
                       />
                       <button
                         type="button"
@@ -1068,7 +1068,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                           else window.localStorage.removeItem('ide.pyodideSource');
                           window.location.reload();
                         }}
-                        className="px-2 py-1 text-xs rounded bg-primary text-primary-foreground hover:opacity-90"
+                        className="px-2 py-1 text-xs rounded-sm bg-primary text-primary-foreground hover:opacity-90"
                       >
                         Apply
                       </button>
@@ -1103,7 +1103,7 @@ export const SettingsDialog = ({ open, onOpenChange, defaultTab = 'profile' }: S
                       className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50"
                     >
                       <span className="text-sm text-muted-foreground">{shortcut.action}</span>
-                      <kbd className="px-2 py-0.5 bg-muted rounded text-xs font-mono">
+                      <kbd className="px-2 py-0.5 bg-muted rounded-sm text-xs font-mono">
                         {shortcut.keys}
                       </kbd>
                     </div>

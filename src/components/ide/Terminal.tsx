@@ -327,7 +327,7 @@ export const Terminal = ({
                         e.stopPropagation();
                       }}
                       onClick={e => e.stopPropagation()}
-                      className="w-16 bg-transparent outline-none border-b border-primary text-foreground text-xs"
+                      className="w-16 bg-transparent outline-hidden border-b border-primary text-foreground text-xs"
                       maxLength={20}
                     />
                   ) : (
@@ -344,7 +344,7 @@ export const Terminal = ({
                     <span
                       role="button"
                       onClick={e => startRename(shell, e)}
-                      className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity rounded"
+                      className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity rounded-sm"
                       title="Rename terminal"
                     >
                       <Pencil className="w-2.5 h-2.5" />
@@ -355,7 +355,7 @@ export const Terminal = ({
                     <span
                       role="button"
                       onClick={(e) => closeShell(shell.id, e)}
-                      className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity rounded"
+                      className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity rounded-sm"
                       title="Close"
                     >
                       <X className="w-2.5 h-2.5" />
@@ -367,7 +367,7 @@ export const Terminal = ({
               {/* Add new shell */}
               <button
                 onClick={addShell}
-                className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
                 title="New terminal"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -436,14 +436,14 @@ export const Terminal = ({
           )}
           <button
             onClick={onToggleMinimize}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
           >
             {isMinimized ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
           {!isReplitShellActive && (
             <button
               onClick={() => onCommand('clear', ['\x1Bc'], false)}
-              className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
               title="Clear"
             >
               <X className="w-3.5 h-3.5" />
@@ -489,7 +489,7 @@ export const Terminal = ({
             onClick={() => inputRef.current?.focus()}
           >
             {pythonExecutorMode === 'pyodide' && activePane !== 'console' && (
-              <div className="mb-2 flex items-start gap-2 rounded border border-yellow-500/40 bg-yellow-500/10 px-2.5 py-1.5 text-xs text-yellow-200 font-sans">
+              <div className="mb-2 flex items-start gap-2 rounded-sm border border-yellow-500/40 bg-yellow-500/10 px-2.5 py-1.5 text-xs text-yellow-200 font-sans">
                 <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-yellow-400" />
                 <div className="leading-snug">
                   <span className="font-semibold">Pyodide (browser Python) is forced.</span>{' '}
@@ -521,7 +521,7 @@ export const Terminal = ({
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="flex-1 bg-transparent outline-none text-foreground caret-primary"
+                className="flex-1 bg-transparent outline-hidden text-foreground caret-primary"
                 disabled={isExecuting}
                 placeholder={stdinPrompt ? 'Type your input and press Enter...' : (isExecuting ? 'Executing...' : '')}
                 autoFocus

@@ -63,7 +63,7 @@ export const ShadowInput = ({
           ref.current?.blur();
         }
       }}
-      className="absolute text-center outline-none"
+      className="absolute text-center outline-hidden"
       style={{
         left,
         top,

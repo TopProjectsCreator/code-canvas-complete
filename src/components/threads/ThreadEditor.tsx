@@ -89,10 +89,10 @@ export function ThreadEditor({
         el.src = url;
         if (el instanceof HTMLImageElement) {
           el.alt = file.name;
-          el.className = 'max-w-full rounded';
+          el.className = 'max-w-full rounded-sm';
         } else if (el instanceof HTMLVideoElement) {
           el.controls = true;
-          el.className = 'max-w-full rounded';
+          el.className = 'max-w-full rounded-sm';
         } else if (el instanceof HTMLAudioElement) {
           el.controls = true;
           el.className = 'w-full';
@@ -138,11 +138,11 @@ export function ThreadEditor({
           const isVideo = file.type.startsWith('video/');
           const isAudio = file.type.startsWith('audio/');
           if (isVideo) {
-            exec('insertHTML', `<video src="${url}" controls class="max-w-full rounded"></video>`);
+            exec('insertHTML', `<video src="${url}" controls class="max-w-full rounded-sm"></video>`);
           } else if (isAudio) {
             exec('insertHTML', `<audio src="${url}" controls class="w-full"></audio>`);
           } else {
-            exec('insertHTML', `<img src="${url}" alt="Pasted image" class="max-w-full rounded" />`);
+            exec('insertHTML', `<img src="${url}" alt="Pasted image" class="max-w-full rounded-sm" />`);
           }
         } catch {
           // upload failed, paste falls through naturally
@@ -163,11 +163,11 @@ export function ThreadEditor({
         const isVideo = file.type.startsWith('video/');
         const isAudio = file.type.startsWith('audio/');
         if (isVideo) {
-          exec('insertHTML', `<video src="${url}" controls class="max-w-full rounded"></video>`);
+          exec('insertHTML', `<video src="${url}" controls class="max-w-full rounded-sm"></video>`);
         } else if (isAudio) {
           exec('insertHTML', `<audio src="${url}" controls class="w-full"></audio>`);
         } else {
-          exec('insertHTML', `<img src="${url}" alt="${file.name}" class="max-w-full rounded" />`);
+          exec('insertHTML', `<img src="${url}" alt="${file.name}" class="max-w-full rounded-sm" />`);
         }
       } catch {
         // handled by caller
@@ -209,7 +209,7 @@ export function ThreadEditor({
                   <button
                     key={emoji}
                     type="button"
-                    className="h-8 w-8 flex items-center justify-center hover:bg-accent rounded text-lg cursor-pointer"
+                    className="h-8 w-8 flex items-center justify-center hover:bg-accent rounded-sm text-lg cursor-pointer"
                     onClick={() => insertEmoji(emoji)}
                   >
                     {emoji}
@@ -231,7 +231,7 @@ export function ThreadEditor({
           ref={editorRef}
           contentEditable
           suppressContentEditableWarning
-          className={cn('px-3 py-3 text-sm outline-none prose prose-sm prose-invert max-w-none', minHeightClassName)}
+          className={cn('px-3 py-3 text-sm outline-hidden prose prose-sm prose-invert max-w-none', minHeightClassName)}
           onFocus={() => setFocused(true)}
           onBlur={() => {
             setFocused(false);

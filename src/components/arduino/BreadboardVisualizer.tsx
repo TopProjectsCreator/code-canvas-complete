@@ -366,7 +366,7 @@ export function BreadboardVisualizer({
       </div>
 
       {simulation.running && (
-        <div className="rounded border border-border bg-black/80 text-green-400 p-2 text-xs font-mono">
+        <div className="rounded-sm border border-border bg-black/80 text-green-400 p-2 text-xs font-mono">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-1"><Terminal className="w-3 h-3" /> Serial Monitor</div>
             <Button size="sm" variant="outline" onClick={() => setSerialOpen(v => !v)}>{serialOpen ? 'Hide' : 'Show'}</Button>

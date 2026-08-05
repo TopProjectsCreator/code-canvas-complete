@@ -1131,7 +1131,7 @@ export default function Compare() {
               {/* CodeCanvas score */}
               <div className="text-center">
                 <div className="mb-1 flex items-center justify-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded bg-primary/20">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-sm bg-primary/20">
                     <CircuitBoard className="h-4 w-4 text-primary" />
                   </div>
                   <span className="font-mono font-semibold text-primary text-sm">

@@ -256,8 +256,8 @@ export const ZipEditor = ({ file, onContentChange }: ZipEditorProps) => {
           <div className="flex items-center justify-between text-sm font-medium">
             <span className="flex items-center gap-2"><Archive className="w-4 h-4" /> ZIP Contents</span>
             <div className="flex items-center gap-1">
-              <button onClick={downloadAll} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60" title="Download All"><Download className="w-3.5 h-3.5" /></button>
-              <button onClick={addFileToZip} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60" title="Add file"><Upload className="w-3.5 h-3.5" /></button>
+              <button onClick={downloadAll} className="p-1 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted/60" title="Download All"><Download className="w-3.5 h-3.5" /></button>
+              <button onClick={addFileToZip} className="p-1 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted/60" title="Add file"><Upload className="w-3.5 h-3.5" /></button>
               <span className="text-xs text-muted-foreground">{entries.length} files</span>
             </div>
           </div>
@@ -281,7 +281,7 @@ export const ZipEditor = ({ file, onContentChange }: ZipEditorProps) => {
           ) : (
           <div key={entry.path} className="group flex items-center">
             <button
-              className={`flex-1 text-left px-2 py-1.5 rounded text-xs hover:bg-muted/50 flex items-center justify-between gap-2 ${selectedPath === entry.path ? 'bg-muted' : ''}`}
+              className={`flex-1 text-left px-2 py-1.5 rounded-sm text-xs hover:bg-muted/50 flex items-center justify-between gap-2 ${selectedPath === entry.path ? 'bg-muted' : ''}`}
               onClick={() => void openEntry(entry.path)}
             >
               <span className="truncate">{entry.path}</span>
@@ -290,12 +290,12 @@ export const ZipEditor = ({ file, onContentChange }: ZipEditorProps) => {
             <div className="hidden group-hover:flex items-center gap-0.5 pr-1">
               <button
                 onClick={() => { setRenamingPath(entry.path); setRenameValue(entry.path); }}
-                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                className="p-1 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted/60"
                 title="Rename"
               ><Pencil className="w-3 h-3" /></button>
               <button
                 onClick={() => { if (confirm(`Delete ${entry.path}?`)) void deleteEntry(entry.path); }}
-                className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/20"
+                className="p-1 rounded-sm text-muted-foreground hover:text-destructive hover:bg-destructive/20"
                 title="Delete"
               ><Trash2 className="w-3 h-3" /></button>
             </div>

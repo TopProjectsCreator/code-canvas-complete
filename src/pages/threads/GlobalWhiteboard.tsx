@@ -506,7 +506,7 @@ export default function GlobalWhiteboard() {
         )}
       </div>
       {effectiveViewMode && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-background/90 backdrop-blur border px-4 py-2 text-xs shadow">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-background/90 backdrop-blur border px-4 py-2 text-xs shadow-sm">
           {!user
             ? 'Sign in to draw and move cards. View-only mode.'
             : 'An admin has set you to viewer. View-only mode.'}

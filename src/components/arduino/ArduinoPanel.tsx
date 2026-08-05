@@ -470,16 +470,16 @@ String runAppBrickAction(String action, int value) {
                     <Label>Connectivity</Label>
                     <div className="flex gap-2 mt-1 flex-wrap">
                       {board.serial && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700">Serial</span>
+                        <span className="text-xs px-2 py-0.5 rounded-sm bg-blue-900/50 text-blue-300 border border-blue-700">Serial</span>
                       )}
                       {board.wifi && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-green-900/50 text-green-300 border border-green-700">WiFi</span>
+                        <span className="text-xs px-2 py-0.5 rounded-sm bg-green-900/50 text-green-300 border border-green-700">WiFi</span>
                       )}
                       {board.bluetooth && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-purple-900/50 text-purple-300 border border-purple-700">Bluetooth</span>
+                        <span className="text-xs px-2 py-0.5 rounded-sm bg-purple-900/50 text-purple-300 border border-purple-700">Bluetooth</span>
                       )}
                       {!board.wifi && !board.bluetooth && (
-                        <span className="text-xs px-2 py-0.5 rounded bg-gray-800 text-gray-400 border border-gray-600">Wired Only</span>
+                        <span className="text-xs px-2 py-0.5 rounded-sm bg-gray-800 text-gray-400 border border-gray-600">Wired Only</span>
                       )}
                     </div>
                   </div>
@@ -545,7 +545,7 @@ String runAppBrickAction(String action, int value) {
               </p>
               <div className="grid md:grid-cols-2 gap-3">
                 <div
-                  className="rounded border border-slate-700 p-3 bg-slate-950/50 space-y-2"
+                  className="rounded-sm border border-slate-700 p-3 bg-slate-950/50 space-y-2"
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => {
                     event.preventDefault();
@@ -560,7 +560,7 @@ String runAppBrickAction(String action, int value) {
                       draggable
                       onDragStart={() => setDraggedPaletteBrickId(brick.id)}
                       onDragEnd={() => setDraggedPaletteBrickId(null)}
-                      className="rounded border border-slate-700 p-2 bg-slate-900 cursor-grab active:cursor-grabbing"
+                      className="rounded-sm border border-slate-700 p-2 bg-slate-900 cursor-grab active:cursor-grabbing"
                     >
                       <p className="font-medium text-sm">{brick.title}</p>
                       <p className="text-xs text-slate-400">{brick.description}</p>
@@ -569,7 +569,7 @@ String runAppBrickAction(String action, int value) {
                 </div>
 
                 <div
-                  className="rounded border border-slate-700 p-3 bg-slate-950/50 space-y-2 min-h-[220px]"
+                  className="rounded-sm border border-slate-700 p-3 bg-slate-950/50 space-y-2 min-h-[220px]"
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => {
                     event.preventDefault();
@@ -599,7 +599,7 @@ String runAppBrickAction(String action, int value) {
                           if (draggedComposerBrickId) moveComposerBrick(draggedComposerBrickId, brick.id);
                           setDraggedComposerBrickId(null);
                         }}
-                        className="rounded border border-violet-700/60 p-2 bg-violet-950/20 cursor-grab active:cursor-grabbing"
+                        className="rounded-sm border border-violet-700/60 p-2 bg-violet-950/20 cursor-grab active:cursor-grabbing"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
@@ -610,7 +610,7 @@ String runAppBrickAction(String action, int value) {
                                 <label key={key} className="text-xs text-slate-300">
                                   <span className="block text-[11px] text-slate-400 mb-1">{key}</span>
                                   <input
-                                    className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs"
+                                    className="w-full rounded-sm border border-slate-700 bg-slate-900 px-2 py-1 text-xs"
                                     value={String(value)}
                                     onChange={(event) => updateComposerBrickConfig(brick.id, key, event.target.value)}
                                   />
@@ -641,19 +641,19 @@ String runAppBrickAction(String action, int value) {
             <Card className="bg-slate-900 border-slate-700 p-4">
               <h3 className="font-semibold mb-2">Hybrid Runtime Workbench</h3>
               <div className="grid md:grid-cols-2 gap-3 text-sm">
-                <div className="rounded border border-slate-700 p-3 bg-slate-950/60">
+                <div className="rounded-sm border border-slate-700 p-3 bg-slate-950/60">
                   <p className="font-medium">Python Agent Layer</p>
                   <p className="text-slate-300">High-level logic for prompts, app state, and model coordination.</p>
                 </div>
-                <div className="rounded border border-slate-700 p-3 bg-slate-950/60">
+                <div className="rounded-sm border border-slate-700 p-3 bg-slate-950/60">
                   <p className="font-medium">C++ Hardware Layer</p>
                   <p className="text-slate-300">Timing-critical control, ISR handling, and deterministic I/O control.</p>
                 </div>
-                <div className="rounded border border-slate-700 p-3 bg-slate-950/60">
+                <div className="rounded-sm border border-slate-700 p-3 bg-slate-950/60">
                   <p className="font-medium">Bridge RPC Channel</p>
                   <p className="text-slate-300">Connect Python tasks to sketch calls with typed request/response contracts.</p>
                 </div>
-                <div className="rounded border border-slate-700 p-3 bg-slate-950/60">
+                <div className="rounded-sm border border-slate-700 p-3 bg-slate-950/60">
                   <p className="font-medium">Profiling Overlay</p>
                   <p className="text-slate-300">Track RAM, token throughput, and accelerator utilization while iterating.</p>
                 </div>
@@ -732,7 +732,7 @@ String runAppBrickAction(String action, int value) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm text-slate-200">
-            <div className="rounded border border-slate-700 bg-slate-900 p-3">
+            <div className="rounded-sm border border-slate-700 bg-slate-900 p-3">
               <p className="font-medium mb-1">Primary LLM Lanes</p>
               <ul className="list-disc pl-5 space-y-1 text-slate-300">
                 <li>Tiny lane for voice commands and fast control loops.</li>
@@ -740,7 +740,7 @@ String runAppBrickAction(String action, int value) {
                 <li>Max-context lane for long sessions and design memory.</li>
               </ul>
             </div>
-            <div className="rounded border border-slate-700 bg-slate-900 p-3">
+            <div className="rounded-sm border border-slate-700 bg-slate-900 p-3">
               <p className="font-medium mb-1">Edge AI Attachments</p>
               <ul className="list-disc pl-5 space-y-1 text-slate-300">
                 <li>Vision detector bundle for gesture/object triggers.</li>
@@ -761,7 +761,7 @@ String runAppBrickAction(String action, int value) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm text-slate-200">
-            <div className="rounded border border-slate-700 bg-slate-900 p-3">
+            <div className="rounded-sm border border-slate-700 bg-slate-900 p-3">
               <p className="font-medium mb-1">Release Pipeline</p>
               <ol className="list-decimal pl-5 space-y-1 text-slate-300">
                 <li>Build app bundle from App Bricks graph + runtime bridge.</li>
@@ -769,7 +769,7 @@ String runAppBrickAction(String action, int value) {
                 <li>Sign image and push staged rollout package.</li>
               </ol>
             </div>
-            <div className="rounded border border-slate-700 bg-slate-900 p-3">
+            <div className="rounded-sm border border-slate-700 bg-slate-900 p-3">
               <p className="font-medium mb-1">Rollout Policies</p>
               <ul className="list-disc pl-5 space-y-1 text-slate-300">
                 <li>Dev Board: instant deploy for iteration.</li>
@@ -790,7 +790,7 @@ String runAppBrickAction(String action, int value) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm text-slate-200">
-            <div className="rounded border border-slate-700 bg-slate-900 p-3">
+            <div className="rounded-sm border border-slate-700 bg-slate-900 p-3">
               <p className="font-medium mb-1">Bridge Contract</p>
               <ul className="list-disc pl-5 space-y-1 text-slate-300">
                 <li>Typed request/response schema for every hardware action.</li>
@@ -798,7 +798,7 @@ String runAppBrickAction(String action, int value) {
                 <li>Timeout + retry strategy for noisy serial/Wi-Fi links.</li>
               </ul>
             </div>
-            <div className="rounded border border-slate-700 bg-slate-900 p-3">
+            <div className="rounded-sm border border-slate-700 bg-slate-900 p-3">
               <p className="font-medium mb-1">Runtime Observability</p>
               <ul className="list-disc pl-5 space-y-1 text-slate-300">
                 <li>Queue depth and ISR pressure timeline.</li>

@@ -148,7 +148,7 @@ export function TaskBoardModal({
             {/* Quick plan feature input */}
             <div className="mt-2 flex gap-2">
               <input
-                className="flex h-8 flex-1 rounded-md border border-input bg-background px-3 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-8 flex-1 rounded-md border border-input bg-background px-3 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                 placeholder="Plan a feature: type feature name, then subtasks on new lines..."
                 value={featureInput}
                 onChange={(e) => setFeatureInput(e.target.value)}
@@ -169,21 +169,21 @@ export function TaskBoardModal({
             {showNewTaskForm && (
               <div className="mt-2 space-y-2 rounded-lg border bg-muted/30 p-3">
                 <input
-                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                   placeholder="Task title..."
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
                   autoFocus
                 />
                 <input
-                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                   placeholder="Description (optional)..."
                   value={newTaskDesc}
                   onChange={(e) => setNewTaskDesc(e.target.value)}
                 />
                 <div className="flex items-center gap-2">
                   <select
-                    className="flex h-8 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex h-8 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                     value={newTaskPriority}
                     onChange={(e) => setNewTaskPriority(e.target.value as any)}
                   >

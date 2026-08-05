@@ -43,7 +43,7 @@ export const EditorTabs = ({ tabs, activeTabId, onTabClick, onTabClose }: Editor
               e.stopPropagation();
               onTabClose(tab.id);
             }}
-            className="p-0.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1"
+            className="p-0.5 rounded-sm hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-1"
           >
             <X className="w-3 h-3" />
           </button>

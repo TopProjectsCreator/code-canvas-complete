@@ -809,7 +809,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
               </div>
               <div className="space-y-1.5">
                 {featureTree.map((item, idx) => (
-                  <div key={item} className="text-xs rounded bg-white/5 border border-white/10 px-2 py-1.5 flex items-center justify-between">
+                  <div key={item} className="text-xs rounded-sm bg-white/5 border border-white/10 px-2 py-1.5 flex items-center justify-between">
                     <span className="truncate">{item}</span>
                     <span className="text-[10px] text-white/40">{idx + 1}</span>
                   </div>
@@ -920,7 +920,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                 </div>
               )}
 
-              <div className="absolute top-3 left-3 text-[11px] text-white/70 bg-black/45 rounded px-2 py-1">Perspective · Millimeters</div>
+              <div className="absolute top-3 left-3 text-[11px] text-white/70 bg-black/45 rounded-sm px-2 py-1">Perspective · Millimeters</div>
               <div className="absolute bottom-3 right-3 text-[10px] text-white/30 space-y-0.5 text-right">
                 <div>LMB: Rotate</div>
                 <div>RMB: Pan</div>
@@ -934,7 +934,7 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
               <PanelRight className="w-3 h-3" />
               Properties
             </div>
-            <div className="rounded border border-white/10 bg-white/5 p-2.5 space-y-2">
+            <div className="rounded-sm border border-white/10 bg-white/5 p-2.5 space-y-2">
               <div className="text-xs text-white/80 font-medium">Active body</div>
               <div className="text-[11px] text-white/55">{displayGeometry ? 'Imported solid body' : 'No body selected'}</div>
               <div className="text-[11px] text-white/55 flex items-center gap-1.5"><ScanFace className="w-3 h-3" /> Appearance swatches</div>
@@ -942,14 +942,14 @@ export const CADEditor = ({ file, onContentChange }: CADEditorProps) => {
                 {colors.map(c => (
                   <button
                     key={`prop-${c}`}
-                    className={cn("w-5 h-5 rounded border transition-transform", modelColor === c ? "border-white scale-110" : "border-white/20")}
+                    className={cn("w-5 h-5 rounded-sm border transition-transform", modelColor === c ? "border-white scale-110" : "border-white/20")}
                     style={{ backgroundColor: c }}
                     onClick={() => setModelColor(c)}
                   />
                 ))}
               </div>
             </div>
-            <div className="rounded border border-white/10 bg-white/5 p-2.5 space-y-2">
+            <div className="rounded-sm border border-white/10 bg-white/5 p-2.5 space-y-2">
               <div className="text-xs text-white/80 font-medium">Session helpers</div>
               <Button size="sm" variant="ghost" className="w-full justify-start text-white/70 hover:text-white hover:bg-white/10" onClick={handleCADUpload}>
                 <Upload className="w-3.5 h-3.5 mr-2" /> Import geometry

@@ -232,9 +232,9 @@ const OutputRenderer = ({ output, defaultCollapsed }: { output: NbOutput; defaul
       return (
         <div className="mt-3 flex justify-center rounded-lg border border-border/60 bg-background p-3">
           {mime === "image/svg+xml" ? (
-            <img src={`data:image/svg+xml;base64,${btoa(content)}`} className="max-w-full h-auto rounded" alt="Output SVG" />
+            <img src={`data:image/svg+xml;base64,${btoa(content)}`} className="max-w-full h-auto rounded-sm" alt="Output SVG" />
           ) : (
-            <img src={`data:${mime};base64,${content}`} className="max-w-full h-auto rounded" alt="Output image" />
+            <img src={`data:${mime};base64,${content}`} className="max-w-full h-auto rounded-sm" alt="Output image" />
           )}
         </div>
       );
@@ -530,7 +530,7 @@ function SortableCell({
       style={style}
       onClick={handleCellClick}
       className={cn(
-        "rounded-xl border overflow-hidden shadow-sm transition-all bg-card cursor-pointer",
+        "rounded-xl border overflow-hidden shadow-xs transition-all bg-card cursor-pointer",
         isDragging && "shadow-lg",
         isRunning && "border-primary/50 ring-1 ring-primary/20",
         isSelected && "ring-2 ring-primary/50 border-primary/40",
@@ -548,14 +548,14 @@ function SortableCell({
           <button
             {...attributes}
             {...listeners}
-            className="p-0.5 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
+            className="p-0.5 rounded-sm hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing touch-none shrink-0"
             title="Drag to reorder"
           >
             <GripVertical className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onCollapsedChange(!collapsed); }}
-            className="p-0.5 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground shrink-0"
+            className="p-0.5 rounded-sm hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground shrink-0"
             title={collapsed ? "Expand cell" : "Collapse cell"}
           >
             {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -585,7 +585,7 @@ function SortableCell({
           {isCode && !editing && (
             <button
               onClick={() => enterEditMode()}
-              className="p-1 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
+              className="p-1 rounded-sm hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
               title="Edit cell"
             >
               <Edit3 className="w-3 h-3" />
@@ -594,7 +594,7 @@ function SortableCell({
           {isCode && editing && (
             <button
               onClick={() => { setEditing(false); setEditContent(cell.source); }}
-              className="p-1 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
+              className="p-1 rounded-sm hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
               title="Stop editing"
             >
               <Eye className="w-3 h-3" />
@@ -603,7 +603,7 @@ function SortableCell({
           {isMarkdown && (
             <button
               onClick={() => { setMarkdownPreview((p) => !p); if (markdownPreview) enterEditMode(); }}
-              className="p-1 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
+              className="p-1 rounded-sm hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
               title={markdownPreview ? "Edit markdown" : "Preview markdown"}
             >
               {markdownPreview ? <Edit3 className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
@@ -612,7 +612,7 @@ function SortableCell({
           {isRaw && (
             <button
               onClick={() => onChangeType(cell.id, "code")}
-              className="p-1 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
+              className="p-1 rounded-sm hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
               title="Convert to code"
             >
               <Code2 className="w-3 h-3" />
@@ -625,7 +625,7 @@ function SortableCell({
               <button
                 onClick={() => onRun(cell)}
                 disabled={isRunning}
-                className="p-1 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground disabled:opacity-40"
+                className="p-1 rounded-sm hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground disabled:opacity-40"
                 title="Run cell (Ctrl+Enter)"
               >
                 {isRunning ? <Square className="w-3 h-3" /> : <Play className="w-3 h-3" />}
@@ -637,7 +637,7 @@ function SortableCell({
           <button
             onClick={() => onMoveUp(cell.id)}
             disabled={index === 0}
-            className="p-1 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
+            className="p-1 rounded-sm hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
             title="Move up"
           >
             <ArrowUp className="w-3 h-3" />
@@ -645,7 +645,7 @@ function SortableCell({
           <button
             onClick={() => onMoveDown(cell.id)}
             disabled={index === totalCells - 1}
-            className="p-1 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
+            className="p-1 rounded-sm hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground disabled:opacity-30"
             title="Move down"
           >
             <ArrowDown className="w-3 h-3" />
@@ -654,7 +654,7 @@ function SortableCell({
           {/* Duplicate */}
           <button
             onClick={() => onDuplicate(cell.id)}
-            className="p-1 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
+            className="p-1 rounded-sm hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
             title="Duplicate cell"
           >
             <CopyPlus className="w-3 h-3" />
@@ -664,7 +664,7 @@ function SortableCell({
           {isCode && cell.outputs && cell.outputs.length > 0 && (
             <button
               onClick={() => onClearOutputs(cell.id)}
-              className="p-1 rounded hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
+              className="p-1 rounded-sm hover:bg-muted/60 transition-colors text-muted-foreground hover:text-foreground"
               title="Clear outputs"
             >
               <RotateCcw className="w-3 h-3" />
@@ -674,7 +674,7 @@ function SortableCell({
           {/* Delete */}
           <button
             onClick={() => onDelete(cell.id)}
-            className="p-1 rounded hover:bg-red-500/10 transition-colors text-muted-foreground hover:text-red-400"
+            className="p-1 rounded-sm hover:bg-red-500/10 transition-colors text-muted-foreground hover:text-red-400"
             title="Delete cell"
           >
             <Trash2 className="w-3 h-3" />
@@ -702,7 +702,7 @@ function SortableCell({
               onChange={(e) => setEditContent(e.target.value)}
               onBlur={() => { saveEdit(); setMarkdownPreview(true); }}
               onKeyDown={mdHandleKeyDown}
-              className="w-full min-h-[80px] bg-black/30 border border-border/60 rounded-lg p-3 text-sm font-mono text-foreground resize-y focus:outline-none focus:ring-1 focus:ring-primary/40"
+              className="w-full min-h-[80px] bg-black/30 border border-border/60 rounded-lg p-3 text-sm font-mono text-foreground resize-y focus:outline-hidden focus:ring-1 focus:ring-primary/40"
               placeholder="Enter markdown..."
             />
           )}
@@ -729,7 +729,7 @@ function SortableCell({
               onChange={(e) => setEditContent(e.target.value)}
               onBlur={saveEdit}
               onKeyDown={handleKeyDown}
-              className="w-full min-h-[60px] bg-black border border-emerald-500/20 rounded-lg p-3 text-xs md:text-sm font-mono text-foreground resize-y focus:outline-none focus:ring-1 focus:ring-emerald-500/40 leading-6"
+              className="w-full min-h-[60px] bg-black border border-emerald-500/20 rounded-lg p-3 text-xs md:text-sm font-mono text-foreground resize-y focus:outline-hidden focus:ring-1 focus:ring-emerald-500/40 leading-6"
               placeholder="Enter code..."
               spellCheck={false}
             />
@@ -753,7 +753,7 @@ function SortableCell({
               onChange={(e) => setEditContent(e.target.value)}
               onBlur={saveEdit}
               onKeyDown={handleKeyDown}
-              className="w-full min-h-[60px] bg-muted/40 border border-border/60 rounded-lg p-3 text-xs md:text-sm font-mono text-foreground resize-y focus:outline-none focus:ring-1 focus:ring-primary/40 leading-6"
+              className="w-full min-h-[60px] bg-muted/40 border border-border/60 rounded-lg p-3 text-xs md:text-sm font-mono text-foreground resize-y focus:outline-hidden focus:ring-1 focus:ring-primary/40 leading-6"
               placeholder="Enter raw content..."
             />
           )}
@@ -770,7 +770,7 @@ function SortableCell({
             <DropdownMenuTrigger asChild>
               <button
                 onClick={(e) => e.stopPropagation()}
-                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-3 py-0.5 rounded hover:bg-muted/40"
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-3 py-0.5 rounded-sm hover:bg-muted/40"
               >
                 <Plus className="w-3 h-3" /> Add cell below
               </button>
@@ -825,7 +825,7 @@ const VariablesSidebar = ({ variables }: { variables: Array<{ name: string; type
             {variables.map((v, i) => (
               <div
                 key={i}
-                className="p-2 rounded border border-border/30 bg-background/50 hover:bg-background/80 transition-colors"
+                className="p-2 rounded-sm border border-border/30 bg-background/50 hover:bg-background/80 transition-colors"
               >
                 <div className="text-xs font-mono font-semibold text-foreground truncate">
                   {v.name}
@@ -1391,11 +1391,11 @@ h1,h2,h3{color:#111}
   };
 
   return (
-    <div className="h-full w-full bg-background flex flex-col outline-none">
+    <div className="h-full w-full bg-background flex flex-col outline-hidden">
       <div
         ref={notebookRef}
         tabIndex={0}
-        className="flex-1 flex flex-col outline-none overflow-hidden"
+        className="flex-1 flex flex-col outline-hidden overflow-hidden"
       >
         {/* Top toolbar */}
         <div className="border-b border-border/60 px-4 py-2 flex items-center justify-between gap-4 shrink-0">
@@ -1541,14 +1541,14 @@ h1,h2,h3{color:#111}
         {selectedCellId && (
           <div className="px-4 py-1 border-b border-border/30 bg-muted/10 shrink-0">
             <p className="text-[10px] text-muted-foreground">
-              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">Shift+Enter</kbd> run &amp; advance{' '}
-              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">Alt+Enter</kbd> run &amp; insert{' '}
-              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">A</kbd> insert above{' '}
-              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">B</kbd> insert below{' '}
-              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">D</kbd> delete{' '}
-              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">M</kbd> markdown{' '}
-              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">Y</kbd> code{' '}
-              <kbd className="px-1 py-0.5 rounded bg-muted border border-border/60 font-mono">↑↓</kbd> navigate
+              <kbd className="px-1 py-0.5 rounded-sm bg-muted border border-border/60 font-mono">Shift+Enter</kbd> run &amp; advance{' '}
+              <kbd className="px-1 py-0.5 rounded-sm bg-muted border border-border/60 font-mono">Alt+Enter</kbd> run &amp; insert{' '}
+              <kbd className="px-1 py-0.5 rounded-sm bg-muted border border-border/60 font-mono">A</kbd> insert above{' '}
+              <kbd className="px-1 py-0.5 rounded-sm bg-muted border border-border/60 font-mono">B</kbd> insert below{' '}
+              <kbd className="px-1 py-0.5 rounded-sm bg-muted border border-border/60 font-mono">D</kbd> delete{' '}
+              <kbd className="px-1 py-0.5 rounded-sm bg-muted border border-border/60 font-mono">M</kbd> markdown{' '}
+              <kbd className="px-1 py-0.5 rounded-sm bg-muted border border-border/60 font-mono">Y</kbd> code{' '}
+              <kbd className="px-1 py-0.5 rounded-sm bg-muted border border-border/60 font-mono">↑↓</kbd> navigate
             </p>
           </div>
         )}
@@ -1628,7 +1628,7 @@ h1,h2,h3{color:#111}
             <textarea
               value={rawJsonContent}
               onChange={(e) => setRawJsonContent(e.target.value)}
-              className="flex-1 w-full bg-muted/20 border border-border/60 rounded-lg p-4 text-xs font-mono resize-none focus:outline-none focus:ring-1 focus:ring-primary/40 leading-5"
+              className="flex-1 w-full bg-muted/20 border border-border/60 rounded-lg p-4 text-xs font-mono resize-none focus:outline-hidden focus:ring-1 focus:ring-primary/40 leading-5"
               spellCheck={false}
             />
           </div>
@@ -1725,7 +1725,7 @@ h1,h2,h3{color:#111}
                         <textarea
                           value={rawJsonContent}
                           onChange={(e) => setRawJsonContent(e.target.value)}
-                          className="w-full min-h-[120px] bg-background border border-border/60 rounded-lg p-3 text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-primary/40 leading-5"
+                          className="w-full min-h-[120px] bg-background border border-border/60 rounded-lg p-3 text-xs font-mono resize-y focus:outline-hidden focus:ring-1 focus:ring-primary/40 leading-5"
                           placeholder='Paste raw notebook JSON (e.g. {"nbformat":4,"cells":[...]})'
                         />
                         <div className="flex gap-2 justify-center">

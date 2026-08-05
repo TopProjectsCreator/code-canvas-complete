@@ -18,7 +18,7 @@ export function FeatureReorder({ bodyId, featureId }: FeatureReorderProps) {
   return (
     <div className="flex items-center gap-1 text-xs">
       <button
-        className="p-1 hover:bg-accent rounded disabled:opacity-30"
+        className="p-1 hover:bg-accent rounded-sm disabled:opacity-30"
         disabled={idx === 0}
         onClick={() => reorderFeature(bodyId, featureId, idx - 1)}
       >
@@ -26,7 +26,7 @@ export function FeatureReorder({ bodyId, featureId }: FeatureReorderProps) {
       </button>
       <span className="text-muted-foreground">{idx + 1} / {body.features.length}</span>
       <button
-        className="p-1 hover:bg-accent rounded disabled:opacity-30"
+        className="p-1 hover:bg-accent rounded-sm disabled:opacity-30"
         disabled={idx === body.features.length - 1}
         onClick={() => reorderFeature(bodyId, featureId, idx + 1)}
       >

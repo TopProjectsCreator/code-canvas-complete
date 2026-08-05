@@ -79,7 +79,7 @@ export function LoftTool() {
         {sketches.map(s => (
           <label
             key={s.id}
-            className={`flex items-center gap-2 px-2 py-1 rounded text-[10px] cursor-pointer hover:bg-accent ${
+            className={`flex items-center gap-2 px-2 py-1 rounded-sm text-[10px] cursor-pointer hover:bg-accent ${
               sectionIds.includes(s.id) ? 'bg-accent font-medium' : ''
             }`}
           >

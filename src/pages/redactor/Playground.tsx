@@ -289,10 +289,10 @@ export default function RedactorPlayground() {
                   type="file"
                   accept="image/png,image/jpeg"
                   onChange={handleImageUpload}
-                  className="block w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-primary file:text-primary-foreground"
+                  className="block w-full text-sm file:mr-3 file:py-1 file:px-3 file:rounded-sm file:border-0 file:bg-primary file:text-primary-foreground"
                 />
                 {imagePreview && (
-                  <img src={imagePreview} alt="Uploaded" className="max-w-full h-auto rounded border max-h-64 object-contain" />
+                  <img src={imagePreview} alt="Uploaded" className="max-w-full h-auto rounded-sm border max-h-64 object-contain" />
                 )}
                 {ocrBusy && <p className="text-sm text-muted-foreground">Running OCR\u2026 (first load downloads ~15MB of OCR data)</p>}
                 {ocrText && !ocrBusy && (
@@ -312,7 +312,7 @@ export default function RedactorPlayground() {
                 {imgOut ? (
                   <div className="space-y-3">
                     {redactedImageUrl ? (
-                      <img src={redactedImageUrl} alt="Redacted image" className="max-w-full h-auto rounded border max-h-64 object-contain" />
+                      <img src={redactedImageUrl} alt="Redacted image" className="max-w-full h-auto rounded-sm border max-h-64 object-contain" />
                     ) : imgOut.hasPii ? (
                       <div className="w-full rounded-md border bg-background p-3 font-mono text-sm overflow-auto whitespace-pre-wrap max-h-64">
                         <HighlightedText text={imgOut.redacted} />

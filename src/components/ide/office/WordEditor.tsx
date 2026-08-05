@@ -68,7 +68,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
     ],
     editorProps: {
       attributes: {
-        class: 'word-editor focus:outline-none min-h-[200px]',
+        class: 'word-editor focus:outline-hidden min-h-[200px]',
       },
     },
     onUpdate: ({ editor: ed }) => {
@@ -375,7 +375,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
         <ScrollArea className={`flex-1 ${docTheme === 'dark' ? 'bg-[#1a1a1a]' : 'bg-[#f5f5f0]'}`}>
           <div className="flex justify-center py-8">
             <div
-              className={`shadow-xl rounded-sm ${docTheme === 'dark' ? 'bg-[#1e1e1e]' : 'bg-white'}`}
+              className={`shadow-xl rounded-xs ${docTheme === 'dark' ? 'bg-[#1e1e1e]' : 'bg-white'}`}
               style={{
                 width: paperSize === 'letter' ? '816px' : '794px',
                 transform: `scale(${zoom / 100})`,

@@ -168,9 +168,9 @@ export default function ThreadDetail() {
   if (loading) {
     return (
       <div className="animate-pulse space-y-4">
-        <div className="h-8 bg-muted rounded w-1/3" />
-        <div className="h-4 bg-muted rounded w-1/4" />
-        <div className="h-32 bg-muted rounded mt-4" />
+        <div className="h-8 bg-muted rounded-sm w-1/3" />
+        <div className="h-4 bg-muted rounded-sm w-1/4" />
+        <div className="h-32 bg-muted rounded-sm mt-4" />
       </div>
     );
   }
@@ -298,7 +298,7 @@ export default function ThreadDetail() {
                   </span>
                   <span>{timeAgo}</span>
                   {thread.category && (
-                    <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-medium">
+                    <span className="px-2 py-0.5 rounded-sm bg-primary/10 text-primary text-xs font-medium">
                       {thread.category}
                     </span>
                   )}

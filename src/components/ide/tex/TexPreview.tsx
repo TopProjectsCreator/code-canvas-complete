@@ -140,7 +140,7 @@ function processEnv(name: string, content: string): string {
 
     case 'verbatim':
     case 'lstlisting':
-      return `<pre class="my-2 p-3 rounded bg-muted font-mono text-sm overflow-x-auto">${escapeHtml(content)}</pre>`;
+      return `<pre class="my-2 p-3 rounded-sm bg-muted font-mono text-sm overflow-x-auto">${escapeHtml(content)}</pre>`;
 
     case 'abstract':
       return `<div class="italic text-muted-foreground border-l-2 border-primary/30 pl-4 my-4"><p class="font-semibold not-italic mb-1">Abstract</p>${latexToHtml(content)}</div>`;
@@ -301,7 +301,7 @@ const cmdHandlers: Record<string, (args: string[]) => string> = {
   textbf: ([a]) => `<strong>${latexToHtml(a)}</strong>`,
   textit: ([a]) => `<em>${latexToHtml(a)}</em>`,
   underline: ([a]) => `<u>${latexToHtml(a)}</u>`,
-  texttt: ([a]) => `<code class="bg-muted px-1 rounded text-sm">${latexToHtml(a)}</code>`,
+  texttt: ([a]) => `<code class="bg-muted px-1 rounded-sm text-sm">${latexToHtml(a)}</code>`,
   emph: ([a]) => `<em>${latexToHtml(a)}</em>`,
   textsc: ([a]) => `<span class="uppercase tracking-wider text-xs">${latexToHtml(a)}</span>`,
   textsf: ([a]) => `<span class="font-sans">${latexToHtml(a)}</span>`,

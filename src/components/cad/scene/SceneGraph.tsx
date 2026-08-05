@@ -50,7 +50,7 @@ function SceneNodeItem({ nodeId, depth = 0 }: { nodeId: string; depth?: number }
   return (
     <div>
       <div
-        className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs hover:bg-accent/50 ${
+        className={`flex items-center gap-1 px-2 py-1 rounded-sm cursor-pointer text-xs hover:bg-accent/50 ${
           isSelected ? 'bg-accent text-accent-foreground' : ''
         }`}
         style={{ paddingLeft: `${8 + depth * 16}px` }}
@@ -64,7 +64,7 @@ function SceneNodeItem({ nodeId, depth = 0 }: { nodeId: string; depth?: number }
         onContextMenu={handleContextMenu}
       >
         {hasChildren ? (
-          <button className="p-0.5 hover:bg-muted rounded" onClick={e => { e.stopPropagation(); setExpanded(!expanded) }}>
+          <button className="p-0.5 hover:bg-muted rounded-sm" onClick={e => { e.stopPropagation(); setExpanded(!expanded) }}>
             {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
           </button>
         ) : (
@@ -76,14 +76,14 @@ function SceneNodeItem({ nodeId, depth = 0 }: { nodeId: string; depth?: number }
         </span>
 
         <button
-          className="p-0.5 hover:bg-muted rounded text-muted-foreground"
+          className="p-0.5 hover:bg-muted rounded-sm text-muted-foreground"
           onClick={e => { e.stopPropagation(); setNodeVisibility(node.id, !node.visible) }}
         >
           {node.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
         </button>
 
         <button
-          className="p-0.5 hover:bg-muted rounded text-muted-foreground"
+          className="p-0.5 hover:bg-muted rounded-sm text-muted-foreground"
           onClick={e => { e.stopPropagation(); setNodeLock(node.id, !node.locked) }}
         >
           {node.locked ? <Lock className="h-3 w-3" /> : <Unlock className="h-3 w-3" />}

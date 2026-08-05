@@ -104,7 +104,7 @@ export function ChannelDetailsDialog({
                     <p className="text-sm truncate">{m.profile?.display_name ?? 'Unknown'}</p>
                   </div>
                   {m.role === 'admin' && (
-                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">admin</span>
+                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-sm">admin</span>
                   )}
                 </div>
               ))}

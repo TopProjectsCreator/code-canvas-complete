@@ -56,7 +56,7 @@ export function LibraryManager({ selectedLibraries, onLibrariesChange }: Library
           {selectedLibraries.length > 0 && (
             <div className="mt-4 pt-4 border-t border-slate-700">
               <div className="text-sm text-gray-300 mb-2">Include statements:</div>
-              <pre className="bg-slate-950 p-2 rounded text-xs text-gray-300 overflow-auto">
+              <pre className="bg-slate-950 p-2 rounded-sm text-xs text-gray-300 overflow-auto">
                 {getLibraryIncludes()}
               </pre>
             </div>

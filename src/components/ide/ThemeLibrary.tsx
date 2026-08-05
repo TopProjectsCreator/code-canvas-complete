@@ -194,7 +194,7 @@ export const ThemeLibrary = ({ onImport, onBack, existingThemeNames }: ThemeLibr
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-2 p-3 border-b border-border">
-        <button onClick={onBack} className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={onBack} className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <h3 className="text-sm font-medium">Theme Library</h3>

@@ -46,7 +46,7 @@ function SectionLink({ id }: { id: string }) {
           setTimeout(() => setCopied(false), 1500);
         }
       }}
-      className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded opacity-0 transition-opacity group-hover/section:opacity-40 hover:opacity-100! focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-sm opacity-0 transition-opacity group-hover/section:opacity-40 hover:opacity-100! focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
       aria-label="Copy link to section"
     >
       {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <LinkIcon className="h-3.5 w-3.5" />}
@@ -131,7 +131,7 @@ export default function TermsOfUsePage() {
 
         {/* ── Content ── */}
         <div className="min-w-0 flex-1">
-          <div className="rounded-2xl border border-border bg-card/60 p-8 shadow-sm sm:p-10 lg:p-12">
+          <div className="rounded-2xl border border-border bg-card/60 p-8 shadow-xs sm:p-10 lg:p-12">
             {/* ── Header ── */}
             <header className="mb-10 space-y-3">
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Terms of Use</h1>

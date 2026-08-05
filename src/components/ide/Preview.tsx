@@ -540,28 +540,28 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
           </button>
           <button
             onClick={takeScreenshot}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             title="Take Screenshot"
           >
             <Camera className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={handleRefresh}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             title="Refresh"
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
           >
             {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
           <button
             onClick={() => { if (previewUrl) window.open(previewUrl, '_blank'); }}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             title="Open in new tab"
           >
             <ExternalLink className="w-3.5 h-3.5" />
@@ -571,7 +571,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
               if (previewUrl && onStop) { onStop(); }
               else { setIsWebviewClosed(true); }
             }}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             title="Close webview"
           >
             <X className="w-3.5 h-3.5" />
@@ -669,7 +669,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
               {devToolsTab === 'console' && (
                 <button
                   onClick={() => setConsoleLogs([])}
-                  className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                  className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground"
                   title="Clear console"
                 >
                   <Trash2 className="w-3 h-3" />
@@ -677,7 +677,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
               )}
               <button
                 onClick={() => setShowDevTools(false)}
-                className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground"
                 title="Close DevTools"
               >
                 <X className="w-3 h-3" />
@@ -802,19 +802,19 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
                 <div className="space-y-3">
                   <div>
                     <h5 className="text-xs font-medium text-foreground mb-1">Local Storage</h5>
-                    <div className="bg-background rounded p-2 text-xs text-muted-foreground font-mono">
+                    <div className="bg-background rounded-sm p-2 text-xs text-muted-foreground font-mono">
                       Sandboxed — not accessible from parent frame
                     </div>
                   </div>
                   <div>
                     <h5 className="text-xs font-medium text-foreground mb-1">Session Storage</h5>
-                    <div className="bg-background rounded p-2 text-xs text-muted-foreground font-mono">
+                    <div className="bg-background rounded-sm p-2 text-xs text-muted-foreground font-mono">
                       Sandboxed — not accessible from parent frame
                     </div>
                   </div>
                   <div>
                     <h5 className="text-xs font-medium text-foreground mb-1">Cookies</h5>
-                    <div className="bg-background rounded p-2 text-xs text-muted-foreground font-mono">
+                    <div className="bg-background rounded-sm p-2 text-xs text-muted-foreground font-mono">
                       Sandboxed — not accessible from parent frame
                     </div>
                   </div>
@@ -837,7 +837,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
                     <button
                       onClick={copySeoReport}
                       disabled={!seoReport}
-                      className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
+                      className="text-[11px] px-2 py-1 rounded-sm border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
                       title="Copy SEO report as text"
                     >
                       {seoCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
@@ -846,7 +846,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
                     <button
                       onClick={downloadSeoTxt}
                       disabled={!seoReport}
-                      className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
+                      className="text-[11px] px-2 py-1 rounded-sm border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
                       title="Download SEO report as .txt"
                     >
                       <Download className="w-3 h-3" />
@@ -855,7 +855,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
                     <button
                       onClick={downloadSeoJson}
                       disabled={!seoReport}
-                      className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
+                      className="text-[11px] px-2 py-1 rounded-sm border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center gap-1"
                       title="Download SEO report as .json"
                     >
                       <FileJson className="w-3 h-3" />
@@ -864,7 +864,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
                     <button
                       onClick={requestSeoScan}
                       disabled={!isRunning || isWebviewClosed || seoScanning}
-                      className="text-[11px] px-2 py-1 rounded border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="text-[11px] px-2 py-1 rounded-sm border border-border hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {seoScanning ? 'Scanning…' : 'Rescan'}
                     </button>
@@ -1041,7 +1041,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
                                   )}
                                   {fix?.snippet && (
                                     <div className="relative group">
-                                      <pre className="text-[10px] font-mono bg-muted/50 border border-border rounded px-2 py-1.5 pr-16 overflow-x-auto whitespace-pre">{fix.snippet}</pre>
+                                      <pre className="text-[10px] font-mono bg-muted/50 border border-border rounded-sm px-2 py-1.5 pr-16 overflow-x-auto whitespace-pre">{fix.snippet}</pre>
                                       <button
                                         type="button"
                                         onClick={async () => {
@@ -1051,7 +1051,7 @@ export const Preview = ({ htmlContent, cssContent, jsContent, isRunning, preview
                                             setTimeout(() => setCopiedFixId((cur) => (cur === c.id ? null : cur)), 1500);
                                           } catch {}
                                         }}
-                                        className="absolute top-1 right-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-border bg-background hover:bg-accent text-foreground transition-colors"
+                                        className="absolute top-1 right-1 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-sm border border-border bg-background hover:bg-accent text-foreground transition-colors"
                                         title="Copy fix snippet"
                                       >
                                         {copiedFixId === c.id ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}

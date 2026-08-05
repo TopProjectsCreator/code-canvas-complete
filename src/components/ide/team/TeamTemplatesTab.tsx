@@ -217,8 +217,8 @@ export const TeamTemplatesTab = ({ teamAdmin }: Props) => {
                 <button
                   key={idx}
                   onClick={() => setActiveFileIdx(idx)}
-                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors whitespace-nowrap ${
-                    idx === activeFileIdx ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  className={`flex items-center gap-1 px-2 py-1 rounded-sm text-xs transition-colors whitespace-nowrap ${
+                    idx === activeFileIdx ? 'bg-background text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <FileCode className="w-3 h-3" />
@@ -246,7 +246,7 @@ export const TeamTemplatesTab = ({ teamAdmin }: Props) => {
                 placeholder="File content..."
                 value={files[activeFileIdx]?.content || ''}
                 onChange={e => updateFile(activeFileIdx, 'content', e.target.value)}
-                className="w-full min-h-[150px] rounded-md border border-input bg-background px-3 py-2 text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full min-h-[150px] rounded-md border border-input bg-background px-3 py-2 text-xs font-mono resize-y focus:outline-hidden focus:ring-1 focus:ring-ring"
               />
             </div>
           </div>

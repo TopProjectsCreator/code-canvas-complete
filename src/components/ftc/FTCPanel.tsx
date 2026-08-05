@@ -439,7 +439,7 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
                 {opModes.map((name) => (
                   <div
                     key={name}
-                    className="flex items-center gap-2 px-3 py-2 rounded bg-slate-800 border border-slate-700"
+                    className="flex items-center gap-2 px-3 py-2 rounded-sm bg-slate-800 border border-slate-700"
                   >
                     <FileCode className="w-4 h-4 text-orange-400" />
                     <span className="text-sm text-foreground">{name}</span>
@@ -479,7 +479,7 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
                 {buildResult.warnings && buildResult.warnings.length > 0 && (
                   <div className="space-y-1">
                     <span className="text-xs font-medium text-yellow-400">Warnings:</span>
-                    <ScrollArea className="max-h-32 rounded border border-yellow-500/30 bg-yellow-950/20 p-2">
+                    <ScrollArea className="max-h-32 rounded-sm border border-yellow-500/30 bg-yellow-950/20 p-2">
                       <div className="space-y-1">
                         {buildResult.warnings.map((w, i) => (
                           <p key={i} className="text-xs text-yellow-300 font-mono">
@@ -494,7 +494,7 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
                 {buildResult.errors && buildResult.errors.length > 0 && (
                   <div className="space-y-1">
                     <span className="text-xs font-medium text-red-400">Errors:</span>
-                    <ScrollArea className="max-h-40 rounded border border-red-500/30 bg-red-950/20 p-2">
+                    <ScrollArea className="max-h-40 rounded-sm border border-red-500/30 bg-red-950/20 p-2">
                       <div className="space-y-1">
                         {buildResult.errors.map((e, i) => (
                           <p key={i} className="text-xs text-red-300 font-mono">
@@ -536,13 +536,13 @@ export function FTCPanel({ files, onFileUpdate }: FTCPanelProps) {
             >
               <ClipboardCheck className="w-3 h-3 mr-1" /> Copy
             </Button>
-            <select className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs" value={logFilter} onChange={(e) => setLogFilter(e.target.value as 'all' | 'error' | 'warn' | 'info')}>
+            <select className="bg-slate-900 border border-slate-700 rounded-sm px-2 py-1 text-xs" value={logFilter} onChange={(e) => setLogFilter(e.target.value as 'all' | 'error' | 'warn' | 'info')}>
               <option value="all">All</option>
               <option value="error">Errors</option>
               <option value="warn">Warnings</option>
               <option value="info">Info</option>
             </select>
-            <input className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs" placeholder="Search logs" value={logSearch} onChange={(e) => setLogSearch(e.target.value)} />
+            <input className="bg-slate-900 border border-slate-700 rounded-sm px-2 py-1 text-xs" placeholder="Search logs" value={logSearch} onChange={(e) => setLogSearch(e.target.value)} />
             <label className="flex items-center gap-1 text-xs text-muted-foreground">
               <Checkbox checked={autoScrollLogs} onCheckedChange={(v) => setAutoScrollLogs(v === true)} />
               Auto-scroll

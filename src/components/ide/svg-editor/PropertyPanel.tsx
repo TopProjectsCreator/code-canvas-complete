@@ -177,7 +177,7 @@ function PropertiesContent({
           <div>
             <Label className="text-[10px]">Path data (d)</Label>
             <textarea
-              className="w-full h-20 text-[10px] font-mono bg-muted rounded p-1 resize-none"
+              className="w-full h-20 text-[10px] font-mono bg-muted rounded-sm p-1 resize-none"
               value={(el.attrs.d as string) || ''}
               onChange={(e) => updateAttr('d', e.target.value)}
             />
@@ -201,7 +201,7 @@ function PropertiesContent({
         <div className="flex items-center gap-1.5">
           <input
             type="color"
-            className="w-7 h-7 rounded cursor-pointer border border-border"
+            className="w-7 h-7 rounded-sm cursor-pointer border border-border"
             value={el.style.fill === 'none' ? '#000000' : el.style.fill}
             onChange={(e) => updateStyle('fill', e.target.value)}
           />
@@ -218,7 +218,7 @@ function PropertiesContent({
           {COLOR_PRESETS.map((c) => (
             <button
               key={c}
-              className={cn('w-5 h-5 rounded border border-border cursor-pointer hover:scale-110 transition-transform', el.style.fill === c && 'ring-2 ring-primary ring-offset-1')}
+              className={cn('w-5 h-5 rounded-sm border border-border cursor-pointer hover:scale-110 transition-transform', el.style.fill === c && 'ring-2 ring-primary ring-offset-1')}
               style={{ backgroundColor: c }}
               onClick={() => updateStyle('fill', c)}
             />
@@ -260,7 +260,7 @@ function PropertiesContent({
         <div className="flex items-center gap-1.5">
           <input
             type="color"
-            className="w-7 h-7 rounded cursor-pointer border border-border"
+            className="w-7 h-7 rounded-sm cursor-pointer border border-border"
             value={el.style.stroke === 'none' ? '#000000' : el.style.stroke}
             onChange={(e) => updateStyle('stroke', e.target.value)}
           />
@@ -279,7 +279,7 @@ function PropertiesContent({
             {STROKE_WIDTHS.slice(0, 6).map((w) => (
               <button
                 key={w}
-                className={cn('h-6 w-6 text-[10px] rounded border border-border hover:bg-accent', el.style.strokeWidth === w && 'bg-accent text-accent-foreground')}
+                className={cn('h-6 w-6 text-[10px] rounded-sm border border-border hover:bg-accent', el.style.strokeWidth === w && 'bg-accent text-accent-foreground')}
                 onClick={() => updateStyle('strokeWidth', w)}
               >
                 {w}
@@ -368,18 +368,18 @@ function GradientsContent({
         <p className="text-[10px] text-muted-foreground text-center py-4">No gradients yet</p>
       )}
       {gradients.map((g) => (
-        <div key={g.id} className="rounded border border-border p-2 space-y-1.5">
+        <div key={g.id} className="rounded-sm border border-border p-2 space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-medium">{g.id}</span>
             <button onClick={() => onDeleteGradient(g.id)}><Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" /></button>
           </div>
           <div className="flex gap-1">
-            <button className={cn('text-[10px] px-2 py-0.5 rounded', g.type === 'linear' ? 'bg-accent' : 'hover:bg-accent/50')} onClick={() => onUpdateGradient(g.id, { type: 'linear' })}>Linear</button>
-            <button className={cn('text-[10px] px-2 py-0.5 rounded', g.type === 'radial' ? 'bg-accent' : 'hover:bg-accent/50')} onClick={() => onUpdateGradient(g.id, { type: 'radial' })}>Radial</button>
+            <button className={cn('text-[10px] px-2 py-0.5 rounded-sm', g.type === 'linear' ? 'bg-accent' : 'hover:bg-accent/50')} onClick={() => onUpdateGradient(g.id, { type: 'linear' })}>Linear</button>
+            <button className={cn('text-[10px] px-2 py-0.5 rounded-sm', g.type === 'radial' ? 'bg-accent' : 'hover:bg-accent/50')} onClick={() => onUpdateGradient(g.id, { type: 'radial' })}>Radial</button>
           </div>
           {/* Gradient preview bar */}
           <div
-            className="h-4 rounded border border-border"
+            className="h-4 rounded-sm border border-border"
             style={{
               background: `linear-gradient(to right, ${g.stops.map((s) => `${s.color} ${s.offset * 100}%`).join(', ')})`,
             }}
@@ -387,7 +387,7 @@ function GradientsContent({
           {/* Stops */}
           {g.stops.map((stop, si) => (
             <div key={si} className="flex items-center gap-1">
-              <input type="color" className="w-5 h-5 rounded cursor-pointer" value={stop.color} onChange={(e) => {
+              <input type="color" className="w-5 h-5 rounded-sm cursor-pointer" value={stop.color} onChange={(e) => {
                 const stops = [...g.stops]
                 stops[si] = { ...stops[si], color: e.target.value }
                 onUpdateGradient(g.id, { stops })
@@ -455,7 +455,7 @@ function FiltersContent({
         <p className="text-[10px] text-muted-foreground text-center py-4">No filters yet</p>
       )}
       {filters.map((f) => (
-        <div key={f.id} className="rounded border border-border p-2 space-y-1.5">
+        <div key={f.id} className="rounded-sm border border-border p-2 space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-medium">{f.id}</span>
             <button onClick={() => onDeleteFilter(f.id)}><Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" /></button>
@@ -466,7 +466,7 @@ function FiltersContent({
               <div><Label className="text-[10px]">Dy</Label><Input className="h-5 text-[10px]" type="number" value={f.params.dy || 0} onChange={(e) => onUpdateFilter(f.id, { params: { ...f.params, dy: parseFloat(e.target.value) || 0 } })} /></div>
               <div><Label className="text-[10px]">Blur</Label><Input className="h-5 text-[10px]" type="number" value={f.params.blurRadius || 0} onChange={(e) => onUpdateFilter(f.id, { params: { ...f.params, blurRadius: parseFloat(e.target.value) || 0 } })} /></div>
               <div><Label className="text-[10px]">Strength</Label><Input className="h-5 text-[10px]" type="number" min={0} max={1} step={0.1} value={f.params.strength || 1} onChange={(e) => onUpdateFilter(f.id, { params: { ...f.params, strength: parseFloat(e.target.value) || 0 } })} /></div>
-              <div className="col-span-2"><Label className="text-[10px]">Color</Label><input type="color" className="w-full h-5 rounded cursor-pointer" value={f.color || '#000'} onChange={(e) => onUpdateFilter(f.id, { color: e.target.value })} /></div>
+              <div className="col-span-2"><Label className="text-[10px]">Color</Label><input type="color" className="w-full h-5 rounded-sm cursor-pointer" value={f.color || '#000'} onChange={(e) => onUpdateFilter(f.id, { color: e.target.value })} /></div>
             </div>
           )}
           {f.type === 'blur' && (
@@ -476,21 +476,21 @@ function FiltersContent({
             <div className="grid grid-cols-2 gap-1">
               <div><Label className="text-[10px]">Blur</Label><Input className="h-5 text-[10px]" type="number" value={f.params.blurRadius || 0} onChange={(e) => onUpdateFilter(f.id, { params: { ...f.params, blurRadius: parseFloat(e.target.value) || 0 } })} /></div>
               <div><Label className="text-[10px]">Strength</Label><Input className="h-5 text-[10px]" type="number" min={0} max={1} step={0.1} value={f.params.strength || 1} onChange={(e) => onUpdateFilter(f.id, { params: { ...f.params, strength: parseFloat(e.target.value) || 0 } })} /></div>
-              <div className="col-span-2"><Label className="text-[10px]">Color</Label><input type="color" className="w-full h-5 rounded cursor-pointer" value={f.color || '#fff'} onChange={(e) => onUpdateFilter(f.id, { color: e.target.value })} /></div>
+              <div className="col-span-2"><Label className="text-[10px]">Color</Label><input type="color" className="w-full h-5 rounded-sm cursor-pointer" value={f.color || '#fff'} onChange={(e) => onUpdateFilter(f.id, { color: e.target.value })} /></div>
             </div>
           )}
           {f.type === 'color-matrix' && (
             <div>
               <div className="flex flex-wrap gap-1 mb-1">
                 {Object.keys(COLOR_MATRIX_PRESETS).map((name) => (
-                  <button key={name} className="text-[10px] px-1.5 py-0.5 rounded bg-muted hover:bg-accent" onClick={() => onUpdateFilter(f.id, { matrix: COLOR_MATRIX_PRESETS[name] })}>
+                  <button key={name} className="text-[10px] px-1.5 py-0.5 rounded-sm bg-muted hover:bg-accent" onClick={() => onUpdateFilter(f.id, { matrix: COLOR_MATRIX_PRESETS[name] })}>
                     {name}
                   </button>
                 ))}
               </div>
               {f.matrix && (
                 <textarea
-                  className="w-full h-14 text-[10px] font-mono bg-muted rounded p-1 resize-none"
+                  className="w-full h-14 text-[10px] font-mono bg-muted rounded-sm p-1 resize-none"
                   value={f.matrix.join(' ')}
                   onChange={(e) => {
                     const nums = e.target.value.split(/\s+/).map(Number).filter((n) => !isNaN(n))
@@ -538,14 +538,14 @@ function PatternsContent({
         <p className="text-[10px] text-muted-foreground text-center py-4">No patterns yet</p>
       )}
       {patterns.map((p) => (
-        <div key={p.id} className="rounded border border-border p-2 space-y-1.5">
+        <div key={p.id} className="rounded-sm border border-border p-2 space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-medium">{p.id} ({p.type})</span>
             <button onClick={() => onDeletePattern(p.id)}><Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" /></button>
           </div>
           {/* Pattern preview */}
           <div
-            className="h-8 rounded border border-border"
+            className="h-8 rounded-sm border border-border"
             style={{
               background: p.type === 'dots'
                 ? `radial-gradient(circle, ${p.fillColor} 2px, ${p.bgColor} 2px)`
@@ -556,8 +556,8 @@ function PatternsContent({
             }}
           />
           <div className="grid grid-cols-2 gap-1">
-            <div><Label className="text-[10px]">Fill</Label><input type="color" className="w-full h-5 rounded cursor-pointer" value={p.fillColor} onChange={(e) => onUpdatePattern(p.id, { fillColor: e.target.value })} /></div>
-            <div><Label className="text-[10px]">Bg</Label><input type="color" className="w-full h-5 rounded cursor-pointer" value={p.bgColor} onChange={(e) => onUpdatePattern(p.id, { bgColor: e.target.value })} /></div>
+            <div><Label className="text-[10px]">Fill</Label><input type="color" className="w-full h-5 rounded-sm cursor-pointer" value={p.fillColor} onChange={(e) => onUpdatePattern(p.id, { fillColor: e.target.value })} /></div>
+            <div><Label className="text-[10px]">Bg</Label><input type="color" className="w-full h-5 rounded-sm cursor-pointer" value={p.bgColor} onChange={(e) => onUpdatePattern(p.id, { bgColor: e.target.value })} /></div>
             <div><Label className="text-[10px]">W</Label><Input className="h-5 text-[10px]" type="number" min={2} value={p.width} onChange={(e) => onUpdatePattern(p.id, { width: Math.max(2, parseFloat(e.target.value) || 2) })} /></div>
             <div><Label className="text-[10px]">H</Label><Input className="h-5 text-[10px]" type="number" min={2} value={p.height} onChange={(e) => onUpdatePattern(p.id, { height: Math.max(2, parseFloat(e.target.value) || 2) })} /></div>
           </div>
