@@ -22,6 +22,9 @@ interface PeerConnection {
   pc: RTCPeerConnection;
   userId: string;
   displayName: string;
+  makingOffer: boolean;
+  ignoreOffer: boolean;
+  pendingCandidates: RTCIceCandidateInit[];
 }
 
 export function useVoiceVideoRoom(projectId: string | undefined, roomName: string) {
@@ -89,6 +92,15 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
     setPeers(peerList);
   }, []);
 
+  const drainCandidateQueue = useCallback(async (peer: PeerConnection) => {
+    while (peer.pendingCandidates.length > 0) {
+      const candidate = peer.pendingCandidates.shift();
+      if (candidate) {
+        await peer.pc.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    }
+  }, []);
+
   const createPeerConnection = useCallback(
     (targetUserId: string, targetDisplayName: string): RTCPeerConnection => {
       const pc = new RTCPeerConnection(ICE_SERVERS);
@@ -98,7 +110,32 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
         peerConnectionsRef.current.delete(targetUserId);
       }
 
-      peerConnectionsRef.current.set(targetUserId, { pc, userId: targetUserId, displayName: targetDisplayName });
+      const peer: PeerConnection = {
+        pc,
+        userId: targetUserId,
+        displayName: targetDisplayName,
+        makingOffer: false,
+        ignoreOffer: false,
+        pendingCandidates: [],
+      };
+      peerConnectionsRef.current.set(targetUserId, peer);
+
+      pc.onnegotiationneeded = async () => {
+        try {
+          if (pc.signalingState !== 'stable') return;
+          peer.makingOffer = true;
+          await pc.setLocalDescription();
+          if (pc.localDescription?.type !== 'offer' || !channelRef.current) return;
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'offer',
+            payload: { offer: pc.localDescription, targetUserId, userId: userIdRef.current, displayName: displayNameRef.current },
+          });
+        } catch { /* peer disconnected before offer completed */ }
+        finally {
+          peer.makingOffer = false;
+        }
+      };
 
       pc.onicecandidate = (event) => {
         if (event.candidate && channelRef.current) {
