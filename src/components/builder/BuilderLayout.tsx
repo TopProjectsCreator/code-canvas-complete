@@ -272,7 +272,7 @@ function BuilderLayoutInner({ file, onContentChange }: BuilderLayoutProps) {
         <div className="flex items-center gap-1">
           <span className="text-xs font-medium text-muted-foreground mr-2">UI Designer</span>
           <button
-            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-30"
+            className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-30"
             onClick={handleUndo}
             disabled={state.historyIndex <= 0}
             title="Undo"
@@ -280,7 +280,7 @@ function BuilderLayoutInner({ file, onContentChange }: BuilderLayoutProps) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
           </button>
           <button
-            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-30"
+            className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-30"
             onClick={handleRedo}
             disabled={state.historyIndex >= state.history.length - 1}
             title="Redo"
@@ -292,9 +292,9 @@ function BuilderLayoutInner({ file, onContentChange }: BuilderLayoutProps) {
           {/* View mode toggle */}
           <div className="flex items-center bg-muted rounded-md p-0.5">
             <button
-              className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
+              className={`px-2 py-0.5 text-[11px] rounded-sm transition-colors ${
                 viewMode === "design"
-                  ? "bg-background text-foreground shadow-sm"
+                  ? "bg-background text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setViewMode("design")}
@@ -302,9 +302,9 @@ function BuilderLayoutInner({ file, onContentChange }: BuilderLayoutProps) {
               Design
             </button>
             <button
-              className={`px-2 py-0.5 text-[11px] rounded transition-colors ${
+              className={`px-2 py-0.5 text-[11px] rounded-sm transition-colors ${
                 viewMode === "code"
-                  ? "bg-background text-foreground shadow-sm"
+                  ? "bg-background text-foreground shadow-xs"
                   : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setViewMode("code")}

@@ -47,7 +47,7 @@ export function ShortcutsGuide() {
                     {items.map((item, i) => (
                       <div key={i} className="flex items-center justify-between py-0.5 text-xs">
                         <span className="text-muted-foreground">{item.desc}</span>
-                        <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded text-[10px] font-mono">{item.keys}</kbd>
+                        <kbd className="px-1.5 py-0.5 bg-muted border border-border rounded-sm text-[10px] font-mono">{item.keys}</kbd>
                       </div>
                     ))}
                   </div>

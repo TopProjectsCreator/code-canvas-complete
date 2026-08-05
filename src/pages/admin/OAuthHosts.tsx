@@ -80,7 +80,7 @@ const Row = ({ r, onSetStatus, onDelete, onSaveNotes, onSaveEdit }: RowProps) =>
     <div className="rounded-lg border border-border p-4 space-y-2">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
-          {r.logo_url ? <img src={r.logo_url} alt="" className="w-10 h-10 rounded object-cover border border-border" /> : <div className="w-10 h-10 rounded bg-muted" />}
+          {r.logo_url ? <img src={r.logo_url} alt="" className="w-10 h-10 rounded-sm object-cover border border-border" /> : <div className="w-10 h-10 rounded-sm bg-muted" />}
           <div className="min-w-0">
             <div className="font-medium truncate">{r.app_name}</div>
             <code className="text-xs text-muted-foreground">{r.host}</code>
@@ -110,7 +110,7 @@ const Row = ({ r, onSetStatus, onDelete, onSaveNotes, onSaveEdit }: RowProps) =>
                 </label>
               </Button>
             </div>
-            {edit.logo_url && <img src={edit.logo_url} alt="" className="mt-2 w-10 h-10 rounded object-cover border border-border" />}
+            {edit.logo_url && <img src={edit.logo_url} alt="" className="mt-2 w-10 h-10 rounded-sm object-cover border border-border" />}
           </div>
           <div className="sm:col-span-2"><Label className="text-xs">Public description</Label><Textarea value={edit.public_description} onChange={e => setEdit({ ...edit, public_description: e.target.value })} /></div>
           <div className="sm:col-span-2 flex gap-2">
@@ -280,7 +280,7 @@ const OAuthHostsAdmin = () => {
                   </label>
                 </Button>
               </div>
-              {form.logo_url && <img src={form.logo_url} alt="" className="mt-2 w-10 h-10 rounded object-cover border border-border" />}
+              {form.logo_url && <img src={form.logo_url} alt="" className="mt-2 w-10 h-10 rounded-sm object-cover border border-border" />}
             </div>
             <div className="sm:col-span-2"><Label>Public description</Label><Textarea value={form.public_description} onChange={e => setForm({ ...form, public_description: e.target.value })} /></div>
             <div className="sm:col-span-2"><Label>Admin notes (private)</Label><Textarea value={form.admin_notes} onChange={e => setForm({ ...form, admin_notes: e.target.value })} /></div>

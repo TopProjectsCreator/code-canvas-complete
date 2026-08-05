@@ -428,7 +428,7 @@ function OrbitEscape3D() {
           return (
             <div
               key={obstacle.id}
-              className="absolute left-1/2 top-0 h-5 w-5 rounded-sm bg-destructive/90 border border-destructive-foreground/60"
+              className="absolute left-1/2 top-0 h-5 w-5 rounded-xs bg-destructive/90 border border-destructive-foreground/60"
               style={{
                 transform: `translateX(${x}px) translateY(${y}px) scale(${scale})`,
                 boxShadow: '0 0 12px rgba(248,113,113,0.55)',

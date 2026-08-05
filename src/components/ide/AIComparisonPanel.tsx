@@ -80,7 +80,7 @@ function ModelConfigurator({
           value={modelFilter}
           onChange={(e) => setModelFilter(e.target.value)}
           placeholder="Search models..."
-          className="w-full rounded border border-border bg-input px-2 py-1 text-xs text-foreground outline-none focus:ring-1 focus:ring-primary"
+          className="w-full rounded-sm border border-border bg-input px-2 py-1 text-xs text-foreground outline-hidden focus:ring-1 focus:ring-primary"
         />
         <Select value={config.model} onValueChange={(v) => onChange({ ...config, model: v })}>
           <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
@@ -375,7 +375,7 @@ export function AIComparisonPanel() {
                     att.type === 'audio' ? <FileAudio className="w-3 h-3 text-primary" /> :
                       <FileText className="w-3 h-3 text-primary" />}
                 <span className="max-w-[160px] truncate text-foreground">{att.name}</span>
-                <button onClick={() => removeAttachment(att.id)} className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+                <button onClick={() => removeAttachment(att.id)} className="p-0.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground">
                   <X className="w-3 h-3" />
                 </button>
               </div>

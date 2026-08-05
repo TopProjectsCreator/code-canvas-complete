@@ -376,7 +376,7 @@ export const FontEditor = ({ file, onContentChange }: { file: FileNode; onConten
                     type="color"
                     value={previewColor}
                     onChange={e => setPreviewColor(e.target.value)}
-                    className="w-7 h-7 rounded cursor-pointer border border-border p-0.5"
+                    className="w-7 h-7 rounded-sm cursor-pointer border border-border p-0.5"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -385,7 +385,7 @@ export const FontEditor = ({ file, onContentChange }: { file: FileNode; onConten
                     type="color"
                     value={previewBg}
                     onChange={e => setPreviewBg(e.target.value)}
-                    className="w-7 h-7 rounded cursor-pointer border border-border p-0.5"
+                    className="w-7 h-7 rounded-sm cursor-pointer border border-border p-0.5"
                   />
                 </div>
                 <Button
@@ -430,7 +430,7 @@ export const FontEditor = ({ file, onContentChange }: { file: FileNode; onConten
                         key={g.index}
                         onClick={() => { setSelectedGlyphIndex(g.index); setActiveTab('details'); }}
                         className={cn(
-                          "flex flex-col items-center justify-center p-1.5 rounded border transition-colors cursor-pointer",
+                          "flex flex-col items-center justify-center p-1.5 rounded-sm border transition-colors cursor-pointer",
                           "hover:bg-accent hover:text-accent-foreground",
                           selectedGlyphIndex === g.index
                             ? "border-primary bg-primary/10"

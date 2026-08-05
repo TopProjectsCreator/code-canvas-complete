@@ -479,7 +479,7 @@ export const Sidebar = ({
               <div className="relative">
                 <button 
                   onClick={() => setShowNewMenu(!showNewMenu)}
-                  className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                  className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -552,7 +552,7 @@ export const Sidebar = ({
                   placeholder="Search in files..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 bg-input border border-border rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full pl-8 pr-3 py-1.5 bg-input border border-border rounded-md text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
                   ref={searchInputRef}
                   autoFocus
                 />

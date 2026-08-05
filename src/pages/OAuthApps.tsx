@@ -179,7 +179,7 @@ const OAuthAppsPublic = () => {
               {mine.map(row => (
                 <div key={row.host} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    {row.logo_url ? <img src={row.logo_url} alt="" className="w-8 h-8 rounded object-cover" /> : <div className="w-8 h-8 rounded bg-muted" />}
+                    {row.logo_url ? <img src={row.logo_url} alt="" className="w-8 h-8 rounded-sm object-cover" /> : <div className="w-8 h-8 rounded-sm bg-muted" />}
                     <div className="min-w-0">
                       <div className="font-medium truncate">{row.app_name}</div>
                       <code className="text-xs text-muted-foreground">{row.host}</code>

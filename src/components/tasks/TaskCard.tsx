@@ -25,7 +25,7 @@ export function TaskCard({ task, onSelect, isDragging }: TaskCardProps) {
     <div
       onClick={onSelect}
       className={cn(
-        'rounded-lg border bg-card p-3 shadow-sm transition-all hover:shadow-md cursor-pointer',
+        'rounded-lg border bg-card p-3 shadow-xs transition-all hover:shadow-md cursor-pointer',
         isDragging && 'opacity-50 ring-2 ring-primary',
       )}
     >

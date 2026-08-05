@@ -406,12 +406,12 @@ function CommentCard({ comment, collab, userId }: { comment: CodeComment; collab
         </div>
         <div className="flex gap-1">
           {!comment.resolved && (
-            <button type="button" onClick={() => collab.resolveComment(comment.id, true)} className="rounded p-1 text-muted-foreground hover:bg-success/10 hover:text-success" title="Resolve">
+            <button type="button" onClick={() => collab.resolveComment(comment.id, true)} className="rounded-sm p-1 text-muted-foreground hover:bg-success/10 hover:text-success" title="Resolve">
               <Check className="h-3.5 w-3.5" />
             </button>
           )}
           {comment.user_id === userId && (
-            <button type="button" onClick={() => collab.deleteComment(comment.id)} className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Delete">
+            <button type="button" onClick={() => collab.deleteComment(comment.id)} className="rounded-sm p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Delete">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           )}

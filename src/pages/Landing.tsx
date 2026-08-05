@@ -468,12 +468,12 @@ export default function Landing() {
                   <span className="font-mono text-xs uppercase tracking-widest">Web Ecosystem</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">react</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">nodejs</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">typescript</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">html</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">javascript</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">php</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">react</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">nodejs</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">typescript</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">html</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">javascript</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">php</span>
                 </div>
               </div>
 
@@ -483,13 +483,13 @@ export default function Landing() {
                   <span className="font-mono text-xs uppercase tracking-widest">Systems & Low-Level</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">rust</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">cpp</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">zig</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">go</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">csharp</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">swift</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">nim</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">rust</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">cpp</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">zig</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">go</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">csharp</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">swift</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">nim</span>
                 </div>
               </div>
 
@@ -499,12 +499,12 @@ export default function Landing() {
                   <span className="font-mono text-xs uppercase tracking-widest">Logic & Data</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">python</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">haskell</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">julia</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">elixir</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">lisp</span>
-                  <span className="px-2 py-1 rounded bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">ocaml</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">python</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">haskell</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">julia</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">elixir</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">lisp</span>
+                  <span className="px-2 py-1 rounded-sm bg-background/50 border border-border/40 text-xs text-muted-foreground group-hover:text-foreground">ocaml</span>
                 </div>
               </div>
 

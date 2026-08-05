@@ -212,7 +212,7 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
         <textarea
           ref={textareaRef}
           className={cn(
-            "absolute inset-0 z-10 w-full h-full resize-none outline-none",
+            "absolute inset-0 z-10 w-full h-full resize-none outline-hidden",
             "font-mono text-sm leading-6 whitespace-pre pl-[6px] pt-[2px] pr-4",
             "caret-foreground",
             "code-editor-textarea",
@@ -244,11 +244,11 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
                   style={{ top: `${top}px`, left }}
                 >
                   <div
-                    className="h-6 w-[2px] rounded-sm"
+                    className="h-6 w-[2px] rounded-xs"
                     style={{ backgroundColor: entry.color }}
                   />
                   <div
-                    className="absolute left-0 top-0 -translate-y-full whitespace-nowrap rounded-sm rounded-bl-none px-1.5 py-0.5 text-[10px] font-medium leading-tight text-white shadow-sm"
+                    className="absolute left-0 top-0 -translate-y-full whitespace-nowrap rounded-xs rounded-bl-none px-1.5 py-0.5 text-[10px] font-medium leading-tight text-white shadow-xs"
                     style={{ backgroundColor: entry.color }}
                   >
                     {entry.displayName}

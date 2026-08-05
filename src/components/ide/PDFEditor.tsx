@@ -287,13 +287,13 @@ export const PDFEditor = ({ file }: PDFEditorProps) => {
                   key={i}
                   onClick={() => goToPage(pageNum)}
                   className={cn(
-                    'w-full rounded border overflow-hidden transition-colors relative',
+                    'w-full rounded-sm border overflow-hidden transition-colors relative',
                     currentPage === pageNum ? 'border-primary ring-1 ring-primary' : 'border-border hover:border-muted-foreground/50'
                   )}
                 >
                   <img src={dataUrl} alt={`Page ${pageNum}`} className="w-full h-auto" />
                   {matchCount > 0 && (
-                    <div className="absolute bottom-1 right-1 bg-primary text-primary-foreground text-[10px] font-medium min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center leading-none shadow-sm">
+                    <div className="absolute bottom-1 right-1 bg-primary text-primary-foreground text-[10px] font-medium min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center leading-none shadow-xs">
                       {matchCount}
                     </div>
                   )}
@@ -455,7 +455,7 @@ export const PDFEditor = ({ file }: PDFEditorProps) => {
 
         <div ref={containerRef} className="flex flex-1 items-start justify-center overflow-auto bg-editor p-6">
           <div className="relative inline-block">
-            <canvas ref={canvasRef} className="shadow-xl rounded-sm" />
+            <canvas ref={canvasRef} className="shadow-xl rounded-xs" />
             <div ref={textLayerRef} className="absolute top-0 left-0 pointer-events-none" style={{ mixBlendMode: 'multiply' }} />
           </div>
         </div>

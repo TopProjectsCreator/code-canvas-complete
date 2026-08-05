@@ -427,10 +427,10 @@ export const AudioEditor = ({ file, onContentChange }: AudioEditorProps) => {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
                 <div className="space-y-1">
-                  <p><kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">Space</kbd> Play / Pause</p>
-                  <p><kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">←</kbd> Back 5s</p>
-                  <p><kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">→</kbd> Forward 5s</p>
-                  <p><kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">M</kbd> Toggle mute</p>
+                  <p><kbd className="px-1 py-0.5 bg-white/10 rounded-sm text-[10px]">Space</kbd> Play / Pause</p>
+                  <p><kbd className="px-1 py-0.5 bg-white/10 rounded-sm text-[10px]">←</kbd> Back 5s</p>
+                  <p><kbd className="px-1 py-0.5 bg-white/10 rounded-sm text-[10px]">→</kbd> Forward 5s</p>
+                  <p><kbd className="px-1 py-0.5 bg-white/10 rounded-sm text-[10px]">M</kbd> Toggle mute</p>
                 </div>
               </TooltipContent>
             </Tooltip>
@@ -468,7 +468,7 @@ export const AudioEditor = ({ file, onContentChange }: AudioEditorProps) => {
         <div className="bg-[#1a1a1a] border-t border-[#333]">
           <div
             ref={timelineRef}
-            className="relative h-16 mx-3 mt-2 rounded overflow-hidden cursor-pointer group"
+            className="relative h-16 mx-3 mt-2 rounded-sm overflow-hidden cursor-pointer group"
             onClick={handleTimelineClick}
           >
             <canvas
@@ -510,7 +510,7 @@ export const AudioEditor = ({ file, onContentChange }: AudioEditorProps) => {
 
             {/* Playhead */}
             <div className="absolute top-0 h-full w-0.5 bg-white z-20 pointer-events-none" style={{ left: `${progressPct}%` }}>
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white rounded-full shadow" />
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white rounded-full shadow-sm" />
             </div>
           </div>
 

@@ -44,7 +44,7 @@ export function WorkspaceSwitcher({ workspaces, activeWorkspace, onSelect, onCre
             }`}
             onClick={() => { onSelect(ws); setOpen(false) }}
           >
-            <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+            <div className="w-6 h-6 rounded-sm bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
               {ws.name[0]}
             </div>
             <div className="flex-1 text-left min-w-0">

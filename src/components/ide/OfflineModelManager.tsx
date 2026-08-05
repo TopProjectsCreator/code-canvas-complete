@@ -178,7 +178,7 @@ export function OfflineModelManager({
                       <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{model.description}</p>
                     </div>
                     <div className="text-right">
-                      <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">{model.size}</span>
+                      <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded-sm">{model.size}</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-3">

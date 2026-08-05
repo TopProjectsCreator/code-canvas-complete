@@ -202,13 +202,13 @@ const CodeChangeBlock = ({
         <div className="flex items-center gap-2">
           {change.isDiff ? <Diff className="w-3.5 h-3.5 text-primary" /> : <FileEdit className="w-3.5 h-3.5 text-primary" />}
           <span className="text-xs font-medium text-foreground">{change.fileName}</span>
-          {change.isDiff && <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-mono">DIFF</span>}
+          {change.isDiff && <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-primary/20 text-primary font-mono">DIFF</span>}
           <span className="text-xs text-muted-foreground">• {change.description}</span>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={copyCode}
-            className="p-1.5 rounded hover:bg-background/50 text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-sm hover:bg-background/50 text-muted-foreground hover:text-foreground transition-colors"
             title="Copy code"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -217,7 +217,7 @@ const CodeChangeBlock = ({
             onClick={onApply}
             disabled={isApplied}
             className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all",
+              "flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-xs font-medium transition-all",
               isApplied 
                 ? "bg-green-500/20 text-green-400 cursor-default"
                 : "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105"
@@ -491,7 +491,7 @@ const InteractiveQuestionBlock = ({
         <MessageCircleQuestion className="w-3.5 h-3.5 text-primary" />
         <span className="text-xs font-medium text-foreground">{question.question}</span>
         {question.multiSelect && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-mono">MULTI</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-primary/20 text-primary font-mono">MULTI</span>
         )}
       </div>
       <div className="p-3 space-y-2">
@@ -502,7 +502,7 @@ const InteractiveQuestionBlock = ({
             onChange={e => setTextValue(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
             placeholder={question.placeholder || 'Type your answer...'}
-            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
           />
         )}
 
@@ -515,7 +515,7 @@ const InteractiveQuestionBlock = ({
             step={question.step ?? 1}
             onChange={e => setNumberValue(e.target.value === '' ? '' : Number(e.target.value))}
             placeholder={question.placeholder || 'Enter a number...'}
-            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
           />
         )}
 
@@ -524,7 +524,7 @@ const InteractiveQuestionBlock = ({
             type="date"
             value={dateValue}
             onChange={e => setDateValue(e.target.value)}
-            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
           />
         )}
 
@@ -533,7 +533,7 @@ const InteractiveQuestionBlock = ({
             type="time"
             value={timeValue}
             onChange={e => setTimeValue(e.target.value)}
-            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
           />
         )}
 
@@ -542,7 +542,7 @@ const InteractiveQuestionBlock = ({
             type="datetime-local"
             value={dateTimeValue}
             onChange={e => setDateTimeValue(e.target.value)}
-            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
           />
         )}
 
@@ -552,7 +552,7 @@ const InteractiveQuestionBlock = ({
             value={emailValue}
             onChange={e => setEmailValue(e.target.value)}
             placeholder={question.placeholder || 'name@example.com'}
-            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full bg-background border border-border rounded-md px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
           />
         )}
 
@@ -590,8 +590,8 @@ const InteractiveQuestionBlock = ({
               >
                 <span className="flex items-center gap-2">
                   <span className={cn(
-                    'w-3.5 h-3.5 rounded border flex items-center justify-center',
-                    question.multiSelect ? 'rounded-sm' : 'rounded-full',
+                    'w-3.5 h-3.5 rounded-sm border flex items-center justify-center',
+                    question.multiSelect ? 'rounded-xs' : 'rounded-full',
                     selectedOptions.includes(opt.label) ? 'bg-primary border-primary' : 'border-muted-foreground/50'
                   )}>
                     {selectedOptions.includes(opt.label) && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
@@ -610,10 +610,10 @@ const InteractiveQuestionBlock = ({
                 <span className="w-4 h-4 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
                 <GripVertical className="w-3 h-3 text-muted-foreground" />
                 <span className="flex-1 text-foreground">{opt}</span>
-                <button onClick={() => moveRank(i, -1)} disabled={i === 0} className="p-0.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30">
+                <button onClick={() => moveRank(i, -1)} disabled={i === 0} className="p-0.5 rounded-sm hover:bg-accent text-muted-foreground disabled:opacity-30">
                   <ArrowUp className="w-3 h-3" />
                 </button>
-                <button onClick={() => moveRank(i, 1)} disabled={i === rankedOptions.length - 1} className="p-0.5 rounded hover:bg-accent text-muted-foreground disabled:opacity-30">
+                <button onClick={() => moveRank(i, 1)} disabled={i === rankedOptions.length - 1} className="p-0.5 rounded-sm hover:bg-accent text-muted-foreground disabled:opacity-30">
                   <ArrowDown className="w-3 h-3" />
                 </button>
               </div>
@@ -1090,14 +1090,14 @@ export const AIChat = ({
         <div className="flex items-center gap-0.5">
           <button
             onClick={clearMessages}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             title="Clear"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={onClose}
-            className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -1190,7 +1190,7 @@ export const AIChat = ({
                             
                             if (isInline) {
                               return (
-                                <code className="bg-background/50 px-1 py-0.5 rounded text-xs" {...props}>
+                                <code className="bg-background/50 px-1 py-0.5 rounded-sm text-xs" {...props}>
                                   {children}
                                 </code>
                               );
@@ -1208,7 +1208,7 @@ export const AIChat = ({
                                     onClick={async () => {
                                       await navigator.clipboard.writeText(codeContent);
                                     }}
-                                    className="p-1.5 rounded bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
+                                    className="p-1.5 rounded-sm bg-background/80 hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
                                     title="Copy code"
                                   >
                                     <Copy className="w-3.5 h-3.5" />
@@ -1216,7 +1216,7 @@ export const AIChat = ({
                                   {onInsertCode && (
                                     <button
                                       onClick={() => onInsertCode(codeContent)}
-                                      className="p-1.5 rounded bg-background/80 hover:bg-primary hover:text-primary-foreground text-muted-foreground transition-colors"
+                                      className="p-1.5 rounded-sm bg-background/80 hover:bg-primary hover:text-primary-foreground text-muted-foreground transition-colors"
                                       title="Insert into editor"
                                     >
                                       <Code className="w-3.5 h-3.5" />
@@ -1458,7 +1458,7 @@ export const AIChat = ({
                   key={m.id}
                   onClick={() => { setSelectedModel(m.id); setByokProvider(null); setByokModel(null); }}
                   className={cn(
-                    'px-2 py-0.5 rounded text-[10px] font-medium transition-all',
+                    'px-2 py-0.5 rounded-sm text-[10px] font-medium transition-all',
                     selectedModel === m.id && !byokProvider
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
@@ -1478,7 +1478,7 @@ export const AIChat = ({
               <button
                 onClick={() => setOfflineModeEnabled(!offlineModeEnabled)}
                 className={cn(
-                  'px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1',
+                  'px-2 py-0.5 rounded-sm text-[10px] font-medium transition-all flex items-center gap-1',
                   offlineModeEnabled ? 'bg-emerald-600 text-white' : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
                 )}
                 title="Run chat model locally in your browser"
@@ -1489,7 +1489,7 @@ export const AIChat = ({
               <button
                 onClick={() => setChatOnlyMode(!chatOnlyMode)}
                 className={cn(
-                  'px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1',
+                  'px-2 py-0.5 rounded-sm text-[10px] font-medium transition-all flex items-center gap-1',
                   chatOnlyMode ? 'bg-blue-600 text-white' : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
                 )}
                 title="Disable agent tools for small models"
@@ -1500,7 +1500,7 @@ export const AIChat = ({
               {offlineModeEnabled && (
                 <button
                   onClick={() => setShowOfflineManager(true)}
-                  className="px-2 py-0.5 rounded text-[10px] font-medium bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent flex items-center gap-1"
+                  className="px-2 py-0.5 rounded-sm text-[10px] font-medium bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent flex items-center gap-1"
                 >
                   <Settings className="w-3 h-3" /> 
                   {offlineModelId.split('/').pop()?.split('@')[0] || 'Select Model'}
@@ -1529,7 +1529,7 @@ export const AIChat = ({
                     }
                   }}
                   className={cn(
-                    'px-2 py-0.5 rounded text-[10px] font-medium transition-all',
+                    'px-2 py-0.5 rounded-sm text-[10px] font-medium transition-all',
                     byokProvider === provider
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
@@ -1546,7 +1546,7 @@ export const AIChat = ({
                 <PopoverTrigger asChild>
                   <button
                     className={cn(
-                      'p-1 rounded transition-colors flex items-center gap-1',
+                      'p-1 rounded-sm transition-colors flex items-center gap-1',
                       preset === 'fast' ? 'text-green-400 hover:bg-green-500/10' :
                       preset === 'safe' ? 'text-muted-foreground hover:bg-accent' :
                       'text-amber-400 hover:bg-amber-500/10'
@@ -1573,7 +1573,7 @@ export const AIChat = ({
                           key={m.id}
                           onClick={() => setPreset(m.id)}
                           className={cn(
-                            'flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-medium transition-all',
+                            'flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-sm text-[10px] font-medium transition-all',
                             preset === m.id
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
@@ -1618,7 +1618,7 @@ export const AIChat = ({
 
               <button
                 onClick={() => setShowApiKeys(true)}
-                className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                 title="API Keys & Limits"
               >
                 <Key className="w-3 h-3" />
@@ -1635,7 +1635,7 @@ export const AIChat = ({
                       value={byokBaseUrl || ''}
                       onChange={e => setByokBaseUrl(e.target.value)}
                       placeholder="https://api.example.com/v1/chat/completions"
-                      className="flex-1 rounded border border-border bg-input px-2 py-1 text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary font-mono"
+                      className="flex-1 rounded-sm border border-border bg-input px-2 py-1 text-[10px] text-foreground outline-hidden focus:ring-1 focus:ring-primary font-mono"
                     />
                   </div>
                 )}
@@ -1645,7 +1645,7 @@ export const AIChat = ({
                     value={byokModelFilter}
                     onChange={(e) => setByokModelFilter(e.target.value)}
                     placeholder="Search models..."
-                    className="flex-1 rounded border border-border bg-input px-2 py-1 text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary"
+                    className="flex-1 rounded-sm border border-border bg-input px-2 py-1 text-[10px] text-foreground outline-hidden focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -1653,7 +1653,7 @@ export const AIChat = ({
                   <select
                     value={byokModel || ''}
                     onChange={e => setByokModel(e.target.value)}
-                    className="text-[10px] bg-accent/50 border border-border rounded px-1.5 py-0.5 text-foreground outline-none focus:ring-1 focus:ring-primary flex-1"
+                    className="text-[10px] bg-accent/50 border border-border rounded-sm px-1.5 py-0.5 text-foreground outline-hidden focus:ring-1 focus:ring-primary flex-1"
                   >
                     {((PROVIDER_MODELS as any)[byokProvider] || [] as { id: string; label: string }[])
                       .filter((m: { id: string; label: string }) =>
@@ -1679,7 +1679,7 @@ export const AIChat = ({
                      att.type === 'audio' ? <FileAudio className="w-3 h-3 text-primary" /> :
                      <FileText className="w-3 h-3 text-primary" />}
                     <span className="max-w-[100px] truncate text-foreground">{att.name}</span>
-                    <button onClick={() => removeAttachment(att.id)} className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+                    <button onClick={() => removeAttachment(att.id)} className="p-0.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground">
                       <X className="w-3 h-3" />
                     </button>
                   </div>
@@ -1746,7 +1746,7 @@ export const AIChat = ({
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder={currentFile ? `Ask about ${currentFile.name}...` : 'Ask me anything...'}
-                        className="flex-1 resize-none bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary min-h-[40px] max-h-[120px]"
+                        className="flex-1 resize-none bg-input border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary min-h-[40px] max-h-[120px]"
                         rows={1}
                       />
                       {isLoading ? (

@@ -264,7 +264,7 @@ export default function Docs() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search docs…"
-                className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm outline-hidden ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
               />
             </label>
             <nav className="space-y-4">
@@ -374,7 +374,7 @@ export default function Docs() {
                           );
                         }
                         return (
-                          <code className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono text-foreground/90" {...props}>{children}</code>
+                          <code className="rounded-sm bg-muted px-1.5 py-0.5 text-sm font-mono text-foreground/90" {...props}>{children}</code>
                         );
                       },
                       pre: ({ children }) => (

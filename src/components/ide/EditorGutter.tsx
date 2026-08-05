@@ -99,7 +99,7 @@ export const EditorGutter = ({
               key={scopeId}
               type="button"
               className={cn(
-                "flex h-6 w-5 items-center justify-center rounded-sm transition-colors hover:bg-muted/50",
+                "flex h-6 w-5 items-center justify-center rounded-xs transition-colors hover:bg-muted/50",
                 isFolded && "bg-primary/10 text-primary",
               )}
               onClick={() => onToggleFold(scopeId)}

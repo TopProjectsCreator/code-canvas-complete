@@ -42,7 +42,7 @@ export function MaterialProperties() {
         {BUILTIN_MATERIALS.map(mat => (
           <button
             key={mat.id}
-            className="flex items-center gap-2 p-2 rounded border text-xs hover:bg-accent text-left"
+            className="flex items-center gap-2 p-2 rounded-sm border text-xs hover:bg-accent text-left"
             onClick={() => {
               if (activeBodyId) {
                 updateBodyAppearance(activeBodyId, {
@@ -54,7 +54,7 @@ export function MaterialProperties() {
             }}
           >
             <div
-              className="w-6 h-6 rounded border"
+              className="w-6 h-6 rounded-sm border"
               style={{ backgroundColor: mat.color, opacity: mat.opacity ?? 1 }}
             />
             <div>

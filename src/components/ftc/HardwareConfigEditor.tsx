@@ -202,7 +202,7 @@ export function HardwareConfigEditor({ onExportConfig }: HardwareConfigEditorPro
                       return (
                         <div
                           key={i}
-                          className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs border ${
+                          className={`flex items-center gap-1 px-2 py-1.5 rounded-sm text-xs border ${
                             device
                               ? DEVICE_TYPE_COLORS[device.type]
                               : 'bg-slate-800/50 border-slate-700/50 text-muted-foreground'
@@ -218,7 +218,7 @@ export function HardwareConfigEditor({ onExportConfig }: HardwareConfigEditorPro
                               />
                               <button
                                 onClick={() => removeDevice(device.id)}
-                                className="p-0.5 rounded hover:bg-red-500/20 text-red-400/60 hover:text-red-400"
+                                className="p-0.5 rounded-sm hover:bg-red-500/20 text-red-400/60 hover:text-red-400"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
@@ -250,13 +250,13 @@ export function HardwareConfigEditor({ onExportConfig }: HardwareConfigEditorPro
               </div>
               <div className="grid grid-cols-2 gap-1">
                 {controllerDevices.filter(d => d.type === 'webcam').map(device => (
-                  <div key={device.id} className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs border ${DEVICE_TYPE_COLORS.webcam}`}>
+                  <div key={device.id} className={`flex items-center gap-1 px-2 py-1.5 rounded-sm text-xs border ${DEVICE_TYPE_COLORS.webcam}`}>
                     <Input
                       value={device.name}
                       onChange={e => updateDevice(device.id, { name: e.target.value })}
                       className="h-5 text-xs bg-transparent border-none p-0 focus-visible:ring-0 flex-1 min-w-0"
                     />
-                    <button onClick={() => removeDevice(device.id)} className="p-0.5 rounded hover:bg-red-500/20 text-red-400/60 hover:text-red-400">
+                    <button onClick={() => removeDevice(device.id)} className="p-0.5 rounded-sm hover:bg-red-500/20 text-red-400/60 hover:text-red-400">
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
@@ -270,7 +270,7 @@ export function HardwareConfigEditor({ onExportConfig }: HardwareConfigEditorPro
       {/* Generated Java preview */}
       <Card className="p-3 bg-slate-900 border-slate-700">
         <span className="text-xs font-medium text-muted-foreground mb-2 block">Java Hardware Map Preview</span>
-        <pre className="text-[10px] font-mono text-green-300 bg-black/50 p-2 rounded overflow-auto max-h-[120px]">
+        <pre className="text-[10px] font-mono text-green-300 bg-black/50 p-2 rounded-sm overflow-auto max-h-[120px]">
           {generateJavaMapping()}
         </pre>
       </Card>

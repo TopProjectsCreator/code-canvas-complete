@@ -800,7 +800,7 @@ export function SvgEditor({ file, onContentChange }: SvgEditorProps) {
             <div className="flex-1 flex flex-col">
               <div className="px-4 py-1 text-xs text-muted-foreground bg-muted/30 font-medium">Source</div>
               <textarea
-                className="flex-1 p-4 text-xs font-mono bg-background text-foreground outline-none resize-none border-0"
+                className="flex-1 p-4 text-xs font-mono bg-background text-foreground outline-hidden resize-none border-0"
                 value={sourceCode}
                 onChange={(e) => setSourceCode(e.target.value)}
                 onBlur={() => {

@@ -62,7 +62,7 @@ function ExtensionCodeEditor({
       value={code}
       onChange={(e) => onChange(e.target.value)}
       spellCheck={false}
-      className="w-full min-h-[200px] max-h-[400px] rounded border border-border bg-muted font-mono text-[11px] p-2 resize-y focus:outline-none focus:ring-1 focus:ring-primary"
+      className="w-full min-h-[200px] max-h-[400px] rounded-sm border border-border bg-muted font-mono text-[11px] p-2 resize-y focus:outline-hidden focus:ring-1 focus:ring-primary"
       placeholder={`// Extension code — receives a \`ctx\` object\n// ctx.showUI(html) — render a widget\n// ctx.ai.complete(prompt) — call AI\n// ctx.storage.get/set — persist data\n// ctx.project.readFile/writeFile/listFiles/deleteFile — file editing\n// ctx.preview.show({ title, content, language }) — preview output\n// ctx.registerAction('Label', () => ...) — add extension buttons\n// ctx.profile.stats — profile usage snapshot\n\nconst readme = ctx.project.readFile('README.md');\nctx.project.writeFile('notes/todo.md', '- Added by extension');\nctx.preview.show({ title: 'README Preview', content: readme, language: 'markdown' });\nctx.registerAction('Show file count', () => ctx.showNotification(String(ctx.project.listFiles().length)));\nreturn { ok: true };`}
     />
   );
@@ -163,7 +163,7 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
   return (
     <div className="space-y-2">
       {enableFileBridge && (
-        <div className={`rounded border p-2 ${isDraggingFile ? 'border-primary bg-accent/50' : 'border-border bg-card'}`}>
+        <div className={`rounded-sm border p-2 ${isDraggingFile ? 'border-primary bg-accent/50' : 'border-border bg-card'}`}>
           <input
             ref={fileInputRef}
             type="file"
@@ -187,7 +187,7 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="shrink-0 rounded border border-border bg-background px-2 py-1 text-[11px] font-medium hover:bg-accent"
+              className="shrink-0 rounded-sm border border-border bg-background px-2 py-1 text-[11px] font-medium hover:bg-accent"
             >
               Browse file
             </button>
@@ -202,7 +202,7 @@ function ExtensionPreview({ html, tall, enableFileBridge = false }: { html: stri
           srcDoc={previewDocument}
           onLoad={() => setPreviewReady(true)}
           sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-downloads"
-          className={`w-full rounded border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
+          className={`w-full rounded-sm border border-border bg-muted ${tall ? 'h-[500px]' : 'h-40'}`}
           title="Extension preview"
         />
 
@@ -655,7 +655,7 @@ export const ExtensionsPanel = ({
                     <p className="font-medium truncate">{ext.icon} {ext.name}</p>
                     <p className="text-muted-foreground truncate">{ext.description}</p>
                   </button>
-                  <button onClick={() => runBuiltinExtension(ext)} className="px-2 py-1 rounded bg-primary/10 text-primary text-[10px] font-medium shrink-0 hover:bg-primary/20">
+                  <button onClick={() => runBuiltinExtension(ext)} className="px-2 py-1 rounded-sm bg-primary/10 text-primary text-[10px] font-medium shrink-0 hover:bg-primary/20">
                     <Play className="h-3 w-3" />
                   </button>
                 </div>
@@ -694,9 +694,9 @@ export const ExtensionsPanel = ({
                       {ext.status === 'published' ? (
                         <span className="text-emerald-500 inline-flex items-center gap-0.5"><CheckCircle2 className="h-3 w-3" /></span>
                       ) : (
-                        <button onClick={() => publishExtension(ext)} className="px-1.5 py-0.5 rounded border border-border hover:bg-accent text-[10px]">Publish</button>
+                        <button onClick={() => publishExtension(ext)} className="px-1.5 py-0.5 rounded-sm border border-border hover:bg-accent text-[10px]">Publish</button>
                       )}
-                      <button onClick={() => deleteExtension(ext.id)} className="p-0.5 rounded hover:bg-destructive/10 text-destructive"><Trash2 className="h-3 w-3" /></button>
+                      <button onClick={() => deleteExtension(ext.id)} className="p-0.5 rounded-sm hover:bg-destructive/10 text-destructive"><Trash2 className="h-3 w-3" /></button>
                     </div>
                   </div>
                 </div>
@@ -711,15 +711,15 @@ export const ExtensionsPanel = ({
         <div className="p-3 space-y-3">
           {/* Meta */}
           <div className="space-y-2">
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="Extension name (e.g. URL Shortener)" className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs" />
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="Extension name (e.g. URL Shortener)" className="w-full rounded-sm border border-border bg-background px-2 py-1.5 text-xs" />
             {slug && <p className="text-[10px] text-muted-foreground px-1">Slug: {slug}</p>}
-            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe what this extension does — be specific! AI will use this to generate the code." rows={3} className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs resize-none" />
+            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe what this extension does — be specific! AI will use this to generate the code." rows={3} className="w-full rounded-sm border border-border bg-background px-2 py-1.5 text-xs resize-none" />
           </div>
 
           {/* Runtime type */}
           <div className="flex gap-1.5">
             {(['widget', 'command', 'chat-tool'] as ExtensionRuntime[]).map(rt => (
-              <button key={rt} onClick={() => setRuntimeType(rt)} className={`px-2 py-1 rounded text-[11px] border transition-colors ${runtimeType === rt ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
+              <button key={rt} onClick={() => setRuntimeType(rt)} className={`px-2 py-1 rounded-sm text-[11px] border transition-colors ${runtimeType === rt ? 'border-primary text-primary bg-primary/10' : 'border-border text-muted-foreground hover:text-foreground'}`}>
                 {rt === 'widget' && '🧩 Widget'}
                 {rt === 'command' && '⌘ Command'}
                 {rt === 'chat-tool' && '🤖 Chat Tool'}
@@ -767,7 +767,7 @@ export const ExtensionsPanel = ({
           {runOutput && (
             <div className="space-y-1">
               <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1"><Terminal className="h-3 w-3" /> Output</p>
-              <pre className="text-[11px] max-h-32 overflow-auto bg-muted rounded p-2 whitespace-pre-wrap">{runOutput}</pre>
+              <pre className="text-[11px] max-h-32 overflow-auto bg-muted rounded-sm p-2 whitespace-pre-wrap">{runOutput}</pre>
             </div>
           )}
 
@@ -785,7 +785,7 @@ export const ExtensionsPanel = ({
                         toast.error(`Action failed: ${err?.message || 'unknown error'}`);
                       }
                     }}
-                    className="px-2 py-1 rounded border border-border text-[11px] hover:bg-accent"
+                    className="px-2 py-1 rounded-sm border border-border text-[11px] hover:bg-accent"
                   >
                     {action.label}
                   </button>
@@ -796,7 +796,7 @@ export const ExtensionsPanel = ({
 
           <div className="space-y-1">
             <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1"><FileCode2 className="h-3 w-3" /> File Sandbox</p>
-            <div className="max-h-40 overflow-auto rounded border border-border divide-y divide-border">
+            <div className="max-h-40 overflow-auto rounded-sm border border-border divide-y divide-border">
               {sandboxFileEntries.map(([path, content]) => (
                 <div key={path} className="px-2 py-1.5 text-[11px]">
                   <p className="font-medium truncate">{path}</p>
@@ -809,7 +809,7 @@ export const ExtensionsPanel = ({
           {previewData && (
             <div className="space-y-1">
               <p className="text-[10px] font-medium text-muted-foreground">{previewData.title || 'Preview Payload'}</p>
-              <pre className="text-[11px] max-h-40 overflow-auto bg-muted rounded p-2 whitespace-pre-wrap">{previewData.content}</pre>
+              <pre className="text-[11px] max-h-40 overflow-auto bg-muted rounded-sm p-2 whitespace-pre-wrap">{previewData.content}</pre>
               {previewData.language && <p className="text-[10px] text-muted-foreground">Language: {previewData.language}</p>}
             </div>
           )}
@@ -821,7 +821,7 @@ export const ExtensionsPanel = ({
         <div className="p-3 space-y-3">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <input value={storeSearch} onChange={e => setStoreSearch(e.target.value)} placeholder="Search extensions…" className="w-full rounded border border-border bg-background pl-7 pr-2 py-1.5 text-xs" />
+            <input value={storeSearch} onChange={e => setStoreSearch(e.target.value)} placeholder="Search extensions…" className="w-full rounded-sm border border-border bg-background pl-7 pr-2 py-1.5 text-xs" />
           </div>
           {filteredStore.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No published extensions found.</p>}
           {filteredStore.map(ext => (
@@ -834,12 +834,12 @@ export const ExtensionsPanel = ({
                 <span className="text-[10px] text-muted-foreground shrink-0">{ext.install_count} installs</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="px-1.5 py-0.5 rounded bg-muted text-[10px]">{(ext.manifest as any)?.runtime || 'widget'}</span>
+                <span className="px-1.5 py-0.5 rounded-sm bg-muted text-[10px]">{(ext.manifest as any)?.runtime || 'widget'}</span>
                 {user && (
                   installedIds.has(ext.id) ? (
-                    <button onClick={() => uninstallExtension(ext.id)} className="px-2 py-0.5 rounded border border-destructive text-destructive text-[10px]">Uninstall</button>
+                    <button onClick={() => uninstallExtension(ext.id)} className="px-2 py-0.5 rounded-sm border border-destructive text-destructive text-[10px]">Uninstall</button>
                   ) : (
-                    <button onClick={() => installExtension(ext.id)} className="px-2 py-0.5 rounded bg-primary text-primary-foreground text-[10px] inline-flex items-center gap-0.5">
+                    <button onClick={() => installExtension(ext.id)} className="px-2 py-0.5 rounded-sm bg-primary text-primary-foreground text-[10px] inline-flex items-center gap-0.5">
                       <Download className="h-3 w-3" /> Install
                     </button>
                   )

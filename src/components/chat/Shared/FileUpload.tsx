@@ -50,7 +50,7 @@ export function FileUpload({ files, onAdd, onRemove, disabled }: FileUploadProps
           {files.map((f, i) => (
             <div key={`${f.file.name}-${f.file.size}`} className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted text-xs max-w-[200px]">
               {isImageFile(f.file.type) && f.preview ? (
-                <img src={f.preview} alt="" className="w-5 h-5 rounded object-cover" />
+                <img src={f.preview} alt="" className="w-5 h-5 rounded-sm object-cover" />
               ) : (
                 <File className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
               )}

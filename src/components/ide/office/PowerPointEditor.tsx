@@ -901,7 +901,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 <div className="flex items-center gap-0.5">
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <label className="h-7 px-2 rounded hover:bg-muted/50 flex items-center cursor-pointer" title="Text Color">
+                      <label className="h-7 px-2 rounded-sm hover:bg-muted/50 flex items-center cursor-pointer" title="Text Color">
                         <span className="text-[11px] mr-1">A</span>
                         <input
                           type="color"
@@ -1034,11 +1034,11 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 {slides.map((slide, idx) => (
                   <div
                     key={idx}
-                    className={cn("group relative cursor-pointer rounded border-2 transition-all", idx === activeSlide ? "border-primary shadow-sm" : "border-transparent hover:border-muted-foreground/30")}
+                    className={cn("group relative cursor-pointer rounded-sm border-2 transition-all", idx === activeSlide ? "border-primary shadow-xs" : "border-transparent hover:border-muted-foreground/30")}
                     onClick={() => { setActiveSlide(idx); setSelectedElement(null); setEditingElement(null); }}
                   >
                     <div className="absolute -left-0.5 top-0 text-[10px] text-muted-foreground font-mono">{idx + 1}</div>
-                    <div className="ml-3 aspect-[16/9] bg-white dark:bg-[#2d2d2d] rounded-sm p-1 overflow-hidden relative">
+                    <div className="ml-3 aspect-[16/9] bg-white dark:bg-[#2d2d2d] rounded-xs p-1 overflow-hidden relative">
                       {slide.elements.map(el => (
                         el.type === 'shape' ? (
                           <div key={el.id} style={{
@@ -1074,7 +1074,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                 value={currentSlide?.speakerNotes || ''}
                 onChange={(e) => setActiveSlideSpeakerNotes(e.target.value)}
                 placeholder="Add notes for this slide..."
-                className="h-24 w-full resize-none rounded border border-border bg-background px-2 py-1 text-xs"
+                className="h-24 w-full resize-none rounded-sm border border-border bg-background px-2 py-1 text-xs"
               />
             </div>
           </div>
@@ -1084,7 +1084,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
             <div className="flex-1 flex items-center justify-center p-6 overflow-auto bg-[#e8e8e8] dark:bg-[#1a1a1a]">
               <div
                 ref={canvasRef}
-                className="relative bg-white dark:bg-[#2d2d2d] shadow-xl rounded-sm select-none"
+                className="relative bg-white dark:bg-[#2d2d2d] shadow-xl rounded-xs select-none"
                 style={{ width: Math.round(720 * (slideScale / 100)), height: Math.round(405 * (slideScale / 100)), minWidth: Math.round(720 * (slideScale / 100)), background: themeTone === 'dark' ? '#1f2937' : undefined, ...(showGrid ? { backgroundImage: 'linear-gradient(rgba(0,0,0,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.08) 1px, transparent 1px)', backgroundSize: '20px 20px' } : {}) }}
                 onClick={(e) => {
                   if (e.target === canvasRef.current) {
@@ -1124,7 +1124,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                       ) : el.type === 'text' ? (
                         isEditing ? (
                           <textarea
-                            className="w-full h-full bg-transparent outline-none resize-none p-1"
+                            className="w-full h-full bg-transparent outline-hidden resize-none p-1"
                             style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, color: el.color || '#1A1A1A', fontFamily: el.fontFamily || 'Calibri' }}
                             value={el.content}
                             autoFocus
@@ -1136,7 +1136,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                         ) : (
                           <div className="w-full h-full p-1 whitespace-pre-wrap overflow-hidden" style={{ fontSize: el.fontSize, fontWeight: el.fontWeight, fontStyle: el.fontStyle || 'normal', textDecoration: el.textDecoration || 'none', textAlign: el.textAlign || 'left', color: el.color || '#1A1A1A', fontFamily: el.fontFamily || 'Calibri' }}>
                             {el.placeholderType === 'shape' ? (
-                              <div className="w-full h-full rounded-sm border border-slate-500/80 bg-slate-200/70 dark:bg-slate-700/55 flex items-center justify-center text-xs font-medium">
+                              <div className="w-full h-full rounded-xs border border-slate-500/80 bg-slate-200/70 dark:bg-slate-700/55 flex items-center justify-center text-xs font-medium">
                                 {el.content || 'Shape'}
                               </div>
                             ) : el.placeholderType === 'table' && el.tableRows?.length ? (
@@ -1172,7 +1172,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                       {isSelected && (
                         <>
                           <div
-                            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-primary rounded-sm cursor-se-resize"
+                            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-primary rounded-xs cursor-se-resize"
                             onMouseDown={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -1263,7 +1263,7 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
                             {row.map((cell, colIndex) => (
                               <td key={`${rowIndex}-${colIndex}`} className="border border-border p-0">
                                 <input
-                                  className="w-full bg-background px-2 py-1 outline-none"
+                                  className="w-full bg-background px-2 py-1 outline-hidden"
                                   value={cell}
                                   onChange={(e) => updateTableCell(el.id, rowIndex, colIndex, e.target.value)}
                                 />
@@ -1332,11 +1332,11 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
               ))}
             </div>
           </div>
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/85 bg-black/50 px-3 py-1.5 rounded">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/85 bg-black/50 px-3 py-1.5 rounded-sm">
             {presentSlideIndex + 1} / {slides.length} · Esc to exit · ←/→ to navigate
           </div>
           <button
-            className="absolute top-4 right-4 text-sm bg-white/15 hover:bg-white/25 px-3 py-1 rounded"
+            className="absolute top-4 right-4 text-sm bg-white/15 hover:bg-white/25 px-3 py-1 rounded-sm"
             onClick={() => setPresenting(false)}
           >
             Exit

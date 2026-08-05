@@ -64,7 +64,7 @@ export function SketchDimensions() {
           <Separator />
           <div className="space-y-1 max-h-[100px] overflow-auto">
             {dimensions.map(d => (
-              <div key={d.id} className="flex items-center justify-between px-1 py-0.5 rounded hover:bg-accent/50">
+              <div key={d.id} className="flex items-center justify-between px-1 py-0.5 rounded-sm hover:bg-accent/50">
                 <span className="text-[10px] font-mono">{d.value}</span>
                 <button
                   className="text-[10px] text-red-500 hover:text-red-700"

@@ -309,7 +309,7 @@ export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => 
               <CardTitle className="text-sm">Paste .env entries</CardTitle>
               <button
                 onClick={() => { setShowPasteOverlay(false); setPasteContent(''); }}
-                className="rounded p-1 text-muted-foreground hover:text-foreground"
+                className="rounded-sm p-1 text-muted-foreground hover:text-foreground"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -319,7 +319,7 @@ export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => 
                 value={pasteContent}
                 onChange={(e) => setPasteContent(e.target.value)}
                 placeholder={'KEY=VALUE\nANOTHER_KEY=some_value'}
-                className="w-full h-28 rounded border border-border bg-background p-2 text-xs font-mono resize-none"
+                className="w-full h-28 rounded-sm border border-border bg-background p-2 text-xs font-mono resize-none"
               />
               <div className="flex justify-end gap-2 mt-2">
                 <Button size="sm" variant="outline" onClick={() => { setShowPasteOverlay(false); setPasteContent(''); }}>
@@ -347,7 +347,7 @@ export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => 
                   return (
                     <div key={folder.id} className="space-y-2 rounded-md border border-border p-2.5">
                       <div className="flex items-center gap-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded" style={{ backgroundColor: `${folder.color}33` }}>
+                        <div className="flex h-7 w-7 items-center justify-center rounded-sm" style={{ backgroundColor: `${folder.color}33` }}>
                           <Icon className="h-4 w-4" style={{ color: folder.color }} />
                         </div>
                         <Input
@@ -366,7 +366,7 @@ export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => 
                             );
                             persist(nextFolders, nextSecrets);
                           }}
-                          className="rounded p-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+                          className="rounded-sm p-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -439,7 +439,7 @@ export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => 
                             <div key={secret.id} className="rounded-md border border-border p-3">
                               <div className="mb-2 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <div className="flex h-7 w-7 items-center justify-center rounded" style={{ backgroundColor: `${secret.color}33` }}>
+                                  <div className="flex h-7 w-7 items-center justify-center rounded-sm" style={{ backgroundColor: `${secret.color}33` }}>
                                     <SecretIcon className="h-4 w-4" style={{ color: secret.color }} />
                                   </div>
                                   <Input
@@ -458,7 +458,7 @@ export const EnvFileEditor = ({ file, onContentChange }: EnvFileEditorProps) => 
                                     const nextSecrets = secrets.filter((item) => item.id !== secret.id);
                                     persist(folders, nextSecrets);
                                   }}
-                                  className="rounded p-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
+                                  className="rounded-sm p-1 text-muted-foreground hover:bg-destructive/20 hover:text-destructive"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </button>

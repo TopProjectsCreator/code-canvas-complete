@@ -61,13 +61,13 @@ export function TaskTable({ tasks, onSelectTask }: TaskTableProps) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <input
-          className="flex h-8 w-48 rounded-md border border-input bg-background px-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-8 w-48 rounded-md border border-input bg-background px-2 text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           placeholder="Search tasks..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <select
-          className="flex h-8 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-8 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
@@ -77,7 +77,7 @@ export function TaskTable({ tasks, onSelectTask }: TaskTableProps) {
           <option value="done">Done</option>
         </select>
         <select
-          className="flex h-8 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-8 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value)}
         >

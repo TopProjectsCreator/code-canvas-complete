@@ -101,7 +101,7 @@ export function TaskGantt({ tasks, onSelectTask }: TaskGanttProps) {
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">Group by:</span>
         <select
-          className="flex h-7 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-7 rounded-md border border-input bg-background px-2 text-xs ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
           value={groupBy}
           onChange={(e) => setGroupBy(e.target.value as GroupBy)}
         >
@@ -179,7 +179,7 @@ export function TaskGantt({ tasks, onSelectTask }: TaskGanttProps) {
                     <div className="relative flex-1" style={{ height: 32 }}>
                       {offset >= 0 && (
                         <div
-                          className="absolute top-1/2 h-3 -translate-y-1/2 rounded bg-primary/60"
+                          className="absolute top-1/2 h-3 -translate-y-1/2 rounded-sm bg-primary/60"
                           style={{
                             left: `${(offset / dayCount) * 100}%`,
                             width: `${(barWidth / dayCount) * 100}%`,

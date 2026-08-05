@@ -250,7 +250,7 @@ export const RTFEditor = ({ file, onContentChange }: RTFEditorProps) => {
     content: initialHtml,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm dark:prose-invert max-w-3xl mx-auto min-h-[300px] p-8 bg-card border border-border rounded-lg shadow-sm text-foreground text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/20',
+        class: 'prose prose-sm dark:prose-invert max-w-3xl mx-auto min-h-[300px] p-8 bg-card border border-border rounded-lg shadow-xs text-foreground text-base leading-relaxed focus:outline-hidden focus:ring-2 focus:ring-primary/20',
       },
     },
     onUpdate: ({ editor: ed }) => {

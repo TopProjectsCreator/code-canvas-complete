@@ -564,7 +564,7 @@ export const InboxDialog = ({ open, onOpenChange }: InboxDialogProps) => {
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {composeAttachments.map((a) => (
-                      <div key={a.path} className="flex items-center gap-2 text-xs border border-border rounded px-2 py-1 bg-muted/40">
+                      <div key={a.path} className="flex items-center gap-2 text-xs border border-border rounded-sm px-2 py-1 bg-muted/40">
                         {a.mime.startsWith('image/') ? <ImageIcon className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                         <span className="font-medium truncate max-w-[180px]">{a.name}</span>
                         <span className="text-muted-foreground">{formatBytes(a.size)}</span>
@@ -663,7 +663,7 @@ export const InboxDialog = ({ open, onOpenChange }: InboxDialogProps) => {
                           key={a.path}
                           type="button"
                           onClick={() => downloadAttachment(a)}
-                          className="flex items-center gap-2 text-xs border border-border rounded px-2 py-1 bg-muted/40 hover:bg-accent transition-colors"
+                          className="flex items-center gap-2 text-xs border border-border rounded-sm px-2 py-1 bg-muted/40 hover:bg-accent transition-colors"
                         >
                           {a.mime.startsWith('image/') ? <ImageIcon className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
                           <span className="font-medium">{a.name}</span>
@@ -730,7 +730,7 @@ export const InboxDialog = ({ open, onOpenChange }: InboxDialogProps) => {
                           {(m.labels || []).map((l) => (
                             <span
                               key={l}
-                              className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground"
+                              className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-sm bg-secondary text-secondary-foreground"
                             >
                               <Tag className="w-2.5 h-2.5 mr-0.5" />{l}
                             </span>

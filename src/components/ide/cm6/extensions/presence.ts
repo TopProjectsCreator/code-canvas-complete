@@ -71,12 +71,12 @@ class PresenceCaretWidget extends WidgetType {
     wrapper.style.setProperty("--presence-color", this.color);
 
     const caret = document.createElement("div");
-    caret.className = "h-6 w-[2px] rounded-sm";
+    caret.className = "h-6 w-[2px] rounded-xs";
     caret.style.backgroundColor = this.color;
 
     const label = document.createElement("div");
     label.className =
-      "absolute left-0 top-0 -translate-y-full whitespace-nowrap rounded-sm rounded-bl-none px-1.5 py-0.5 text-[10px] font-medium leading-tight text-white shadow-sm pointer-events-none";
+      "absolute left-0 top-0 -translate-y-full whitespace-nowrap rounded-xs rounded-bl-none px-1.5 py-0.5 text-[10px] font-medium leading-tight text-white shadow-xs pointer-events-none";
     label.style.backgroundColor = this.color;
     label.textContent = this.name;
 

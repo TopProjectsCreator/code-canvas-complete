@@ -86,7 +86,7 @@ export default function RedactorLanding() {
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="w-full h-64 rounded-lg border border-border/60 bg-card/40 p-3 font-mono text-sm resize-none focus:outline-none focus:ring-1 focus:ring-[oklch(0.86_0.18_165)]"
+              className="w-full h-64 rounded-lg border border-border/60 bg-card/40 p-3 font-mono text-sm resize-none focus:outline-hidden focus:ring-1 focus:ring-[oklch(0.86_0.18_165)]"
             />
             <Button onClick={handleRedact} disabled={loading} className="mt-3">
               {loading ? "Redacting…" : "Redact →"}

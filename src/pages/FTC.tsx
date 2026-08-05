@@ -25,9 +25,9 @@ export default function FTCPage() {
             <li><strong>FtcRobotController clone.</strong> The official FTC SDK 10.x is cloned directly from the wpilibsuite GitHub repos when you create an FTC project.</li>
             <li><strong>Java &amp; Kotlin OpModes.</strong> Templates for TeleOp, Autonomous, and LinearOpMode patterns.</li>
             <li><strong>Hardware configuration editor.</strong> Visual editor for the robot config JSON — declare motors, servos, sensors, and I2C devices without hand-editing XML.</li>
-            <li><strong>Cloud Gradle compile.</strong> The <code className="rounded bg-muted px-1">compile-ftc</code> backend function builds your TeamCode module and returns a signed APK.</li>
-            <li><strong>ADB-over-WebUSB flashing.</strong> The browser talks ADB directly to a REV Control Hub via WebUSB and runs <code className="rounded bg-muted px-1">pm install -r</code>.</li>
-            <li><strong>Live logcat.</strong> Stream <code className="rounded bg-muted px-1">RobotCore</code> and <code className="rounded bg-muted px-1">TeamCode</code> log lines back into the IDE for debugging.</li>
+            <li><strong>Cloud Gradle compile.</strong> The <code className="rounded-sm bg-muted px-1">compile-ftc</code> backend function builds your TeamCode module and returns a signed APK.</li>
+            <li><strong>ADB-over-WebUSB flashing.</strong> The browser talks ADB directly to a REV Control Hub via WebUSB and runs <code className="rounded-sm bg-muted px-1">pm install -r</code>.</li>
+            <li><strong>Live logcat.</strong> Stream <code className="rounded-sm bg-muted px-1">RobotCore</code> and <code className="rounded-sm bg-muted px-1">TeamCode</code> log lines back into the IDE for debugging.</li>
           </ul>
         </section>
 
@@ -35,11 +35,11 @@ export default function FTCPage() {
           <h2 className="text-2xl font-semibold">The deploy pipeline</h2>
           <ol className="list-decimal space-y-2 pl-6 text-sm text-muted-foreground">
             <li>You hit <strong>Build &amp; Deploy</strong> in the FTC panel.</li>
-            <li>Source files are sent to the <code className="rounded bg-muted px-1">compile-ftc</code> edge function.</li>
+            <li>Source files are sent to the <code className="rounded-sm bg-muted px-1">compile-ftc</code> edge function.</li>
             <li>Gradle builds the APK against the FTC SDK and returns it as base64.</li>
             <li>The browser requests a USB device with the ADB interface filter.</li>
-            <li>An ADB handshake is performed in JavaScript (<code className="rounded bg-muted px-1">src/lib/webusb-adb.ts</code>).</li>
-            <li>The APK is pushed to <code className="rounded bg-muted px-1">/sdcard/FIRST/TeamCode.apk</code> and installed.</li>
+            <li>An ADB handshake is performed in JavaScript (<code className="rounded-sm bg-muted px-1">src/lib/webusb-adb.ts</code>).</li>
+            <li>The APK is pushed to <code className="rounded-sm bg-muted px-1">/sdcard/FIRST/TeamCode.apk</code> and installed.</li>
             <li>logcat is polled and streamed back into the panel.</li>
           </ol>
         </section>

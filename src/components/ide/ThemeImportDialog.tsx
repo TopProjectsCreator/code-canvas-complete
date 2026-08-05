@@ -141,7 +141,7 @@ export const ThemeImportDialog = ({ open, onOpenChange, onImport, initialData }:
             </div>
             <div className="flex gap-1">
               {Object.values(parsed.colors).slice(0, 8).map((color, i) => (
-                <div key={i} className="w-6 h-6 rounded-sm border border-border" style={{ backgroundColor: color }} />
+                <div key={i} className="w-6 h-6 rounded-xs border border-border" style={{ backgroundColor: color }} />
               ))}
             </div>
             {/* Mini preview */}

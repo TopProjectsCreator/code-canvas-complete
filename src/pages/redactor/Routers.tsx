@@ -239,7 +239,7 @@ function TestResults({ results, isOpen, totalSteps }: { results: any[]; isOpen: 
                   </div>
                 )}
                 {state?.event && state.type === "success" && state.event.response_text && (
-                  <div className="mt-2 text-xs bg-background rounded border p-2 font-mono whitespace-pre-wrap break-all max-h-24 overflow-y-auto">
+                  <div className="mt-2 text-xs bg-background rounded-sm border p-2 font-mono whitespace-pre-wrap break-all max-h-24 overflow-y-auto">
                     {state.event.response_text.slice(0, 300)}
                   </div>
                 )}
@@ -408,7 +408,7 @@ export default function RedactorRouters() {
             {(routers ?? []).length === 0 ? <p className="text-sm text-muted-foreground">No routers yet.</p> : (
               <ul className="divide-y divide-border/40">
                 {routers!.map((r) => (
-                  <li key={r.id} className="py-3 flex items-center justify-between cursor-pointer hover:bg-accent/50 -mx-2 px-2 rounded" onClick={() => setSelectedRouter(r)}>
+                  <li key={r.id} className="py-3 flex items-center justify-between cursor-pointer hover:bg-accent/50 -mx-2 px-2 rounded-sm" onClick={() => setSelectedRouter(r)}>
                     <div><div className="font-medium">{r.name}</div><div className="text-xs text-muted-foreground font-mono">Fallback: {r.fallbackOn}</div></div>
                     <div className="text-xs text-muted-foreground">Click to edit</div>
                   </li>

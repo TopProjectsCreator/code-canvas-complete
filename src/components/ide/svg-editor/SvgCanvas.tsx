@@ -671,7 +671,7 @@ export function SvgCanvas({
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <input
             ref={textInputRef}
-            className="pointer-events-auto bg-transparent border-b border-primary outline-none text-center text-sm font-sans"
+            className="pointer-events-auto bg-transparent border-b border-primary outline-hidden text-center text-sm font-sans"
             defaultValue={doc.elements.find((e) => e.id === editingTextId)?.name || ''}
             autoFocus
             onBlur={(e) => {

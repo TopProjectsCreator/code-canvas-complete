@@ -134,7 +134,7 @@ export const WorkflowsPanel = ({
         </span>
         <button
           onClick={() => setIsCreating(!isCreating)}
-          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
           title="New Workflow"
         >
           <Plus className="w-4 h-4" />
@@ -151,7 +151,7 @@ export const WorkflowsPanel = ({
                 placeholder="Workflow name"
                 value={newWorkflow.name}
                 onChange={(e) => setNewWorkflow({ ...newWorkflow, name: e.target.value })}
-                className="w-full px-2 py-1.5 bg-input border border-border rounded text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full px-2 py-1.5 bg-input border border-border rounded-sm text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
                 autoFocus
               />
               
@@ -159,7 +159,7 @@ export const WorkflowsPanel = ({
                 <select
                   value={newWorkflow.type}
                   onChange={(e) => setNewWorkflow({ ...newWorkflow, type: e.target.value as Workflow['type'] })}
-                  className="flex-1 px-2 py-1.5 bg-input border border-border rounded text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="flex-1 px-2 py-1.5 bg-input border border-border rounded-sm text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
                 >
                   <option value="run">Run</option>
                   <option value="build">Build</option>
@@ -171,7 +171,7 @@ export const WorkflowsPanel = ({
                 <select
                   value={newWorkflow.trigger}
                   onChange={(e) => setNewWorkflow({ ...newWorkflow, trigger: e.target.value as Workflow['trigger'] })}
-                  className="flex-1 px-2 py-1.5 bg-input border border-border rounded text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="flex-1 px-2 py-1.5 bg-input border border-border rounded-sm text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
                 >
                   <option value="manual">Manual</option>
                   <option value="on-save">On Save</option>
@@ -184,7 +184,7 @@ export const WorkflowsPanel = ({
                 placeholder="Command (e.g., npm run build)"
                 value={newWorkflow.command}
                 onChange={(e) => setNewWorkflow({ ...newWorkflow, command: e.target.value })}
-                className="w-full px-2 py-1.5 bg-input border border-border rounded text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full px-2 py-1.5 bg-input border border-border rounded-sm text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
               />
 
               <input
@@ -192,20 +192,20 @@ export const WorkflowsPanel = ({
                 placeholder="Description (optional)"
                 value={newWorkflow.description}
                 onChange={(e) => setNewWorkflow({ ...newWorkflow, description: e.target.value })}
-                className="w-full px-2 py-1.5 bg-input border border-border rounded text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full px-2 py-1.5 bg-input border border-border rounded-sm text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-primary"
               />
 
               <div className="flex gap-2">
                 <button
                   onClick={handleCreate}
                   disabled={!newWorkflow.name.trim() || !newWorkflow.command.trim()}
-                  className="flex-1 px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 px-3 py-1.5 bg-primary text-primary-foreground rounded-sm text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Create
                 </button>
                 <button
                   onClick={() => setIsCreating(false)}
-                  className="px-3 py-1.5 bg-secondary text-secondary-foreground rounded text-sm font-medium hover:bg-secondary/80 transition-colors"
+                  className="px-3 py-1.5 bg-secondary text-secondary-foreground rounded-sm text-sm font-medium hover:bg-secondary/80 transition-colors"
                 >
                   Cancel
                 </button>
@@ -225,7 +225,7 @@ export const WorkflowsPanel = ({
               </p>
               <button
                 onClick={() => setIsCreating(true)}
-                className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm font-medium hover:bg-primary/90 transition-colors"
+                className="px-3 py-1.5 bg-primary text-primary-foreground rounded-sm text-sm font-medium hover:bg-primary/90 transition-colors"
               >
                 Create Workflow
               </button>
@@ -254,7 +254,7 @@ export const WorkflowsPanel = ({
                           {workflow.name}
                         </span>
                         {workflow.isDefault && (
-                          <span className="px-1.5 py-0.5 bg-primary/20 text-primary text-xs rounded">
+                          <span className="px-1.5 py-0.5 bg-primary/20 text-primary text-xs rounded-sm">
                             Default
                           </span>
                         )}
@@ -268,7 +268,7 @@ export const WorkflowsPanel = ({
                       )}
                       
                       <div className="flex items-center gap-2 mt-1">
-                        <code className="text-xs text-muted-foreground bg-secondary/50 px-1 py-0.5 rounded font-mono truncate max-w-[150px]">
+                        <code className="text-xs text-muted-foreground bg-secondary/50 px-1 py-0.5 rounded-sm font-mono truncate max-w-[150px]">
                           {workflow.command}
                         </code>
                         {workflow.trigger && workflow.trigger !== 'manual' && (
@@ -284,7 +284,7 @@ export const WorkflowsPanel = ({
                       <button
                         onClick={() => onRunWorkflow(workflow)}
                         disabled={isRunning}
-                        className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-green-400 transition-colors disabled:opacity-50"
+                        className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-green-400 transition-colors disabled:opacity-50"
                         title="Run workflow"
                       >
                         {isRunning ? (
@@ -296,7 +296,7 @@ export const WorkflowsPanel = ({
                       
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+                          <button className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
                             <MoreVertical className="w-4 h-4" />
                           </button>
                         </DropdownMenuTrigger>
@@ -338,11 +338,11 @@ export const WorkflowsPanel = ({
                   const runWorkflow = workflows.find(w => w.type === 'run');
                   if (runWorkflow) onRunWorkflow(runWorkflow);
                 }}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-accent transition-colors"
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm hover:bg-accent transition-colors"
               >
                 <Play className="w-4 h-4 text-green-400" />
                 <span>Run Main</span>
-                <kbd className="ml-auto text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                <kbd className="ml-auto text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-sm">
                   ⌘R
                 </kbd>
               </button>
@@ -351,11 +351,11 @@ export const WorkflowsPanel = ({
                   const testWorkflow = workflows.find(w => w.type === 'test');
                   if (testWorkflow) onRunWorkflow(testWorkflow);
                 }}
-                className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-accent transition-colors"
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-sm text-sm hover:bg-accent transition-colors"
               >
                 <TestTube className="w-4 h-4 text-yellow-400" />
                 <span>Run Tests</span>
-                <kbd className="ml-auto text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                <kbd className="ml-auto text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded-sm">
                   ⌘T
                 </kbd>
               </button>

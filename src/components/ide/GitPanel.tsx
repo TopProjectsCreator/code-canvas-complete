@@ -174,14 +174,14 @@ export const GitPanel = ({
           <button
             onClick={() => setShowRemoteConfig(!showRemoteConfig)}
             className={cn(
-              "p-1 rounded hover:bg-accent transition-colors",
+              "p-1 rounded-sm hover:bg-accent transition-colors",
               showRemoteConfig ? "text-primary" : "text-muted-foreground"
             )}
             title="Configure remote"
           >
             <Link className="w-4 h-4" />
           </button>
-          <button className="p-1 rounded hover:bg-accent text-muted-foreground">
+          <button className="p-1 rounded-sm hover:bg-accent text-muted-foreground">
             <MoreHorizontal className="w-4 h-4" />
           </button>
         </div>
@@ -222,13 +222,13 @@ export const GitPanel = ({
                 value={remoteUrlInput}
                 onChange={(e) => setRemoteUrlInput(e.target.value)}
                 placeholder="https://github.com/owner/repo.git"
-                className="flex-1 px-2 py-1 text-xs bg-background border border-border rounded"
+                className="flex-1 px-2 py-1 text-xs bg-background border border-border rounded-sm"
                 onKeyDown={(e) => e.key === 'Enter' && handleSetRemote()}
               />
               <button
                 onClick={handleSetRemote}
                 disabled={!remoteUrlInput.trim()}
-                className="p-1 rounded bg-primary text-primary-foreground disabled:opacity-50"
+                className="p-1 rounded-sm bg-primary text-primary-foreground disabled:opacity-50"
               >
                 <Check className="w-3.5 h-3.5" />
               </button>
@@ -259,13 +259,13 @@ export const GitPanel = ({
                       value={newBranchName}
                       onChange={(e) => setNewBranchName(e.target.value)}
                       placeholder="Branch name..."
-                      className="flex-1 px-2 py-1 text-sm bg-background border border-border rounded"
+                      className="flex-1 px-2 py-1 text-sm bg-background border border-border rounded-sm"
                       autoFocus
                       onKeyDown={(e) => e.key === 'Enter' && handleCreateBranch()}
                     />
                     <button
                       onClick={handleCreateBranch}
-                      className="p-1 rounded bg-primary text-primary-foreground"
+                      className="p-1 rounded-sm bg-primary text-primary-foreground"
                     >
                       <Check className="w-4 h-4" />
                     </button>
@@ -273,7 +273,7 @@ export const GitPanel = ({
                 ) : (
                   <button
                     onClick={() => setIsCreatingBranch(true)}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
+                    className="flex items-center gap-2 w-full px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-accent rounded-sm transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                     Create new branch
@@ -313,7 +313,7 @@ export const GitPanel = ({
             value={commitMessage}
             onChange={(e) => setCommitMessage(e.target.value)}
             placeholder="Commit message..."
-            className="w-full px-3 py-2 text-sm bg-accent/30 border border-border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full px-3 py-2 text-sm bg-accent/30 border border-border rounded-md resize-none focus:outline-hidden focus:ring-2 focus:ring-primary/50"
             rows={2}
           />
           <button
@@ -343,7 +343,7 @@ export const GitPanel = ({
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             )}
             <span className="text-sm font-medium">Changes</span>
-            <span className="ml-auto text-xs text-muted-foreground bg-accent px-1.5 py-0.5 rounded">
+            <span className="ml-auto text-xs text-muted-foreground bg-accent px-1.5 py-0.5 rounded-sm">
               {gitState.changes.length}
             </span>
           </button>
@@ -361,7 +361,7 @@ export const GitPanel = ({
                     {getStatusIcon(change.status)}
                     <span className="flex-1 text-sm truncate">{change.fileName}</span>
                     <span className={cn(
-                      "text-xs font-mono px-1 rounded",
+                      "text-xs font-mono px-1 rounded-sm",
                       change.status === 'added' && "text-green-500 bg-green-500/10",
                       change.status === 'modified' && "text-yellow-500 bg-yellow-500/10",
                       change.status === 'deleted' && "text-red-500 bg-red-500/10"
@@ -370,7 +370,7 @@ export const GitPanel = ({
                     </span>
                     <button
                       onClick={() => onDiscardChanges(change.fileId)}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/20 text-destructive transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded-sm hover:bg-destructive/20 text-destructive transition-all"
                       title="Discard changes"
                     >
                       <Minus className="w-3.5 h-3.5" />
@@ -394,7 +394,7 @@ export const GitPanel = ({
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             )}
             <span className="text-sm font-medium">Commits</span>
-            <span className="ml-auto text-xs text-muted-foreground bg-accent px-1.5 py-0.5 rounded">
+            <span className="ml-auto text-xs text-muted-foreground bg-accent px-1.5 py-0.5 rounded-sm">
               {currentBranch?.commits.length || 0}
             </span>
           </button>
@@ -550,7 +550,7 @@ const GitStatusBanner = ({ status }: { status: GitStatusValue }) => {
             )}
             <button
               onClick={clearError}
-              className="p-1 rounded hover:bg-accent text-muted-foreground"
+              className="p-1 rounded-sm hover:bg-accent text-muted-foreground"
               title="Dismiss"
               aria-label="Dismiss error"
             >
@@ -566,7 +566,7 @@ const GitStatusBanner = ({ status }: { status: GitStatusValue }) => {
           <span className="flex-1 text-foreground">{lastResult.message}</span>
           <button
             onClick={dismissLastResult}
-            className="p-1 rounded hover:bg-accent text-muted-foreground"
+            className="p-1 rounded-sm hover:bg-accent text-muted-foreground"
             title="Dismiss"
             aria-label="Dismiss"
           >

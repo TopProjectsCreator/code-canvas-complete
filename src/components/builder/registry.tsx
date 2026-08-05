@@ -49,7 +49,7 @@ export const registry: BuilderComponentConfig[] = [
     icon: "CreditCard",
     category: "layout",
     component: ({ className, children, ...props }: any) => (
-      <div className={`rounded-xl border bg-card text-card-foreground shadow ${className ?? ""}`} {...props}>{children}</div>
+      <div className={`rounded-xl border bg-card text-card-foreground shadow-sm ${className ?? ""}`} {...props}>{children}</div>
     ),
     defaultProps: { className: "w-full" },
     propsConfig: [
@@ -124,13 +124,13 @@ export const registry: BuilderComponentConfig[] = [
     category: "form",
     component: ({ children, className, variant, size, ...props }: any) => (
       <button
-        className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 ${
-          variant === "destructive" ? "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90" :
-          variant === "outline" ? "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground" :
-          variant === "secondary" ? "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80" :
+        className={`inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 ${
+          variant === "destructive" ? "bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90" :
+          variant === "outline" ? "border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground" :
+          variant === "secondary" ? "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80" :
           variant === "ghost" ? "hover:bg-accent hover:text-accent-foreground" :
           variant === "link" ? "text-primary underline-offset-4 hover:underline" :
-          "bg-primary text-primary-foreground shadow hover:bg-primary/90"
+          "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
         } ${
           size === "sm" ? "h-8 rounded-md px-3 text-xs" :
           size === "lg" ? "h-10 rounded-md px-8" :
@@ -176,7 +176,7 @@ export const registry: BuilderComponentConfig[] = [
     component: ({ className, type, children: _ch, ...props }: any) => (
       <input
         type={type ?? "text"}
-        className={`flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${className ?? ""}`}
+        className={`flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${className ?? ""}`}
         {...props}
       />
     ),
@@ -206,7 +206,7 @@ export const registry: BuilderComponentConfig[] = [
     category: "form",
     component: ({ className, ...props }: any) => (
       <textarea
-        className={`flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${className ?? ""}`}
+        className={`flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${className ?? ""}`}
         {...props}
       />
     ),
@@ -250,7 +250,7 @@ export const registry: BuilderComponentConfig[] = [
     category: "form",
     component: ({ className, checked, ...props }: any) => (
       <div className={`flex items-center gap-2 ${className ?? ""}`}>
-        <input type="checkbox" checked={checked} className="h-4 w-4 rounded border border-primary" readOnly {...props} />
+        <input type="checkbox" checked={checked} className="h-4 w-4 rounded-sm border border-primary" readOnly {...props} />
       </div>
     ),
     defaultProps: { checked: false },
@@ -273,7 +273,7 @@ export const registry: BuilderComponentConfig[] = [
     component: ({ className, checked }: any) => (
       <div className={`flex items-center gap-2 ${className ?? ""}`}>
         <div className={`h-5 w-9 rounded-full transition-colors ${checked ? "bg-primary" : "bg-input"} flex items-center ${checked ? "justify-end" : "justify-start"} p-0.5`}>
-          <div className="h-4 w-4 rounded-full bg-white shadow" />
+          <div className="h-4 w-4 rounded-full bg-white shadow-sm" />
         </div>
       </div>
     ),
@@ -322,7 +322,7 @@ export const registry: BuilderComponentConfig[] = [
     component: ({ className, placeholder, options, ...props }: any) => (
       <div className={`relative ${className ?? ""}`}>
         <select
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           {...props}
         >
           <option value="" disabled>{placeholder ?? "Select an option"}</option>
@@ -356,7 +356,7 @@ export const registry: BuilderComponentConfig[] = [
           type="file"
           accept={accept ?? "image/*,video/*,audio/*"}
           multiple={multiple}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
           {...props}
         />
       </div>
@@ -407,11 +407,11 @@ export const registry: BuilderComponentConfig[] = [
     icon: "Milestone",
     category: "display",
     component: ({ className, variant, children, ...props }: any) => (
-      <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+      <span className={`inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
         variant === "secondary" ? "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80" :
-        variant === "destructive" ? "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80" :
+        variant === "destructive" ? "border-transparent bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/80" :
         variant === "outline" ? "text-foreground" :
-        "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80"
+        "border-transparent bg-primary text-primary-foreground shadow-sm hover:bg-primary/80"
       } ${className ?? ""}`} {...props}>{children ?? "Badge"}</span>
     ),
     defaultProps: { variant: "default" },
@@ -457,9 +457,9 @@ export const registry: BuilderComponentConfig[] = [
     category: "display",
     component: ({ src, alt, className, ...props }: any) =>
       src ? (
-        <img src={src} alt={alt ?? ""} className={`max-w-full h-auto rounded ${className ?? ""}`} {...props} />
+        <img src={src} alt={alt ?? ""} className={`max-w-full h-auto rounded-sm ${className ?? ""}`} {...props} />
       ) : (
-        <div className={`flex items-center justify-center rounded border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-8 ${className ?? ""}`}>
+        <div className={`flex items-center justify-center rounded-sm border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-8 ${className ?? ""}`}>
           <div className="text-center text-muted-foreground">
             <svg className="mx-auto h-8 w-8 mb-2 opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
             <p className="text-xs">Enter an image URL in properties</p>
@@ -470,7 +470,7 @@ export const registry: BuilderComponentConfig[] = [
     propsConfig: [
       { name: "src", label: "Image URL", type: "string", defaultValue: "", category: "content" },
       { name: "alt", label: "Alt text", type: "string", defaultValue: "", category: "content" },
-      { name: "className", label: "CSS classes", type: "class", defaultValue: "max-w-full h-auto rounded", category: "appearance" },
+      { name: "className", label: "CSS classes", type: "class", defaultValue: "max-w-full h-auto rounded-sm", category: "appearance" },
     ],
     allowedChildren: [],
     isContainer: false,
@@ -491,11 +491,11 @@ export const registry: BuilderComponentConfig[] = [
           autoPlay={!!autoplay}
           loop={!!loop}
           muted={!!muted}
-          className={`max-w-full rounded ${className ?? ""}`}
+          className={`max-w-full rounded-sm ${className ?? ""}`}
           {...props}
         />
       ) : (
-        <div className={`flex items-center justify-center rounded border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-8 ${className ?? ""}`}>
+        <div className={`flex items-center justify-center rounded-sm border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-8 ${className ?? ""}`}>
           <div className="text-center text-muted-foreground">
             <svg className="mx-auto h-8 w-8 mb-2 opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect width="15" height="14" x="1" y="5" rx="2" ry="2"/></svg>
             <p className="text-xs">Enter a video URL in properties</p>
@@ -509,7 +509,7 @@ export const registry: BuilderComponentConfig[] = [
       { name: "autoplay", label: "Autoplay", type: "boolean", defaultValue: false, category: "behavior" },
       { name: "loop", label: "Loop", type: "boolean", defaultValue: false, category: "behavior" },
       { name: "muted", label: "Muted", type: "boolean", defaultValue: false, category: "behavior" },
-      { name: "className", label: "CSS classes", type: "class", defaultValue: "max-w-full rounded", category: "appearance" },
+      { name: "className", label: "CSS classes", type: "class", defaultValue: "max-w-full rounded-sm", category: "appearance" },
     ],
     allowedChildren: [],
     isContainer: false,
@@ -533,7 +533,7 @@ export const registry: BuilderComponentConfig[] = [
           {...props}
         />
       ) : (
-        <div className={`flex items-center justify-center rounded border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-8 ${className ?? ""}`}>
+        <div className={`flex items-center justify-center rounded-sm border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-8 ${className ?? ""}`}>
           <div className="text-center text-muted-foreground">
             <svg className="mx-auto h-8 w-8 mb-2 opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
             <p className="text-xs">Enter an audio URL in properties</p>

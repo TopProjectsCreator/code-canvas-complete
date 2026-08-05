@@ -351,13 +351,13 @@ const HeroScreen = ({ path }: { path: string }) => (
         on the navigation pillar, or step up to a console to see your most-used canvases.
       </p>
       <div className="flex items-center gap-3 text-sm text-slate-400 pt-1">
-        <span className="px-2 py-1 rounded border border-fuchsia-400/40 bg-fuchsia-500/10 text-fuchsia-200 font-mono text-xs">
+        <span className="px-2 py-1 rounded-sm border border-fuchsia-400/40 bg-fuchsia-500/10 text-fuchsia-200 font-mono text-xs">
           ESC to release cursor
         </span>
-        <span className="px-2 py-1 rounded border border-cyan-400/40 bg-cyan-500/10 text-cyan-200 font-mono text-xs">
+        <span className="px-2 py-1 rounded-sm border border-cyan-400/40 bg-cyan-500/10 text-cyan-200 font-mono text-xs">
           WASD + mouse to roam
         </span>
-        <span className="px-2 py-1 rounded border border-emerald-400/40 bg-emerald-500/10 text-emerald-200 font-mono text-xs">
+        <span className="px-2 py-1 rounded-sm border border-emerald-400/40 bg-emerald-500/10 text-emerald-200 font-mono text-xs">
           SPACE to jump
         </span>
       </div>
@@ -536,7 +536,7 @@ const TelemetryScreen = () => {
             <div
               key={i}
               ref={(el) => { if (el) barsRef.current[i] = el; }}
-              className="flex-1 rounded-sm bg-gradient-to-t from-amber-500/60 to-fuchsia-400/80 transition-all duration-300"
+              className="flex-1 rounded-xs bg-gradient-to-t from-amber-500/60 to-fuchsia-400/80 transition-all duration-300"
               style={{ height: '10%' }}
             />
           ))}

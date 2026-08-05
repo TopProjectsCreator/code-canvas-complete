@@ -112,7 +112,7 @@ export const PublicCanvasSearch = () => {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setOpen(true)}
           placeholder="Search canvases, people..."
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          className="flex-1 bg-transparent text-sm outline-hidden placeholder:text-muted-foreground"
         />
         {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
         {query && (

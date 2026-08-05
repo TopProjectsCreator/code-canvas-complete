@@ -75,7 +75,7 @@ describe('agent safety analyzer', () => {
     'systemctl stop firewalld',
     'service stop mysql',
     'sed -i "s/PermitRootLogin no/PermitRootLogin yes/" /etc/ssh/sshd_config',
-    'nano /etc/shadow',
+    'nano /etc/shadow-sm',
     'vim /etc/passwd',
     'chattr +i -R /var/log',
     'find . -type d -exec chmod 777 {} \\;',

@@ -62,7 +62,7 @@ export function FeatureRollback() {
                 {body.features.map((feature, i) => (
                   <button
                     key={feature.id}
-                    className="w-full text-left px-3 py-1.5 text-xs rounded hover:bg-accent flex items-center gap-2"
+                    className="w-full text-left px-3 py-1.5 text-xs rounded-sm hover:bg-accent flex items-center gap-2"
                     onClick={() => handleRollbackTo(body.id, feature.id)}
                   >
                     <span className="text-muted-foreground font-mono text-[10px]">#{i}</span>

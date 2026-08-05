@@ -87,7 +87,7 @@ function PaletteItem({ type, onAdd, onDragStart }: {
       draggable
       onDragStart={e => onDragStart(e, type)}
       onClick={() => onAdd(type)}
-      className="flex items-center gap-1.5 px-2 py-1 rounded text-xs cursor-grab hover:bg-accent hover:text-accent-foreground transition-colors active:cursor-grabbing"
+      className="flex items-center gap-1.5 px-2 py-1 rounded-sm text-xs cursor-grab hover:bg-accent hover:text-accent-foreground transition-colors active:cursor-grabbing"
       title={`Drag to canvas or click to add ${COMPONENT_LABELS[type]}`}
     >
       <GripVertical className="w-3 h-3 text-muted-foreground flex-shrink-0" />

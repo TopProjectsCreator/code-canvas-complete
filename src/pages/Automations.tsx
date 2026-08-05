@@ -24,7 +24,7 @@ export default function AutomationsPage() {
           <ul className="list-disc space-y-2 pl-6 text-sm text-muted-foreground">
             <li><strong>70+ ready-made blocks</strong> covering HTTP, transforms, AI calls, conditionals, loops, delays, file ops, notifications, and more.</li>
             <li><strong>Trigger-First design.</strong> Every workflow starts with an explicit trigger: webhook, schedule, file change, manual, or event from another workflow.</li>
-            <li><strong>Variable injection.</strong> Reference any prior step's output with <code className="rounded bg-muted px-1">{`{{prev.*}}`}</code> templates — no glue code required.</li>
+            <li><strong>Variable injection.</strong> Reference any prior step's output with <code className="rounded-sm bg-muted px-1">{`{{prev.*}}`}</code> templates — no glue code required.</li>
             <li><strong>API Playground</strong> for testing endpoints and capturing them straight into a workflow step.</li>
             <li><strong>Full run history</strong> with per-step inputs, outputs, durations, and replay.</li>
             <li><strong>Integrations</strong> with email, SMS, GitHub, MCP servers, and any HTTP API.</li>
