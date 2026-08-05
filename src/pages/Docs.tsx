@@ -374,7 +374,7 @@ export default function Docs() {
                           );
                         }
                         return (
-                          <code className="rounded bg-muted px-1.5 py-0.5 text-sm font-mono text-foreground/90" {...props}>{children}</code>
+                          <code className="rounded-sm bg-muted px-1.5 py-0.5 text-sm font-mono text-foreground/90" {...props}>{children}</code>
                         );
                       },
                       pre: ({ children }) => (

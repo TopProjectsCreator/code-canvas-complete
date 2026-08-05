@@ -1788,7 +1788,7 @@ h1,h2,h3{color:#111}
                                 <div className="flex justify-center mb-3">
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                      <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-3 py-0.5 rounded hover:bg-muted/40">
+                                      <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors px-3 py-0.5 rounded-sm hover:bg-muted/40">
                                         <Plus className="w-3 h-3" /> Add cell
                                       </button>
                                     </DropdownMenuTrigger>

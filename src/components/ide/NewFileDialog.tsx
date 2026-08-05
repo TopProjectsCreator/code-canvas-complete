@@ -70,7 +70,7 @@ export const NewFileDialog = ({ isOpen, onClose, onSubmit, parentFolder, default
           </h2>
           <button 
             onClick={handleClose}
-            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

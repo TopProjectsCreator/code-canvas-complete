@@ -85,7 +85,7 @@ export const sanitizeRichText = (value: string) => {
       if (!src.startsWith('http') && src) return '';
       const attrs = [`src="${escapeHtml(src)}"`];
       if (controls) attrs.push('controls');
-      attrs.push('class="max-w-full rounded"');
+      attrs.push('class="max-w-full rounded-sm"');
       return `<video ${attrs.join(' ')}>${children}</video>`;
     }
 

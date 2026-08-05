@@ -407,7 +407,7 @@ const ArtifactCard = ({
         <button onClick={() => setOpen((o) => !o)} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
           <Paperclip className="h-3 w-3 text-muted-foreground shrink-0" />
           <span className="truncate font-medium">{art.stepIndex >= 0 ? `Step ${art.stepIndex}` : 'Detached'} · {art.name}</span>
-          <span className={cn('rounded border px-1 text-[9px]', art.source === 'inline' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' : 'border-violet-500/40 bg-violet-500/10 text-violet-300')}>{art.source}</span>
+          <span className={cn('rounded-sm border px-1 text-[9px]', art.source === 'inline' ? 'border-blue-500/40 bg-blue-500/10 text-blue-300' : 'border-violet-500/40 bg-violet-500/10 text-violet-300')}>{art.source}</span>
           <span className="rounded-sm border border-border bg-muted/30 px-1 text-[9px] text-muted-foreground">{kind}</span>
           {validation && !validation.valid && (
             <span className="rounded-sm border border-destructive/40 bg-destructive/10 px-1 text-[9px] text-destructive" title={validation.error}>invalid JSON</span>

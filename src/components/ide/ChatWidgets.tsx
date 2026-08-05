@@ -658,7 +658,7 @@ const UnitConverterWidget = () => {
       <div className="space-y-2">
         <div className="flex gap-1">
           {(['px-rem', 'hex-rgb'] as const).map(m => (
-            <button key={m} onClick={() => setMode(m)} className={cn('px-2 py-0.5 rounded text-[10px]', mode === m ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground')}>
+            <button key={m} onClick={() => setMode(m)} className={cn('px-2 py-0.5 rounded-sm text-[10px]', mode === m ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground')}>
               {m === 'px-rem' ? 'px → rem' : 'hex → rgb'}
             </button>
           ))}

@@ -436,7 +436,7 @@ export function ArduinoUploadDialog({
                 <Label htmlFor="micropython-script">MicroPython Script (main.py)</Label>
                 <textarea
                   id="micropython-script"
-                  className="w-full min-h-28 rounded border border-slate-700 bg-slate-950 p-2 text-xs font-mono"
+                  className="w-full min-h-28 rounded-sm border border-slate-700 bg-slate-950 p-2 text-xs font-mono"
                   value={microPythonScript}
                   onChange={(e) => setMicroPythonScript(e.target.value)}
                 />
@@ -476,13 +476,13 @@ export function ArduinoUploadDialog({
 
 
           {!isVerifiedBoard && !isUf2Board && (
-            <div className="text-sm text-amber-500 whitespace-pre-wrap bg-amber-500/10 p-2 rounded">
+            <div className="text-sm text-amber-500 whitespace-pre-wrap bg-amber-500/10 p-2 rounded-sm">
               This board is currently available for planning/simulation only.
             </div>
           )}
 
           {error && (
-            <div className="text-sm text-destructive whitespace-pre-wrap max-h-32 overflow-auto bg-destructive/10 p-2 rounded">
+            <div className="text-sm text-destructive whitespace-pre-wrap max-h-32 overflow-auto bg-destructive/10 p-2 rounded-sm">
               {error}
             </div>
           )}
@@ -498,7 +498,7 @@ export function ArduinoUploadDialog({
             </div>
           )}
 
-          <div className="text-xs text-muted-foreground flex items-start gap-1.5 bg-muted/50 p-2 rounded">
+          <div className="text-xs text-muted-foreground flex items-start gap-1.5 bg-muted/50 p-2 rounded-sm">
             <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
             <span>Serial flashing runs in-browser. OTA/Bluetooth routes through a local uploader bridge at 127.0.0.1:3232 so production devices can be reached on LAN/BLE.</span>
           </div>
