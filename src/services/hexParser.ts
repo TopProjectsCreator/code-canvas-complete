@@ -16,31 +16,45 @@ export interface FlashPage {
 }
 
 /**
- * Parse a single Intel HEX line into a record
+ * Parse a single Intel HEX line into a record.
+ * Throws on malformed or truncated lines — a corrupt line must never be
+ * flashed silently (it would write garbage to the board).
  */
 function parseHexLine(line: string): HexRecord | null {
   line = line.trim();
   if (!line.startsWith(':')) return null;
 
   const hex = line.slice(1);
-  if (hex.length < 10) return null;
+  if (hex.length < 10 || hex.length % 2 !== 0) {
+    throw new Error(`Malformed HEX record (bad length ${hex.length}): ${line}`);
+  }
+  if (!/^[0-9A-Fa-f]+$/.test(hex)) {
+    throw new Error(`Malformed HEX record (non-hex characters): ${line}`);
+  }
 
   const byteCount = parseInt(hex.slice(0, 2), 16);
   const address = parseInt(hex.slice(2, 6), 16);
   const type = parseInt(hex.slice(6, 8), 16);
+
+  // Expected layout: count(1) + address(2) + type(1) + data(count) + checksum(1).
+  if (hex.length !== 10 + byteCount * 2) {
+    throw new Error(
+      `Truncated HEX record (expected ${10 + byteCount * 2} hex chars for ${byteCount} data bytes, got ${hex.length}): ${line}`
+    );
+  }
 
   const data = new Uint8Array(byteCount);
   for (let i = 0; i < byteCount; i++) {
     data[i] = parseInt(hex.slice(8 + i * 2, 10 + i * 2), 16);
   }
 
-  // Verify checksum
+  // Verify checksum: the sum of all bytes (including the checksum byte) must be 0 mod 256.
   let checksum = 0;
   for (let i = 0; i < hex.length; i += 2) {
     checksum += parseInt(hex.slice(i, i + 2), 16);
   }
   if ((checksum & 0xFF) !== 0) {
-    console.warn(`Checksum mismatch on line: ${line}`);
+    throw new Error(`Checksum mismatch on HEX record: ${line}`);
   }
 
   return { byteCount, address, type, data };
@@ -50,14 +64,19 @@ function parseHexLine(line: string): HexRecord | null {
  * Parse Intel HEX string into a flat binary buffer
  */
 export function parseIntelHex(hexString: string): { data: Uint8Array; startAddress: number } {
-  const lines = hexString.split('\n').filter(l => l.trim().startsWith(':'));
-  
+  // Skip blank lines only — any other non-record content means the file is
+  // corrupt and must not be flashed silently.
+  const lines = hexString.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
   let baseAddress = 0;
   let minAddress = Infinity;
   let maxAddress = 0;
   const segments: { address: number; data: Uint8Array }[] = [];
 
   for (const line of lines) {
+    if (!line.startsWith(':')) {
+      throw new Error(`Unexpected content in HEX file (not a record): ${line}`);
+    }
     const record = parseHexLine(line);
     if (!record) continue;
 
@@ -72,9 +91,15 @@ export function parseIntelHex(hexString: string): { data: Uint8Array; startAddre
       case 0x01: // EOF
         break;
       case 0x02: // Extended segment address
+        if (record.data.length < 2) {
+          throw new Error(`Malformed extended segment address record: ${line}`);
+        }
         baseAddress = ((record.data[0] << 8) | record.data[1]) << 4;
         break;
       case 0x04: // Extended linear address
+        if (record.data.length < 2) {
+          throw new Error(`Malformed extended linear address record: ${line}`);
+        }
         baseAddress = ((record.data[0] << 8) | record.data[1]) << 16;
         break;
     }
@@ -86,6 +111,14 @@ export function parseIntelHex(hexString: string): { data: Uint8Array; startAddre
 
   // Create flat buffer
   const totalSize = maxAddress - minAddress;
+  // Cap the span so a file with far-apart records can't trigger a huge (or
+  // negative/zero-length) allocation. 1 MiB is far beyond any supported board.
+  const MAX_FIRMWARE_SIZE = 1024 * 1024;
+  if (!(totalSize > 0) || totalSize > MAX_FIRMWARE_SIZE) {
+    throw new Error(
+      `HEX file address span of ${totalSize} bytes exceeds the supported firmware size of ${MAX_FIRMWARE_SIZE} bytes`
+    );
+  }
   const buffer = new Uint8Array(totalSize).fill(0xFF); // Flash erased state
 
   for (const seg of segments) {

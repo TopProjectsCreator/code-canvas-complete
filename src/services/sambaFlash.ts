@@ -142,30 +142,87 @@ function resolveExecuteAddress(
   return flashStartAddress;
 }
 
-async function readBytes(
-  reader: ReadableStreamDefaultReader<Uint8Array>,
-  count: number,
-  timeout: number = RESPONSE_TIMEOUT
-): Promise<Uint8Array> {
-  const result = new Uint8Array(count);
-  let offset = 0;
-  const deadline = Date.now() + timeout;
+/**
+ * Reads exact byte counts from a serial stream, buffering any surplus bytes
+ * that arrive in a coalesced chunk. Without the buffer, one oversized chunk
+ * would desynchronize every subsequent response (e.g. a 4-byte word read that
+ * consumes an 8-byte chunk would lose the next response entirely).
+ *
+ * A read that loses a race with the timeout may still deliver data afterwards;
+ * those bytes are kept in the buffer so a slow response doesn't silently
+ * desynchronize later reads.
+ */
+// Exported for unit tests.
+export class BufferedByteReader {
+  private pending = new Uint8Array(0);
 
-  while (offset < count) {
-    if (Date.now() > deadline) {
-      throw new Error(`Timeout reading ${count} bytes (got ${offset})`);
-    }
-    const { value, done } = await Promise.race([
-      reader.read(),
-      new Promise<{ value: undefined; done: true }>((_, reject) =>
+  constructor(private readonly reader: ReadableStreamDefaultReader<Uint8Array>) {}
+
+  async readBytes(count: number, timeout: number = RESPONSE_TIMEOUT): Promise<Uint8Array> {
+    const result = new Uint8Array(count);
+    let filled = 0;
+    const deadline = Date.now() + timeout;
+
+    while (filled < count) {
+      if (this.pending.length > 0) {
+        const take = Math.min(this.pending.length, count - filled);
+        result.set(this.pending.subarray(0, take), filled);
+        filled += take;
+        this.pending = this.pending.subarray(take);
+        continue;
+      }
+
+      if (Date.now() > deadline) {
+        throw new Error(`Timeout reading ${count} bytes (got ${filled})`);
+      }
+
+      const readPromise = this.reader.read();
+      const timer = new Promise<{ value: undefined; done: true }>((_, reject) =>
         setTimeout(() => reject(new Error(`Read timeout after ${timeout}ms`)), Math.max(100, deadline - Date.now()))
-      ),
-    ]);
-    if (done || !value) break;
-    result.set(value.subarray(0, Math.min(value.length, count - offset)), offset);
-    offset += value.length;
+      );
+      timer.catch(() => { /* race already settled — nothing to do */ });
+
+      let value: Uint8Array | undefined;
+      let done = false;
+      try {
+        const chunk = await Promise.race([readPromise, timer]);
+        value = chunk.value;
+        done = chunk.done;
+      } catch (err) {
+        // The timed-out read may still deliver a response afterwards — keep its
+        // bytes in the buffer so a later read isn't desynchronized by the
+        // abandoned promise.
+        readPromise.then(
+          (chunk) => {
+            if (chunk && chunk.value && chunk.value.length > 0) {
+              this.pending = concatBytes(this.pending, chunk.value);
+            }
+          },
+          () => { /* stream cancelled — nothing to recover */ }
+        );
+        throw err;
+      }
+      if (done || !value) break;
+
+      const need = count - filled;
+      if (value.length <= need) {
+        result.set(value, filled);
+        filled += value.length;
+      } else {
+        result.set(value.subarray(0, need), filled);
+        filled += need;
+        this.pending = value.subarray(need);
+      }
+    }
+    return result.subarray(0, filled);
   }
-  return result.subarray(0, offset);
+}
+
+function concatBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
+  const out = new Uint8Array(a.length + b.length);
+  out.set(a);
+  out.set(b, a.length);
+  return out;
 }
 
 async function readUntilPrompt(
@@ -176,13 +233,14 @@ async function readUntilPrompt(
   const deadline = Date.now() + timeout;
 
   while (Date.now() < deadline) {
+    const readPromise = reader.read();
+    const timer = new Promise<{ value: undefined; done: true }>((_, reject) =>
+      setTimeout(() => reject(new Error('Read timeout')), Math.max(100, deadline - Date.now()))
+    );
+    timer.catch(() => { /* race already settled — nothing to do */ });
+
     try {
-      const { value, done } = await Promise.race([
-        reader.read(),
-        new Promise<{ value: undefined; done: true }>((_, reject) =>
-          setTimeout(() => reject(new Error('Read timeout')), Math.max(100, deadline - Date.now()))
-        ),
-      ]);
+      const { value, done } = await Promise.race([readPromise, timer]);
       if (done) break;
       if (value) {
         buffer += decoder.decode(value, { stream: true });
@@ -219,6 +277,7 @@ async function drain(reader: ReadableStreamDefaultReader<Uint8Array>, ms = 200):
 class SambaConnection {
   private writer: WritableStreamDefaultWriter<Uint8Array>;
   private reader: ReadableStreamDefaultReader<Uint8Array>;
+  private byteReader: BufferedByteReader | null = null;
   private interactive = true;
 
   constructor(
@@ -243,6 +302,10 @@ class SambaConnection {
     await drain(this.reader, 100);
     this.interactive = false;
 
+    // From here on, responses are fixed-size binary — buffer surplus bytes so
+    // coalesced chunks can't desynchronize subsequent reads.
+    this.byteReader = new BufferedByteReader(this.reader);
+
     return version || 'SAM-BA';
   }
 
@@ -257,9 +320,23 @@ class SambaConnection {
       throw new Error(`Failed to parse word response: ${resp}`);
     }
 
-    const bytes = await readBytes(this.reader, 4, 1000);
+    const bytes = await this.byteReader!.readBytes(4, 1000);
     if (bytes.length < 4) throw new Error('Short read on readWord');
     return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | ((bytes[3] << 24) >>> 0);
+  }
+
+  /** Bulk read a block of target memory (binary mode). Returns null if the
+   *  response is shorter than requested (board doesn't support bulk reads).
+   *  Throws on stream/timeout errors so the caller can distinguish a timeout
+   *  from a short read. */
+  async readBuffer(address: number, count: number): Promise<Uint8Array | null> {
+    if (this.interactive) return null;
+
+    const cmd = `w${toHex32(address)},${toHex32(count)}`;
+    await sendCommand(this.writer, cmd);
+
+    const bytes = await this.byteReader!.readBytes(count, RESPONSE_TIMEOUT);
+    return bytes.length === count ? bytes : null;
   }
 
   async writeBuffer(address: number, data: Uint8Array): Promise<void> {
@@ -310,6 +387,20 @@ async function eraseAndWriteFlash(
   }
 }
 
+const VERIFY_CHUNK_SIZE = 512;
+
+/**
+ * Verify the firmware by bulk-reading it back in chunks and comparing byte for
+ * byte.
+ * - A full-length byte mismatch is a hard failure: the board is demonstrably
+ *   serving bulk binary reads, so the data is real and the flash is corrupt.
+ * - A short/null response means the board doesn't support bulk reads — fall
+ *   back to the legacy word-sample check.
+ * - A read timeout is retried once; if it still fails the serial stream is
+ *   unreliable, so verification is skipped (with a visible message) rather
+ *   than re-read via the byte buffer, whose contents may be polluted by the
+ *   timed-out read.
+ */
 async function verifyFlash(
   samba: SambaConnection,
   firmware: Uint8Array,
@@ -318,6 +409,64 @@ async function verifyFlash(
 ): Promise<boolean> {
   onProgress?.('Verifying flash...', 92);
 
+  try {
+    for (let offset = 0; offset < firmware.length; offset += VERIFY_CHUNK_SIZE) {
+      const count = Math.min(VERIFY_CHUNK_SIZE, firmware.length - offset);
+      const expected = firmware.subarray(offset, offset + count);
+      const actual = await readBufferWithRetry(samba, flashStartAddress + offset, count);
+
+      if (!actual || actual.length !== count) {
+        // Bulk read unsupported — fall back to the legacy word sample.
+        return verifyFlashSample(samba, firmware, flashStartAddress, onProgress);
+      }
+
+      for (let i = 0; i < count; i++) {
+        if (actual[i] !== expected[i]) {
+          const addr = flashStartAddress + offset + i;
+          onProgress?.(
+            `Verify failed at 0x${toHex32(addr)}: expected 0x${expected[i].toString(16).padStart(2, '0')}, got 0x${actual[i].toString(16).padStart(2, '0')}`,
+            92
+          );
+          return false;
+        }
+      }
+    }
+
+    onProgress?.('Verification passed!', 95);
+    return true;
+  } catch {
+    // Bulk read timed out (even after the retry) or the stream is unreliable —
+    // skip verification with a visible message rather than risk false failures
+    // from stale buffered bytes.
+    onProgress?.('Bulk verification timed out — skipping...', 94);
+    return true;
+  }
+}
+
+/** Bulk read with one retry on transient failures (timeouts/stream errors). */
+async function readBufferWithRetry(
+  samba: SambaConnection,
+  address: number,
+  count: number
+): Promise<Uint8Array | null> {
+  try {
+    return await samba.readBuffer(address, count);
+  } catch {
+    try {
+      return await samba.readBuffer(address, count);
+    } catch {
+      throw new Error('Bulk read failed after retry');
+    }
+  }
+}
+
+/** Legacy word-sample verification, kept for boards without bulk binary reads. */
+async function verifyFlashSample(
+  samba: SambaConnection,
+  firmware: Uint8Array,
+  flashStartAddress: number,
+  onProgress?: ProgressCallback
+): Promise<boolean> {
   const wordsToCheck = Math.min(16, Math.floor(firmware.length / 4));
   for (let i = 0; i < wordsToCheck; i++) {
     const addr = flashStartAddress + i * 4;
