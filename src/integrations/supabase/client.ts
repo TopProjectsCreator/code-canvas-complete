@@ -19,7 +19,16 @@ const customFetch: typeof fetch = isDiscordIframe
   : fetch;
 
 function getAuthStorage() {
-  if (typeof window === 'undefined') return localStorage;
+  if (typeof window === 'undefined') {
+    // SSR: localStorage does not exist in the server runtime — use a no-op
+    // in-memory store so importing this module never crashes prerender.
+    const mem = new Map<string, string>();
+    return {
+      getItem: (key: string) => mem.get(key) ?? null,
+      setItem: (key: string, value: string) => { mem.set(key, value); },
+      removeItem: (key: string) => { mem.delete(key); },
+    };
+  }
   try {
     localStorage.setItem('__test__', '1');
     localStorage.removeItem('__test__');

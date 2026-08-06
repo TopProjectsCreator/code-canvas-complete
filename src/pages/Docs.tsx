@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { ArrowLeft, BookOpen, ExternalLink, Search } from "lucide-react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "@/lib/router-compat";
 import { Button } from "@/components/ui/button";
 import ReactMarkdown from "react-markdown";
 import { Seo } from "@/components/Seo";

@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams } from '@/lib/router-compat'
 import { ChatProvider } from '@/contexts/ChatContext'
 import { ChatLayout } from '@/components/chat/ChatLayout'
 import { Seo } from '@/components/Seo'

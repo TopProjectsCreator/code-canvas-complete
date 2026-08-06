@@ -8,7 +8,7 @@ import { auth, defineMcp } from "npm:@lovable.dev/mcp-js@0.20.1";
 // src/lib/mcp/tools/search-public-canvases.ts
 import { createClient } from "npm:@supabase/supabase-js@^2.93.3";
 import { defineTool } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z } from "npm:zod@^4.4.3";
+import { z } from "npm:zod@^3.24.2";
 function supabase() {
   return createClient(
     process.env.SUPABASE_URL,
@@ -40,7 +40,7 @@ var search_public_canvases_default = defineTool({
 // src/lib/mcp/tools/get-featured-canvases.ts
 import { createClient as createClient2 } from "npm:@supabase/supabase-js@^2.93.3";
 import { defineTool as defineTool2 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z2 } from "npm:zod@^4.4.3";
+import { z as z2 } from "npm:zod@^3.24.2";
 function supabase2() {
   return createClient2(
     process.env.SUPABASE_URL,
@@ -249,7 +249,7 @@ var whoami_default = defineTool4({
 
 // src/lib/mcp/tools/list-my-canvases.ts
 import { defineTool as defineTool5 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z3 } from "npm:zod@^4.4.3";
+import { z as z3 } from "npm:zod@^3.24.2";
 var list_my_canvases_default = defineTool5({
   name: "list_my_canvases",
   title: "List my canvases",
@@ -269,7 +269,7 @@ var list_my_canvases_default = defineTool5({
 
 // src/lib/mcp/tools/get-canvas.ts
 import { defineTool as defineTool6 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z4 } from "npm:zod@^4.4.3";
+import { z as z4 } from "npm:zod@^3.24.2";
 var get_canvas_default = defineTool6({
   name: "get_canvas",
   title: "Get canvas details",
@@ -300,7 +300,7 @@ var get_canvas_default = defineTool6({
 
 // src/lib/mcp/tools/create-canvas.ts
 import { defineTool as defineTool7 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z5 } from "npm:zod@^4.4.3";
+import { z as z5 } from "npm:zod@^3.24.2";
 var create_canvas_default = defineTool7({
   name: "create_canvas",
   title: "Create canvas",
@@ -348,7 +348,7 @@ ${description ?? ""}`,
 
 // src/lib/mcp/tools/delete-canvas.ts
 import { defineTool as defineTool8 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z6 } from "npm:zod@^4.4.3";
+import { z as z6 } from "npm:zod@^3.24.2";
 var delete_canvas_default = defineTool8({
   name: "delete_canvas",
   title: "Delete canvas",
@@ -366,7 +366,7 @@ var delete_canvas_default = defineTool8({
 
 // src/lib/mcp/tools/update-canvas-meta.ts
 import { defineTool as defineTool9 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z7 } from "npm:zod@^4.4.3";
+import { z as z7 } from "npm:zod@^3.24.2";
 var update_canvas_meta_default = defineTool9({
   name: "update_canvas_meta",
   title: "Update canvas metadata",
@@ -395,7 +395,7 @@ var update_canvas_meta_default = defineTool9({
 
 // src/lib/mcp/tools/fork-canvas.ts
 import { defineTool as defineTool10 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z8 } from "npm:zod@^4.4.3";
+import { z as z8 } from "npm:zod@^3.24.2";
 var fork_canvas_default = defineTool10({
   name: "fork_canvas",
   title: "Fork canvas",
@@ -426,7 +426,7 @@ var fork_canvas_default = defineTool10({
 
 // src/lib/mcp/tools/list-files.ts
 import { defineTool as defineTool11 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z9 } from "npm:zod@^4.4.3";
+import { z as z9 } from "npm:zod@^3.24.2";
 var list_files_default = defineTool11({
   name: "list_files",
   title: "List canvas files",
@@ -442,7 +442,7 @@ var list_files_default = defineTool11({
 
 // src/lib/mcp/tools/read-file.ts
 import { defineTool as defineTool12 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z10 } from "npm:zod@^4.4.3";
+import { z as z10 } from "npm:zod@^3.24.2";
 var read_file_default = defineTool12({
   name: "read_file",
   title: "Read canvas file",
@@ -466,7 +466,7 @@ var read_file_default = defineTool12({
 
 // src/lib/mcp/tools/write-file.ts
 import { defineTool as defineTool13 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z11 } from "npm:zod@^4.4.3";
+import { z as z11 } from "npm:zod@^3.24.2";
 var write_file_default = defineTool13({
   name: "write_file",
   title: "Write canvas file",
@@ -496,7 +496,7 @@ var write_file_default = defineTool13({
 
 // src/lib/mcp/tools/delete-file.ts
 import { defineTool as defineTool14 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z12 } from "npm:zod@^4.4.3";
+import { z as z12 } from "npm:zod@^3.24.2";
 var delete_file_default = defineTool14({
   name: "delete_file",
   title: "Delete canvas file",
@@ -524,7 +524,7 @@ var delete_file_default = defineTool14({
 
 // src/lib/mcp/tools/search-in-canvas.ts
 import { defineTool as defineTool15 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z13 } from "npm:zod@^4.4.3";
+import { z as z13 } from "npm:zod@^3.24.2";
 var search_in_canvas_default = defineTool15({
   name: "search_in_canvas",
   title: "Search inside a canvas",
@@ -561,7 +561,7 @@ var search_in_canvas_default = defineTool15({
 
 // src/lib/mcp/tools/add-comment.ts
 import { defineTool as defineTool16 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z14 } from "npm:zod@^4.4.3";
+import { z as z14 } from "npm:zod@^3.24.2";
 var add_comment_default = defineTool16({
   name: "add_comment",
   title: "Add code comment",
@@ -592,7 +592,7 @@ var add_comment_default = defineTool16({
 
 // src/lib/mcp/tools/list-comments.ts
 import { defineTool as defineTool17 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z15 } from "npm:zod@^4.4.3";
+import { z as z15 } from "npm:zod@^3.24.2";
 var list_comments_default = defineTool17({
   name: "list_comments",
   title: "List code comments",
@@ -617,7 +617,7 @@ var list_comments_default = defineTool17({
 
 // src/lib/mcp/tools/resolve-comment.ts
 import { defineTool as defineTool18 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z16 } from "npm:zod@^4.4.3";
+import { z as z16 } from "npm:zod@^3.24.2";
 var resolve_comment_default = defineTool18({
   name: "resolve_comment",
   title: "Resolve comment",
@@ -639,7 +639,7 @@ var resolve_comment_default = defineTool18({
 
 // src/lib/mcp/tools/star-canvas.ts
 import { defineTool as defineTool19 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z17 } from "npm:zod@^4.4.3";
+import { z as z17 } from "npm:zod@^3.24.2";
 var star_canvas_default = defineTool19({
   name: "star_canvas",
   title: "Star or unstar canvas",
@@ -666,7 +666,7 @@ var star_canvas_default = defineTool19({
 
 // src/lib/mcp/tools/bookmark-canvas.ts
 import { defineTool as defineTool20 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z18 } from "npm:zod@^4.4.3";
+import { z as z18 } from "npm:zod@^3.24.2";
 var bookmark_canvas_default = defineTool20({
   name: "bookmark_canvas",
   title: "Bookmark or unbookmark canvas",
@@ -693,7 +693,7 @@ var bookmark_canvas_default = defineTool20({
 
 // src/lib/mcp/tools/request-review.ts
 import { defineTool as defineTool21 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z19 } from "npm:zod@^4.4.3";
+import { z as z19 } from "npm:zod@^3.24.2";
 var request_review_default = defineTool21({
   name: "request_review",
   title: "Request code review",
@@ -725,7 +725,7 @@ var request_review_default = defineTool21({
 
 // src/lib/mcp/tools/list-reviews.ts
 import { defineTool as defineTool22 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z20 } from "npm:zod@^4.4.3";
+import { z as z20 } from "npm:zod@^3.24.2";
 var list_reviews_default = defineTool22({
   name: "list_reviews",
   title: "List code reviews",
@@ -749,7 +749,7 @@ var list_reviews_default = defineTool22({
 
 // src/lib/mcp/tools/run-code.ts
 import { defineTool as defineTool23 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z21 } from "npm:zod@^4.4.3";
+import { z as z21 } from "npm:zod@^3.24.2";
 var run_code_default = defineTool23({
   name: "run_code",
   title: "Run code",
@@ -800,7 +800,7 @@ var run_code_default = defineTool23({
 
 // src/lib/mcp/tools/run-shell.ts
 import { defineTool as defineTool24 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z22 } from "npm:zod@^4.4.3";
+import { z as z22 } from "npm:zod@^3.24.2";
 var run_shell_default = defineTool24({
   name: "run_shell",
   title: "Run shell command",
@@ -855,7 +855,7 @@ var run_shell_default = defineTool24({
 
 // src/lib/mcp/tools/get-preview-url.ts
 import { defineTool as defineTool25 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z23 } from "npm:zod@^4.4.3";
+import { z as z23 } from "npm:zod@^3.24.2";
 var get_preview_url_default = defineTool25({
   name: "get_preview_url",
   title: "Get canvas preview URL",
@@ -880,7 +880,7 @@ var get_preview_url_default = defineTool25({
 
 // src/lib/mcp/tools/create-container.ts
 import { defineTool as defineTool26 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z24 } from "npm:zod@^4.4.3";
+import { z as z24 } from "npm:zod@^3.24.2";
 var SERVER_URL = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var create_container_default = defineTool26({
   name: "create_container",
@@ -924,7 +924,7 @@ var create_container_default = defineTool26({
 
 // src/lib/mcp/tools/container-exec.ts
 import { defineTool as defineTool27 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z25 } from "npm:zod@^4.4.3";
+import { z as z25 } from "npm:zod@^3.24.2";
 var SERVER_URL2 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var container_exec_default = defineTool27({
   name: "container_exec",
@@ -966,7 +966,7 @@ var container_exec_default = defineTool27({
 
 // src/lib/mcp/tools/container-write-file.ts
 import { defineTool as defineTool28 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z26 } from "npm:zod@^4.4.3";
+import { z as z26 } from "npm:zod@^3.24.2";
 var SERVER_URL3 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var container_write_file_default = defineTool28({
   name: "container_write_file",
@@ -1008,7 +1008,7 @@ var container_write_file_default = defineTool28({
 
 // src/lib/mcp/tools/container-read-file.ts
 import { defineTool as defineTool29 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z27 } from "npm:zod@^4.4.3";
+import { z as z27 } from "npm:zod@^3.24.2";
 var SERVER_URL4 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var container_read_file_default = defineTool29({
   name: "container_read_file",
@@ -1047,7 +1047,7 @@ var container_read_file_default = defineTool29({
 
 // src/lib/mcp/tools/container-list-files.ts
 import { defineTool as defineTool30 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z28 } from "npm:zod@^4.4.3";
+import { z as z28 } from "npm:zod@^3.24.2";
 var SERVER_URL5 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var container_list_files_default = defineTool30({
   name: "container_list_files",
@@ -1085,7 +1085,7 @@ var container_list_files_default = defineTool30({
 
 // src/lib/mcp/tools/destroy-container.ts
 import { defineTool as defineTool31 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z29 } from "npm:zod@^4.4.3";
+import { z as z29 } from "npm:zod@^3.24.2";
 var SERVER_URL6 = (process.env.CODE_CANVAS_SERVER_URL || "https://code-canvas-complete-production.up.railway.app").replace(/\/+$/, "");
 var destroy_container_default = defineTool31({
   name: "destroy_container",
@@ -1123,7 +1123,7 @@ var destroy_container_default = defineTool31({
 
 // src/lib/mcp/tools/list-messages.ts
 import { defineTool as defineTool32 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z30 } from "npm:zod@^4.4.3";
+import { z as z30 } from "npm:zod@^3.24.2";
 var list_messages_default = defineTool32({
   name: "list_messages",
   title: "List inbox messages",
@@ -1146,7 +1146,7 @@ var list_messages_default = defineTool32({
 
 // src/lib/mcp/tools/send-message.ts
 import { defineTool as defineTool33 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z31 } from "npm:zod@^4.4.3";
+import { z as z31 } from "npm:zod@^3.24.2";
 var send_message_default = defineTool33({
   name: "send_message",
   title: "Send inbox message",
@@ -1175,7 +1175,7 @@ var send_message_default = defineTool33({
 
 // src/lib/mcp/tools/create-snapshot.ts
 import { defineTool as defineTool34 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z32 } from "npm:zod@^4.4.3";
+import { z as z32 } from "npm:zod@^3.24.2";
 var create_snapshot_default = defineTool34({
   name: "create_snapshot",
   title: "Create project snapshot",
@@ -1213,7 +1213,7 @@ var create_snapshot_default = defineTool34({
 
 // src/lib/mcp/tools/list-history.ts
 import { defineTool as defineTool35 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z33 } from "npm:zod@^4.4.3";
+import { z as z33 } from "npm:zod@^3.24.2";
 var list_history_default = defineTool35({
   name: "list_history",
   title: "List project history",
@@ -1234,7 +1234,7 @@ var list_history_default = defineTool35({
 
 // src/lib/mcp/tools/restore-snapshot.ts
 import { defineTool as defineTool36 } from "npm:@lovable.dev/mcp-js@0.20.1";
-import { z as z34 } from "npm:zod@^4.4.3";
+import { z as z34 } from "npm:zod@^3.24.2";
 var restore_snapshot_default = defineTool36({
   name: "restore_snapshot",
   title: "Restore project snapshot",
