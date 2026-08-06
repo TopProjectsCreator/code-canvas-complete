@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, PointerLockControls, Stars, Text } from '@react-three/drei';
 import type { PointerLockControls as PointerLockControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
-import { Link, useLocation, useNavigate, type NavigateFunction } from 'react-router-dom';
+import { Link, useLocation, useNavigate, type NavigateFunction } from '@/lib/router-compat';
 import {
   ArrowRight, BookOpen, FolderGit2, Gauge, Home, Sparkles, Star, Terminal, Zap,
 } from 'lucide-react';

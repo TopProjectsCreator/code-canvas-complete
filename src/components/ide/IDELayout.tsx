@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, lazy, Suspense, useMemo } from "react";
 import { isReplitLikePlatform, detectDeploymentPlatform } from "@/lib/platform";
 import { applyDiff } from "@/lib/diffUtils";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@/lib/router-compat";
 import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from "@/types/ide";
 import { getTemplateFiles, findFileById, findFilePathById, getFileLanguage } from "@/data/defaultFiles";
 import { Header } from "./Header";

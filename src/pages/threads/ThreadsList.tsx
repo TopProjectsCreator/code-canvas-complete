@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from '@/lib/router-compat';
 import { Plus, MessageSquare, Flame, Clock, TrendingUp, MoreHorizontal, Pin, PinOff, Tag, Presentation, Search, CheckCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useReadThreads } from '@/hooks/useReadThreads';

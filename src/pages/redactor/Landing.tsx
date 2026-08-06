@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "@/lib/router-compat";
 import { Shield, Zap, Eye, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { previewRedaction } from "@/redactor/lib/redaction.functions";
