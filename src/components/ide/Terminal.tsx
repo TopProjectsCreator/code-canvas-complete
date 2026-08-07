@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
-import { XTerminal, ProjectFile } from './XTerminal';
+import { XTerminal, ProjectFile } from './XTerminalLazy';
 
 const platform = detectDeploymentPlatform();
 const genId = () => Math.random().toString(36).slice(2, 9);

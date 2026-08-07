@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@/lib/router-compat";
 import { Shield, Zap, Eye, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,11 @@ const SAMPLE = `Hello, my name is Sarah Chen. My OpenAI key is sk-proj-abcd1234e
 
 export default function RedactorLanding() {
   const [input, setInput] = useState(SAMPLE);
+  // window is browser-only; read the origin after hydration so SSR stays stable.
+  const [origin, setOrigin] = useState("https://replitclone.lovable.app");
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
   const [result, setResult] = useState<{ redacted: string; matches: { token: string; original: string }[] } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -69,7 +74,7 @@ export default function RedactorLanding() {
         <div className="mt-10 rounded-lg border border-border/60 bg-card/40 p-4 font-mono text-xs overflow-x-auto">
           <div className="text-muted-foreground mb-2"># Point your OpenAI SDK at the proxy</div>
           <pre className="text-foreground">{`const openai = new OpenAI({
-  baseURL: "${window.location.origin}/redactor/public/v1",
+  baseURL: "${origin}/redactor/public/v1",
   apiKey: "lvp_live_••••••••••••••••",
 });`}</pre>
         </div>

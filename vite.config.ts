@@ -23,7 +23,13 @@ export default defineConfig({
     plugins: [mcpPlugin()],
     resolve: {
       alias: {
+        // Excalidraw's prod bundle imports extensionless roughjs paths, which
+        // Node's ESM resolver rejects during SSR.
+        "roughjs/bin/rough": "roughjs/bin/rough.js",
+        "roughjs/bin/math": "roughjs/bin/math.js",
+        "roughjs/bin/generator": "roughjs/bin/generator.js",
         // The Scratch packages' Node entries pull in minilog, whose legacy octal
+
         // escapes break the Worker/SSR bundle. Always use the prebuilt web
         // bundles, and stub minilog for anything that still reaches for it.
         "scratch-vm": new URL(
@@ -41,6 +47,7 @@ export default defineConfig({
         minilog: new URL("./src/lib/minilog-stub.ts", import.meta.url).pathname,
       },
     },
+
 
 
     server: {

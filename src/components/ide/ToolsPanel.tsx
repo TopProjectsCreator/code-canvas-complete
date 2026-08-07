@@ -19,13 +19,11 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { GlobalWorkerOptions } from 'pdfjs-dist';
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Line } from 'recharts';
+import { loadPdfjs } from './pdfjsLoader';
 
 type HabitLog = Record<string, boolean>;
 
-GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 type HabitFrequency = 'daily' | 'weekdays' | 'custom';
 type CalculatorMode = 'basic' | 'scientific' | 'graph';
@@ -813,10 +811,7 @@ export const ToolsPanel = () => {
     }
 
     const pdfData = await loadBinaryFromSelectedSource();
-    const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist');
-    if (!GlobalWorkerOptions.workerSrc) {
-      GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-    }
+    const { getDocument } = await loadPdfjs();
     const pdf = await getDocument({ data: pdfData }).promise;
     const pages: string[] = [];
 

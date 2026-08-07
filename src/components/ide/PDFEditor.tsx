@@ -10,13 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { decodeDataUrl } from './office/officeUtils';
-
-if (typeof window !== 'undefined' && !GlobalWorkerOptions.workerSrc) {
-  GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-}
+import { loadPdfjs } from './pdfjsLoader';
 
 interface PDFEditorProps {
   file: FileNode;
@@ -55,6 +50,7 @@ export const PDFEditor = ({ file }: PDFEditorProps) => {
       try {
         const bytes = decodeDataUrl(file.content || '');
         if (!bytes) throw new Error('Could not decode PDF data');
+        const { getDocument } = await loadPdfjs();
         const pdf = await getDocument({ data: bytes }).promise;
         if (cancelled) return;
         pdfDocRef.current = pdf;
