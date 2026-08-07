@@ -293,10 +293,10 @@ export const CodeEditor = ({
   }, [lsp.connected, lsp.diagnostics]);
 
   useEffect(() => {
-    if (lspConnected && content) {
+    if (content) {
       lspUpdateContent(content);
     }
-  }, [content, lspConnected, lspUpdateContent]);
+  }, [content, lspUpdateContent]);
 
   if (!file) {
     return (

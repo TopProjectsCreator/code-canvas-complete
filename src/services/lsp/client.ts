@@ -30,6 +30,7 @@ export class LspClient {
   private transportMessageHandler: ((msg: LspMessage) => void) | null = null;
   private transportStatusHandler: ((status: LspServerStatus) => void) | null = null;
   private transportErrorHandler: ((error: string) => void) | null = null;
+  private transportReconnectedHandler: (() => void) | null = null;
   private documentManager = new TextDocumentManager();
   private eventHandlers: Partial<LspEventHandler> = {};
   private currentUri: string | null = null;
@@ -37,6 +38,7 @@ export class LspClient {
   private _connected = false;
   private pendingRequests = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   private requestId = 1;
+  private sessionReady = false;
 
   get connected() {
     return this._connected;
@@ -67,6 +69,9 @@ export class LspClient {
 
     this.transportStatusHandler = (status) => {
       this._connected = status === "connected";
+      if (!this._connected) {
+        this.sessionReady = false;
+      }
       this.eventHandlers.status?.(status);
     };
     this.transport.onStatusChange(this.transportStatusHandler);
@@ -88,6 +93,16 @@ export class LspClient {
     };
     this.transport.onMessage(this.transportMessageHandler);
 
+    this.transportReconnectedHandler = async () => {
+      try {
+        await this.initialize();
+        this.reopenDocuments();
+      } catch {
+        // session re-init failed; retried on the next transport reconnect
+      }
+    };
+    this.transport.onReconnected(this.transportReconnectedHandler);
+
     await this.transport.connect();
     await this.initialize();
   }
@@ -107,33 +122,38 @@ export class LspClient {
       if (this.transportMessageHandler) this.transport.removeMessageHandler(this.transportMessageHandler);
       if (this.transportStatusHandler) this.transport.removeStatusHandler(this.transportStatusHandler);
       if (this.transportErrorHandler) this.transport.removeErrorHandler(this.transportErrorHandler);
+      if (this.transportReconnectedHandler) this.transport.removeReconnectedHandler(this.transportReconnectedHandler);
       this.transport.disconnect();
     }
     this.transportMessageHandler = null;
     this.transportStatusHandler = null;
     this.transportErrorHandler = null;
+    this.transportReconnectedHandler = null;
     this.transport = null;
     this.currentUri = null;
     this.capabilities = {};
     this._connected = false;
+    this.sessionReady = false;
   }
 
   openDocument(uri: string, languageId: string, text: string) {
     const doc = this.documentManager.openDocument(uri, languageId, text);
     this.currentUri = uri;
-    this.sendNotification("textDocument/didOpen", {
-      textDocument: {
-        uri: doc.uri,
-        languageId: doc.languageId,
-        version: doc.version,
-        text: doc.text,
-      },
-    });
+    if (this.sessionReady) {
+      this.sendNotification("textDocument/didOpen", {
+        textDocument: {
+          uri: doc.uri,
+          languageId: doc.languageId,
+          version: doc.version,
+          text: doc.text,
+        },
+      });
+    }
   }
 
   changeDocument(uri: string, text: string) {
     const doc = this.documentManager.changeDocument(uri, text);
-    if (doc) {
+    if (doc && this.sessionReady) {
       this.sendNotification("textDocument/didChange", {
         textDocument: { uri: doc.uri, version: doc.version },
         contentChanges: [{ text: doc.text }],
@@ -151,7 +171,7 @@ export class LspClient {
   }
 
   async getCompletions(uri: string, line: number, col: number): Promise<CompletionItem[]> {
-    if (!this.capabilities.completion) return [];
+    if (!this.sessionReady || !this.capabilities.completion) return [];
     const result = await this.sendRequest("textDocument/completion", {
       textDocument: { uri },
       position: { line: line - 1, character: col - 1 },
@@ -163,7 +183,7 @@ export class LspClient {
   }
 
   async getHover(uri: string, line: number, col: number): Promise<HoverInfo | null> {
-    if (!this.capabilities.hover) return null;
+    if (!this.sessionReady || !this.capabilities.hover) return null;
     const result = await this.sendRequest("textDocument/hover", {
       textDocument: { uri },
       position: { line: line - 1, character: col - 1 },
@@ -184,7 +204,7 @@ export class LspClient {
   }
 
   async getDefinition(uri: string, line: number, col: number): Promise<LocationInfo | null> {
-    if (!this.capabilities.definition) return null;
+    if (!this.sessionReady || !this.capabilities.definition) return null;
     const result = await this.sendRequest("textDocument/definition", {
       textDocument: { uri },
       position: { line: line - 1, character: col - 1 },
@@ -200,7 +220,7 @@ export class LspClient {
   }
 
   async getReferences(uri: string, line: number, col: number): Promise<LocationInfo[]> {
-    if (!this.capabilities.references) return [];
+    if (!this.sessionReady || !this.capabilities.references) return [];
     const result = await this.sendRequest("textDocument/references", {
       textDocument: { uri },
       position: { line: line - 1, character: col - 1 },
@@ -216,7 +236,7 @@ export class LspClient {
   }
 
   async getSignatureHelp(uri: string, line: number, col: number): Promise<SignatureHelpInfo | null> {
-    if (!this.capabilities.signatureHelp) return null;
+    if (!this.sessionReady || !this.capabilities.signatureHelp) return null;
     const result = await this.sendRequest("textDocument/signatureHelp", {
       textDocument: { uri },
       position: { line: line - 1, character: col - 1 },
@@ -235,7 +255,7 @@ export class LspClient {
   }
 
   async getFormatting(uri: string): Promise<TextEdit[]> {
-    if (!this.capabilities.formatting) return [];
+    if (!this.sessionReady || !this.capabilities.formatting) return [];
     const result = await this.sendRequest("textDocument/formatting", {
       textDocument: { uri },
       options: { tabSize: 2, insertSpaces: true },
@@ -245,7 +265,7 @@ export class LspClient {
   }
 
   async getCodeActions(uri: string, line: number, col: number, diagnostics: Diagnostic[]): Promise<CodeActionItem[]> {
-    if (!this.capabilities.codeAction) return [];
+    if (!this.sessionReady || !this.capabilities.codeAction) return [];
     const result = await this.sendRequest("textDocument/codeAction", {
       textDocument: { uri },
       range: {
@@ -322,6 +342,23 @@ export class LspClient {
       };
     }
     this.sendNotification("initialized", {});
+    this.sessionReady = true;
+  }
+
+  private reopenDocuments() {
+    for (const uri of this.documentManager.getOpenUris()) {
+      const doc = this.documentManager.getDocument(uri);
+      if (doc) {
+        this.sendNotification("textDocument/didOpen", {
+          textDocument: {
+            uri: doc.uri,
+            languageId: doc.languageId,
+            version: doc.version,
+            text: doc.text,
+          },
+        });
+      }
+    }
   }
 
   private sendRequest(method: string, params: unknown): Promise<unknown> {

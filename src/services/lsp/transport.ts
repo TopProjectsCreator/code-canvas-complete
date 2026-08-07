@@ -19,9 +19,11 @@ export interface LspTransport {
   onMessage(handler: (msg: LspMessage) => void): void;
   onStatusChange(handler: (status: LspServerStatus) => void): void;
   onError(handler: (error: string) => void): void;
+  onReconnected(handler: () => void): void;
   removeMessageHandler(handler: (msg: LspMessage) => void): void;
   removeStatusHandler(handler: (status: LspServerStatus) => void): void;
   removeErrorHandler(handler: (error: string) => void): void;
+  removeReconnectedHandler(handler: () => void): void;
 }
 
 export interface LspTransportFactory {
@@ -33,6 +35,7 @@ class BaseTransport implements LspTransport {
   protected messageHandlers: Set<(msg: LspMessage) => void> = new Set();
   protected statusHandlers: Set<(status: LspServerStatus) => void> = new Set();
   protected errorHandlers: Set<(error: string) => void> = new Set();
+  protected reconnectedHandlers: Set<() => void> = new Set();
 
   get status() {
     return this._status;
@@ -62,6 +65,9 @@ class BaseTransport implements LspTransport {
   onError(handler: (error: string) => void) {
     this.errorHandlers.add(handler);
   }
+  onReconnected(handler: () => void) {
+    this.reconnectedHandlers.add(handler);
+  }
 
   removeMessageHandler(handler: (msg: LspMessage) => void) {
     this.messageHandlers.delete(handler);
@@ -72,6 +78,9 @@ class BaseTransport implements LspTransport {
   removeErrorHandler(handler: (error: string) => void) {
     this.errorHandlers.delete(handler);
   }
+  removeReconnectedHandler(handler: () => void) {
+    this.reconnectedHandlers.delete(handler);
+  }
 
   protected dispatchMessage(msg: LspMessage) {
     this.messageHandlers.forEach((h) => h(msg));
@@ -79,6 +88,10 @@ class BaseTransport implements LspTransport {
 
   protected dispatchError(error: string) {
     this.errorHandlers.forEach((h) => h(error));
+  }
+
+  protected dispatchReconnected() {
+    this.reconnectedHandlers.forEach((h) => h());
   }
 }
 
@@ -165,6 +178,7 @@ export class ReplitTransport extends BaseTransport {
   private reconnectDelay = 1000;
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private wsGeneration = 0;
+  private everConnected = false;
   private pendingMessages: LspMessage[] = [];
 
   constructor(public languageId: string) {
@@ -184,6 +198,8 @@ export class ReplitTransport extends BaseTransport {
         this.ws = new WebSocket(this.url);
         this.ws.onopen = () => {
           if (gen !== this.wsGeneration) return;
+          const isReconnect = this.everConnected;
+          this.everConnected = true;
           this.reconnectAttempts = 0;
           this.setStatus("connected");
           for (const msg of this.pendingMessages) {
@@ -191,6 +207,9 @@ export class ReplitTransport extends BaseTransport {
           }
           this.pendingMessages = [];
           resolve();
+          if (isReconnect) {
+            this.dispatchReconnected();
+          }
         };
         this.ws.onmessage = (e) => {
           try {
@@ -224,6 +243,7 @@ export class ReplitTransport extends BaseTransport {
     this.reconnectAttempts = this.maxReconnectAttempts;
     this.ws?.close();
     this.ws = null;
+    this.everConnected = false;
     this.pendingMessages = [];
     this.setStatus("disconnected");
   }
