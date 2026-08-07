@@ -15,7 +15,6 @@ import {
   Upload,
   Play,
 } from 'lucide-react';
-import VirtualMachine from 'scratch-vm';
 import { ScratchArchive, exportScratchArchive, importScratchArchive } from '@/services/scratchSb3';
 import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
 import { ShadowInput } from './ShadowInput';
@@ -1851,7 +1850,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
     const initVm = async () => {
       try {
-        const VmCtor = VirtualMachine as unknown as { new (): ScratchVmLike };
+        const vmMod = await import('scratch-vm');
+        const VmCtor = ((vmMod as { default?: unknown }).default ?? vmMod) as unknown as { new (): ScratchVmLike };
         const vm = new VmCtor();
 
         projectLoadedRef.current = false;
