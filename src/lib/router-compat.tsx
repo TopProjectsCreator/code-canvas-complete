@@ -32,10 +32,12 @@ function parseTo(to: string): { pathname: string; search?: Record<string, string
 
 type NavigateOptions = { replace?: boolean; state?: unknown };
 
-type NavigateFn = {
+export type NavigateFn = {
   (to: string | number, options?: NavigateOptions): void;
   (delta: number): void;
 };
+
+export type NavigateFunction = NavigateFn;
 
 export function useNavigate(): NavigateFn {
   const tsNav = tsNavigate();

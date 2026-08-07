@@ -98,7 +98,7 @@ const RULES: SafetyRule[] = [
   mkRule('proc-kill-negative-group', 'Kill process group', 'high', /\bkill\b\s+-9\s+-\d+/i, 'Killing a process group can terminate many processes at once.'),
   mkRule('service-disable-security', 'Disable firewall/security service', 'high', /\b(systemctl|service)\b[^\n]*\b(stop|disable)\b[^\n]*(ufw|firewalld|selinux|apparmor)/i, 'Disabling host security services increases system exposure.'),
   mkRule('service-stop-database', 'Stop database service', 'medium', /\b(systemctl|service)\b[^\n]*\b(stop|restart)\b[^\n]*(mysql|postgres|mongod|redis)/i, 'Stopping data services can interrupt applications.'),
-  mkRule('permissions-write-shadow', 'Modify /etc/shadow', 'critical', /\b(vi|vim|nano|sed|echo|cat)\b[^\n]*\/etc\/shadow-sm\b/i, 'Direct edits to /etc/shadow can break authentication.'),
+  mkRule('permissions-write-shadow', 'Modify /etc/shadow', 'critical', /\b(vi|vim|nano|sed|echo|cat)\b[^\n]*\/etc\/shadow\b/i, 'Direct edits to /etc/shadow can break authentication.'),
   mkRule('permissions-write-passwd', 'Modify /etc/passwd', 'high', /\b(vi|vim|nano|sed|echo|cat)\b[^\n]*\/etc\/passwd\b/i, 'Direct edits to /etc/passwd can break user identities.'),
   mkRule('filesystem-chattr-immutable', 'Set immutable flag recursively', 'high', /\bchattr\b[^\n]*\+i\b[^\n]*\s+-R\b|\bchattr\b[^\n]*\s+-R\b[^\n]*\+i\b/i, 'Recursive immutable attribute changes can lock file modifications.'),
   mkRule('filesystem-find-perm-exec-chmod', 'Bulk chmod via find', 'medium', /\bfind\b[^\n]*-exec\s+chmod\b/i, 'Bulk permission changes may alter more files than expected.'),
