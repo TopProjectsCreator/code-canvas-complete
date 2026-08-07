@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Line } from 'recharts';
+import { loadPdfjs } from './pdfjsLoader';
 
 type HabitLog = Record<string, boolean>;
 
