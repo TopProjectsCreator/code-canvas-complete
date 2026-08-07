@@ -114,6 +114,21 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
         updatePeersList();
       };
 
+      pc.onnegotiationneeded = async () => {
+        try {
+          if (pc.signalingState !== 'stable') return;
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          if (channelRef.current) {
+            channelRef.current.send({
+              type: 'broadcast',
+              event: 'offer',
+              payload: { offer, targetUserId, userId: userIdRef.current, displayName: displayNameRef.current },
+            });
+          }
+        } catch { /* peer disconnected before offer completed */ }
+      };
+
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
           peerConnectionsRef.current.delete(targetUserId);
@@ -171,21 +186,14 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
           try {
             const msg = payload as { userId: string; displayName: string };
             if (msg.userId === userIdRef.current) return;
-            const pc = createPeerConnection(msg.userId, msg.displayName);
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            channel.send({
-              type: 'broadcast',
-              event: 'offer',
-              payload: { offer, targetUserId: msg.userId, userId: userIdRef.current, displayName: displayNameRef.current },
-            });
+            createPeerConnection(msg.userId, msg.displayName);
           } catch { /* peer disconnected before offer completed */ }
         })
         .on('broadcast', { event: 'offer' }, async ({ payload }) => {
           try {
             const msg = payload as { offer: RTCSessionDescriptionInit; userId: string; displayName: string; targetUserId: string };
             if (msg.targetUserId !== userIdRef.current) return;
-            const pc = createPeerConnection(msg.userId, msg.displayName);
+            const pc = peerConnectionsRef.current.get(msg.userId)?.pc ?? createPeerConnection(msg.userId, msg.displayName);
             await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
