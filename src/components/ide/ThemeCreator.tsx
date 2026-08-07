@@ -111,7 +111,7 @@ export const ThemeCreator = ({ existingTheme, onSave, onBack }: ThemeCreatorProp
   return (
     <div className="flex flex-col h-full overflow-auto ide-scrollbar">
       <div className="flex items-center gap-2 p-3 border-b border-border">
-        <button onClick={onBack} className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={onBack} className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <h3 className="text-sm font-medium">{existingTheme ? 'Edit Theme' : 'Create Theme'}</h3>
@@ -142,7 +142,7 @@ export const ThemeCreator = ({ existingTheme, onSave, onBack }: ThemeCreatorProp
               >
                 <div className="flex gap-0.5">
                   {[preset.colors.background, preset.colors.primary, preset.colors.syntaxKeyword, preset.colors.syntaxString].map((c, i) => (
-                    <div key={i} className="w-3 h-3 rounded-sm" style={{ backgroundColor: c }} />
+                    <div key={i} className="w-3 h-3 rounded-xs" style={{ backgroundColor: c }} />
                   ))}
                 </div>
                 <span className="text-[10px] font-medium truncate">{preset.name}</span>

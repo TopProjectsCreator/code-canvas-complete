@@ -123,7 +123,7 @@ export const LucideIconPicker = ({ value, onChange, onUploadIcon, color, onColor
                   type="color"
                   value={customColor || '#3b82f6'}
                   onChange={e => { setCustomColor(e.target.value); onColorChange(e.target.value); }}
-                  className="w-6 h-6 rounded cursor-pointer border border-border"
+                  className="w-6 h-6 rounded-sm cursor-pointer border border-border"
                   title="Custom color"
                 />
                 {color && (

@@ -540,20 +540,20 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
             {rows.length} / {csvData.length - 1} rows
           </span>
           <div className="flex items-center gap-1 ml-2">
-            <button onClick={() => setCsvShowChart(!csvShowChart)} className="h-7 px-2 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 flex items-center gap-1">
+            <button onClick={() => setCsvShowChart(!csvShowChart)} className="h-7 px-2 text-xs bg-muted text-muted-foreground rounded-sm hover:bg-muted/80 flex items-center gap-1">
               <BarChart3 className="w-3 h-3" /> {csvShowChart ? 'Table' : 'Chart'}
             </button>
             {csvEditMode ? (
               <>
-                <button onClick={saveEditMode} className="h-7 px-2 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90">Save</button>
-                <button onClick={cancelEditMode} className="h-7 px-2 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80">Cancel</button>
+                <button onClick={saveEditMode} className="h-7 px-2 text-xs bg-primary text-primary-foreground rounded-sm hover:bg-primary/90">Save</button>
+                <button onClick={cancelEditMode} className="h-7 px-2 text-xs bg-muted text-muted-foreground rounded-sm hover:bg-muted/80">Cancel</button>
               </>
             ) : (
               <>
-                <button onClick={enterEditMode} className="h-7 px-2 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 flex items-center gap-1">
+                <button onClick={enterEditMode} className="h-7 px-2 text-xs bg-muted text-muted-foreground rounded-sm hover:bg-muted/80 flex items-center gap-1">
                   <Pencil className="w-3 h-3" /> Edit
                 </button>
-                <button onClick={csvToJson} className="h-7 px-2 text-xs bg-muted text-muted-foreground rounded hover:bg-muted/80 flex items-center gap-1">
+                <button onClick={csvToJson} className="h-7 px-2 text-xs bg-muted text-muted-foreground rounded-sm hover:bg-muted/80 flex items-center gap-1">
                   <FileJson className="w-3 h-3" /> JSON
                 </button>
               </>
@@ -571,7 +571,7 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
                       <button
                         key={t}
                         onClick={() => setCsvChartType(t)}
-                        className={cn("h-7 px-2 text-xs rounded", csvChartType === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}
+                        className={cn("h-7 px-2 text-xs rounded-sm", csvChartType === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}
                       >
                         {t.charAt(0).toUpperCase() + t.slice(1)}
                       </button>
@@ -653,7 +653,7 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
                               <input
                                 value={row[colIndex] || ''}
                                 onChange={(e) => updateCell(rowIndex, colIndex, e.target.value)}
-                                className="w-full bg-transparent border border-transparent focus:border-primary/50 focus:bg-background rounded px-1 py-0.5 text-xs outline-none"
+                                className="w-full bg-transparent border border-transparent focus:border-primary/50 focus:bg-background rounded-sm px-1 py-0.5 text-xs outline-hidden"
                                 onKeyDown={(e) => { if (e.key === 'Escape') (e.target as HTMLInputElement).blur(); }}
                               />
                             ) : (
@@ -732,7 +732,7 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
             onChange={e => setSqliteQuery(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') runSqliteQuery(); }}
             placeholder="Enter SQL query…"
-            className="h-7 px-2 text-xs bg-muted rounded border border-border outline-none focus:border-primary w-64"
+            className="h-7 px-2 text-xs bg-muted rounded-sm border border-border outline-hidden focus:border-primary w-64"
           />
           <Button variant="outline" size="sm" className="h-7 text-xs" onClick={runSqliteQuery}>Run</Button>
         </div>
@@ -828,7 +828,7 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
                 code: ({ className, children }) => {
                   const isInline = !className;
                   if (isInline) {
-                    return <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground">{children}</code>;
+                    return <code className="bg-muted px-1.5 py-0.5 rounded-sm text-sm font-mono text-foreground">{children}</code>;
                   }
                   return (
                     <pre className="bg-muted p-4 rounded-lg overflow-x-auto my-4">
@@ -906,7 +906,7 @@ export const FilePreview = ({ file, previewType, onContentChange }: FilePreviewP
             <div className="flex-1 min-w-0 flex flex-col border-r border-border">
               <div className="px-4 py-1.5 bg-muted/30 text-xs text-muted-foreground font-medium">Source</div>
               <textarea
-                className="flex-1 p-4 text-xs font-mono bg-background text-foreground outline-none resize-none border-0"
+                className="flex-1 p-4 text-xs font-mono bg-background text-foreground outline-hidden resize-none border-0"
                 value={content}
                 readOnly
               />

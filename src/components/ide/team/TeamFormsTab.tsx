@@ -95,7 +95,7 @@ export const TeamFormsTab = ({ teamAdmin }: Props) => {
                 {teamAdmin.formResponses.length === 0 ? (
                   <p className="text-xs text-muted-foreground">No responses yet</p>
                 ) : teamAdmin.formResponses.map(r => (
-                  <div key={r.id} className="text-xs p-2 border rounded mb-1">
+                  <div key={r.id} className="text-xs p-2 border rounded-sm mb-1">
                     <pre className="whitespace-pre-wrap">{JSON.stringify(r.answers, null, 2)}</pre>
                     <span className="text-muted-foreground">{new Date(r.submitted_at).toLocaleDateString()}</span>
                   </div>

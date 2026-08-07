@@ -148,7 +148,7 @@ export function TaskDetail({
                 />
                 <div className="grid grid-cols-2 gap-2">
                   <select
-                    className="flex h-9 rounded-md border border-input bg-background px-3 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex h-9 rounded-md border border-input bg-background px-3 text-xs ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                     value={status}
                     onChange={(e) => setStatus(e.target.value as TaskStatus)}
                   >
@@ -159,7 +159,7 @@ export function TaskDetail({
                     ))}
                   </select>
                   <select
-                    className="flex h-9 rounded-md border border-input bg-background px-3 text-xs ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex h-9 rounded-md border border-input bg-background px-3 text-xs ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                     value={priority}
                     onChange={(e) =>
                       setPriority(e.target.value as TaskPriority)

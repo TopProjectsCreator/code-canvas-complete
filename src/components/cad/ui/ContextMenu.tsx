@@ -118,7 +118,7 @@ export function ContextMenu() {
       {menu.items.map((item, i) => (
         <button
           key={i}
-          className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-xs outline-none hover:bg-accent hover:text-accent-foreground"
+          className="relative flex w-full cursor-default select-none items-center rounded-xs px-2 py-1.5 text-xs outline-hidden hover:bg-accent hover:text-accent-foreground"
           onClick={() => handleAction(item)}
         >
           {item.label}

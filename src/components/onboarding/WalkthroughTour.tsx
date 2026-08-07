@@ -112,7 +112,7 @@ export const WalkthroughTour = () => {
       />
 
       <div
-        className="absolute top-[15%] left-[10%] w-2 h-2 rounded-sm opacity-20 animate-float"
+        className="absolute top-[15%] left-[10%] w-2 h-2 rounded-xs opacity-20 animate-float"
         style={{ background: "hsl(var(--primary))" }}
       />
       <div

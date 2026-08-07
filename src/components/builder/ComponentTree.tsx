@@ -17,7 +17,7 @@ function TreeNode({ node, depth }: { node: UINode; depth: number }) {
     <div>
       <div
         className={cn(
-          "flex items-center gap-1 px-2 py-1 rounded-sm cursor-pointer text-xs",
+          "flex items-center gap-1 px-2 py-1 rounded-xs cursor-pointer text-xs",
           "hover:bg-accent/50",
           isSelected && "bg-accent text-accent-foreground",
         )}

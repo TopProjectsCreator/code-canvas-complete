@@ -419,7 +419,7 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
                   value={externalUrl}
                   onChange={(e) => setExternalUrl(e.target.value)}
                   placeholder="Paste video URL…"
-                  className="h-7 w-48 text-xs bg-[#222] border border-[#444] rounded px-2 text-white outline-none focus:border-primary"
+                  className="h-7 w-48 text-xs bg-[#222] border border-[#444] rounded-sm px-2 text-white outline-hidden focus:border-primary"
                   autoFocus
                   onKeyDown={(e) => { if (e.key === 'Enter') loadUrl(); if (e.key === 'Escape') setShowUrlInput(false); }}
                 />
@@ -505,7 +505,7 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
             }}
           />
           {showGuides && (
-            <div className="pointer-events-none absolute inset-3 rounded border border-dashed border-white/20">
+            <div className="pointer-events-none absolute inset-3 rounded-sm border border-dashed border-white/20">
               <div className="absolute left-[8%] top-[8%] h-[84%] w-[84%] border border-dashed border-white/15" />
             </div>
           )}
@@ -530,7 +530,7 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
           {/* Thumbnail strip */}
           <div
             ref={timelineRef}
-            className="relative h-14 mx-3 mt-2 rounded overflow-hidden cursor-pointer group"
+            className="relative h-14 mx-3 mt-2 rounded-sm overflow-hidden cursor-pointer group"
             onClick={handleTimelineClick}
           >
             {/* Thumbnails background */}
@@ -591,7 +591,7 @@ export const VideoEditor = ({ file, onContentChange }: VideoEditorProps) => {
               className="absolute top-0 h-full w-0.5 bg-white z-20 pointer-events-none"
               style={{ left: `${progressPct}%` }}
             >
-              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white rounded-full shadow" />
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-white rounded-full shadow-sm" />
             </div>
           </div>
 

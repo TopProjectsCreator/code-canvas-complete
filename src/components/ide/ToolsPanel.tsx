@@ -19,13 +19,11 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { GlobalWorkerOptions } from 'pdfjs-dist';
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Line } from 'recharts';
+import { loadPdfjs } from './pdfjsLoader';
 
 type HabitLog = Record<string, boolean>;
 
-GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 type HabitFrequency = 'daily' | 'weekdays' | 'custom';
 type CalculatorMode = 'basic' | 'scientific' | 'graph';
@@ -813,10 +811,7 @@ export const ToolsPanel = () => {
     }
 
     const pdfData = await loadBinaryFromSelectedSource();
-    const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist');
-    if (!GlobalWorkerOptions.workerSrc) {
-      GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
-    }
+    const { getDocument } = await loadPdfjs();
     const pdf = await getDocument({ data: pdfData }).promise;
     const pages: string[] = [];
 
@@ -1518,7 +1513,7 @@ export const ToolsPanel = () => {
             </div>
 
             <div className="grid gap-3">
-              <div className="space-y-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="space-y-3 rounded-2xl border border-border bg-card p-3 shadow-xs">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <FunctionSquare className="h-4 w-4 text-primary" /> Expression lab
                 </div>
@@ -1555,7 +1550,7 @@ export const ToolsPanel = () => {
                 </div>
               </div>
 
-              <div className="space-y-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="space-y-3 rounded-2xl border border-border bg-card p-3 shadow-xs">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <Sigma className="h-4 w-4 text-primary" /> Graphing mode
                 </div>
@@ -1593,7 +1588,7 @@ export const ToolsPanel = () => {
 
         {activeSection === 'css' && (
           <div className="space-y-3">
-            <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Sparkles className="h-4 w-4 text-primary" /> Color toolkit
               </div>
@@ -1619,7 +1614,7 @@ export const ToolsPanel = () => {
               </div>
             </div>
             {savedColors.length > 0 && (
-              <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
                 <div className="mb-2 text-sm font-semibold text-foreground">Saved palette</div>
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
                   {savedColors.map((color) => (
@@ -1634,7 +1629,7 @@ export const ToolsPanel = () => {
         {activeSection === 'habit' && (
           <div className="space-y-3">
             <div className="grid gap-3">
-              <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
                   <CalendarDays className="h-4 w-4 text-primary" /> Habit planner
                 </div>
@@ -1664,17 +1659,17 @@ export const ToolsPanel = () => {
               </div>
 
               <div className="grid gap-3">
-                <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
                   <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Active habits</div>
                   <div className="mt-2 text-2xl font-semibold text-foreground">{habits.length}</div>
                   <div className="mt-1 text-muted-foreground">Track routines with flexible weekly frequency.</div>
                 </div>
-                <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
                   <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Done today</div>
                   <div className="mt-2 text-2xl font-semibold text-foreground">{todayHabits.length}</div>
                   <div className="mt-1 text-muted-foreground">Checked off for {fullDateFormatter.format(new Date())}.</div>
                 </div>
-                <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
                   <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Weekly hits</div>
                   <div className="mt-2 text-2xl font-semibold text-foreground">{habits.reduce((count, habit) => count + getWeekProgress(habit.logs), 0)}</div>
                   <div className="mt-1 text-muted-foreground">Recent completions across all habits.</div>
@@ -1682,7 +1677,7 @@ export const ToolsPanel = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <div className="text-sm font-semibold text-foreground">This week</div>
@@ -1771,7 +1766,7 @@ export const ToolsPanel = () => {
 
         {activeSection === 'shortener' && (
           <div className="space-y-3">
-            <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
               <div className="mb-3 text-sm font-semibold text-foreground">URL shortener</div>
               <div className="space-y-2">
                 <input value={longUrl} onChange={(event) => setLongUrl(event.target.value)} placeholder="https://your-long-url.com/path" className="w-full rounded-xl border border-border bg-input px-3 py-2" />
@@ -1785,7 +1780,7 @@ export const ToolsPanel = () => {
                 const shortPath = `${location.origin}/s/${link.code}`;
                 const isExpanded = expandedCode === link.code;
                 return (
-                  <div key={link.code} className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                  <div key={link.code} className="rounded-2xl border border-border bg-card p-3 shadow-xs">
                     <div className="font-mono text-sm text-foreground">/s/{link.code}</div>
                     <div className="mt-1 truncate text-muted-foreground">{link.url}</div>
                     <div className="mt-1 text-muted-foreground">Clicks: {link.clicks}</div>
@@ -1804,7 +1799,7 @@ export const ToolsPanel = () => {
 
         {activeSection === 'qr' && (
           <div className="space-y-3">
-            <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
               <div className="text-sm font-semibold text-foreground">QR generator</div>
               <input value={qrText} onChange={(event) => setQrText(event.target.value)} placeholder="Enter URL or text" className="mt-3 w-full rounded-xl border border-border bg-input px-3 py-2" />
               <div className="mt-3 rounded-2xl border border-border bg-white p-3">
@@ -1813,7 +1808,7 @@ export const ToolsPanel = () => {
               <button onClick={() => navigator.clipboard.writeText(qrText)} className="mt-3 w-full rounded-xl bg-accent px-3 py-2 hover:bg-accent/80">Copy encoded text</button>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+            <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground"><ScanLine className="h-4 w-4 text-primary" /> QR scanner</div>
               <input type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) void scanQrFromFile(file); }} className="mt-3 w-full text-[11px]" />
               {scanPreview && <img src={scanPreview} alt="Selected for scanning" className="mt-3 w-full rounded-2xl border border-border" />}
@@ -1825,7 +1820,7 @@ export const ToolsPanel = () => {
 
         {activeSection === 'converter' && (
           <div className="space-y-2">
-            <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-3 shadow-sm">
+            <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-card to-card p-3 shadow-xs">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <FileCog className="h-4 w-4 text-primary" /> Upload-first smart converter
               </div>
@@ -1889,7 +1884,7 @@ export const ToolsPanel = () => {
               </div>
 
               <div className="mt-3 grid gap-2 xl:grid-cols-[1.45fr,1fr]">
-                <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
                   <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Step 2</div>
                   <div className="mt-1 flex items-center gap-2 text-sm font-semibold text-foreground">
                     <WandSparkles className="h-4 w-4 text-primary" /> Possible conversions
@@ -1925,7 +1920,7 @@ export const ToolsPanel = () => {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+                <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
                   <div className="text-[11px] uppercase tracking-[0.22em] text-muted-foreground">Also available</div>
                   <div className="mt-1 text-sm font-semibold text-foreground">Manual converters</div>
                   <p className="mt-1 text-muted-foreground">Switch to any recipe here if you want to override the suggested path.</p>
@@ -1952,7 +1947,7 @@ export const ToolsPanel = () => {
             </div>
 
             <div className="grid gap-3">
-              <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <WandSparkles className="h-4 w-4 text-primary" /> {activeConverterMeta.title}
                 </div>
@@ -2159,7 +2154,7 @@ export const ToolsPanel = () => {
                 </button>
               </div>
 
-              <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+              <div className="rounded-2xl border border-border bg-card p-3 shadow-xs">
                 <div className="text-sm font-semibold text-foreground">Output</div>
                 <p className="mt-1 text-muted-foreground">Download files or copy text right from here.</p>
                 {converterResult?.kind === 'file' && converterResult.fileName && (

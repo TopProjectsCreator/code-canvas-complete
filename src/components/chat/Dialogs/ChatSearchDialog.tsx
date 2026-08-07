@@ -18,7 +18,7 @@ export function ChatSearchDialog({ open, onOpenChange, workspaceId, onSelectMess
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [searching, setSearching] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setTimeout>>()
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const handleSearch = useCallback((q: string) => {
     setQuery(q)

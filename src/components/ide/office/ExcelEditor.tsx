@@ -824,7 +824,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
               </div>
               <div className="flex items-center gap-0.5 pr-2 border-r border-border">
                 <Tooltip><TooltipTrigger asChild>
-                  <label className="h-7 px-1.5 rounded hover:bg-muted/50 flex items-center cursor-pointer" title="Fill Color">
+                  <label className="h-7 px-1.5 rounded-sm hover:bg-muted/50 flex items-center cursor-pointer" title="Fill Color">
                     <span className="text-[10px] mr-0.5">▨</span>
                     <input
                       type="color"
@@ -835,7 +835,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
                   </label>
                 </TooltipTrigger><TooltipContent>Fill Color</TooltipContent></Tooltip>
                 <Tooltip><TooltipTrigger asChild>
-                  <label className="h-7 px-1.5 rounded hover:bg-muted/50 flex items-center cursor-pointer" title="Border Color">
+                  <label className="h-7 px-1.5 rounded-sm hover:bg-muted/50 flex items-center cursor-pointer" title="Border Color">
                     <span className="text-[10px] mr-0.5">▢</span>
                     <input
                       type="color"
@@ -897,7 +897,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
               </div>
               <div className="flex items-center gap-0.5 pl-2 border-l border-border">
                 <Tooltip><TooltipTrigger asChild>
-                  <label className="h-7 px-2 rounded hover:bg-muted/50 flex items-center cursor-pointer text-xs gap-1">
+                  <label className="h-7 px-2 rounded-sm hover:bg-muted/50 flex items-center cursor-pointer text-xs gap-1">
                     <span>↑ CSV</span>
                     <input type="file" accept=".csv,.tsv,.txt" className="hidden" onChange={(e) => {
                       const f = e.target.files?.[0];
@@ -1014,7 +1014,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
         {/* Grid */}
         <div
           ref={parentRef}
-          className="flex-1 overflow-auto focus:outline-none"
+          className="flex-1 overflow-auto focus:outline-hidden"
           tabIndex={0}
           onKeyDown={handleGridKeyDown}
         >
@@ -1090,7 +1090,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
                       >
                         {isEditing ? (
                           <input
-                            className="w-full h-full px-1 py-0.5 outline-none bg-white dark:bg-[#2d2d2d] text-xs font-mono"
+                            className="w-full h-full px-1 py-0.5 outline-hidden bg-white dark:bg-[#2d2d2d] text-xs font-mono"
                             value={cell}
                             autoFocus
                             onChange={e => updateCell(rowIdx, colIdx, e.target.value)}
@@ -1177,7 +1177,7 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
                         setRenamingSheetIdx(null);
                       }
                     }}
-                    className="w-24 px-1 text-xs border border-border rounded"
+                    className="w-24 px-1 text-xs border border-border rounded-sm"
                     autoFocus
                   />
                 ) : (

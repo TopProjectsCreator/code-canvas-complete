@@ -89,7 +89,7 @@ export const EditorComments = ({
         {selectedLineThreads.map((comment) => {
           const replies = fileComments.filter((entry) => entry.parent_id === comment.id);
           return (
-            <div key={comment.id} className="rounded-xl border border-border bg-card/70 p-3 shadow-sm">
+            <div key={comment.id} className="rounded-xl border border-border bg-card/70 p-3 shadow-xs">
               <div className="flex items-start gap-3">
                 <Avatar className="mt-0.5 h-8 w-8">
                   <AvatarImage src={comment.profile?.avatar_url || undefined} />

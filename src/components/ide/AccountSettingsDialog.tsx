@@ -239,7 +239,7 @@ export const AccountSettingsDialog = ({ open, onOpenChange }: AccountSettingsDia
                       className="flex items-center justify-between py-2 px-3 rounded-md hover:bg-accent/50"
                     >
                       <span className="text-sm text-muted-foreground">{shortcut.action}</span>
-                      <kbd className="px-2 py-0.5 bg-muted rounded text-xs font-mono">
+                      <kbd className="px-2 py-0.5 bg-muted rounded-sm text-xs font-mono">
                         {shortcut.keys}
                       </kbd>
                     </div>

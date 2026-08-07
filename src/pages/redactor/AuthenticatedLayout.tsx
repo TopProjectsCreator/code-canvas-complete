@@ -1,4 +1,4 @@
-import { Outlet, Link, Navigate } from "react-router-dom";
+import { Outlet, Link, Navigate } from "@/lib/router-compat";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { KeyRound, Shield, Activity, Sliders, Beaker, FileText, GitBranch, LogOut } from "lucide-react";

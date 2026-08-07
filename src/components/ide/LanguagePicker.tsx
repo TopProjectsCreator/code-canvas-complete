@@ -290,7 +290,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
         </div>
         <button
           onClick={() => setIsOpen(false)}
-          className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          className="p-1.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
@@ -353,7 +353,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
                       >
                         <div
                           className={cn(
-                            "w-6 h-6 rounded bg-gradient-to-br flex items-center justify-center text-white",
+                            "w-6 h-6 rounded-sm bg-gradient-to-br flex items-center justify-center text-white",
                             lang?.color || "from-gray-400 to-gray-600",
                           )}
                         >
@@ -386,7 +386,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
               <span className="text-xs text-muted-foreground">Thinking...</span>
               <button
                 onClick={cancel}
-                className="ml-1 p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                className="ml-1 p-0.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                 title="Stop"
               >
                 <X className="w-3 h-3" />
@@ -405,7 +405,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
             {attachments.map((att) => (
               <div
                 key={att.id}
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent/50 border border-border text-[10px]"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm bg-accent/50 border border-border text-[10px]"
               >
                 {att.type === "image" ? (
                   <Image className="w-2.5 h-2.5 text-primary" />
@@ -419,7 +419,7 @@ const TemplateAssistant = ({ onSelect }: { onSelect: (template: LanguageTemplate
                 <span className="max-w-[80px] truncate text-foreground">{att.name}</span>
                 <button
                   onClick={() => removeAttachment(att.id)}
-                  className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+                  className="p-0.5 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground"
                 >
                   <X className="w-2.5 h-2.5" />
                 </button>
@@ -523,7 +523,7 @@ export const LanguagePicker = ({ onSelect }: LanguagePickerProps) => {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>

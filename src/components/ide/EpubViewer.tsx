@@ -296,7 +296,7 @@ export const EpubViewer = ({ file }: EpubViewerProps) => {
               <div key={i}>
                 <button
                   onClick={() => handleTocClick(item.href)}
-                  className="w-full text-left rounded px-2 py-1.5 text-xs hover:bg-muted transition-colors text-foreground/80 hover:text-foreground"
+                  className="w-full text-left rounded-sm px-2 py-1.5 text-xs hover:bg-muted transition-colors text-foreground/80 hover:text-foreground"
                 >
                   {item.label}
                 </button>
@@ -304,7 +304,7 @@ export const EpubViewer = ({ file }: EpubViewerProps) => {
                   <button
                     key={`${i}-${j}`}
                     onClick={() => handleTocClick(sub.href)}
-                    className="w-full text-left rounded pl-6 pr-2 py-1 text-xs hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    className="w-full text-left rounded-sm pl-6 pr-2 py-1 text-xs hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                   >
                     {sub.label}
                   </button>
@@ -319,7 +319,7 @@ export const EpubViewer = ({ file }: EpubViewerProps) => {
           {toc.length > 0 && (
             <button
               onClick={() => setShowToc((v) => !v)}
-              className={cn('p-1 rounded hover:bg-muted', showToc && 'text-primary')}
+              className={cn('p-1 rounded-sm hover:bg-muted', showToc && 'text-primary')}
             >
               <List className="w-4 h-4" />
             </button>

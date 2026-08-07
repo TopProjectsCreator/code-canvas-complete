@@ -15,7 +15,6 @@ import {
   Upload,
   Play,
 } from 'lucide-react';
-import VirtualMachine from 'scratch-vm';
 import { ScratchArchive, exportScratchArchive, importScratchArchive } from '@/services/scratchSb3';
 import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
 import { ShadowInput } from './ShadowInput';
@@ -1379,7 +1378,7 @@ const VariablesFlyout = ({
             };
             return (
             <div key={id} className="flex items-center gap-2">
-              <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#ff8c1a]" />
+              <input type="checkbox" defaultChecked className="w-4 h-4 rounded-sm accent-[#ff8c1a]" />
               <div
                 onPointerDown={(e) => onStartFlyoutDrag(reporterDef, color, e)}
                 className="cursor-grab active:cursor-grabbing"
@@ -1409,7 +1408,7 @@ const VariablesFlyout = ({
             <select
               value={activeVarId || ''}
               onChange={(e) => setSelectedVarId(e.target.value)}
-              className="w-full rounded-lg border-2 border-[#ff8c1a] bg-white px-2 py-1.5 text-[13px] text-[#575e75] font-semibold outline-none cursor-pointer"
+              className="w-full rounded-lg border-2 border-[#ff8c1a] bg-white px-2 py-1.5 text-[13px] text-[#575e75] font-semibold outline-hidden cursor-pointer"
             >
               {variables.map(([id, [name]]) => (
                 <option key={id} value={id}>{name}</option>
@@ -1457,7 +1456,7 @@ const VariablesFlyout = ({
             };
             return (
             <div key={id} className="flex items-center gap-2">
-              <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#e6832a]" />
+              <input type="checkbox" defaultChecked className="w-4 h-4 rounded-sm accent-[#e6832a]" />
               <div
                 onPointerDown={(e) => onStartFlyoutDrag(listReporterDef, '#e6832a', e)}
                 className="cursor-grab active:cursor-grabbing"
@@ -1487,7 +1486,7 @@ const VariablesFlyout = ({
             <select
               value={activeListId || ''}
               onChange={(e) => setSelectedListId(e.target.value)}
-              className="w-full rounded-lg border-2 border-[#e6832a] bg-white px-2 py-1.5 text-[13px] text-[#575e75] font-semibold outline-none cursor-pointer"
+              className="w-full rounded-lg border-2 border-[#e6832a] bg-white px-2 py-1.5 text-[13px] text-[#575e75] font-semibold outline-hidden cursor-pointer"
             >
               {lists.map(([id, [name]]) => (
                 <option key={id} value={id}>{name}</option>
@@ -1851,7 +1850,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
     const initVm = async () => {
       try {
-        const VmCtor = VirtualMachine as unknown as { new (): ScratchVmLike };
+        const vmMod = await import('scratch-vm');
+        const VmCtor = ((vmMod as { default?: unknown }).default ?? vmMod) as unknown as { new (): ScratchVmLike };
         const vm = new VmCtor();
 
         projectLoadedRef.current = false;
@@ -3534,12 +3534,12 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
         {/* File actions */}
         <div className="flex items-center gap-1">
-          <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-[13px] rounded flex items-center gap-1.5 transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>
+          <button onClick={() => importInputRef.current?.click()} className="px-3 py-1.5 text-[13px] rounded-sm flex items-center gap-1.5 transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>
             <Upload className="w-3.5 h-3.5" /> File
           </button>
           <input ref={importInputRef} className="hidden" type="file" accept=".sb3,.sb2,.sb" onChange={(e) => { const file = e.target.files?.[0]; if (file) handleImport(file); }} />
-          <button onClick={handleExport} className="px-3 py-1.5 text-[13px] rounded transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>Save</button>
-          <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-[13px] rounded transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>Debug</button>
+          <button onClick={handleExport} className="px-3 py-1.5 text-[13px] rounded-sm transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>Save</button>
+          <button onClick={() => setShowJson(!showJson)} className="px-3 py-1.5 text-[13px] rounded-sm transition-colors" style={{ color: guiColors.headerText, opacity: 0.8 }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = `${guiColors.headerText}10`; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; e.currentTarget.style.background = 'transparent'; }}>Debug</button>
         </div>
 
         <div className="flex items-center gap-1 rounded-lg bg-white/10 p-1">
@@ -3548,7 +3548,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
               key={option.value}
               onClick={() => void handleVersionToggle(option.value)}
               type="button"
-              className={`px-2 py-1 text-[12px] rounded transition-colors ${
+              className={`px-2 py-1 text-[12px] rounded-sm transition-colors ${
                 scratchVersion === option.value
                   ? 'bg-white text-[#855cd6] font-semibold'
                   : 'text-white/85 hover:bg-white/10'
@@ -3827,7 +3827,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     const src = archive?.files?.[costume.md5ext] ? `data:${imgMime(costume.dataFormat)};base64,${archive.files[costume.md5ext]}` : undefined;
                     return (
                       <button key={costume.assetId} className={`rounded-lg border-2 p-2 ${idx === currentCostumeIndex ? 'border-[#855cd6] bg-[#f0ebff]' : 'border-[#e0e0e0]'}`} onClick={() => setCurrentCostume(idx)}>
-                        <div className="h-16 rounded bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
+                        <div className="h-16 rounded-sm bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
                           {src ? <img src={src} alt={costume.name} className="max-h-full max-w-full" /> : <span className="text-2xl">🎭</span>}
                         </div>
                         <div className="mt-1 text-[11px] text-[#575e75] truncate text-center">{idx + 1}. {costume.name}</div>
@@ -4214,7 +4214,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                 <StopCircle className="w-5 h-5 text-[#ec5959]" style={{ fill: '#ec5959' }} />
               </button>
               <div className="flex-1" />
-              <button className="w-7 h-7 rounded flex items-center justify-center hover:bg-white/60" title="Fullscreen" onClick={() => void toggleStageFullscreen()}>
+              <button className="w-7 h-7 rounded-sm flex items-center justify-center hover:bg-white/60" title="Fullscreen" onClick={() => void toggleStageFullscreen()}>
                 <Maximize2 className="w-4 h-4 text-[#575e75]" />
               </button>
             </div>
@@ -4245,28 +4245,28 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     targets: current.targets.map((target, idx) => idx === selectedTargetIndex ? { ...target, name: nextName } : target),
                   }));
                 }}
-                className="h-7 rounded border border-[#d0d0d0] px-2 flex-1 text-[13px] min-w-0 disabled:bg-[#f5f5f5] disabled:text-[#999]"
+                className="h-7 rounded-sm border border-[#d0d0d0] px-2 flex-1 text-[13px] min-w-0 disabled:bg-[#f5f5f5] disabled:text-[#999]"
               />
               <div className="flex items-center gap-1 text-[12px]">
                 <span className="text-[#b5b5b5]">↔</span> x
-                <input className="w-10 h-7 rounded border border-[#d0d0d0] text-center text-[12px]" value={Math.round(stagePreview.x)} readOnly />
+                <input className="w-10 h-7 rounded-sm border border-[#d0d0d0] text-center text-[12px]" value={Math.round(stagePreview.x)} readOnly />
               </div>
               <div className="flex items-center gap-1 text-[12px]">
                 <span className="text-[#b5b5b5]">↕</span> y
-                <input className="w-10 h-7 rounded border border-[#d0d0d0] text-center text-[12px]" value={Math.round(stagePreview.y)} readOnly />
+                <input className="w-10 h-7 rounded-sm border border-[#d0d0d0] text-center text-[12px]" value={Math.round(stagePreview.y)} readOnly />
               </div>
             </div>
             <div className="flex items-center gap-3 mt-1.5 text-[12px] text-[#575e75]">
               <div className="flex items-center gap-1">
                 Show
-                <button onClick={() => setSpriteVisible(true)} className={`w-6 h-6 rounded flex items-center justify-center ${spriteVisible ? 'bg-[#855cd6] text-white' : 'bg-[#f0f0f0]'}`}><Eye className="w-3 h-3" /></button>
-                <button onClick={() => setSpriteVisible(false)} className={`w-6 h-6 rounded flex items-center justify-center ${!spriteVisible ? 'bg-[#855cd6] text-white' : 'bg-[#f0f0f0]'}`}><EyeOff className="w-3 h-3" /></button>
+                <button onClick={() => setSpriteVisible(true)} className={`w-6 h-6 rounded-sm flex items-center justify-center ${spriteVisible ? 'bg-[#855cd6] text-white' : 'bg-[#f0f0f0]'}`}><Eye className="w-3 h-3" /></button>
+                <button onClick={() => setSpriteVisible(false)} className={`w-6 h-6 rounded-sm flex items-center justify-center ${!spriteVisible ? 'bg-[#855cd6] text-white' : 'bg-[#f0f0f0]'}`}><EyeOff className="w-3 h-3" /></button>
               </div>
               <div className="flex items-center gap-1">
-                Size <input className="w-10 h-6 rounded border border-[#d0d0d0] text-center text-[11px]" value={Math.round(stagePreview.size || 100)} readOnly />
+                Size <input className="w-10 h-6 rounded-sm border border-[#d0d0d0] text-center text-[11px]" value={Math.round(stagePreview.size || 100)} readOnly />
               </div>
               <div className="flex items-center gap-1">
-                Direction <input className="w-10 h-6 rounded border border-[#d0d0d0] text-center text-[11px]" value={Math.round(stagePreview.direction || 90)} readOnly />
+                Direction <input className="w-10 h-6 rounded-sm border border-[#d0d0d0] text-center text-[11px]" value={Math.round(stagePreview.direction || 90)} readOnly />
               </div>
             </div>
           </div>
@@ -4290,7 +4290,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         selected ? 'border-[#855cd6] bg-[#ede7ff]' : 'border-[#d0d0d0] bg-white hover:border-[#b0b0b0]'
                       }`}
                     >
-                      <div className="w-14 h-14 rounded bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
+                      <div className="w-14 h-14 rounded-sm bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
                         {costumeSrc ? <img src={costumeSrc} alt={target.name} className="max-w-full max-h-full" /> : <span className="text-2xl">🐱</span>}
                       </div>
                       <div className="text-[10px] mt-1 text-[#575e75] truncate w-full text-center">{target.name}</div>
@@ -4336,9 +4336,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     <button
                       key={backdrop.assetId}
                       onClick={() => setStageBackdrop(idx)}
-                      className={`w-full rounded border-2 p-1 transition-colors ${selected ? 'border-[#855cd6] bg-[#f0ebff]' : 'border-[#d0d0d0] hover:border-[#b0b0b0]'}`}
+                      className={`w-full rounded-sm border-2 p-1 transition-colors ${selected ? 'border-[#855cd6] bg-[#f0ebff]' : 'border-[#d0d0d0] hover:border-[#b0b0b0]'}`}
                     >
-                      <div className="w-full aspect-[4/3] rounded bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
+                      <div className="w-full aspect-[4/3] rounded-sm bg-[#f4f7ff] flex items-center justify-center overflow-hidden">
                         {src ? <img src={src} alt={backdrop.name} className="max-w-full max-h-full" /> : <span className="text-xs text-[#b0b0b0]">🖼</span>}
                       </div>
                       <div className="text-[9px] text-[#575e75] mt-0.5 truncate text-center">{idx + 1}. {backdrop.name}</div>
@@ -4358,11 +4358,11 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             <span className="text-[11px] font-semibold text-[#575e75]">project.json</span>
             <div className="flex items-center gap-2">
               {vmError && <span className="text-[11px] text-destructive max-w-[300px] truncate">⚠ {vmError}</span>}
-              <button onClick={applyJsonDraft} className="text-[11px] px-2 py-0.5 rounded bg-[#855cd6] text-white">Apply</button>
+              <button onClick={applyJsonDraft} className="text-[11px] px-2 py-0.5 rounded-sm bg-[#855cd6] text-white">Apply</button>
             </div>
           </div>
           <textarea
-            className="w-full h-[120px] border border-[#d0d0d0] rounded bg-white p-2 text-[11px] font-mono resize-none"
+            className="w-full h-[120px] border border-[#d0d0d0] rounded-sm bg-white p-2 text-[11px] font-mono resize-none"
             value={projectJsonDraft || archive?.projectJson || formatJson(project)}
             onChange={(e) => setProjectJsonDraft(e.target.value)}
             spellCheck={false}
@@ -4383,7 +4383,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             </div>
             <input
               autoFocus
-              className="w-full h-9 rounded-lg border-2 border-[#855cd6] px-3 text-[14px] outline-none"
+              className="w-full h-9 rounded-lg border-2 border-[#855cd6] px-3 text-[14px] outline-hidden"
               value={dataPrompt.name}
               onChange={(e) => setDataPrompt({ ...dataPrompt, name: e.target.value })}
               onKeyDown={(e) => { if (e.key === 'Enter') handleDataPromptSubmit(); if (e.key === 'Escape') setDataPrompt(null); }}
@@ -4403,7 +4403,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             <div className="mb-3 whitespace-pre-wrap text-[13px] text-[#575e75]">{pendingQuestion.text}</div>
             <input
               autoFocus
-              className="h-10 w-full rounded-lg border-2 border-[#855cd6] px-3 text-[14px] outline-none"
+              className="h-10 w-full rounded-lg border-2 border-[#855cd6] px-3 text-[14px] outline-hidden"
               value={pendingQuestion.answer}
               onChange={(e) => setPendingQuestion((current) => (current ? { ...current, answer: e.target.value } : current))}
               onKeyDown={(e) => {
@@ -4517,7 +4517,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                   value={makeBlockModal.name}
                   onChange={(e) => setMakeBlockModal({ ...makeBlockModal, name: e.target.value })}
                   placeholder="block name"
-                  className="w-[300px] h-9 rounded-lg border-2 px-3 text-[14px] outline-none text-center"
+                  className="w-[300px] h-9 rounded-lg border-2 px-3 text-[14px] outline-hidden text-center"
                   style={{ borderColor: myColor }}
                   onKeyDown={(e) => { if (e.key === 'Escape') setMakeBlockModal(null); }}
                 />
@@ -4528,7 +4528,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                     {makeBlockModal.args.map((a, idx) => (
                       <div key={idx} className="flex items-center gap-2 bg-white rounded-lg border border-[#d0d0d0] px-2 py-1.5">
                         <span
-                          className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded text-white"
+                          className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-sm text-white"
                           style={{ background: a.type === 'boolean' ? '#59c059' : a.type === 'label' ? '#a0a0a0' : '#5cb1d6' }}
                         >
                           {a.type === 'string_number' ? 'value' : a.type === 'boolean' ? 'bool' : 'text'}
@@ -4536,7 +4536,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
                         <input
                           value={a.name}
                           onChange={(e) => updateArg(idx, { name: e.target.value })}
-                          className="flex-1 h-7 rounded border border-[#d0d0d0] px-2 text-[12px] outline-none focus:border-[#855cd6]"
+                          className="flex-1 h-7 rounded-sm border border-[#d0d0d0] px-2 text-[12px] outline-hidden focus:border-[#855cd6]"
                         />
                         <button
                           onClick={() => removeArg(idx)}

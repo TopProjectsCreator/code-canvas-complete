@@ -122,7 +122,7 @@ export const HistoryPanel = ({ entries, onRestoreEntry }: HistoryPanelProps) => 
               {onRestoreEntry && (
                 <button
                   onClick={() => onRestoreEntry(entry)}
-                  className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-all"
+                  className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-all"
                   title="Restore to this point"
                 >
                   <RotateCcw className="w-3 h-3" />

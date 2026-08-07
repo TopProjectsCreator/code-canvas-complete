@@ -55,7 +55,7 @@ export function parseMentions(text: string): string[] {
 }
 
 export function highlightMentions(text: string): string {
-  return text.replace(/@(\w+)/g, '<span class="text-primary font-medium bg-primary/10 rounded px-0.5">@$1</span>')
+  return text.replace(/@(\w+)/g, '<span class="text-primary font-medium bg-primary/10 rounded-sm px-0.5">@$1</span>')
 }
 
 export function linkifyText(text: string): string {

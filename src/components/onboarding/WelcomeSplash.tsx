@@ -63,11 +63,11 @@ export const WelcomeSplash = () => {
         style={{ background: "radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)" }}
       />
 
-      <div className="absolute top-[15%] left-[10%] w-3 h-3 rounded-sm opacity-20 animate-float" style={{ background: "hsl(var(--primary))" }} />
+      <div className="absolute top-[15%] left-[10%] w-3 h-3 rounded-xs opacity-20 animate-float" style={{ background: "hsl(var(--primary))" }} />
       <div className="absolute top-[20%] right-[15%] w-4 h-4 rounded-full opacity-20 animate-float-delayed" style={{ background: "hsl(var(--primary))" }} />
-      <div className="absolute bottom-[25%] left-[20%] w-2 h-2 rounded-sm opacity-15 animate-float" style={{ animationDelay: "0.5s", background: "hsl(var(--primary))" }} />
+      <div className="absolute bottom-[25%] left-[20%] w-2 h-2 rounded-xs opacity-15 animate-float" style={{ animationDelay: "0.5s", background: "hsl(var(--primary))" }} />
       <div className="absolute bottom-[30%] right-[10%] w-3 h-3 rounded-full opacity-20 animate-float-delayed" style={{ background: "hsl(var(--primary))" }} />
-      <div className="absolute top-[45%] left-[5%] w-2 h-2 rounded-sm opacity-10 animate-float" style={{ animationDelay: "1s", background: "hsl(var(--primary))" }} />
+      <div className="absolute top-[45%] left-[5%] w-2 h-2 rounded-xs opacity-10 animate-float" style={{ animationDelay: "1s", background: "hsl(var(--primary))" }} />
       <div className="absolute top-[60%] right-[8%] w-3 h-3 rounded-full opacity-15 animate-float-delayed" style={{ background: "hsl(var(--primary))" }} />
 
       <div

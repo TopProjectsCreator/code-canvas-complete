@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FileNode } from '@/types/ide';
-import { parse as opentypeParse, Font } from 'opentype.js';
+import type { Font } from 'opentype.js';
 import { decodeDataUrl, encodeDataUrl } from './office/officeUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -182,32 +182,45 @@ export const FontEditor = ({ file, onContentChange }: { file: FileNode; onConten
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (!file.content) {
-      setFont(null);
-      setError('No font data available');
-      return;
-    }
-    setError(null);
-    setFont(null);
-    try {
-      const bytes = decodeDataUrl(file.content);
-      if (!bytes) {
-        setError('Could not decode font data');
+    let cancelled = false;
+    const loadFont = async () => {
+      if (!file.content) {
+        setFont(null);
+        setError('No font data available');
         return;
       }
-      const parsedFont = opentypeParse(bytes.buffer as ArrayBuffer);
-      setFont(parsedFont);
-      setMetadata(extractMetadata(parsedFont));
-      setHasChanges(false);
-    } catch (e: any) {
+      setError(null);
       setFont(null);
-      if (e?.message?.includes('WOFF2')) {
-        setError('WOFF2 fonts are not supported yet. Please use TTF, OTF, or WOFF format.');
-      } else {
-        setError(`Failed to load font: ${e?.message || 'Unknown error'}`);
+      try {
+        const bytes = decodeDataUrl(file.content);
+        if (!bytes) {
+          setError('Could not decode font data');
+          return;
+        }
+        // opentype.js is a CommonJS module that breaks SSR when imported
+        // statically, so it is loaded on demand in the browser.
+        const { parse: opentypeParse } = await import('opentype.js');
+        const parsedFont = opentypeParse(bytes.buffer as ArrayBuffer);
+        if (cancelled) return;
+        setFont(parsedFont);
+        setMetadata(extractMetadata(parsedFont));
+        setHasChanges(false);
+      } catch (e: any) {
+        if (cancelled) return;
+        setFont(null);
+        if (e?.message?.includes('WOFF2')) {
+          setError('WOFF2 fonts are not supported yet. Please use TTF, OTF, or WOFF format.');
+        } else {
+          setError(`Failed to load font: ${e?.message || 'Unknown error'}`);
+        }
       }
-    }
+    };
+    void loadFont();
+    return () => {
+      cancelled = true;
+    };
   }, [file.content]);
+
 
   useEffect(() => {
     if (!font || !previewCanvasRef.current) return;
@@ -376,7 +389,7 @@ export const FontEditor = ({ file, onContentChange }: { file: FileNode; onConten
                     type="color"
                     value={previewColor}
                     onChange={e => setPreviewColor(e.target.value)}
-                    className="w-7 h-7 rounded cursor-pointer border border-border p-0.5"
+                    className="w-7 h-7 rounded-sm cursor-pointer border border-border p-0.5"
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -385,7 +398,7 @@ export const FontEditor = ({ file, onContentChange }: { file: FileNode; onConten
                     type="color"
                     value={previewBg}
                     onChange={e => setPreviewBg(e.target.value)}
-                    className="w-7 h-7 rounded cursor-pointer border border-border p-0.5"
+                    className="w-7 h-7 rounded-sm cursor-pointer border border-border p-0.5"
                   />
                 </div>
                 <Button
@@ -430,7 +443,7 @@ export const FontEditor = ({ file, onContentChange }: { file: FileNode; onConten
                         key={g.index}
                         onClick={() => { setSelectedGlyphIndex(g.index); setActiveTab('details'); }}
                         className={cn(
-                          "flex flex-col items-center justify-center p-1.5 rounded border transition-colors cursor-pointer",
+                          "flex flex-col items-center justify-center p-1.5 rounded-sm border transition-colors cursor-pointer",
                           "hover:bg-accent hover:text-accent-foreground",
                           selectedGlyphIndex === g.index
                             ? "border-primary bg-primary/10"

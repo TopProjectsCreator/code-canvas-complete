@@ -96,7 +96,7 @@ export const AutomationBlockParameterForm = ({
         <button
           type="button"
           onClick={() => setVariableDropdown(isOpen ? null : param.name)}
-          className="inline-flex items-center gap-1 rounded border border-primary/30 bg-primary/5 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
+          className="inline-flex items-center gap-1 rounded-sm border border-primary/30 bg-primary/5 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
           title="Insert variable from previous step"
         >
           <Zap className="h-2.5 w-2.5" />
@@ -109,7 +109,7 @@ export const AutomationBlockParameterForm = ({
               <button
                 key={v.value}
                 onClick={() => insertVariable(param, v.value)}
-                className="w-full rounded px-2 py-1.5 text-left hover:bg-accent transition-colors"
+                className="w-full rounded-sm px-2 py-1.5 text-left hover:bg-accent transition-colors"
               >
                 <p className="text-[11px] font-mono font-medium text-foreground">{v.value}</p>
                 <p className="text-[10px] text-muted-foreground">{v.description}</p>
@@ -152,7 +152,7 @@ export const AutomationBlockParameterForm = ({
         )}
 
         {expandedHelp === param.name && param.help && (
-          <div className="rounded bg-muted/50 p-2 text-[11px] text-muted-foreground border border-border/50">
+          <div className="rounded-sm bg-muted/50 p-2 text-[11px] text-muted-foreground border border-border/50">
             {param.help}
           </div>
         )}
@@ -164,14 +164,14 @@ export const AutomationBlockParameterForm = ({
                 value={selectFilters[param.name] ?? ''}
                 onChange={(e) => setSelectFilters((prev) => ({ ...prev, [param.name]: e.target.value }))}
                 placeholder={`Filter ${param.displayName}...`}
-                className="w-full rounded border border-border bg-input px-2 py-1.5 text-xs text-foreground mb-2 focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full rounded-sm border border-border bg-input px-2 py-1.5 text-xs text-foreground mb-2 focus:outline-hidden focus:ring-1 focus:ring-primary"
               />
             )}
             <select
               value={value}
               onChange={(e) => handleFieldChange(param, e.target.value)}
               className={cn(
-                'w-full rounded border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary',
+                'w-full rounded-sm border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary',
                 error ? 'border-destructive/50' : 'border-border',
               )}
             >
@@ -196,7 +196,7 @@ export const AutomationBlockParameterForm = ({
             placeholder={param.placeholder}
             rows={3}
             className={cn(
-              'w-full rounded border bg-input px-2 py-1.5 text-xs text-foreground font-mono focus:outline-none focus:ring-1 focus:ring-primary resize-none',
+              'w-full rounded-sm border bg-input px-2 py-1.5 text-xs text-foreground font-mono focus:outline-hidden focus:ring-1 focus:ring-primary resize-none',
               error ? 'border-destructive/50' : 'border-border',
               showVarHighlight && 'ring-1 ring-primary/30 border-primary/40',
             )}
@@ -208,7 +208,7 @@ export const AutomationBlockParameterForm = ({
             onChange={(e) => handleFieldChange(param, e.target.value)}
             placeholder={param.placeholder}
             className={cn(
-              'w-full rounded border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary',
+              'w-full rounded-sm border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary',
               error ? 'border-destructive/50' : 'border-border',
             )}
           />
@@ -218,7 +218,7 @@ export const AutomationBlockParameterForm = ({
               type="checkbox"
               checked={value === 'true'}
               onChange={(e) => handleFieldChange(param, e.target.checked ? 'true' : 'false')}
-              className="w-4 h-4 rounded border border-border"
+              className="w-4 h-4 rounded-sm border border-border"
             />
             <span className="text-xs text-foreground">{param.placeholder || 'Enable'}</span>
           </label>
@@ -229,7 +229,7 @@ export const AutomationBlockParameterForm = ({
             onChange={(e) => handleFieldChange(param, e.target.value)}
             placeholder={param.placeholder}
             className={cn(
-              'w-full rounded border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary',
+              'w-full rounded-sm border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary',
               error ? 'border-destructive/50' : 'border-border',
               showVarHighlight && 'ring-1 ring-primary/30 border-primary/40',
             )}
@@ -243,7 +243,7 @@ export const AutomationBlockParameterForm = ({
         )}
 
         {error && (
-          <div className="flex items-start gap-1.5 text-[11px] text-destructive rounded bg-destructive/5 border border-destructive/20 p-1.5">
+          <div className="flex items-start gap-1.5 text-[11px] text-destructive rounded-sm bg-destructive/5 border border-destructive/20 p-1.5">
             <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
             {error}
           </div>
@@ -286,7 +286,7 @@ export const AutomationBlockParameterForm = ({
           <select
             value={config.__operation ?? ''}
             onChange={(e) => onConfigChange({ ...config, __operation: e.target.value })}
-            className="w-full rounded border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary border-border"
+            className="w-full rounded-sm border bg-input px-2 py-1.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-primary border-border"
           >
             <option value="">Select an operation...</option>
             {operations.map((op) => (
@@ -303,7 +303,7 @@ export const AutomationBlockParameterForm = ({
               )}
               {selectedOperation.method && (
                 <div className="flex items-center gap-2">
-                  <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-600/30 text-blue-200">
+                  <span className="inline-block px-1.5 py-0.5 rounded-sm text-[10px] font-mono bg-blue-600/30 text-blue-200">
                     {selectedOperation.method}
                   </span>
                   {selectedOperation.endpoint && (

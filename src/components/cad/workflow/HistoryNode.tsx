@@ -22,7 +22,7 @@ export function HistoryNode({ feature, index, bodyId }: HistoryNodeProps) {
   return (
     <div>
       <div
-        className={`flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs hover:bg-accent/50 ${
+        className={`flex items-center gap-1 px-2 py-1 rounded-sm cursor-pointer text-xs hover:bg-accent/50 ${
           isSelected ? 'bg-accent text-accent-foreground' : ''
         } ${feature.suppressed ? 'opacity-40' : ''}`}
         onClick={() => select({ type: 'feature', featureId: feature.id })}
@@ -40,7 +40,7 @@ export function HistoryNode({ feature, index, bodyId }: HistoryNodeProps) {
         }}
       >
         <button
-          className="p-0.5 hover:bg-muted rounded"
+          className="p-0.5 hover:bg-muted rounded-sm"
           onClick={e => { e.stopPropagation(); setExpanded(!expanded) }}
         >
           {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}

@@ -405,7 +405,7 @@ export const PackagePanel = ({ files, currentLanguage, onInstallPackage }: Packa
             placeholder="Search packages..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-9 pr-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:ring-2 focus:ring-primary"
           />
         </div>
       </div>
@@ -435,7 +435,7 @@ export const PackagePanel = ({ files, currentLanguage, onInstallPackage }: Packa
                   {pkg.source === 'installed' && (
                     <button
                       onClick={() => handleRemovePackage(pkg.name)}
-                      className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="p-1 rounded-sm hover:bg-destructive/20 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>

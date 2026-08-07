@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "@/lib/router-compat";
 import { Seo } from "@/components/Seo";
 
 export default function ArduinoPage() {
@@ -14,7 +14,7 @@ export default function ArduinoPage() {
           <p className="text-xs uppercase tracking-widest text-primary">Arduino &amp; ESP</p>
           <h1 className="text-4xl font-bold tracking-tight">Arduino in Code Canvas</h1>
           <p className="text-base text-muted-foreground">
-            A full Arduino workflow in the browser: a purpose-built <code className="rounded bg-muted px-1">.ino</code> editor,
+            A full Arduino workflow in the browser: a purpose-built <code className="rounded-sm bg-muted px-1">.ino</code> editor,
             an interactive breadboard simulator, cloud compilation, and direct flashing to AVR, ESP, SAM, and STM32
             boards over Web Serial — no Arduino IDE install required.
           </p>
@@ -24,9 +24,9 @@ export default function ArduinoPage() {
           <h2 className="text-2xl font-semibold">What we implement</h2>
           <ul className="list-disc space-y-2 pl-6 text-sm text-muted-foreground">
             <li><strong>.ino editor.</strong> Syntax highlighting, brace matching, library auto-suggest, and AI inline completions tailored to Arduino C++.</li>
-            <li><strong>Interactive breadboard.</strong> Snap-to-grid components (LEDs, sensors, buttons, OLED, DHT, HC-SR04) wired visually — the layout is persisted to <code className="rounded bg-muted px-1">circuit.json</code>.</li>
+            <li><strong>Interactive breadboard.</strong> Snap-to-grid components (LEDs, sensors, buttons, OLED, DHT, HC-SR04) wired visually — the layout is persisted to <code className="rounded-sm bg-muted px-1">circuit.json</code>.</li>
             <li><strong>In-browser simulator.</strong> Runs your sketch against the virtual breadboard with live pin states, serial monitor, and step mode.</li>
-            <li><strong>Cloud compile via Godbolt.</strong> The <code className="rounded bg-muted px-1">compile-arduino</code> backend function returns Intel HEX (AVR), ARM binaries, or UF2.</li>
+            <li><strong>Cloud compile via Godbolt.</strong> The <code className="rounded-sm bg-muted px-1">compile-arduino</code> backend function returns Intel HEX (AVR), ARM binaries, or UF2.</li>
             <li><strong>Direct flashing over Web Serial.</strong> Native protocol implementations — no avrdude install:
               <ul className="mt-1 list-disc space-y-1 pl-6">
                 <li>STK500v1 for ATmega328P (Uno / Nano / Pro Mini)</li>
@@ -38,7 +38,7 @@ export default function ArduinoPage() {
               </ul>
             </li>
             <li><strong>Library manager.</strong> Resolve and bundle Arduino libraries into the cloud build.</li>
-            <li><strong>Bluetooth bridge.</strong> Optional local <code className="rounded bg-muted px-1">tools/arduino-bridge</code> for HC-05/HC-06 serial flashing.</li>
+            <li><strong>Bluetooth bridge.</strong> Optional local <code className="rounded-sm bg-muted px-1">tools/arduino-bridge</code> for HC-05/HC-06 serial flashing.</li>
           </ul>
         </section>
 
@@ -46,7 +46,7 @@ export default function ArduinoPage() {
           <h2 className="text-2xl font-semibold">The deploy pipeline</h2>
           <ol className="list-decimal space-y-2 pl-6 text-sm text-muted-foreground">
             <li>You select a board in the Arduino panel.</li>
-            <li>The sketch + libraries are sent to <code className="rounded bg-muted px-1">compile-arduino</code>.</li>
+            <li>The sketch + libraries are sent to <code className="rounded-sm bg-muted px-1">compile-arduino</code>.</li>
             <li>The function compiles and returns a HEX/BIN/UF2 payload.</li>
             <li>The browser requests a serial port via Web Serial.</li>
             <li>The matching native protocol (STK500, AVR109, esptool, SAM-BA, DFU, UF2) runs entirely in JS to flash the binary.</li>

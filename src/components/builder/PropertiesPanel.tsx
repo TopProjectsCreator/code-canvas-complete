@@ -19,7 +19,7 @@ const TAILWIND_SUGGESTIONS = [
   "h-full", "h-auto", "min-h-screen",
   "space-y-2", "space-y-4", "space-y-6", "space-x-2", "space-x-4",
   "text-sm", "text-lg", "text-xl", "text-2xl", "font-semibold", "font-bold",
-  "rounded-md", "rounded-lg", "rounded-xl", "shadow", "shadow-sm", "shadow-lg",
+  "rounded-md", "rounded-lg", "rounded-xl", "shadow", "shadow-xs", "shadow-lg",
   "border", "border-2", "border-t", "border-b",
   "bg-background", "bg-muted", "bg-card", "bg-primary/10",
   "relative", "absolute", "inset-0", "z-10",
@@ -49,9 +49,9 @@ function toggleStyle(current: string, cls: string): string {
 function StylePill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
-      className={`text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors ${
+      className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium transition-colors ${
         active
-          ? "bg-primary text-primary-foreground shadow-sm"
+          ? "bg-primary text-primary-foreground shadow-xs"
           : "bg-muted hover:bg-accent text-muted-foreground hover:text-foreground"
       }`}
       onClick={onClick}
@@ -65,9 +65,9 @@ function StyleIconBtn({ icon: Icon, label, active, onClick }: { icon: any; label
   return (
     <button
       title={label}
-      className={`p-1 rounded transition-colors ${
+      className={`p-1 rounded-sm transition-colors ${
         active
-          ? "bg-primary text-primary-foreground shadow-sm"
+          ? "bg-primary text-primary-foreground shadow-xs"
           : "bg-muted hover:bg-accent text-muted-foreground hover:text-foreground"
       }`}
       onClick={onClick}
@@ -145,7 +145,7 @@ function PropEditor({ config, value, onChange }: { config: PropConfig; value: an
             {TAILWIND_SUGGESTIONS.map((cls) => (
               <button
                 key={cls}
-                className={`text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors ${
+                className={`text-[10px] px-1.5 py-0.5 rounded-sm font-medium transition-colors ${
                   hasClass(value ?? "", cls)
                     ? "bg-primary/15 text-primary"
                     : "bg-muted hover:bg-accent text-muted-foreground hover:text-foreground"
@@ -254,13 +254,13 @@ export function PropertiesPanel() {
             </StyleRow>
 
             <StyleRow label="Rounded">
-              {[["rounded-none","none"],["rounded-sm","sm"],["rounded-md","md"],["rounded-lg","lg"],["rounded-xl","xl"],["rounded-2xl","2xl"],["rounded-full","full"]].map(([cls, label]) => (
+              {[["rounded-none","none"],["rounded-xs","sm"],["rounded-md","md"],["rounded-lg","lg"],["rounded-xl","xl"],["rounded-2xl","2xl"],["rounded-full","full"]].map(([cls, label]) => (
                 <StylePill key={cls} label={label} active={hasClass(currentClass, cls)} onClick={() => updateClass(applyStyle(currentClass, cls, [/^rounded(-(none|sm|md|lg|xl|2xl|3xl|full))?$/]))} />
               ))}
             </StyleRow>
 
             <StyleRow label="Shadow">
-              {[["shadow-none","none"],["shadow-sm","sm"],["shadow-md","md"],["shadow-lg","lg"],["shadow-xl","xl"],["shadow-2xl","2xl"]].map(([cls, label]) => (
+              {[["shadow-none","none"],["shadow-xs","sm"],["shadow-md","md"],["shadow-lg","lg"],["shadow-xl","xl"],["shadow-2xl","2xl"]].map(([cls, label]) => (
                 <StylePill key={cls} label={label} active={hasClass(currentClass, cls)} onClick={() => updateClass(applyStyle(currentClass, cls, [/^shadow(-(none|sm|md|lg|xl|2xl|inner))?$/]))} />
               ))}
             </StyleRow>

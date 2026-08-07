@@ -211,18 +211,18 @@ export const ApiKeysDialog = ({ open, onOpenChange }: ApiKeysDialogProps) => {
                     <div className="flex items-center gap-1">
                       {info.docsUrl && (
                         <a href={info.docsUrl} target="_blank" rel="noopener noreferrer"
-                          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+                          className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
                           <ExternalLink className="w-3 h-3" />
                         </a>
                       )}
                       {hasKey ? (
                         <>
                           <button onClick={() => setShowKey(prev => ({ ...prev, [provider]: !prev[provider] }))}
-                            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
+                            className="p-1 rounded-sm hover:bg-accent text-muted-foreground hover:text-foreground transition-colors">
                             {showKey[provider] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
                           </button>
                           <button onClick={() => deleteApiKey(provider)}
-                            className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors">
+                            className="p-1 rounded-sm hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors">
                             <Trash2 className="w-3 h-3" />
                           </button>
                         </>

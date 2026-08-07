@@ -15,9 +15,9 @@ export function ThreadWhiteboard({ threadId }: Props) {
   const apiRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const [initial, setInitial] = useState<Scene>({ elements: [], appState: { viewBackgroundColor: '#ffffff' } });
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const broadcastThrottleRef = useRef<number>(0);
-  const pendingBroadcastRef = useRef<ReturnType<typeof setTimeout>>();
+  const pendingBroadcastRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const channelRef = useRef<any>(null);
   const clientIdRef = useRef<string>(Math.random().toString(36).slice(2));
   const lastSentHashRef = useRef<string>('');
@@ -173,7 +173,7 @@ export function ThreadWhiteboard({ threadId }: Props) {
 
   return (
     <div className="relative w-full h-full">
-      <div className="absolute top-2 right-2 z-10 rounded-full bg-background/80 backdrop-blur border border-border px-3 py-1 text-xs font-medium shadow">
+      <div className="absolute top-2 right-2 z-10 rounded-full bg-background/80 backdrop-blur border border-border px-3 py-1 text-xs font-medium shadow-sm">
         {peerCount} {peerCount === 1 ? 'person' : 'people'} here
       </div>
       <Excalidraw

@@ -18,7 +18,7 @@ import { MermaidEditor } from "./MermaidEditor";
 import { Badge } from "@/components/ui/badge";
 import { AdvancedWorkbench } from "./AdvancedWorkbench";
 import { EnvFileEditor } from "./EnvFileEditor";
-import { DrawEditor } from "./DrawEditor";
+import { DrawEditor } from "./DrawEditorLazy";
 import { FontEditor } from "./FontEditor";
 import { SvgEditor } from "./svg-editor";
 import { getPreviewType } from "@/lib/filePreviewTypes";
@@ -98,7 +98,7 @@ function ScratchProjectView({ file, onContentChange }: { file: FileNode; onConte
           </p>
         </div>
         <div className="flex gap-2 mt-2">
-          <label className="cursor-pointer inline-flex items-center gap-2 rounded bg-orange-500/10 border border-orange-500/30 px-4 py-2 text-xs font-medium text-orange-500 hover:bg-orange-500/20 transition-colors">
+          <label className="cursor-pointer inline-flex items-center gap-2 rounded-sm bg-orange-500/10 border border-orange-500/30 px-4 py-2 text-xs font-medium text-orange-500 hover:bg-orange-500/20 transition-colors">
             <Upload className="w-4 h-4" />
             Import .sb3 file
             <input
@@ -343,20 +343,20 @@ export const CodeEditor = ({
         <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5">
           <button
             onClick={() => setComposerMode(false)}
-            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Edit
           </button>
           <span className="text-xs font-medium text-foreground">Compose</span>
           <button
             onClick={() => { setSplitPreview(true); setMarkdownPreview(true); setComposerMode(false); }}
-            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Split
           </button>
           <button
             onClick={() => { setMarkdownPreview(true); setComposerMode(false); }}
-            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Preview
           </button>
@@ -372,13 +372,13 @@ export const CodeEditor = ({
         <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5">
           <button
             onClick={() => setMarkdownPreview(false)}
-            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Edit
           </button>
           <button
             onClick={() => { setSplitPreview(true); setMarkdownPreview(true); }}
-            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Split
           </button>
@@ -395,14 +395,14 @@ export const CodeEditor = ({
         <div className="flex items-center gap-2 border-b border-border bg-background px-4 py-1.5">
           <button
             onClick={() => { setSplitPreview(false); setMarkdownPreview(false); }}
-            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Edit
           </button>
           {previewType === "markdown" && (
             <button
               onClick={() => { setSplitPreview(false); setMarkdownPreview(false); setComposerMode(true); }}
-              className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               Compose
             </button>
@@ -410,7 +410,7 @@ export const CodeEditor = ({
           <span className="text-xs font-medium text-foreground">Split</span>
           <button
             onClick={() => { setSplitPreview(false); setMarkdownPreview(true); }}
-            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Preview
           </button>
@@ -435,20 +435,20 @@ export const CodeEditor = ({
           {previewType === "markdown" && (
             <button
               onClick={() => setComposerMode(true)}
-              className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               Compose
             </button>
           )}
           <button
             onClick={() => { setSplitPreview(true); setMarkdownPreview(true); }}
-            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Split
           </button>
           <button
             onClick={() => setMarkdownPreview(true)}
-            className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-sm bg-muted px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             Preview
           </button>

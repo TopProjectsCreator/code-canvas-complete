@@ -146,7 +146,7 @@ const FileItem = ({
       <div
         ref={itemRef}
         className={cn(
-          'flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors rounded-sm group relative',
+          'flex items-center gap-1 px-2 py-1 cursor-pointer transition-colors rounded-xs group relative',
           isActive 
             ? 'bg-primary/20 text-primary' 
             : 'hover:bg-accent text-sidebar-foreground',
@@ -183,7 +183,7 @@ const FileItem = ({
                 setIsRenaming(false);
               }
             }}
-            className="flex-1 text-sm bg-input border border-primary rounded px-1 outline-none"
+            className="flex-1 text-sm bg-input border border-primary rounded-sm px-1 outline-hidden"
             autoFocus
             onClick={(e) => e.stopPropagation()}
           />
@@ -197,7 +197,7 @@ const FileItem = ({
               e.stopPropagation();
               setShowMenu(!showMenu);
             }}
-            className="p-0.5 rounded hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity"
+            className="p-0.5 rounded-sm hover:bg-accent opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
           </button>

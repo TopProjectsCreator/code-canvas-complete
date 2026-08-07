@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, ShieldOff, User as UserIcon, Wifi } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from '@/lib/router-compat';
 import { acquirePresence, subscribePresence, type PresenceMeta } from '@/lib/onlineUsersPresence';
 
 type AppRole = 'admin' | 'user';

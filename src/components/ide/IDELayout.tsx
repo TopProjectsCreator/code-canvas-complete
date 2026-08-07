@@ -1,14 +1,14 @@
 import { useState, useCallback, useEffect, useRef, lazy, Suspense, useMemo } from "react";
 import { isReplitLikePlatform, detectDeploymentPlatform } from "@/lib/platform";
 import { applyDiff } from "@/lib/diffUtils";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "@/lib/router-compat";
 import { FileNode, Tab, TerminalLine, GitState, GitCommit, GitChange, Workflow } from "@/types/ide";
 import { getTemplateFiles, findFileById, findFilePathById, getFileLanguage } from "@/data/defaultFiles";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { EditorTabs } from "./EditorTabs";
 import { CodeEditor } from "./CodeEditor";
-import { DrawEditor } from "./DrawEditor";
+import { DrawEditor } from "./DrawEditorLazy";
 import { Terminal } from "./Terminal";
 import type { ProjectFile as ShellProjectFile } from "./XTerminal";
 import { Preview } from "./Preview";

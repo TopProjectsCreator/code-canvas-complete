@@ -107,7 +107,7 @@ export function MermaidEditor({ file, onContentChange }: MermaidEditorProps) {
               <textarea
                 value={content}
                 onChange={handleChange}
-                className="min-h-full w-full resize-none border-0 bg-transparent p-4 font-mono text-sm leading-6 outline-none"
+                className="min-h-full w-full resize-none border-0 bg-transparent p-4 font-mono text-sm leading-6 outline-hidden"
                 spellCheck={false}
                 placeholder={`flowchart TD\n  A[Start] --> B{Is it working?}\n  B -->|Yes| C[Great!]\n  B -->|No| D[Debug]`}
               />

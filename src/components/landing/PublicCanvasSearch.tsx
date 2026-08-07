@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/router-compat';
 import { Search, Globe, Star, GitFork, Loader2, X, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -112,7 +112,7 @@ export const PublicCanvasSearch = () => {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setOpen(true)}
           placeholder="Search canvases, people..."
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          className="flex-1 bg-transparent text-sm outline-hidden placeholder:text-muted-foreground"
         />
         {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
         {query && (

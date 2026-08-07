@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from '@/lib/router-compat';
 import { IDELayout } from '@/components/ide';
 import { ThemeImportDialog } from '@/components/ide/ThemeImportDialog';
 import { useTheme } from '@/contexts/ThemeContext';

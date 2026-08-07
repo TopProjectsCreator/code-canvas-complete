@@ -59,7 +59,7 @@ export function ComponentWrapper({ node, children }: ComponentWrapperProps) {
       {/* Hover toolbar */}
       <div className="absolute -top-3 right-0 opacity-0 group-hover/cw:opacity-100 z-20 flex items-center gap-0.5 transition-opacity">
         <button
-          className="p-0.5 rounded bg-background border border-border shadow-sm hover:bg-accent text-muted-foreground hover:text-foreground"
+          className="p-0.5 rounded-sm bg-background border border-border shadow-xs hover:bg-accent text-muted-foreground hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation();
             dispatch({ type: "DUPLICATE_NODE", nodeId: node.id });
@@ -69,7 +69,7 @@ export function ComponentWrapper({ node, children }: ComponentWrapperProps) {
           <Copy size={10} />
         </button>
         <button
-          className="p-0.5 rounded bg-background border border-border shadow-sm hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+          className="p-0.5 rounded-sm bg-background border border-border shadow-xs hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
           onClick={(e) => {
             e.stopPropagation();
             dispatch({ type: "REMOVE_NODE", nodeId: node.id });

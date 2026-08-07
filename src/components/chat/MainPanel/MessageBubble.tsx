@@ -170,7 +170,7 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
                   setUrls(prev => { const next = { ...prev }; delete next[att.storage_path]; return next })
                   fetchUrl(att)
                 }}
-                className="p-1 rounded hover:bg-destructive/20 cursor-pointer"
+                className="p-1 rounded-sm hover:bg-destructive/20 cursor-pointer"
                 title="Retry"
               >
                 <RefreshCw className="h-3 w-3" />
@@ -201,7 +201,7 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
             rel="noopener noreferrer"
             className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted text-xs text-muted-foreground hover:text-foreground hover:bg-accent"
           >
-            <div className="w-8 h-8 rounded bg-secondary flex items-center justify-center text-lg">
+            <div className="w-8 h-8 rounded-sm bg-secondary flex items-center justify-center text-lg">
               📎
             </div>
             <div>
