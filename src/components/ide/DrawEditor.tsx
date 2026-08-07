@@ -11,7 +11,7 @@ interface DrawEditorProps {
 }
 
 export function DrawEditor({ file, onContentChange }: DrawEditorProps) {
-  const debounceTimer = useRef<ReturnType<typeof setTimeout>>();
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const excRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDirty, setIsDirty] = useState(false);

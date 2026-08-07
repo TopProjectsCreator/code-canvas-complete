@@ -45,7 +45,7 @@ export function SvgEditor({ file, onContentChange }: SvgEditorProps) {
   const [editingTextId, setEditingTextId] = useState<string | null>(null)
   const [freehandPoints, setFreehandPoints] = useState<{ x: number; y: number }[]>([])
   const dirtyRef = useRef(false)
-  const persistTimerRef = useRef<ReturnType<typeof setTimeout>>()
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const docRef = useRef(doc)
 
   const { push: pushHistory, undo: undoHistory, redo: redoHistory, canUndo, canRedo } = useHistory(doc)

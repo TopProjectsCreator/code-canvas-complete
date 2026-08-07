@@ -579,7 +579,7 @@ const normalizeProjectForVm = (project: ScratchProject): ScratchProject => {
     // from top-level blocks. In .sb3 files only top-level blocks have x/y.
     const BLOCK_STEP = 48;
     for (const [, block] of Object.entries(blocks)) {
-      if (!block.topLevel || block.shadow-sm) continue;
+      if (!block.topLevel || block.shadow) continue;
       let cursor = block.next;
       let depth = 1;
       while (cursor && blocks[cursor]) {

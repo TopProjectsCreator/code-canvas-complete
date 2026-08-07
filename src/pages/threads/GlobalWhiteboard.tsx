@@ -71,9 +71,9 @@ export default function GlobalWhiteboard() {
   const apiRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const [initial, setInitial] = useState<Scene>({ elements: [], appState: { viewBackgroundColor: '#fafaf9' } });
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const broadcastThrottleRef = useRef<number>(0);
-  const pendingBroadcastRef = useRef<ReturnType<typeof setTimeout>>();
+  const pendingBroadcastRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const channelRef = useRef<any>(null);
   const clientIdRef = useRef<string>(Math.random().toString(36).slice(2));
   const lastSentHashRef = useRef<string>('');
