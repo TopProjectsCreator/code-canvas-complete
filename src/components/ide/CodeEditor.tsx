@@ -18,7 +18,7 @@ import { MermaidEditor } from "./MermaidEditor";
 import { Badge } from "@/components/ui/badge";
 import { AdvancedWorkbench } from "./AdvancedWorkbench";
 import { EnvFileEditor } from "./EnvFileEditor";
-import { DrawEditor } from "./DrawEditor";
+import { DrawEditor } from "./DrawEditorLazy";
 import { FontEditor } from "./FontEditor";
 import { SvgEditor } from "./svg-editor";
 import { getPreviewType } from "@/lib/filePreviewTypes";

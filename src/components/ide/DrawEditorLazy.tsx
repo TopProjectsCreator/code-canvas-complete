@@ -11,7 +11,7 @@ const DrawEditorImpl = React.lazy(async () => {
 
 interface DrawEditorProps {
   file: FileNode;
-  onContentChange?: (content: string) => void;
+  onContentChange: (fileId: string, content: string) => void;
 }
 
 const Fallback = () => (

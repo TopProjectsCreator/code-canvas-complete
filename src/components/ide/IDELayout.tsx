@@ -8,7 +8,7 @@ import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { EditorTabs } from "./EditorTabs";
 import { CodeEditor } from "./CodeEditor";
-import { DrawEditor } from "./DrawEditor";
+import { DrawEditor } from "./DrawEditorLazy";
 import { Terminal } from "./Terminal";
 import type { ProjectFile as ShellProjectFile } from "./XTerminal";
 import { Preview } from "./Preview";

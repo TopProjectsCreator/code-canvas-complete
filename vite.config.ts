@@ -50,7 +50,6 @@ export default defineConfig({
     ssr: {
       // Bundle Excalidraw through Vite so the alias above applies; Node's own
       // ESM resolver otherwise chokes on its extensionless roughjs imports.
-      noExternal: ["@excalidraw/excalidraw"],
     },
 
 
