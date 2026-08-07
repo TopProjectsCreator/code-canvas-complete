@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -715,6 +716,31 @@ func newAIChatCmd() *cobra.Command {
 	return cmd
 }
 
+func saveMediaToFile(c *client.HTTPClient, mediaURL, output string) error {
+	if strings.HasPrefix(mediaURL, "data:") {
+		comma := strings.IndexByte(mediaURL, ',')
+		if comma < 0 {
+			return fmt.Errorf("invalid data URL")
+		}
+		data, err := base64.StdEncoding.DecodeString(mediaURL[comma+1:])
+		if err != nil {
+			return fmt.Errorf("decoding media data URL: %w", err)
+		}
+		if err := os.WriteFile(output, data, 0644); err != nil {
+			return fmt.Errorf("writing file: %w", err)
+		}
+		return nil
+	}
+	data, err := c.GET(mediaURL)
+	if err != nil {
+		return fmt.Errorf("downloading media: %w", err)
+	}
+	if err := os.WriteFile(output, data.Body, 0644); err != nil {
+		return fmt.Errorf("writing file: %w", err)
+	}
+	return nil
+}
+
 func newAIImageCmd() *cobra.Command {
 	var prompt string
 	var provider string
@@ -738,10 +764,14 @@ func newAIImageCmd() *cobra.Command {
 			}
 
 			body := map[string]interface{}{
-				"mode":     "image",
-				"prompt":   prompt,
-				"provider": provider,
-				"model":    model,
+				"mode":   "image",
+				"prompt": prompt,
+			}
+			if provider != "" {
+				body["provider"] = provider
+			}
+			if model != "" {
+				body["model"] = model
 			}
 
 			resp, err := c.POST("/api/replit/ai/media", body)
@@ -755,18 +785,21 @@ func newAIImageCmd() *cobra.Command {
 				return nil
 			}
 
-			if url, ok := result["url"].(string); ok {
+			mediaURL := ""
+			if u, ok := result["mediaUrl"].(string); ok && u != "" {
+				mediaURL = u
+			} else if u, ok := result["url"].(string); ok && u != "" {
+				mediaURL = u
+			}
+
+			if mediaURL != "" {
 				if output != "" {
-					data, err := c.GET(url)
-					if err != nil {
-						return fmt.Errorf("downloading image: %w", err)
-					}
-					if err := os.WriteFile(output, data.Body, 0644); err != nil {
-						return fmt.Errorf("writing file: %w", err)
+					if err := saveMediaToFile(c, mediaURL, output); err != nil {
+						return err
 					}
 					fmt.Printf("Image saved to %s\n", output)
 				} else {
-					fmt.Println(url)
+					fmt.Println(mediaURL)
 				}
 			} else {
 				fmt.Println(string(resp.Body))
@@ -778,7 +811,7 @@ func newAIImageCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&prompt, "prompt", "", "Image generation prompt")
 	cmd.Flags().StringVar(&provider, "provider", "openai", "AI provider")
-	cmd.Flags().StringVar(&model, "model", "", "Model to use")
+	cmd.Flags().StringVar(&model, "model", "dall-e-3", "Model to use")
 	cmd.Flags().StringVar(&output, "output", "", "Output file path")
 
 	return cmd
@@ -807,10 +840,14 @@ func newAIVideoCmd() *cobra.Command {
 			}
 
 			body := map[string]interface{}{
-				"mode":     "video",
-				"prompt":   prompt,
-				"provider": provider,
-				"model":    model,
+				"mode":   "video",
+				"prompt": prompt,
+			}
+			if provider != "" {
+				body["provider"] = provider
+			}
+			if model != "" {
+				body["model"] = model
 			}
 
 			resp, err := c.POST("/api/replit/ai/media", body)
@@ -824,14 +861,31 @@ func newAIVideoCmd() *cobra.Command {
 				return nil
 			}
 
-			if url, ok := result["url"].(string); ok {
-				fmt.Println(url)
-			} else if taskID, ok := result["taskId"].(string); ok {
+			var mediaURL string
+			if u, ok := result["mediaUrl"].(string); ok && u != "" {
+				mediaURL = u
+			} else if u, ok := result["url"].(string); ok && u != "" {
+				mediaURL = u
+			}
+
+			if mediaURL != "" {
+				if output != "" {
+					if err := saveMediaToFile(c, mediaURL, output); err != nil {
+						return err
+					}
+					fmt.Printf("Video saved to %s\n", output)
+				} else {
+					fmt.Println(mediaURL)
+				}
+				return nil
+			}
+
+			if taskID, ok := result["taskId"].(string); ok {
 				fmt.Printf("Video generation started. Task ID: %s\n", taskID)
 
 				for i := 0; i < 60; i++ {
 					time.Sleep(2 * time.Second)
-					statusResp, err := c.GET("/api/replit/ai/media/" + taskID)
+					statusResp, err := c.GET("/api/replit/ai/media/" + url.PathEscape(taskID))
 					if err != nil {
 						continue
 					}
@@ -840,8 +894,12 @@ func newAIVideoCmd() *cobra.Command {
 					if json.Unmarshal(statusResp.Body, &status) == nil {
 						if s, ok := status["status"].(string); ok {
 							if s == "completed" {
-								if url, ok := status["url"].(string); ok {
-									fmt.Println(url)
+								if u, ok := status["mediaUrl"].(string); ok && u != "" {
+									fmt.Println(u)
+									return nil
+								}
+								if u, ok := status["url"].(string); ok {
+									fmt.Println(u)
 									return nil
 								}
 							} else if s == "failed" {
@@ -851,17 +909,16 @@ func newAIVideoCmd() *cobra.Command {
 					}
 				}
 				return fmt.Errorf("timeout waiting for video generation")
-			} else {
-				fmt.Println(string(resp.Body))
 			}
 
+			fmt.Println(string(resp.Body))
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVar(&prompt, "prompt", "", "Video generation prompt")
-	cmd.Flags().StringVar(&provider, "provider", "", "AI provider")
-	cmd.Flags().StringVar(&model, "model", "", "Model to use")
+	cmd.Flags().StringVar(&provider, "provider", "openrouter", "AI provider")
+	cmd.Flags().StringVar(&model, "model", "openai/sora", "Model to use")
 	cmd.Flags().StringVar(&output, "output", "", "Output file path")
 
 	return cmd
@@ -889,8 +946,10 @@ func newAI3DCmd() *cobra.Command {
 			}
 
 			body := map[string]interface{}{
-				"prompt":   prompt,
-				"provider": provider,
+				"prompt": prompt,
+			}
+			if provider != "" {
+				body["provider"] = provider
 			}
 
 			resp, err := c.POST("/api/replit/ai/3d", body)
@@ -904,54 +963,80 @@ func newAI3DCmd() *cobra.Command {
 				return nil
 			}
 
-			if taskID, ok := result["taskId"].(string); ok {
+			handleResult := func(res map[string]interface{}) (string, string, bool) {
+				if s, ok := res["status"].(string); ok {
+					if s == "SUCCEEDED" {
+						if glbURL, ok := res["glbUrl"].(string); ok && glbURL != "" {
+							return glbURL, "", true
+						}
+					} else if s == "FAILED" {
+						msg, _ := res["error"].(string)
+						if msg == "" {
+							msg = "3D generation failed"
+						}
+						return "", msg, true
+					}
+				}
+				return "", "", false
+			}
+
+			if glbURL, errMsg, done := handleResult(result); done {
+				if errMsg != "" {
+					return fmt.Errorf("%s", errMsg)
+				}
+				if output != "" {
+					if err := saveMediaToFile(c, glbURL, output); err != nil {
+						return err
+					}
+					fmt.Printf("3D model saved to %s\n", output)
+				} else {
+					fmt.Println(glbURL)
+				}
+				return nil
+			}
+
+			if taskID, ok := result["taskId"].(string); ok && taskID != "" {
 				fmt.Printf("3D generation started. Task ID: %s\n", taskID)
 
 				for i := 0; i < 60; i++ {
 					time.Sleep(2 * time.Second)
-					statusResp, err := c.GET("/api/replit/ai/3d/" + taskID)
+					pollBody := map[string]interface{}{"taskId": taskID}
+					if provider != "" {
+						pollBody["provider"] = provider
+					}
+					statusResp, err := c.POST("/api/replit/ai/3d", pollBody)
 					if err != nil {
 						continue
 					}
 
 					var status map[string]interface{}
 					if json.Unmarshal(statusResp.Body, &status) == nil {
-						if s, ok := status["status"].(string); ok {
-							if s == "completed" {
-								if url, ok := status["url"].(string); ok {
-									if output != "" {
-										data, err := c.GET(url)
-										if err != nil {
-											return fmt.Errorf("downloading model: %w", err)
-										}
-										if err := os.WriteFile(output, data.Body, 0644); err != nil {
-											return fmt.Errorf("writing file: %w", err)
-										}
-										fmt.Printf("3D model saved to %s\n", output)
-									} else {
-										fmt.Println(url)
-									}
-									return nil
-								}
-							} else if s == "failed" {
-								return fmt.Errorf("3D generation failed")
+						if glbURL, errMsg, done := handleResult(status); done {
+							if errMsg != "" {
+								return fmt.Errorf("%s", errMsg)
 							}
+							if output != "" {
+								if err := saveMediaToFile(c, glbURL, output); err != nil {
+									return err
+								}
+								fmt.Printf("3D model saved to %s\n", output)
+							} else {
+								fmt.Println(glbURL)
+							}
+							return nil
 						}
 					}
 				}
 				return fmt.Errorf("timeout waiting for 3D generation")
-			} else if url, ok := result["url"].(string); ok {
-				fmt.Println(url)
-			} else {
-				fmt.Println(string(resp.Body))
 			}
 
+			fmt.Println(string(resp.Body))
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVar(&prompt, "prompt", "", "3D generation prompt")
-	cmd.Flags().StringVar(&provider, "provider", "", "AI provider")
+	cmd.Flags().StringVar(&provider, "provider", "meshy", "AI provider")
 	cmd.Flags().StringVar(&output, "output", "", "Output file path (GLB format)")
 
 	return cmd

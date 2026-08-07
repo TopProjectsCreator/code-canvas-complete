@@ -3135,13 +3135,8 @@ function lspRestHandler(language, content, requestMethod, extraParams) {
     let readBuffer = '';
     let contentLength = -1;
     const responses = {};
-    let responseCount = 0;
-    let expectedResponses = 1;
     let resolved = false;
-
-    if (requestMethod === 'textDocument/publishDiagnostics') {
-      expectedResponses = 0;
-    }
+    const REQUEST_ID = 2;
 
     lsProcess.stdout.on('data', (chunk) => {
       readBuffer += chunk.toString();
@@ -3163,16 +3158,15 @@ function lspRestHandler(language, content, requestMethod, extraParams) {
             const msg = JSON.parse(body);
             if (msg.id !== undefined && msg.id !== null) {
               responses[msg.id] = msg;
-              responseCount++;
-              if (responseCount >= expectedResponses && !resolved) {
+              if (requestMethod !== 'textDocument/publishDiagnostics' && msg.id === REQUEST_ID && !resolved) {
                 resolved = true;
                 cleanup();
                 resolve(responses);
               }
             } else if (msg.method === 'textDocument/publishDiagnostics' && requestMethod === 'textDocument/publishDiagnostics') {
               responses['diagnostics'] = msg;
-              responseCount++;
-              if (responseCount >= expectedResponses && !resolved) {
+              if (!resolved) {
+                resolved = true;
                 cleanup();
                 resolve(responses);
               }
@@ -3191,9 +3185,14 @@ function lspRestHandler(language, content, requestMethod, extraParams) {
     });
     lsProcess.on('close', () => {
       clearInterval(waitForInit);
-      if (!resolved && Object.keys(responses).length > 0) {
-        resolved = true;
-        resolve(responses);
+      if (!resolved) {
+        const hasExpected = requestMethod === 'textDocument/publishDiagnostics'
+          ? !!responses['diagnostics']
+          : !!responses[REQUEST_ID];
+        if (hasExpected) {
+          resolved = true;
+          resolve(responses);
+        }
       }
     });
 
