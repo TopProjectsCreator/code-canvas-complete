@@ -21,6 +21,17 @@ export default defineConfig({
   },
   vite: {
     plugins: [mcpPlugin()],
+    resolve: {
+      alias: {
+        // scratch-vm's Node entry pulls in minilog, whose legacy octal escapes
+        // break the Worker/SSR bundle. Always use the prebuilt web bundle.
+        "scratch-vm": new URL(
+          "./node_modules/scratch-vm/dist/web/scratch-vm.js",
+          import.meta.url,
+        ).pathname,
+      },
+    },
+
     server: {
       // Cross-origin isolation required for WebContainers / SharedArrayBuffer execution engine.
       headers: {
