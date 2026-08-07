@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react';
 import { 
   File, 
   FileCode, 
@@ -164,7 +165,7 @@ export const FileIcon = ({ name, type, isOpen = false, className = '' }: FileIco
   const fileName = name.toLowerCase();
 
   // Special filenames
-  const specialFiles: Record<string, { icon: React.ElementType; color: string }> = {
+  const specialFiles: Record<string, { icon: LucideIcon; color: string }> = {
     'dockerfile': { icon: Container, color: 'text-cyan-400' },
     'docker-compose.yml': { icon: Container, color: 'text-cyan-400' },
     'docker-compose.yaml': { icon: Container, color: 'text-cyan-400' },
@@ -325,7 +326,7 @@ export const FileIcon = ({ name, type, isOpen = false, className = '' }: FileIco
   }
 
   // Extensions
-  const extIcons: Record<string, { icon: React.ElementType; color: string }> = {
+  const extIcons: Record<string, { icon: LucideIcon; color: string }> = {
     // Web
     'html': { icon: Globe, color: 'text-orange-500' },
     'htm': { icon: Globe, color: 'text-orange-500' },

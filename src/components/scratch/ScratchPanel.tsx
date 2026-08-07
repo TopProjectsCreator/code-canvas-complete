@@ -15,7 +15,6 @@ import {
   Upload,
   Play,
 } from 'lucide-react';
-import VirtualMachine from 'scratch-vm';
 import { ScratchArchive, exportScratchArchive, importScratchArchive } from '@/services/scratchSb3';
 import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
 import { ShadowInput } from './ShadowInput';
@@ -580,7 +579,7 @@ const normalizeProjectForVm = (project: ScratchProject): ScratchProject => {
     // from top-level blocks. In .sb3 files only top-level blocks have x/y.
     const BLOCK_STEP = 48;
     for (const [, block] of Object.entries(blocks)) {
-      if (!block.topLevel || block.shadow-sm) continue;
+      if (!block.topLevel || block.shadow) continue;
       let cursor = block.next;
       let depth = 1;
       while (cursor && blocks[cursor]) {
@@ -1851,7 +1850,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
     const initVm = async () => {
       try {
-        const VmCtor = VirtualMachine as unknown as { new (): ScratchVmLike };
+        const vmMod = await import('scratch-vm');
+        const VmCtor = ((vmMod as { default?: unknown }).default ?? vmMod) as unknown as { new (): ScratchVmLike };
         const vm = new VmCtor();
 
         projectLoadedRef.current = false;

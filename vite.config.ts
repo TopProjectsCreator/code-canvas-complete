@@ -17,10 +17,32 @@ export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
-    server: { entry: "server" },
+    server: { entry: "./src/server.ts" },
   },
   vite: {
     plugins: [mcpPlugin()],
+    resolve: {
+      alias: {
+        // The Scratch packages' Node entries pull in minilog, whose legacy octal
+        // escapes break the Worker/SSR bundle. Always use the prebuilt web
+        // bundles, and stub minilog for anything that still reaches for it.
+        "scratch-vm": new URL(
+          "./node_modules/scratch-vm/dist/web/scratch-vm.js",
+          import.meta.url,
+        ).pathname,
+        "scratch-storage": new URL(
+          "./node_modules/scratch-storage/dist/web/scratch-storage.js",
+          import.meta.url,
+        ).pathname,
+        "scratch-render": new URL(
+          "./node_modules/scratch-render/dist/web/scratch-render.js",
+          import.meta.url,
+        ).pathname,
+        minilog: new URL("./src/lib/minilog-stub.ts", import.meta.url).pathname,
+      },
+    },
+
+
     server: {
       // Cross-origin isolation required for WebContainers / SharedArrayBuffer execution engine.
       headers: {

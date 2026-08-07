@@ -1,5 +1,4 @@
 import JSZip from 'jszip';
-import VirtualMachine from 'scratch-vm';
 
 export interface ScratchArchive {
   projectJson: string;
@@ -67,7 +66,8 @@ export const importSb3 = async (arrayBuffer: ArrayBuffer): Promise<ScratchImport
 };
 
 const convertLegacyProjectToSb3 = async (arrayBuffer: ArrayBuffer): Promise<ArrayBuffer> => {
-  const VmCtor = VirtualMachine as unknown as { new (): { loadProject(input: ArrayBuffer): Promise<void>; saveProjectSb3(): Promise<Blob> } };
+  const vmMod = await import('scratch-vm');
+  const VmCtor = ((vmMod as { default?: unknown }).default ?? vmMod) as unknown as { new (): { loadProject(input: ArrayBuffer): Promise<void>; saveProjectSb3(): Promise<Blob> } };
   const vm = new VmCtor();
   await vm.loadProject(arrayBuffer);
   const sb3Blob = await vm.saveProjectSb3();
