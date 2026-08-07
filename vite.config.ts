@@ -47,10 +47,6 @@ export default defineConfig({
         minilog: new URL("./src/lib/minilog-stub.ts", import.meta.url).pathname,
       },
     },
-    ssr: {
-      // Bundle Excalidraw through Vite so the alias above applies; Node's own
-      // ESM resolver otherwise chokes on its extensionless roughjs imports.
-    },
 
 
 
