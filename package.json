@@ -6,7 +6,7 @@
   "scripts": {
     "predev": "bunx tsx scripts/generate-sitemap.ts",
     "dev": "vite dev",
-    "server:replit": "node server.mjs",
+    "server:replit": "node dev-backend.mjs",
     "prebuild": "bunx tsx scripts/generate-sitemap.ts && node scripts/patch-scratch-vm.mjs",
     "build:cli": "cd cli && GOOS=linux GOARCH=amd64 go build -ldflags '-s -w' -o ../public/cc .",
     "build": "vite build",
