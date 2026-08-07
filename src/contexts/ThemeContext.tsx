@@ -167,38 +167,44 @@ function removeCustomThemeStyle(id: string) {
 }
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [theme, setThemeState] = useState<IDETheme>(() => {
-    const saved = localStorage.getItem('ide-theme');
-    if (saved === 'replit-dark') return 'canvas-dark';
-    return saved || 'canvas-dark';
-  });
+  // SSR-safe: start from the default and hydrate persisted values in an effect.
+  const [theme, setThemeState] = useState<IDETheme>('canvas-dark');
+  const [customThemes, setCustomThemes] = useState<CustomTheme[]>([]);
+  const hydratedRef = useRef(false);
 
-  const [customThemes, setCustomThemes] = useState<CustomTheme[]>(() => {
-    try {
-      const saved = localStorage.getItem('ide-custom-themes');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Inject all custom theme styles on mount
+  // Load persisted theme + custom themes after hydration, then inject styles.
   useEffect(() => {
-    customThemes.forEach(ct => {
+    let restoredThemes: CustomTheme[] = [];
+    try {
+      const savedThemes = localStorage.getItem('ide-custom-themes');
+      restoredThemes = savedThemes ? (JSON.parse(savedThemes) as CustomTheme[]) : [];
+    } catch {
+      restoredThemes = [];
+    }
+    restoredThemes.forEach(ct => {
       injectCustomThemeStyle(ct.id, generateCssVariables(ct.colors));
     });
+    if (restoredThemes.length > 0) setCustomThemes(restoredThemes);
+
+    const saved = localStorage.getItem('ide-theme');
+    const restoredTheme = !saved || saved === 'replit-dark' ? 'canvas-dark' : saved;
+    setThemeState(restoredTheme);
+    hydratedRef.current = true;
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('ide-theme', theme);
+    if (hydratedRef.current) localStorage.setItem('ide-theme', theme);
     // For custom themes, the data-theme attribute includes "custom-" prefix
     const isCustom = !BUILTIN_THEMES.includes(theme as any);
     document.documentElement.setAttribute('data-theme', isCustom ? theme : theme);
   }, [theme]);
 
   useEffect(() => {
-    localStorage.setItem('ide-custom-themes', JSON.stringify(customThemes));
+    if (hydratedRef.current) {
+      localStorage.setItem('ide-custom-themes', JSON.stringify(customThemes));
+    }
   }, [customThemes]);
+
 
   const setTheme = useCallback((t: IDETheme) => {
     setThemeState(t);
