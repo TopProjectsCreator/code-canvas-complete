@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FileNode } from '@/types/ide';
-import { parse as opentypeParse, Font } from 'opentype.js';
+import type { Font } from 'opentype.js';
 import { decodeDataUrl, encodeDataUrl } from './office/officeUtils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -195,6 +195,7 @@ export const FontEditor = ({ file, onContentChange }: { file: FileNode; onConten
         setError('Could not decode font data');
         return;
       }
+      const { parse: opentypeParse } = await import('opentype.js');
       const parsedFont = opentypeParse(bytes.buffer as ArrayBuffer);
       setFont(parsedFont);
       setMetadata(extractMetadata(parsedFont));
