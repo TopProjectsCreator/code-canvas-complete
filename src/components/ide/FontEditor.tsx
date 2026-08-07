@@ -182,33 +182,45 @@ export const FontEditor = ({ file, onContentChange }: { file: FileNode; onConten
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (!file.content) {
-      setFont(null);
-      setError('No font data available');
-      return;
-    }
-    setError(null);
-    setFont(null);
-    try {
-      const bytes = decodeDataUrl(file.content);
-      if (!bytes) {
-        setError('Could not decode font data');
+    let cancelled = false;
+    const loadFont = async () => {
+      if (!file.content) {
+        setFont(null);
+        setError('No font data available');
         return;
       }
-      const { parse: opentypeParse } = await import('opentype.js');
-      const parsedFont = opentypeParse(bytes.buffer as ArrayBuffer);
-      setFont(parsedFont);
-      setMetadata(extractMetadata(parsedFont));
-      setHasChanges(false);
-    } catch (e: any) {
+      setError(null);
       setFont(null);
-      if (e?.message?.includes('WOFF2')) {
-        setError('WOFF2 fonts are not supported yet. Please use TTF, OTF, or WOFF format.');
-      } else {
-        setError(`Failed to load font: ${e?.message || 'Unknown error'}`);
+      try {
+        const bytes = decodeDataUrl(file.content);
+        if (!bytes) {
+          setError('Could not decode font data');
+          return;
+        }
+        // opentype.js is a CommonJS module that breaks SSR when imported
+        // statically, so it is loaded on demand in the browser.
+        const { parse: opentypeParse } = await import('opentype.js');
+        const parsedFont = opentypeParse(bytes.buffer as ArrayBuffer);
+        if (cancelled) return;
+        setFont(parsedFont);
+        setMetadata(extractMetadata(parsedFont));
+        setHasChanges(false);
+      } catch (e: any) {
+        if (cancelled) return;
+        setFont(null);
+        if (e?.message?.includes('WOFF2')) {
+          setError('WOFF2 fonts are not supported yet. Please use TTF, OTF, or WOFF format.');
+        } else {
+          setError(`Failed to load font: ${e?.message || 'Unknown error'}`);
+        }
       }
-    }
+    };
+    void loadFont();
+    return () => {
+      cancelled = true;
+    };
   }, [file.content]);
+
 
   useEffect(() => {
     if (!font || !previewCanvasRef.current) return;
