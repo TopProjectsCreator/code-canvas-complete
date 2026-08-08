@@ -265,4 +265,78 @@ describe('useVoiceVideoRoom video renegotiation', () => {
     });
     expect(rtpcInstances).toHaveLength(1);
   });
+
+  it('stops the mic tracks when the component unmounts while the permission prompt is pending', async () => {
+    let pendingResolve: ((stream: ReturnType<typeof createStream>) => void) | null = null;
+    const pendingStream = createStream([createTrack('audio')]);
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn(() => new Promise((resolve) => { pendingResolve = resolve as never; })),
+      },
+    });
+
+    const { result, unmount } = renderHook(() => useVoiceVideoRoom('proj-1', 'room-1'));
+
+    const joinPromise = result.current.joinRoom();
+    await act(flush);
+
+    unmount(); // cleanup runs while localStreamRef.current is still null
+
+    // Browser resolves the permission prompt after the component is gone
+    await act(async () => {
+      pendingResolve?.(pendingStream);
+    });
+    await act(async () => {
+      await joinPromise;
+    });
+
+    const stopMock = pendingStream.getTracks()[0].stop as unknown as ReturnType<typeof vi.fn>;
+    expect(stopMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the camera tracks if the user leaves the room while the camera prompt is pending', async () => {
+    // getUserMedia: 1st call (mic) resolves immediately; 2nd call (camera) stays pending
+    let cameraResolve: ((stream: ReturnType<typeof createStream>) => void) | null = null;
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn((_opts: { audio: boolean; video: boolean }) => {
+          if (_opts.video) {
+            return new Promise((resolve) => { cameraResolve = resolve as never; });
+          }
+          return Promise.resolve(createStream([createTrack('audio')]));
+        }),
+      },
+    });
+
+    const { result } = renderHook(() => useVoiceVideoRoom('proj-1', 'room-1'));
+
+    await act(async () => {
+      await result.current.joinRoom();
+    });
+    await act(flush);
+
+    const cameraStream = createStream([createTrack('video')]);
+    const togglePromise = result.current.toggleVideo();
+    await act(flush);
+
+    // User leaves the room while the camera prompt is still visible
+    await act(async () => {
+      result.current.leaveRoom();
+    });
+
+    // Camera permission resolves after the user has already left
+    await act(async () => {
+      cameraResolve?.(cameraStream);
+    });
+    await act(async () => {
+      await togglePromise;
+    });
+
+    const stopMock = cameraStream.getTracks()[0].stop as unknown as ReturnType<typeof vi.fn>;
+    expect(stopMock).toHaveBeenCalledTimes(1);
+    expect(result.current.videoEnabled).toBe(false);
+  });
 });
