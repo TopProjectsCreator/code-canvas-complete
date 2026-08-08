@@ -2197,7 +2197,7 @@ function sanitizeContainerPath(filePath) {
   return parts.join('/');
 }
 
-function createContainerSession(userId, projectName, files) {
+function createContainerSession(userId, projectName, files, opts = {}) {
   const sessionId = randomUUID();
   const projectDir = path.join(tmpdir(), `mcp-container-${userId}-${sessionId}`);
 
@@ -2217,7 +2217,7 @@ function createContainerSession(userId, projectName, files) {
   const safeName = (projectName || 'mcp')
     .toString().replace(/['"\\`$\x00-\x1f]/g, '_').slice(0, 64) || 'mcp';
 
-  const bashrcLines = [
+  const bashrcLines = opts.bashrc || [
     '# CodeCanvas MCP Container',
     '[ -f /etc/bash.bashrc ] && source /etc/bash.bashrc',
     `CANVAS_PROJECT='${safeName}'`,
@@ -2269,6 +2269,8 @@ function createContainerSession(userId, projectName, files) {
 
   // Route PTY output to the active command, drain state, or discard
   ptyProcess.onData((data) => {
+    // Startup probe: bash echoes the probe marker once .bashrc is sourced.
+    if (session.readyProbe) session.readyProbe(data);
     // Draining: waiting for a sync marker after a timeout/abort so that any
     // stale output from the aborted command is flushed before we start the
     // next queued command. Without this, late output (including a stale
@@ -2286,11 +2288,15 @@ function createContainerSession(userId, projectName, files) {
     if (!session.activeCmd) return;
     session.outputBuf += data;
     const doneMarker = session.activeCmd.doneMarker || '__MCP_DONE__:';
-    const endIdx = session.outputBuf.indexOf(doneMarker);
-    if (endIdx !== -1) {
-      const after = session.outputBuf.slice(endIdx);
-      const m = after.match(new RegExp(doneMarker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\d+)'));
-      const exitCode = m ? parseInt(m[1], 10) : -1;
+    // Match the marker AND its trailing exit code together. The marker text and
+    // the digits can arrive in separate PTY chunks; resolving on the marker
+    // alone would truncate the current command's output and leak the tail
+    // (e.g. `:0`) into the next command's buffer.
+    const doneRe = new RegExp(doneMarker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\d+)');
+    const m = session.outputBuf.match(doneRe);
+    if (m) {
+      const endIdx = session.outputBuf.indexOf(m[0]);
+      const exitCode = parseInt(m[1], 10);
       const startMarker = session.activeCmd.startMarker || '__MCP_START__';
       const startIdx = session.outputBuf.indexOf(startMarker);
       let clean = session.outputBuf;
@@ -2323,6 +2329,33 @@ function createContainerSession(userId, projectName, files) {
 
   containerSessions.set(sessionId, session);
   scheduleContainerCleanup(session);
+
+  // Readiness handshake: bash runs the probe command only after it has
+  // sourced .bashrc (which runs `stty -echo` for shell sessions), so its
+  // output confirms the session is fully up. The marker is assembled with a
+  // printf format placeholder so the terminal's input echo of the command
+  // line can never contain the full marker — only the probe's real output
+  // does. Waiting for the marker before the session is usable prevents the
+  // first command from being raced against bash startup (its input would
+  // otherwise be echoed into the PTY and pollute the first command's output).
+  session.ready = new Promise((resolveReady) => {
+    const probeNonce = randomUUID().replace(/-/g, '');
+    const probeMarker = `__CC_READY_${probeNonce}__`;
+    const probeTimer = setTimeout(() => resolveReady(), 5000);
+    let probeDone = false;
+    const probeListener = (data) => {
+      if (probeDone) return;
+      if (data.includes(probeMarker)) {
+        probeDone = true;
+        clearTimeout(probeTimer);
+        session.readyProbe = null;
+        resolveReady();
+      }
+    };
+    session.readyProbe = probeListener;
+    try { ptyProcess.write(`printf '__CC_READY_%s__\\n' ${probeNonce}\n`); } catch {}
+  });
+
   return session;
 }
 
@@ -2362,7 +2395,14 @@ function beginContainerDrain(session) {
 }
 
 function execInContainer(session, command, timeoutMs) {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    // Wait for the startup probe so the first command isn't raced against
+    // bash sourcing .bashrc (which disables PTY echo).
+    try {
+      await session.ready;
+    } catch {
+      return reject(new Error('Container process exited'));
+    }
     const entry = {
       command,
       resolve,
@@ -2398,6 +2438,20 @@ function scheduleContainerCleanup(session) {
       console.log(`[MCP-Container] Cleaned up idle session ${session.sessionId}`);
     }
   }, 30 * 60 * 1000); // 30 min idle timeout
+}
+
+function destroyContainerSession(session) {
+  if (session.idleTimer) clearTimeout(session.idleTimer);
+  if (session.activeCmd) {
+    session.activeCmd.reject(new Error('Session destroyed'));
+    session.activeCmd = null;
+  }
+  session.cmdQueue.forEach(c => { if (c.timer) clearTimeout(c.timer); c.reject(new Error('Session destroyed')); });
+  session.cmdQueue = [];
+
+  try { session.ptyProcess.kill(); } catch {}
+  try { rmSync(session.projectDir, { recursive: true, force: true }); } catch {}
+  containerSessions.delete(session.sessionId);
 }
 
 // ── Container REST endpoints ─────────────────────────────────────────────
@@ -2556,17 +2610,7 @@ app.delete('/api/replit/container/:sessionId', async (req, res) => {
     if (!session) return res.status(404).json({ error: 'Container not found' });
     if (session.userId !== userId) return res.status(403).json({ error: 'Access denied' });
 
-    if (session.idleTimer) clearTimeout(session.idleTimer);
-    if (session.activeCmd) {
-      session.activeCmd.reject(new Error('Container destroyed'));
-      session.activeCmd = null;
-    }
-    session.cmdQueue.forEach(c => { if (c.timer) clearTimeout(c.timer); c.reject(new Error('Container destroyed')); });
-    session.cmdQueue = [];
-
-    try { session.ptyProcess.kill(); } catch {}
-    try { rmSync(session.projectDir, { recursive: true, force: true }); } catch {}
-    containerSessions.delete(session.sessionId);
+    destroyContainerSession(session);
 
     console.log(`[MCP-Container] Destroyed ${session.sessionId} for user ${userId}`);
     res.json({ success: true });
@@ -2595,6 +2639,94 @@ app.get('/api/replit/container', async (req, res) => {
       }
     }
     res.json({ containers: sessions });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Shell session endpoints — persistent bash for the IDE terminal Run button.
+// Backed by the same PTY infrastructure as MCP container sessions so that cd,
+// env vars, and installed packages survive between commands.
+// ---------------------------------------------------------------------------
+
+// Start a persistent shell session
+app.post('/api/replit/shell/start', async (req, res) => {
+  try {
+    const userId = (await resolveContainerUserId(req)) || getReplitUserId(req) || 'anonymous';
+    // Minimal bashrc: no colored prompt / PROMPT_COMMAND (those would pollute
+    // command output), and no echo so typed commands aren't reflected back.
+    const bashrc = [
+      '# CodeCanvas Shell Session',
+      '[ -f /etc/bash.bashrc ] && source /etc/bash.bashrc',
+      'stty -echo',
+      "PS1=''",
+      'ulimit -u 2048',
+      'ulimit -f 204800',
+      'kill() {',
+      '  for _arg in "$@"; do',
+      '    if [[ "$_arg" == "-1" ]]; then',
+      '      echo -e "\\033[31mBlocked: kill -1 is not permitted.\\033[0m" >&2',
+      '      return 1',
+      '    fi',
+      '  done',
+      '  command kill "$@"',
+      '}',
+    ].join('\n') + '\n';
+    const session = createContainerSession(userId, 'shell', [], { bashrc });
+    console.log(`[Shell] Started ${session.sessionId} for user ${userId}`);
+    res.status(201).json({ sessionId: session.sessionId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Run a command in an existing shell session
+app.post('/api/replit/shell/run', async (req, res) => {
+  try {
+    const { sessionId, command } = req.body || {};
+    if (!sessionId || !command || !command.trim()) {
+      return res.status(400).json({ output: [], error: 'No command provided', executedAt: new Date().toISOString() });
+    }
+
+    const session = containerSessions.get(sessionId);
+    if (!session) {
+      // Session expired — the caller should start a new one and retry
+      return res.status(404).json({ error: 'Shell session not found' });
+    }
+
+    if (isBlockedCommand(command)) {
+      return res.json({ output: [], error: `Blocked: '${command.trim().split(/\s+/)[0]}' is not permitted.`, executedAt: new Date().toISOString() });
+    }
+
+    scheduleContainerCleanup(session); // reset idle timer
+    const result = await execInContainer(session, command, 30000);
+
+    // Strip ANSI escape sequences and carriage returns so the IDE output
+    // panel renders clean lines (the PTY itself is xterm-256color).
+    const raw = (result.stdout || '')
+      .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')
+      .replace(/\r/g, '');
+    const output = raw.split('\n').filter((l) => l.trim() !== '');
+    res.json({
+      output,
+      error: result.exitCode === 0 ? null : `Command exited with code ${result.exitCode}`,
+      executedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.json({ output: [], error: err.message, executedAt: new Date().toISOString() });
+  }
+});
+
+// Destroy a shell session (e.g. user resets the terminal)
+app.delete('/api/replit/shell/session/:sessionId', async (req, res) => {
+  try {
+    const session = containerSessions.get(req.params.sessionId);
+    if (!session) return res.status(404).json({ error: 'Shell session not found' });
+
+    destroyContainerSession(session);
+    console.log(`[Shell] Destroyed ${session.sessionId}`);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
