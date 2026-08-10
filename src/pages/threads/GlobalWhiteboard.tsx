@@ -239,8 +239,23 @@ export default function GlobalWhiteboard() {
     } satisfies PeerMeta);
   }, [user, myDisplayName]);
 
+  // Number of live (non-deleted) elements last known to be safely stored.
+  const liveCountRef = useRef(0);
+
   const persist = useCallback(async (elements: readonly any[], appState: any, files: Record<string, any>) => {
     if (!user) return;
+    const liveCount = (elements as any[]).filter((el) => el && !el.isDeleted).length;
+    // Guard against the catastrophic case: a client that loaded an empty/failed
+    // scene must never blank out a board that still holds content.
+    if (liveCount === 0 && liveCountRef.current > 0) {
+      console.warn('[Whiteboard] Refused to save an empty scene over', liveCountRef.current, 'elements');
+      toast({
+        title: 'Empty save blocked',
+        description: 'The board still holds content elsewhere — reload before drawing.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const referenced = new Set(
       (elements as any[])
         .filter((el) => el?.type === 'image' && el?.fileId && !el?.isDeleted)
@@ -269,7 +284,35 @@ export default function GlobalWhiteboard() {
       { onConflict: 'id' }
     );
     if (error) throw error;
+    liveCountRef.current = liveCount;
+  }, [user, toast]);
+
+  const restoreScene = useCallback(async (scene: { elements: unknown[]; appState?: Record<string, unknown>; files?: Record<string, unknown> }) => {
+    if (!user) throw new Error('Sign in to restore a version.');
+    const elements = Array.isArray(scene.elements) ? (scene.elements as any[]) : [];
+    const files = (scene.files || {}) as Record<string, any>;
+    const { error } = await supabase.from('global_whiteboard').upsert(
+      {
+        id: BOARD_ID,
+        scene: { elements, appState: scene.appState || {}, files } as any,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' }
+    );
+    if (error) throw error;
+    lastSentHashRef.current = '';
+    liveCountRef.current = elements.filter((el) => el && !el.isDeleted).length;
+    if (apiRef.current) {
+      applyingRemoteRef.current = true;
+      const fileList = Object.values(files);
+      if (fileList.length && apiRef.current.addFiles) apiRef.current.addFiles(fileList);
+      apiRef.current.updateScene({ elements });
+      applyingRemoteRef.current = false;
+    }
+    broadcastScene(elements, files);
   }, [user]);
+
 
   const broadcastScene = useCallback((elements: readonly any[], files: Record<string, any>) => {
     const ch = channelRef.current;
