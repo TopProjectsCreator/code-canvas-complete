@@ -95,6 +95,9 @@ export default function GlobalWhiteboard() {
     user?.email?.split('@')[0] ||
     'Guest';
 
+  const userId = user?.id ?? null;
+  const userEmail = user?.email ?? null;
+
   // Load scene, then reconcile with existing threads
   useEffect(() => {
     let cancelled = false;
@@ -143,7 +146,7 @@ export default function GlobalWhiteboard() {
   // Realtime: remote scene, presence, new threads, permission changes
   useEffect(() => {
     if (!ready) return;
-    const presenceKey = user?.id || `guest-${clientIdRef.current}`;
+    const presenceKey = userId || `guest-${clientIdRef.current}`;
     const channel = supabase
       .channel(`global_whiteboard:${BOARD_ID}`, {
         config: { presence: { key: presenceKey } },
@@ -171,7 +174,7 @@ export default function GlobalWhiteboard() {
         (payload: any) => {
           const row = payload.new;
           if (!row || !apiRef.current) return;
-          if (row.updated_by && row.updated_by === user?.id) return;
+          if (row.updated_by && row.updated_by === userId) return;
           const scene = row.scene as Scene;
           if (!scene?.elements) return;
           applyingRemoteRef.current = true;
@@ -207,11 +210,11 @@ export default function GlobalWhiteboard() {
         setPeers(list);
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED' && user) {
+        if (status === 'SUBSCRIBED' && userId) {
           await channel.track({
-            user_id: user.id,
+            user_id: userId,
             display_name: myDisplayName,
-            email: user.email,
+            email: userEmail,
             online_at: new Date().toISOString(),
             stats: myStatsRef.current,
           } satisfies PeerMeta);
@@ -222,8 +225,7 @@ export default function GlobalWhiteboard() {
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `user` object identity changes on every auth refresh; resubscribing would drop the channel.
-  }, [ready, user?.id, myDisplayName]);
+  }, [ready, userId, userEmail, myDisplayName]);
 
   // Republish presence when my stats change (throttled)
   const republishStatsThrottleRef = useRef<number>(0);
