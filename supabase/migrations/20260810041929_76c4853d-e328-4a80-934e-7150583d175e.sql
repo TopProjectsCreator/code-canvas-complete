@@ -1,0 +1,1 @@
+ALTER TABLE public.global_whiteboard SET (autovacuum_enabled = false, toast.autovacuum_enabled = false);
