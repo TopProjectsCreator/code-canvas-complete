@@ -2167,6 +2167,36 @@ export type Database = {
         }
         Relationships: []
       }
+      whiteboard_snapshots: {
+        Row: {
+          board_id: string
+          board_kind: string
+          created_at: string
+          created_by: string | null
+          element_count: number
+          id: string
+          scene: Json
+        }
+        Insert: {
+          board_id: string
+          board_kind: string
+          created_at?: string
+          created_by?: string | null
+          element_count?: number
+          id?: string
+          scene: Json
+        }
+        Update: {
+          board_id?: string
+          board_kind?: string
+          created_at?: string
+          created_by?: string | null
+          element_count?: number
+          id?: string
+          scene?: Json
+        }
+        Relationships: []
+      }
     }
     Views: {
       oauth_apps_public: {

@@ -153,7 +153,7 @@ export const CodeEditor = ({
   const [lspExtensions, setLspExtensions] = useState<Extension[]>([]);
 
   const lsp = useLspClient(file?.name ?? null, content);
-  const { updateContent: lspUpdateContent, connected: lspConnected } = lsp;
+  const { updateContent: lspUpdateContent } = lsp;
   const [markdownPreview, setMarkdownPreview] = useState(true);
   const [splitPreview, setSplitPreview] = useState(false);
   const [composerMode, setComposerMode] = useState(false);

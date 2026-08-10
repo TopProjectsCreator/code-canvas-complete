@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { WhiteboardHistory, type WhiteboardScene } from '@/components/threads/WhiteboardHistory';
 
 type Scene = { elements: any[]; appState?: any; files?: Record<string, any> };
 type PeerRole = 'editor' | 'viewer';
@@ -94,6 +95,9 @@ export default function GlobalWhiteboard() {
     user?.email?.split('@')[0] ||
     'Guest';
 
+  const userId = user?.id ?? null;
+  const userEmail = user?.email ?? null;
+
   // Load scene, then reconcile with existing threads
   useEffect(() => {
     let cancelled = false;
@@ -133,6 +137,7 @@ export default function GlobalWhiteboard() {
         appState: { ...(scene.appState || {}), viewBackgroundColor: scene.appState?.viewBackgroundColor || '#fafaf9' },
         files: scene.files || {},
       });
+      liveCountRef.current = merged.filter((el: any) => el && !el.isDeleted).length;
       setReady(true);
     })();
     return () => { cancelled = true; };
@@ -141,7 +146,7 @@ export default function GlobalWhiteboard() {
   // Realtime: remote scene, presence, new threads, permission changes
   useEffect(() => {
     if (!ready) return;
-    const presenceKey = user?.id || `guest-${clientIdRef.current}`;
+    const presenceKey = userId || `guest-${clientIdRef.current}`;
     const channel = supabase
       .channel(`global_whiteboard:${BOARD_ID}`, {
         config: { presence: { key: presenceKey } },
@@ -169,7 +174,7 @@ export default function GlobalWhiteboard() {
         (payload: any) => {
           const row = payload.new;
           if (!row || !apiRef.current) return;
-          if (row.updated_by && row.updated_by === user?.id) return;
+          if (row.updated_by && row.updated_by === userId) return;
           const scene = row.scene as Scene;
           if (!scene?.elements) return;
           applyingRemoteRef.current = true;
@@ -205,11 +210,11 @@ export default function GlobalWhiteboard() {
         setPeers(list);
       })
       .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED' && user) {
+        if (status === 'SUBSCRIBED' && userId) {
           await channel.track({
-            user_id: user.id,
+            user_id: userId,
             display_name: myDisplayName,
-            email: user.email,
+            email: userEmail,
             online_at: new Date().toISOString(),
             stats: myStatsRef.current,
           } satisfies PeerMeta);
@@ -220,7 +225,7 @@ export default function GlobalWhiteboard() {
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [ready, user?.id, myDisplayName]);
+  }, [ready, userId, userEmail, myDisplayName]);
 
   // Republish presence when my stats change (throttled)
   const republishStatsThrottleRef = useRef<number>(0);
@@ -239,8 +244,23 @@ export default function GlobalWhiteboard() {
     } satisfies PeerMeta);
   }, [user, myDisplayName]);
 
+  // Number of live (non-deleted) elements last known to be safely stored.
+  const liveCountRef = useRef(0);
+
   const persist = useCallback(async (elements: readonly any[], appState: any, files: Record<string, any>) => {
     if (!user) return;
+    const liveCount = (elements as any[]).filter((el) => el && !el.isDeleted).length;
+    // Guard against the catastrophic case: a client that loaded an empty/failed
+    // scene must never blank out a board that still holds content.
+    if (liveCount === 0 && liveCountRef.current > 0) {
+      console.warn('[Whiteboard] Refused to save an empty scene over', liveCountRef.current, 'elements');
+      toast({
+        title: 'Empty save blocked',
+        description: 'The board still holds content elsewhere — reload before drawing.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const referenced = new Set(
       (elements as any[])
         .filter((el) => el?.type === 'image' && el?.fileId && !el?.isDeleted)
@@ -269,7 +289,8 @@ export default function GlobalWhiteboard() {
       { onConflict: 'id' }
     );
     if (error) throw error;
-  }, [user]);
+    liveCountRef.current = liveCount;
+  }, [user, toast]);
 
   const broadcastScene = useCallback((elements: readonly any[], files: Record<string, any>) => {
     const ch = channelRef.current;
@@ -289,6 +310,33 @@ export default function GlobalWhiteboard() {
       payload: { clientId: clientIdRef.current, elements, files: trimmedFiles },
     });
   }, []);
+
+  const restoreScene = useCallback(async (scene: WhiteboardScene) => {
+    if (!user) throw new Error('Sign in to restore a version.');
+    const elements = Array.isArray(scene.elements) ? (scene.elements as any[]) : [];
+    const files = (scene.files || {}) as Record<string, any>;
+    const { error } = await supabase.from('global_whiteboard').upsert(
+      {
+        id: BOARD_ID,
+        scene: { elements, appState: scene.appState || {}, files } as any,
+        updated_by: user.id,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' }
+    );
+    if (error) throw error;
+    lastSentHashRef.current = '';
+    liveCountRef.current = elements.filter((el) => el && !el.isDeleted).length;
+    if (apiRef.current) {
+      applyingRemoteRef.current = true;
+      const fileList = Object.values(files);
+      if (fileList.length && apiRef.current.addFiles) apiRef.current.addFiles(fileList);
+      apiRef.current.updateScene({ elements });
+      applyingRemoteRef.current = false;
+    }
+    broadcastScene(elements, files);
+  }, [user, broadcastScene]);
+
 
   const diffAndAttribute = useCallback((elements: readonly any[]) => {
     const prev = prevElementsRef.current;
@@ -351,7 +399,7 @@ export default function GlobalWhiteboard() {
         toast({ title: 'Whiteboard save failed', description: 'Your changes may not be saved.', variant: 'destructive' });
       }
     }, 600);
-  }, [persist, broadcastScene, diffAndAttribute]);
+  }, [persist, broadcastScene, diffAndAttribute, toast]);
 
   // Keep a stable ref so the callback passed to Excalidraw never changes identity.
   const myRoleRef = useRef<PeerRole>(myRole);
@@ -391,7 +439,7 @@ export default function GlobalWhiteboard() {
   const effectiveViewMode = !user || myRole === 'viewer';
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-background">
+    <div className="fixed inset-0 z-40 flex flex-col bg-background">
       <Seo title="Threads Whiteboard — collaborate live" description="A single infinite whiteboard where every thread appears as a card. Draw, connect, and comment together in real time." path="/threads/whiteboard" />
       <div className="flex items-center justify-between border-b px-4 py-2 shrink-0">
         <div className="flex items-center gap-3">
@@ -407,6 +455,13 @@ export default function GlobalWhiteboard() {
           </div>
         </div>
 
+        <div className="flex items-center gap-2">
+        <WhiteboardHistory
+          boardKind="global"
+          boardId={BOARD_ID}
+          onRestore={restoreScene}
+          disabled={!user}
+        />
         <Popover>
           <PopoverTrigger asChild>
             <button className="rounded-full bg-muted hover:bg-muted/70 px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5">
@@ -490,6 +545,7 @@ export default function GlobalWhiteboard() {
             )}
           </PopoverContent>
         </Popover>
+        </div>
       </div>
       <div className="flex-1 min-h-0">
         {ready ? (
