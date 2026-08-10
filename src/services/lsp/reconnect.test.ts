@@ -53,7 +53,7 @@ const config: LspConfig = {
   fileExtensions: [".py"],
 };
 
-function parsed(ws: MockWebSocket): LspMessage[] {
+function parsed(ws: MockWebSocket): ParsedMessage[] {
   return ws.sent.map((s) => JSON.parse(s));
 }
 
