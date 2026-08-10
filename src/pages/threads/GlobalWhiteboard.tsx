@@ -439,7 +439,7 @@ export default function GlobalWhiteboard() {
   const effectiveViewMode = !user || myRole === 'viewer';
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-background">
+    <div className="fixed inset-0 z-40 flex flex-col bg-background">
       <Seo title="Threads Whiteboard — collaborate live" description="A single infinite whiteboard where every thread appears as a card. Draw, connect, and comment together in real time." path="/threads/whiteboard" />
       <div className="flex items-center justify-between border-b px-4 py-2 shrink-0">
         <div className="flex items-center gap-3">
