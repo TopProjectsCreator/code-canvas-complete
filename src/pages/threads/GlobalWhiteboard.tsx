@@ -396,7 +396,7 @@ export default function GlobalWhiteboard() {
         toast({ title: 'Whiteboard save failed', description: 'Your changes may not be saved.', variant: 'destructive' });
       }
     }, 600);
-  }, [persist, broadcastScene, diffAndAttribute]);
+  }, [persist, broadcastScene, diffAndAttribute, toast]);
 
   // Keep a stable ref so the callback passed to Excalidraw never changes identity.
   const myRoleRef = useRef<PeerRole>(myRole);
