@@ -44,6 +44,8 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
   const videoEnabledRef = useRef(videoEnabled);
   const mountedRef = useRef(true);
   const isTogglingRef = useRef(false);
+  const micTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cameraTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     audioEnabledRef.current = audioEnabled;
@@ -170,8 +172,22 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
 
       const stream = await Promise.race([
         navigator.mediaDevices.getUserMedia({ audio: true, video: false }),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Microphone request timed out')), 10000))
+        new Promise<never>((_, reject) => {
+          micTimeoutRef.current = setTimeout(() => reject(new Error('Microphone request timed out')), 10000);
+        }),
       ]);
+      if (micTimeoutRef.current) {
+        clearTimeout(micTimeoutRef.current);
+        micTimeoutRef.current = null;
+      }
+      // The user may have left the room (or navigated away) while the browser
+      // was still showing the permission prompt. Stopping the tracks here —
+      // not in the unmount cleanup, which already ran while the stream was
+      // still null — prevents the mic from recording in the background.
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       localStreamRef.current = stream;
       setLocalStream(stream);
 
@@ -315,8 +331,21 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
         try {
           const videoStream = await Promise.race([
             navigator.mediaDevices.getUserMedia({ audio: false, video: true }),
-            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Camera request timed out')), 10000))
+            new Promise<never>((_, reject) => {
+              cameraTimeoutRef.current = setTimeout(() => reject(new Error('Camera request timed out')), 10000);
+            }),
           ]);
+          if (cameraTimeoutRef.current) {
+            clearTimeout(cameraTimeoutRef.current);
+            cameraTimeoutRef.current = null;
+          }
+          // The user may have left the room (or navigated away) while the
+          // camera prompt was pending. Stop the fresh stream and bail —
+          // addTrack on a nulled local stream would throw.
+          if (!mountedRef.current || !localStreamRef.current) {
+            videoStream.getTracks().forEach((track) => track.stop());
+            return;
+          }
           const videoTrack = videoStream.getVideoTracks()[0];
           localStreamRef.current.addTrack(videoTrack);
           setVideoEnabled(true);
@@ -370,6 +399,14 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     return () => {
+      if (micTimeoutRef.current) {
+        clearTimeout(micTimeoutRef.current);
+        micTimeoutRef.current = null;
+      }
+      if (cameraTimeoutRef.current) {
+        clearTimeout(cameraTimeoutRef.current);
+        cameraTimeoutRef.current = null;
+      }
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
@@ -377,6 +414,7 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
       peerConnectionsRef.current.clear();
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
+        localStreamRef.current = null;
       }
     };
   }, []);
