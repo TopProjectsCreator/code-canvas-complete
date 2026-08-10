@@ -287,7 +287,26 @@ export default function GlobalWhiteboard() {
     liveCountRef.current = liveCount;
   }, [user, toast]);
 
-  const restoreScene = useCallback(async (scene: { elements: unknown[]; appState?: Record<string, unknown>; files?: Record<string, unknown> }) => {
+  const broadcastScene = useCallback((elements: readonly any[], files: Record<string, any>) => {
+    const ch = channelRef.current;
+    if (!ch) return;
+    const referenced = new Set(
+      (elements as any[])
+        .filter((el) => el?.type === 'image' && el?.fileId && !el?.isDeleted)
+        .map((el) => el.fileId as string)
+    );
+    const trimmedFiles: Record<string, any> = {};
+    for (const [k, v] of Object.entries(files || {})) {
+      if (referenced.has(k)) trimmedFiles[k] = v;
+    }
+    ch.send({
+      type: 'broadcast',
+      event: 'scene',
+      payload: { clientId: clientIdRef.current, elements, files: trimmedFiles },
+    });
+  }, []);
+
+  const restoreScene = useCallback(async (scene: WhiteboardScene) => {
     if (!user) throw new Error('Sign in to restore a version.');
     const elements = Array.isArray(scene.elements) ? (scene.elements as any[]) : [];
     const files = (scene.files || {}) as Record<string, any>;
@@ -311,27 +330,8 @@ export default function GlobalWhiteboard() {
       applyingRemoteRef.current = false;
     }
     broadcastScene(elements, files);
-  }, [user]);
+  }, [user, broadcastScene]);
 
-
-  const broadcastScene = useCallback((elements: readonly any[], files: Record<string, any>) => {
-    const ch = channelRef.current;
-    if (!ch) return;
-    const referenced = new Set(
-      (elements as any[])
-        .filter((el) => el?.type === 'image' && el?.fileId && !el?.isDeleted)
-        .map((el) => el.fileId as string)
-    );
-    const trimmedFiles: Record<string, any> = {};
-    for (const [k, v] of Object.entries(files || {})) {
-      if (referenced.has(k)) trimmedFiles[k] = v;
-    }
-    ch.send({
-      type: 'broadcast',
-      event: 'scene',
-      payload: { clientId: clientIdRef.current, elements, files: trimmedFiles },
-    });
-  }, []);
 
   const diffAndAttribute = useCallback((elements: readonly any[]) => {
     const prev = prevElementsRef.current;
