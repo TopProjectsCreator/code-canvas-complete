@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.archive_whiteboard_scene() FROM PUBLIC, anon, authenticated;
