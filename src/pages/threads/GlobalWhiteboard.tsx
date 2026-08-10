@@ -222,6 +222,7 @@ export default function GlobalWhiteboard() {
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `user` object identity changes on every auth refresh; resubscribing would drop the channel.
   }, [ready, user?.id, myDisplayName]);
 
   // Republish presence when my stats change (throttled)
