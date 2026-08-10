@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { LspClient } from "./client";
-import type { LspConfig, LspMessage } from "./transport";
+import type { LspMessage } from "./transport";
+import type { LspConfig } from "./types";
+
+type ParsedMessage = Omit<LspMessage, "params"> & {
+  params?: {
+    textDocument?: { text?: string; uri?: string };
+    contentChanges?: { text?: string }[];
+    [key: string]: unknown;
+  };
+};
 
 class MockWebSocket {
   static OPEN = 1;
