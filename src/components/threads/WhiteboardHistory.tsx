@@ -83,7 +83,7 @@ export function WhiteboardHistory({ boardKind, boardId, onRestore, disabled }: P
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="gap-1.5" disabled={disabled}>
+        <Button variant="ghost" size="sm" className="gap-1.5">
           <History className="h-4 w-4" />
           History
         </Button>
