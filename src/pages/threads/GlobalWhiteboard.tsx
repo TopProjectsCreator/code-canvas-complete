@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { WhiteboardHistory, type WhiteboardScene } from '@/components/threads/WhiteboardHistory';
 
 type Scene = { elements: any[]; appState?: any; files?: Record<string, any> };
 type PeerRole = 'editor' | 'viewer';
@@ -133,6 +134,7 @@ export default function GlobalWhiteboard() {
         appState: { ...(scene.appState || {}), viewBackgroundColor: scene.appState?.viewBackgroundColor || '#fafaf9' },
         files: scene.files || {},
       });
+      liveCountRef.current = merged.filter((el: any) => el && !el.isDeleted).length;
       setReady(true);
     })();
     return () => { cancelled = true; };
@@ -450,6 +452,13 @@ export default function GlobalWhiteboard() {
           </div>
         </div>
 
+        <div className="flex items-center gap-2">
+        <WhiteboardHistory
+          boardKind="global"
+          boardId={BOARD_ID}
+          onRestore={restoreScene}
+          disabled={!user}
+        />
         <Popover>
           <PopoverTrigger asChild>
             <button className="rounded-full bg-muted hover:bg-muted/70 px-3 py-1 text-xs font-medium inline-flex items-center gap-1.5">
@@ -533,6 +542,7 @@ export default function GlobalWhiteboard() {
             )}
           </PopoverContent>
         </Popover>
+        </div>
       </div>
       <div className="flex-1 min-h-0">
         {ready ? (
