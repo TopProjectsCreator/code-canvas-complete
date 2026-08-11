@@ -189,6 +189,7 @@ const App = () => isOAuthConsentPath() ? <OAuthConsentShell /> : (
                 <Route index element={<ThreadsList />} />
                 <Route path="new" element={<CreateThread />} />
                 <Route path="whiteboard" element={<GlobalWhiteboard />} />
+                <Route path="__card-preview" element={<CardPreview />} />
                 <Route path=":id" element={<ThreadDetail />} />
               </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
