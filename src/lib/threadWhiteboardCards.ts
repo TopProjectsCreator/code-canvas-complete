@@ -30,6 +30,7 @@ export const CARD_W = 720;
 export const COMMENT_W = 660;
 export const CLUSTER_GAP_X = 900;
 export const CLUSTER_GAP_Y = 140;
+const TREE_GAP_X = 110;
 
 const BODY_FONT = 16;
 const LINE_H = 1.25;
@@ -489,41 +490,120 @@ export async function buildThreadCluster(
   await ensureCardFont();
   const elements: any[] = [];
   const files: Record<string, any> = {};
-
-
   const threadElId = `thread-${thread.id}`;
   const threadCard = await buildThreadCard(thread, originX, originY);
   elements.push(...threadCard.elements);
   Object.assign(files, threadCard.files);
 
   const ordered = orderComments(comments);
-  let cursorY = originY + threadCard.height + CLUSTER_GAP_Y;
+  if (!ordered.length) return { elements, files, height: threadCard.height };
 
-  for (const cm of ordered) {
-    const indent = Math.min(cm.depth ?? 0, 4) * 120;
-    const built = await buildCommentCard(cm, originX + 40 + indent, cursorY, thread.id);
-    elements.push(...built.elements);
-    Object.assign(files, built.files);
+  // Build once, then arrange the replies as an actual conversation tree. Each
+  // parent's children occupy horizontal sibling branches beneath it instead of
+  // becoming one long, thread-like vertical list.
+  const cards = new Map<string, BuiltCard>();
+  const commentsById = new Map(ordered.map((comment) => [comment.id, comment]));
+  const children = new Map<string | null, CommentSeed[]>();
+  for (const comment of ordered) {
+    const parent = comment.parent_id && commentsById.has(comment.parent_id) ? comment.parent_id : null;
+    const list = children.get(parent) ?? [];
+    list.push(comment);
+    children.set(parent, list);
+    const card = await buildCommentCard(comment, 0, 0, thread.id);
+    cards.set(comment.id, card);
+    Object.assign(files, card.files);
+  }
+
+  const boundsOf = (card: BuiltCard) => {
+    const live = card.elements.filter((el) => el && !el.isDeleted);
+    const minX = Math.min(...live.map((el) => el.x || 0));
+    const maxX = Math.max(...live.map((el) => (el.x || 0) + (el.width || 0)));
+    return { width: Math.max(1, maxX - minX), height: card.height };
+  };
+  const subtreeWidths = new Map<string, number>();
+  const subtreeWidth = (id: string): number => {
+    const cached = subtreeWidths.get(id);
+    if (cached !== undefined) return cached;
+    const ownWidth = boundsOf(cards.get(id) as BuiltCard).width;
+    const childWidths = (children.get(id) ?? []).map((child) => subtreeWidth(child.id));
+    const descendantsWidth = childWidths.length
+      ? childWidths.reduce((sum, width) => sum + width, 0) + TREE_GAP_X * (childWidths.length - 1)
+      : 0;
+    const width = Math.max(ownWidth, descendantsWidth);
+    subtreeWidths.set(id, width);
+    return width;
+  };
+
+  const placements = new Map<string, { x: number; y: number; width: number; height: number }>();
+  const placeBranch = (comment: CommentSeed, left: number, top: number): number => {
+    const card = cards.get(comment.id) as BuiltCard;
+    const size = boundsOf(card);
+    const branchWidth = subtreeWidth(comment.id);
+    const x = left + (branchWidth - size.width) / 2;
+    placements.set(comment.id, { x, y: top, width: size.width, height: size.height });
+    const descendants = children.get(comment.id) ?? [];
+    let childLeft = left;
+    let branchBottom = top + size.height;
+    for (const child of descendants) {
+      const childBottom = placeBranch(child, childLeft, top + size.height + CLUSTER_GAP_Y);
+      branchBottom = Math.max(branchBottom, childBottom);
+      childLeft += subtreeWidth(child.id) + TREE_GAP_X;
+    }
+    return branchBottom;
+  };
+
+  const roots = children.get(null) ?? [];
+  const rootWidths = roots.map((root) => subtreeWidth(root.id));
+  const forestWidth = rootWidths.reduce((sum, width) => sum + width, 0) + TREE_GAP_X * Math.max(0, roots.length - 1);
+  const threadLive = threadCard.elements.filter((el) => el && !el.isDeleted);
+  const threadWidth = Math.max(...threadLive.map((el) => (el.x || 0) + (el.width || 0))) - originX;
+  let branchLeft = originX + (threadWidth - forestWidth) / 2;
+  let clusterBottom = originY + threadCard.height;
+  for (const root of roots) {
+    clusterBottom = Math.max(
+      clusterBottom,
+      placeBranch(root, branchLeft, originY + threadCard.height + CLUSTER_GAP_Y),
+    );
+    branchLeft += subtreeWidth(root.id) + TREE_GAP_X;
+  }
+
+  for (const comment of ordered) {
+    const card = cards.get(comment.id) as BuiltCard;
+    const placement = placements.get(comment.id);
+    if (!placement) continue;
+    const moved = card.elements.map((element) => ({
+      ...element,
+      x: (element.x || 0) + placement.x,
+      y: (element.y || 0) + placement.y,
+    }));
+    elements.push(...moved);
+
+    const parentPlacement = comment.parent_id ? placements.get(comment.parent_id) : undefined;
+    const parentX = parentPlacement ? parentPlacement.x + parentPlacement.width / 2 : originX + threadWidth / 2;
+    const parentY = parentPlacement ? parentPlacement.y + parentPlacement.height : originY + threadCard.height;
+    const childX = placement.x + placement.width / 2;
+    const childY = placement.y;
     elements.push(
       ...convertToExcalidrawElements([
         {
           type: 'arrow',
-          x: originX + 60 + indent,
-          y: cursorY - (CLUSTER_GAP_Y - 30),
-          width: 60,
-          height: CLUSTER_GAP_Y - 60,
+          x: parentX,
+          y: parentY,
+          width: childX - parentX,
+          height: childY - parentY,
+          points: [[0, 0], [childX - parentX, childY - parentY]],
           strokeColor: STROKE,
           strokeWidth: 2,
-          customData: { threadId: thread.id, commentId: cm.id, kind: 'comment-link' },
-          start: { id: cm.parent_id ? `comment-${cm.parent_id}` : threadElId },
-          end: { id: `comment-${cm.id}` },
+          endArrowhead: 'arrow',
+          customData: { threadId: thread.id, commentId: comment.id, kind: 'comment-link' },
+          start: { id: comment.parent_id ? `comment-${comment.parent_id}` : threadElId },
+          end: { id: `comment-${comment.id}` },
         },
-      ] as any)
+      ] as any),
     );
-    cursorY += built.height + CLUSTER_GAP_Y;
   }
 
-  return { elements, files, height: cursorY - originY };
+  return { elements, files, height: clusterBottom - originY };
 }
 
 /** Depth-first ordering (parents before their children). */
