@@ -12,6 +12,16 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { WhiteboardHistory, type WhiteboardScene } from '@/components/threads/WhiteboardHistory';
+import {
+  buildThreadCluster,
+  buildCommentCard,
+  orderComments,
+  CLUSTER_GAP_X,
+  CLUSTER_GAP_Y,
+  type ThreadSeed,
+  type CommentSeed,
+} from '@/lib/threadWhiteboardCards';
+
 
 type Scene = { elements: any[]; appState?: any; files?: Record<string, any> };
 type PeerRole = 'editor' | 'viewer';
