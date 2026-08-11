@@ -70,6 +70,9 @@ export default function GlobalWhiteboard() {
   const applyingRemoteRef = useRef(false);
   // Cards generated while reconciling the saved scene with the threads table.
   const pendingInitialSaveRef = useRef<{ elements: any[]; files: Record<string, any> } | null>(null);
+  // Realtime handlers are wired before persist/broadcast exist, so reach them via refs.
+  const persistRef = useRef<(elements: readonly any[], appState: any, files: Record<string, any>) => Promise<void>>();
+  const broadcastRef = useRef<(elements: readonly any[], files: Record<string, any>) => void>();
 
   // Peer/presence state
   const [peers, setPeers] = useState<PeerMeta[]>([]);
@@ -291,8 +294,8 @@ export default function GlobalWhiteboard() {
             applyingRemoteRef.current = false;
             lastSentHashRef.current = '';
             const allFiles = { ...(apiRef.current.getFiles?.() || {}), ...built.files };
-            await persist(next, { viewBackgroundColor: '#fafaf9' }, allFiles);
-            broadcastScene(next, allFiles);
+            await persistRef.current?.(next, { viewBackgroundColor: '#fafaf9' }, allFiles);
+            broadcastRef.current?.(next, allFiles);
             return;
           }
           const live = current.filter((el) => el && !el.isDeleted);
@@ -309,8 +312,8 @@ export default function GlobalWhiteboard() {
           // persist this card, and its image binaries would be lost.
           lastSentHashRef.current = '';
           const clusterAllFiles = { ...(apiRef.current.getFiles?.() || {}), ...cluster.files };
-          await persist(nextEls, { viewBackgroundColor: '#fafaf9' }, clusterAllFiles);
-          broadcastScene(nextEls, clusterAllFiles);
+          await persistRef.current?.(nextEls, { viewBackgroundColor: '#fafaf9' }, clusterAllFiles);
+          broadcastRef.current?.(nextEls, clusterAllFiles);
         }
       )
       .on(
@@ -338,8 +341,8 @@ export default function GlobalWhiteboard() {
           applyingRemoteRef.current = false;
           lastSentHashRef.current = '';
           const allFiles = { ...(apiRef.current.getFiles?.() || {}), ...built.files };
-          await persist(nextEls, { viewBackgroundColor: '#fafaf9' }, allFiles);
-          broadcastScene(nextEls, allFiles);
+          await persistRef.current?.(nextEls, { viewBackgroundColor: '#fafaf9' }, allFiles);
+          broadcastRef.current?.(nextEls, allFiles);
         }
       )
 
@@ -485,6 +488,9 @@ export default function GlobalWhiteboard() {
   }, [ready, user, persist, broadcastScene]);
 
 
+
+  persistRef.current = persist;
+  broadcastRef.current = broadcastScene;
 
   const restoreScene = useCallback(async (scene: WhiteboardScene) => {
     if (!user) throw new Error('Sign in to restore a version.');
