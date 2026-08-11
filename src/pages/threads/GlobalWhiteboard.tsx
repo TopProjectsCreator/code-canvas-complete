@@ -399,9 +399,10 @@ export default function GlobalWhiteboard() {
             broadcastRef.current?.(next, allFiles);
             return;
           }
-          const live = current.filter((el) => el && !el.isDeleted);
-          const bottom = live.length ? Math.max(...live.map((el) => (el.y || 0) + (el.height || 0))) : 0;
-          const cluster = await buildThreadCluster(t as ThreadSeed, [], 40, bottom + CLUSTER_GAP_Y);
+          const probe = await buildThreadCluster(t as ThreadSeed, [], 0, 0);
+          const size = bboxOf(probe.elements);
+          const spot = makePlacer(occupiedRects(current)).place(size.w, size.h);
+          const cluster = await buildThreadCluster(t as ThreadSeed, [], spot.x, spot.y);
           if (!apiRef.current) return;
           const nextEls = [...current, ...cluster.elements];
           applyingRemoteRef.current = true;
