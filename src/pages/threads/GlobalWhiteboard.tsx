@@ -603,6 +603,18 @@ export default function GlobalWhiteboard() {
         </div>
 
         <div className="flex items-center gap-2">
+        {isAdmin && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-7 text-xs"
+            onClick={rebuildCards}
+            disabled={rebuilding || !user}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${rebuilding ? 'animate-spin' : ''}`} />
+            {rebuilding ? 'Rebuilding…' : 'Rebuild cards'}
+          </Button>
+        )}
         <WhiteboardHistory
           boardKind="global"
           boardId={BOARD_ID}
