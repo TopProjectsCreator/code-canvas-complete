@@ -2265,6 +2265,15 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      save_global_whiteboard_scene: {
+        Args: {
+          _app_state?: Json
+          _board_id: string
+          _elements: Json
+          _new_files?: Json
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"
