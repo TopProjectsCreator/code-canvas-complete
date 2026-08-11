@@ -467,6 +467,25 @@ export default function GlobalWhiteboard() {
     });
   }, []);
 
+  // Flush cards generated during reconciliation (and repaired clusters) so their
+  // image binaries reach the database instead of living only in this tab.
+  useEffect(() => {
+    if (!ready || !user) return;
+    const pending = pendingInitialSaveRef.current;
+    if (!pending) return;
+    pendingInitialSaveRef.current = null;
+    (async () => {
+      try {
+        await persist(pending.elements, { viewBackgroundColor: '#fafaf9' }, pending.files);
+        broadcastScene(pending.elements, pending.files);
+      } catch (err) {
+        console.error('[Whiteboard] Failed to save generated cards', err);
+      }
+    })();
+  }, [ready, user, persist, broadcastScene]);
+
+
+
   const restoreScene = useCallback(async (scene: WhiteboardScene) => {
     if (!user) throw new Error('Sign in to restore a version.');
     const elements = Array.isArray(scene.elements) ? (scene.elements as any[]) : [];
