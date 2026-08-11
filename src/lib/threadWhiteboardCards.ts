@@ -197,34 +197,50 @@ interface CardBlocks {
   body: string;
 }
 
-/** Lays out one content-shaped card: text column left, images column right. */
+/**
+ * Lays out one content-shaped card. `maxWidth` is a ceiling, not a size: the
+ * card shrinks to the widest wrapped line plus the image column, so short
+ * replies become small cards and long ones grow.
+ */
 function buildCard(
   blocks: CardBlocks,
   images: LoadedImage[],
-  opts: { x: number; y: number; width: number; id: string; link: string; customData: any }
+  opts: { x: number; y: number; maxWidth: number; id: string; link: string; customData: any }
 ): BuiltCard {
-  const { x, y, width, id, link, customData } = opts;
+  const { x, y, maxWidth, id, link, customData } = opts;
   const groupId = `${id}-group`;
   const sized = images.map((img) => ({ img, ...fitImage(img) }));
   const imgColW = sized.length ? Math.max(...sized.map((s) => s.w)) : 0;
+  const maxTextW = Math.max(MIN_TEXT_W, maxWidth - PAD * 2 - (imgColW ? imgColW + GAP : 0));
+
+  // Wrap at the ceiling, then measure what the text actually needs.
+  const chipWrapped = blocks.chip ? wrapText(blocks.chip, Math.min(CHIP_MAX_W, maxTextW) - 20) : '';
+  const authorWrapped = blocks.author ? wrapText(blocks.author, maxTextW) : '';
+  const bodyWrapped = blocks.body ? wrapText(blocks.body, maxTextW) : '';
   const textW = Math.max(
-    240,
-    width - PAD * 2 - (imgColW ? imgColW + GAP : 0)
+    MIN_TEXT_W,
+    Math.min(
+      maxTextW,
+      Math.max(
+        chipWrapped ? textWidth(chipWrapped) + 20 : 0,
+        textWidth(authorWrapped),
+        textWidth(bodyWrapped)
+      )
+    )
   );
 
   const children: any[] = [];
   let ty = y + PAD;
 
-  if (blocks.chip) {
-    const chipInner = Math.min(CHIP_MAX_W, textW) - 20;
-    const wrapped = wrapText(blocks.chip, chipInner);
-    const chipH = textHeight(wrapped) + 20;
+  if (chipWrapped) {
+    const chipW = Math.min(Math.min(CHIP_MAX_W, textW), textWidth(chipWrapped) + 20);
+    const chipH = textHeight(chipWrapped) + 18;
     children.push({
       type: 'rectangle',
       id: `${id}-chip`,
       x: x + PAD,
       y: ty,
-      width: Math.min(CHIP_MAX_W, textW),
+      width: chipW,
       height: chipH,
       backgroundColor: CHIP_BG,
       strokeColor: CHIP_STROKE,
@@ -232,46 +248,45 @@ function buildCard(
       strokeWidth: 2,
       roundness: { type: 3 },
       groupIds: [groupId],
-      label: { text: wrapped, fontSize: BODY_FONT, strokeColor: CHIP_TEXT, textAlign: 'left', verticalAlign: 'top' },
+      label: { text: chipWrapped, fontSize: BODY_FONT, strokeColor: CHIP_TEXT, textAlign: 'left', verticalAlign: 'top' },
     });
     ty += chipH + GAP;
   }
 
-  if (blocks.author) {
-    const wrapped = wrapText(blocks.author, textW);
+  if (authorWrapped) {
     children.push({
       type: 'text',
       id: `${id}-author`,
       x: x + PAD,
       y: ty,
       width: textW,
-      height: textHeight(wrapped),
-      text: wrapped,
+      height: textHeight(authorWrapped),
+      text: authorWrapped,
       fontSize: BODY_FONT,
       strokeColor: STROKE,
       groupIds: [groupId],
     });
-    ty += textHeight(wrapped) + 6;
+    ty += textHeight(authorWrapped) + 6;
   }
 
-  if (blocks.body) {
-    const wrapped = wrapText(blocks.body, textW);
+  if (bodyWrapped) {
     children.push({
       type: 'text',
       id: `${id}-body`,
       x: x + PAD,
       y: ty,
       width: textW,
-      height: textHeight(wrapped),
-      text: wrapped,
+      height: textHeight(bodyWrapped),
+      text: bodyWrapped,
       fontSize: BODY_FONT,
       strokeColor: STROKE,
       groupIds: [groupId],
     });
-    ty += textHeight(wrapped);
+    ty += textHeight(bodyWrapped);
   }
 
   const textColH = ty - (y + PAD);
+  const width = PAD * 2 + textW + (imgColW ? imgColW + GAP : 0);
 
   const files: Record<string, any> = {};
   let iy = y + PAD;
@@ -296,7 +311,7 @@ function buildCard(
   }
   const imgColH = sized.length ? iy - GAP - (y + PAD) : 0;
 
-  const height = Math.max(80, Math.max(textColH, imgColH) + PAD * 2);
+  const height = Math.max(60, Math.max(textColH, imgColH) + PAD * 2);
 
   const skeleton: any[] = [
     {
@@ -320,6 +335,7 @@ function buildCard(
 
   return { elements: convertToExcalidrawElements(skeleton as any), files, height };
 }
+
 
 function threadBlocks(thread: ThreadSeed, failed: string[]): CardBlocks {
   const chip = (thread.category ? `[${thread.category}] ` : '') + thread.title;
