@@ -38,20 +38,103 @@ interface PeerMeta {
 
 const BOARD_ID = 'threads';
 const COLS = 4;
+const PLACE_MARGIN = 60;
+const PLACE_STEP = 40;
+const PLACE_MAX_Y = 400000;
 
-/** Packs clusters into columns, tracking each column's next free Y. */
-function makePacker(columnTops: number[]) {
-  const tops = [...columnTops];
+interface Rect { x: number; y: number; w: number; h: number }
+
+/** Bounding box of a set of elements, in scene coordinates. */
+function bboxOf(elements: readonly any[]): Rect {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const el of elements as any[]) {
+    if (!el || el.isDeleted) continue;
+    const x = el.x || 0;
+    const y = el.y || 0;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + (el.width || 0));
+    maxY = Math.max(maxY, y + (el.height || 0));
+  }
+  if (!Number.isFinite(minX)) return { x: 0, y: 0, w: 0, h: 0 };
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
+/** Every live element as its own rectangle — what new cards must avoid. */
+function occupiedRects(elements: readonly any[]): Rect[] {
+  const rects: Rect[] = [];
+  for (const el of elements as any[]) {
+    if (!el || el.isDeleted) continue;
+    const w = el.width || 0;
+    const h = el.height || 0;
+    if (w <= 0 || h <= 0) continue;
+    rects.push({ x: el.x || 0, y: el.y || 0, w, h });
+  }
+  return rects;
+}
+
+function overlaps(a: Rect, b: Rect, pad = PLACE_MARGIN): boolean {
+  return (
+    a.x < b.x + b.w + pad &&
+    a.x + a.w + pad > b.x &&
+    a.y < b.y + b.h + pad &&
+    a.y + a.h + pad > b.y
+  );
+}
+
+/**
+ * Places generated cards in genuinely free space. Every element already on the
+ * board (hand-drawn work included) is treated as occupied, so nothing new can
+ * ever land on top of existing content.
+ */
+function makePlacer(existing: Rect[]) {
+  const taken = [...existing];
+  const firstFreeY = (x: number, w: number, h: number, startY: number) => {
+    let y = startY;
+    for (let guard = 0; guard < 5000 && y < PLACE_MAX_Y; guard++) {
+      const candidate: Rect = { x, y, w, h };
+      const hit = taken.find((t) => overlaps(t, candidate));
+      if (!hit) return y;
+      y = Math.max(y + PLACE_STEP, hit.y + hit.h + PLACE_MARGIN);
+    }
+    return y;
+  };
   return {
-    next(height: number) {
-      let col = 0;
-      for (let i = 1; i < tops.length; i++) if (tops[i] < tops[col]) col = i;
-      const y = tops[col];
-      tops[col] = y + height + CLUSTER_GAP_Y;
-      return { x: 40 + col * CLUSTER_GAP_X, y };
+    /** Lowest free slot across the card columns. */
+    place(w: number, h: number): { x: number; y: number } {
+      let best: { x: number; y: number } | null = null;
+      for (let col = 0; col < COLS; col++) {
+        const x = 40 + col * CLUSTER_GAP_X;
+        const y = firstFreeY(x, w, h, 40);
+        if (!best || y < best.y) best = { x, y };
+      }
+      const spot = best ?? { x: 40, y: 40 };
+      taken.push({ ...spot, w, h });
+      return spot;
+    },
+    /** Keeps a preferred spot when it is free, otherwise finds real space. */
+    placeNear(x: number, y: number, w: number, h: number): { x: number; y: number } {
+      const candidate: Rect = { x, y, w, h };
+      if (!taken.some((t) => overlaps(t, candidate))) {
+        taken.push(candidate);
+        return { x, y };
+      }
+      const pushedDown = firstFreeY(x, w, h, y);
+      if (pushedDown < PLACE_MAX_Y) {
+        taken.push({ x, y: pushedDown, w, h });
+        return { x, y: pushedDown };
+      }
+      return this.place(w, h);
+    },
+    reserve(rect: Rect) {
+      taken.push(rect);
     },
   };
 }
+
 
 export default function GlobalWhiteboard() {
   const { user } = useAuth();
@@ -177,15 +260,9 @@ export default function GlobalWhiteboard() {
         workingElements.map((el: any) => el?.customData?.commentId).filter(Boolean) as string[]
       );
 
-      // Seed the packer with the bottom of whatever already sits in each column.
-      const columnTops = Array.from({ length: COLS }, (_, col) => {
-        const left = 40 + col * CLUSTER_GAP_X;
-        const bottoms = workingElements
-          .filter((el: any) => el && !el.isDeleted && el.x >= left - 40 && el.x < left + CLUSTER_GAP_X - 40)
-          .map((el: any) => (el.y || 0) + (el.height || 0));
-        return bottoms.length ? Math.max(...bottoms) + CLUSTER_GAP_Y : 40;
-      });
-      const packer = makePacker(columnTops);
+      // Placement avoids every live element, so generated cards never land on
+      // top of existing cards, images or hand-drawn work.
+      const placer = makePlacer(occupiedRects(workingElements));
 
       const additions: any[] = [];
       const additionFiles: Record<string, any> = {};
@@ -193,18 +270,13 @@ export default function GlobalWhiteboard() {
       for (const t of threads) {
         const threadComments = commentsByThread.get(t.id) ?? [];
         if (!presentThreads.has(t.id)) {
-          // Rebuilt stale clusters keep their original spot so the board layout
-          // does not shuffle every time a thread's content changes.
+          const probe = await buildThreadCluster(t, threadComments, 0, 0);
+          const size = bboxOf(probe.elements);
+          // A rebuilt cluster prefers its old spot, but only if it is still free.
           const at = staleThreads.get(t.id);
-          let x: number;
-          let y: number;
-          if (at) {
-            x = at.x;
-            y = at.y;
-          } else {
-            const probe = await buildThreadCluster(t, threadComments, 0, 0);
-            ({ x, y } = packer.next(probe.height));
-          }
+          const { x, y } = at
+            ? placer.placeNear(at.x, at.y, size.w, size.h)
+            : placer.place(size.w, size.h);
           const cluster = await buildThreadCluster(t, threadComments, x, y);
           additions.push(...cluster.elements);
           Object.assign(additionFiles, cluster.files);
@@ -218,12 +290,16 @@ export default function GlobalWhiteboard() {
         let cursorY = Math.max(...owned.map((el: any) => (el.y || 0) + (el.height || 0))) + CLUSTER_GAP_Y;
         for (const cm of missing) {
           const indent = Math.min(cm.depth ?? 0, 4) * 120;
-          const built = await buildCommentCard(cm, baseX + 40 + indent, cursorY, t.id);
+          const probe = await buildCommentCard(cm, 0, 0, t.id);
+          const size = bboxOf(probe.elements);
+          const spot = placer.placeNear(baseX + 40 + indent, cursorY, size.w, size.h);
+          const built = await buildCommentCard(cm, spot.x, spot.y, t.id);
           additions.push(...built.elements);
           Object.assign(additionFiles, built.files);
-          cursorY += built.height + CLUSTER_GAP_Y;
+          cursorY = spot.y + built.height + CLUSTER_GAP_Y;
         }
       }
+
 
       const merged = [...workingElements, ...additions];
       const mergedFiles = { ...(scene.files || {}), ...additionFiles };
@@ -323,9 +399,10 @@ export default function GlobalWhiteboard() {
             broadcastRef.current?.(next, allFiles);
             return;
           }
-          const live = current.filter((el) => el && !el.isDeleted);
-          const bottom = live.length ? Math.max(...live.map((el) => (el.y || 0) + (el.height || 0))) : 0;
-          const cluster = await buildThreadCluster(t as ThreadSeed, [], 40, bottom + CLUSTER_GAP_Y);
+          const probe = await buildThreadCluster(t as ThreadSeed, [], 0, 0);
+          const size = bboxOf(probe.elements);
+          const spot = makePlacer(occupiedRects(current)).place(size.w, size.h);
+          const cluster = await buildThreadCluster(t as ThreadSeed, [], spot.x, spot.y);
           if (!apiRef.current) return;
           const nextEls = [...current, ...cluster.elements];
           applyingRemoteRef.current = true;
@@ -356,7 +433,15 @@ export default function GlobalWhiteboard() {
           const baseX = Math.min(...owned.map((el) => el.x || 0));
           const cursorY = Math.max(...owned.map((el) => (el.y || 0) + (el.height || 0))) + CLUSTER_GAP_Y;
           const indent = Math.min(cm.depth ?? 0, 4) * 120;
-          const built = await buildCommentCard(cm, baseX + 40 + indent, cursorY, cm.thread_id);
+          const probe = await buildCommentCard(cm, 0, 0, cm.thread_id);
+          const size = bboxOf(probe.elements);
+          const spot = makePlacer(occupiedRects(current)).placeNear(
+            baseX + 40 + indent,
+            cursorY,
+            size.w,
+            size.h
+          );
+          const built = await buildCommentCard(cm, spot.x, spot.y, cm.thread_id);
           if (!apiRef.current) return;
           const nextEls = [...current, ...built.elements];
           applyingRemoteRef.current = true;
@@ -582,13 +667,15 @@ export default function GlobalWhiteboard() {
           !(el.groupIds || []).some((g: string) => generatedGroups.has(g))
       );
 
-      const packer = makePacker(Array.from({ length: COLS }, () => 40));
+      // Hand-drawn work stays put, so rebuilt clusters must route around it.
+      const placer = makePlacer(occupiedRects(kept));
       const rebuilt: any[] = [];
       const files: Record<string, any> = {};
       for (const t of threads) {
         const threadComments = commentsByThread.get(t.id) ?? [];
         const probe = await buildThreadCluster(t, threadComments, 0, 0);
-        const { x, y } = packer.next(probe.height);
+        const size = bboxOf(probe.elements);
+        const { x, y } = placer.place(size.w, size.h);
         const cluster = await buildThreadCluster(t, threadComments, x, y);
         rebuilt.push(...cluster.elements);
         Object.assign(files, cluster.files);
