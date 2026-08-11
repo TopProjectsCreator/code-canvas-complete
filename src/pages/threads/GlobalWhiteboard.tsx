@@ -260,15 +260,9 @@ export default function GlobalWhiteboard() {
         workingElements.map((el: any) => el?.customData?.commentId).filter(Boolean) as string[]
       );
 
-      // Seed the packer with the bottom of whatever already sits in each column.
-      const columnTops = Array.from({ length: COLS }, (_, col) => {
-        const left = 40 + col * CLUSTER_GAP_X;
-        const bottoms = workingElements
-          .filter((el: any) => el && !el.isDeleted && el.x >= left - 40 && el.x < left + CLUSTER_GAP_X - 40)
-          .map((el: any) => (el.y || 0) + (el.height || 0));
-        return bottoms.length ? Math.max(...bottoms) + CLUSTER_GAP_Y : 40;
-      });
-      const packer = makePacker(columnTops);
+      // Placement avoids every live element, so generated cards never land on
+      // top of existing cards, images or hand-drawn work.
+      const placer = makePlacer(occupiedRects(workingElements));
 
       const additions: any[] = [];
       const additionFiles: Record<string, any> = {};
@@ -276,18 +270,13 @@ export default function GlobalWhiteboard() {
       for (const t of threads) {
         const threadComments = commentsByThread.get(t.id) ?? [];
         if (!presentThreads.has(t.id)) {
-          // Rebuilt stale clusters keep their original spot so the board layout
-          // does not shuffle every time a thread's content changes.
+          const probe = await buildThreadCluster(t, threadComments, 0, 0);
+          const size = bboxOf(probe.elements);
+          // A rebuilt cluster prefers its old spot, but only if it is still free.
           const at = staleThreads.get(t.id);
-          let x: number;
-          let y: number;
-          if (at) {
-            x = at.x;
-            y = at.y;
-          } else {
-            const probe = await buildThreadCluster(t, threadComments, 0, 0);
-            ({ x, y } = packer.next(probe.height));
-          }
+          const { x, y } = at
+            ? placer.placeNear(at.x, at.y, size.w, size.h)
+            : placer.place(size.w, size.h);
           const cluster = await buildThreadCluster(t, threadComments, x, y);
           additions.push(...cluster.elements);
           Object.assign(additionFiles, cluster.files);
@@ -301,12 +290,16 @@ export default function GlobalWhiteboard() {
         let cursorY = Math.max(...owned.map((el: any) => (el.y || 0) + (el.height || 0))) + CLUSTER_GAP_Y;
         for (const cm of missing) {
           const indent = Math.min(cm.depth ?? 0, 4) * 120;
-          const built = await buildCommentCard(cm, baseX + 40 + indent, cursorY, t.id);
+          const probe = await buildCommentCard(cm, 0, 0, t.id);
+          const size = bboxOf(probe.elements);
+          const spot = placer.placeNear(baseX + 40 + indent, cursorY, size.w, size.h);
+          const built = await buildCommentCard(cm, spot.x, spot.y, t.id);
           additions.push(...built.elements);
           Object.assign(additionFiles, built.files);
-          cursorY += built.height + CLUSTER_GAP_Y;
+          cursorY = spot.y + built.height + CLUSTER_GAP_Y;
         }
       }
+
 
       const merged = [...workingElements, ...additions];
       const mergedFiles = { ...(scene.files || {}), ...additionFiles };
