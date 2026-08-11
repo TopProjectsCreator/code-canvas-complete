@@ -160,7 +160,7 @@ export default function GlobalWhiteboard() {
       // Seed the packer with the bottom of whatever already sits in each column.
       const columnTops = Array.from({ length: COLS }, (_, col) => {
         const left = 40 + col * CLUSTER_GAP_X;
-        const bottoms = elements
+        const bottoms = workingElements
           .filter((el: any) => el && !el.isDeleted && el.x >= left - 40 && el.x < left + CLUSTER_GAP_X - 40)
           .map((el: any) => (el.y || 0) + (el.height || 0));
         return bottoms.length ? Math.max(...bottoms) + CLUSTER_GAP_Y : 40;
@@ -183,7 +183,7 @@ export default function GlobalWhiteboard() {
         // Thread already on the board — append only the replies it is missing.
         const missing = orderComments(threadComments).filter((c) => !presentComments.has(c.id));
         if (!missing.length) continue;
-        const owned = elements.filter((el: any) => el?.customData?.threadId === t.id && !el.isDeleted);
+        const owned = workingElements.filter((el: any) => el?.customData?.threadId === t.id && !el.isDeleted);
         const baseX = Math.min(...owned.map((el: any) => el.x || 0));
         let cursorY = Math.max(...owned.map((el: any) => (el.y || 0) + (el.height || 0))) + CLUSTER_GAP_Y;
         for (const cm of missing) {
@@ -195,7 +195,8 @@ export default function GlobalWhiteboard() {
         }
       }
 
-      const merged = [...elements, ...additions];
+      const merged = [...workingElements, ...additions];
+      const mergedFiles = { ...(scene.files || {}), ...additionFiles };
       const initMap = new Map<string, { version: number; isDeleted: boolean }>();
       for (const el of merged) {
         if (el?.id) initMap.set(el.id, { version: el.version || 0, isDeleted: !!el.isDeleted });
@@ -206,9 +207,14 @@ export default function GlobalWhiteboard() {
       setInitial({
         elements: merged,
         appState: { ...(scene.appState || {}), viewBackgroundColor: scene.appState?.viewBackgroundColor || '#fafaf9' },
-        files: { ...(scene.files || {}), ...additionFiles },
+        files: mergedFiles,
       });
       liveCountRef.current = merged.filter((el: any) => el && !el.isDeleted).length;
+      // Generated cards created during reconciliation are not saved by the canvas
+      // (nothing changed from Excalidraw's point of view), so queue an explicit save.
+      if (additions.length || brokenThreads.size) {
+        pendingInitialSaveRef.current = { elements: merged, files: mergedFiles };
+      }
       setReady(true);
     })();
     return () => { cancelled = true; };
