@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { WhiteboardHistory, type WhiteboardScene } from '@/components/threads/WhiteboardHistory';
 import {
   buildThreadCluster,
+  buildThreadCard,
   buildCommentCard,
   orderComments,
   CLUSTER_GAP_X,
@@ -225,12 +226,35 @@ export default function GlobalWhiteboard() {
       )
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'threads' },
+        { event: '*', schema: 'public', table: 'threads' },
         async (payload: any) => {
           const t = payload.new;
           if (!t || !apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
-          if (current.some((el) => el?.customData?.threadId === t.id)) return;
+          const existingCard = current.find(
+            (el) => el?.customData?.kind === 'thread-card' && el?.customData?.threadId === t.id && !el.isDeleted
+          );
+          if (existingCard) {
+            const groupIds = new Set<string>(existingCard.groupIds || []);
+            const built = await buildThreadCard(t as ThreadSeed, existingCard.x || 0, existingCard.y || 0);
+            if (!apiRef.current) return;
+            const kept = current.filter(
+              (el) =>
+                el?.id !== existingCard.id &&
+                !(el?.groupIds || []).some((groupId: string) => groupIds.has(groupId))
+            );
+            const next = [...kept, ...built.elements];
+            applyingRemoteRef.current = true;
+            const builtFiles = Object.values(built.files);
+            if (builtFiles.length && apiRef.current.addFiles) apiRef.current.addFiles(builtFiles as any);
+            apiRef.current.updateScene({ elements: next });
+            applyingRemoteRef.current = false;
+            lastSentHashRef.current = '';
+            const allFiles = { ...(apiRef.current.getFiles?.() || {}), ...built.files };
+            await persist(next, { viewBackgroundColor: '#fafaf9' }, allFiles);
+            broadcastScene(next, allFiles);
+            return;
+          }
           const live = current.filter((el) => el && !el.isDeleted);
           const bottom = live.length ? Math.max(...live.map((el) => (el.y || 0) + (el.height || 0))) : 0;
           const cluster = await buildThreadCluster(t as ThreadSeed, [], 40, bottom + CLUSTER_GAP_Y);
