@@ -25,44 +25,20 @@ interface PeerMeta {
 }
 
 const BOARD_ID = 'threads';
-const CARD_W = 240;
-const CARD_H = 96;
+const COLS = 4;
 
-function scatterPos(i: number) {
-  const cols = 5;
-  const col = i % cols;
-  const row = Math.floor(i / cols);
-  const jitterX = ((i * 53) % 40) - 20;
-  const jitterY = ((i * 97) % 40) - 20;
+/** Packs clusters into columns, tracking each column's next free Y. */
+function makePacker(columnTops: number[]) {
+  const tops = [...columnTops];
   return {
-    x: 40 + col * (CARD_W + 60) + jitterX,
-    y: 40 + row * (CARD_H + 80) + jitterY,
+    next(height: number) {
+      let col = 0;
+      for (let i = 1; i < tops.length; i++) if (tops[i] < tops[col]) col = i;
+      const y = tops[col];
+      tops[col] = y + height + CLUSTER_GAP_Y;
+      return { x: 40 + col * CLUSTER_GAP_X, y };
+    },
   };
-}
-
-function buildThreadCard(thread: { id: string; title: string; category: string | null }, idx: number) {
-  const { x, y } = scatterPos(idx);
-  const palette = ['#dbeafe', '#fef3c7', '#dcfce7', '#fce7f3', '#ede9fe', '#ffe4e6'];
-  const strokes = ['#1e40af', '#a16207', '#166534', '#9d174d', '#5b21b6', '#9f1239'];
-  const c = idx % palette.length;
-  const label = (thread.category ? `[${thread.category}] ` : '') + thread.title;
-  return convertToExcalidrawElements([
-    {
-      type: 'rectangle',
-      x,
-      y,
-      width: CARD_W,
-      height: CARD_H,
-      backgroundColor: palette[c],
-      strokeColor: strokes[c],
-      fillStyle: 'solid',
-      strokeWidth: 2,
-      roundness: { type: 3 },
-      link: `/threads/${thread.id}`,
-      customData: { threadId: thread.id, kind: 'thread-card' },
-      label: { text: label, fontSize: 16 },
-    } as any,
-  ]);
 }
 
 export default function GlobalWhiteboard() {
@@ -98,30 +74,78 @@ export default function GlobalWhiteboard() {
   const userId = user?.id ?? null;
   const userEmail = user?.email ?? null;
 
-  // Load scene, then reconcile with existing threads
+  // Load scene, then reconcile with existing threads + their full reply trees
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [boardRes, threadsRes] = await Promise.all([
+      const [boardRes, threadsRes, commentsRes] = await Promise.all([
         supabase.from('global_whiteboard').select('scene').eq('id', BOARD_ID).maybeSingle(),
-        supabase.from('threads').select('id, title, category').order('created_at', { ascending: true }),
+        supabase
+          .from('threads')
+          .select('id, title, category, content')
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('comments')
+          .select('id, thread_id, parent_id, content, depth, created_at')
+          .order('created_at', { ascending: true }),
       ]);
       if (cancelled) return;
 
       const scene: Scene = (boardRes.data?.scene as Scene) || { elements: [], appState: {} };
       const elements = Array.isArray(scene.elements) ? [...scene.elements] : [];
-      const threads = threadsRes.data || [];
+      const threads = (threadsRes.data || []) as ThreadSeed[];
+      const comments = (commentsRes.data || []) as CommentSeed[];
 
-      const presentIds = new Set(
-        elements.map((el: any) => el?.customData?.threadId).filter(Boolean)
+      const commentsByThread = new Map<string, CommentSeed[]>();
+      for (const c of comments) {
+        const list = commentsByThread.get(c.thread_id) ?? [];
+        list.push(c);
+        commentsByThread.set(c.thread_id, list);
+      }
+
+      const presentThreads = new Set(
+        elements
+          .filter((el: any) => el?.customData?.kind === 'thread-card')
+          .map((el: any) => el.customData.threadId as string)
+      );
+      const presentComments = new Set(
+        elements.map((el: any) => el?.customData?.commentId).filter(Boolean) as string[]
       );
 
-      let idx = elements.length;
+      // Seed the packer with the bottom of whatever already sits in each column.
+      const columnTops = Array.from({ length: COLS }, (_, col) => {
+        const left = 40 + col * CLUSTER_GAP_X;
+        const bottoms = elements
+          .filter((el: any) => el && !el.isDeleted && el.x >= left - 40 && el.x < left + CLUSTER_GAP_X - 40)
+          .map((el: any) => (el.y || 0) + (el.height || 0));
+        return bottoms.length ? Math.max(...bottoms) + CLUSTER_GAP_Y : 40;
+      });
+      const packer = makePacker(columnTops);
+
       const additions: any[] = [];
+      let colorIndex = presentThreads.size;
+
       for (const t of threads) {
-        if (!presentIds.has(t.id)) {
-          additions.push(...buildThreadCard(t as any, idx));
-          idx++;
+        const threadComments = commentsByThread.get(t.id) ?? [];
+        if (!presentThreads.has(t.id)) {
+          const probe = buildThreadCluster(t, threadComments, 0, 0, colorIndex);
+          const { x, y } = packer.next(probe.height);
+          const cluster = buildThreadCluster(t, threadComments, x, y, colorIndex);
+          additions.push(...cluster.elements);
+          colorIndex++;
+          continue;
+        }
+        // Thread already on the board — append only the replies it is missing.
+        const missing = orderComments(threadComments).filter((c) => !presentComments.has(c.id));
+        if (!missing.length) continue;
+        const owned = elements.filter((el: any) => el?.customData?.threadId === t.id && !el.isDeleted);
+        const baseX = Math.min(...owned.map((el: any) => el.x || 0));
+        let cursorY = Math.max(...owned.map((el: any) => (el.y || 0) + (el.height || 0))) + 28;
+        for (const cm of missing) {
+          const indent = Math.min(cm.depth ?? 0, 4) * 28;
+          const built = buildCommentCard(cm, baseX + 24 + indent, cursorY, t.id, colorIndex);
+          additions.push(...built.elements);
+          cursorY += built.height + 28;
         }
       }
 
@@ -142,6 +166,7 @@ export default function GlobalWhiteboard() {
     })();
     return () => { cancelled = true; };
   }, []);
+
 
   // Realtime: remote scene, presence, new threads, permission changes
   useEffect(() => {
