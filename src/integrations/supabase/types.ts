@@ -2274,6 +2274,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      save_thread_whiteboard_scene: {
+        Args: {
+          _app_state?: Json
+          _elements: Json
+          _new_files?: Json
+          _thread_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"
