@@ -141,6 +141,41 @@ function textWidth(wrapped: string, fontSize = BODY_FONT): number {
   return Math.ceil(longest) + 6;
 }
 
+interface FittedText {
+  wrapped: string;
+  width: number;
+  height: number;
+}
+
+/**
+ * Wraps text and then measures it with Excalidraw's OWN text metrics, retrying
+ * tighter wraps until it fits `maxW`. Using Excalidraw's measurement is what
+ * keeps rendered text from spilling past the card border.
+ */
+function fitText(text: string, maxW: number, fontSize = BODY_FONT): FittedText {
+  let wrapped = wrapText(text, maxW, fontSize);
+  let best: FittedText = { wrapped, width: textWidth(wrapped, fontSize), height: textHeight(wrapped, fontSize) };
+  for (let i = 0; i < 4; i++) {
+    let measured: any;
+    try {
+      [measured] = convertToExcalidrawElements([
+        { type: 'text', x: 0, y: 0, text: wrapped, fontSize } as any,
+      ]) as any[];
+    } catch {
+      return best;
+    }
+    if (!measured?.width) return best;
+    best = { wrapped, width: Math.ceil(measured.width), height: Math.ceil(measured.height) };
+    if (measured.width <= maxW) return best;
+    const target = Math.max(40, maxW * (maxW / measured.width) * 0.97);
+    const next = wrapText(text, target, fontSize);
+    if (next === wrapped) return { ...best, width: Math.min(best.width, maxW) };
+    wrapped = next;
+  }
+  return best;
+}
+
+
 
 
 // -------------------------------------------------------------- image loading
