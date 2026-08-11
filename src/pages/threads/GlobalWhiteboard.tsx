@@ -57,6 +57,7 @@ export default function GlobalWhiteboard() {
   const { toast } = useToast();
   const apiRef = useRef<any>(null);
   const [ready, setReady] = useState(false);
+  const [rebuilding, setRebuilding] = useState(false);
   const [initial, setInitial] = useState<Scene>({ elements: [], appState: { viewBackgroundColor: '#fafaf9' } });
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const broadcastThrottleRef = useRef<number>(0);
