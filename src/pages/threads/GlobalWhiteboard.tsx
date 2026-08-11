@@ -433,8 +433,15 @@ export default function GlobalWhiteboard() {
           const baseX = Math.min(...owned.map((el) => el.x || 0));
           const cursorY = Math.max(...owned.map((el) => (el.y || 0) + (el.height || 0))) + CLUSTER_GAP_Y;
           const indent = Math.min(cm.depth ?? 0, 4) * 120;
-          const built = await buildCommentCard(cm, baseX + 40 + indent, cursorY, cm.thread_id);
-          if (!apiRef.current) return;
+          const probe = await buildCommentCard(cm, 0, 0, cm.thread_id);
+          const size = bboxOf(probe.elements);
+          const spot = makePlacer(occupiedRects(current)).placeNear(
+            baseX + 40 + indent,
+            cursorY,
+            size.w,
+            size.h
+          );
+          const built = await buildCommentCard(cm, spot.x, spot.y, cm.thread_id);
           const nextEls = [...current, ...built.elements];
           applyingRemoteRef.current = true;
           const builtFiles = Object.values(built.files);
