@@ -534,7 +534,9 @@ export async function buildCommentCard(
   y: number,
   threadId: string
 ): Promise<BuiltCard> {
+  await ensureCardFont();
   const { loaded, failed } = await loadImages(comment.content);
+
   return buildCard(commentBlocks(comment, failed), loaded, {
     x,
     y,
