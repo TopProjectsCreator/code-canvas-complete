@@ -267,17 +267,17 @@ function buildCard(
   const maxTextW = Math.max(MIN_TEXT_W, maxWidth - PAD * 2 - (imgColW ? imgColW + GAP : 0));
 
   // Wrap at the ceiling, then measure what the text actually needs.
-  const chipWrapped = blocks.chip ? wrapText(blocks.chip, Math.min(CHIP_MAX_W, maxTextW) - 20) : '';
-  const authorWrapped = blocks.author ? wrapText(blocks.author, maxTextW) : '';
-  const bodyWrapped = blocks.body ? wrapText(blocks.body, maxTextW) : '';
+  const chipFit = blocks.chip ? fitText(blocks.chip, Math.min(CHIP_MAX_W, maxTextW) - 20) : null;
+  const authorFit = blocks.author ? fitText(blocks.author, maxTextW) : null;
+  const bodyFit = blocks.body ? fitText(blocks.body, maxTextW) : null;
   const textW = Math.max(
     MIN_TEXT_W,
     Math.min(
       maxTextW,
       Math.max(
-        chipWrapped ? textWidth(chipWrapped) + 20 : 0,
-        textWidth(authorWrapped),
-        textWidth(bodyWrapped)
+        chipFit ? chipFit.width + 20 : 0,
+        authorFit?.width ?? 0,
+        bodyFit?.width ?? 0
       )
     )
   );
@@ -285,9 +285,9 @@ function buildCard(
   const children: any[] = [];
   let ty = y + PAD;
 
-  if (chipWrapped) {
-    const chipW = Math.min(Math.min(CHIP_MAX_W, textW), textWidth(chipWrapped) + 20);
-    const chipH = textHeight(chipWrapped) + 18;
+  if (chipFit) {
+    const chipW = Math.min(Math.min(CHIP_MAX_W, textW), chipFit.width + 20);
+    const chipH = chipFit.height + 18;
     children.push({
       type: 'rectangle',
       id: `${id}-chip`,
@@ -301,42 +301,43 @@ function buildCard(
       strokeWidth: 2,
       roundness: { type: 3 },
       groupIds: [groupId],
-      label: { text: chipWrapped, fontSize: BODY_FONT, strokeColor: CHIP_TEXT, textAlign: 'left', verticalAlign: 'top' },
+      label: { text: chipFit.wrapped, fontSize: BODY_FONT, strokeColor: CHIP_TEXT, textAlign: 'left', verticalAlign: 'top' },
     });
     ty += chipH + GAP;
   }
 
-  if (authorWrapped) {
+  if (authorFit) {
     children.push({
       type: 'text',
       id: `${id}-author`,
       x: x + PAD,
       y: ty,
-      width: textW,
-      height: textHeight(authorWrapped),
-      text: authorWrapped,
+      width: authorFit.width,
+      height: authorFit.height,
+      text: authorFit.wrapped,
       fontSize: BODY_FONT,
       strokeColor: STROKE,
       groupIds: [groupId],
     });
-    ty += textHeight(authorWrapped) + 6;
+    ty += authorFit.height + 6;
   }
 
-  if (bodyWrapped) {
+  if (bodyFit) {
     children.push({
       type: 'text',
       id: `${id}-body`,
       x: x + PAD,
       y: ty,
-      width: textW,
-      height: textHeight(bodyWrapped),
-      text: bodyWrapped,
+      width: bodyFit.width,
+      height: bodyFit.height,
+      text: bodyFit.wrapped,
       fontSize: BODY_FONT,
       strokeColor: STROKE,
       groupIds: [groupId],
     });
-    ty += textHeight(bodyWrapped);
+    ty += bodyFit.height;
   }
+
 
   const textColH = ty - (y + PAD);
   const width = PAD * 2 + textW + (imgColW ? imgColW + GAP : 0);
