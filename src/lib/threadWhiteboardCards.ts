@@ -24,24 +24,28 @@ export interface BuiltCard {
   height: number;
 }
 
-// Wide, sketch-style cards: full content, small text, generous canvas spacing.
-export const CARD_W = 960;
-export const COMMENT_W = 880;
-export const CLUSTER_GAP_X = 1180;
-export const CLUSTER_GAP_Y = 180;
+// Content-shaped cards: a card is only as big as the text + images inside it.
+// CARD_W / COMMENT_W are MAXIMUMS, never fixed widths.
+export const CARD_W = 720;
+export const COMMENT_W = 660;
+export const CLUSTER_GAP_X = 900;
+export const CLUSTER_GAP_Y = 140;
 
 const BODY_FONT = 16;
 const LINE_H = 1.25;
-const PAD = 24;
-const GAP = 16;
-const IMG_MAX_W = 440;
-const IMG_MAX_H = 340;
-const CHIP_MAX_W = 340;
+const CHAR_W = 0.55; // average advance width of the hand-drawn font at 1px size
+const PAD = 20;
+const GAP = 14;
+const MIN_TEXT_W = 150;
+const IMG_MAX_W = 320;
+const IMG_MAX_H = 260;
+const CHIP_MAX_W = 320;
 const STROKE = '#1e1e1e';
 const CARD_BG = '#ffffff';
 const CHIP_BG = '#e7f0ff';
 const CHIP_STROKE = '#1971c2';
 const CHIP_TEXT = '#1971c2';
+
 
 /** Strips HTML/markdown wrappers down to readable plain text. Never truncates by default. */
 export function toPlainText(raw: string | null | undefined, max = Number.POSITIVE_INFINITY): string {
@@ -80,13 +84,56 @@ export function extractImageUrls(raw: string | null | undefined): string[] {
 
 // ---------------------------------------------------------------- text layout
 
-function charsPerLine(width: number, fontSize: number) {
-  return Math.max(8, Math.floor(width / (fontSize * 0.55)));
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+let fontReady: Promise<void> | null = null;
+
+/**
+ * Excalidraw renders text in Excalifont, which is ~17% wider than the fallback
+ * sans. Measuring before that font is loaded is what makes text spill out of
+ * cards, so every builder awaits this first.
+ */
+export function ensureCardFont(): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return Promise.resolve();
+  if (!fontReady) {
+    fontReady = (async () => {
+      try {
+        await document.fonts.load(`${BODY_FONT}px Excalifont`);
+      } catch {
+        /* fall back to the width fudge in measureLine */
+      }
+    })();
+  }
+  return fontReady;
 }
+
+/** True once Excalifont actually measures differently from the fallback sans. */
+function excalifontLoaded(ctx: CanvasRenderingContext2D, fontSize: number): boolean {
+  const probe = 'MMMMwwwwiiii';
+  ctx.font = `${fontSize}px Excalifont`;
+  const a = ctx.measureText(probe).width;
+  ctx.font = `${fontSize}px sans-serif`;
+  const b = ctx.measureText(probe).width;
+  return Math.abs(a - b) > 0.5;
+}
+
+/** Real pixel width of a line in Excalidraw's hand-drawn font (canvas-measured). */
+function measureLine(line: string, fontSize = BODY_FONT): number {
+  if (!line) return 0;
+  if (measureCtx === undefined) {
+    measureCtx =
+      typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+  }
+  if (!measureCtx) return line.length * fontSize * CHAR_W;
+  const loaded = excalifontLoaded(measureCtx, fontSize);
+  measureCtx.font = `${fontSize}px Excalifont, Virgil, "Segoe UI", sans-serif`;
+  // Pad when Excalifont has not loaded yet so wrapped text never spills out.
+  return measureCtx.measureText(line).width * (loaded ? 1 : 1.2);
+}
+
+
 
 /** Word-wraps text to a pixel width so the card height matches what renders. */
 function wrapText(text: string, width: number, fontSize = BODY_FONT): string {
-  const cap = charsPerLine(width, fontSize);
   const out: string[] = [];
   for (const paragraph of text.split('\n')) {
     if (!paragraph.length) {
@@ -96,13 +143,16 @@ function wrapText(text: string, width: number, fontSize = BODY_FONT): string {
     let line = '';
     for (const word of paragraph.split(/\s+/)) {
       let w = word;
-      while (w.length > cap) {
+      // Break words that cannot fit on a line of their own.
+      while (measureLine(w, fontSize) > width) {
+        let cut = w.length;
+        while (cut > 1 && measureLine(w.slice(0, cut), fontSize) > width) cut--;
         if (line) { out.push(line); line = ''; }
-        out.push(w.slice(0, cap));
-        w = w.slice(cap);
+        out.push(w.slice(0, cut));
+        w = w.slice(cut);
       }
       if (!line) line = w;
-      else if (line.length + 1 + w.length <= cap) line += ` ${w}`;
+      else if (measureLine(`${line} ${w}`, fontSize) <= width) line += ` ${w}`;
       else { out.push(line); line = w; }
     }
     out.push(line);
@@ -113,6 +163,62 @@ function wrapText(text: string, width: number, fontSize = BODY_FONT): string {
 function textHeight(wrapped: string, fontSize = BODY_FONT): number {
   return Math.max(1, wrapped.split('\n').length) * Math.round(fontSize * LINE_H);
 }
+
+/** Pixel width of the longest line — used to shrink a card to its content. */
+function textWidth(wrapped: string, fontSize = BODY_FONT): number {
+  const longest = wrapped.split('\n').reduce((m, l) => Math.max(m, measureLine(l, fontSize)), 0);
+  return Math.ceil(longest) + 6;
+}
+
+interface FittedText {
+  wrapped: string;
+  width: number;
+  height: number;
+}
+
+/**
+ * Wraps text and then measures it with Excalidraw's OWN text metrics, retrying
+ * tighter wraps until it fits `maxW`. Using Excalidraw's measurement is what
+ * keeps rendered text from spilling past the card border.
+ */
+function fitText(text: string, maxW: number, fontSize = BODY_FONT): FittedText {
+  let wrapped = wrapText(text, maxW, fontSize);
+  const own = (w: string): FittedText => ({
+    wrapped: w,
+    width: textWidth(w, fontSize),
+    height: textHeight(w, fontSize),
+  });
+  let best = own(wrapped);
+  for (let i = 0; i < 4; i++) {
+    let measured: any;
+    try {
+      [measured] = convertToExcalidrawElements([
+        { type: 'text', x: 0, y: 0, text: wrapped, fontSize } as any,
+      ]) as any[];
+    } catch {
+      return best;
+    }
+    if (!measured?.width) return best;
+    // Take the larger of the two metrics: Excalidraw measures with whatever
+    // font is loaded right now, which under-reports before Excalifont lands.
+    const mine = own(wrapped);
+    best = {
+      wrapped,
+      width: Math.max(Math.ceil(measured.width), mine.width),
+      height: Math.max(Math.ceil(measured.height), mine.height),
+    };
+    if (best.width <= maxW) return best;
+    const target = Math.max(40, maxW * (maxW / best.width) * 0.97);
+    const next = wrapText(text, target, fontSize);
+    if (next === wrapped) return { ...best, width: Math.min(best.width, maxW) };
+    wrapped = next;
+  }
+  return best;
+}
+
+
+
+
 
 // -------------------------------------------------------------- image loading
 
@@ -186,34 +292,50 @@ interface CardBlocks {
   body: string;
 }
 
-/** Lays out one content-shaped card: text column left, images column right. */
+/**
+ * Lays out one content-shaped card. `maxWidth` is a ceiling, not a size: the
+ * card shrinks to the widest wrapped line plus the image column, so short
+ * replies become small cards and long ones grow.
+ */
 function buildCard(
   blocks: CardBlocks,
   images: LoadedImage[],
-  opts: { x: number; y: number; width: number; id: string; link: string; customData: any }
+  opts: { x: number; y: number; maxWidth: number; id: string; link: string; customData: any }
 ): BuiltCard {
-  const { x, y, width, id, link, customData } = opts;
+  const { x, y, maxWidth, id, link, customData } = opts;
   const groupId = `${id}-group`;
   const sized = images.map((img) => ({ img, ...fitImage(img) }));
   const imgColW = sized.length ? Math.max(...sized.map((s) => s.w)) : 0;
+  const maxTextW = Math.max(MIN_TEXT_W, maxWidth - PAD * 2 - (imgColW ? imgColW + GAP : 0));
+
+  // Wrap at the ceiling, then measure what the text actually needs.
+  const chipFit = blocks.chip ? fitText(blocks.chip, Math.min(CHIP_MAX_W, maxTextW) - 20) : null;
+  const authorFit = blocks.author ? fitText(blocks.author, maxTextW) : null;
+  const bodyFit = blocks.body ? fitText(blocks.body, maxTextW) : null;
   const textW = Math.max(
-    240,
-    width - PAD * 2 - (imgColW ? imgColW + GAP : 0)
+    MIN_TEXT_W,
+    Math.min(
+      maxTextW,
+      Math.max(
+        chipFit ? chipFit.width + 20 : 0,
+        authorFit?.width ?? 0,
+        bodyFit?.width ?? 0
+      )
+    )
   );
 
   const children: any[] = [];
   let ty = y + PAD;
 
-  if (blocks.chip) {
-    const chipInner = Math.min(CHIP_MAX_W, textW) - 20;
-    const wrapped = wrapText(blocks.chip, chipInner);
-    const chipH = textHeight(wrapped) + 20;
+  if (chipFit) {
+    const chipW = Math.min(Math.min(CHIP_MAX_W, textW), chipFit.width + 20);
+    const chipH = chipFit.height + 18;
     children.push({
       type: 'rectangle',
       id: `${id}-chip`,
       x: x + PAD,
       y: ty,
-      width: Math.min(CHIP_MAX_W, textW),
+      width: chipW,
       height: chipH,
       backgroundColor: CHIP_BG,
       strokeColor: CHIP_STROKE,
@@ -221,46 +343,46 @@ function buildCard(
       strokeWidth: 2,
       roundness: { type: 3 },
       groupIds: [groupId],
-      label: { text: wrapped, fontSize: BODY_FONT, strokeColor: CHIP_TEXT, textAlign: 'left', verticalAlign: 'top' },
+      label: { text: chipFit.wrapped, fontSize: BODY_FONT, strokeColor: CHIP_TEXT, textAlign: 'left', verticalAlign: 'top' },
     });
     ty += chipH + GAP;
   }
 
-  if (blocks.author) {
-    const wrapped = wrapText(blocks.author, textW);
+  if (authorFit) {
     children.push({
       type: 'text',
       id: `${id}-author`,
       x: x + PAD,
       y: ty,
-      width: textW,
-      height: textHeight(wrapped),
-      text: wrapped,
+      width: authorFit.width,
+      height: authorFit.height,
+      text: authorFit.wrapped,
       fontSize: BODY_FONT,
       strokeColor: STROKE,
       groupIds: [groupId],
     });
-    ty += textHeight(wrapped) + 6;
+    ty += authorFit.height + 6;
   }
 
-  if (blocks.body) {
-    const wrapped = wrapText(blocks.body, textW);
+  if (bodyFit) {
     children.push({
       type: 'text',
       id: `${id}-body`,
       x: x + PAD,
       y: ty,
-      width: textW,
-      height: textHeight(wrapped),
-      text: wrapped,
+      width: bodyFit.width,
+      height: bodyFit.height,
+      text: bodyFit.wrapped,
       fontSize: BODY_FONT,
       strokeColor: STROKE,
       groupIds: [groupId],
     });
-    ty += textHeight(wrapped);
+    ty += bodyFit.height;
   }
 
+
   const textColH = ty - (y + PAD);
+  const width = PAD * 2 + textW + (imgColW ? imgColW + GAP : 0);
 
   const files: Record<string, any> = {};
   let iy = y + PAD;
@@ -285,7 +407,7 @@ function buildCard(
   }
   const imgColH = sized.length ? iy - GAP - (y + PAD) : 0;
 
-  const height = Math.max(80, Math.max(textColH, imgColH) + PAD * 2);
+  const height = Math.max(60, Math.max(textColH, imgColH) + PAD * 2);
 
   const skeleton: any[] = [
     {
@@ -309,6 +431,7 @@ function buildCard(
 
   return { elements: convertToExcalidrawElements(skeleton as any), files, height };
 }
+
 
 function threadBlocks(thread: ThreadSeed, failed: string[]): CardBlocks {
   const chip = (thread.category ? `[${thread.category}] ` : '') + thread.title;
@@ -336,15 +459,17 @@ export async function buildThreadCluster(
   originX: number,
   originY: number
 ): Promise<BuiltCard> {
+  await ensureCardFont();
   const elements: any[] = [];
   const files: Record<string, any> = {};
+
 
   const threadElId = `thread-${thread.id}`;
   const threadImages = await loadImages(thread.content);
   const threadCard = buildCard(threadBlocks(thread, threadImages.failed), threadImages.loaded, {
     x: originX,
     y: originY,
-    width: CARD_W,
+    maxWidth: CARD_W,
     id: threadElId,
     link: `/threads/${thread.id}`,
     customData: { threadId: thread.id, kind: 'thread-card' },
@@ -422,11 +547,13 @@ export async function buildCommentCard(
   y: number,
   threadId: string
 ): Promise<BuiltCard> {
+  await ensureCardFont();
   const { loaded, failed } = await loadImages(comment.content);
+
   return buildCard(commentBlocks(comment, failed), loaded, {
     x,
     y,
-    width: COMMENT_W,
+    maxWidth: COMMENT_W,
     id: `comment-${comment.id}`,
     link: `/threads/${threadId}`,
     customData: { threadId, commentId: comment.id, kind: 'comment-card' },
