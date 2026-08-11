@@ -1,37 +1,25 @@
-# Fix new threads not appearing on the whiteboard
+# Fix automatic images in thread cards
 
-## Confirmed cause
+## Exact issue
 
-New thread cards are currently generated only in one browser's memory, not reliably written to the shared whiteboard:
+The previous verification was invalid: it used a fake text fixture containing “Short body” instead of the real image-only thread content. That fixture proved only that text cards render; it did not test automatic images.
 
-- **When the whiteboard opens:** missing threads are built and added to `initialData`, but those additions are never persisted to the database or broadcast.
-- **When a new thread arrives live:** the handler builds the card and calls `updateScene`, while `applyingRemoteRef` suppresses the normal save callback. The handler then ends without calling `persist` or broadcasting the new scene.
-- Therefore a new thread can briefly exist for one open browser, disappear after reload, and never appear for other viewers. It only becomes saved accidentally if a later unrelated board edit writes the whole scene.
+On the real whiteboard:
 
-The latest thread happens to exist in the current saved board now, but the code paths above explain why new threads do not appear reliably when created.
+- The small GPU card containing only “QOTD: Should we add GPU support?” is the automatically generated card.
+- Its thread body contains only a real uploaded PNG.
+- The automatic card contains no image element.
+- The large images elsewhere on the board were manually added and arranged by the user; they are not evidence that automatic image generation works.
 
-## Fix
+## Fix and verify
 
-1. **Persist startup reconciliation**
-   - After building missing thread/reply cards during initial load, save the merged scene and generated image files once the whiteboard API is ready.
-   - Broadcast the merged scene so already-open viewers receive it.
-
-2. **Persist live new-thread cards immediately**
-   - After the thread insert handler adds the generated cluster, explicitly save the resulting elements and files.
-   - Broadcast the saved scene after success.
-   - Show a visible error if generation or persistence fails instead of silently dropping the card.
-
-3. **Make creation race-safe**
-   - Before saving, re-read the current scene elements from the Excalidraw API and deduplicate by thread ID.
-   - Prevent two open clients from producing duplicate cards for the same new thread.
-
-4. **Preserve user-created work**
-   - Append only the missing generated cluster.
-   - Do not rebuild, reposition, or delete any existing manually arranged images, arrows, or drawings.
-
-## Verification
-
-- Create a new text thread: its card appears automatically and survives reload.
-- Create a new image-only thread: its card includes the real image and survives reload.
-- Open the whiteboard in a second browser: both new cards appear without drawing or refreshing.
-- Confirm each thread ID has exactly one generated card and all manual elements retain their positions.
+1. Use the real GPU thread row—its exact stored HTML image tag and uploaded PNG—as the test case. Do not use sample text, fixtures, or “Short body.”
+2. Trace the real new-thread flow from the inserted thread payload through image URL extraction, image fetching/decoding, card construction, `addFiles`, and scene persistence. Capture the first step where the real image disappears.
+3. Fix that exact failing step so an image-only thread creates an automatic card containing an Excalidraw image element and its matching binary file.
+4. Regenerate only the small automatic GPU card at its existing position. Do not touch, move, replace, or treat the manually added images as generated content.
+5. Verify by inspecting the resulting saved scene—not a mock page:
+   - the GPU automatic card has an image element;
+   - the image element's file ID exists in the saved scene files;
+   - the image is visibly rendered inside the small automatic card;
+   - a newly created image-only thread produces the same result automatically;
+   - the result survives reload.
