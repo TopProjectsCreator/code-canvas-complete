@@ -43,7 +43,6 @@ import ThreadsList from "./pages/threads/ThreadsList";
 import ThreadDetail from "./pages/threads/ThreadDetail";
 import CreateThread from "./pages/threads/CreateThread";
 import GlobalWhiteboard from "./pages/threads/GlobalWhiteboard";
-import CardPreview from "./pages/threads/__CardPreview";
 import RedactorLanding from "./pages/redactor/Landing";
 import RedactorAuth from "./pages/redactor/Auth";
 import RedactorDashboard from "./pages/redactor/Dashboard";
@@ -190,7 +189,6 @@ const App = () => isOAuthConsentPath() ? <OAuthConsentShell /> : (
                 <Route index element={<ThreadsList />} />
                 <Route path="new" element={<CreateThread />} />
                 <Route path="whiteboard" element={<GlobalWhiteboard />} />
-                <Route path="__card-preview" element={<CardPreview />} />
                 <Route path=":id" element={<ThreadDetail />} />
               </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
