@@ -371,7 +371,7 @@ export async function buildThreadCluster(
   const threadCard = buildCard(threadBlocks(thread, threadImages.failed), threadImages.loaded, {
     x: originX,
     y: originY,
-    width: CARD_W,
+    maxWidth: CARD_W,
     id: threadElId,
     link: `/threads/${thread.id}`,
     customData: { threadId: thread.id, kind: 'thread-card' },
@@ -453,7 +453,7 @@ export async function buildCommentCard(
   return buildCard(commentBlocks(comment, failed), loaded, {
     x,
     y,
-    width: COMMENT_W,
+    maxWidth: COMMENT_W,
     id: `comment-${comment.id}`,
     link: `/threads/${threadId}`,
     customData: { threadId, commentId: comment.id, kind: 'comment-card' },
