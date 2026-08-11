@@ -259,11 +259,18 @@ export default function GlobalWhiteboard() {
           const bottom = live.length ? Math.max(...live.map((el) => (el.y || 0) + (el.height || 0))) : 0;
           const cluster = await buildThreadCluster(t as ThreadSeed, [], 40, bottom + CLUSTER_GAP_Y);
           if (!apiRef.current) return;
+          const nextEls = [...current, ...cluster.elements];
           applyingRemoteRef.current = true;
           const clusterFiles = Object.values(cluster.files);
           if (clusterFiles.length && apiRef.current.addFiles) apiRef.current.addFiles(clusterFiles as any);
-          apiRef.current.updateScene({ elements: [...current, ...cluster.elements] });
+          apiRef.current.updateScene({ elements: nextEls });
           applyingRemoteRef.current = false;
+          // Save immediately: the suppressed onChange means nothing else will
+          // persist this card, and its image binaries would be lost.
+          lastSentHashRef.current = '';
+          const clusterAllFiles = { ...(apiRef.current.getFiles?.() || {}), ...cluster.files };
+          await persist(nextEls, { viewBackgroundColor: '#fafaf9' }, clusterAllFiles);
+          broadcastScene(nextEls, clusterAllFiles);
         }
       )
       .on(
