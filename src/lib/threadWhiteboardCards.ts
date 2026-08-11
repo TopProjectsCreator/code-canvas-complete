@@ -183,7 +183,12 @@ interface FittedText {
  */
 function fitText(text: string, maxW: number, fontSize = BODY_FONT): FittedText {
   let wrapped = wrapText(text, maxW, fontSize);
-  let best: FittedText = { wrapped, width: textWidth(wrapped, fontSize), height: textHeight(wrapped, fontSize) };
+  const own = (w: string): FittedText => ({
+    wrapped: w,
+    width: textWidth(w, fontSize),
+    height: textHeight(w, fontSize),
+  });
+  let best = own(wrapped);
   for (let i = 0; i < 4; i++) {
     let measured: any;
     try {
@@ -194,15 +199,23 @@ function fitText(text: string, maxW: number, fontSize = BODY_FONT): FittedText {
       return best;
     }
     if (!measured?.width) return best;
-    best = { wrapped, width: Math.ceil(measured.width), height: Math.ceil(measured.height) };
-    if (measured.width <= maxW) return best;
-    const target = Math.max(40, maxW * (maxW / measured.width) * 0.97);
+    // Take the larger of the two metrics: Excalidraw measures with whatever
+    // font is loaded right now, which under-reports before Excalifont lands.
+    const mine = own(wrapped);
+    best = {
+      wrapped,
+      width: Math.max(Math.ceil(measured.width), mine.width),
+      height: Math.max(Math.ceil(measured.height), mine.height),
+    };
+    if (best.width <= maxW) return best;
+    const target = Math.max(40, maxW * (maxW / best.width) * 0.97);
     const next = wrapText(text, target, fontSize);
     if (next === wrapped) return { ...best, width: Math.min(best.width, maxW) };
     wrapped = next;
   }
   return best;
 }
+
 
 
 
