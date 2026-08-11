@@ -410,6 +410,79 @@ export default function GlobalWhiteboard() {
     broadcastScene(elements, files);
   }, [user, broadcastScene]);
 
+  // Admin: throw away every generated card and rebuild the whole board with the
+  // current content-shaped layout (old boards still hold the legacy wide boxes).
+  const rebuildCards = useCallback(async () => {
+    if (!user || !isAdmin || !apiRef.current) return;
+    setRebuilding(true);
+    try {
+      const [threadsRes, commentsRes] = await Promise.all([
+        supabase.from('threads').select('id, title, category, content').order('created_at', { ascending: true }),
+        supabase
+          .from('comments')
+          .select('id, thread_id, parent_id, content, depth, created_at')
+          .order('created_at', { ascending: true }),
+      ]);
+      const threads = (threadsRes.data || []) as ThreadSeed[];
+      const comments = (commentsRes.data || []) as CommentSeed[];
+      const commentsByThread = new Map<string, CommentSeed[]>();
+      for (const c of comments) {
+        const list = commentsByThread.get(c.thread_id) ?? [];
+        list.push(c);
+        commentsByThread.set(c.thread_id, list);
+      }
+
+      const current = (apiRef.current.getSceneElements() || []) as any[];
+      const generatedIds = new Set<string>();
+      const generatedGroups = new Set<string>();
+      for (const el of current) {
+        if (!el?.customData?.kind) continue;
+        generatedIds.add(el.id);
+        for (const g of el.groupIds || []) generatedGroups.add(g);
+      }
+      // Keep hand-drawn work; drop cards, their labels, images and link arrows.
+      const kept = current.filter(
+        (el) =>
+          !generatedIds.has(el.id) &&
+          !(el.containerId && generatedIds.has(el.containerId)) &&
+          !(el.groupIds || []).some((g: string) => generatedGroups.has(g))
+      );
+
+      const packer = makePacker(Array.from({ length: COLS }, () => 40));
+      const rebuilt: any[] = [];
+      const files: Record<string, any> = {};
+      for (const t of threads) {
+        const threadComments = commentsByThread.get(t.id) ?? [];
+        const probe = await buildThreadCluster(t, threadComments, 0, 0);
+        const { x, y } = packer.next(probe.height);
+        const cluster = await buildThreadCluster(t, threadComments, x, y);
+        rebuilt.push(...cluster.elements);
+        Object.assign(files, cluster.files);
+      }
+
+      const elements = [...kept, ...rebuilt];
+      const allFiles = { ...(apiRef.current.getFiles?.() || {}), ...files };
+      applyingRemoteRef.current = true;
+      const fileList = Object.values(files);
+      if (fileList.length && apiRef.current.addFiles) apiRef.current.addFiles(fileList);
+      apiRef.current.updateScene({ elements });
+      applyingRemoteRef.current = false;
+      lastSentHashRef.current = '';
+      liveCountRef.current = elements.filter((el) => el && !el.isDeleted).length;
+      await persist(elements, { viewBackgroundColor: '#fafaf9' }, allFiles);
+      broadcastScene(elements, allFiles);
+      toast({ title: 'Cards rebuilt', description: `${threads.length} threads re-laid out with the new card style.` });
+    } catch (err) {
+      toast({
+        title: 'Rebuild failed',
+        description: err instanceof Error ? err.message : 'Could not rebuild the cards.',
+        variant: 'destructive',
+      });
+    } finally {
+      setRebuilding(false);
+    }
+  }, [user, isAdmin, persist, broadcastScene, toast]);
+
 
   const diffAndAttribute = useCallback((elements: readonly any[]) => {
     const prev = prevElementsRef.current;
