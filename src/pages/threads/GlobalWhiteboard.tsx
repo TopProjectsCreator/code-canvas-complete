@@ -290,11 +290,16 @@ export default function GlobalWhiteboard() {
           const indent = Math.min(cm.depth ?? 0, 4) * 120;
           const built = await buildCommentCard(cm, baseX + 40 + indent, cursorY, cm.thread_id);
           if (!apiRef.current) return;
+          const nextEls = [...current, ...built.elements];
           applyingRemoteRef.current = true;
           const builtFiles = Object.values(built.files);
           if (builtFiles.length && apiRef.current.addFiles) apiRef.current.addFiles(builtFiles as any);
-          apiRef.current.updateScene({ elements: [...current, ...built.elements] });
+          apiRef.current.updateScene({ elements: nextEls });
           applyingRemoteRef.current = false;
+          lastSentHashRef.current = '';
+          const allFiles = { ...(apiRef.current.getFiles?.() || {}), ...built.files };
+          await persist(nextEls, { viewBackgroundColor: '#fafaf9' }, allFiles);
+          broadcastScene(nextEls, allFiles);
         }
       )
 
