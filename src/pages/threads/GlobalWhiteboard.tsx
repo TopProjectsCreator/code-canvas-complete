@@ -116,13 +116,45 @@ export default function GlobalWhiteboard() {
         commentsByThread.set(c.thread_id, list);
       }
 
-      const presentThreads = new Set(
+      // Repair: a generated card whose image binary never made it into the saved
+      // files map renders as a blank box. Drop those clusters so they rebuild.
+      const savedFileIds = new Set(Object.keys(scene.files || {}));
+      const brokenThreads = new Set<string>(
         elements
+          .filter(
+            (el: any) =>
+              el?.type === 'image' &&
+              el.fileId &&
+              !el.isDeleted &&
+              el?.customData?.threadId &&
+              !savedFileIds.has(el.fileId)
+          )
+          .map((el: any) => el.customData.threadId as string)
+      );
+      let workingElements = elements;
+      if (brokenThreads.size) {
+        const dropIds = new Set<string>();
+        const dropGroups = new Set<string>();
+        for (const el of elements as any[]) {
+          if (!el?.customData?.threadId || !brokenThreads.has(el.customData.threadId)) continue;
+          dropIds.add(el.id);
+          for (const g of el.groupIds || []) dropGroups.add(g);
+        }
+        workingElements = elements.filter(
+          (el: any) =>
+            !dropIds.has(el.id) &&
+            !(el.containerId && dropIds.has(el.containerId)) &&
+            !(el.groupIds || []).some((g: string) => dropGroups.has(g))
+        );
+      }
+
+      const presentThreads = new Set(
+        workingElements
           .filter((el: any) => el?.customData?.kind === 'thread-card')
           .map((el: any) => el.customData.threadId as string)
       );
       const presentComments = new Set(
-        elements.map((el: any) => el?.customData?.commentId).filter(Boolean) as string[]
+        workingElements.map((el: any) => el?.customData?.commentId).filter(Boolean) as string[]
       );
 
       // Seed the packer with the bottom of whatever already sits in each column.
