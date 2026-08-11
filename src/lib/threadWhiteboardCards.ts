@@ -202,7 +202,7 @@ export function buildCommentCard(
   const c = colorIndex % PALETTE.length;
   const h = commentCardHeight(comment);
   const elId = `comment-${comment.id}`;
-  const author = comment.author ? `${comment.author}: ` : '';
+  const author = comment.author ? `${comment.author}:\n` : '';
   return {
     elements: convertToExcalidrawElements([
       {
@@ -215,18 +215,19 @@ export function buildCommentCard(
         backgroundColor: '#ffffff',
         strokeColor: STROKES[c],
         fillStyle: 'solid',
-        strokeWidth: 1,
+        strokeWidth: 2,
         roundness: { type: 3 },
         link: `/threads/${threadId}`,
         customData: { threadId, commentId: comment.id, kind: 'comment-card' },
         label: {
-          text: `${author}${toPlainText(comment.content, 400)}`,
-          fontSize: 14,
+          text: `${author}${toPlainText(comment.content)}`,
+          fontSize: BODY_FONT,
           textAlign: 'left',
           verticalAlign: 'top',
         },
       },
     ] as any),
+
     height: h,
   };
 }
