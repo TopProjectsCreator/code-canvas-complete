@@ -68,6 +68,8 @@ export default function GlobalWhiteboard() {
   const lastSentHashRef = useRef<string>('');
   const knownFileIdsRef = useRef<Set<string>>(new Set());
   const applyingRemoteRef = useRef(false);
+  // Cards generated while reconciling the saved scene with the threads table.
+  const pendingInitialSaveRef = useRef<{ elements: any[]; files: Record<string, any> } | null>(null);
 
   // Peer/presence state
   const [peers, setPeers] = useState<PeerMeta[]>([]);
