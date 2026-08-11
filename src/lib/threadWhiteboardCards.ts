@@ -440,6 +440,24 @@ function threadBlocks(thread: ThreadSeed, failed: string[]): CardBlocks {
   return { chip, body: bodyParts.join('\n\n') };
 }
 
+/** Builds only the thread's own card, used when its content changes later. */
+export async function buildThreadCard(
+  thread: ThreadSeed,
+  x: number,
+  y: number
+): Promise<BuiltCard> {
+  await ensureCardFont();
+  const images = await loadImages(thread.content);
+  return buildCard(threadBlocks(thread, images.failed), images.loaded, {
+    x,
+    y,
+    maxWidth: CARD_W,
+    id: `thread-${thread.id}`,
+    link: `/threads/${thread.id}`,
+    customData: { threadId: thread.id, kind: 'thread-card' },
+  });
+}
+
 function commentBlocks(comment: CommentSeed, failed: string[]): CardBlocks {
   const bodyParts = [toPlainText(comment.content)].filter(Boolean);
   if (failed.length) bodyParts.push(failed.map((u) => `[image] ${u}`).join('\n'));
@@ -465,15 +483,7 @@ export async function buildThreadCluster(
 
 
   const threadElId = `thread-${thread.id}`;
-  const threadImages = await loadImages(thread.content);
-  const threadCard = buildCard(threadBlocks(thread, threadImages.failed), threadImages.loaded, {
-    x: originX,
-    y: originY,
-    maxWidth: CARD_W,
-    id: threadElId,
-    link: `/threads/${thread.id}`,
-    customData: { threadId: thread.id, kind: 'thread-card' },
-  });
+  const threadCard = await buildThreadCard(thread, originX, originY);
   elements.push(...threadCard.elements);
   Object.assign(files, threadCard.files);
 
