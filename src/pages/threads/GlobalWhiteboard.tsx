@@ -354,15 +354,22 @@ export default function GlobalWhiteboard() {
       });
       return;
     }
-    const referenced = new Set(
-      (elements as any[])
-        .filter((el) => el?.type === 'image' && el?.fileId && !el?.isDeleted)
-        .map((el) => el.fileId as string)
-    );
+    // Every image element must ship with its binary, otherwise it is saved as a
+    // permanently blank box. Fall back to the canvas file map, and if the binary
+    // still cannot be found, drop the element instead of persisting an orphan.
+    const canvasFiles = (apiRef.current?.getFiles?.() || {}) as Record<string, any>;
+    const pool = { ...canvasFiles, ...(files || {}) };
     const trimmedFiles: Record<string, any> = {};
-    for (const [k, v] of Object.entries(files || {})) {
-      if (referenced.has(k)) trimmedFiles[k] = v;
+    const orphanIds = new Set<string>();
+    for (const el of elements as any[]) {
+      if (el?.type !== 'image' || !el.fileId || el.isDeleted) continue;
+      const binary = pool[el.fileId];
+      if (binary) trimmedFiles[el.fileId] = binary;
+      else if (!knownFileIdsRef.current.has(el.fileId)) orphanIds.add(el.id);
     }
+    const safeElements = orphanIds.size
+      ? (elements as any[]).filter((el) => !orphanIds.has(el.id))
+      : (elements as any[]);
     const filesHash = Object.keys(trimmedFiles).sort().join(',');
     // Signature must change whenever ANY element changes (moves, styling, deletes),
     // not just when the element count or the last element's version changes.
