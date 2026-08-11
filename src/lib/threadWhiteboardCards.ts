@@ -24,24 +24,28 @@ export interface BuiltCard {
   height: number;
 }
 
-// Wide, sketch-style cards: full content, small text, generous canvas spacing.
-export const CARD_W = 960;
-export const COMMENT_W = 880;
-export const CLUSTER_GAP_X = 1180;
-export const CLUSTER_GAP_Y = 180;
+// Content-shaped cards: a card is only as big as the text + images inside it.
+// CARD_W / COMMENT_W are MAXIMUMS, never fixed widths.
+export const CARD_W = 720;
+export const COMMENT_W = 660;
+export const CLUSTER_GAP_X = 900;
+export const CLUSTER_GAP_Y = 140;
 
 const BODY_FONT = 16;
 const LINE_H = 1.25;
-const PAD = 24;
-const GAP = 16;
-const IMG_MAX_W = 440;
-const IMG_MAX_H = 340;
-const CHIP_MAX_W = 340;
+const CHAR_W = 0.55; // average advance width of the hand-drawn font at 1px size
+const PAD = 20;
+const GAP = 14;
+const MIN_TEXT_W = 150;
+const IMG_MAX_W = 320;
+const IMG_MAX_H = 260;
+const CHIP_MAX_W = 320;
 const STROKE = '#1e1e1e';
 const CARD_BG = '#ffffff';
 const CHIP_BG = '#e7f0ff';
 const CHIP_STROKE = '#1971c2';
 const CHIP_TEXT = '#1971c2';
+
 
 /** Strips HTML/markdown wrappers down to readable plain text. Never truncates by default. */
 export function toPlainText(raw: string | null | undefined, max = Number.POSITIVE_INFINITY): string {
