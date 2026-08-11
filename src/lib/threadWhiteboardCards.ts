@@ -440,6 +440,15 @@ function threadBlocks(thread: ThreadSeed, failed: string[]): CardBlocks {
   return { chip, body: bodyParts.join('\n\n') };
 }
 
+/**
+ * Stamp of the content a card was built from. Cards created before a thread's
+ * images existed carry an older stamp, which is how stale cards are detected
+ * and rebuilt instead of staying text-only forever.
+ */
+export function threadFingerprint(thread: ThreadSeed): string {
+  return hashId(`${thread.title || ''}|${thread.category || ''}|${thread.content || ''}`);
+}
+
 /** Builds only the thread's own card, used when its content changes later. */
 export async function buildThreadCard(
   thread: ThreadSeed,
@@ -454,7 +463,7 @@ export async function buildThreadCard(
     maxWidth: CARD_W,
     id: `thread-${thread.id}`,
     link: `/threads/${thread.id}`,
-    customData: { threadId: thread.id, kind: 'thread-card' },
+    customData: { threadId: thread.id, kind: 'thread-card', fp: threadFingerprint(thread) },
   });
 }
 
