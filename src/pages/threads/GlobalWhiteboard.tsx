@@ -193,8 +193,18 @@ export default function GlobalWhiteboard() {
       for (const t of threads) {
         const threadComments = commentsByThread.get(t.id) ?? [];
         if (!presentThreads.has(t.id)) {
-          const probe = await buildThreadCluster(t, threadComments, 0, 0);
-          const { x, y } = packer.next(probe.height);
+          // Rebuilt stale clusters keep their original spot so the board layout
+          // does not shuffle every time a thread's content changes.
+          const at = staleThreads.get(t.id);
+          let x: number;
+          let y: number;
+          if (at) {
+            x = at.x;
+            y = at.y;
+          } else {
+            const probe = await buildThreadCluster(t, threadComments, 0, 0);
+            ({ x, y } = packer.next(probe.height));
+          }
           const cluster = await buildThreadCluster(t, threadComments, x, y);
           additions.push(...cluster.elements);
           Object.assign(additionFiles, cluster.files);
