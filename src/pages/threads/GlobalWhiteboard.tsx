@@ -134,16 +134,16 @@ export default function GlobalWhiteboard() {
       const packer = makePacker(columnTops);
 
       const additions: any[] = [];
-      let colorIndex = presentThreads.size;
+      const additionFiles: Record<string, any> = {};
 
       for (const t of threads) {
         const threadComments = commentsByThread.get(t.id) ?? [];
         if (!presentThreads.has(t.id)) {
-          const probe = buildThreadCluster(t, threadComments, 0, 0, colorIndex);
+          const probe = await buildThreadCluster(t, threadComments, 0, 0);
           const { x, y } = packer.next(probe.height);
-          const cluster = buildThreadCluster(t, threadComments, x, y, colorIndex);
+          const cluster = await buildThreadCluster(t, threadComments, x, y);
           additions.push(...cluster.elements);
-          colorIndex++;
+          Object.assign(additionFiles, cluster.files);
           continue;
         }
         // Thread already on the board — append only the replies it is missing.
@@ -151,12 +151,13 @@ export default function GlobalWhiteboard() {
         if (!missing.length) continue;
         const owned = elements.filter((el: any) => el?.customData?.threadId === t.id && !el.isDeleted);
         const baseX = Math.min(...owned.map((el: any) => el.x || 0));
-        let cursorY = Math.max(...owned.map((el: any) => (el.y || 0) + (el.height || 0))) + 140;
+        let cursorY = Math.max(...owned.map((el: any) => (el.y || 0) + (el.height || 0))) + CLUSTER_GAP_Y;
         for (const cm of missing) {
           const indent = Math.min(cm.depth ?? 0, 4) * 120;
-          const built = buildCommentCard(cm, baseX + 40 + indent, cursorY, t.id, colorIndex);
+          const built = await buildCommentCard(cm, baseX + 40 + indent, cursorY, t.id);
           additions.push(...built.elements);
-          cursorY += built.height + 140;
+          Object.assign(additionFiles, built.files);
+          cursorY += built.height + CLUSTER_GAP_Y;
         }
       }
 
@@ -171,7 +172,7 @@ export default function GlobalWhiteboard() {
       setInitial({
         elements: merged,
         appState: { ...(scene.appState || {}), viewBackgroundColor: scene.appState?.viewBackgroundColor || '#fafaf9' },
-        files: scene.files || {},
+        files: { ...(scene.files || {}), ...additionFiles },
       });
       liveCountRef.current = merged.filter((el: any) => el && !el.isDeleted).length;
       setReady(true);
@@ -224,15 +225,18 @@ export default function GlobalWhiteboard() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'threads' },
-        (payload: any) => {
+        async (payload: any) => {
           const t = payload.new;
           if (!t || !apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
           if (current.some((el) => el?.customData?.threadId === t.id)) return;
           const live = current.filter((el) => el && !el.isDeleted);
           const bottom = live.length ? Math.max(...live.map((el) => (el.y || 0) + (el.height || 0))) : 0;
-          const cluster = buildThreadCluster(t as ThreadSeed, [], 40, bottom + CLUSTER_GAP_Y, current.length);
+          const cluster = await buildThreadCluster(t as ThreadSeed, [], 40, bottom + CLUSTER_GAP_Y);
+          if (!apiRef.current) return;
           applyingRemoteRef.current = true;
+          const clusterFiles = Object.values(cluster.files);
+          if (clusterFiles.length && apiRef.current.addFiles) apiRef.current.addFiles(clusterFiles as any);
           apiRef.current.updateScene({ elements: [...current, ...cluster.elements] });
           applyingRemoteRef.current = false;
         }
@@ -240,7 +244,7 @@ export default function GlobalWhiteboard() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'comments' },
-        (payload: any) => {
+        async (payload: any) => {
           const cm = payload.new as CommentSeed;
           if (!cm || !apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
@@ -250,10 +254,13 @@ export default function GlobalWhiteboard() {
           );
           if (!owned.length) return;
           const baseX = Math.min(...owned.map((el) => el.x || 0));
-          const cursorY = Math.max(...owned.map((el) => (el.y || 0) + (el.height || 0))) + 140;
+          const cursorY = Math.max(...owned.map((el) => (el.y || 0) + (el.height || 0))) + CLUSTER_GAP_Y;
           const indent = Math.min(cm.depth ?? 0, 4) * 120;
-          const built = buildCommentCard(cm, baseX + 40 + indent, cursorY, cm.thread_id, current.length);
+          const built = await buildCommentCard(cm, baseX + 40 + indent, cursorY, cm.thread_id);
+          if (!apiRef.current) return;
           applyingRemoteRef.current = true;
+          const builtFiles = Object.values(built.files);
+          if (builtFiles.length && apiRef.current.addFiles) apiRef.current.addFiles(builtFiles as any);
           apiRef.current.updateScene({ elements: [...current, ...built.elements] });
           applyingRemoteRef.current = false;
         }
