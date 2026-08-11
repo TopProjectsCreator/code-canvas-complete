@@ -84,13 +84,22 @@ export function extractImageUrls(raw: string | null | undefined): string[] {
 
 // ---------------------------------------------------------------- text layout
 
-function charsPerLine(width: number, fontSize: number) {
-  return Math.max(8, Math.floor(width / (fontSize * 0.55)));
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+
+/** Real pixel width of a line in Excalidraw's hand-drawn font (canvas-measured). */
+function measureLine(line: string, fontSize = BODY_FONT): number {
+  if (!line) return 0;
+  if (measureCtx === undefined) {
+    measureCtx =
+      typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+  }
+  if (!measureCtx) return line.length * fontSize * CHAR_W;
+  measureCtx.font = `${fontSize}px Excalifont, Virgil, "Segoe UI", sans-serif`;
+  return measureCtx.measureText(line).width;
 }
 
 /** Word-wraps text to a pixel width so the card height matches what renders. */
 function wrapText(text: string, width: number, fontSize = BODY_FONT): string {
-  const cap = charsPerLine(width, fontSize);
   const out: string[] = [];
   for (const paragraph of text.split('\n')) {
     if (!paragraph.length) {
@@ -100,13 +109,16 @@ function wrapText(text: string, width: number, fontSize = BODY_FONT): string {
     let line = '';
     for (const word of paragraph.split(/\s+/)) {
       let w = word;
-      while (w.length > cap) {
+      // Break words that cannot fit on a line of their own.
+      while (measureLine(w, fontSize) > width) {
+        let cut = w.length;
+        while (cut > 1 && measureLine(w.slice(0, cut), fontSize) > width) cut--;
         if (line) { out.push(line); line = ''; }
-        out.push(w.slice(0, cap));
-        w = w.slice(cap);
+        out.push(w.slice(0, cut));
+        w = w.slice(cut);
       }
       if (!line) line = w;
-      else if (line.length + 1 + w.length <= cap) line += ` ${w}`;
+      else if (measureLine(`${line} ${w}`, fontSize) <= width) line += ` ${w}`;
       else { out.push(line); line = w; }
     }
     out.push(line);
@@ -120,9 +132,10 @@ function textHeight(wrapped: string, fontSize = BODY_FONT): number {
 
 /** Pixel width of the longest line — used to shrink a card to its content. */
 function textWidth(wrapped: string, fontSize = BODY_FONT): number {
-  const longest = wrapped.split('\n').reduce((m, l) => Math.max(m, l.length), 0);
-  return Math.ceil(longest * fontSize * CHAR_W);
+  const longest = wrapped.split('\n').reduce((m, l) => Math.max(m, measureLine(l, fontSize)), 0);
+  return Math.ceil(longest) + 6;
 }
+
 
 
 // -------------------------------------------------------------- image loading
