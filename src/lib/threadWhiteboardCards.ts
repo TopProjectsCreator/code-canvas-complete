@@ -118,6 +118,13 @@ function textHeight(wrapped: string, fontSize = BODY_FONT): number {
   return Math.max(1, wrapped.split('\n').length) * Math.round(fontSize * LINE_H);
 }
 
+/** Pixel width of the longest line — used to shrink a card to its content. */
+function textWidth(wrapped: string, fontSize = BODY_FONT): number {
+  const longest = wrapped.split('\n').reduce((m, l) => Math.max(m, l.length), 0);
+  return Math.ceil(longest * fontSize * CHAR_W);
+}
+
+
 // -------------------------------------------------------------- image loading
 
 type LoadedImage = { fileId: string; dataURL: string; mimeType: string; w: number; h: number };
