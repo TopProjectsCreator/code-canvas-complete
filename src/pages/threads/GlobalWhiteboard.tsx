@@ -151,12 +151,12 @@ export default function GlobalWhiteboard() {
         if (!missing.length) continue;
         const owned = elements.filter((el: any) => el?.customData?.threadId === t.id && !el.isDeleted);
         const baseX = Math.min(...owned.map((el: any) => el.x || 0));
-        let cursorY = Math.max(...owned.map((el: any) => (el.y || 0) + (el.height || 0))) + 28;
+        let cursorY = Math.max(...owned.map((el: any) => (el.y || 0) + (el.height || 0))) + 140;
         for (const cm of missing) {
-          const indent = Math.min(cm.depth ?? 0, 4) * 28;
-          const built = buildCommentCard(cm, baseX + 24 + indent, cursorY, t.id, colorIndex);
+          const indent = Math.min(cm.depth ?? 0, 4) * 120;
+          const built = buildCommentCard(cm, baseX + 40 + indent, cursorY, t.id, colorIndex);
           additions.push(...built.elements);
-          cursorY += built.height + 28;
+          cursorY += built.height + 140;
         }
       }
 
@@ -250,9 +250,9 @@ export default function GlobalWhiteboard() {
           );
           if (!owned.length) return;
           const baseX = Math.min(...owned.map((el) => el.x || 0));
-          const cursorY = Math.max(...owned.map((el) => (el.y || 0) + (el.height || 0))) + 28;
-          const indent = Math.min(cm.depth ?? 0, 4) * 28;
-          const built = buildCommentCard(cm, baseX + 24 + indent, cursorY, cm.thread_id, current.length);
+          const cursorY = Math.max(...owned.map((el) => (el.y || 0) + (el.height || 0))) + 140;
+          const indent = Math.min(cm.depth ?? 0, 4) * 120;
+          const built = buildCommentCard(cm, baseX + 40 + indent, cursorY, cm.thread_id, current.length);
           applyingRemoteRef.current = true;
           apiRef.current.updateScene({ elements: [...current, ...built.elements] });
           applyingRemoteRef.current = false;
