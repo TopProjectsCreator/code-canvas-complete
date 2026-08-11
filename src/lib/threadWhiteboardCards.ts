@@ -446,8 +446,10 @@ export async function buildThreadCluster(
   originX: number,
   originY: number
 ): Promise<BuiltCard> {
+  await ensureCardFont();
   const elements: any[] = [];
   const files: Record<string, any> = {};
+
 
   const threadElId = `thread-${thread.id}`;
   const threadImages = await loadImages(thread.content);
