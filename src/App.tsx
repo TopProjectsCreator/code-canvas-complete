@@ -43,6 +43,7 @@ import ThreadsList from "./pages/threads/ThreadsList";
 import ThreadDetail from "./pages/threads/ThreadDetail";
 import CreateThread from "./pages/threads/CreateThread";
 import GlobalWhiteboard from "./pages/threads/GlobalWhiteboard";
+import CardPreview from "./pages/threads/__CardPreview";
 import RedactorLanding from "./pages/redactor/Landing";
 import RedactorAuth from "./pages/redactor/Auth";
 import RedactorDashboard from "./pages/redactor/Dashboard";
