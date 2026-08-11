@@ -442,6 +442,7 @@ export default function GlobalWhiteboard() {
             size.h
           );
           const built = await buildCommentCard(cm, spot.x, spot.y, cm.thread_id);
+          if (!apiRef.current) return;
           const nextEls = [...current, ...built.elements];
           applyingRemoteRef.current = true;
           const builtFiles = Object.values(built.files);
