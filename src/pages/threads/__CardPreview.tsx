@@ -2,12 +2,18 @@
 import { useEffect, useState } from 'react';
 import { Excalidraw } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
-import { buildThreadCluster } from '@/lib/threadWhiteboardCards';
+import { buildThreadCluster, ensureCardFont } from '@/lib/threadWhiteboardCards';
 
 export default function CardPreview() {
-  const [scene, setScene] = useState<any>(null);
+  const [api, setApi] = useState<any>(null);
+
   useEffect(() => {
+    if (!api) return;
+    let cancelled = false;
     (async () => {
+      // Build only after Excalidraw has mounted so Excalifont is registered and
+      // text measurement matches what the canvas will draw.
+      await ensureCardFont();
       const built = await buildThreadCluster(
         { id: 't1', title: 'QOTD: Should we add GPU support?', category: 'Show & Tell', content: '<p>Short body.</p>' },
         [
@@ -26,13 +32,19 @@ export default function CardPreview() {
         40,
         40
       );
-      setScene({ elements: built.elements, files: built.files, appState: { viewBackgroundColor: '#fafaf9' } });
+      if (cancelled) return;
+      api.updateScene({ elements: built.elements });
+      api.addFiles(Object.values(built.files));
+      api.scrollToContent(built.elements, { fitToContent: true });
     })();
-  }, []);
-  if (!scene) return <div>loading</div>;
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
+
   return (
     <div className="fixed inset-0">
-      <Excalidraw initialData={scene} viewModeEnabled />
+      <Excalidraw excalidrawAPI={setApi} initialData={{ appState: { viewBackgroundColor: '#fafaf9' } }} />
     </div>
   );
 }
