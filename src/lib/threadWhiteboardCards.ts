@@ -94,9 +94,14 @@ function measureLine(line: string, fontSize = BODY_FONT): number {
       typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
   }
   if (!measureCtx) return line.length * fontSize * CHAR_W;
+  const hasExcalifont =
+    typeof document !== 'undefined' && !!document.fonts?.check?.(`${fontSize}px Excalifont`);
   measureCtx.font = `${fontSize}px Excalifont, Virgil, "Segoe UI", sans-serif`;
-  return measureCtx.measureText(line).width;
+  // Excalifont runs a touch wider than the fallback sans — pad when it is not
+  // loaded yet so wrapped text never spills past the card edge.
+  return measureCtx.measureText(line).width * (hasExcalifont ? 1 : 1.12);
 }
+
 
 /** Word-wraps text to a pixel width so the card height matches what renders. */
 function wrapText(text: string, width: number, fontSize = BODY_FONT): string {
