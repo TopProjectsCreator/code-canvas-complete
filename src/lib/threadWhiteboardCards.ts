@@ -102,54 +102,55 @@ export function buildThreadCluster(
       roundness: { type: 3 },
       link: `/threads/${thread.id}`,
       customData: { threadId: thread.id, kind: 'thread-card' },
-      label: { text: label, fontSize: 16, textAlign: 'left', verticalAlign: 'top' },
+      label: { text: label, fontSize: BODY_FONT, textAlign: 'left', verticalAlign: 'top' },
     },
   ];
 
   // Sort replies so parents always come before children.
   const ordered = orderComments(comments);
-  let cursorY = originY + threadH + 40;
+  let cursorY = originY + threadH + 140;
 
   for (const cm of ordered) {
     const h = commentCardHeight(cm);
-    const indent = Math.min(cm.depth ?? 0, 4) * 28;
+    const indent = Math.min(cm.depth ?? 0, 4) * 120;
     const elId = `comment-${cm.id}`;
-    const author = cm.author ? `${cm.author}: ` : '';
+    const author = cm.author ? `${cm.author}:\n` : '';
     skeleton.push({
       type: 'rectangle',
       id: elId,
-      x: originX + 24 + indent,
+      x: originX + 40 + indent,
       y: cursorY,
       width: COMMENT_W,
       height: h,
       backgroundColor: '#ffffff',
       strokeColor: STROKES[c],
       fillStyle: 'solid',
-      strokeWidth: 1,
+      strokeWidth: 2,
       roundness: { type: 3 },
       link: `/threads/${thread.id}`,
       customData: { threadId: thread.id, commentId: cm.id, kind: 'comment-card' },
       label: {
-        text: `${author}${toPlainText(cm.content, 400)}`,
-        fontSize: 14,
+        text: `${author}${toPlainText(cm.content)}`,
+        fontSize: BODY_FONT,
         textAlign: 'left',
         verticalAlign: 'top',
       },
     });
     skeleton.push({
       type: 'arrow',
-      x: originX + 12,
-      y: cursorY - 24,
-      width: 24,
-      height: 24,
+      x: originX + 60 + indent,
+      y: cursorY - 110,
+      width: 60,
+      height: 90,
       strokeColor: STROKES[c],
-      strokeWidth: 1,
+      strokeWidth: 2,
       customData: { threadId: thread.id, commentId: cm.id, kind: 'comment-link' },
       start: { id: cm.parent_id ? `comment-${cm.parent_id}` : threadElId },
       end: { id: elId },
     });
-    cursorY += h + 28;
+    cursorY += h + 140;
   }
+
 
   return {
     elements: convertToExcalidrawElements(skeleton as any),
