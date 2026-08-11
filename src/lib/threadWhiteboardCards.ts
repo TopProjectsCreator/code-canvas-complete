@@ -85,6 +85,36 @@ export function extractImageUrls(raw: string | null | undefined): string[] {
 // ---------------------------------------------------------------- text layout
 
 let measureCtx: CanvasRenderingContext2D | null | undefined;
+let fontReady: Promise<void> | null = null;
+
+/**
+ * Excalidraw renders text in Excalifont, which is ~17% wider than the fallback
+ * sans. Measuring before that font is loaded is what makes text spill out of
+ * cards, so every builder awaits this first.
+ */
+export function ensureCardFont(): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return Promise.resolve();
+  if (!fontReady) {
+    fontReady = (async () => {
+      try {
+        await document.fonts.load(`${BODY_FONT}px Excalifont`);
+      } catch {
+        /* fall back to the width fudge in measureLine */
+      }
+    })();
+  }
+  return fontReady;
+}
+
+/** True once Excalifont actually measures differently from the fallback sans. */
+function excalifontLoaded(ctx: CanvasRenderingContext2D, fontSize: number): boolean {
+  const probe = 'MMMMwwwwiiii';
+  ctx.font = `${fontSize}px Excalifont`;
+  const a = ctx.measureText(probe).width;
+  ctx.font = `${fontSize}px sans-serif`;
+  const b = ctx.measureText(probe).width;
+  return Math.abs(a - b) > 0.5;
+}
 
 /** Real pixel width of a line in Excalidraw's hand-drawn font (canvas-measured). */
 function measureLine(line: string, fontSize = BODY_FONT): number {
@@ -94,13 +124,12 @@ function measureLine(line: string, fontSize = BODY_FONT): number {
       typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
   }
   if (!measureCtx) return line.length * fontSize * CHAR_W;
-  const hasExcalifont =
-    typeof document !== 'undefined' && !!document.fonts?.check?.(`${fontSize}px Excalifont`);
+  const loaded = excalifontLoaded(measureCtx, fontSize);
   measureCtx.font = `${fontSize}px Excalifont, Virgil, "Segoe UI", sans-serif`;
-  // Excalifont runs a touch wider than the fallback sans — pad when it is not
-  // loaded yet so wrapped text never spills past the card edge.
-  return measureCtx.measureText(line).width * (hasExcalifont ? 1 : 1.12);
+  // Pad when Excalifont has not loaded yet so wrapped text never spills out.
+  return measureCtx.measureText(line).width * (loaded ? 1 : 1.2);
 }
+
 
 
 /** Word-wraps text to a pixel width so the card height matches what renders. */
