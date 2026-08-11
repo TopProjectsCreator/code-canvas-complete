@@ -447,7 +447,7 @@ function threadBlocks(thread: ThreadSeed, failed: string[]): CardBlocks {
  * and rebuilt instead of staying text-only forever.
  */
 export function threadFingerprint(thread: ThreadSeed): string {
-  return hashId(`${thread.title || ''}|${thread.category || ''}|${thread.content || ''}`);
+  return hashId(`tree-v2|${thread.title || ''}|${thread.category || ''}|${thread.content || ''}`);
 }
 
 /** Builds only the thread's own card, used when its content changes later. */
@@ -557,7 +557,7 @@ export async function buildThreadCluster(
   const forestWidth = rootWidths.reduce((sum, width) => sum + width, 0) + TREE_GAP_X * Math.max(0, roots.length - 1);
   const threadLive = threadCard.elements.filter((el) => el && !el.isDeleted);
   const threadWidth = Math.max(...threadLive.map((el) => (el.x || 0) + (el.width || 0))) - originX;
-  let branchLeft = originX + (threadWidth - forestWidth) / 2;
+  let branchLeft = originX + Math.max(0, (threadWidth - forestWidth) / 2);
   let clusterBottom = originY + threadCard.height;
   for (const root of roots) {
     clusterBottom = Math.max(

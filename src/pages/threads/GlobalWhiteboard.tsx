@@ -289,10 +289,18 @@ export default function GlobalWhiteboard() {
         const baseX = Math.min(...owned.map((el: any) => el.x || 0));
         let cursorY = Math.max(...owned.map((el: any) => (el.y || 0) + (el.height || 0))) + CLUSTER_GAP_Y;
         for (const cm of missing) {
-          const indent = Math.min(cm.depth ?? 0, 4) * 120;
           const probe = await buildCommentCard(cm, 0, 0, t.id);
           const size = bboxOf(probe.elements);
-          const spot = placer.placeNear(baseX + 40 + indent, cursorY, size.w, size.h);
+          const parent = cm.parent_id
+            ? workingElements.find(
+                (el: any) => el?.customData?.kind === 'comment-card' && el?.customData?.commentId === cm.parent_id,
+              )
+            : null;
+          const preferredX = parent ? (parent.x || baseX) : baseX;
+          const preferredY = parent
+            ? (parent.y || 0) + (parent.height || 0) + CLUSTER_GAP_Y
+            : cursorY;
+          const spot = placer.placeNear(preferredX, preferredY, size.w, size.h);
           const built = await buildCommentCard(cm, spot.x, spot.y, t.id);
           additions.push(...built.elements);
           Object.assign(additionFiles, built.files);
@@ -432,12 +440,16 @@ export default function GlobalWhiteboard() {
           if (!owned.length) return;
           const baseX = Math.min(...owned.map((el) => el.x || 0));
           const cursorY = Math.max(...owned.map((el) => (el.y || 0) + (el.height || 0))) + CLUSTER_GAP_Y;
-          const indent = Math.min(cm.depth ?? 0, 4) * 120;
+          const parent = cm.parent_id
+            ? current.find(
+                (el) => el?.customData?.kind === 'comment-card' && el?.customData?.commentId === cm.parent_id,
+              )
+            : null;
           const probe = await buildCommentCard(cm, 0, 0, cm.thread_id);
           const size = bboxOf(probe.elements);
           const spot = makePlacer(occupiedRects(current)).placeNear(
-            baseX + 40 + indent,
-            cursorY,
+            parent ? (parent.x || baseX) : baseX,
+            parent ? (parent.y || 0) + (parent.height || 0) + CLUSTER_GAP_Y : cursorY,
             size.w,
             size.h
           );
@@ -763,7 +775,10 @@ export default function GlobalWhiteboard() {
         await persist(elements, appState, files || {});
       } catch (err) {
         console.error('[Whiteboard] Save failed:', err);
-        toast({ title: 'Whiteboard save failed', description: 'Your changes may not be saved.', variant: 'destructive' });
+        const message = err && typeof err === 'object' && 'message' in err
+          ? String(err.message)
+          : 'Your changes may not be saved.';
+        toast({ title: 'Whiteboard save failed', description: message, variant: 'destructive' });
       }
     }, 600);
   }, [persist, broadcastScene, diffAndAttribute, toast]);
