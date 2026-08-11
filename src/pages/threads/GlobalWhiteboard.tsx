@@ -217,12 +217,36 @@ export default function GlobalWhiteboard() {
           if (!t || !apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
           if (current.some((el) => el?.customData?.threadId === t.id)) return;
-          const card = buildThreadCard(t, current.length);
+          const live = current.filter((el) => el && !el.isDeleted);
+          const bottom = live.length ? Math.max(...live.map((el) => (el.y || 0) + (el.height || 0))) : 0;
+          const cluster = buildThreadCluster(t as ThreadSeed, [], 40, bottom + CLUSTER_GAP_Y, current.length);
           applyingRemoteRef.current = true;
-          apiRef.current.updateScene({ elements: [...current, ...card] });
+          apiRef.current.updateScene({ elements: [...current, ...cluster.elements] });
           applyingRemoteRef.current = false;
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comments' },
+        (payload: any) => {
+          const cm = payload.new as CommentSeed;
+          if (!cm || !apiRef.current) return;
+          const current = apiRef.current.getSceneElements() as any[];
+          if (current.some((el) => el?.customData?.commentId === cm.id)) return;
+          const owned = current.filter(
+            (el) => el?.customData?.threadId === cm.thread_id && !el.isDeleted
+          );
+          if (!owned.length) return;
+          const baseX = Math.min(...owned.map((el) => el.x || 0));
+          const cursorY = Math.max(...owned.map((el) => (el.y || 0) + (el.height || 0))) + 28;
+          const indent = Math.min(cm.depth ?? 0, 4) * 28;
+          const built = buildCommentCard(cm, baseX + 24 + indent, cursorY, cm.thread_id, current.length);
+          applyingRemoteRef.current = true;
+          apiRef.current.updateScene({ elements: [...current, ...built.elements] });
+          applyingRemoteRef.current = false;
+        }
+      )
+
       .on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState<PeerMeta>();
         const list: PeerMeta[] = [];
