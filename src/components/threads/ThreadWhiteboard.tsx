@@ -115,7 +115,15 @@ export function ThreadWhiteboard({ threadId }: Props) {
       files: trimmedFiles,
     };
     const filesHash = Object.keys(trimmedFiles).sort().join(',');
-    const hash = String(elements.length) + ':' + (elements[elements.length - 1]?.version || 0) + ':' + filesHash;
+    // Signature must change whenever ANY element changes (moves, styling, deletes),
+    // not just when the element count or the last element's version changes.
+    let versionSum = 0;
+    let deletedCount = 0;
+    for (const el of elements as any[]) {
+      versionSum += (el?.version || 0) + (el?.versionNonce || 0) % 1000;
+      if (el?.isDeleted) deletedCount++;
+    }
+    const hash = `${elements.length}:${deletedCount}:${versionSum}:${filesHash}`;
     if (hash === lastSentHashRef.current) return;
     lastSentHashRef.current = hash;
     await supabase.from('thread_whiteboards').upsert({
