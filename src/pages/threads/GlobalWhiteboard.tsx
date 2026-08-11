@@ -375,18 +375,18 @@ export default function GlobalWhiteboard() {
     // not just when the element count or the last element's version changes.
     let versionSum = 0;
     let deletedCount = 0;
-    for (const el of elements as any[]) {
+    for (const el of safeElements) {
       versionSum += (el?.version || 0) + (el?.versionNonce || 0) % 1000;
       if (el?.isDeleted) deletedCount++;
     }
-    const hash = `${elements.length}:${liveCount}:${deletedCount}:${versionSum}:${filesHash}`;
+    const hash = `${safeElements.length}:${liveCount}:${deletedCount}:${versionSum}:${filesHash}`;
     if (hash === lastSentHashRef.current) return;
     const newFiles = Object.fromEntries(
       Object.entries(trimmedFiles).filter(([id]) => !knownFileIdsRef.current.has(id))
     );
     const { error } = await (supabase.rpc as any)('save_global_whiteboard_scene', {
       _board_id: BOARD_ID,
-      _elements: elements,
+      _elements: safeElements,
       _app_state: { viewBackgroundColor: appState?.viewBackgroundColor || '#fafaf9' },
       _new_files: newFiles,
     });
