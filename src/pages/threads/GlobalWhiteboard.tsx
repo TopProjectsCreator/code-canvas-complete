@@ -658,13 +658,15 @@ export default function GlobalWhiteboard() {
           !(el.groupIds || []).some((g: string) => generatedGroups.has(g))
       );
 
-      const packer = makePacker(Array.from({ length: COLS }, () => 40));
+      // Hand-drawn work stays put, so rebuilt clusters must route around it.
+      const placer = makePlacer(occupiedRects(kept));
       const rebuilt: any[] = [];
       const files: Record<string, any> = {};
       for (const t of threads) {
         const threadComments = commentsByThread.get(t.id) ?? [];
         const probe = await buildThreadCluster(t, threadComments, 0, 0);
-        const { x, y } = packer.next(probe.height);
+        const size = bboxOf(probe.elements);
+        const { x, y } = placer.place(size.w, size.h);
         const cluster = await buildThreadCluster(t, threadComments, x, y);
         rebuilt.push(...cluster.elements);
         Object.assign(files, cluster.files);
