@@ -21,6 +21,7 @@ export function ThreadWhiteboard({ threadId }: Props) {
   const channelRef = useRef<any>(null);
   const clientIdRef = useRef<string>(Math.random().toString(36).slice(2));
   const lastSentHashRef = useRef<string>('');
+  const knownFileIdsRef = useRef<Set<string>>(new Set());
   const applyingRemoteRef = useRef(false);
   const [peerCount, setPeerCount] = useState(1);
 
@@ -36,6 +37,7 @@ export function ThreadWhiteboard({ threadId }: Props) {
       if (cancelled) return;
       if (data?.scene) {
         const s = data.scene as Scene;
+        knownFileIdsRef.current = new Set(Object.keys(s.files || {}));
         setInitial({
           elements: Array.isArray(s.elements) ? s.elements : [],
           appState: { ...(s.appState || {}), viewBackgroundColor: s.appState?.viewBackgroundColor || '#ffffff' },
@@ -109,11 +111,6 @@ export function ThreadWhiteboard({ threadId }: Props) {
     for (const [k, v] of Object.entries(files || {})) {
       if (referenced.has(k)) trimmedFiles[k] = v;
     }
-    const scene: Scene = {
-      elements: elements as any[],
-      appState: { viewBackgroundColor: appState?.viewBackgroundColor || '#ffffff' },
-      files: trimmedFiles,
-    };
     const filesHash = Object.keys(trimmedFiles).sort().join(',');
     // Signature must change whenever ANY element changes (moves, styling, deletes),
     // not just when the element count or the last element's version changes.
@@ -125,13 +122,18 @@ export function ThreadWhiteboard({ threadId }: Props) {
     }
     const hash = `${elements.length}:${deletedCount}:${versionSum}:${filesHash}`;
     if (hash === lastSentHashRef.current) return;
+    const newFiles = Object.fromEntries(
+      Object.entries(trimmedFiles).filter(([id]) => !knownFileIdsRef.current.has(id))
+    );
+    const { error } = await (supabase.rpc as any)('save_thread_whiteboard_scene', {
+      _thread_id: threadId,
+      _elements: elements,
+      _app_state: { viewBackgroundColor: appState?.viewBackgroundColor || '#ffffff' },
+      _new_files: newFiles,
+    });
+    if (error) throw error;
     lastSentHashRef.current = hash;
-    await supabase.from('thread_whiteboards').upsert({
-      thread_id: threadId,
-      scene: scene as any,
-      updated_by: user.id,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'thread_id' });
+    for (const id of Object.keys(newFiles)) knownFileIdsRef.current.add(id);
   }, [threadId, user]);
 
   const broadcastScene = useCallback((elements: readonly any[], files: Record<string, any>) => {
@@ -167,7 +169,11 @@ export function ThreadWhiteboard({ threadId }: Props) {
       }, 50);
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => persist(elements, appState, files || {}), 500);
+    debounceRef.current = setTimeout(() => {
+      persist(elements, appState, files || {}).catch((error) => {
+        console.error('[ThreadWhiteboard] Save failed:', error);
+      });
+    }, 500);
   }, [persist, broadcastScene]);
 
   useEffect(() => () => {

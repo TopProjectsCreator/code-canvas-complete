@@ -64,6 +64,7 @@ export default function GlobalWhiteboard() {
   const channelRef = useRef<any>(null);
   const clientIdRef = useRef<string>(Math.random().toString(36).slice(2));
   const lastSentHashRef = useRef<string>('');
+  const knownFileIdsRef = useRef<Set<string>>(new Set());
   const applyingRemoteRef = useRef(false);
 
   // Peer/presence state
@@ -165,6 +166,7 @@ export default function GlobalWhiteboard() {
         if (el?.id) initMap.set(el.id, { version: el.version || 0, isDeleted: !!el.isDeleted });
       }
       prevElementsRef.current = initMap;
+      knownFileIdsRef.current = new Set(Object.keys(scene.files || {}));
 
       setInitial({
         elements: merged,
@@ -329,11 +331,6 @@ export default function GlobalWhiteboard() {
     for (const [k, v] of Object.entries(files || {})) {
       if (referenced.has(k)) trimmedFiles[k] = v;
     }
-    const scene: Scene = {
-      elements: elements as any[],
-      appState: { viewBackgroundColor: appState?.viewBackgroundColor || '#fafaf9' },
-      files: trimmedFiles,
-    };
     const filesHash = Object.keys(trimmedFiles).sort().join(',');
     // Signature must change whenever ANY element changes (moves, styling, deletes),
     // not just when the element count or the last element's version changes.
@@ -345,17 +342,18 @@ export default function GlobalWhiteboard() {
     }
     const hash = `${elements.length}:${liveCount}:${deletedCount}:${versionSum}:${filesHash}`;
     if (hash === lastSentHashRef.current) return;
-    lastSentHashRef.current = hash;
-    const { error } = await supabase.from('global_whiteboard').upsert(
-      {
-        id: BOARD_ID,
-        scene: scene as any,
-        updated_by: user.id,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' }
+    const newFiles = Object.fromEntries(
+      Object.entries(trimmedFiles).filter(([id]) => !knownFileIdsRef.current.has(id))
     );
+    const { error } = await (supabase.rpc as any)('save_global_whiteboard_scene', {
+      _board_id: BOARD_ID,
+      _elements: elements,
+      _app_state: { viewBackgroundColor: appState?.viewBackgroundColor || '#fafaf9' },
+      _new_files: newFiles,
+    });
     if (error) throw error;
+    lastSentHashRef.current = hash;
+    for (const id of Object.keys(newFiles)) knownFileIdsRef.current.add(id);
     liveCountRef.current = liveCount;
   }, [user, toast]);
 
@@ -393,6 +391,7 @@ export default function GlobalWhiteboard() {
     );
     if (error) throw error;
     lastSentHashRef.current = '';
+    knownFileIdsRef.current = new Set(Object.keys(files));
     liveCountRef.current = elements.filter((el) => el && !el.isDeleted).length;
     if (apiRef.current) {
       applyingRemoteRef.current = true;
