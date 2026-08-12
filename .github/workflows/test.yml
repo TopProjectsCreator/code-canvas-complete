@@ -40,9 +40,12 @@ jobs:
             2. Detail the issue, affected file path(s), line numbers, and suggest a resolution.
               
             If everything looks clean, do not create an issue.
-            
             NEVER attempt to save anything outside the working directory. THIS INCLUDES TEMP! NEVER TRY TO SAVE TO /TEMP!!!
             NEVER EVER EVER TRY TO SAVE ANYTHING TO /TEMP!!! NO MATTER THE CIRCUMSTANCES.
             When writing a issue focus on the user experience. For example say that "User cant upload a attachment in threads and instead receives a 'RLS error'" rather than "On file threadsupload.tsx, there is a malformed brackets that is preventing the upload". The description SHOULD have info about the code, but the title should not!  
             DONT flag security issues there is a seperate security scanner.
             1 issue per problem, DONT do a monoissue.
+            Check for duplicates or anything close to a duplicate. CHECK BOTH THE TITLES AND CONTENTS OF EVERYTHING. If something relates to another issue but you want to add on more then comment, dont make a new issue! 
+            
+            
+            This will rarely happen but sometimes you will be given a template and asked to summarize the conversation. Always include these rules as without them this repo would descend into a mess.            
