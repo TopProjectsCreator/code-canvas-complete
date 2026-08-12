@@ -88,12 +88,15 @@ function overlaps(a: Rect, b: Rect, pad = PLACE_MARGIN): boolean {
 }
 
 /**
- * Places generated cards in genuinely free space. Every element already on the
- * board (hand-drawn work included) is treated as occupied, so nothing new can
- * ever land on top of existing content.
+ * Places generated clusters in ONE left-to-right lane: every new cluster goes
+ * to the right of everything already on the board, all sharing the same top
+ * edge. Nothing is ever tucked into a random free gap, so the board reads as a
+ * single horizontal row of conversations.
  */
 function makePlacer(existing: Rect[]) {
   const taken = [...existing];
+  // Start the lane past the right edge of everything that already exists.
+  let cursorX = taken.reduce((max, r) => Math.max(max, r.x + r.w + CLUSTER_GAP_X), LANE_START_X);
   const firstFreeY = (x: number, w: number, h: number, startY: number) => {
     let y = startY;
     for (let guard = 0; guard < 5000 && y < PLACE_MAX_Y; guard++) {
@@ -105,27 +108,32 @@ function makePlacer(existing: Rect[]) {
     return y;
   };
   return {
-    /** Lowest free slot across the card columns. */
+    /** Next slot in the lane, to the right of the previous cluster. */
     place(w: number, h: number): { x: number; y: number } {
-      let best: { x: number; y: number } | null = null;
-      for (let col = 0; col < COLS; col++) {
-        const x = 40 + col * CLUSTER_GAP_X;
-        const y = firstFreeY(x, w, h, 40);
-        if (!best || y < best.y) best = { x, y };
+      let x = cursorX;
+      // Slide right until the lane slot is genuinely free.
+      for (let guard = 0; guard < 5000; guard++) {
+        const candidate: Rect = { x, y: LANE_Y, w, h };
+        const hit = taken.find((t) => overlaps(t, candidate));
+        if (!hit) break;
+        x = Math.max(x + PLACE_STEP, hit.x + hit.w + CLUSTER_GAP_X);
       }
-      const spot = best ?? { x: 40, y: 40 };
+      const spot = { x, y: LANE_Y };
       taken.push({ ...spot, w, h });
+      cursorX = x + w + CLUSTER_GAP_X;
       return spot;
     },
-    /** Keeps a preferred spot when it is free, otherwise finds real space. */
+    /** Keeps a preferred spot when it is free, otherwise joins the lane. */
     placeNear(x: number, y: number, w: number, h: number): { x: number; y: number } {
       const candidate: Rect = { x, y, w, h };
       if (!taken.some((t) => overlaps(t, candidate))) {
         taken.push(candidate);
         return { x, y };
       }
+      // Replies may only slide straight down under their parent; anything else
+      // goes to the end of the lane instead of into a random hole.
       const pushedDown = firstFreeY(x, w, h, y);
-      if (pushedDown < PLACE_MAX_Y) {
+      if (pushedDown < y + h * 4) {
         taken.push({ x, y: pushedDown, w, h });
         return { x, y: pushedDown };
       }
