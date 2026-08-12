@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { useCADStore } from '@/components/cad/store';
 
 beforeEach(() => {
-  useCADStore.getState().loadDoc(JSON.parse(JSON.stringify(useCADStore.getState().doc)), null);
+  useCADStore.getState().loadDoc(JSON.parse(JSON.stringify(useCADStore.getState().doc)), undefined);
 });
 
 describe('CAD store dirty tracking', () => {
