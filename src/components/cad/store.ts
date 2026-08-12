@@ -11,6 +11,20 @@ function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
+/**
+ * Mark the document dirty by mutating the producer draft directly.
+ *
+ * Must NOT call the store's `markDirty()` action (which runs its own nested
+ * `set()`): a `set()` invoked from inside an immer producer applies against
+ * the committed state, and the outer producer's result is then merged over
+ * it — clobbering `dirty` back to `false`. This caused the CAD autosave
+ * effect (which keys on `dirty`) to never fire, silently losing edits.
+ */
+function markDirtyInProducer(state: { dirty: boolean; doc: { metadata: { modifiedAt: string } } }) {
+  state.dirty = true
+  state.doc.metadata.modifiedAt = new Date().toISOString()
+}
+
 function selectionEqual(a: SelectionTarget, b: SelectionTarget): boolean {
   if (a.type !== b.type) return false
   switch (a.type) {
@@ -287,11 +301,11 @@ export const useCADStore = create<CADStore>()(
     resetDoc: () => set(state => { state.doc = createDefaultDocument(); state.dirty = false; state.filePath = null; state.undoStack = []; state.redoStack = [] }),
 
     // === Scene ===
-    addBody: (body) => set(state => { state.doc.bodies[body.id] = body; state.markDirty() }),
-    removeBody: (bodyId) => set(state => { delete state.doc.bodies[bodyId]; state.markDirty() }),
+    addBody: (body) => set(state => { state.doc.bodies[body.id] = body; markDirtyInProducer(state) }),
+    removeBody: (bodyId) => set(state => { delete state.doc.bodies[bodyId]; markDirtyInProducer(state) }),
     updateBodyAppearance: (bodyId, appearance) => set(state => {
       const body = state.doc.bodies[bodyId]
-      if (body) { Object.assign(body.appearance, appearance); state.markDirty() }
+      if (body) { Object.assign(body.appearance, appearance); markDirtyInProducer(state) }
     }),
     addFeature: (bodyId, feature) => {
       const featureId = feature.id
@@ -301,7 +315,7 @@ export const useCADStore = create<CADStore>()(
         if (body) {
           feature.featureIndex = body.features.length
           body.features.push(feature)
-          state.markDirty()
+          markDirtyInProducer(state)
         }
       })
       set(state => {
@@ -314,7 +328,7 @@ export const useCADStore = create<CADStore>()(
             if (body) {
               body.features.push(JSON.parse(JSON.stringify(featureClone)))
               body.features.forEach((f, i) => { f.featureIndex = i })
-              state.markDirty()
+              markDirtyInProducer(state)
             }
           }),
           undo: () => set(state => {
@@ -322,7 +336,7 @@ export const useCADStore = create<CADStore>()(
             if (body) {
               body.features = body.features.filter(f => f.id !== featureId)
               body.features.forEach((f, i) => { f.featureIndex = i })
-              state.markDirty()
+              markDirtyInProducer(state)
             }
           }),
         })
@@ -344,7 +358,7 @@ export const useCADStore = create<CADStore>()(
         const idx = body.features.findIndex(f => f.id === featureId)
         if (idx >= 0) {
           Object.assign(body.features[idx], patch)
-          state.markDirty()
+          markDirtyInProducer(state)
         }
       })
       set(state => {
@@ -356,7 +370,7 @@ export const useCADStore = create<CADStore>()(
             const body = state.doc.bodies[bodyId]
             if (!body) return
             const idx = body.features.findIndex(f => f.id === featureId)
-            if (idx >= 0) { Object.assign(body.features[idx], patch); state.markDirty() }
+            if (idx >= 0) { Object.assign(body.features[idx], patch); markDirtyInProducer(state) }
           }),
           undo: () => set(state => {
             const body = state.doc.bodies[bodyId]
@@ -365,7 +379,7 @@ export const useCADStore = create<CADStore>()(
             if (idx >= 0) {
               const restored = JSON.parse(JSON.stringify(prev))
               Object.assign(body.features[idx], restored)
-              state.markDirty()
+              markDirtyInProducer(state)
             }
           }),
         })
@@ -387,7 +401,7 @@ export const useCADStore = create<CADStore>()(
         if (body) {
           body.features = body.features.filter(f => f.id !== featureId)
           body.features.forEach((f, i) => { f.featureIndex = i })
-          state.markDirty()
+          markDirtyInProducer(state)
         }
       })
       set(state => {
@@ -400,7 +414,7 @@ export const useCADStore = create<CADStore>()(
             if (body) {
               body.features = body.features.filter(f => f.id !== featureId)
               body.features.forEach((f, i) => { f.featureIndex = i })
-              state.markDirty()
+              markDirtyInProducer(state)
             }
           }),
           undo: () => set(state => {
@@ -409,7 +423,7 @@ export const useCADStore = create<CADStore>()(
               const restored = JSON.parse(JSON.stringify(removed.feature))
               body.features.splice(removed.index, 0, restored)
               body.features.forEach((f, i) => { f.featureIndex = i })
-              state.markDirty()
+              markDirtyInProducer(state)
             }
           }),
         })
@@ -425,7 +439,7 @@ export const useCADStore = create<CADStore>()(
       const [item] = body.features.splice(oldIdx, 1)
       body.features.splice(newIndex, 0, item)
       body.features.forEach((f, i) => { f.featureIndex = i })
-      state.markDirty()
+      markDirtyInProducer(state)
     }),
     addNode: (node, parentId) => set(state => {
       if (parentId) {
@@ -441,7 +455,7 @@ export const useCADStore = create<CADStore>()(
         state.doc.scene.push(node)
         node.parentId = null
       }
-      state.markDirty()
+      markDirtyInProducer(state)
     }),
     removeNode: (nodeId) => {
       let removedNode: SceneNode | null = null
@@ -454,7 +468,7 @@ export const useCADStore = create<CADStore>()(
             return true
           })
         state.doc.scene = removeFrom(state.doc.scene)
-        state.markDirty()
+        markDirtyInProducer(state)
       })
       if (!removedNode) return
       set(state => {
@@ -470,11 +484,11 @@ export const useCADStore = create<CADStore>()(
                 return true
               })
             state.doc.scene = removeFrom2(state.doc.scene)
-            state.markDirty()
+            markDirtyInProducer(state)
           }),
           undo: () => set(state => {
             state.doc.scene = JSON.parse(JSON.stringify(before))
-            state.markDirty()
+            markDirtyInProducer(state)
           }),
         })
         state.redoStack = []
@@ -503,7 +517,7 @@ export const useCADStore = create<CADStore>()(
           return false
         }
         updateNode(state.doc.scene)
-        state.markDirty()
+        markDirtyInProducer(state)
       })
       if (!prev) return
       set(state => {
@@ -520,7 +534,7 @@ export const useCADStore = create<CADStore>()(
               return false
             }
             updateNode2(state.doc.scene)
-            state.markDirty()
+            markDirtyInProducer(state)
           }),
           undo: () => set(state => {
             const updateNode3 = (nodes: SceneNode[]) => {
@@ -531,7 +545,7 @@ export const useCADStore = create<CADStore>()(
               return false
             }
             updateNode3(state.doc.scene)
-            state.markDirty()
+            markDirtyInProducer(state)
           }),
         })
         state.redoStack = []
@@ -561,7 +575,7 @@ export const useCADStore = create<CADStore>()(
         (nn as SceneNode).parentId = null
         state.doc.scene.push(nn as SceneNode)
       }
-      state.markDirty()
+      markDirtyInProducer(state)
     }),
     setNodeVisibility: (nodeId, visible) => {
       const prev = (() => {
@@ -583,7 +597,7 @@ export const useCADStore = create<CADStore>()(
           }
         }
         updateNode(state.doc.scene)
-        state.markDirty()
+        markDirtyInProducer(state)
       })
       if (prev === null) return
       set(state => {
@@ -599,7 +613,7 @@ export const useCADStore = create<CADStore>()(
               }
             }
             updateNode2(state.doc.scene)
-            state.markDirty()
+            markDirtyInProducer(state)
           }),
           undo: () => set(state => {
             const updateNode3 = (nodes: SceneNode[]) => {
@@ -609,7 +623,7 @@ export const useCADStore = create<CADStore>()(
               }
             }
             updateNode3(state.doc.scene)
-            state.markDirty()
+            markDirtyInProducer(state)
           }),
         })
         state.redoStack = []
@@ -636,7 +650,7 @@ export const useCADStore = create<CADStore>()(
           }
         }
         updateNode(state.doc.scene)
-        state.markDirty()
+        markDirtyInProducer(state)
       })
       if (prev === null) return
       set(state => {
@@ -652,7 +666,7 @@ export const useCADStore = create<CADStore>()(
               }
             }
             updateNode2(state.doc.scene)
-            state.markDirty()
+            markDirtyInProducer(state)
           }),
           undo: () => set(state => {
             const updateNode3 = (nodes: SceneNode[]) => {
@@ -662,7 +676,7 @@ export const useCADStore = create<CADStore>()(
               }
             }
             updateNode3(state.doc.scene)
-            state.markDirty()
+            markDirtyInProducer(state)
           }),
         })
         state.redoStack = []
@@ -689,7 +703,7 @@ export const useCADStore = create<CADStore>()(
           }
         }
         updateNode(state.doc.scene)
-        state.markDirty()
+        markDirtyInProducer(state)
       })
       if (prev === null) return
       set(state => {
@@ -705,7 +719,7 @@ export const useCADStore = create<CADStore>()(
               }
             }
             updateNode2(state.doc.scene)
-            state.markDirty()
+            markDirtyInProducer(state)
           }),
           undo: () => set(state => {
             const updateNode3 = (nodes: SceneNode[]) => {
@@ -715,7 +729,7 @@ export const useCADStore = create<CADStore>()(
               }
             }
             updateNode3(state.doc.scene)
-            state.markDirty()
+            markDirtyInProducer(state)
           }),
         })
         state.redoStack = []
@@ -829,37 +843,37 @@ export const useCADStore = create<CADStore>()(
     setSketchTool: (tool) => set(state => { state.sketchTool = tool }),
     addSketchEntity: (sketchId, entity) => set(state => {
       const sketch = state.doc.sketches[sketchId]
-      if (sketch) { sketch.entities[entity.id] = entity; state.markDirty() }
+      if (sketch) { sketch.entities[entity.id] = entity; markDirtyInProducer(state) }
     }),
     updateSketchEntity: (sketchId, entityId, patch) => set(state => {
       const sketch = state.doc.sketches[sketchId]
       if (sketch && sketch.entities[entityId]) {
         Object.assign(sketch.entities[entityId], patch)
-        state.markDirty()
+        markDirtyInProducer(state)
       }
     }),
     removeSketchEntity: (sketchId, entityId) => set(state => {
       const sketch = state.doc.sketches[sketchId]
-      if (sketch) { delete sketch.entities[entityId]; state.markDirty() }
+      if (sketch) { delete sketch.entities[entityId]; markDirtyInProducer(state) }
     }),
     addConstraint: (sketchId, constraint) => set(state => {
       const sketch = state.doc.sketches[sketchId]
-      if (sketch) { sketch.constraints.push(constraint); state.markDirty() }
+      if (sketch) { sketch.constraints.push(constraint); markDirtyInProducer(state) }
     }),
     removeConstraint: (sketchId, constraintId) => set(state => {
       const sketch = state.doc.sketches[sketchId]
       if (sketch) {
         sketch.constraints = sketch.constraints.filter(c => c.id !== constraintId)
-        state.markDirty()
+        markDirtyInProducer(state)
       }
     }),
     addDimension: (sketchId, dimension) => set(state => {
       const sketch = state.doc.sketches[sketchId]
-      if (sketch) { sketch.dimensions[dimension.id] = dimension; state.markDirty() }
+      if (sketch) { sketch.dimensions[dimension.id] = dimension; markDirtyInProducer(state) }
     }),
     removeDimension: (sketchId, dimensionId) => set(state => {
       const sketch = state.doc.sketches[sketchId]
-      if (sketch) { delete sketch.dimensions[dimensionId]; state.markDirty() }
+      if (sketch) { delete sketch.dimensions[dimensionId]; markDirtyInProducer(state) }
     }),
 
     // === History ===
@@ -884,7 +898,7 @@ export const useCADStore = create<CADStore>()(
       if (state.undoStack.length === 0) return false
       const cmd = state.undoStack[state.undoStack.length - 1]
       cmd.undo()
-      set(s => { s.undoStack.pop(); s.redoStack.push(cmd); s.markDirty() })
+      set(s => { s.undoStack.pop(); s.redoStack.push(cmd); markDirtyInProducer(s) })
       return true
     },
     redo: () => {
@@ -892,7 +906,7 @@ export const useCADStore = create<CADStore>()(
       if (state.redoStack.length === 0) return false
       const cmd = state.redoStack[state.redoStack.length - 1]
       cmd.execute()
-      set(s => { s.redoStack.pop(); s.undoStack.push(cmd); s.markDirty() })
+      set(s => { s.redoStack.pop(); s.undoStack.push(cmd); markDirtyInProducer(s) })
       return true
     },
     clearHistory: () => set(state => { state.undoStack = []; state.redoStack = [] }),
@@ -960,9 +974,9 @@ export const useCADStore = create<CADStore>()(
     angleUnits: 'degrees',
     autosave: true,
     autosaveInterval: 60000,
-    setUnits: (units) => set(state => { state.units = units; state.doc.units = units; state.markDirty() }),
-    setPrecision: (precision) => set(state => { state.precision = precision; state.doc.precision = precision; state.markDirty() }),
-    setAngleUnits: (units) => set(state => { state.angleUnits = units; state.doc.angleUnits = units; state.markDirty() }),
+    setUnits: (units) => set(state => { state.units = units; state.doc.units = units; markDirtyInProducer(state) }),
+    setPrecision: (precision) => set(state => { state.precision = precision; state.doc.precision = precision; markDirtyInProducer(state) }),
+    setAngleUnits: (units) => set(state => { state.angleUnits = units; state.doc.angleUnits = units; markDirtyInProducer(state) }),
     setAutosave: (enabled) => set(state => { state.autosave = enabled }),
   }))
 )
