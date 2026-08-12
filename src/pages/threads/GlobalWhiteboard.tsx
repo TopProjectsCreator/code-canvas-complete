@@ -37,10 +37,12 @@ interface PeerMeta {
 }
 
 const BOARD_ID = 'threads';
-const COLS = 4;
 const PLACE_MARGIN = 60;
 const PLACE_STEP = 40;
 const PLACE_MAX_Y = 400000;
+/** Top edge of the single left-to-right lane every generated cluster sits in. */
+const LANE_Y = 40;
+const LANE_START_X = 40;
 
 interface Rect { x: number; y: number; w: number; h: number }
 
