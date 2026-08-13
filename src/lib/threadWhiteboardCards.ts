@@ -583,24 +583,30 @@ export async function buildThreadCluster(
     const parentY = parentPlacement ? parentPlacement.y + parentPlacement.height : originY + threadCard.height;
     const childX = placement.x + placement.width / 2;
     const childY = placement.y;
-    elements.push(
-      ...convertToExcalidrawElements([
-        {
-          type: 'arrow',
-          x: parentX,
-          y: parentY,
-          width: childX - parentX,
-          height: childY - parentY,
-          points: [[0, 0], [childX - parentX, childY - parentY]],
-          strokeColor: STROKE,
-          strokeWidth: 2,
-          endArrowhead: 'arrow',
-          customData: { threadId: thread.id, commentId: comment.id, kind: 'comment-link' },
-          start: { id: comment.parent_id ? `comment-${comment.parent_id}` : threadElId },
-          end: { id: `comment-${comment.id}` },
-        },
-      ] as any),
-    );
+    // Only ever draw a downward arrow parent -> child. An arrow that would end
+    // at or above its parent's bottom edge is what puts a stray arrow above the
+    // top thread card, so it is skipped entirely.
+    if (childY > parentY + 4) {
+      elements.push(
+        ...convertToExcalidrawElements([
+          {
+            type: 'arrow',
+            x: parentX,
+            y: parentY,
+            width: childX - parentX,
+            height: childY - parentY,
+            points: [[0, 0], [childX - parentX, childY - parentY]],
+            strokeColor: STROKE,
+            strokeWidth: 2,
+            endArrowhead: 'arrow',
+            customData: { threadId: thread.id, commentId: comment.id, kind: 'comment-link' },
+            start: { id: comment.parent_id ? `comment-${comment.parent_id}` : threadElId },
+            end: { id: `comment-${comment.id}` },
+          },
+        ] as any),
+      );
+    }
+
   }
 
   return { elements, files, height: clusterBottom - originY };
