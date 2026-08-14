@@ -353,19 +353,32 @@ function buildCard(
   }
 
   if (authorFit) {
+    const rowH = Math.max(authorFit.height, avatar ? AVATAR_SIZE : 0);
+    if (avatar) {
+      children.push({
+        type: 'image',
+        id: `${id}-avatar`,
+        x: x + PAD,
+        y: ty + Math.round((rowH - AVATAR_SIZE) / 2),
+        width: AVATAR_SIZE,
+        height: AVATAR_SIZE,
+        fileId: avatar.fileId,
+        groupIds: [groupId],
+      });
+    }
     children.push({
       type: 'text',
       id: `${id}-author`,
-      x: x + PAD,
-      y: ty,
+      x: x + PAD + avatarW,
+      y: ty + Math.round((rowH - authorFit.height) / 2),
       width: authorFit.width,
       height: authorFit.height,
       text: authorFit.wrapped,
       fontSize: BODY_FONT,
-      strokeColor: STROKE,
+      strokeColor: AUTHOR_TEXT,
       groupIds: [groupId],
     });
-    ty += authorFit.height + 6;
+    ty += rowH + 6;
   }
 
   if (bodyFit) {
