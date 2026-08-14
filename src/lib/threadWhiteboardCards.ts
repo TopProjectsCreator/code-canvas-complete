@@ -6,6 +6,7 @@ export interface ThreadSeed {
   category: string | null;
   content?: string | null;
   author?: string | null;
+  author_avatar?: string | null;
 }
 
 export interface CommentSeed {
@@ -15,6 +16,7 @@ export interface CommentSeed {
   content: string;
   depth: number;
   author?: string | null;
+  author_avatar?: string | null;
   created_at?: string | null;
 }
 
@@ -46,6 +48,8 @@ const CARD_BG = '#ffffff';
 const CHIP_BG = '#e7f0ff';
 const CHIP_STROKE = '#1971c2';
 const CHIP_TEXT = '#1971c2';
+const AUTHOR_TEXT = '#495057';
+const AVATAR_SIZE = 28;
 
 
 /** Strips HTML/markdown wrappers down to readable plain text. Never truncates by default. */
@@ -280,6 +284,17 @@ async function loadImages(raw: string | null | undefined): Promise<{ loaded: Loa
   return { loaded, failed };
 }
 
+/** "@handle" label + avatar binary for a card's author row. */
+async function authorRow(
+  author: string | null | undefined,
+  avatarUrl: string | null | undefined
+): Promise<{ author?: string; avatar?: LoadedImage | null }> {
+  if (!author) return {};
+  const handle = `@${String(author).replace(/^@/, '')}`;
+  const avatar = avatarUrl ? await loadImage(avatarUrl) : null;
+  return { author: handle, avatar };
+}
+
 function fitImage(img: LoadedImage) {
   const scale = Math.min(IMG_MAX_W / img.w, IMG_MAX_H / img.h, 1);
   return { w: Math.round(img.w * scale), h: Math.round(img.h * scale) };
@@ -290,6 +305,7 @@ function fitImage(img: LoadedImage) {
 interface CardBlocks {
   chip?: string;
   author?: string;
+  avatar?: LoadedImage | null;
   body: string;
 }
 
@@ -311,7 +327,9 @@ function buildCard(
 
   // Wrap at the ceiling, then measure what the text actually needs.
   const chipFit = blocks.chip ? fitText(blocks.chip, Math.min(CHIP_MAX_W, maxTextW) - 20) : null;
-  const authorFit = blocks.author ? fitText(blocks.author, maxTextW) : null;
+  const avatar = blocks.author ? blocks.avatar ?? null : null;
+  const avatarW = avatar ? AVATAR_SIZE + 8 : 0;
+  const authorFit = blocks.author ? fitText(blocks.author, Math.max(60, maxTextW - avatarW)) : null;
   const bodyFit = blocks.body ? fitText(blocks.body, maxTextW) : null;
   const textW = Math.max(
     MIN_TEXT_W,
@@ -319,7 +337,7 @@ function buildCard(
       maxTextW,
       Math.max(
         chipFit ? chipFit.width + 20 : 0,
-        authorFit?.width ?? 0,
+        authorFit ? authorFit.width + avatarW : 0,
         bodyFit?.width ?? 0
       )
     )
@@ -350,19 +368,32 @@ function buildCard(
   }
 
   if (authorFit) {
+    const rowH = Math.max(authorFit.height, avatar ? AVATAR_SIZE : 0);
+    if (avatar) {
+      children.push({
+        type: 'image',
+        id: `${id}-avatar`,
+        x: x + PAD,
+        y: ty + Math.round((rowH - AVATAR_SIZE) / 2),
+        width: AVATAR_SIZE,
+        height: AVATAR_SIZE,
+        fileId: avatar.fileId,
+        groupIds: [groupId],
+      });
+    }
     children.push({
       type: 'text',
       id: `${id}-author`,
-      x: x + PAD,
-      y: ty,
+      x: x + PAD + avatarW,
+      y: ty + Math.round((rowH - authorFit.height) / 2),
       width: authorFit.width,
       height: authorFit.height,
       text: authorFit.wrapped,
       fontSize: BODY_FONT,
-      strokeColor: STROKE,
+      strokeColor: AUTHOR_TEXT,
       groupIds: [groupId],
     });
-    ty += authorFit.height + 6;
+    ty += rowH + 6;
   }
 
   if (bodyFit) {
@@ -386,6 +417,14 @@ function buildCard(
   const width = PAD * 2 + textW + (imgColW ? imgColW + GAP : 0);
 
   const files: Record<string, any> = {};
+  if (avatar) {
+    files[avatar.fileId] = {
+      id: avatar.fileId,
+      dataURL: avatar.dataURL,
+      mimeType: avatar.mimeType,
+      created: Date.now(),
+    };
+  }
   let iy = y + PAD;
   for (const s of sized) {
     children.push({
@@ -434,11 +473,15 @@ function buildCard(
 }
 
 
-function threadBlocks(thread: ThreadSeed, failed: string[]): CardBlocks {
+async function threadBlocks(thread: ThreadSeed, failed: string[]): Promise<CardBlocks> {
   const chip = (thread.category ? `[${thread.category}] ` : '') + thread.title;
   const bodyParts = [toPlainText(thread.content)].filter(Boolean);
   if (failed.length) bodyParts.push(failed.map((u) => `[image] ${u}`).join('\n'));
-  return { chip, body: bodyParts.join('\n\n') };
+  return {
+    chip,
+    ...(await authorRow(thread.author, thread.author_avatar)),
+    body: bodyParts.join('\n\n'),
+  };
 }
 
 /**
@@ -447,7 +490,9 @@ function threadBlocks(thread: ThreadSeed, failed: string[]): CardBlocks {
  * and rebuilt instead of staying text-only forever.
  */
 export function threadFingerprint(thread: ThreadSeed): string {
-  return hashId(`tree-v2|${thread.title || ''}|${thread.category || ''}|${thread.content || ''}`);
+  return hashId(
+    `tree-v3|${thread.title || ''}|${thread.category || ''}|${thread.content || ''}|${thread.author || ''}|${thread.author_avatar || ''}`
+  );
 }
 
 /** Builds only the thread's own card, used when its content changes later. */
@@ -458,7 +503,7 @@ export async function buildThreadCard(
 ): Promise<BuiltCard> {
   await ensureCardFont();
   const images = await loadImages(thread.content);
-  return buildCard(threadBlocks(thread, images.failed), images.loaded, {
+  return buildCard(await threadBlocks(thread, images.failed), images.loaded, {
     x,
     y,
     maxWidth: CARD_W,
@@ -468,11 +513,11 @@ export async function buildThreadCard(
   });
 }
 
-function commentBlocks(comment: CommentSeed, failed: string[]): CardBlocks {
+async function commentBlocks(comment: CommentSeed, failed: string[]): Promise<CardBlocks> {
   const bodyParts = [toPlainText(comment.content)].filter(Boolean);
   if (failed.length) bodyParts.push(failed.map((u) => `[image] ${u}`).join('\n'));
   return {
-    author: comment.author ? `@${String(comment.author).replace(/^@/, '')}:` : undefined,
+    ...(await authorRow(comment.author, comment.author_avatar)),
     body: bodyParts.join('\n\n'),
   };
 }
@@ -655,7 +700,7 @@ export async function buildCommentCard(
   await ensureCardFont();
   const { loaded, failed } = await loadImages(comment.content);
 
-  return buildCard(commentBlocks(comment, failed), loaded, {
+  return buildCard(await commentBlocks(comment, failed), loaded, {
     x,
     y,
     maxWidth: COMMENT_W,

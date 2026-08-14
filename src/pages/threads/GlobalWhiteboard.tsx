@@ -47,6 +47,27 @@ const LANE_START_X = 40;
 interface Rect { x: number; y: number; w: number; h: number }
 
 /** Bounding box of a set of elements, in scene coordinates. */
+/** Attaches @handle + avatar URL to thread/comment seeds so cards show who made them. */
+async function attachAuthors<T extends { author_id?: string | null }>(
+  rows: T[]
+): Promise<(T & { author?: string | null; author_avatar?: string | null })[]> {
+  const ids = [...new Set(rows.map((r) => r.author_id).filter(Boolean))] as string[];
+  if (!ids.length) return rows as any;
+  const { data } = await supabase
+    .from('profiles')
+    .select('user_id, display_name, avatar_url')
+    .in('user_id', ids);
+  const map = new Map((data || []).map((p: any) => [p.user_id, p]));
+  return rows.map((r) => {
+    const profile = r.author_id ? map.get(r.author_id) : null;
+    return {
+      ...r,
+      author: profile?.display_name ?? null,
+      author_avatar: profile?.avatar_url ?? null,
+    };
+  });
+}
+
 function bboxOf(elements: readonly any[]): Rect {
   let minX = Infinity;
   let minY = Infinity;
@@ -194,19 +215,21 @@ export default function GlobalWhiteboard() {
         supabase.from('global_whiteboard').select('scene').eq('id', BOARD_ID).maybeSingle(),
         supabase
           .from('threads')
-          .select('id, title, category, content')
+          .select('id, title, category, content, author_id')
           .order('created_at', { ascending: true }),
         supabase
           .from('comments')
-          .select('id, thread_id, parent_id, content, depth, created_at')
+          .select('id, thread_id, parent_id, content, depth, created_at, author_id')
           .order('created_at', { ascending: true }),
       ]);
       if (cancelled) return;
 
       const scene: Scene = (boardRes.data?.scene as Scene) || { elements: [], appState: {} };
       const rawElements = Array.isArray(scene.elements) ? [...scene.elements] : [];
-      const threads = (threadsRes.data || []) as ThreadSeed[];
-      const comments = (commentsRes.data || []) as CommentSeed[];
+      const [threads, comments] = await Promise.all([
+        attachAuthors((threadsRes.data || []) as any[]),
+        attachAuthors((commentsRes.data || []) as any[]),
+      ]) as unknown as [ThreadSeed[], CommentSeed[]];
 
       // Arrows only ever run parent -> child. Anything ending ON a thread card
       // (including legacy generated arrows saved without customData) is the
@@ -421,8 +444,9 @@ export default function GlobalWhiteboard() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'threads' },
         async (payload: any) => {
-          const t = payload.new;
-          if (!t || !apiRef.current) return;
+          if (!payload.new || !apiRef.current) return;
+          const [t] = (await attachAuthors([payload.new])) as any[];
+          if (!apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
           const existingCard = current.find(
             (el) => el?.customData?.kind === 'thread-card' && el?.customData?.threadId === t.id && !el.isDeleted
@@ -471,8 +495,9 @@ export default function GlobalWhiteboard() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'comments' },
         async (payload: any) => {
-          const cm = payload.new as CommentSeed;
-          if (!cm || !apiRef.current) return;
+          if (!payload.new || !apiRef.current) return;
+          const [cm] = (await attachAuthors([payload.new])) as unknown as CommentSeed[];
+          if (!apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
           if (current.some((el) => el?.customData?.commentId === cm.id)) return;
           const owned = current.filter(
@@ -689,14 +714,16 @@ export default function GlobalWhiteboard() {
     setRebuilding(true);
     try {
       const [threadsRes, commentsRes] = await Promise.all([
-        supabase.from('threads').select('id, title, category, content').order('created_at', { ascending: true }),
+        supabase.from('threads').select('id, title, category, content, author_id').order('created_at', { ascending: true }),
         supabase
           .from('comments')
-          .select('id, thread_id, parent_id, content, depth, created_at')
+          .select('id, thread_id, parent_id, content, depth, created_at, author_id')
           .order('created_at', { ascending: true }),
       ]);
-      const threads = (threadsRes.data || []) as ThreadSeed[];
-      const comments = (commentsRes.data || []) as CommentSeed[];
+      const [threads, comments] = await Promise.all([
+        attachAuthors((threadsRes.data || []) as any[]),
+        attachAuthors((commentsRes.data || []) as any[]),
+      ]) as unknown as [ThreadSeed[], CommentSeed[]];
       const commentsByThread = new Map<string, CommentSeed[]>();
       for (const c of comments) {
         const list = commentsByThread.get(c.thread_id) ?? [];
