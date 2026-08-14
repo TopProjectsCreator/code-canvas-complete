@@ -290,6 +290,7 @@ function fitImage(img: LoadedImage) {
 interface CardBlocks {
   chip?: string;
   author?: string;
+  avatar?: LoadedImage | null;
   body: string;
 }
 
