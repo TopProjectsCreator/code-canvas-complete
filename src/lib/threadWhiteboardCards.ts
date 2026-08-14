@@ -700,7 +700,7 @@ export async function buildCommentCard(
   await ensureCardFont();
   const { loaded, failed } = await loadImages(comment.content);
 
-  return buildCard(commentBlocks(comment, failed), loaded, {
+  return buildCard(await commentBlocks(comment, failed), loaded, {
     x,
     y,
     maxWidth: COMMENT_W,
