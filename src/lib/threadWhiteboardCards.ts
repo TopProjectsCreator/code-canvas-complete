@@ -312,7 +312,9 @@ function buildCard(
 
   // Wrap at the ceiling, then measure what the text actually needs.
   const chipFit = blocks.chip ? fitText(blocks.chip, Math.min(CHIP_MAX_W, maxTextW) - 20) : null;
-  const authorFit = blocks.author ? fitText(blocks.author, maxTextW) : null;
+  const avatar = blocks.author ? blocks.avatar ?? null : null;
+  const avatarW = avatar ? AVATAR_SIZE + 8 : 0;
+  const authorFit = blocks.author ? fitText(blocks.author, Math.max(60, maxTextW - avatarW)) : null;
   const bodyFit = blocks.body ? fitText(blocks.body, maxTextW) : null;
   const textW = Math.max(
     MIN_TEXT_W,
@@ -320,7 +322,7 @@ function buildCard(
       maxTextW,
       Math.max(
         chipFit ? chipFit.width + 20 : 0,
-        authorFit?.width ?? 0,
+        authorFit ? authorFit.width + avatarW : 0,
         bodyFit?.width ?? 0
       )
     )
