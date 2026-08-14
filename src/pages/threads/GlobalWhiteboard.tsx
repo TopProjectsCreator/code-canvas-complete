@@ -444,8 +444,9 @@ export default function GlobalWhiteboard() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'threads' },
         async (payload: any) => {
-          const t = payload.new;
-          if (!t || !apiRef.current) return;
+          if (!payload.new || !apiRef.current) return;
+          const [t] = (await attachAuthors([payload.new])) as any[];
+          if (!apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
           const existingCard = current.find(
             (el) => el?.customData?.kind === 'thread-card' && el?.customData?.threadId === t.id && !el.isDeleted
@@ -494,8 +495,9 @@ export default function GlobalWhiteboard() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'comments' },
         async (payload: any) => {
-          const cm = payload.new as CommentSeed;
-          if (!cm || !apiRef.current) return;
+          if (!payload.new || !apiRef.current) return;
+          const [cm] = (await attachAuthors([payload.new])) as unknown as CommentSeed[];
+          if (!apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
           if (current.some((el) => el?.customData?.commentId === cm.id)) return;
           const owned = current.filter(
