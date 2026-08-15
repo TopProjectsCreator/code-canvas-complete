@@ -20,12 +20,14 @@ export function TexSourceEditor({ value, onChange }: TexSourceEditorProps) {
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   useEffect(() => {
     if (!containerRef.current) return;
 
     const state = EditorState.create({
-      doc: value,
+      doc: valueRef.current,
       extensions: [
         basicSetup,
         lineNumbers(),
@@ -66,7 +68,7 @@ export function TexSourceEditor({ value, onChange }: TexSourceEditorProps) {
       view.destroy();
       viewRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync external value changes into the editor
   useEffect(() => {

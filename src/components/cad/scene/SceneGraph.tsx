@@ -1,4 +1,5 @@
 import { useCADStore } from '../store'
+import type { SceneNode } from '../types'
 import { Eye, EyeOff, Lock, Unlock, ChevronRight, ChevronDown } from 'lucide-react'
 import { useState, useCallback } from 'react'
 import { SceneSearch } from './SceneSearch'
@@ -14,14 +15,14 @@ function SceneNodeItem({ nodeId, depth = 0 }: { nodeId: string; depth?: number }
   const selection = useCADStore(s => s.selection)
   const [expanded, setExpanded] = useState(true)
 
-  function findNode(nodes: typeof doc.scene): (typeof doc.scene)[0] | null {
+  const findNode = useCallback((nodes: SceneNode[]): SceneNode | null => {
     for (const n of nodes) {
       if (n.id === nodeId) return n
       const found = findNode(n.children)
       if (found) return found
     }
     return null
-  }
+  }, [nodeId])
 
   const node = findNode(doc.scene)
 
@@ -40,7 +41,7 @@ function SceneNodeItem({ nodeId, depth = 0 }: { nodeId: string; depth?: number }
         { label: 'Delete', action: 'delete-node', featureId: nodeId },
       ],
     })
-  }, [nodeId])
+  }, [nodeId, findNode])
 
   if (!node) return null
 

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { useCallback, FormEvent, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -156,7 +156,7 @@ const OAuthHostsAdmin = () => {
     })();
   }, [user, authLoading]);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('allowed_oauth_return_hosts')
@@ -165,9 +165,9 @@ const OAuthHostsAdmin = () => {
     setLoading(false);
     if (error) { toast({ title: 'Failed to load', description: error.message, variant: 'destructive' }); return; }
     setRows((data || []) as HostRow[]);
-  };
+  }, [toast]);
 
-  useEffect(() => { if (isAdmin) refresh(); }, [isAdmin]);
+  useEffect(() => { if (isAdmin) refresh(); }, [isAdmin, refresh]);
 
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();

@@ -20,8 +20,11 @@ export function TaskGantt({ tasks, onSelectTask }: TaskGanttProps) {
     [tasks],
   );
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t;
+  }, []);
 
   const startDate = useMemo(() => {
     if (rootTasks.length === 0) return today;
@@ -32,7 +35,7 @@ export function TaskGantt({ tasks, onSelectTask }: TaskGanttProps) {
     const min = new Date(Math.min(...dates.map((d) => d.getTime())));
     min.setDate(min.getDate() - 3);
     return min;
-  }, [rootTasks]);
+  }, [rootTasks, today]);
 
   const endDate = useMemo(() => {
     if (rootTasks.length === 0) {
@@ -51,7 +54,7 @@ export function TaskGantt({ tasks, onSelectTask }: TaskGanttProps) {
     const max = new Date(Math.max(...dates.map((d) => d.getTime())));
     max.setDate(max.getDate() + 3);
     return max;
-  }, [rootTasks]);
+  }, [rootTasks, today]);
 
   const dayCount = Math.max(
     1,

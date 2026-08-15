@@ -547,7 +547,7 @@ export const PartsInventoryDialog = ({
     }, 100);
   };
 
-  const syncFraFimsCatalog = async () => {
+  const syncFraFimsCatalog = useCallback(async () => {
     setFraSyncing(true);
     try {
       const response = await fetch(
@@ -581,13 +581,12 @@ export const PartsInventoryDialog = ({
     } finally {
       setFraSyncing(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     if (!open || activePlatform !== "ftc") return;
     syncFraFimsCatalog();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, activePlatform]);
+  }, [open, activePlatform, syncFraFimsCatalog]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

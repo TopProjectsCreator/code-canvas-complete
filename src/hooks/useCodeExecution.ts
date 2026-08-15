@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useWebContainer } from '@/hooks/useWebContainer';
 import { usePyodide, detectUnsupportedPyodideUsage } from '@/hooks/usePyodide';
-import { showOfflineDialog } from '@/components/ide/OfflineDialog';
+import { showOfflineDialog } from '@/components/ide/offlineDialog';
 import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 
 interface ExecutionResult {

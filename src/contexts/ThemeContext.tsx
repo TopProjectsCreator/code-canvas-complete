@@ -38,16 +38,6 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export const themeInfo: Record<string, { name: string; description: string }> = {
-  'canvas-dark': { name: 'Canvas Dark', description: 'Default dark theme' },
-  'github-dark': { name: 'GitHub Dark', description: 'GitHub inspired' },
-  'monokai': { name: 'Monokai', description: 'Classic Sublime theme' },
-  'dracula': { name: 'Dracula', description: 'Dark purple theme' },
-  'nord': { name: 'Nord', description: 'Arctic blue theme' },
-  'solarized-dark': { name: 'Solarized Dark', description: 'Low contrast dark' },
-  'one-dark': { name: 'One Dark', description: 'Atom inspired' },
-};
-
 // Convert hex to HSL string (e.g. "228 14% 10%")
 function hexToHsl(hex: string): string {
   hex = hex.replace('#', '');
@@ -187,7 +177,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     customThemes.forEach(ct => {
       injectCustomThemeStyle(ct.id, generateCssVariables(ct.colors));
     });
-  }, []);
+  }, [customThemes]);
 
   useEffect(() => {
     localStorage.setItem('ide-theme', theme);

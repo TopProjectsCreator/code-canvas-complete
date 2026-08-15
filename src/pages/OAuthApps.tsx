@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { useCallback, FormEvent, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -50,7 +50,7 @@ const OAuthAppsPublic = () => {
     );
   }, [apps, searchQuery]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const [pub, own] = await Promise.all([
       supabase.from('oauth_apps_public').select('*').order('app_name'),
@@ -64,9 +64,9 @@ const OAuthAppsPublic = () => {
     if (pub.error) toast({ title: 'Failed to load', description: pub.error.message, variant: 'destructive' });
     setApps((pub.data || []) as PublicApp[]);
     setMine((own.data || []) as OwnedApp[]);
-  };
+  }, [user, toast]);
 
-  useEffect(() => { load(); }, [user]);
+  useEffect(() => { load(); }, [load]);
 
   const openSubmit = () => {
     setEditingHost(null);

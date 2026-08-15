@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { CadLayout } from './layout/CadLayout'
 import { useCADStore } from './store'
 import type { CadDocument } from './types'
@@ -13,22 +13,28 @@ export function CadEditor({ file, onContentChange }: CadEditorProps) {
   const loadDoc = useCADStore(s => s.loadDoc)
   const doc = useCADStore(s => s.doc)
   const dirty = useCADStore(s => s.dirty)
+  // Latest file.name held in a ref so the load-once-per-file effect can read
+  // fresh values without depending on them.
+  const fileNameRef = useRef(file.name);
+  fileNameRef.current = file.name;
+  const fileContentRef = useRef(file.content);
+  fileContentRef.current = file.content;
 
   useEffect(() => {
-    if (file.content) {
+    if (fileContentRef.current) {
       try {
-        const parsed = JSON.parse(file.content) as CadDocument
-        parsed.metadata.name = file.name
-        loadDoc(parsed, file.name)
+        const parsed = JSON.parse(fileContentRef.current) as CadDocument
+        parsed.metadata.name = fileNameRef.current
+        loadDoc(parsed, fileNameRef.current)
       } catch {
         useCADStore.getState().resetDoc()
       }
     } else {
       const demo = createDemoDocument()
-      demo.metadata.name = file.name
-      loadDoc(demo, file.name)
+      demo.metadata.name = fileNameRef.current
+      loadDoc(demo, fileNameRef.current)
     }
-  }, [file.id])
+  }, [file.id, fileNameRef, fileContentRef, loadDoc])
 
   useEffect(() => {
     if (dirty) {

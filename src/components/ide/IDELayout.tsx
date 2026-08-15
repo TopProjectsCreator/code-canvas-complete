@@ -41,7 +41,8 @@ import { useGitOperations } from "@/hooks/useGitOperations";
 import { createShellWorkflowAdapter, runWorkflow } from "@/lib/workflowRuntime";
 import { CollaborationSyncEngine, isRemotePatchEnvelope, type RemotePatchEnvelope } from "@/services/collabSyncEngine";
 import { useOfflineProject } from "@/hooks/useOfflineProject";
-import { AutomationTemplatePane, type AutomationBlockInstance, serializeAutomationConfig, parseAutomationConfig } from "@/components/ide/AutomationTemplatePane";
+import { AutomationTemplatePane } from "@/components/ide/AutomationTemplatePane";
+import { serializeAutomationConfig, parseAutomationConfig, type AutomationBlockInstance } from "@/components/ide/automationConfig";
 import { DatabaseDesignerPane } from "@/components/ide/DatabaseDesignerPane";
 import { BuilderLayout } from "@/components/builder/BuilderLayout";
 import { PartsInventoryDialog } from "@/components/ide/PartsInventoryDialog";
@@ -325,6 +326,9 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const editedFilesRef = useRef<Set<string>>(new Set());
   const collabEngineRef = useRef<CollaborationSyncEngine>(new CollaborationSyncEngine());
   const fileContentsRef = useRef<Record<string, string>>({});
+  fileContentsRef.current = fileContents;
+  const filesRef = useRef<FileNode[]>(files);
+  filesRef.current = files;
   const { executeCode, executeShellCommand, resetReplitShell } = useCodeExecution();
   const collab = useCollaboration(currentProject?.id);
   const { importRepository: gitProviderImport } = useGitProviderImport();
@@ -491,9 +495,9 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
   const activeFile = activeTab ? findFileById(files, activeTab.fileId) : null;
 
   // Prepare active file with updated content
-  const activeFileWithContent = activeFile
+  const activeFileWithContent = useMemo(() => activeFile
     ? { ...activeFile, content: fileContents?.[activeFile.id] ?? activeFile.content }
-    : null;
+    : null, [activeFile, fileContents]);
   const activeFilePath = activeFile ? findFilePathById(files, activeFile.id) || activeFile.name : null;
 
   // Automation 2-way sync: file → pane
@@ -680,7 +684,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       nodes.forEach((node) => {
         const nextPath = parentPath ? `${parentPath}/${node.name}` : node.name;
         if (node.type === "file") {
-          const content = fileContents[node.id] ?? node.content ?? "";
+          const content = fileContentsRef.current[node.id] ?? node.content ?? "";
           engine.initializeFile(node.id, nextPath, content);
           return;
         }
@@ -688,13 +692,8 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
       });
     };
 
-    registerNodes(files);
+    registerNodes(filesRef.current);
   }, [fileStructureKey]);
-
-  // Keep an up-to-date mirror of file contents for the collab patch resync path.
-  useEffect(() => {
-    fileContentsRef.current = fileContents;
-  }, [fileContents]);
 
   useEffect(() => {
     const remoteUpdate = collab.remoteFileUpdate;
@@ -934,7 +933,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       addHistoryEntry("git-commit", `Committed: "${message}"`, `${gitState.changes.length} file(s)`);
     },
-    [gitState.changes, gitState.remote, files, fileContents, originalFileContents, addHistoryEntry, gitCommit],
+    [gitState.changes, gitState.remote, files, fileContents, originalFileContents, addHistoryEntry, gitCommit, toast],
   );
 
   const handleGitStageFile = useCallback((_fileId: string) => {
@@ -1337,7 +1336,7 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       addHistoryEntry("file-create", `Created ${type}: ${name}`);
     },
-    [addHistoryEntry],
+    [addHistoryEntry, files, toast],
   );
 
   // addFile is defined further below (after handleContentChange) to avoid TDZ issues

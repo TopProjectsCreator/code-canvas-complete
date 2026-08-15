@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { MessageActions } from './MessageActions'
 import { MessageReactions } from './MessageReactions'
@@ -115,7 +115,7 @@ function MessageBody({ message }: { message: ChatMessage }) {
 }
 
 function MessageAttachments({ message }: { message: ChatMessage }) {
-  const attachments = message.attachments ?? []
+  const attachments = useMemo(() => message.attachments ?? [], [message.attachments])
   const [urls, setUrls] = useState<Record<string, string | null>>({})
   const [errors, setErrors] = useState<Record<string, boolean>>({})
   const attachmentPaths = attachments.map(a => a.storage_path).join(',')
@@ -143,7 +143,7 @@ function MessageAttachments({ message }: { message: ChatMessage }) {
       }
     }
     return () => { mountedRef.current = false }
-  }, [attachmentPaths, urls, errors, fetchUrl])
+  }, [attachments, attachmentPaths, urls, errors, fetchUrl])
 
   if (attachments.length === 0) return null
 

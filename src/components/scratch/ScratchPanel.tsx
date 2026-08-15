@@ -17,7 +17,8 @@ import {
 } from 'lucide-react';
 import VirtualMachine from 'scratch-vm';
 import { ScratchArchive, exportScratchArchive, importScratchArchive } from '@/services/scratchSb3';
-import { ScratchBlockShape, getBlockShape } from './ScratchBlockShape';
+import { ScratchBlockShape } from './ScratchBlockShape';
+import { getBlockShape } from './blockShapes';
 import { ShadowInput } from './ShadowInput';
 import { ScratchLibraryDialog, type LibraryMode } from './ScratchLibraryDialog';
 import { type ScratchLibraryAsset, assetUrl } from '@/data/scratchLibrary';
@@ -1634,6 +1635,10 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   const isRunningRef = useRef(isRunning);
   const latestQuestionBubbleRef = useRef('');
   const micPrimedRef = useRef(false);
+  // Latest syncFromVm kept in a ref so the mount-only VM-init effect can call
+  // it without depending on its identity (which changes with the selected
+  // sprite name).
+  const syncFromVmRef = useRef<() => void>(() => {});
 
   // Keep archiveRef in sync for the storage adapter closure
   useEffect(() => {
@@ -1797,6 +1802,8 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     });
     setSpriteVisible(visible);
   }, [selectedTarget?.name]);
+
+  syncFromVmRef.current = syncFromVm;
 
   const loadVmFromArchive = useCallback(async (nextArchive: ScratchArchive, version: ScratchCompatibilityVersion = scratchVersion) => {
     if (!vmRef.current) return;
@@ -2025,7 +2032,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
             }
           }
 
-          syncFromVm();
+          syncFromVmRef.current();
           rafRef.current = requestAnimationFrame(drawStep);
         };
         rafRef.current = requestAnimationFrame(drawStep);
@@ -2054,7 +2061,6 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       vmRef.current = null;
       projectLoadedRef.current = false;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -2124,7 +2130,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     prevIsRunning.current = isRunning;
   }, [isRunning, vmReady, syncFromVm, onStop]);
 
-  const updateProject = (updater: (current: ScratchProject) => ScratchProject) => {
+  const updateProject = useCallback((updater: (current: ScratchProject) => ScratchProject) => {
     const nextProject = updater(project);
     const nextJson = formatJson(nextProject);
     const currentArchive = ensureArchive(archive);
@@ -2141,7 +2147,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     onProjectJsonUpdate(nextJson);
     setProjectJsonDraft(nextJson);
     setJsonError(null);
-  };
+  }, [project, archive, onArchiveChange, onProjectJsonUpdate]);
 
   const updateArchiveWithProject = async (
     projectUpdater: (current: ScratchProject) => ScratchProject,
@@ -2401,22 +2407,22 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   // Default fallback for placement spacing
   const BLOCK_HEIGHT = STACK_BLOCK_HEIGHT;
 
-  const cBlockOpcodes = new Set([
+  const cBlockOpcodes = useMemo(() => new Set([
     'control_forever', 'control_repeat', 'control_if', 'control_if_else',
     'control_repeat_until', 'control_wait_until',
-  ]);
+  ]), []);
 
   // Returns the visual height of a single block (not including its children)
-  const getBlockOwnHeight = (block: ScratchBlockNode) => {
+  const getBlockOwnHeight = useCallback((block: ScratchBlockNode) => {
     if (isEventBlock(block.opcode) || block.opcode === 'procedures_definition' || block.opcode === 'control_start_as_clone') {
       return HAT_BLOCK_HEIGHT;
     }
     return STACK_BLOCK_HEIGHT;
-  };
+  }, []);
 
   type SnapResult = { id: string; type: 'next' | 'substack' } | null;
 
-  const getStackLength = (blocks: Record<string, ScratchBlockNode>, startId: string) => {
+  const getStackLength = useCallback((blocks: Record<string, ScratchBlockNode>, startId: string) => {
     let count = 1;
     let current = blocks[startId];
     while (current?.next && blocks[current.next]) {
@@ -2424,9 +2430,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       count += 1;
     }
     return count;
-  };
+  }, []);
 
-  const getStackTailId = (blocks: Record<string, ScratchBlockNode>, startId: string) => {
+  const getStackTailId = useCallback((blocks: Record<string, ScratchBlockNode>, startId: string) => {
     let tailId = startId;
     let current = blocks[startId];
     while (current?.next && blocks[current.next]) {
@@ -2434,9 +2440,9 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       current = blocks[current.next];
     }
     return tailId;
-  };
+  }, []);
 
-  const getNextSnapY = (blocks: Record<string, ScratchBlockNode>, block: ScratchBlockNode) => {
+  const getNextSnapY = useCallback((blocks: Record<string, ScratchBlockNode>, block: ScratchBlockNode) => {
     const by = block.y ?? 0;
     const ownH = getBlockOwnHeight(block);
     if (!cBlockOpcodes.has(block.opcode)) return by + ownH;
@@ -2444,14 +2450,23 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     const substackRoot = typeof substackInput?.[1] === 'string' ? substackInput[1] : null;
     const substackLen = substackRoot && blocks[substackRoot] ? getStackLength(blocks, substackRoot) : 1;
     return by + ownH + C_BLOCK_MOUTH_HEIGHT + substackLen * STACK_BLOCK_HEIGHT;
-  };
+  }, [cBlockOpcodes, getBlockOwnHeight, getStackLength]);
 
-  const getSnapPosition = (blocks: Record<string, ScratchBlockNode>, parent: ScratchBlockNode, type: 'next' | 'substack') => ({
+  const getSnapPosition = useCallback((
+    blocks: Record<string, ScratchBlockNode>,
+    parent: ScratchBlockNode,
+    type: 'next' | 'substack',
+  ) => ({
     x: type === 'substack' ? (parent.x ?? 0) + C_BLOCK_INDENT : (parent.x ?? 0),
     y: type === 'substack' ? (parent.y ?? 0) + getBlockOwnHeight(parent) : getNextSnapY(blocks, parent),
-  });
+  }), [getBlockOwnHeight, getNextSnapY]);
 
-  const findSnapTarget = (blocks: Record<string, ScratchBlockNode>, dropX: number, dropY: number, excludeId?: string): SnapResult => {
+  const findSnapTarget = useCallback((
+    blocks: Record<string, ScratchBlockNode>,
+    dropX: number,
+    dropY: number,
+    excludeId?: string,
+  ): SnapResult => {
     let best: { id: string; type: 'next' | 'substack'; score: number } | null = null;
 
     for (const [id, block] of Object.entries(blocks)) {
@@ -2494,7 +2509,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     }
 
     return best ? { id: best.id, type: best.type } : null;
-  };
+  }, [BLOCK_HEIGHT, cBlockOpcodes, getNextSnapY, getStackTailId]);
 
   const createVariable = (name: string) => {
     if (!selectedTarget || selectedTarget.isStage) return;
@@ -2595,7 +2610,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setDataPrompt(null);
   };
 
-  const addBlock = (blockDef: ScratchBlockDef, dropX?: number, dropY?: number) => {
+  const addBlock = useCallback((blockDef: ScratchBlockDef, dropX?: number, dropY?: number) => {
     if (!selectedTarget || selectedTarget.isStage || activeEditorTab !== 'code') return;
     if (!isBlockDefAvailable(blockDef, scratchVersion)) {
       setVmError(`"${blockDef.label}" is not available in ${SCRATCH_VERSION_OPTIONS.find((v) => v.value === scratchVersion)?.label || 'this version'}.`);
@@ -2715,7 +2730,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
       }),
       };
     });
-  };
+  }, [activeEditorTab, findSnapTarget, getSnapPosition, scratchVersion, selectedTarget, selectedTargetIndex, updateProject]);
 
   // Find a compatible empty input slot under the workspace coords (in unzoomed space).
   // sourceShape: 'reporter' | 'boolean' — strict matching.
@@ -2790,7 +2805,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
   };
 
   // Create a new reporter/boolean block from a flyout def and attach it as a slot input on parentId.
-  const attachReporterToSlot = (blockDef: ScratchBlockDef, parentId: string, inputKey: string) => {
+  const attachReporterToSlot = useCallback((blockDef: ScratchBlockDef, parentId: string, inputKey: string) => {
     const newId = generateId();
     updateProject((current) => ({
       ...current,
@@ -2822,7 +2837,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         return { ...dataResolved.target, blocks };
       }),
     }));
-  };
+  }, [selectedTargetIndex, updateProject]);
 
   // Update the literal value inside a shadow input (e.g., the "10" in `repeat [10]`).
   const updateShadowValue = (parentId: string, inputKey: string, newValue: string) => {
@@ -2955,7 +2970,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
 
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-  }, [workspaceZoom, selectedTarget]);
+  }, [workspaceZoom, selectedTarget, addBlock, attachReporterToSlot, findSlotDropTarget]);
 
   const getBlockStack = useCallback((blocks: Record<string, ScratchBlockNode>, startId: string): string[] => {
     const ids: string[] = [startId];
@@ -3236,7 +3251,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
         setSnapPreview(null);
       }
     }
-  }, [getWorkspaceCoords, selectedTarget, selectedTargetIndex, updateProject, getBlockStack, findSlotDropTarget]);
+  }, [getWorkspaceCoords, selectedTarget, selectedTargetIndex, updateProject, getBlockStack, findSlotDropTarget, findSnapTarget, getSnapPosition]);
 
   const handleWorkspacePointerUp = useCallback(() => {
     const drag = dragRef.current;
@@ -3323,7 +3338,7 @@ export const ScratchPanel = ({ archive, onArchiveChange, onProjectJsonUpdate, is
     setDragBlockId(null);
     setSnapPreview(null);
     setInputDropTarget(null);
-  }, [snapPreview, inputDropTarget, selectedTargetIndex, updateProject, getBlockStack]);
+  }, [snapPreview, inputDropTarget, selectedTargetIndex, updateProject, getBlockStack, getSnapPosition]);
 
   const runPreview = async () => {
     if (!vmRef.current || !vmReady) return;

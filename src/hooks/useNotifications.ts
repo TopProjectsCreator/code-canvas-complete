@@ -145,7 +145,7 @@ export function useNotifications() {
       console.error('Failed to send email notification:', err);
       return false;
     }
-  }, [settings.emailProvider, settings.emailApiKey, settings.emailFrom]);
+  }, [settings.emailProvider, settings.emailApiKey, settings.emailFrom, settings.smsAccountSid, settings.smsAuthToken]);
 
   const sendSmsNotification = useCallback(async (text: string, toOverride?: string) => {
     const to = toOverride || settings.smsTo;

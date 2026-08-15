@@ -22,5 +22,5 @@ export function usePresenceTracker() {
       path: window.location.pathname,
     });
     return release;
-  }, [user?.id]);
+  }, [user, user?.id]);
 }

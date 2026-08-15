@@ -347,7 +347,7 @@ export const ExtensionsPanel = ({
 
   /* ---- run / test ---- */
 
-  const runExtension = async () => {
+  const runExtension = useCallback(async () => {
     if (!code.trim()) return;
     if (runtimeType === 'command' && (!activeFile || !onUpdateFileContent)) {
       toast.error('Open the CSV file you want to transform, then run the extension again');
@@ -410,14 +410,14 @@ export const ExtensionsPanel = ({
     } finally {
       setRunning(false);
     }
-  };
+  }, [code, runtimeType, activeFile, onUpdateFileContent, slug, sandboxFiles, profile, user, myExtensions, installedIds]);
 
   /* ---- run built-in ---- */
 
   const [builtinView, setBuiltinView] = useState<BuiltinExtension | null>(null);
   const [builtinHtml, setBuiltinHtml] = useState('');
 
-  const runBuiltinExtension = async (ext: BuiltinExtension) => {
+  const runBuiltinExtension = useCallback(async (ext: BuiltinExtension) => {
     setBuiltinHtml('');
     setBuiltinView(ext);
     setView('list'); // stay on list but show inline
@@ -434,7 +434,7 @@ export const ExtensionsPanel = ({
     } catch (err: any) {
       toast.error(`Extension error: ${err.message}`);
     }
-  };
+  }, [activeFile, onUpdateFileContent]);
 
   useEffect(() => {
     if (!requestedBuiltinSlug) return;
@@ -449,7 +449,7 @@ export const ExtensionsPanel = ({
       });
     }
     onBuiltinRequestHandled?.();
-  }, [onBuiltinRequestHandled, requestedBuiltinAutoRun, requestedBuiltinSlug]);
+  }, [onBuiltinRequestHandled, requestedBuiltinAutoRun, requestedBuiltinSlug, runBuiltinExtension, runExtension]);
 
   /* ---- CRUD ---- */
 

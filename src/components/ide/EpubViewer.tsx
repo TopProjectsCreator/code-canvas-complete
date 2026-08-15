@@ -34,6 +34,8 @@ export const EpubViewer = ({ file }: EpubViewerProps) => {
   const [isDark, setIsDark] = useState(() => {
     return localStorage.getItem(THEME_STORAGE_KEY) === 'dark';
   });
+  const isDarkRef = useRef(isDark);
+  isDarkRef.current = isDark;
   const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE);
   const [currentLocation, setCurrentLocation] = useState<string>('');
   const [totalLocations, setTotalLocations] = useState(0);
@@ -42,6 +44,16 @@ export const EpubViewer = ({ file }: EpubViewerProps) => {
   const renditionRef = useRef<Rendition | null>(null);
   const bookRef = useRef<Book | null>(null);
   const blobUrlsRef = useRef<string[]>([]);
+
+  const cleanup = useCallback(() => {
+    if (renditionRef.current) {
+      try { renditionRef.current.destroy(); } catch {}
+      renditionRef.current = null;
+    }
+    bookRef.current = null;
+    blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    blobUrlsRef.current = [];
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,7 +170,7 @@ export const EpubViewer = ({ file }: EpubViewerProps) => {
           }
         });
 
-        if (isDark) {
+        if (isDarkRef.current) {
           applyTheme(rendition, true);
         }
       } catch (err) {
@@ -176,17 +188,7 @@ export const EpubViewer = ({ file }: EpubViewerProps) => {
       cancelled = true;
       cleanup();
     };
-  }, [file.content, file.id]);
-
-  const cleanup = useCallback(() => {
-    if (renditionRef.current) {
-      try { renditionRef.current.destroy(); } catch {}
-      renditionRef.current = null;
-    }
-    bookRef.current = null;
-    blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    blobUrlsRef.current = [];
-  }, []);
+  }, [cleanup, file.content, file.id]);
 
   const applyTheme = (rendition: Rendition, dark: boolean) => {
     if (!rendition || !rendition.themes) return;

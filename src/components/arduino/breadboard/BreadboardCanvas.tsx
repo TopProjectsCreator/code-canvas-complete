@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { ArduinoComponent, BreadboardCircuit } from '@/types/ide';
 import { COMPONENT_TEMPLATES } from './componentTemplates';
 import { Wire, WirePoint, ToolMode, SimulationState } from './types';
+import { snapToGrid } from './snapToGrid';
 import { arduinoBoards } from '@/data/arduinoTemplates';
 
 interface BreadboardCanvasProps {
@@ -30,7 +31,6 @@ const TOP_ROWS = 5;
 const BOT_ROWS = 5;
 const GAP = 28;
 const HOLE_SPACING = 15;
-const SNAP_GRID = HOLE_SPACING;
 
 const HOLE_AREA_W = (COLS - 1) * HOLE_SPACING;
 const HOLE_START_X = BB_X + (BB_W - HOLE_AREA_W) / 2;
@@ -129,13 +129,6 @@ const generateBoardPins = (boardId: string): { pins: BoardPin[]; boardW: number;
 
   return { pins, boardW, chipLabel: board.cpu };
 };
-
-export function snapToGrid(x: number, y: number): { x: number; y: number } {
-  return {
-    x: Math.round(x / SNAP_GRID) * SNAP_GRID,
-    y: Math.round(y / SNAP_GRID) * SNAP_GRID,
-  };
-}
 
 function getRailY(rail: 'top+' | 'top-' | 'bot+' | 'bot-'): number {
   if (rail === 'top+') return RAIL_TOP_PLUS_Y;

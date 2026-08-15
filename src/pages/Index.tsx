@@ -21,7 +21,7 @@ const Index = () => {
       searchParams.delete('theme');
       setSearchParams(searchParams, { replace: true });
     }
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   return (
     <>

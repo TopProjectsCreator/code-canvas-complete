@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Excalidraw, exportToSvg, exportToBlob, serializeAsJSON } from "@excalidraw/excalidraw";
+import type { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
 import { FileNode } from "@/types/ide";
 import { Button } from "@/components/ui/button";
@@ -17,16 +18,31 @@ export function DrawEditor({ file, onContentChange }: DrawEditorProps) {
   const [isDirty, setIsDirty] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [elementCount, setElementCount] = useState(0);
+  // Latest file.content held in a ref so the parse-once-per-file memo can read
+  // fresh values without depending on them (re-parsing on every content change
+  // would reset the user's edits after each save).
+  const fileContentRef = useRef(file.content);
+  fileContentRef.current = file.content;
+  const parsedForFileIdRef = useRef<string | null>(null);
+  const parsedDataRef = useRef<ExcalidrawInitialDataState | null>(null);
 
   const initialData = useMemo(() => {
-    if (file.content) {
-      try {
-        return JSON.parse(file.content);
-      } catch {
-        return { elements: [], appState: { viewBackgroundColor: "#ffffff" } };
-      }
+    if (parsedForFileIdRef.current === file.id) {
+      return parsedDataRef.current;
     }
-    return { elements: [], appState: { viewBackgroundColor: "#ffffff" } };
+    parsedForFileIdRef.current = file.id;
+    let data: ExcalidrawInitialDataState | null;
+    if (fileContentRef.current) {
+      try {
+        data = JSON.parse(fileContentRef.current);
+      } catch {
+        data = { elements: [], appState: { viewBackgroundColor: "#ffffff" } };
+      }
+    } else {
+      data = { elements: [], appState: { viewBackgroundColor: "#ffffff" } };
+    }
+    parsedDataRef.current = data;
+    return data;
   }, [file.id]);
 
   const lastCountRef = useRef(0);

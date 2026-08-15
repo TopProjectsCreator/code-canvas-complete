@@ -22,7 +22,7 @@ export function useIsAdmin(): boolean {
         if (!cancelled) setIsAdmin(!!data);
       });
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user, user?.id]);
 
   return isAdmin;
 }

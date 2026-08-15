@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { ArrowRight, Database, FileText, Plus, Save, Trash2, Wand2, Link2, X, ZoomIn, ZoomOut, Maximize2, Undo2, Redo2, Paperclip, Upload } from "lucide-react";
 import type { FileNode } from "@/types/ide";
@@ -167,7 +167,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
       return updater(prev);
     });
   };
-  const undo = () => {
+  const undo = useCallback(() => {
     const h = historyRef.current;
     if (h.past.length === 0) return;
     setModel((current) => {
@@ -176,8 +176,8 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
       forceHistoryRender((x) => x + 1);
       return prev;
     });
-  };
-  const redo = () => {
+  }, []);
+  const redo = useCallback(() => {
     const h = historyRef.current;
     if (h.future.length === 0) return;
     setModel((current) => {
@@ -186,7 +186,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
       forceHistoryRender((x) => x + 1);
       return next;
     });
-  };
+  }, []);
   // Doc linking dialog target: "table:foo" or "column:foo.bar"
   const [docTarget, setDocTarget] = useState<string | null>(null);
 
@@ -482,7 +482,7 @@ export const DatabaseDesignerPane = ({ files, onFileUpdate }: DatabaseDesignerPa
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [undo, redo]);
 
   return (
     <div className="h-full flex flex-col overflow-y-auto bg-background p-4 space-y-4">

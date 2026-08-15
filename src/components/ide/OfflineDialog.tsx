@@ -9,22 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-
-const EVENT_NAME = "show-offline-dialog";
-
-export interface OfflineDialogDetail {
-  title?: string;
-  description?: string;
-  /** Optional callback invoked when connectivity is restored or the user retries. */
-  onRetry?: () => void | Promise<void>;
-  /** Optional label for the retry button. */
-  retryLabel?: string;
-}
-
-/** Dispatch from anywhere to show the offline dialog. */
-export function showOfflineDialog(detail: OfflineDialogDetail = {}) {
-  window.dispatchEvent(new CustomEvent<OfflineDialogDetail>(EVENT_NAME, { detail }));
-}
+import { EVENT_NAME, type OfflineDialogDetail } from "./offlineDialog";
 
 export function OfflineDialog() {
   const [open, setOpen] = useState(false);

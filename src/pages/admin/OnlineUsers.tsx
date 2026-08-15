@@ -40,12 +40,13 @@ export default function OnlineUsers() {
       unsub();
       release();
     };
-  }, [isAdmin, user?.id]);
+  }, [isAdmin, user, user?.id]);
 
 
   const userIds = useMemo(() => Object.keys(online), [online]);
 
   // Load roles for currently-online users.
+  const userIdsJoined = userIds.join(',');
   useEffect(() => {
     if (!isAdmin || userIds.length === 0) return;
     let cancelled = false;
@@ -64,7 +65,7 @@ export default function OnlineUsers() {
         setRoles(map);
       });
     return () => { cancelled = true; };
-  }, [isAdmin, userIds.join(',')]);
+  }, [isAdmin, userIds, userIdsJoined]);
 
   const toggleRole = async (targetUserId: string, role: AppRole, hasIt: boolean) => {
     setBusy(`${targetUserId}:${role}`);

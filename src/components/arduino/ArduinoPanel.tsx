@@ -126,7 +126,7 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile }: ArduinoPanelPro
         console.error('Failed to parse circuit.json');
       }
     }
-  }, [circuitFile?.id, circuitFile?.content]);
+  }, [circuitFile]);
 
   useEffect(() => {
     const code = sketchFile?.content || '';
@@ -139,7 +139,7 @@ export function ArduinoPanel({ files, onFileUpdate, onAddFile }: ArduinoPanelPro
       }
       return updated;
     });
-  }, [sketchFile?.content, circuitFile?.id, onFileUpdate]);
+  }, [sketchFile?.content, circuitFile, circuit.code, onFileUpdate]);
 
   const getSketchWithLibraries = (): string => {
     const libraryIncludes = selectedLibraries

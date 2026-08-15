@@ -14,7 +14,8 @@ import {
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { BuilderProvider, useBuilder } from "./useBuilderStore";
 import { ComponentPalette } from "./ComponentPalette";
-import { Canvas, DragPreview, findNodeById, findContainerParent } from "./Canvas";
+import { Canvas, DragPreview } from "./Canvas";
+import { findNodeById, findContainerParent } from "./treeUtils";
 import { ComponentTree } from "./ComponentTree";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { CodePreview } from "./CodePreview";

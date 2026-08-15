@@ -9,7 +9,7 @@ import {
   type CollaborationSyncEngine,
   type RemotePatchEnvelope,
 } from '@/services/collabSyncEngine';
-import { showOfflineDialog } from '@/components/ide/OfflineDialog';
+import { showOfflineDialog } from '@/components/ide/offlineDialog';
 
 export type CollabRole = 'viewer' | 'editor' | 'admin';
 

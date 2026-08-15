@@ -44,7 +44,7 @@ export function TaskDetail({
       setDeadline(task.deadline || '');
       setAssignee(task.assignee || '');
     }
-  }, [task?.id]);
+  }, [task, editing]);
 
   if (!task) return null;
 

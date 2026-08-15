@@ -93,12 +93,3 @@ export function AIUsageStats() {
     </div>
   );
 }
-
-// Helper to increment a stat from anywhere
-export function trackAIUsage(userId: string, key: string, amount = 1) {
-  const storageKey = `ai_usage_stats_${userId}`;
-  const raw = localStorage.getItem(storageKey);
-  const data = raw ? JSON.parse(raw) : {};
-  data[key] = (data[key] || 0) + amount;
-  localStorage.setItem(storageKey, JSON.stringify(data));
-}

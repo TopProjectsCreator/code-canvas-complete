@@ -108,7 +108,7 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
         ta.selectionStart = start;
         ta.selectionEnd = end;
       }
-    }, [content]);
+    }, [content, textareaRef]);
 
     useEffect(() => {
       if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
@@ -126,7 +126,7 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
       if (!highlightedHtml) {
         setHighlightedHtml(buildHighlightedHtml(content, language, searchMatches, currentMatchIndex));
       }
-    }, []);
+    }, [buildHighlightedHtml, content, currentMatchIndex, highlightedHtml, language, searchMatches, textareaRef]);
 
     const syncScroll = useCallback(() => {
       const ta = textareaRef.current;
@@ -135,7 +135,7 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
         pre.scrollTop = ta.scrollTop;
         pre.scrollLeft = ta.scrollLeft;
       }
-    }, []);
+    }, [preRef, textareaRef]);
 
     const handleWheel = useCallback(
       (e: React.WheelEvent<HTMLDivElement>) => {
@@ -147,7 +147,7 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
         ta.scrollLeft += e.deltaX;
         syncScroll();
       },
-      [syncScroll],
+      [syncScroll, textareaRef],
     );
 
     const handleInput = useCallback(() => {
@@ -156,7 +156,7 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
       const newValue = ta.value;
       contentRef.current = newValue;
       onChange(newValue);
-    }, [onChange]);
+    }, [onChange, textareaRef]);
 
     const handleKeyDown = useCallback(
       (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -170,7 +170,7 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
           handleInput();
         }
       },
-      [handleInput],
+      [handleInput, textareaRef],
     );
 
     const handleSelectionChange = useCallback(() => {
@@ -178,7 +178,7 @@ export const TextEditor = forwardRef<TextEditorHandle, TextEditorProps>(
       if (!ta || document.activeElement !== ta) return;
       const pos = getCursorFromOffset(ta.value, ta.selectionStart);
       onCursorChange(pos.line, pos.col);
-    }, [onCursorChange]);
+    }, [onCursorChange, textareaRef]);
 
     useEffect(() => {
       document.addEventListener("selectionchange", handleSelectionChange);

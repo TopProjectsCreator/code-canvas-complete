@@ -39,50 +39,7 @@ import {
   type Operation,
 } from '@/data/automationIntegrationRegistry';
 import { AutomationBlockParameterForm } from './AutomationBlockParameterForm';
-
-export interface AutomationBlockInstance {
-  id: string;
-  type: string;
-  label: string;
-  category: string;
-  subcategory: string;
-  auth: AutomationAuthType;
-  config: Record<string, string>;
-}
-
-/** Serialize blocks to a JSON string for automation.config.json */
-export const serializeAutomationConfig = (blocks: AutomationBlockInstance[]): string => {
-  return JSON.stringify({
-    version: 1,
-    blocks: blocks.map(b => ({
-      type: b.type,
-      label: b.label,
-      category: b.category,
-      subcategory: b.subcategory,
-      auth: b.auth,
-      config: b.config,
-    })),
-  }, null, 2);
-};
-
-/** Parse automation.config.json content into blocks */
-export const parseAutomationConfig = (json: string): AutomationBlockInstance[] | null => {
-  try {
-    const parsed = JSON.parse(json);
-    if (!parsed?.blocks || !Array.isArray(parsed.blocks)) return null;
-    return parsed.blocks.map((b: any) => ({
-      id: createId(),
-      type: b.type || '',
-      label: b.label || '',
-      category: b.category || '',
-      subcategory: b.subcategory || '',
-      auth: b.auth || 'internal',
-      config: b.config || {},
-    }));
-  } catch {
-    return null;
-  }
-};
+import { type AutomationBlockInstance } from './automationConfig';
 
 interface AutomationTemplatePaneProps {
   initialBlocks?: AutomationBlockInstance[];
@@ -767,6 +724,7 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
   blocksChangeRef.current = onBlocksChange;
   const { executeCode } = useCodeExecution();
   const generateNodeCodeImplRef = useRef<(() => string | undefined) | null>(null);
+  const generatePythonCodeImplRef = useRef<(() => string | undefined) | null>(null);
 
   // Sync with initialBlocks from external changes (file edits)
   // Only react to syncVersion bumps (external file changes), NOT to internal block state
@@ -1086,9 +1044,9 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     setCodeLanguage(lang);
 
     if (lang === 'python') {
-      generatePythonCodeImpl();
+      generatePythonCodeImplRef.current?.();
     } else {
-      generateNodeCodeImpl();
+      generateNodeCodeImplRef.current?.();
     }
   }, [blocks, invalidTriggerStart]);
 
@@ -1916,6 +1874,9 @@ export const AutomationTemplatePane = ({ initialBlocks, onBlocksChange, syncVers
     toast.success('Python code generated!');
     return code;
   }, [blocks]);
+
+  // Bridge for generateCode (declared earlier) to call the latest generator.
+  generatePythonCodeImplRef.current = generatePythonCodeImpl;
 
   // ---- Node.js code generation ----
   const generateNodeCodeImpl = useCallback(() => {

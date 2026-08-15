@@ -75,7 +75,7 @@ export function useMCPAndSkills() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, toast]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 

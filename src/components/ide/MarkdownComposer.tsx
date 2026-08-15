@@ -50,6 +50,15 @@ export function MarkdownComposer({ content, onChange, placeholder = 'Write your 
   const [hasFrontmatter, setHasFrontmatter] = useState(!!parsed.frontmatter);
   const [charCount, setCharCount] = useState(content.length);
   const editorContainerRef = useRef<HTMLDivElement>(null);
+  // Mount-time values mirrored into refs so the one-time editor-options memo
+  // can read them without depending on them (external content changes are
+  // applied by the sync effect below).
+  const initialContentRef = useRef(content);
+  initialContentRef.current = content;
+  const initialParsedRef = useRef(parsed);
+  initialParsedRef.current = parsed;
+  const placeholderRef = useRef(placeholder);
+  placeholderRef.current = placeholder;
 
   const editorOptions = useMemo(() => ({
     extensions: [
@@ -65,9 +74,9 @@ export function MarkdownComposer({ content, onChange, placeholder = 'Write your 
       TableHeader,
       ImageExt,
       CodeBlockLowlight.configure({ lowlight }),
-      Placeholder.configure({ placeholder }),
+      Placeholder.configure({ placeholder: placeholderRef.current }),
     ],
-    content: marked.parse(parsed.body || content) as string,
+    content: marked.parse(initialParsedRef.current.body || initialContentRef.current) as string,
     onUpdate: ({ editor: ed }: { editor: any }) => {
       const html = ed.getHTML();
       let md = turndownService.turndown(html);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageSquare, Pencil, Trash2, Presentation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -42,7 +42,7 @@ export default function ThreadDetail() {
   const { categories } = useThreadCategories();
   
 
-  const load = () => {
+  const load = useCallback(() => {
     if (!id) return;
     setLoading(true);
     fetchThread(id, user?.id)
@@ -58,12 +58,11 @@ export default function ThreadDetail() {
         toast({ title: 'Failed to load thread', description: err?.message || String(err), variant: 'destructive' });
       })
       .finally(() => setLoading(false));
-  };
+  }, [id, user?.id, searchParams, toast]);
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, user?.id]);
+  }, [load]);
 
   const handleVote = async (targetType: 'thread' | 'comment', targetId: string, value: number) => {
     if (!user) {

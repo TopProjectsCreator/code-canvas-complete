@@ -131,6 +131,43 @@ export function SvgCanvas({
     return guides
   }, [doc.elements, zoom])
 
+  const handleResize = useCallback((pt: { x: number; y: number }) => {
+    if (!resizeStart) return
+    const { bbox } = resizeStart
+    if (!resizeHandle) return
+
+    const handle = resizeHandle
+    let dx = 0, dy = 0, dw = 0, dh = 0
+    const mx = pt.x
+    const my = pt.y
+
+    if (handle.includes('left')) { dx = mx - bbox.x; dw = -dx }
+    if (handle.includes('right')) { dw = mx - (bbox.x + bbox.width) }
+    if (handle.includes('top')) { dy = my - bbox.y; dh = -dy }
+    if (handle.includes('bottom')) { dh = my - (bbox.y + bbox.height) }
+    if (handle === 'middle-left') { dx = mx - bbox.x; dw = -dx }
+    if (handle === 'middle-right') { dw = mx - (bbox.x + bbox.width) }
+
+    for (const id of selectedIds) {
+      const el = doc.elements.find((e) => e.id === id)
+      if (!el) continue
+      if (el.type === 'rect') {
+        const newX = (el.attrs.x as number || 0) + (handle.includes('left') ? dx : (handle === 'top-left' ? dx : 0))
+        const newY = (el.attrs.y as number || 0) + (handle.includes('top') ? dy : 0)
+        const newW = Math.max(5, (el.attrs.width as number || 0) + (handle.includes('left') ? -dx : (handle.includes('right') ? dw : 0)))
+        const newH = Math.max(5, (el.attrs.height as number || 0) + (handle.includes('top') ? -dy : (handle.includes('bottom') ? dh : 0)))
+        onResizeElement(id, { x: newX, y: newY, width: newW, height: newH })
+      } else if (el.type === 'circle') {
+        const newR = Math.max(5, (el.attrs.r as number || 0) + (dw / 2))
+        onResizeElement(id, { r: newR })
+      } else if (el.type === 'ellipse') {
+        const newRx = Math.max(5, (el.attrs.rx as number || 0) + (handle.includes('left') || handle.includes('right') ? dw / 2 : 0))
+        const newRy = Math.max(5, (el.attrs.ry as number || 0) + (handle.includes('top') || handle.includes('bottom') ? dh / 2 : 0))
+        onResizeElement(id, { rx: newRx, ry: newRy })
+      }
+    }
+  }, [resizeStart, resizeHandle, selectedIds, doc.elements, onResizeElement])
+
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0) return
     const pt = getSvgPoint(e.clientX, e.clientY)
@@ -189,44 +226,9 @@ export function SvgCanvas({
       const hit = getElementAtPoint(doc.elements, pt.x, pt.y)
       setHoveredId(hit?.id || null)
     }
-  }, [toolMode, dragging, dragStart, selectedIds, getSvgPoint, snapPoint, rubberBand, drawStart, resizeHandle, resizeStart, draggingControl, computeGuides, onMoveElements, onFreehandMove, onDrawMove, onUpdatePathPoint, doc.elements])
+  }, [toolMode, dragging, dragStart, selectedIds, getSvgPoint, snapPoint, rubberBand, drawStart, resizeHandle, resizeStart, draggingControl, computeGuides, onMoveElements, onFreehandMove, onDrawMove, onUpdatePathPoint, doc.elements, handleResize])
 
-  function handleResize(pt: { x: number; y: number }) {
-    if (!resizeStart) return
-    const { bbox } = resizeStart
-    if (!resizeHandle) return
 
-    const handle = resizeHandle
-    let dx = 0, dy = 0, dw = 0, dh = 0
-    const mx = pt.x
-    const my = pt.y
-
-    if (handle.includes('left')) { dx = mx - bbox.x; dw = -dx }
-    if (handle.includes('right')) { dw = mx - (bbox.x + bbox.width) }
-    if (handle.includes('top')) { dy = my - bbox.y; dh = -dy }
-    if (handle.includes('bottom')) { dh = my - (bbox.y + bbox.height) }
-    if (handle === 'middle-left') { dx = mx - bbox.x; dw = -dx }
-    if (handle === 'middle-right') { dw = mx - (bbox.x + bbox.width) }
-
-    for (const id of selectedIds) {
-      const el = doc.elements.find((e) => e.id === id)
-      if (!el) continue
-      if (el.type === 'rect') {
-        const newX = (el.attrs.x as number || 0) + (handle.includes('left') ? dx : (handle === 'top-left' ? dx : 0))
-        const newY = (el.attrs.y as number || 0) + (handle.includes('top') ? dy : 0)
-        const newW = Math.max(5, (el.attrs.width as number || 0) + (handle.includes('left') ? -dx : (handle.includes('right') ? dw : 0)))
-        const newH = Math.max(5, (el.attrs.height as number || 0) + (handle.includes('top') ? -dy : (handle.includes('bottom') ? dh : 0)))
-        onResizeElement(id, { x: newX, y: newY, width: newW, height: newH })
-      } else if (el.type === 'circle') {
-        const newR = Math.max(5, (el.attrs.r as number || 0) + (dw / 2))
-        onResizeElement(id, { r: newR })
-      } else if (el.type === 'ellipse') {
-        const newRx = Math.max(5, (el.attrs.rx as number || 0) + (handle.includes('left') || handle.includes('right') ? dw / 2 : 0))
-        const newRy = Math.max(5, (el.attrs.ry as number || 0) + (handle.includes('top') || handle.includes('bottom') ? dh / 2 : 0))
-        onResizeElement(id, { rx: newRx, ry: newRy })
-      }
-    }
-  }
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     const pt = getSvgPoint(e.clientX, e.clientY)
@@ -293,7 +295,7 @@ export function SvgCanvas({
     if (e.key === 'Escape') {
       onSetEditingText(null)
     }
-  }, [selectedIds, toolMode, doc.elements, onUpdateElement, onSetEditingText])
+  }, [selectedIds, toolMode, onUpdateElement, onSetEditingText])
 
   const selectionBBox = useMemo(() => getSelectionBBox(doc.elements, selectedIds), [doc.elements, selectedIds])
 

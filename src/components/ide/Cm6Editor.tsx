@@ -64,6 +64,13 @@ export const Cm6Editor = forwardRef<Cm6EditorHandle, Cm6EditorProps>(
 
     onChangeRef.current = onChange;
     onCursorChangeRef.current = onCursorChange;
+    // Mount-time values are mirrored into refs so the one-time editor setup
+    // effect can read them without depending on them (subsequent changes are
+    // applied reactively by the compartment-reconfigure effects below).
+    const mountContentRef = useRef(content);
+    mountContentRef.current = content;
+    const mountExtensionsRef = useRef<typeof customExtensions>(customExtensions);
+    mountExtensionsRef.current = customExtensions;
 
     const languageCompartment = useMemo(() => new Compartment(), []);
     const customExtensionsCompartment = useMemo(() => new Compartment(), []);
@@ -99,16 +106,18 @@ export const Cm6Editor = forwardRef<Cm6EditorHandle, Cm6EditorProps>(
       () => getLanguageExtension(fileName, language),
       [fileName, language],
     );
+    const mountLanguageExtensionsRef = useRef(languageExtensions);
+    mountLanguageExtensionsRef.current = languageExtensions;
 
     useEffect(() => {
       if (!containerRef.current || viewRef.current) return;
 
       const state = EditorState.create({
-        doc: content,
+        doc: mountContentRef.current,
         extensions: [
           ...baseExtensions,
-          languageCompartment.of(languageExtensions),
-          customExtensionsCompartment.of(customExtensions ?? []),
+          languageCompartment.of(mountLanguageExtensionsRef.current),
+          customExtensionsCompartment.of(mountExtensionsRef.current ?? []),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) {
               onChangeRef.current(update.state.doc.toString());
@@ -145,8 +154,7 @@ export const Cm6Editor = forwardRef<Cm6EditorHandle, Cm6EditorProps>(
         viewRef.current = null;
         setIsReady(false);
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [baseExtensions, customExtensionsCompartment, languageCompartment]);
 
     useEffect(() => {
       const view = viewRef.current;
@@ -154,7 +162,7 @@ export const Cm6Editor = forwardRef<Cm6EditorHandle, Cm6EditorProps>(
       view.dispatch({
         effects: languageCompartment.reconfigure(languageExtensions),
       });
-    }, [languageExtensions]);
+    }, [languageExtensions, languageCompartment]);
 
     useEffect(() => {
       const view = viewRef.current;
@@ -162,7 +170,7 @@ export const Cm6Editor = forwardRef<Cm6EditorHandle, Cm6EditorProps>(
       view.dispatch({
         effects: customExtensionsCompartment.reconfigure(customExtensions ?? []),
       });
-    }, [customExtensions]);
+    }, [customExtensions, customExtensionsCompartment]);
 
     useEffect(() => {
       const view = viewRef.current;

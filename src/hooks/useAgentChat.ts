@@ -18,6 +18,7 @@ import {
 
 const _agentChatPlatform = detectDeploymentPlatform();
 const canUseShellOnPlatform = isReplitLikePlatform(_agentChatPlatform);
+const generateId = () => Math.random().toString(36).substring(2, 9);
 
 interface CustomThemeAction {
   name: string;
@@ -134,7 +135,7 @@ const loadPersistedMessages = (projectId?: string | null): AgentMessage[] => {
   }
 };
 
-export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI, workflows = [], autonomyConfig, currentProjectId }: UseAgentChatProps = {}) => {
+export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI, workflows = [], autonomyConfig, currentProjectId }: UseAgentChatProps = {}) => {
   const [messages, setMessages] = useState<AgentMessage[]>(() => loadPersistedMessages(currentProjectId));
 
   // Reload messages when project changes
@@ -242,9 +243,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     };
   }, [isLoading]);
 
-  const generateId = () => Math.random().toString(36).substring(2, 9);
-
-  const parseToolCalls = (content: string): { toolCalls: ToolCall[], cleanContent: string } => {
+  const parseToolCalls = useCallback((content: string): { toolCalls: ToolCall[], cleanContent: string } => {
     const toolCalls: ToolCall[] = [];
     let cleanContent = content;
     const toolRegex = /<tool:(\w+)>([\s\S]*?)<\/tool>/g;
@@ -257,7 +256,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       } catch { /* skip */ }
     }
     return { toolCalls, cleanContent: cleanContent.trim() };
-  };
+  }, []);
 
   const parseSearchAutomation = (content: string): { queries: string[], cleanContent: string } => {
     const queries: string[] = [];
@@ -500,7 +499,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     return { shareActions, cleanContent: cleanContent.trim() };
   };
 
-  const parseInteractiveQuestions = (content: string): { questions: InteractiveQuestion[], cleanContent: string } => {
+  const parseInteractiveQuestions = useCallback((content: string): { questions: InteractiveQuestion[], cleanContent: string } => {
     const questions: InteractiveQuestion[] = [];
     let cleanContent = content;
     const promptRegex = /<ask_prompt\s+([^>]+)\/>/g;
@@ -567,9 +566,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       cleanContent = cleanContent.replace(match[0], '');
     }
     return { questions, cleanContent: cleanContent.trim() };
-  };
+  }, []);
 
-  const parseChatWidgets = (content: string): { widgets: ChatWidget[], cleanContent: string } => {
+  const parseChatWidgets = useCallback((content: string): { widgets: ChatWidget[], cleanContent: string } => {
     const widgets: ChatWidget[] = [];
     let cleanContent = content;
     const widgetTypes: ChatWidgetType[] = ['color_picker', 'coin_flip', 'dice_roll', 'calculator', 'spinner', 'stock', 'change_template', 'pomodoro', 'logic_visualizer', 'asset_search', 'viewport_preview', 'a11y_audit', 'todo_tracker', 'dependency_visualizer', 'readme_generator', 'project_stats', 'code_review', 'docs_link', 'countdown', 'password_generator', 'unit_converter', 'progress_tracker', 'json_viewer', 'regex_tester', 'convert_anything'];
@@ -621,7 +620,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     }
 
     return { widgets, cleanContent: cleanContent.trim() };
-  };
+  }, []);
 
   type FileAction =
     | { type: 'rename'; oldName: string; newName: string }
@@ -632,7 +631,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     | { type: 'open'; name: string }
     | { type: 'append'; name: string; content: string };
 
-  const parseFileManagementActions = (content: string): { actions: FileAction[]; cleanContent: string } => {
+  const parseFileManagementActions = useCallback((content: string): { actions: FileAction[]; cleanContent: string } => {
     const actions: FileAction[] = [];
     let cleanContent = content;
 
@@ -720,7 +719,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     }
 
     return { actions, cleanContent: cleanContent.trim() };
-  };
+  }, []);
 
   const parseShellCommands = (content: string): { shellCommands: string[], cleanContent: string } => {
     const shellCommands: string[] = [];
@@ -803,7 +802,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
     return { codeChanges, cleanContent: cleanContent.trim() };
   };
 
-  const parseThinkingBlocks = (content: string): { steps: AgentStep[], cleanContent: string } => {
+  const parseThinkingBlocks = useCallback((content: string): { steps: AgentStep[], cleanContent: string } => {
     const steps: AgentStep[] = [];
     let cleanContent = content;
     const thinkingRegex = /<(?:thinking_process|thinking)>([\s\S]*?)<\/(?:thinking_process|thinking)>/g;
@@ -813,7 +812,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       cleanContent = cleanContent.replace(match[0], '');
     }
     return { steps, cleanContent: cleanContent.trim() };
-  };
+  }, []);
 
   const processAgentResponse = useCallback((rawContent: string): {
     content: string;
@@ -1133,7 +1132,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       automationQueries,
       isDone,
     };
-  }, [onCodeChange, onCreateWorkflow, onInstallPackage, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, canUseShellOnPlatform, onGenerateUI, onModifyUI]);
+  }, [onCodeChange, onCreateWorkflow, onInstallPackage, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI, parseThinkingBlocks, parseToolCalls, parseInteractiveQuestions, parseChatWidgets, parseFileManagementActions]);
 
   const downloadOfflineModel = useCallback(async (model: string) => {
     setIsDownloadingOfflineModel(true);
@@ -1645,7 +1644,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onRu
       setCurrentStep(null);
       abortControllerRef.current = null;
     }
-  }, [isLoading, onCodeChange, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, chatOnlyMode, autonomyConfig, processAgentResponse, onApplyCode, onCreateWorkflow, onRunWorkflow, onInstallPackage, onSetTheme, onCreateCustomTheme, onGitCommit, onGitInit, onGitCreateBranch, onGitImport, onMakePublic, onMakePrivate, onGetProjectLink, onShareTwitter, onShareLinkedin, onShareEmail, onForkProject, onStarProject, onViewHistory, onAskUser, onSaveProject, onRunProject, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI, workflows, aiProvider]);
+  }, [isLoading, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, chatOnlyMode, autonomyConfig, processAgentResponse, onCreateFile, onOpenFile, workflows, aiProvider, byokBaseUrl, updateStreamingMessage]);
 
   const applyCodeChange = useCallback((change: CodeChange) => {
     if (onApplyCode) {

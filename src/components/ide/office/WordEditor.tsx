@@ -52,6 +52,11 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
   const [paperSize] = useState<'letter' | 'a4'>('letter');
   const [docTheme, setDocTheme] = useState<'light' | 'dark'>('light');
   const { toast } = useToast();
+  // Latest file.content held in a ref so the load effect can read fresh
+  // values on re-renders without depending on them (re-loading on every
+  // content change would reset the user's edits after each save).
+  const fileContentRef = useRef(file.content);
+  fileContentRef.current = file.content;
 
   const editor = useEditor({
     extensions: [
@@ -79,11 +84,14 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
 
   useEffect(() => {
     if (!editor) return;
+    // Latest file.content held in a ref so the load effect can read fresh
+    // values on re-renders without depending on them (re-loading on every
+    // content change would reset the user's edits after each save).
     const load = async () => {
       setLoading(true);
       setError(null);
       try {
-        const bytes = decodeDataUrl(file.content || '');
+        const bytes = decodeDataUrl(fileContentRef.current || '');
         if (bytes && bytes.length > 0) {
           const slice = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
           const mammoth = await import('mammoth/mammoth.browser');
@@ -99,9 +107,7 @@ export const WordEditor = ({ file, onContentChange }: WordEditorProps) => {
       }
     };
     load();
-  // file.content intentionally excluded: re-loading on every save would reset edits
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editor, file.id]);
+  }, [editor, file.id, fileContentRef]);
 
   const save = useCallback(async () => {
     if (!editor) return;

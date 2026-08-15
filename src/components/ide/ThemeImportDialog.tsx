@@ -47,15 +47,6 @@ function decodeThemeData(raw: string): CustomTheme | null {
   }
 }
 
-export function encodeThemeData(theme: CustomTheme): string {
-  return btoa(JSON.stringify({ name: theme.name, colors: theme.colors }));
-}
-
-export function getThemeShareUrl(theme: CustomTheme): string {
-  const encoded = encodeThemeData(theme);
-  return `${window.location.origin}${window.location.pathname}?theme=${encoded}`;
-}
-
 export const ThemeImportDialog = ({ open, onOpenChange, onImport, initialData }: ThemeImportDialogProps) => {
   const [input, setInput] = useState('');
   const [parsed, setParsed] = useState<CustomTheme | null>(null);

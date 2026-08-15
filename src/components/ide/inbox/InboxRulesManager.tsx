@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -45,7 +45,7 @@ export const InboxRulesManager = ({
    
   const rulesTable = () => (supabase as any).from('inbox_rules');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     const { data, error } = await rulesTable()
@@ -57,9 +57,9 @@ export const InboxRulesManager = ({
       return;
     }
     setRules((data || []) as InboxRule[]);
-  };
+  }, [user, toast]);
 
-  useEffect(() => { load(); }, [user]);
+  useEffect(() => { load(); }, [load]);
 
   const addRule = async () => {
     if (!user) return;

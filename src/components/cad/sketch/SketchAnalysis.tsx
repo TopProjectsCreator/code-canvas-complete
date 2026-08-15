@@ -66,7 +66,10 @@ export function SketchAnalysis() {
   const activeSketch = useCADStore(s => s.activeSketch)
 
   const sketch = activeSketch ? doc.sketches[activeSketch] : null
-  const entities = sketch ? Object.values(sketch.entities) : []
+  const entities = useMemo(
+    () => (sketch ? Object.values(sketch.entities) : []),
+    [sketch],
+  )
 
   const stats = useMemo(() => {
     const byType: Record<string, number> = {}

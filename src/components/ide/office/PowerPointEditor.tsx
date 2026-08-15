@@ -120,6 +120,13 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
   const lastSavedBytesRef = useRef<Uint8Array | null>(null);
   const slideWidthInchesRef = useRef(SLIDE_W_IN);
   const slideHeightInchesRef = useRef(SLIDE_H_IN);
+  // Latest file.content / onContentChange held in refs so the load effect can
+  // read fresh values on re-renders without depending on them (re-loading on
+  // every content change would reset the user's edits after each save).
+  const fileContentRef = useRef(file.content);
+  fileContentRef.current = file.content;
+  const onContentChangeRef = useRef(onContentChange);
+  onContentChangeRef.current = onContentChange;
 
    
   useEffect(() => {
@@ -127,11 +134,11 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
       setLoading(true);
       setError(null);
       try {
-        let bytes = decodeDataUrl(file.content || '');
+        let bytes = decodeDataUrl(fileContentRef.current || '');
         if (!bytes) {
           bytes = await buildNewPptx();
           lastSavedBytesRef.current = bytes;
-      onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.presentationml.presentation', bytes));
+      onContentChangeRef.current(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.presentationml.presentation', bytes));
         }
         lastSavedBytesRef.current = bytes;
         const zip = await JSZip.loadAsync(bytes);
@@ -291,7 +298,6 @@ export const PowerPointEditor = ({ file, onContentChange }: PowerPointEditorProp
     };
     load();
   // Only reload when file ID changes, not content (re-loading on every save would reset edits)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id]);
 
 

@@ -134,6 +134,13 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const lastZipBytesRef = useRef<Uint8Array | null>(null);
   const colResizeRef = useRef<{ index: number; startX: number; startWidth: number } | null>(null);
+  // Latest file.content / onContentChange held in refs so the load effect can
+  // read fresh values on re-renders without depending on them (re-loading on
+  // every content change would reset the user's edits after each save).
+  const fileContentRef = useRef(file.content);
+  fileContentRef.current = file.content;
+  const onContentChangeRef = useRef(onContentChange);
+  onContentChangeRef.current = onContentChange;
 
   const rowVirtualizer = useVirtualizer({
     count: DEFAULT_ROWS,
@@ -184,10 +191,10 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
       setLoading(true);
       setError(null);
       try {
-        let bytes = decodeDataUrl(file.content || '');
+        let bytes = decodeDataUrl(fileContentRef.current || '');
         if (!bytes) {
           bytes = await buildNewXlsx();
-          onContentChange(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', bytes));
+          onContentChangeRef.current(file.id, encodeDataUrl('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', bytes));
         }
         lastZipBytesRef.current = bytes;
         const zip = await JSZip.loadAsync(bytes);
@@ -269,7 +276,6 @@ export const ExcelEditor = ({ file, onContentChange }: ExcelEditorProps) => {
     };
     load();
   // file.content intentionally excluded: re-loading on every save would reset edits
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id]);
 
   useEffect(() => {

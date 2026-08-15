@@ -4,7 +4,7 @@ import { LspAnimation } from "./LspAnimation";
 
 const FPS = 30;
 
-const Root: React.FC = () => {
+export const Root: React.FC = () => {
   return (
     <>
       <Composition
