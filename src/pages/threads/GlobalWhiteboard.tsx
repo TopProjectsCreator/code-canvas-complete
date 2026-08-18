@@ -378,27 +378,10 @@ export default function GlobalWhiteboard() {
           const existingCard = current.find(
             (el) => el?.customData?.kind === 'thread-card' && el?.customData?.threadId === t.id && !el.isDeleted
           );
-          if (existingCard) {
-            const groupIds = new Set<string>(existingCard.groupIds || []);
-            const built = await buildThreadCard(t as ThreadSeed, existingCard.x || 0, existingCard.y || 0);
-            if (!apiRef.current) return;
-            const kept = current.filter(
-              (el) =>
-                el?.id !== existingCard.id &&
-                !(el?.groupIds || []).some((groupId: string) => groupIds.has(groupId))
-            );
-            const next = [...kept, ...built.elements];
-            applyingRemoteRef.current = true;
-            const builtFiles = Object.values(built.files);
-            if (builtFiles.length && apiRef.current.addFiles) apiRef.current.addFiles(builtFiles as any);
-            apiRef.current.updateScene({ elements: next });
-            applyingRemoteRef.current = false;
-            lastSentHashRef.current = '';
-            const allFiles = { ...(apiRef.current.getFiles?.() || {}), ...built.files };
-            await persistRef.current?.(next, { viewBackgroundColor: '#fafaf9' }, allFiles);
-            broadcastRef.current?.(next, allFiles);
-            return;
-          }
+          // A thread already drawn on the board is left completely alone — edits
+          // to the thread never redraw, restyle or move the existing card.
+          if (existingCard) return;
+
           const probe = await buildThreadCluster(t as ThreadSeed, [], 0, 0);
           const size = bboxOf(probe.elements);
           const spot = makePlacer(occupiedRects(current)).place(size.w, size.h);
