@@ -49,6 +49,59 @@ const CHIP_BG = '#e7f0ff';
 const CHIP_STROKE = '#1971c2';
 const CHIP_TEXT = '#1971c2';
 const AUTHOR_TEXT = '#495057';
+
+/**
+ * Sticky-note palettes. Cards pick one deterministically from their id so the
+ * board reads like hand-stuck notes instead of a grid of identical rectangles.
+ */
+const NOTE_STYLES: { bg: string; ink: string; accent: string; accentInk: string }[] = [
+  { bg: '#fff9db', ink: '#1e1e1e', accent: '#ffec99', accentInk: '#a07c00' },
+  { bg: '#e7f5ff', ink: '#1e1e1e', accent: '#d0ebff', accentInk: '#1971c2' },
+  { bg: '#f4fce3', ink: '#1e1e1e', accent: '#e9fac8', accentInk: '#5c940d' },
+  { bg: '#fff0f6', ink: '#1e1e1e', accent: '#ffdeeb', accentInk: '#a61e4d' },
+  { bg: '#f3f0ff', ink: '#1e1e1e', accent: '#e5dbff', accentInk: '#5f3dc4' },
+  { bg: '#fff4e6', ink: '#1e1e1e', accent: '#ffe8cc', accentInk: '#d9480f' },
+];
+
+/** Deterministic per-card look: palette, sketchiness, tilt, stroke weight. */
+function cardStyle(id: string) {
+  const seed = hashId(id);
+  let n = 0;
+  for (let i = 0; i < seed.length; i++) n = (n * 31 + seed.charCodeAt(i)) >>> 0;
+  const pick = (mod: number, shift: number) => Math.floor(n / 7 ** shift) % mod;
+  const note = NOTE_STYLES[pick(NOTE_STYLES.length, 1)];
+  return {
+    ...note,
+    roughness: 1 + pick(2, 2), // artist / cartoonist, never "architect"
+    strokeWidth: pick(2, 3) === 0 ? 1 : 2,
+    angle: ((pick(9, 4) - 4) / 4) * 0.014, // ±0.014 rad tilt, like a stuck note
+    fillStyle: pick(3, 5) === 0 ? 'cross-hatch' : 'hachure',
+    curve: ((pick(7, 6) - 3) / 3) * 0.22, // arrow bow direction/strength
+  };
+}
+
+/** Rotates a whole card's elements around its own centre for a taped-on tilt. */
+function tiltElements(elements: any[], cx: number, cy: number, angle: number): any[] {
+  if (!angle) return elements;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return elements.map((el) => {
+    if (!el) return el;
+    const ecx = (el.x || 0) + (el.width || 0) / 2;
+    const ecy = (el.y || 0) + (el.height || 0) / 2;
+    const dx = ecx - cx;
+    const dy = ecy - cy;
+    const rx = cx + dx * cos - dy * sin;
+    const ry = cy + dx * sin + dy * cos;
+    return {
+      ...el,
+      x: rx - (el.width || 0) / 2,
+      y: ry - (el.height || 0) / 2,
+      angle: (el.angle || 0) + angle,
+    };
+  });
+}
+
 const AVATAR_SIZE = 28;
 
 
