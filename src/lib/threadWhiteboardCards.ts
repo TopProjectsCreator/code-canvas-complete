@@ -358,15 +358,15 @@ function buildCard(
       y: ty,
       width: chipW,
       height: chipH,
-      backgroundColor: style.accent,
-      strokeColor: style.accentInk,
-      fillStyle: style.fillStyle,
-      strokeWidth: style.strokeWidth,
-      roughness: style.roughness,
+      backgroundColor: CHIP_BG,
+      strokeColor: CHIP_STROKE,
+      fillStyle: 'solid',
+      strokeWidth: 2,
       roundness: { type: 3 },
       groupIds: [groupId],
-      label: { text: chipFit.wrapped, fontSize: BODY_FONT, strokeColor: style.accentInk, textAlign: 'left', verticalAlign: 'top' },
+      label: { text: chipFit.wrapped, fontSize: BODY_FONT, strokeColor: CHIP_TEXT, textAlign: 'left', verticalAlign: 'top' },
     });
+
 
     ty += chipH + GAP;
   }
