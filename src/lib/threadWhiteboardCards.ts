@@ -44,61 +44,12 @@ const IMG_MAX_W = 320;
 const IMG_MAX_H = 260;
 const CHIP_MAX_W = 320;
 const STROKE = '#1e1e1e';
-
+const CARD_BG = '#ffffff';
+const CHIP_BG = '#e7f0ff';
+const CHIP_STROKE = '#1971c2';
+const CHIP_TEXT = '#1971c2';
 const AUTHOR_TEXT = '#495057';
 
-
-/**
- * Sticky-note palettes. Cards pick one deterministically from their id so the
- * board reads like hand-stuck notes instead of a grid of identical rectangles.
- */
-const NOTE_STYLES: { bg: string; ink: string; accent: string; accentInk: string }[] = [
-  { bg: '#fff9db', ink: '#1e1e1e', accent: '#ffec99', accentInk: '#a07c00' },
-  { bg: '#e7f5ff', ink: '#1e1e1e', accent: '#d0ebff', accentInk: '#1971c2' },
-  { bg: '#f4fce3', ink: '#1e1e1e', accent: '#e9fac8', accentInk: '#5c940d' },
-  { bg: '#fff0f6', ink: '#1e1e1e', accent: '#ffdeeb', accentInk: '#a61e4d' },
-  { bg: '#f3f0ff', ink: '#1e1e1e', accent: '#e5dbff', accentInk: '#5f3dc4' },
-  { bg: '#fff4e6', ink: '#1e1e1e', accent: '#ffe8cc', accentInk: '#d9480f' },
-];
-
-/** Deterministic per-card look: palette, sketchiness, tilt, stroke weight. */
-function cardStyle(id: string) {
-  const seed = hashId(id);
-  let n = 0;
-  for (let i = 0; i < seed.length; i++) n = (n * 31 + seed.charCodeAt(i)) >>> 0;
-  const pick = (mod: number, shift: number) => Math.floor(n / 7 ** shift) % mod;
-  const note = NOTE_STYLES[pick(NOTE_STYLES.length, 1)];
-  return {
-    ...note,
-    roughness: 1 + pick(2, 2), // artist / cartoonist, never "architect"
-    strokeWidth: pick(2, 3) === 0 ? 1 : 2,
-    angle: ((pick(9, 4) - 4) / 4) * 0.014, // ±0.014 rad tilt, like a stuck note
-    fillStyle: pick(3, 5) === 0 ? 'cross-hatch' : 'hachure',
-    curve: ((pick(7, 6) - 3) / 3) * 0.22, // arrow bow direction/strength
-  };
-}
-
-/** Rotates a whole card's elements around its own centre for a taped-on tilt. */
-function tiltElements(elements: any[], cx: number, cy: number, angle: number): any[] {
-  if (!angle) return elements;
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  return elements.map((el) => {
-    if (!el) return el;
-    const ecx = (el.x || 0) + (el.width || 0) / 2;
-    const ecy = (el.y || 0) + (el.height || 0) / 2;
-    const dx = ecx - cx;
-    const dy = ecy - cy;
-    const rx = cx + dx * cos - dy * sin;
-    const ry = cy + dx * sin + dy * cos;
-    return {
-      ...el,
-      x: rx - (el.width || 0) / 2,
-      y: ry - (el.height || 0) / 2,
-      angle: (el.angle || 0) + angle,
-    };
-  });
-}
 
 const AVATAR_SIZE = 28;
 
@@ -371,7 +322,6 @@ function buildCard(
   opts: { x: number; y: number; maxWidth: number; id: string; link: string; customData: any }
 ): BuiltCard {
   const { x, y, maxWidth, id, link, customData } = opts;
-  const style = cardStyle(id);
   const groupId = `${id}-group`;
   const sized = images.map((img) => ({ img, ...fitImage(img) }));
   const imgColW = sized.length ? Math.max(...sized.map((s) => s.w)) : 0;
@@ -408,15 +358,15 @@ function buildCard(
       y: ty,
       width: chipW,
       height: chipH,
-      backgroundColor: style.accent,
-      strokeColor: style.accentInk,
-      fillStyle: style.fillStyle,
-      strokeWidth: style.strokeWidth,
-      roughness: style.roughness,
+      backgroundColor: CHIP_BG,
+      strokeColor: CHIP_STROKE,
+      fillStyle: 'solid',
+      strokeWidth: 2,
       roundness: { type: 3 },
       groupIds: [groupId],
-      label: { text: chipFit.wrapped, fontSize: BODY_FONT, strokeColor: style.accentInk, textAlign: 'left', verticalAlign: 'top' },
+      label: { text: chipFit.wrapped, fontSize: BODY_FONT, strokeColor: CHIP_TEXT, textAlign: 'left', verticalAlign: 'top' },
     });
+
 
     ty += chipH + GAP;
   }
@@ -504,23 +454,6 @@ function buildCard(
   const height = Math.max(60, Math.max(textColH, imgColH) + PAD * 2);
 
   const skeleton: any[] = [
-    // Soft paper shadow so notes feel stuck on the board, not printed into it.
-    {
-      type: 'rectangle',
-      id: `${id}-shadow`,
-      x: x + 6,
-      y: y + 7,
-      width,
-      height,
-      backgroundColor: '#868e96',
-      strokeColor: 'transparent',
-      fillStyle: 'solid',
-      strokeWidth: 1,
-      roughness: 2,
-      opacity: 18,
-      roundness: { type: 3 },
-      groupIds: [groupId],
-    },
     {
       type: 'rectangle',
       id,
@@ -528,11 +461,10 @@ function buildCard(
       y,
       width,
       height,
-      backgroundColor: style.bg,
-      strokeColor: style.ink,
+      backgroundColor: CARD_BG,
+      strokeColor: STROKE,
       fillStyle: 'solid',
-      strokeWidth: style.strokeWidth,
-      roughness: style.roughness,
+      strokeWidth: 2,
       roundness: { type: 3 },
       link,
       customData,
@@ -541,13 +473,9 @@ function buildCard(
     ...children,
   ];
 
-  const built = convertToExcalidrawElements(skeleton as any);
-  return {
-    elements: tiltElements(built as any[], x + width / 2, y + height / 2, style.angle),
-    files,
-    height,
-  };
+  return { elements: convertToExcalidrawElements(skeleton as any), files, height };
 }
+
 
 
 
@@ -569,7 +497,7 @@ async function threadBlocks(thread: ThreadSeed, failed: string[]): Promise<CardB
  */
 export function threadFingerprint(thread: ThreadSeed): string {
   return hashId(
-    `tree-v4|${thread.title || ''}|${thread.category || ''}|${thread.content || ''}|${thread.author || ''}|${thread.author_avatar || ''}`
+    `tree-v3|${thread.title || ''}|${thread.category || ''}|${thread.content || ''}|${thread.author || ''}|${thread.author_avatar || ''}`
   );
 }
 
@@ -710,24 +638,17 @@ export async function buildThreadCluster(
     // at or above its parent's bottom edge is what puts a stray arrow above the
     // top thread card, so it is skipped entirely.
     if (childY > parentY + 4) {
-      const link = cardStyle(`link-${comment.id}`);
-      const dx = childX - parentX;
-      const dy = childY - parentY;
-      // Bowed, sketchy connector instead of a ruler-straight line.
-      const bow = link.curve * Math.max(60, Math.abs(dy)) || 24;
       elements.push(
         ...convertToExcalidrawElements([
           {
             type: 'arrow',
             x: parentX,
             y: parentY,
-            width: dx,
-            height: dy,
-            points: [[0, 0], [dx / 2 + bow, dy / 2], [dx, dy]],
-            strokeColor: '#495057',
-            strokeWidth: link.strokeWidth,
-            roughness: link.roughness,
-            roundness: { type: 2 },
+            width: childX - parentX,
+            height: childY - parentY,
+            points: [[0, 0], [childX - parentX, childY - parentY]],
+            strokeColor: STROKE,
+            strokeWidth: 2,
             endArrowhead: 'arrow',
             customData: { threadId: thread.id, commentId: comment.id, kind: 'comment-link' },
             start: { id: comment.parent_id ? `comment-${comment.parent_id}` : threadElId },
@@ -736,6 +657,7 @@ export async function buildThreadCluster(
         ] as any),
       );
     }
+
 
 
   }
