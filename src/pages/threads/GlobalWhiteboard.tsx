@@ -267,11 +267,7 @@ export default function GlobalWhiteboard() {
         if (!presentThreads.has(t.id)) {
           const probe = await buildThreadCluster(t, threadComments, 0, 0);
           const size = bboxOf(probe.elements);
-          // A rebuilt cluster prefers its old spot, but only if it is still free.
-          const at = staleThreads.get(t.id);
-          const { x, y } = at
-            ? placer.placeNear(at.x, at.y, size.w, size.h)
-            : placer.place(size.w, size.h);
+          const { x, y } = placer.place(size.w, size.h);
           const cluster = await buildThreadCluster(t, threadComments, x, y);
           additions.push(...cluster.elements);
           Object.assign(additionFiles, cluster.files);
