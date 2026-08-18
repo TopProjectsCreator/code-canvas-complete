@@ -44,7 +44,7 @@ const IMG_MAX_W = 320;
 const IMG_MAX_H = 260;
 const CHIP_MAX_W = 320;
 const STROKE = '#1e1e1e';
-const CARD_BG = '#ffffff';
+
 const AUTHOR_TEXT = '#495057';
 
 
