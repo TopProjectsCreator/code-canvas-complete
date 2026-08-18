@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { WhiteboardHistory, type WhiteboardScene } from '@/components/threads/WhiteboardHistory';
 import {
   buildThreadCluster,
-  buildThreadCard,
+  
   buildCommentCard,
   orderComments,
   
