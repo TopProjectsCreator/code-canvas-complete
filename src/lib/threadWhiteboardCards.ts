@@ -45,10 +45,8 @@ const IMG_MAX_H = 260;
 const CHIP_MAX_W = 320;
 const STROKE = '#1e1e1e';
 const CARD_BG = '#ffffff';
-const CHIP_BG = '#e7f0ff';
-const CHIP_STROKE = '#1971c2';
-const CHIP_TEXT = '#1971c2';
 const AUTHOR_TEXT = '#495057';
+
 
 /**
  * Sticky-note palettes. Cards pick one deterministically from their id so the
