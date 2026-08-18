@@ -315,9 +315,9 @@ export default function GlobalWhiteboard() {
         files: mergedFiles,
       });
       liveCountRef.current = merged.filter((el: any) => el && !el.isDeleted).length;
-      // Generated cards created during reconciliation are not saved by the canvas
-      // (nothing changed from Excalidraw's point of view), so queue an explicit save.
-      if (additions.length || staleThreads.size || strayIds.size) {
+      // Newly generated cards are not saved by the canvas (nothing changed from
+      // Excalidraw's point of view), so queue an explicit save for additions only.
+      if (additions.length) {
         pendingInitialSaveRef.current = { elements: merged, files: mergedFiles };
       }
       setReady(true);
