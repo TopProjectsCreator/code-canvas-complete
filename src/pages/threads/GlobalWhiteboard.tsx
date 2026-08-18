@@ -17,7 +17,7 @@ import {
   buildThreadCard,
   buildCommentCard,
   orderComments,
-  threadFingerprint,
+  
   CLUSTER_GAP_X,
   CLUSTER_GAP_Y,
   type ThreadSeed,
