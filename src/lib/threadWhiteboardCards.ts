@@ -710,17 +710,24 @@ export async function buildThreadCluster(
     // at or above its parent's bottom edge is what puts a stray arrow above the
     // top thread card, so it is skipped entirely.
     if (childY > parentY + 4) {
+      const link = cardStyle(`link-${comment.id}`);
+      const dx = childX - parentX;
+      const dy = childY - parentY;
+      // Bowed, sketchy connector instead of a ruler-straight line.
+      const bow = link.curve * Math.max(60, Math.abs(dy)) || 24;
       elements.push(
         ...convertToExcalidrawElements([
           {
             type: 'arrow',
             x: parentX,
             y: parentY,
-            width: childX - parentX,
-            height: childY - parentY,
-            points: [[0, 0], [childX - parentX, childY - parentY]],
-            strokeColor: STROKE,
-            strokeWidth: 2,
+            width: dx,
+            height: dy,
+            points: [[0, 0], [dx / 2 + bow, dy / 2], [dx, dy]],
+            strokeColor: '#495057',
+            strokeWidth: link.strokeWidth,
+            roughness: link.roughness,
+            roundness: { type: 2 },
             endArrowhead: 'arrow',
             customData: { threadId: thread.id, commentId: comment.id, kind: 'comment-link' },
             start: { id: comment.parent_id ? `comment-${comment.parent_id}` : threadElId },
@@ -729,6 +736,7 @@ export async function buildThreadCluster(
         ] as any),
       );
     }
+
 
   }
 
