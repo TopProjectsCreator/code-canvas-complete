@@ -454,23 +454,6 @@ function buildCard(
   const height = Math.max(60, Math.max(textColH, imgColH) + PAD * 2);
 
   const skeleton: any[] = [
-    // Soft paper shadow so notes feel stuck on the board, not printed into it.
-    {
-      type: 'rectangle',
-      id: `${id}-shadow`,
-      x: x + 6,
-      y: y + 7,
-      width,
-      height,
-      backgroundColor: '#868e96',
-      strokeColor: 'transparent',
-      fillStyle: 'solid',
-      strokeWidth: 1,
-      roughness: 2,
-      opacity: 18,
-      roundness: { type: 3 },
-      groupIds: [groupId],
-    },
     {
       type: 'rectangle',
       id,
@@ -478,11 +461,10 @@ function buildCard(
       y,
       width,
       height,
-      backgroundColor: style.bg,
-      strokeColor: style.ink,
+      backgroundColor: CARD_BG,
+      strokeColor: STROKE,
       fillStyle: 'solid',
-      strokeWidth: style.strokeWidth,
-      roughness: style.roughness,
+      strokeWidth: 2,
       roundness: { type: 3 },
       link,
       customData,
@@ -491,13 +473,9 @@ function buildCard(
     ...children,
   ];
 
-  const built = convertToExcalidrawElements(skeleton as any);
-  return {
-    elements: tiltElements(built as any[], x + width / 2, y + height / 2, style.angle),
-    files,
-    height,
-  };
+  return { elements: convertToExcalidrawElements(skeleton as any), files, height };
 }
+
 
 
 
