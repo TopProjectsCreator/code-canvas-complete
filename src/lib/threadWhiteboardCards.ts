@@ -569,7 +569,7 @@ async function threadBlocks(thread: ThreadSeed, failed: string[]): Promise<CardB
  */
 export function threadFingerprint(thread: ThreadSeed): string {
   return hashId(
-    `tree-v3|${thread.title || ''}|${thread.category || ''}|${thread.content || ''}|${thread.author || ''}|${thread.author_avatar || ''}`
+    `tree-v4|${thread.title || ''}|${thread.category || ''}|${thread.content || ''}|${thread.author || ''}|${thread.author_avatar || ''}`
   );
 }
 
