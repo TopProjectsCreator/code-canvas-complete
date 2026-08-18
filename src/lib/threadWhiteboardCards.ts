@@ -373,6 +373,7 @@ function buildCard(
   opts: { x: number; y: number; maxWidth: number; id: string; link: string; customData: any }
 ): BuiltCard {
   const { x, y, maxWidth, id, link, customData } = opts;
+  const style = cardStyle(id);
   const groupId = `${id}-group`;
   const sized = images.map((img) => ({ img, ...fitImage(img) }));
   const imgColW = sized.length ? Math.max(...sized.map((s) => s.w)) : 0;
