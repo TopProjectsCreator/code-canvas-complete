@@ -40,3 +40,5 @@ adtention-setup.sh
 
 Assets
 attached-assets/
+# FTC cloud-compile toolchain (self-provisioned JDK + Android SDK + Gradle caches)
+.ftc-toolchain/

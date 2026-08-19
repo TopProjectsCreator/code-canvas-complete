@@ -72,6 +72,24 @@ function parseMessage(buffer: ArrayBuffer): AdbMessage {
   return { command, arg0, arg1, data };
 }
 
+/**
+ * Read the next ADB packet that belongs to the given host stream (every
+ * device->host packet carries the host's local id in arg1). Stale packets
+ * left over from a previous stream (e.g. a duplicate CLSE) are discarded,
+ * otherwise they would be mistaken for the next stream's response.
+ */
+async function readStreamMessage(adbDevice: AdbDevice, localId: number): Promise<AdbMessage> {
+  // Stale packets are bounded (a few leftovers at most); cap defensively so a
+  // misbehaving device can never wedge the stream read in an infinite loop.
+  for (let attempts = 0; attempts < 50; attempts++) {
+    const resp = await adbDevice.device.transferIn(adbDevice.endpointIn, 24 + MAX_PAYLOAD);
+    if (!resp.data) throw new Error('No data from device');
+    const msg = parseMessage(resp.data.buffer);
+    if (msg.arg1 === localId) return msg;
+  }
+  throw new Error(`No response for stream ${localId} (stale packet flood)`);
+}
+
 /** Request an ADB-capable USB device from the user */
 export async function requestAdbDevice(): Promise<AdbDevice> {
   if (!navigator.usb) {
@@ -150,17 +168,17 @@ export async function adbShell(adbDevice: AdbDevice, command: string): Promise<s
   await adbDevice.device.transferOut(adbDevice.endpointOut, openMsg);
 
   // Read OKAY
-  const okResp = await adbDevice.device.transferIn(adbDevice.endpointIn, 24 + MAX_PAYLOAD);
-  if (!okResp.data) throw new Error('No OKAY response');
+  const okResp = await readStreamMessage(adbDevice, localId);
+  if (okResp.command !== A_OKAY) {
+    throw new Error(`Shell open rejected (0x${okResp.command.toString(16)})`);
+  }
 
   // Read data until CLSE
   let output = '';
   const maxReads = 100;
   for (let i = 0; i < maxReads; i++) {
     try {
-      const dataResp = await adbDevice.device.transferIn(adbDevice.endpointIn, 24 + MAX_PAYLOAD);
-      if (!dataResp.data) break;
-      const msg = parseMessage(dataResp.data.buffer);
+      const msg = await readStreamMessage(adbDevice, localId);
       if (msg.command === A_CLSE) break;
       if (msg.command === A_WRTE) {
         output += textDecoder.decode(msg.data);
@@ -190,17 +208,13 @@ export async function adbPush(
   const openMsg = buildMessage(A_OPEN, localId, 0, destination);
   await adbDevice.device.transferOut(adbDevice.endpointOut, openMsg);
 
-  const okResp = await adbDevice.device.transferIn(adbDevice.endpointIn, 24 + MAX_PAYLOAD);
-  if (!okResp.data) throw new Error('No response for sync open');
-  const okParsed = parseMessage(okResp.data.buffer);
-  const remoteId = okParsed.arg0;
+  const okResp = await readStreamMessage(adbDevice, localId);
+  if (okResp.command !== A_OKAY) {
+    throw new Error(`Sync open rejected (0x${okResp.command.toString(16)})`);
+  }
+  const remoteId = okResp.arg0;
 
   // SEND command: "SEND" + path + "," + mode
-  const sendHeader = textEncoder.encode(`SEND${remotePath},33261`);  // 0100755 octal
-  const sendLenBuf = new ArrayBuffer(4);
-  new DataView(sendLenBuf).setUint32(0, sendHeader.length - 4, true);
-
-  // Build SEND packet
   const sendPacket = new Uint8Array(8 + remotePath.length + 6);
   sendPacket.set(textEncoder.encode('SEND'), 0);
   new DataView(sendPacket.buffer).setUint32(4, remotePath.length + 6, true); // path,mode
@@ -208,7 +222,7 @@ export async function adbPush(
 
   const wrteMsg = buildMessage(A_WRTE, localId, remoteId, sendPacket);
   await adbDevice.device.transferOut(adbDevice.endpointOut, wrteMsg);
-  await adbDevice.device.transferIn(adbDevice.endpointIn, 24 + MAX_PAYLOAD);
+  await expectSyncOk(adbDevice, localId, remoteId, 'SEND');
 
   // Send file data in chunks
   const chunkSize = MAX_PAYLOAD - 8;
@@ -225,7 +239,7 @@ export async function adbPush(
 
     const dataMsg = buildMessage(A_WRTE, localId, remoteId, dataPacket);
     await adbDevice.device.transferOut(adbDevice.endpointOut, dataMsg);
-    await adbDevice.device.transferIn(adbDevice.endpointIn, 24 + MAX_PAYLOAD);
+    await expectSyncOk(adbDevice, localId, remoteId, 'DATA');
 
     offset = end;
     onProgress?.(Math.round((offset / fileData.length) * 100));
@@ -238,7 +252,7 @@ export async function adbPush(
 
   const doneMsg = buildMessage(A_WRTE, localId, remoteId, donePacket);
   await adbDevice.device.transferOut(adbDevice.endpointOut, doneMsg);
-  await adbDevice.device.transferIn(adbDevice.endpointIn, 24 + MAX_PAYLOAD);
+  await expectSyncOk(adbDevice, localId, remoteId, 'DONE');
 
   // QUIT
   const quitPacket = textEncoder.encode('QUIT\0\0\0\0');
@@ -248,6 +262,28 @@ export async function adbPush(
   // Close
   const clseMsg = buildMessage(A_CLSE, localId, remoteId, new Uint8Array(0));
   await adbDevice.device.transferOut(adbDevice.endpointOut, clseMsg);
+}
+
+/**
+ * Wait for the stream OKAY after a sync WRTE. If adbd rejects the sync packet
+ * (e.g. missing parent directory), it sends a sync-level FAIL packet — surface
+ * that as a real error instead of silently continuing.
+ */
+async function expectSyncOk(
+  adbDevice: AdbDevice,
+  localId: number,
+  remoteId: number,
+  stage: string,
+): Promise<void> {
+  const resp = await readStreamMessage(adbDevice, localId);
+  const msg = resp;
+  if (msg.command === A_OKAY) return;
+  if (msg.command === A_WRTE && msg.arg0 === remoteId && msg.arg1 === localId) {
+    const syncId = String.fromCharCode(...msg.data.slice(0, 4));
+    const detail = textDecoder.decode(msg.data).slice(4);
+    throw new Error(`Sync ${stage} rejected by device: ${syncId} ${detail}`);
+  }
+  throw new Error(`Sync ${stage}: unexpected packet 0x${msg.command.toString(16)}`);
 }
 
 /** Disconnect and release the USB device */

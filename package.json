@@ -22,7 +22,12 @@
     "remotion:render": "npx remotion render RedactorImageRedaction out/redactor-image-redaction.mp4",
     "remotion:still": "npx remotion still RedactorImageRedaction out/redactor-image-redaction.png --frame=240",
     "remotion:render:lsp": "npx remotion render LspIntroduction out/lsp-introduction.mp4",
-    "remotion:still:lsp": "npx remotion still LspIntroduction out/lsp-introduction.png --frame=240"
+    "remotion:still:lsp": "npx remotion still LspIntroduction out/lsp-introduction.png --frame=240",
+    "test:ftc": "node scripts/ftc-build.test.mjs",
+    "test:ftc-adb": "node scripts/ftc-build/adb-protocol.test.mjs",
+    "test:ftc-adb-webusb": "npx --yes tsx scripts/ftc-build/webusb-adb.integration.test.ts",
+    "test:ftc-unit": "node scripts/ftc-build/unit.test.mjs",
+    "test:ftc-overlay": "node scripts/ftc-build/overlay-mode.test.mjs"
   },
   "overrides": {
     "@babel/plugin-proposal-private-property-in-object": "7.21.11",
