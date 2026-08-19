@@ -18,6 +18,9 @@ import { Client, GatewayIntentBits, Events } from 'discord.js';
 const require = createRequire(import.meta.url);
 const pty = require('node-pty');
 
+// Real FTC cloud-compilation pipeline (self-provisioning JDK + Android SDK + Gradle)
+import { queueFtcBuild, getFtcBuild, validateFiles, startFtcBuildWarmup } from './scripts/ftc-build/index.mjs';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = parseInt(process.env.REPLIT_SERVER_PORT || '3001', 10);
@@ -1282,7 +1285,41 @@ app.post('/api/replit/send-sms-notification', async (req, res) => {
 });
 
 app.post('/api/replit/compile-ftc', (req, res) => {
-  res.status(503).json({ status: 'error', message: 'FTC cloud compilation is not available on Replit.', errors: ['Supabase-only FTC compile flow is not implemented locally.'] });
+  const uid = getReplitUserId(req);
+  if (!uid) return res.status(401).json({ error: 'Not authenticated' });
+  const { files, sdkVersion } = req.body || {};
+  const validation = validateFiles(files);
+  if (validation.error) {
+    return res.status(400).json({ status: 'error', message: validation.error, errors: [validation.error], warnings: [] });
+  }
+  const { job, error } = queueFtcBuild({ files: validation.files, sdkVersion, userId: uid });
+  if (error) {
+    return res.status(429).json({ status: 'error', message: error, errors: [error], warnings: [] });
+  }
+  res.status(202).json({
+    status: 'queued',
+    buildId: job.id,
+    message: 'Build queued — poll GET /api/replit/compile-ftc/status/:buildId',
+    sdkVersion: job.sdkVersion,
+  });
+});
+
+app.get('/api/replit/compile-ftc/status/:buildId', (req, res) => {
+  const job = getFtcBuild(req.params.buildId);
+  if (!job) {
+    return res.status(404).json({ status: 'error', message: 'Unknown or expired build id', errors: ['Build not found'], warnings: [] });
+  }
+  res.json({
+    status: job.status,
+    message: job.message,
+    buildId: job.id,
+    sdkVersion: job.sdkVersion,
+    stages: job.stages,
+    apkBase64: job.apkBase64 || null,
+    apkSize: job.apkSize || null,
+    errors: job.errors || [],
+    warnings: job.warnings || [],
+  });
 });
 
 app.post('/api/replit/github-proxy', async (req, res) => {
@@ -3821,4 +3858,6 @@ wss.on('connection', (ws, req) => {
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Replit server running on port ${PORT}`);
+  // Warm the FTC toolchain in the background so the first build request is fast.
+  startFtcBuildWarmup();
 });

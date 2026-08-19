@@ -33,6 +33,7 @@ export interface FTCFile {
 export async function compileFTC(
   files: FTCFile[],
   onProgress?: (msg: string) => void,
+  sdkVersion?: string,
 ): Promise<BuildResult> {
   onProgress?.('Sending files to build server...');
 
@@ -40,9 +41,44 @@ export async function compileFTC(
     const response = await fetch('/api/replit/compile-ftc', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ files }),
+      body: JSON.stringify({ files, sdkVersion }),
     });
     const data = await response.json().catch(() => ({}));
+
+    // Async job: poll the status endpoint until the build finishes.
+    const buildId = (data as any)?.buildId as string | undefined;
+    if (buildId) {
+      const deadline = Date.now() + 20 * 60 * 1000;
+      let job = data as any;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const statusResponse = await fetch(`/api/replit/compile-ftc/status/${buildId}`).catch(() => null);
+        job = statusResponse ? await statusResponse.json().catch(() => ({})) : job;
+        if (job?.message && typeof job.message === 'string') onProgress?.(job.message);
+        if (job?.status === 'success') {
+          return {
+            status: 'success',
+            message: job.message || 'Build successful',
+            apkBase64: job.apkBase64,
+            warnings: job.warnings || [],
+          };
+        }
+        if (job?.status === 'error' || job?.status === 'failed') {
+          return {
+            status: 'error',
+            message: job.message || 'Compilation failed',
+            errors: job.errors || [job.error || 'Build request failed'],
+            warnings: job.warnings || [],
+          };
+        }
+      }
+      return {
+        status: 'error',
+        message: 'Build timed out',
+        errors: ['Timed out waiting for the cloud build to finish'],
+      };
+    }
+
     if (!response.ok || data?.status === 'error') {
       return {
         status: 'error',
@@ -110,6 +146,9 @@ export async function uploadToDevice(
   const binary = Uint8Array.from(atob(apkBase64), (c) => c.charCodeAt(0));
 
   const remotePath = '/sdcard/FIRST/TeamCode.apk';
+  onProgress?.('Preparing target directory...', 0);
+  await adbShell(device, 'mkdir -p /sdcard/FIRST');
+
   onProgress?.(`Pushing to ${remotePath}...`, 0);
 
   await adbPush(device, binary, remotePath, (pct) => {
