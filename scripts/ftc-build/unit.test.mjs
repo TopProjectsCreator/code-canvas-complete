@@ -171,7 +171,7 @@ fs.rmSync(emptyZip, { force: true });
 
 console.log('-- archive extraction safety --');
 const { zipSync } = await import('fflate');
-const { extractZip } = await import('./util.mjs');
+const { extractZip, extractTarGz, verifyChecksum, sha256Hex } = await import('./util.mjs');
 const evilZipPath = path.join(os.tmpdir(), 'evil-slip.zip');
 fs.writeFileSync(evilZipPath, Buffer.from(zipSync({
   '../escaped.txt': new TextEncoder().encode('pwned'),
@@ -183,6 +183,71 @@ check('zip-slip entry blocked', !fs.existsSync(path.join(os.tmpdir(), 'escaped.t
 check('legit entry extracted', fs.existsSync(path.join(slipDest, 'ok', 'nested.txt')));
 fs.rmSync(evilZipPath, { force: true });
 fs.rmSync(slipDest, { recursive: true, force: true });
+
+console.log('-- tar symlink escape safety --');
+import zlib from 'zlib';
+function makeTar(entries) {
+  const blocks = [];
+  for (const e of entries) {
+    const nameBuf = Buffer.from(e.name, 'utf8');
+    const header = Buffer.alloc(512);
+    nameBuf.copy(header, 0, 0, Math.min(100, nameBuf.length));
+    const contentBuf = e.content ? Buffer.from(e.content) : Buffer.alloc(0);
+    header.write(e.type === '5' ? '0000755' : e.type === '2' ? '0120777' : '0000644', 100, 8);
+    header.write('0000000', 108, 8);
+    header.write('0000000', 116, 8);
+    header.write(contentBuf.length.toString(8).padStart(11, '0') + ' ', 124, 12);
+    header.write('00000000000', 136, 12);
+    header[156] = e.type.charCodeAt(0);
+    if (e.linkname) Buffer.from(e.linkname, 'utf8').copy(header, 157, 0, Math.min(100, Buffer.byteLength(e.linkname)));
+    header.write('ustar', 257, 5);
+    header.write('00', 263, 2);
+    let sum = 0;
+    for (let i = 0; i < 512; i++) sum += i >= 148 && i < 156 ? 32 : header[i];
+    header.write(sum.toString(8).padStart(6, '0') + '\0 ', 148, 8);
+    blocks.push(header);
+    if (contentBuf.length) {
+      const padded = Buffer.alloc(Math.ceil(contentBuf.length / 512) * 512);
+      contentBuf.copy(padded);
+      blocks.push(padded);
+    }
+  }
+  blocks.push(Buffer.alloc(512), Buffer.alloc(512));
+  return Buffer.concat(blocks);
+}
+const tarBase = fs.mkdtempSync(path.join(os.tmpdir(), 'ftc-tar-'));
+const tarPath = path.join(tarBase, 'evil.tar.gz');
+const tarContent = makeTar([
+  { name: 'good/a.txt', type: '0', content: 'fine' },
+  { name: 'escape', type: '2', linkname: '/tmp' },
+  { name: 'escape/pwned.txt', type: '0', content: 'pwned' },
+  { name: 'linkinside', type: '2', linkname: 'good' },
+  { name: 'linkinside/b.txt', type: '0', content: 'through-internal-link' },
+]);
+fs.writeFileSync(tarPath, zlib.gzipSync(tarContent));
+const tarDest = path.join(tarBase, 'out');
+extractTarGz(tarPath, tarDest);
+check('file written through escaping symlink is dropped', !fs.existsSync('/tmp/pwned.txt'));
+const escapeStat = fs.existsSync(path.join(tarDest, 'escape')) ? fs.lstatSync(path.join(tarDest, 'escape')) : null;
+check('escaping symlink never created (plain dir at most)', !escapeStat || !escapeStat.isSymbolicLink(), escapeStat ? (escapeStat.isSymbolicLink() ? 'symlink!' : 'dir') : 'absent');
+check('legit file extracted', fs.existsSync(path.join(tarDest, 'good', 'a.txt')));
+check('internal symlink allowed', fs.existsSync(path.join(tarDest, 'linkinside', 'b.txt')));
+fs.rmSync(tarBase, { recursive: true, force: true });
+fs.rmSync('/tmp/pwned.txt', { force: true });
+
+console.log('-- checksum verification --');
+const chkFile = path.join(os.tmpdir(), 'checksum-me.bin');
+fs.writeFileSync(chkFile, 'hello checksum');
+const chkSha = sha256Hex(fs.readFileSync(chkFile));
+check('sha256 verify passes', verifyChecksum(chkFile, 'sha256', chkSha) === true);
+let threw = null;
+try {
+  verifyChecksum(chkFile, 'sha256', '0'.repeat(64));
+} catch (err) {
+  threw = err.message;
+}
+check('sha256 mismatch throws', !!threw && threw.includes('Checksum mismatch'), threw || '');
+fs.rmSync(chkFile, { force: true });
 
 console.log(`\n${checks - failures}/${checks} checks passed`);
 if (failures > 0) process.exitCode = 1;

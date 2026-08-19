@@ -13,6 +13,7 @@ import {
   fetchJson,
   readFileIfExists,
   withFileLock,
+  verifyChecksum,
 } from './util.mjs';
 import { detectProject, jdkCandidatesFor } from './detect.mjs';
 import { memoryAwareJvmArgs } from './util.mjs';
@@ -72,19 +73,68 @@ export async function ensureJdk(major, onProgress = () => {}) {
     if (existing && fs.existsSync(marker)) return existing;
     rmrf(majorDir);
     mkdirp(majorDir);
-    onProgress(`Downloading JDK ${major} for ${host.temurinOs}/${host.temurinArch}...`);
-    const ext = host.platform === 'win32' ? 'zip' : 'tar.gz';
-    const url = `https://api.adoptium.net/v3/binary/latest/${major}/ga/${host.temurinOs}/${host.temurinArch}/jdk/hotspot/normal/eclipse`;
-    const dest = path.join(downloadsDir(), `temurin-${major}-${host.temurinOs}-${host.temurinArch}.${ext}`);
-    if (!fs.existsSync(dest)) await downloadFile(url, dest, { onProgress: (r, t) => onProgress(`Downloading JDK ${major}... ${Math.round((r / Math.max(t, 1)) * 100)}%`) });
+    onProgress(`Fetching JDK ${major} release metadata...`);
+    const { link, sha256, name } = await fetchJdkAsset(major);
+    const dest = path.join(downloadsDir(), `temurin-${major}-${name}`);
+    if (!fs.existsSync(dest)) {
+      await downloadFile(link, dest, {
+        onProgress: (r, t) => onProgress(`Downloading JDK ${major}... ${Math.round((r / Math.max(t, 1)) * 100)}%`),
+      });
+    }
+    onProgress(`Verifying JDK ${major} checksum...`);
+    try {
+      verifyChecksum(dest, 'sha256', sha256);
+    } catch (err) {
+      fs.rmSync(dest, { force: true });
+      throw err;
+    }
     onProgress(`Extracting JDK ${major}...`);
-    if (ext === 'zip') extractZip(dest, majorDir);
+    if (/\.zip$/.test(dest)) extractZip(dest, majorDir);
     else extractTarGz(dest, majorDir);
     const home = findJdkHome(majorDir);
     if (!home) throw new Error(`JDK ${major} extraction failed: no java binary found`);
     fs.writeFileSync(marker, new Date().toISOString());
     return home;
   });
+}
+
+/**
+ * Resolve the pinned Temurin asset + sha256 for a JDK major instead of the
+ * mutable "latest binary" redirect. EOL majors (e.g. 8/11) return 404 on the
+ * "latest" endpoint, so fall back to the last GitHub release for that major
+ * and its .sha256.txt sidecar.
+ */
+async function fetchJdkAsset(major) {
+  const url = `https://api.adoptium.net/v3/assets/latest/${major}/ga/${host.temurinOs}/${host.temurinArch}?project=jdk`;
+  const res = await fetch(url, {
+    redirect: 'follow',
+    headers: { 'User-Agent': 'code-canvas-ftc-builder' },
+  });
+  if (res.ok) {
+    const data = await res.json();
+    const asset = Array.isArray(data) && data[0] ? data[0].binary : null;
+    if (asset && asset.link && asset.checksum) {
+      return {
+        link: asset.link,
+        sha256: String(asset.checksum).toLowerCase(),
+        name: (asset.package && asset.package.name) || `jdk-${major}.tar.gz`,
+      };
+    }
+  }
+  log(`Adoptium "latest" unavailable for JDK ${major} (HTTP ${res.status}) — falling back to GitHub releases`);
+  const tag = await fetchJson(`https://api.github.com/repos/adoptium/temurin${major}-binaries/releases/latest`);
+  const assets = (tag.assets || []).map((a) => ({ name: a.name, url: a.browser_download_url }));
+  const needle = `jdk_${host.temurinArch}_${host.temurinOs}_hotspot`;
+  const archive = assets.find((a) => a.name.includes(needle) && !a.name.includes('sha256') && !a.name.includes('debugimage') && !a.name.includes('testimage'));
+  if (!archive) throw new Error(`No ${needle} asset in adoptium/temurin${major}-binaries release ${tag.tag_name}`);
+  const shaAsset = assets.find((a) => a.name === `${archive.name}.sha256.txt`);
+  let sha256 = null;
+  if (shaAsset) {
+    const shaRes = await fetch(shaAsset.url, { redirect: 'follow', headers: { 'User-Agent': 'code-canvas-ftc-builder' } });
+    if (shaRes.ok) sha256 = (await shaRes.text()).trim().split(/\s+/)[0].toLowerCase();
+  }
+  if (!sha256) throw new Error(`No sha256 sidecar for ${archive.name}`);
+  return { link: archive.url, sha256, name: archive.name };
 }
 
 // ---------------------------------------------------------------------------
@@ -124,19 +174,27 @@ function packageBlock(xml, pkgPath) {
   return m ? m[1] : null;
 }
 
-function archiveUrls(block) {
-  return [...block.matchAll(/<url>([^<]+)<\/url>/g)].map((m) => m[1]);
+function archiveBlocks(block) {
+  const out = [];
+  for (const m of block.matchAll(/<archive>([\s\S]*?)<\/archive>/g)) {
+    const inner = m[1];
+    const url = (inner.match(/<url>([^<]+)<\/url>/) || [])[1];
+    const checksum = (inner.match(/<checksum type="([^"]+)">([^<]+)<\/checksum>/) || []);
+    const hostOs = (inner.match(/<host-os>([^<]+)<\/host-os>/) || [])[1] || null;
+    if (url) out.push({ url, checksumType: checksum[1] || null, checksum: checksum[2] || null, hostOs });
+  }
+  return out;
 }
 
-async function resolveArchiveUrl(pkgPath) {
+async function resolveArchivePackage(pkgPath) {
   const xml = await fetchRepoXml();
   const block = packageBlock(xml, pkgPath);
   if (!block) throw new Error(`Android package not found in repository XML: ${pkgPath}`);
-  const urls = archiveUrls(block);
-  if (urls.length === 0) throw new Error(`No archive URL for Android package: ${pkgPath}`);
-  let url = urls.find((u) => u.includes(`-${host.btOs}.zip`)) || urls[0];
-  if (!/^https?:/.test(url)) url = `https://dl.google.com/android/repository/${url}`;
-  return url;
+  const archives = archiveBlocks(block);
+  if (archives.length === 0) throw new Error(`No archive URL for Android package: ${pkgPath}`);
+  let pick = archives.find((a) => a.hostOs === host.btOs) || archives.find((a) => a.url.includes(`-${host.btOs}.zip`)) || archives[0];
+  if (!/^https?:/.test(pick.url)) pick = { ...pick, url: `https://dl.google.com/android/repository/${pick.url}` };
+  return pick;
 }
 
 async function chmodExecutables(dir) {
@@ -192,11 +250,20 @@ export async function ensurePlatform(apiLevel, onProgress = () => {}) {
     const destDir = path.join(androidSdkRoot(), 'platforms', `android-${api}`);
     const marker = path.join(destDir, '.ready');
     if (fs.existsSync(marker) && fs.existsSync(path.join(destDir, 'android.jar'))) return destDir;
-    const url = await resolveArchiveUrl(pkgPath);
+    const { url, checksumType, checksum } = await resolveArchivePackage(pkgPath);
     const fileName = url.split('/').pop();
     const zipPath = path.join(downloadsDir(), fileName);
     onProgress(`Downloading Android platform ${api}...`);
     if (!fs.existsSync(zipPath)) await downloadFile(url, zipPath, { onProgress: (r, t) => onProgress(`Downloading Android platform ${api}... ${Math.round((r / Math.max(t, 1)) * 100)}%`) });
+    if (checksumType && checksum) {
+      onProgress(`Verifying platform ${api} checksum...`);
+      try {
+        verifyChecksum(zipPath, checksumType, checksum);
+      } catch (err) {
+        fs.rmSync(zipPath, { force: true });
+        throw err;
+      }
+    }
     await extractWithInnerDir(zipPath, destDir);
     if (!fs.existsSync(path.join(destDir, 'android.jar'))) throw new Error(`Platform ${api} missing android.jar`);
     fs.writeFileSync(marker, new Date().toISOString());
@@ -254,11 +321,20 @@ export async function ensureBuildTools(version, onProgress = () => {}) {
     const marker = path.join(btDir, '.ready');
     if (fs.existsSync(marker) && fs.existsSync(path.join(btDir, 'aapt2'))) return btDir;
     const pkgPath = `build-tools;${ver}`;
-    const url = await resolveArchiveUrl(pkgPath);
+    const { url, checksumType, checksum } = await resolveArchivePackage(pkgPath);
     const fileName = url.split('/').pop();
     const zipPath = path.join(downloadsDir(), fileName);
     onProgress(`Downloading Android build-tools ${ver}...`);
     if (!fs.existsSync(zipPath)) await downloadFile(url, zipPath, { onProgress: (r, t) => onProgress(`Downloading Android build-tools ${ver}... ${Math.round((r / Math.max(t, 1)) * 100)}%`) });
+    if (checksumType && checksum) {
+      onProgress(`Verifying build-tools ${ver} checksum...`);
+      try {
+        verifyChecksum(zipPath, checksumType, checksum);
+      } catch (err) {
+        fs.rmSync(zipPath, { force: true });
+        throw err;
+      }
+    }
     await extractWithInnerDir(zipPath, btDir);
     if (!fs.existsSync(path.join(btDir, 'aapt2'))) throw new Error(`build-tools ${ver} missing aapt2`);
     // fflate does not preserve zip exec bits — make every tool executable.

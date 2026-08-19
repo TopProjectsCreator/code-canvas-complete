@@ -53,6 +53,14 @@ export async function compileFTC(
       while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 2000));
         const statusResponse = await fetch(`/api/replit/compile-ftc/status/${buildId}`).catch(() => null);
+        if (statusResponse && !statusResponse.ok) {
+          const errData = await statusResponse.json().catch(() => ({}));
+          return {
+            status: 'error',
+            message: errData?.message || `Build status request failed (${statusResponse.status})`,
+            errors: errData?.errors || [errData?.error || `HTTP ${statusResponse.status}`],
+          };
+        }
         job = statusResponse ? await statusResponse.json().catch(() => ({})) : job;
         if (job?.message && typeof job.message === 'string') onProgress?.(job.message);
         if (job?.status === 'success') {

@@ -112,9 +112,47 @@ function parseOctal(buf, offset, length) {
   return parseInt(text, 8) || 0;
 }
 
+function isInside(base, target) {
+  const b = path.resolve(base);
+  const t = path.resolve(target);
+  return t === b || t.startsWith(b + path.sep);
+}
+
+/**
+ * Ensure no path component between destDir and `out` is a symlink that
+ * resolves outside destDir. Returns `out` when safe, null otherwise.
+ * destDir itself is the boundary: if it does not exist yet, it is treated
+ * as the (safe) anchor since extraction creates it.
+ */
+function safeAncestor(destDir, out) {
+  const boundary = path.resolve(destDir);
+  let dir = path.dirname(out);
+  const missing = [];
+  for (;;) {
+    if (fs.existsSync(dir)) {
+      let real;
+      try {
+        real = fs.realpathSync(dir);
+      } catch {
+        return null;
+      }
+      if (!isInside(boundary, real)) return null;
+      const resolved = path.join(real, ...missing);
+      return isInside(boundary, resolved) ? out : null;
+    }
+    if (path.resolve(dir) === boundary || dir === path.dirname(dir)) return out;
+    missing.unshift(path.basename(dir));
+    dir = path.dirname(dir);
+  }
+}
+
 /**
  * Minimal ustar tar extractor (handles regular files, dirs, symlinks, and GNU
  * long names) — no external tar binary required on any platform.
+ *
+ * Symlink-safe: symlink targets that would escape the destination directory
+ * are dropped, and regular files are never written through an escaping
+ * symlinked ancestor.
  */
 export function extractTarGz(tarGzPath, destDir) {
   const tar = Buffer.from(gunzipSync(fs.readFileSync(tarGzPath)));
@@ -146,18 +184,28 @@ export function extractTarGz(tarGzPath, destDir) {
     }
     if (name.startsWith('./')) name = name.slice(2);
     const out = path.join(destDir, ...name.split('/'));
-    if (!out.startsWith(destDir + path.sep)) continue;
+    const nextOffset = dataStart + Math.ceil(size / 512) * 512;
+    if (!out.startsWith(destDir + path.sep)) {
+      offset = nextOffset;
+      continue;
+    }
     if (type === '5') {
-      mkdirp(out);
+      if (!fs.existsSync(out)) mkdirp(out);
     } else if (type === '2') {
-      mkdirp(path.dirname(out));
-      try {
-        fs.symlinkSync(linkname, out);
-      } catch {
-        /* ignore broken links */
+      const target = path.resolve(path.dirname(out), linkname);
+      if (isInside(destDir, target)) {
+        const parent = path.dirname(out);
+        if (!fs.existsSync(parent)) mkdirp(parent);
+        try {
+          fs.symlinkSync(linkname, out);
+        } catch {
+          /* ignore broken links */
+        }
       }
-    } else {
-      mkdirp(path.dirname(out));
+      // escaping symlink — dropped, never created
+    } else if (safeAncestor(destDir, out)) {
+      const parent = path.dirname(out);
+      if (!fs.existsSync(parent)) mkdirp(parent);
       fs.writeFileSync(out, tar.slice(dataStart, dataEnd));
       if (name.includes('/bin/') || name.endsWith('/java') || name.endsWith('/javac')) {
         try {
@@ -167,7 +215,8 @@ export function extractTarGz(tarGzPath, destDir) {
         }
       }
     }
-    offset = dataStart + Math.ceil(size / 512) * 512;
+    // unsafe (symlinked ancestor escapes destDir) — entry dropped
+    offset = nextOffset;
   }
 }
 
@@ -294,6 +343,20 @@ export async function withFileLock(lockPath, fn, { timeoutMs = 45 * 60 * 1000, s
 
 export function sha256Hex(data) {
   return createHash('sha256').update(data).digest('hex');
+}
+
+export function sha1Hex(data) {
+  return createHash('sha1').update(data).digest('hex');
+}
+
+/** Verify a file's checksum; throws on mismatch. */
+export function verifyChecksum(filePath, type, expected) {
+  const data = fs.readFileSync(filePath);
+  const actual = type === 'sha256' ? sha256Hex(data) : sha1Hex(data);
+  if (actual.toLowerCase() !== String(expected).toLowerCase()) {
+    throw new Error(`Checksum mismatch for ${filePath}: expected ${type} ${expected}, got ${actual}`);
+  }
+  return true;
 }
 
 export function bytesToBase64(bytes) {

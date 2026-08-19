@@ -5,12 +5,14 @@ import { log } from './util.mjs';
 import { provisionProject } from './toolchain.mjs';
 import { ensureSkeleton, overlayUserFiles, assertSdkVersionSupported } from './sdkProject.mjs';
 import { buildProject } from './builder.mjs';
-import { verifyApkStructure, dexContainsClasses } from './verify.mjs';
+import { verifyApkStructure, dexContainsClasses, verifySignature, verifyAlignment } from './verify.mjs';
 
 export const FTC_DEFAULT_SDK_VERSION = process.env.FTC_DEFAULT_SDK_VERSION || '11.2.1';
 
 const jobs = new Map();
-let currentJobId = null;
+const buildQueue = [];
+let activeJobId = null;
+const lastBuildAtByUser = new Map();
 let warmupPromise = null;
 
 const ALLOWED_EXTS = new Set(['.java', '.xml', '.json', '.txt']);
@@ -18,6 +20,8 @@ const MAX_FILES = 200;
 const MAX_FILE_BYTES = 1024 * 1024;
 const MAX_TOTAL_BYTES = 5 * 1024 * 1024;
 const JOB_TTL_MS = 30 * 60 * 1000;
+const MAX_QUEUE = parseInt(process.env.FTC_BUILD_MAX_QUEUE || '4', 10);
+const USER_COOLDOWN_MS = parseInt(process.env.FTC_BUILD_COOLDOWN_MS || '60000', 10);
 
 export function sanitizeRelPath(p) {
   let s = String(p).replace(/\\/g, '/');
@@ -64,11 +68,21 @@ export function normalizeSdkVersion(sdkVersion) {
 }
 
 export function queueFtcBuild({ files, sdkVersion, userId }) {
-  if (currentJobId) {
-    const running = jobs.get(currentJobId);
-    return {
-      error: running ? `A build is already in progress (${running.id})` : 'A build is already in progress',
-    };
+  if (!userId) return { error: 'Not authenticated' };
+  const now = Date.now();
+  const lastAt = lastBuildAtByUser.get(userId);
+  if (lastAt && now - lastAt < USER_COOLDOWN_MS) {
+    const retryAfter = Math.ceil((USER_COOLDOWN_MS - (now - lastAt)) / 1000);
+    return { error: `Please wait ${retryAfter}s between builds`, retryAfter };
+  }
+  for (const id of [activeJobId, ...buildQueue]) {
+    const running = id && jobs.get(id);
+    if (running && running.userId === userId) {
+      return { error: 'You already have a build running or queued' };
+    }
+  }
+  if (buildQueue.length >= MAX_QUEUE) {
+    return { error: `Build queue is full (max ${MAX_QUEUE} pending) — try again shortly` };
   }
   const job = {
     id: randomUUID(),
@@ -77,26 +91,56 @@ export function queueFtcBuild({ files, sdkVersion, userId }) {
     stages: [],
     files,
     sdkVersion: normalizeSdkVersion(sdkVersion),
-    userId: userId || null,
+    userId,
     createdAt: Date.now(),
     errors: [],
     warnings: [],
   };
   jobs.set(job.id, job);
-  currentJobId = job.id;
-  runBuildJob(job).finally(() => {
-    if (currentJobId === job.id) currentJobId = null;
-    setTimeout(() => jobs.delete(job.id), JOB_TTL_MS);
-  });
+  buildQueue.push(job.id);
+  pumpQueue();
   return { job };
+}
+
+function pumpQueue() {
+  if (activeJobId) return;
+  while (buildQueue.length > 0) {
+    const id = buildQueue.shift();
+    const job = jobs.get(id);
+    if (!job) continue;
+    activeJobId = id;
+    runBuildJob(job).finally(() => {
+      activeJobId = null;
+      lastBuildAtByUser.set(job.userId, Date.now());
+      setTimeout(() => jobs.delete(job.id), JOB_TTL_MS);
+      pumpQueue();
+    });
+    return;
+  }
 }
 
 export function getFtcBuild(buildId) {
   return jobs.get(buildId) || null;
 }
 
+/**
+ * Authorization-aware status lookup: a job is only visible to the user who
+ * submitted it. Unknown build ids read as authorized so the route can return
+ * 404; a known id belonging to another user reads as unauthorized (403).
+ */
+export function getFtcBuildForUser(buildId, userId) {
+  const job = jobs.get(buildId) || null;
+  if (!job) return { job: null, authorized: true };
+  const authorized = !!userId && !!job.userId && userId === job.userId;
+  return { job: authorized ? job : null, authorized };
+}
+
 export function getCurrentBuildId() {
-  return currentJobId;
+  return activeJobId;
+}
+
+export function getQueueStats() {
+  return { active: activeJobId ? 1 : 0, queued: buildQueue.length, maxQueue: MAX_QUEUE };
 }
 
 function stage(job, status, message) {
@@ -134,6 +178,17 @@ async function runBuildJob(job) {
       job.errors = ['Gradle reported success but the APK is missing classes.dex / AndroidManifest.xml / resources.arsc'];
       stage(job, 'error', 'Invalid APK produced');
       return;
+    }
+    const javaBin = path.join(prov.jdkHome, 'bin', process.platform === 'win32' ? 'java.exe' : 'java');
+    const sig = await verifySignature(res.apkPath, { javaBin, buildToolsDir: prov.buildToolsDir });
+    if (!sig.ok) {
+      job.errors = [`APK signature verification failed: ${sig.output.slice(0, 300)}`];
+      stage(job, 'error', 'APK failed signature verification');
+      return;
+    }
+    const align = await verifyAlignment(res.apkPath, { buildToolsDir: prov.buildToolsDir });
+    if (align.ok === false) {
+      job.warnings.push(`APK is not 4-byte zipaligned: ${align.output.slice(0, 200)}`);
     }
     const userClasses = dexContainsClasses(
       res.apkPath,

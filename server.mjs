@@ -19,7 +19,7 @@ const require = createRequire(import.meta.url);
 const pty = require('node-pty');
 
 // Real FTC cloud-compilation pipeline (self-provisioning JDK + Android SDK + Gradle)
-import { queueFtcBuild, getFtcBuild, validateFiles, startFtcBuildWarmup } from './scripts/ftc-build/index.mjs';
+import { queueFtcBuild, getFtcBuildForUser, validateFiles, startFtcBuildWarmup } from './scripts/ftc-build/index.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -1292,9 +1292,11 @@ app.post('/api/replit/compile-ftc', (req, res) => {
   if (validation.error) {
     return res.status(400).json({ status: 'error', message: validation.error, errors: [validation.error], warnings: [] });
   }
-  const { job, error } = queueFtcBuild({ files: validation.files, sdkVersion, userId: uid });
+  const { job, error, retryAfter } = queueFtcBuild({ files: validation.files, sdkVersion, userId: uid });
   if (error) {
-    return res.status(429).json({ status: 'error', message: error, errors: [error], warnings: [] });
+    const payload = { status: 'error', message: error, errors: [error], warnings: [] };
+    if (retryAfter) payload.retryAfter = retryAfter;
+    return res.status(429).json(payload);
   }
   res.status(202).json({
     status: 'queued',
@@ -1305,8 +1307,15 @@ app.post('/api/replit/compile-ftc', (req, res) => {
 });
 
 app.get('/api/replit/compile-ftc/status/:buildId', (req, res) => {
-  const job = getFtcBuild(req.params.buildId);
+  const uid = getReplitUserId(req);
+  if (!uid) {
+    return res.status(401).json({ status: 'error', message: 'Not authenticated', errors: ['Not authenticated'], warnings: [] });
+  }
+  const { job, authorized } = getFtcBuildForUser(req.params.buildId, uid);
   if (!job) {
+    if (!authorized) {
+      return res.status(403).json({ status: 'error', message: 'Not your build', errors: ['Forbidden'], warnings: [] });
+    }
     return res.status(404).json({ status: 'error', message: 'Unknown or expired build id', errors: ['Build not found'], warnings: [] });
   }
   res.json({
