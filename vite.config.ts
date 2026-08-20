@@ -21,7 +21,15 @@ export default defineConfig(({ mode }) => {
       overlay: false,
     },
     watch: {
-      ignored: ["**/.cache/**"],
+      // The workspace contains large generated SDK trees that should never be
+      // part of the frontend's hot-reload graph. Watching them exhausts the
+      // container's file-descriptor limit before the preview can stay up.
+      ignored: [
+        "**/.cache/**",
+        "**/.ftc-toolchain/**",
+        "**/node_modules/**",
+        "**/.git/**",
+      ],
     },
     headers: {
       'Cross-Origin-Embedder-Policy': 'credentialless',
