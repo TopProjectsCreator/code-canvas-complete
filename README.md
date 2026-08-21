@@ -1206,4 +1206,4 @@ cc ide scan --file requirements.txt    # Scan Python deps
 ---
 
 ## 📄 License & Contributing
-Licensed under [license.md](license.md). Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
+Licensed under the MIT license, see [license.md](license.md). Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md).
