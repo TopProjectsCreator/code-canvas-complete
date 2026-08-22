@@ -32,7 +32,7 @@ type ProgressCb = (message: string, percent: number) => void;
 
 // ── SLIP framing ──
 
-function slipEncode(data: Uint8Array): Uint8Array {
+export function slipEncode(data: Uint8Array): Uint8Array {
   const out: number[] = [SLIP_END];
   for (const byte of data) {
     if (byte === SLIP_END) { out.push(SLIP_ESC, SLIP_ESC_END); }
@@ -43,13 +43,14 @@ function slipEncode(data: Uint8Array): Uint8Array {
   return new Uint8Array(out);
 }
 
-async function slipReadFrame(
+export async function slipReadFrame(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   timeout = CMD_TIMEOUT
 ): Promise<Uint8Array> {
   const deadline = Date.now() + timeout;
   const frame: number[] = [];
   let inFrame = false;
+  let escaped = false;
 
   while (Date.now() < deadline) {
     const { value, done } = await Promise.race([
@@ -62,16 +63,20 @@ async function slipReadFrame(
 
     for (const byte of value) {
       if (byte === SLIP_END) {
+        // A trailing escape marker is discarded (truncated escape sequence).
+        escaped = false;
         if (inFrame && frame.length > 0) return new Uint8Array(frame);
         inFrame = true;
         frame.length = 0;
       } else if (inFrame) {
-        if (byte === SLIP_ESC) continue;
-        if (frame.length > 0 && frame[frame.length - 1] === SLIP_ESC) {
-          frame.pop();
+        if (escaped) {
+          // Decode the byte that followed SLIP_ESC (RFC 1055).
+          escaped = false;
           if (byte === SLIP_ESC_END) frame.push(SLIP_END);
           else if (byte === SLIP_ESC_ESC) frame.push(SLIP_ESC);
           else frame.push(byte);
+        } else if (byte === SLIP_ESC) {
+          escaped = true;
         } else {
           frame.push(byte);
         }
