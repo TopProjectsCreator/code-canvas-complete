@@ -1195,6 +1195,12 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
     }
 
     if (offlineModeEnabled) {
+      const userMessage: AgentMessage = { id: generateId(), role: 'user', content: messageContent };
+      setMessages(prev => {
+        const next = [...prev, userMessage];
+        return next.length > 200 ? next.slice(-200) : next;
+      });
+      setIsLoading(true);
       try {
         setCurrentStep('Loading offline model...');
         await offlineLLM.initialize(offlineModelId, setCurrentStep);
