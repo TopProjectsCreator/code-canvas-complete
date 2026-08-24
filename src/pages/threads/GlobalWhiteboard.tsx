@@ -488,6 +488,8 @@ export default function GlobalWhiteboard() {
         async (payload: any) => {
           if (!payload.new || !apiRef.current) return;
           const [t] = (await attachAuthors([payload.new])) as any[];
+          registerAuthorship([t], []);
+
           if (!apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
           const existingCard = current.find(
