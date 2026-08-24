@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Eye, Pencil, RefreshCw, Users } from 'lucide-react';
+import { ArrowLeft, Eye, Filter, Pencil, RefreshCw, Users, X } from 'lucide-react';
+
 import { Excalidraw } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { supabase } from '@/integrations/supabase/client';
