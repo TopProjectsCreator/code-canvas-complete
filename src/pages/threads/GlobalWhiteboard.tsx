@@ -228,6 +228,17 @@ export default function GlobalWhiteboard() {
   const persistRef = useRef<(elements: readonly any[], appState: any, files: Record<string, any>) => Promise<void>>();
   const broadcastRef = useRef<(elements: readonly any[], files: Record<string, any>) => void>();
 
+  // Author filter: which user's threads/replies are shown (null = everyone).
+  const [authorFilter, setAuthorFilter] = useState<string | null>(null);
+  const [authorOptions, setAuthorOptions] = useState<AuthorOption[]>([]);
+  const threadAuthorRef = useRef<Map<string, string>>(new Map());
+  const commentAuthorRef = useRef<Map<string, string>>(new Map());
+  // Unfiltered scene kept aside while a filter is on, so hiding is reversible
+  // and never persisted.
+  const unfilteredRef = useRef<any[] | null>(null);
+  const authorFilterRef = useRef<string | null>(null);
+
+
   // Peer/presence state
   const [peers, setPeers] = useState<PeerMeta[]>([]);
   // Per-user permission overrides set by admins (userId -> role). Ephemeral.
