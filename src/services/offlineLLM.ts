@@ -37,19 +37,22 @@ class OfflineLLMManager {
 
   async initialize(model: string, onStatus?: (s: string) => void, onProgress?: (p: number, label?: string) => void) {
     const worker = this.ensureWorker();
-    if (this.readyModel === model) {
+    const normalizedModel = normalizeOfflineModelId(model);
+    if (this.readyModel === normalizedModel) {
+      markOfflineModelDownloaded(normalizedModel);
       onProgress?.(1, 'Already downloaded');
       return;
     }
     const id = ++this.requestId;
-    worker.postMessage({ type: 'init', model, requestId: id });
+    worker.postMessage({ type: 'init', model: normalizedModel, requestId: id });
     await new Promise<void>((resolve, reject) => {
       const onMessage = (event: MessageEvent<OfflineEvent & { requestId?: number }>) => {
         const data = event.data;
         if (data.type === 'status') onStatus?.(data.text);
         if (data.type === 'progress') onProgress?.(data.progress, data.text);
         if (data.type === 'ready' && data.requestId === id) {
-          this.readyModel = data.model;
+          this.readyModel = normalizeOfflineModelId(data.model);
+          markOfflineModelDownloaded(this.readyModel);
           worker.removeEventListener('message', onMessage);
           resolve();
         }
@@ -80,6 +83,36 @@ export const offlineLLM = new OfflineLLMManager();
 export const offlineModelStorageKey = 'canvas-offline-model';
 export const offlineModeEnabledKey = 'canvas-offline-mode-enabled';
 export const chatOnlyModeKey = 'canvas-chat-only-mode';
+export const downloadedOfflineModelsKey = 'canvas-downloaded-offline-models';
+export const offlineModelUpdatedEvent = 'canvas-offline-model-updated';
+const DEFAULT_OFFLINE_QUANT = 'q4f16';
+
+export const normalizeOfflineModelId = (model: string) =>
+  model.includes('@') ? model : `${model}@${DEFAULT_OFFLINE_QUANT}`;
+
+export const getDownloadedOfflineModels = (): string[] => {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const saved = JSON.parse(localStorage.getItem(downloadedOfflineModelsKey) || '[]');
+    return Array.isArray(saved) ? saved.filter((model): model is string => typeof model === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+export const isOfflineModelDownloaded = (model: string) =>
+  getDownloadedOfflineModels().includes(normalizeOfflineModelId(model));
+
+export const markOfflineModelDownloaded = (model: string) => {
+  const normalizedModel = normalizeOfflineModelId(model);
+  const downloadedModels = getDownloadedOfflineModels();
+  if (!downloadedModels.includes(normalizedModel)) {
+    localStorage.setItem(downloadedOfflineModelsKey, JSON.stringify([...downloadedModels, normalizedModel]));
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(offlineModelUpdatedEvent, { detail: normalizedModel }));
+  }
+};
 
 export const getSavedOfflineModel = () => localStorage.getItem(offlineModelStorageKey) || 'onnx-community/Llama-3.2-1B-Instruct';
 export const setSavedOfflineModel = (model: string) => localStorage.setItem(offlineModelStorageKey, model);
@@ -95,7 +128,7 @@ export const preloadOfflineModel = async (
 ) => {
   try {
     await offlineLLM.initialize(model, onStatus, onProgress);
-    toast.success(`Offline model ready: ${model}`);
+    toast.success(`Offline model ready: ${normalizeOfflineModelId(model)}`);
   } catch (error) {
     toast.error(`Offline model failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     throw error;

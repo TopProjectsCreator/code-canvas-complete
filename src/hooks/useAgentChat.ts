@@ -13,7 +13,8 @@ import { generatePresentationPptx, parsePptxSpec, type PptxSpec } from '@/lib/pp
 import { 
   getOfflineModeEnabled, getSavedOfflineModel, offlineLLM, preloadOfflineModel, 
   setOfflineModeEnabled as setOfflineEnabledService, setSavedOfflineModel, 
-  getChatOnlyMode, setChatOnlyMode as setChatOnlyEnabledService 
+  getChatOnlyMode, setChatOnlyMode as setChatOnlyEnabledService,
+  getDownloadedOfflineModels, offlineModelUpdatedEvent,
 } from '@/services/offlineLLM';
 
 const _agentChatPlatform = detectDeploymentPlatform();
@@ -173,11 +174,19 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
   const [offlineDownloadProgress, setOfflineDownloadProgress] = useState(0);
   const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<string>('');
   const [isDownloadingOfflineModel, setIsDownloadingOfflineModel] = useState(false);
+  const [downloadingOfflineModelId, setDownloadingOfflineModelId] = useState<string | null>(null);
+  const [downloadedOfflineModels, setDownloadedOfflineModels] = useState<string[]>(() => getDownloadedOfflineModels());
   const abortControllerRef = useRef<AbortController | null>(null);
   const executedActionsRef = useRef<Set<string>>(new Set());
   const shellSessionIdRef = useRef<string | null>(null);
   const messagesRef = useRef<AgentMessage[]>(messages);
   messagesRef.current = messages;
+
+  useEffect(() => {
+    const refreshDownloadedModels = () => setDownloadedOfflineModels(getDownloadedOfflineModels());
+    window.addEventListener(offlineModelUpdatedEvent, refreshDownloadedModels);
+    return () => window.removeEventListener(offlineModelUpdatedEvent, refreshDownloadedModels);
+  }, []);
 
   // Latest-callback refs so long-running async handlers never read stale props.
   const callbacksRef = useRef({
@@ -1136,6 +1145,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
 
   const downloadOfflineModel = useCallback(async (model: string) => {
     setIsDownloadingOfflineModel(true);
+    setDownloadingOfflineModelId(model);
     setOfflineDownloadProgress(0);
     setOfflineDownloadStatus('Starting download...');
     try {
@@ -1149,6 +1159,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
       );
     } finally {
       setIsDownloadingOfflineModel(false);
+      setDownloadingOfflineModelId(null);
     }
   }, []);
 
@@ -1700,6 +1711,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
     isDownloadingOfflineModel,
     offlineDownloadProgress,
     offlineDownloadStatus,
+    downloadingOfflineModelId,
+    downloadedOfflineModels,
     downloadOfflineModel,
     sendMessage,
     applyCodeChange,

@@ -756,6 +756,8 @@ export const AIChat = ({
     isDownloadingOfflineModel,
     offlineDownloadProgress,
     offlineDownloadStatus,
+    downloadingOfflineModelId,
+    downloadedOfflineModels,
     downloadOfflineModel,
     sendMessage, 
     applyCodeChange,
@@ -854,10 +856,13 @@ export const AIChat = ({
     model.label.toLowerCase().includes(normalizedModelSearch) ||
     model.description.toLowerCase().includes(normalizedModelSearch)
   );
+  const downloadedOfflineModelFor = (modelId: string) =>
+    downloadedOfflineModels.find(downloadedModel => downloadedModel.startsWith(`${modelId}@`));
   const filteredOfflineModels = RECOMMENDED_MODELS.filter(model =>
-    !normalizedModelSearch ||
-    model.name.toLowerCase().includes(normalizedModelSearch) ||
-    model.provider.toLowerCase().includes(normalizedModelSearch)
+    downloadedOfflineModelFor(model.id) !== undefined &&
+    (!normalizedModelSearch ||
+      model.name.toLowerCase().includes(normalizedModelSearch) ||
+      model.provider.toLowerCase().includes(normalizedModelSearch))
   );
   const filteredByokModels = byokProvider
     ? ((PROVIDER_MODELS as any)[byokProvider] || []).filter((model: { id: string; label: string }) =>
@@ -1627,10 +1632,11 @@ export const AIChat = ({
                   <div className="space-y-0.5">
                     {filteredOfflineModels.map(model => {
                       const modelIsActive = offlineModeEnabled && offlineModelId.startsWith(model.id);
+                      const downloadedModelId = downloadedOfflineModelFor(model.id)!;
                       return (
                         <button
                           key={model.id}
-                          onClick={() => selectOfflineModel(`${model.id}@q4f16`)}
+                          onClick={() => selectOfflineModel(downloadedModelId)}
                           className={cn(
                             'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
                             modelIsActive ? 'bg-emerald-500/10 text-foreground' : 'hover:bg-accent'
@@ -1922,6 +1928,8 @@ export const AIChat = ({
         onSelectModel={setOfflineModelId}
         downloadProgress={offlineDownloadProgress}
         downloadStatus={offlineDownloadStatus}
+        downloadingModelId={downloadingOfflineModelId}
+        downloadedModels={downloadedOfflineModels}
         isDownloading={isDownloadingOfflineModel}
         onDownload={downloadOfflineModel}
       />

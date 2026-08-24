@@ -30,6 +30,8 @@ interface OfflineModelManagerProps {
   onSelectModel: (id: string) => void;
   downloadProgress: number;
   downloadStatus: string;
+  downloadingModelId: string | null;
+  downloadedModels: string[];
   isDownloading: boolean;
   onDownload: (id: string) => void;
 }
@@ -41,6 +43,8 @@ export function OfflineModelManager({
   onSelectModel,
   downloadProgress,
   downloadStatus,
+  downloadingModelId,
+  downloadedModels,
   isDownloading,
   onDownload
 }: OfflineModelManagerProps) {
@@ -65,6 +69,7 @@ export function OfflineModelManager({
             Download and manage language models that run entirely in your browser.
             Models are downloaded once (~500MB to 2.5GB) and then cached for offline use.
             Ensure you have a stable internet connection for the initial download.
+            Existing caches are verified the next time their model is initialized.
           </DialogDescription>
         </DialogHeader>
 
@@ -117,18 +122,24 @@ export function OfflineModelManager({
             </h3>
             <div className="grid gap-3">
               {RECOMMENDED_MODELS.map((model) => (
+                (() => {
+                  const modelId = `${model.id}@${selectedQuant}`;
+                  const isDownloaded = downloadedModels.includes(modelId);
+                  const isModelDownloading = downloadingModelId === modelId;
+                  const isActive = baseId === model.id && currentModelId === modelId;
+                  return (
                 <div 
                   key={model.id}
                   className={cn(
                     "group p-3 rounded-lg border transition-all hover:border-primary/50",
-                    baseId === model.id ? "bg-primary/5 border-primary/40" : "bg-card border-border"
+                    isActive ? "bg-primary/5 border-primary/40" : "bg-card border-border"
                   )}
                 >
                   <div className="flex justify-between items-start mb-1">
                     <div>
                       <h4 className="font-medium text-sm flex items-center gap-2">
                         {model.name}
-                        {baseId === model.id && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+                        {isActive && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
                       </h4>
                       <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{model.description}</p>
                     </div>
@@ -137,28 +148,36 @@ export function OfflineModelManager({
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-3">
-                    <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-tight">by {model.provider}</span>
+                     <span className={cn(
+                       "text-[10px] font-medium uppercase tracking-tight",
+                       isDownloaded ? "text-emerald-400" : isModelDownloading ? "text-amber-400" : "text-muted-foreground"
+                     )}>
+                       {isDownloaded ? "Downloaded" : isModelDownloading ? "Downloading" : "Not downloaded"}
+                     </span>
                     <div className="flex gap-2">
                       <Button 
                         size="sm" 
-                        variant={baseId === model.id ? "secondary" : "outline"}
+                         variant={isActive ? "secondary" : "outline"}
                         className="h-7 text-xs"
-                        onClick={() => onSelectModel(`${model.id}@${selectedQuant}`)}
+                         disabled={!isDownloaded}
+                         onClick={() => onSelectModel(modelId)}
                       >
-                        {baseId === model.id ? 'Active' : 'Select'}
+                         {isActive ? 'Active' : 'Select'}
                       </Button>
                       <Button 
                         size="sm" 
                         className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-                        disabled={isDownloading}
+                         disabled={isDownloading || isDownloaded}
                         onClick={() => handleDownload(model.id)}
                       >
-                        <Download className="w-3 h-3" />
-                        Download
+                         {isDownloaded ? <CheckCircle2 className="w-3 h-3" /> : <Download className="w-3 h-3" />}
+                         {isDownloaded ? 'Downloaded' : isModelDownloading ? 'Downloading' : 'Download'}
                       </Button>
                     </div>
                   </div>
                 </div>
+                  );
+                })()
               ))}
             </div>
           </div>
