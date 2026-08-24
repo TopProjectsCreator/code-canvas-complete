@@ -100,6 +100,44 @@ function occupiedRects(elements: readonly any[]): Rect[] {
   return rects;
 }
 
+interface AuthorOption { id: string; name: string; avatar: string | null; threads: number; replies: number }
+
+/**
+ * Maps every generated element (card frame, its bound text, avatar image and
+ * link arrows) to the user id that authored the thread/reply it belongs to.
+ * Hand-drawn elements are left out so they are never filtered away.
+ */
+function cardOwnerMap(
+  elements: readonly any[],
+  threadAuthors: Map<string, string>,
+  commentAuthors: Map<string, string>
+): Map<string, string> {
+  const byId = new Map<string, string>();
+  const byGroup = new Map<string, string>();
+  for (const el of elements as any[]) {
+    const cd = el?.customData;
+    if (!cd) continue;
+    const author = cd.commentId
+      ? commentAuthors.get(cd.commentId)
+      : cd.threadId
+        ? threadAuthors.get(cd.threadId)
+        : undefined;
+    if (!author) continue;
+    byId.set(el.id, author);
+    for (const g of el.groupIds || []) byGroup.set(g, author);
+  }
+  const out = new Map<string, string>();
+  for (const el of elements as any[]) {
+    const own =
+      byId.get(el.id) ??
+      (el.containerId ? byId.get(el.containerId) : undefined) ??
+      (el.groupIds || []).map((g: string) => byGroup.get(g)).find(Boolean);
+    if (own) out.set(el.id, own);
+  }
+  return out;
+}
+
+
 function overlaps(a: Rect, b: Rect, pad = PLACE_MARGIN): boolean {
   return (
     a.x < b.x + b.w + pad &&
