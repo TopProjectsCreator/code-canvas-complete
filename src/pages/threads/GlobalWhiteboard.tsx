@@ -237,6 +237,69 @@ export default function GlobalWhiteboard() {
   // and never persisted.
   const unfilteredRef = useRef<any[] | null>(null);
   const authorFilterRef = useRef<string | null>(null);
+  const authorMetaRef = useRef<Map<string, AuthorOption>>(new Map());
+
+  /** Records who wrote each thread/reply so the filter can resolve card owners. */
+  const registerAuthorship = useCallback((threads: any[], comments: any[]) => {
+    const meta = authorMetaRef.current;
+    const touch = (row: any, key: 'threads' | 'replies') => {
+      const id = row?.author_id as string | undefined;
+      if (!id) return;
+      const entry =
+        meta.get(id) ?? { id, name: 'anonymous', avatar: null as string | null, threads: 0, replies: 0 };
+      if (row.author) entry.name = String(row.author).replace(/^@/, '');
+      if (row.author_avatar) entry.avatar = row.author_avatar;
+      entry[key] += 1;
+      meta.set(id, entry);
+    };
+    for (const t of threads) {
+      if (!t?.id || !t.author_id) continue;
+      const isNew = !threadAuthorRef.current.has(t.id);
+      threadAuthorRef.current.set(t.id, t.author_id);
+      if (isNew) touch(t, 'threads');
+    }
+    for (const c of comments) {
+      if (!c?.id || !c.author_id) continue;
+      const isNew = !commentAuthorRef.current.has(c.id);
+      commentAuthorRef.current.set(c.id, c.author_id);
+      if (isNew) touch(c, 'replies');
+    }
+    setAuthorOptions(
+      [...meta.values()].sort((a, b) => b.threads + b.replies - (a.threads + a.replies))
+    );
+  }, []);
+
+  /**
+   * Hides every generated card that belongs to another author. Purely visual:
+   * the untouched scene is kept in a ref and restored when the filter clears,
+   * and saving is paused while a filter is active.
+   */
+  const applyAuthorFilter = useCallback((authorId: string | null) => {
+    const api = apiRef.current;
+    if (!api) return;
+    if (!unfilteredRef.current) {
+      unfilteredRef.current = (api.getSceneElements() as any[]).map((el) => ({ ...el }));
+    }
+    const base = unfilteredRef.current;
+    authorFilterRef.current = authorId;
+    setAuthorFilter(authorId);
+    applyingRemoteRef.current = true;
+    if (!authorId) {
+      api.updateScene({ elements: base.map((el) => ({ ...el })) });
+      unfilteredRef.current = null;
+    } else {
+      const owners = cardOwnerMap(base, threadAuthorRef.current, commentAuthorRef.current);
+      api.updateScene({
+        elements: base.map((el) => {
+          const owner = owners.get(el.id);
+          if (!owner || owner === authorId) return { ...el };
+          return { ...el, opacity: 0, locked: true };
+        }),
+      });
+    }
+    applyingRemoteRef.current = false;
+  }, []);
+
 
 
   // Peer/presence state
