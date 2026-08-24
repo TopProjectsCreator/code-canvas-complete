@@ -852,6 +852,11 @@ export default function GlobalWhiteboard() {
     if (myRoleRef.current === 'viewer') {
       return;
     }
+    // A filtered view hides cards locally — never save that as the real board.
+    if (authorFilterRef.current) {
+      return;
+    }
+
     diffAndAttribute(elements);
     const now = Date.now();
     if (now - broadcastThrottleRef.current >= 50) {
