@@ -945,6 +945,71 @@ export default function GlobalWhiteboard() {
         </div>
 
         <div className="flex items-center gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant={authorFilter ? 'default' : 'outline'} size="sm" className="gap-1.5 h-7 text-xs">
+              <Filter className="h-3.5 w-3.5" />
+              {activeAuthor ? `@${activeAuthor.name}` : 'All authors'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 p-0">
+            <div className="px-3 py-2 border-b">
+              <div className="text-sm font-semibold">Filter by author</div>
+              <div className="text-xs text-muted-foreground">
+                Show only the threads and replies one person posted.
+              </div>
+            </div>
+            <div className="max-h-72 overflow-y-auto">
+              <button
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-accent ${!authorFilter ? 'font-medium' : ''}`}
+                onClick={() => applyAuthorFilter(null)}
+              >
+                Everyone
+              </button>
+              {authorOptions.length === 0 && (
+                <div className="px-3 py-4 text-xs text-muted-foreground text-center">
+                  No authored cards on the board yet.
+                </div>
+              )}
+              {authorOptions.map((a) => (
+                <button
+                  key={a.id}
+                  className={`w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-accent ${
+                    authorFilter === a.id ? 'bg-accent' : ''
+                  }`}
+                  onClick={() => applyAuthorFilter(a.id)}
+                >
+                  {a.avatar ? (
+                    <img src={a.avatar} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-[10px] font-semibold flex items-center justify-center shrink-0">
+                      {a.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm truncate">@{a.name}</span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      {a.threads} {a.threads === 1 ? 'thread' : 'threads'} · {a.replies}{' '}
+                      {a.replies === 1 ? 'reply' : 'replies'}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+        {authorFilter && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 h-7 text-xs"
+            onClick={() => applyAuthorFilter(null)}
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear
+          </Button>
+        )}
+
         {isAdmin && (
           <Button
             variant="outline"
