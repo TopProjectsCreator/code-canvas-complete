@@ -922,7 +922,10 @@ export default function GlobalWhiteboard() {
   }, [peers]);
 
   const peerCount = Math.max(1, peers.length);
-  const effectiveViewMode = !user || myRole === 'viewer';
+  // A filtered board is read-only: hidden cards must never be saved away.
+  const effectiveViewMode = !user || myRole === 'viewer' || !!authorFilter;
+  const activeAuthor = authorOptions.find((a) => a.id === authorFilter) ?? null;
+
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
