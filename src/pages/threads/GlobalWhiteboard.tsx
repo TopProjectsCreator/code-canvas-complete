@@ -438,7 +438,7 @@ export default function GlobalWhiteboard() {
       setReady(true);
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [registerAuthorship]);
 
 
   // Realtime: remote scene, presence, new threads, permission changes
@@ -590,7 +590,7 @@ export default function GlobalWhiteboard() {
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [ready, userId, userEmail, myDisplayName]);
+  }, [ready, userId, userEmail, myDisplayName, registerAuthorship]);
 
   // Republish presence when my stats change (throttled)
   const republishStatsThrottleRef = useRef<number>(0);
@@ -813,7 +813,7 @@ export default function GlobalWhiteboard() {
     } finally {
       setRebuilding(false);
     }
-  }, [user, isAdmin, persist, broadcastScene, toast]);
+  }, [user, isAdmin, persist, broadcastScene, toast, registerAuthorship]);
 
 
   const diffAndAttribute = useCallback((elements: readonly any[]) => {
