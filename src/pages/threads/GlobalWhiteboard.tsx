@@ -343,6 +343,8 @@ export default function GlobalWhiteboard() {
         attachAuthors((threadsRes.data || []) as any[]),
         attachAuthors((commentsRes.data || []) as any[]),
       ]) as unknown as [ThreadSeed[], CommentSeed[]];
+      registerAuthorship(threads as any[], comments as any[]);
+
 
       // Existing elements are NEVER touched: nothing here deletes, rebuilds,
       // restyles or re-places anything already on the board. Generated content
