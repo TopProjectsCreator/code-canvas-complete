@@ -13,7 +13,8 @@ import { generatePresentationPptx, parsePptxSpec, type PptxSpec } from '@/lib/pp
 import { 
   getOfflineModeEnabled, getSavedOfflineModel, offlineLLM, preloadOfflineModel, 
   setOfflineModeEnabled as setOfflineEnabledService, setSavedOfflineModel, 
-  getChatOnlyMode, setChatOnlyMode as setChatOnlyEnabledService 
+  getChatOnlyMode, setChatOnlyMode as setChatOnlyEnabledService,
+  getDownloadedOfflineModels, offlineModelUpdatedEvent,
 } from '@/services/offlineLLM';
 
 const _agentChatPlatform = detectDeploymentPlatform();
@@ -93,13 +94,16 @@ const WELCOME_MESSAGE: AgentMessage = {
 };
 
 const chatStorageKey = (projectId?: string | null) => `canvas-agent-chat:${projectId || 'default'}`;
-const SIMPLE_MATH_PATTERN = /^[\d\s+\-*/%^().,]+$/;
+const SIMPLE_MATH_PATTERN = /^[\d\s+\-*/%^().]+$/;
 const QUADRATIC_PATTERN = /^\s*([+-]?\d*)x\^2\s*([+-]\s*\d*)x\s*([+-]\s*\d+)\s*=\s*0\s*$/i;
 
-const detectMathShortcut = (input: string): { explanation?: string; solution?: string; expression: string } | null => {
+const MATH_OPERATION_PATTERN = /^(?:what\s+is|calculate|compute|solve)\s+(.+)$/i;
+export const detectMathShortcut = (input: string): { explanation?: string; solution?: string; result?: string; expression: string } | null => {
   const normalized = input.trim();
   if (!normalized) return null;
-  const quadMatch = normalized.replace(/\s+/g, '').match(QUADRATIC_PATTERN);
+  const operationMatch = normalized.match(MATH_OPERATION_PATTERN);
+  const requestedExpression = operationMatch ? operationMatch[1].trim() : normalized;
+  const quadMatch = requestedExpression.replace(/\s+/g, '').match(QUADRATIC_PATTERN);
   if (quadMatch) {
     const a = Number(quadMatch[1] === '' || quadMatch[1] === '+' ? 1 : quadMatch[1] === '-' ? -1 : quadMatch[1]);
     const b = Number((quadMatch[2] || '').replace(/\s+/g, ''));
@@ -109,14 +113,29 @@ const detectMathShortcut = (input: string): { explanation?: string; solution?: s
       const root1 = (-b + Math.sqrt(discriminant)) / (2 * a);
       const root2 = (-b - Math.sqrt(discriminant)) / (2 * a);
       return {
-        expression: normalized,
+        expression: requestedExpression,
         explanation: `Use the quadratic formula x = (-b ± √(b² - 4ac)) / 2a with a=${a}, b=${b}, c=${c}.`,
-        solution: `x = ${Number(root1.toFixed(6))} and x = ${Number(root2.toFixed(6))}`
+        solution: `x = ${Number(root1.toFixed(6))} and x = ${Number(root2.toFixed(6))}`,
       };
     }
   }
-  if (SIMPLE_MATH_PATTERN.test(normalized) || /\b(what is|calculate|solve)\b/i.test(normalized)) {
-    return { expression: normalized.replace(/^.*?(?=\d|\()/i, '') || normalized };
+
+  const selectedExpression = operationMatch ? operationMatch[1].trim() : normalized;
+  let expression = selectedExpression;
+  if (operationMatch) {
+    const percentMatch = expression.match(PERCENT_OF_PATTERN);
+    if (percentMatch) {
+      expression = `(${percentMatch[1]} / 100) * ${percentMatch[2]}`;
+    }
+  }
+
+  const result = evaluateShortcutExpression(expression);
+  if (result !== null) {
+    return { expression: selectedExpression, result };
+  }
+  const wordProblemResult = evaluateWordProblem(normalized);
+  if (wordProblemResult !== null) {
+    return { expression: normalized, result: wordProblemResult };
   }
   return null;
 };
@@ -173,11 +192,19 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
   const [offlineDownloadProgress, setOfflineDownloadProgress] = useState(0);
   const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<string>('');
   const [isDownloadingOfflineModel, setIsDownloadingOfflineModel] = useState(false);
+  const [downloadingOfflineModelId, setDownloadingOfflineModelId] = useState<string | null>(null);
+  const [downloadedOfflineModels, setDownloadedOfflineModels] = useState<string[]>(() => getDownloadedOfflineModels());
   const abortControllerRef = useRef<AbortController | null>(null);
   const executedActionsRef = useRef<Set<string>>(new Set());
   const shellSessionIdRef = useRef<string | null>(null);
   const messagesRef = useRef<AgentMessage[]>(messages);
   messagesRef.current = messages;
+
+  useEffect(() => {
+    const refreshDownloadedModels = () => setDownloadedOfflineModels(getDownloadedOfflineModels());
+    window.addEventListener(offlineModelUpdatedEvent, refreshDownloadedModels);
+    return () => window.removeEventListener(offlineModelUpdatedEvent, refreshDownloadedModels);
+  }, []);
 
   // Latest-callback refs so long-running async handlers never read stale props.
   const callbacksRef = useRef({
@@ -782,7 +809,6 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
   };
 
 
-
   const parseGenerateTestsTags = (content: string): { codeChanges: CodeChange[]; cleanContent: string } => {
     const codeChanges: CodeChange[] = [];
     let cleanContent = content;
@@ -1136,6 +1162,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
 
   const downloadOfflineModel = useCallback(async (model: string) => {
     setIsDownloadingOfflineModel(true);
+    setDownloadingOfflineModelId(model);
     setOfflineDownloadProgress(0);
     setOfflineDownloadStatus('Starting download...');
     try {
@@ -1149,6 +1176,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
       );
     } finally {
       setIsDownloadingOfflineModel(false);
+      setDownloadingOfflineModelId(null);
     }
   }, []);
 
@@ -1184,6 +1212,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
             expression: mathShortcut.expression,
             explanation: mathShortcut.explanation,
             solution: mathShortcut.solution,
+             result: mathShortcut.result,
           }
         }]
       };
@@ -1706,6 +1735,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
     isDownloadingOfflineModel,
     offlineDownloadProgress,
     offlineDownloadStatus,
+    downloadingOfflineModelId,
+    downloadedOfflineModels,
     downloadOfflineModel,
     sendMessage,
     applyCodeChange,
@@ -1714,3 +1745,47 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
     answerQuestion,
   };
 };
+
+const formatMathResult = (value: number): string | null => {
+  if (!Number.isFinite(value)) return null;
+  if (Math.abs(value) >= 1_000_000 || (Math.abs(value) > 0 && Math.abs(value) < 0.000001)) {
+    return value.toExponential(6);
+  }
+  return Number(value.toFixed(10)).toString();
+};
+
+const evaluateShortcutExpression = (expression: string): string | null => {
+  const trimmed = expression.trim();
+  if (!trimmed || !SIMPLE_MATH_PATTERN.test(trimmed)) return null;
+  // A lone number (or punctuation) is not a math request, and operators must
+  // be present before evaluating the constrained expression.
+  if (!/[+\-*/%^]/.test(trimmed)) return null;
+  try {
+    const value = Function(`"use strict"; return (${trimmed.replace(/\^/g, '**')});`)();
+    return typeof value === 'number' ? formatMathResult(value) : null;
+  } catch {
+    return null;
+  }
+};
+
+const evaluateWordProblem = (input: string): string | null => {
+  const text = input.toLowerCase().replace(/\s+/g, ' ').trim();
+  let match = text.match(new RegExp(`(?:have|has|had|start with|started with|there (?:are|is))\\s+${WORD_NUMBER}[\\s\\w]*?(?:lose|lost|use|used|give away|gave away|remove|removed|subtract)\\s+${WORD_NUMBER}`));
+  if (match) return formatMathResult(Number(match[1]) - Number(match[2]));
+  const passiveSubtraction = text.match(new RegExp(`(?:have|has|had|there (?:are|is))\\s+${WORD_NUMBER}[\\s\\w]*?(?:and|then)\\s+${WORD_NUMBER}\\s+(?:are|is)\\s+(?:used|lost|removed|given away)`));
+  if (passiveSubtraction) return formatMathResult(Number(passiveSubtraction[1]) - Number(passiveSubtraction[2]));
+
+  match = text.match(new RegExp(`(?:have|has|had|start with|started with|there (?:are|is))\\s+${WORD_NUMBER}[\\s\\w]*?(?:and|then)\\s+(?:buy|bought|add|adds?|receive|received|get|gets?)?\\s*${WORD_NUMBER}\\s*(?:more|additional)?`));
+  if (match) return formatMathResult(Number(match[1]) + Number(match[2]));
+
+  match = text.match(new RegExp(`${WORD_NUMBER}\\s+(?:rows?|groups?|packs?|bags?|boxes?|sets?)\\s+of\\s+${WORD_NUMBER}`));
+  if (match) return formatMathResult(Number(match[1]) * Number(match[2]));
+
+  match = text.match(new RegExp(`(?:share|shared|divide|divided)\\s+${WORD_NUMBER}[\\s\\w]*?(?:among|between|into)\\s+${WORD_NUMBER}`));
+  if (match && Number(match[2]) !== 0) return formatMathResult(Number(match[1]) / Number(match[2]));
+  return null;
+};
+
+const PERCENT_OF_PATTERN = /^(\d+(?:\.\d+)?)\s*%\s*(?:of|from)\s*(\d+(?:\.\d+)?)$/i;
+
+const WORD_NUMBER = '(\\d+(?:\\.\\d+)?)';

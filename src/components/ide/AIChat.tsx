@@ -6,7 +6,7 @@ import {
   GitBranch, GitCommit as GitCommitIcon, Download, Globe, Lock, Link2, Twitter,
   Linkedin, Mail, Share2, GitFork, Star, History, MessageCircleQuestion, Save,
   PlayCircle, Music, Key, Settings, Diff, Paperclip, Image, FileVideo, FileAudio, FileText,
-  GripVertical, ArrowUp, ArrowDown, Shield, ShieldCheck, ShieldAlert, SlidersHorizontal, WifiOff
+  GripVertical, ArrowUp, ArrowDown, Shield, ShieldCheck, ShieldAlert, SlidersHorizontal, WifiOff, Search, Cpu
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -31,6 +31,7 @@ import { WhileYouWaitArcade } from './WhileYouWaitArcade';
 import { CalmDownDialog } from './CalmDownDialog';
 import { detectFrustration } from '@/lib/frustrationDetector';
 import { OfflineModelManager } from './OfflineModelManager';
+import { RECOMMENDED_MODELS } from './offlineModelCatalog';
 
 interface QuickAction {
   id: string;
@@ -150,6 +151,12 @@ const quickActions: QuickAction[] = [
     prompt: 'I\'m ready to help! What programming question do you have?',
     requiresFile: false,
   },
+];
+
+const BUILT_IN_MODELS: Array<{ id: AIModel; label: string; description: string }> = [
+  { id: 'lite', label: 'Lite', description: 'Fast everyday help' },
+  { id: 'flash', label: 'Flash', description: 'Balanced coding assistance' },
+  { id: 'pro', label: 'Pro', description: 'Deepest reasoning' },
 ];
 
 // Thinking step component
@@ -714,7 +721,8 @@ export const AIChat = ({
   const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set());
   const [appliedChanges, setAppliedChanges] = useState<Set<string>>(new Set());
   const [showApiKeys, setShowApiKeys] = useState(false);
-  const [byokModelFilter, setByokModelFilter] = useState('');
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [modelPickerSearch, setModelPickerSearch] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const {
@@ -748,6 +756,8 @@ export const AIChat = ({
     isDownloadingOfflineModel,
     offlineDownloadProgress,
     offlineDownloadStatus,
+    downloadingOfflineModelId,
+    downloadedOfflineModels,
     downloadOfflineModel,
     sendMessage, 
     applyCodeChange,
@@ -839,6 +849,75 @@ export const AIChat = ({
   };
 
   const isOnline = useOnlineStatus();
+
+  const normalizedModelSearch = modelPickerSearch.trim().toLowerCase();
+  const filteredBuiltInModels = BUILT_IN_MODELS.filter(model =>
+    !normalizedModelSearch ||
+    model.label.toLowerCase().includes(normalizedModelSearch) ||
+    model.description.toLowerCase().includes(normalizedModelSearch)
+  );
+  const downloadedOfflineModelFor = (modelId: string) =>
+    downloadedOfflineModels.find(downloadedModel => downloadedModel.startsWith(`${modelId}@`));
+  const filteredOfflineModels = RECOMMENDED_MODELS.filter(model =>
+    downloadedOfflineModelFor(model.id) !== undefined &&
+    (!normalizedModelSearch ||
+      model.name.toLowerCase().includes(normalizedModelSearch) ||
+      model.provider.toLowerCase().includes(normalizedModelSearch))
+  );
+  const filteredByokModels = byokProvider
+    ? ((PROVIDER_MODELS as any)[byokProvider] || []).filter((model: { id: string; label: string }) =>
+        !normalizedModelSearch ||
+        model.label.toLowerCase().includes(normalizedModelSearch) ||
+        model.id.toLowerCase().includes(normalizedModelSearch)
+      )
+    : [];
+  const filteredConnectedProviders = connectedProviders.filter(provider =>
+    !normalizedModelSearch ||
+    PROVIDER_INFO[provider].label.toLowerCase().includes(normalizedModelSearch)
+  );
+  const activeOfflineModelName = offlineModelId.split('/').pop()?.split('@')[0] || 'Local model';
+  const activeModelName = offlineModeEnabled
+    ? activeOfflineModelName
+    : byokProvider
+      ? (PROVIDER_MODELS as any)[byokProvider]?.find((model: { id: string }) => model.id === byokModel)?.label || byokModel || 'BYOK model'
+      : BUILT_IN_MODELS.find(model => model.id === selectedModel)?.label || selectedModel;
+  const activeModelSource = offlineModeEnabled
+    ? 'Offline'
+    : byokProvider
+      ? `BYOK · ${PROVIDER_INFO[byokProvider as keyof typeof PROVIDER_INFO]?.label || byokProvider}`
+      : 'Built-in';
+
+  const selectBuiltInModel = (model: AIModel) => {
+    setOfflineModeEnabled(false);
+    setSelectedModel(model);
+    setByokProvider(null);
+    setByokModel(null);
+    setShowModelPicker(false);
+  };
+
+  const selectOfflineModel = (modelId: string) => {
+    setOfflineModeEnabled(true);
+    setOfflineModelId(modelId);
+    setByokProvider(null);
+    setByokModel(null);
+    setShowModelPicker(false);
+  };
+
+  const selectByokProvider = (provider: string) => {
+    setOfflineModeEnabled(false);
+    setByokProvider(provider);
+    setByokModel((PROVIDER_MODELS as any)[provider]?.[0]?.id || null);
+    if (provider === 'openai-compatible') {
+      const keyRecord = apiKeys.find(k => k.provider === provider);
+      setByokBaseUrl(keyRecord?.base_url || '');
+    }
+  };
+
+  const selectByokModel = (modelId: string) => {
+    setOfflineModeEnabled(false);
+    setByokModel(modelId);
+    setShowModelPicker(false);
+  };
 
   const handleSend = () => {
     if ((!input.trim() && attachments.length === 0) || isLoading) return;
@@ -1446,103 +1525,210 @@ export const AIChat = ({
 
       {/* Input */}
       <div className="p-3 border-t border-border">
-        {/* Toolbar — always visible so offline button is accessible */}
-        <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-          {/* Built-in tiers */}
-          {([
-            { id: 'lite' as AIModel, label: 'Lite', icon: '⚡', sub: 'FREE' },
-            { id: 'flash' as AIModel, label: 'Flash', icon: '🔥', sub: '10/day' },
-            { id: 'pro' as AIModel, label: 'Pro', icon: '💎', sub: '5/day' },
-          ]).map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => { setSelectedModel(m.id); setByokProvider(null); setByokModel(null); }}
-                  className={cn(
-                    'px-2 py-0.5 rounded text-[10px] font-medium transition-all',
-                    selectedModel === m.id && !byokProvider
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
-                  )}
-                  title={m.sub}
-                >
-                  {m.icon} {m.label}
-                </button>
-              ))}
-
-              {/* Divider */}
-              {connectedProviders.length > 0 && (
-                <div className="w-px h-4 bg-border mx-0.5" />
+        {/* Primary controls: mode, model source, and secondary settings. */}
+        <div className="flex items-center gap-2 mb-2 min-w-0">
+          <div
+            role="tablist"
+            aria-label="Assistant mode"
+            className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 shrink-0"
+          >
+            <button
+              role="tab"
+              aria-selected={chatOnlyMode}
+              onClick={() => setChatOnlyMode(true)}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors',
+                chatOnlyMode ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
               )}
-
-              <div className="w-px h-4 bg-border mx-0.5" />
-              <button
-                onClick={() => setOfflineModeEnabled(!offlineModeEnabled)}
-                className={cn(
-                  'px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1',
-                  offlineModeEnabled ? 'bg-emerald-600 text-white' : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
-                )}
-                title="Run chat model locally in your browser"
-              >
-                <WifiOff className="w-3 h-3" /> Offline
-              </button>
-              
-              <button
-                onClick={() => setChatOnlyMode(!chatOnlyMode)}
-                className={cn(
-                  'px-2 py-0.5 rounded text-[10px] font-medium transition-all flex items-center gap-1',
-                  chatOnlyMode ? 'bg-blue-600 text-white' : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
-                )}
-                title="Disable agent tools for small models"
-              >
-                <MessageCircleQuestion className="w-3 h-3" /> Chat Only
-              </button>
-
-              {offlineModeEnabled && (
-                <button
-                  onClick={() => setShowOfflineManager(true)}
-                  className="px-2 py-0.5 rounded text-[10px] font-medium bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent flex items-center gap-1"
-                >
-                  <Settings className="w-3 h-3" /> 
-                  {offlineModelId.split('/').pop()?.split('@')[0] || 'Select Model'}
-                  {isDownloadingOfflineModel && <Loader2 className="w-3 h-3 animate-spin" />}
-                </button>
+            >
+              Chat
+            </button>
+            <button
+              role="tab"
+              aria-selected={!chatOnlyMode}
+              onClick={() => setChatOnlyMode(false)}
+              className={cn(
+                'px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors',
+                !chatOnlyMode ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
               )}
+            >
+              Build
+            </button>
+          </div>
 
-              {isDownloadingOfflineModel && (
-                <div className="flex items-center gap-2 min-w-[100px]">
-                  <Progress value={Math.round(offlineDownloadProgress * 100)} className="h-1 flex-1" />
-                  <span className="text-[8px] text-muted-foreground whitespace-nowrap">{Math.round(offlineDownloadProgress * 100)}%</span>
+          <Popover
+            open={showModelPicker}
+            onOpenChange={(open) => {
+              setShowModelPicker(open);
+              if (!open) setModelPickerSearch('');
+            }}
+          >
+            <PopoverTrigger asChild>
+              <button
+                aria-label={`Change model. Current model: ${activeModelName}, source: ${activeModelSource}`}
+                className="flex items-center gap-1.5 min-w-0 rounded-lg border border-border bg-background px-2 py-1 text-left hover:bg-accent transition-colors"
+              >
+                {offlineModeEnabled ? <WifiOff className="w-3 h-3 text-emerald-400 shrink-0" /> :
+                 byokProvider ? <Key className="w-3 h-3 text-amber-400 shrink-0" /> :
+                 <Sparkles className="w-3 h-3 text-primary shrink-0" />}
+                <span className="min-w-0 truncate text-[11px] font-medium text-foreground">{activeModelName}</span>
+                <span className="hidden sm:inline truncate text-[10px] text-muted-foreground">· {activeModelSource}</span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              side="top"
+              className="w-[min(360px,calc(100vw-24px))] p-0 overflow-hidden"
+            >
+              <div className="p-2 border-b border-border">
+                <div className="flex items-center gap-2 rounded-md border border-border bg-input px-2">
+                  <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    autoFocus
+                    value={modelPickerSearch}
+                    onChange={(event) => setModelPickerSearch(event.target.value)}
+                    placeholder="Search models and providers..."
+                    aria-label="Search models and providers"
+                    className="w-full bg-transparent py-1.5 text-xs text-foreground outline-none placeholder:text-muted-foreground"
+                  />
                 </div>
-              )}
+              </div>
 
-              {/* BYOK provider buttons */}
-              {connectedProviders.map(provider => (
-                <button
-                  key={provider}
-                  onClick={() => {
-                    setByokProvider(provider);
-                    setByokModel(PROVIDER_MODELS[provider]?.[0]?.id || null);
-                    setByokModelFilter('');
-                    if (provider === 'openai-compatible') {
-                      const keyRecord = apiKeys.find(k => k.provider === provider);
-                      setByokBaseUrl(keyRecord?.base_url || '');
-                    }
-                  }}
-                  className={cn(
-                    'px-2 py-0.5 rounded text-[10px] font-medium transition-all',
-                    byokProvider === provider
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-accent/50 text-muted-foreground hover:text-foreground hover:bg-accent'
+              <div className="max-h-[min(360px,60vh)] overflow-y-auto p-1.5 space-y-2">
+                <section>
+                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Built-in</p>
+                  <div className="space-y-0.5">
+                    {filteredBuiltInModels.map(model => (
+                      <button
+                        key={model.id}
+                        onClick={() => selectBuiltInModel(model.id)}
+                        className={cn(
+                          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
+                          !offlineModeEnabled && !byokProvider && selectedModel === model.id ? 'bg-primary/10 text-foreground' : 'hover:bg-accent'
+                        )}
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-xs font-medium">{model.label}</span>
+                          <span className="block text-[10px] text-muted-foreground">{model.description}</span>
+                        </span>
+                        {!offlineModeEnabled && !byokProvider && selectedModel === model.id && <Check className="w-3.5 h-3.5 text-primary" />}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <section>
+                  <div className="flex items-center justify-between px-2 py-1">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Offline</p>
+                    <button
+                      onClick={() => { setShowModelPicker(false); setShowOfflineManager(true); }}
+                      className="text-[10px] text-primary hover:underline"
+                    >
+                      Manage
+                    </button>
+                  </div>
+                  <div className="space-y-0.5">
+                    {filteredOfflineModels.map(model => {
+                      const modelIsActive = offlineModeEnabled && offlineModelId.startsWith(model.id);
+                      const downloadedModelId = downloadedOfflineModelFor(model.id)!;
+                      return (
+                        <button
+                          key={model.id}
+                          onClick={() => selectOfflineModel(downloadedModelId)}
+                          className={cn(
+                            'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors',
+                            modelIsActive ? 'bg-emerald-500/10 text-foreground' : 'hover:bg-accent'
+                          )}
+                        >
+                          <Cpu className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-xs font-medium">{model.name}</span>
+                            <span className="block text-[10px] text-muted-foreground">{model.provider} · {model.size}</span>
+                          </span>
+                          {modelIsActive && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                        </button>
+                      );
+                    })}
+                    {filteredOfflineModels.length === 0 && (
+                      <p className="px-2 py-1 text-[10px] text-muted-foreground">No local models match your search.</p>
+                    )}
+                  </div>
+                  {isDownloadingOfflineModel && (
+                    <div className="mx-2 mt-1 flex items-center gap-2 rounded bg-emerald-500/10 px-2 py-1">
+                      <Progress value={Math.round(offlineDownloadProgress * 100)} className="h-1 flex-1" />
+                      <span className="text-[9px] text-emerald-400">{Math.round(offlineDownloadProgress * 100)}%</span>
+                    </div>
                   )}
-                >
-                  🔑 {PROVIDER_INFO[provider].label}
-                </button>
-              ))}
+                </section>
 
-              <div className="flex-1" />
+                <section>
+                  <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">BYOK</p>
+                  {connectedProviders.length === 0 ? (
+                    <button
+                      onClick={() => { setShowModelPicker(false); setShowApiKeys(true); }}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+                    >
+                      <Key className="w-3.5 h-3.5 shrink-0" />
+                      <span>Add a provider in API key settings</span>
+                    </button>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap gap-1 px-2 pb-1.5">
+                        {filteredConnectedProviders.map(provider => (
+                          <button
+                            key={provider}
+                            onClick={() => selectByokProvider(provider)}
+                            className={cn(
+                              'rounded px-1.5 py-1 text-[10px] transition-colors',
+                              byokProvider === provider ? 'bg-primary text-primary-foreground' : 'bg-accent/60 text-muted-foreground hover:text-foreground'
+                            )}
+                          >
+                            {PROVIDER_INFO[provider].label}
+                          </button>
+                        ))}
+                      </div>
+                      {byokProvider && (
+                        <div className="space-y-1.5 px-2 pb-1">
+                          {byokProvider === 'openai-compatible' && (
+                            <input
+                              value={byokBaseUrl || ''}
+                              onChange={event => setByokBaseUrl(event.target.value)}
+                              placeholder="Custom base URL"
+                              aria-label="Custom provider base URL"
+                              className="w-full rounded border border-border bg-input px-2 py-1 text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary font-mono"
+                            />
+                          )}
+                          <select
+                            value={byokModel || ''}
+                            onChange={event => selectByokModel(event.target.value)}
+                            aria-label="Select BYOK model"
+                            className="w-full rounded border border-border bg-input px-2 py-1.5 text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary"
+                          >
+                            {filteredByokModels.map((model: { id: string; label: string }) => (
+                              <option key={model.id} value={model.id}>{model.label}</option>
+                            ))}
+                          </select>
+                          {filteredByokModels.length === 0 && (
+                            <p className="text-[10px] text-muted-foreground">No provider models match your search.</p>
+                          )}
+                        </div>
+                      )}
+                      {filteredConnectedProviders.length === 0 && (
+                        <p className="px-2 pb-1 text-[10px] text-muted-foreground">No connected providers match your search.</p>
+                      )}
+                    </>
+                  )}
+                </section>
+              </div>
+            </PopoverContent>
+          </Popover>
 
-              {/* Autonomy mode picker */}
-              <Popover open={showAutonomyConfig} onOpenChange={setShowAutonomyConfig}>
+          <div className="flex-1" />
+
+          {/* Autonomy mode picker */}
+          <Popover open={showAutonomyConfig} onOpenChange={setShowAutonomyConfig}>
                 <PopoverTrigger asChild>
                   <button
                     className={cn(
@@ -1614,60 +1800,17 @@ export const AIChat = ({
                     )}
                   </div>
                 </PopoverContent>
-              </Popover>
+          </Popover>
 
-              <button
-                onClick={() => setShowApiKeys(true)}
-                className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                title="API Keys & Limits"
-              >
-                <Key className="w-3 h-3" />
-              </button>
-            </div>
-
-            {/* BYOK model picker */}
-            {byokProvider && (PROVIDER_MODELS as any)[byokProvider] && (
-              <div className="space-y-2 mb-2">
-                {byokProvider === 'openai-compatible' && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-muted-foreground shrink-0">Base URL:</span>
-                    <input
-                      value={byokBaseUrl || ''}
-                      onChange={e => setByokBaseUrl(e.target.value)}
-                      placeholder="https://api.example.com/v1/chat/completions"
-                      className="flex-1 rounded border border-border bg-input px-2 py-1 text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary font-mono"
-                    />
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-muted-foreground">Filter models:</span>
-                  <input
-                    value={byokModelFilter}
-                    onChange={(e) => setByokModelFilter(e.target.value)}
-                    placeholder="Search models..."
-                    className="flex-1 rounded border border-border bg-input px-2 py-1 text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] text-muted-foreground">Model:</span>
-                  <select
-                    value={byokModel || ''}
-                    onChange={e => setByokModel(e.target.value)}
-                    className="text-[10px] bg-accent/50 border border-border rounded px-1.5 py-0.5 text-foreground outline-none focus:ring-1 focus:ring-primary flex-1"
-                  >
-                    {((PROVIDER_MODELS as any)[byokProvider] || [] as { id: string; label: string }[])
-                      .filter((m: { id: string; label: string }) =>
-                        byokModelFilter.trim()
-                          ? m.label.toLowerCase().includes(byokModelFilter.toLowerCase()) || m.id.toLowerCase().includes(byokModelFilter.toLowerCase())
-                          : true
-                      )
-                      .map((m: { id: string; label: string }) => (
-                        <option key={m.id} value={m.id}>{m.label}</option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-            )}
+          <button
+            onClick={() => setShowApiKeys(true)}
+            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+            title="API Keys & Limits"
+            aria-label="API Keys & Limits"
+          >
+            <Key className="w-3 h-3" />
+          </button>
+        </div>
 
             {/* Attachment previews */}
             {attachments.length > 0 && (
@@ -1785,6 +1928,8 @@ export const AIChat = ({
         onSelectModel={setOfflineModelId}
         downloadProgress={offlineDownloadProgress}
         downloadStatus={offlineDownloadStatus}
+        downloadingModelId={downloadingOfflineModelId}
+        downloadedModels={downloadedOfflineModels}
         isDownloading={isDownloadingOfflineModel}
         onDownload={downloadOfflineModel}
       />

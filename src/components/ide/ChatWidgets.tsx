@@ -153,9 +153,10 @@ const DiceRollWidget = ({ widget }: { widget: ChatWidget }) => {
 // ─── Calculator Widget ───
 const CalculatorWidget = ({ widget, onSendToAI }: { widget: ChatWidget; onSendToAI?: (message: string) => void }) => {
   const initialExpression = String(widget.config?.expression || widget.config?.preset || '0');
+  const initialResult = typeof widget.config?.result === 'string' ? widget.config.result : '';
   const explanation = typeof widget.config?.explanation === 'string' ? widget.config.explanation : '';
   const solution = typeof widget.config?.solution === 'string' ? widget.config.solution : '';
-  const [display, setDisplay] = useState(initialExpression);
+  const [display, setDisplay] = useState(initialResult || initialExpression);
   const [prev, setPrev] = useState<number | null>(null);
   const [op, setOp] = useState<string | null>(null);
   const [fresh, setFresh] = useState(true);
