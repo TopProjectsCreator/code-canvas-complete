@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Eye, Pencil, RefreshCw, Users } from 'lucide-react';
+import { ArrowLeft, Eye, Filter, Pencil, RefreshCw, Users, X } from 'lucide-react';
+
 import { Excalidraw } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { supabase } from '@/integrations/supabase/client';
@@ -99,6 +100,44 @@ function occupiedRects(elements: readonly any[]): Rect[] {
   return rects;
 }
 
+interface AuthorOption { id: string; name: string; avatar: string | null; threads: number; replies: number }
+
+/**
+ * Maps every generated element (card frame, its bound text, avatar image and
+ * link arrows) to the user id that authored the thread/reply it belongs to.
+ * Hand-drawn elements are left out so they are never filtered away.
+ */
+function cardOwnerMap(
+  elements: readonly any[],
+  threadAuthors: Map<string, string>,
+  commentAuthors: Map<string, string>
+): Map<string, string> {
+  const byId = new Map<string, string>();
+  const byGroup = new Map<string, string>();
+  for (const el of elements as any[]) {
+    const cd = el?.customData;
+    if (!cd) continue;
+    const author = cd.commentId
+      ? commentAuthors.get(cd.commentId)
+      : cd.threadId
+        ? threadAuthors.get(cd.threadId)
+        : undefined;
+    if (!author) continue;
+    byId.set(el.id, author);
+    for (const g of el.groupIds || []) byGroup.set(g, author);
+  }
+  const out = new Map<string, string>();
+  for (const el of elements as any[]) {
+    const own =
+      byId.get(el.id) ??
+      (el.containerId ? byId.get(el.containerId) : undefined) ??
+      (el.groupIds || []).map((g: string) => byGroup.get(g)).find(Boolean);
+    if (own) out.set(el.id, own);
+  }
+  return out;
+}
+
+
 function overlaps(a: Rect, b: Rect, pad = PLACE_MARGIN): boolean {
   return (
     a.x < b.x + b.w + pad &&
@@ -189,6 +228,80 @@ export default function GlobalWhiteboard() {
   const persistRef = useRef<(elements: readonly any[], appState: any, files: Record<string, any>) => Promise<void>>();
   const broadcastRef = useRef<(elements: readonly any[], files: Record<string, any>) => void>();
 
+  // Author filter: which user's threads/replies are shown (null = everyone).
+  const [authorFilter, setAuthorFilter] = useState<string | null>(null);
+  const [authorOptions, setAuthorOptions] = useState<AuthorOption[]>([]);
+  const threadAuthorRef = useRef<Map<string, string>>(new Map());
+  const commentAuthorRef = useRef<Map<string, string>>(new Map());
+  // Unfiltered scene kept aside while a filter is on, so hiding is reversible
+  // and never persisted.
+  const unfilteredRef = useRef<any[] | null>(null);
+  const authorFilterRef = useRef<string | null>(null);
+  const authorMetaRef = useRef<Map<string, AuthorOption>>(new Map());
+
+  /** Records who wrote each thread/reply so the filter can resolve card owners. */
+  const registerAuthorship = useCallback((threads: any[], comments: any[]) => {
+    const meta = authorMetaRef.current;
+    const touch = (row: any, key: 'threads' | 'replies') => {
+      const id = row?.author_id as string | undefined;
+      if (!id) return;
+      const entry =
+        meta.get(id) ?? { id, name: 'anonymous', avatar: null as string | null, threads: 0, replies: 0 };
+      if (row.author) entry.name = String(row.author).replace(/^@/, '');
+      if (row.author_avatar) entry.avatar = row.author_avatar;
+      entry[key] += 1;
+      meta.set(id, entry);
+    };
+    for (const t of threads) {
+      if (!t?.id || !t.author_id) continue;
+      const isNew = !threadAuthorRef.current.has(t.id);
+      threadAuthorRef.current.set(t.id, t.author_id);
+      if (isNew) touch(t, 'threads');
+    }
+    for (const c of comments) {
+      if (!c?.id || !c.author_id) continue;
+      const isNew = !commentAuthorRef.current.has(c.id);
+      commentAuthorRef.current.set(c.id, c.author_id);
+      if (isNew) touch(c, 'replies');
+    }
+    setAuthorOptions(
+      [...meta.values()].sort((a, b) => b.threads + b.replies - (a.threads + a.replies))
+    );
+  }, []);
+
+  /**
+   * Hides every generated card that belongs to another author. Purely visual:
+   * the untouched scene is kept in a ref and restored when the filter clears,
+   * and saving is paused while a filter is active.
+   */
+  const applyAuthorFilter = useCallback((authorId: string | null) => {
+    const api = apiRef.current;
+    if (!api) return;
+    if (!unfilteredRef.current) {
+      unfilteredRef.current = (api.getSceneElements() as any[]).map((el) => ({ ...el }));
+    }
+    const base = unfilteredRef.current;
+    authorFilterRef.current = authorId;
+    setAuthorFilter(authorId);
+    applyingRemoteRef.current = true;
+    if (!authorId) {
+      api.updateScene({ elements: base.map((el) => ({ ...el })) });
+      unfilteredRef.current = null;
+    } else {
+      const owners = cardOwnerMap(base, threadAuthorRef.current, commentAuthorRef.current);
+      api.updateScene({
+        elements: base.map((el) => {
+          const owner = owners.get(el.id);
+          if (!owner || owner === authorId) return { ...el };
+          return { ...el, opacity: 0, locked: true };
+        }),
+      });
+    }
+    applyingRemoteRef.current = false;
+  }, []);
+
+
+
   // Peer/presence state
   const [peers, setPeers] = useState<PeerMeta[]>([]);
   // Per-user permission overrides set by admins (userId -> role). Ephemeral.
@@ -230,6 +343,8 @@ export default function GlobalWhiteboard() {
         attachAuthors((threadsRes.data || []) as any[]),
         attachAuthors((commentsRes.data || []) as any[]),
       ]) as unknown as [ThreadSeed[], CommentSeed[]];
+      registerAuthorship(threads as any[], comments as any[]);
+
 
       // Existing elements are NEVER touched: nothing here deletes, rebuilds,
       // restyles or re-places anything already on the board. Generated content
@@ -323,7 +438,7 @@ export default function GlobalWhiteboard() {
       setReady(true);
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [registerAuthorship]);
 
 
   // Realtime: remote scene, presence, new threads, permission changes
@@ -373,6 +488,8 @@ export default function GlobalWhiteboard() {
         async (payload: any) => {
           if (!payload.new || !apiRef.current) return;
           const [t] = (await attachAuthors([payload.new])) as any[];
+          registerAuthorship([t], []);
+
           if (!apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
           const existingCard = current.find(
@@ -407,6 +524,8 @@ export default function GlobalWhiteboard() {
         async (payload: any) => {
           if (!payload.new || !apiRef.current) return;
           const [cm] = (await attachAuthors([payload.new])) as unknown as CommentSeed[];
+          registerAuthorship([], [cm]);
+
           if (!apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
           if (current.some((el) => el?.customData?.commentId === cm.id)) return;
@@ -471,7 +590,7 @@ export default function GlobalWhiteboard() {
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [ready, userId, userEmail, myDisplayName]);
+  }, [ready, userId, userEmail, myDisplayName, registerAuthorship]);
 
   // Republish presence when my stats change (throttled)
   const republishStatsThrottleRef = useRef<number>(0);
@@ -634,6 +753,8 @@ export default function GlobalWhiteboard() {
         attachAuthors((threadsRes.data || []) as any[]),
         attachAuthors((commentsRes.data || []) as any[]),
       ]) as unknown as [ThreadSeed[], CommentSeed[]];
+      registerAuthorship(threads as any[], comments as any[]);
+
       const commentsByThread = new Map<string, CommentSeed[]>();
       for (const c of comments) {
         const list = commentsByThread.get(c.thread_id) ?? [];
@@ -692,7 +813,7 @@ export default function GlobalWhiteboard() {
     } finally {
       setRebuilding(false);
     }
-  }, [user, isAdmin, persist, broadcastScene, toast]);
+  }, [user, isAdmin, persist, broadcastScene, toast, registerAuthorship]);
 
 
   const diffAndAttribute = useCallback((elements: readonly any[]) => {
@@ -735,6 +856,11 @@ export default function GlobalWhiteboard() {
     if (myRoleRef.current === 'viewer') {
       return;
     }
+    // A filtered view hides cards locally — never save that as the real board.
+    if (authorFilterRef.current) {
+      return;
+    }
+
     diffAndAttribute(elements);
     const now = Date.now();
     if (now - broadcastThrottleRef.current >= 50) {
@@ -796,7 +922,10 @@ export default function GlobalWhiteboard() {
   }, [peers]);
 
   const peerCount = Math.max(1, peers.length);
-  const effectiveViewMode = !user || myRole === 'viewer';
+  // A filtered board is read-only: hidden cards must never be saved away.
+  const effectiveViewMode = !user || myRole === 'viewer' || !!authorFilter;
+  const activeAuthor = authorOptions.find((a) => a.id === authorFilter) ?? null;
+
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-background">
@@ -816,6 +945,71 @@ export default function GlobalWhiteboard() {
         </div>
 
         <div className="flex items-center gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant={authorFilter ? 'default' : 'outline'} size="sm" className="gap-1.5 h-7 text-xs">
+              <Filter className="h-3.5 w-3.5" />
+              {activeAuthor ? `@${activeAuthor.name}` : 'All authors'}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-72 p-0">
+            <div className="px-3 py-2 border-b">
+              <div className="text-sm font-semibold">Filter by author</div>
+              <div className="text-xs text-muted-foreground">
+                Show only the threads and replies one person posted.
+              </div>
+            </div>
+            <div className="max-h-72 overflow-y-auto">
+              <button
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-accent ${!authorFilter ? 'font-medium' : ''}`}
+                onClick={() => applyAuthorFilter(null)}
+              >
+                Everyone
+              </button>
+              {authorOptions.length === 0 && (
+                <div className="px-3 py-4 text-xs text-muted-foreground text-center">
+                  No authored cards on the board yet.
+                </div>
+              )}
+              {authorOptions.map((a) => (
+                <button
+                  key={a.id}
+                  className={`w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-accent ${
+                    authorFilter === a.id ? 'bg-accent' : ''
+                  }`}
+                  onClick={() => applyAuthorFilter(a.id)}
+                >
+                  {a.avatar ? (
+                    <img src={a.avatar} alt="" className="h-6 w-6 rounded-full object-cover shrink-0" />
+                  ) : (
+                    <span className="h-6 w-6 rounded-full bg-primary/10 text-primary text-[10px] font-semibold flex items-center justify-center shrink-0">
+                      {a.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm truncate">@{a.name}</span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      {a.threads} {a.threads === 1 ? 'thread' : 'threads'} · {a.replies}{' '}
+                      {a.replies === 1 ? 'reply' : 'replies'}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
+        {authorFilter && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 h-7 text-xs"
+            onClick={() => applyAuthorFilter(null)}
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear
+          </Button>
+        )}
+
         {isAdmin && (
           <Button
             variant="outline"
