@@ -749,6 +749,8 @@ export default function GlobalWhiteboard() {
         attachAuthors((threadsRes.data || []) as any[]),
         attachAuthors((commentsRes.data || []) as any[]),
       ]) as unknown as [ThreadSeed[], CommentSeed[]];
+      registerAuthorship(threads as any[], comments as any[]);
+
       const commentsByThread = new Map<string, CommentSeed[]>();
       for (const c of comments) {
         const list = commentsByThread.get(c.thread_id) ?? [];
