@@ -524,6 +524,8 @@ export default function GlobalWhiteboard() {
         async (payload: any) => {
           if (!payload.new || !apiRef.current) return;
           const [cm] = (await attachAuthors([payload.new])) as unknown as CommentSeed[];
+          registerAuthorship([], [cm]);
+
           if (!apiRef.current) return;
           const current = apiRef.current.getSceneElements() as any[];
           if (current.some((el) => el?.customData?.commentId === cm.id)) return;
