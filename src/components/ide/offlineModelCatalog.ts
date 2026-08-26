@@ -1,45 +1,83 @@
+export type OfflineModality = 'text' | 'image' | 'audio' | 'video';
+
 export interface OfflineModel {
   id: string;
   name: string;
   description: string;
   size: string;
   provider: string;
+  modalities: OfflineModality[];
 }
+
+export const modelSupportsImage = (m?: OfflineModel) => !!m?.modalities.includes('image');
+export const modelSupportsAudio = (m?: OfflineModel) => !!m?.modalities.includes('audio');
+export const modelSupportsVideo = (m?: OfflineModel) => !!m?.modalities.includes('video');
+/** Only models loaded through the multimodal (AutoProcessor) path can think. */
+export const modelSupportsThinking = (m?: OfflineModel) =>
+  !!m && m.modalities.some(mod => mod !== 'text');
 
 export const RECOMMENDED_MODELS: OfflineModel[] = [
   {
+    id: 'onnx-community/gemma-3-270m-it-ONNX',
+    name: 'Gemma 3 270M',
+    description: 'Google\'s ultra-lightweight Gemma 3. Loads almost instantly and handles basic chat and quick tasks.',
+    size: '~0.6 GB',
+    provider: 'Google',
+    modalities: ['text'],
+  },
+  {
     id: 'onnx-community/gemma-4-E2B-it-ONNX',
     name: 'Gemma 4 E2B',
-    description: 'Google\'s latest Gemma 4 ONNX model. Optimized for WebGPU with exceptional instruction following.',
-    size: '~800 MB',
-    provider: 'Google'
+    description: 'Google\'s latest multimodal Gemma 4. Understands images, audio, and video frames with exceptional instruction following.',
+    size: '~3.4 GB',
+    provider: 'Google',
+    modalities: ['text', 'image', 'audio', 'video'],
   },
   {
-    id: 'onnx-community/Llama-3.2-1B-Instruct',
-    name: 'Llama 3.2 1B',
-    description: 'Meta\'s compact Llama 3.2 model, great for fast local responses.',
-    size: '~1.3 GB',
-    provider: 'Meta'
+    id: 'onnx-community/Qwen3.5-0.8B-ONNX',
+    name: 'Qwen 3.5 0.8B VL',
+    description: 'Alibaba\'s compact vision-language model. Fast responses with image understanding. Default local model.',
+    size: '~0.65 GB',
+    provider: 'Alibaba',
+    modalities: ['text', 'image'],
   },
   {
-    id: 'onnx-community/Phi-3-mini-4k-instruct',
-    name: 'Phi-3 Mini',
-    description: 'Microsoft\'s powerful 3.8B model, optimized for efficiency and high performance.',
-    size: '~2.2 GB',
-    provider: 'Microsoft'
+    id: 'onnx-community/Qwen3.5-2B-ONNX',
+    name: 'Qwen 3.5 2B VL',
+    description: 'Mid-size Qwen 3.5 with vision. A strong balance of quality and speed for local chat.',
+    size: '~1.6 GB',
+    provider: 'Alibaba',
+    modalities: ['text', 'image'],
   },
   {
-    id: 'onnx-community/Qwen2.5-0.5B-Instruct',
-    name: 'Qwen 2.5 0.5B',
-    description: 'Alibaba\'s ultra-lightweight model. Very fast, suitable for basic tasks.',
-    size: '~450 MB',
-    provider: 'Alibaba'
+    id: 'onnx-community/Qwen3.5-4B-ONNX',
+    name: 'Qwen 3.5 4B VL',
+    description: 'The largest browser-ready Qwen 3.5. Highest quality local responses with vision support.',
+    size: '~3.0 GB',
+    provider: 'Alibaba',
+    modalities: ['text', 'image'],
   },
-  {
-    id: 'Xenova/TinyLlama-1.1B-Chat-v1.0',
-    name: 'TinyLlama 1.1B',
-    description: 'A tiny but capable model for simple chat interactions.',
-    size: '~650 MB',
-    provider: 'Llama.cpp'
-  }
 ];
+
+export const DEFAULT_OFFLINE_MODEL_ID = 'onnx-community/Qwen3.5-0.8B-ONNX';
+
+export const getOfflineModelById = (id: string): OfflineModel | undefined =>
+  RECOMMENDED_MODELS.find(m => m.id === id);
+
+// Tiny system prompt for local models. Keep it short - 270M/0.8B degrade with long prompts.
+// Teaches the minimal tag protocol so tags like <ask_prompt> actually fire offline.
+// Also teaches the indirection tag <search_for_tool="ask"> that you requested - model
+// can emit that first, we will reply with the tool definition as "tool output".
+export const OFFLINE_SYSTEM_PROMPT = `You are Canvas Agent (local) in CodeCanvas IDE. Use tags to act:
+
+- Ask user: <ask_prompt type="text" question="What should the file be named?" />
+  types: text, multiple_choice, yes_no, number, slider. For multiple_choice add options="A,B,C".
+- Create file: <create_file name="path/to/file.ts">content</create_file>
+- Search automations: <search_automation query="..." />
+
+If unsure of tag syntax, first output <search_for_tool="ask"> and you will receive the tool definition.
+Keep replies short.`;
+
+export const OFFLINE_TOOL_DEFINITIONS: Record<string, string> = {
+  ask: `Tool "ask": <ask_prompt type="text|multiple_choice|yes_no|number|slider|ranking|date|time|email" question="..." options="A,B" placeholder="..." min="0" max="10" step="1" /> Example: <ask_prompt type="text" question="What should the file be named?" />`,
+};

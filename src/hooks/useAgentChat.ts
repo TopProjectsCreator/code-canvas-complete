@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { toast } from 'sonner';
 import type { AutonomyConfig } from '@/hooks/useAutonomyMode';
 import { supabase } from '@/integrations/supabase/client';
 import { createAuthProvider } from '@/integrations/auth/provider';
@@ -10,12 +11,15 @@ import { isPotentiallyDestructiveShellCommand } from '@/lib/agentSafety';
 import { readWithTimeout } from '@/lib/streamTimeout';
 import { detectDeploymentPlatform, isReplitLikePlatform } from '@/lib/platform';
 import { generatePresentationPptx, parsePptxSpec, type PptxSpec } from '@/lib/pptxGenerator';
-import { 
-  getOfflineModeEnabled, getSavedOfflineModel, offlineLLM, preloadOfflineModel, 
-  setOfflineModeEnabled as setOfflineEnabledService, setSavedOfflineModel, 
+import {
+  getOfflineModeEnabled, getSavedOfflineModel, offlineLLM,
+  setOfflineModeEnabled as setOfflineEnabledService, setSavedOfflineModel,
   getChatOnlyMode, setChatOnlyMode as setChatOnlyEnabledService,
   getDownloadedOfflineModels, offlineModelUpdatedEvent,
+  offlineDownloads, prepareOfflineAudio, prepareOfflineVideoImages,
+  getOfflineThinkingEnabled, setOfflineThinkingEnabled as setOfflineThinkingService,
 } from '@/services/offlineLLM';
+import { RECOMMENDED_MODELS, modelSupportsImage, modelSupportsAudio, modelSupportsVideo, modelSupportsThinking, OFFLINE_SYSTEM_PROMPT, OFFLINE_TOOL_DEFINITIONS } from '@/components/ide/offlineModelCatalog';
 
 const _agentChatPlatform = detectDeploymentPlatform();
 const canUseShellOnPlatform = isReplitLikePlatform(_agentChatPlatform);
@@ -189,10 +193,8 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
   const [offlineModeEnabled, setOfflineModeEnabledState] = useState<boolean>(() => getOfflineModeEnabled());
   const [offlineModelId, setOfflineModelIdState] = useState<string>(() => getSavedOfflineModel());
   const [chatOnlyMode, setChatOnlyModeState] = useState<boolean>(() => getChatOnlyMode());
-  const [offlineDownloadProgress, setOfflineDownloadProgress] = useState(0);
-  const [offlineDownloadStatus, setOfflineDownloadStatus] = useState<string>('');
-  const [isDownloadingOfflineModel, setIsDownloadingOfflineModel] = useState(false);
-  const [downloadingOfflineModelId, setDownloadingOfflineModelId] = useState<string | null>(null);
+  const [offlineDownloadStates, setOfflineDownloadStates] = useState<Record<string, { model: string; status: string; progress: number }>>({});
+  const [offlineThinkingEnabled, setOfflineThinkingEnabledState] = useState<boolean>(() => getOfflineThinkingEnabled());
   const [downloadedOfflineModels, setDownloadedOfflineModels] = useState<string[]>(() => getDownloadedOfflineModels());
   const abortControllerRef = useRef<AbortController | null>(null);
   const executedActionsRef = useRef<Set<string>>(new Set());
@@ -204,6 +206,12 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
     const refreshDownloadedModels = () => setDownloadedOfflineModels(getDownloadedOfflineModels());
     window.addEventListener(offlineModelUpdatedEvent, refreshDownloadedModels);
     return () => window.removeEventListener(offlineModelUpdatedEvent, refreshDownloadedModels);
+  }, []);
+
+  // Mirror the parallel download manager's state (one entry per in-flight download).
+  useEffect(() => {
+    const unsubscribe = offlineDownloads.subscribe(setOfflineDownloadStates);
+    return () => { unsubscribe(); };
   }, []);
 
   // Latest-callback refs so long-running async handlers never read stale props.
@@ -252,6 +260,35 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
   }, []);
 
   const aiProvider = useMemo(() => createAIProvider(), []);
+
+  // Paints an offline stream into the message list. While the model is inside an
+  // unclosed think block, reasoning routes into a live collapsible thinking step;
+  // otherwise text paints as normal streaming content.
+  const offlineStreamPaintRef = useRef(0);
+  const paintOfflineStream = useCallback((msgId: string, full: string) => {
+    // Normalize <think> -> <thinking_process> for live detection (worker also maps final result)
+    const normalized = full.replace(/<think>/gi, '<thinking_process>').replace(/<\/think>/gi, '</thinking_process>');
+    const OPEN = '<thinking_process>';
+    const CLOSE = '</thinking_process>';
+    const now = Date.now();
+    if (now - offlineStreamPaintRef.current < 100) return;
+    offlineStreamPaintRef.current = now;
+
+    const startIdx = normalized.indexOf(OPEN);
+    if (startIdx !== -1 && !normalized.includes(CLOSE)) {
+      const partialThinking = normalized.slice(startIdx + OPEN.length).trim();
+      setMessages(prev => prev.map(m => m.id === msgId ? {
+        ...m,
+        content: '',
+        steps: [{ id: `${msgId}-live-think`, type: 'thinking' as const, content: partialThinking, timestamp: new Date(), isCollapsed: true }],
+      } : m));
+      return;
+    }
+    const clean = startIdx !== -1
+      ? normalized.replace(new RegExp(`${OPEN}[\\s\\S]*?${CLOSE}`, 'gi'), '').trimStart()
+      : normalized;
+    updateStreamingMessage(msgId, clean);
+  }, [updateStreamingMessage]);
 
   // Broadcast active-agent presence while loading so the landing page can show live count
   useEffect(() => {
@@ -831,7 +868,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
   const parseThinkingBlocks = useCallback((content: string): { steps: AgentStep[], cleanContent: string } => {
     const steps: AgentStep[] = [];
     let cleanContent = content;
-    const thinkingRegex = /<(?:thinking_process|thinking)>([\s\S]*?)<\/(?:thinking_process|thinking)>/g;
+    const thinkingRegex = /<(?:thinking_process|thinking|think)>([\s\S]*?)<\/(?:thinking_process|thinking|think)>/gi;
     let match;
     while ((match = thinkingRegex.exec(content)) !== null) {
       steps.push({ id: generateId(), type: 'thinking', content: match[1].trim(), timestamp: new Date(), isCollapsed: true });
@@ -1161,22 +1198,11 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
   }, [onCodeChange, onCreateWorkflow, onInstallPackage, onRenameFile, onDeleteFile, onCreateFile, onDuplicateFile, onOpenFile, onAppendToFile, onGenerateUI, onModifyUI, parseThinkingBlocks, parseToolCalls, parseInteractiveQuestions, parseChatWidgets, parseFileManagementActions]);
 
   const downloadOfflineModel = useCallback(async (model: string) => {
-    setIsDownloadingOfflineModel(true);
-    setDownloadingOfflineModelId(model);
-    setOfflineDownloadProgress(0);
-    setOfflineDownloadStatus('Starting download...');
     try {
-      await preloadOfflineModel(
-        model,
-        (status) => setOfflineDownloadStatus(status),
-        (progress, label) => {
-          setOfflineDownloadProgress(progress);
-          if (label) setOfflineDownloadStatus(label);
-        }
-      );
-    } finally {
-      setIsDownloadingOfflineModel(false);
-      setDownloadingOfflineModelId(null);
+      await offlineDownloads.download(model);
+      toast.success(`${model.split('@')[0].split('/').pop() ?? model} ready for offline use`);
+    } catch (error) {
+      toast.error(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }, []);
 
@@ -1188,6 +1214,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
       agentMode?: boolean;
       workflows?: Array<{ name: string; type: string; command: string }>;
       multimodalContent?: any;
+      attachments?: Array<{ mimeType: string; base64?: string }>;
       template?: string;
       automationConfig?: string | null;
       projectId?: string | null;
@@ -1224,26 +1251,196 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
     }
 
     if (offlineModeEnabled) {
+      // Snapshot BEFORE touching state: history must never include the message
+      // we're about to add, and must not depend on ref-refresh timing.
+      const priorMessages = [...messagesRef.current];
       const userMessage: AgentMessage = { id: generateId(), role: 'user', content: messageContent };
       setMessages(prev => {
         const next = [...prev, userMessage];
         return next.length > 200 ? next.slice(-200) : next;
       });
       setIsLoading(true);
+
+      const assistantId = generateId();
+      const atts = context.attachments || [];
+      const imageAtts = atts.filter(a => a.mimeType.startsWith('image/') && a.base64);
+      const audioAtt = atts.find(a => a.mimeType.startsWith('audio/') && a.base64);
+      const videoAtts = atts.filter(a => a.mimeType.startsWith('video/') && a.base64);
+      const catalogMatch = RECOMMENDED_MODELS.find(m => m.id === offlineModelId.split('@')[0]);
+
       try {
         setCurrentStep('Loading offline model...');
         await offlineLLM.initialize(offlineModelId, setCurrentStep);
+
+        let usableImages: Array<{ base64: string; mime?: string }> = [];
+        if (imageAtts.length) {
+          if (modelSupportsImage(catalogMatch)) {
+            usableImages = imageAtts.map(a => ({ base64: a.base64!, mime: a.mimeType }));
+          } else {
+            toast.error('This local model is text-only. Switch to Qwen 3.5 VL or Gemma 4 E2B to chat with images.');
+          }
+        }
+        // Video on Gemma 4 E2B: extract frames as images (multimodal vision path)
+        if (videoAtts.length) {
+          if (modelSupportsVideo(catalogMatch)) {
+            setCurrentStep('Extracting video frames...');
+            for (const v of videoAtts) {
+              try {
+                const frames = await prepareOfflineVideoImages(v.base64!, v.mimeType, 3);
+                usableImages.push(...frames);
+              } catch (e) {
+                console.warn('Video frame extraction failed', e);
+                toast.error(`Video frame extraction failed: ${e instanceof Error ? e.message : 'unknown error'}`);
+              }
+            }
+            if (usableImages.length === 0 && imageAtts.length === 0) {
+              toast.error('No video frames could be extracted.');
+            }
+          } else {
+            toast.error('Video input needs Gemma 4 E2B. This model supports text/images only.');
+          }
+        }
+
+        let useAudio: Float32Array | undefined;
+        if (audioAtt && modelSupportsAudio(catalogMatch)) {
+          setCurrentStep('Decoding audio...');
+          useAudio = await prepareOfflineAudio(audioAtt.base64!, audioAtt.mimeType);
+        } else if (audioAtt) {
+          toast.error('Audio input needs Gemma 4 E2B. This model understands text and images only.');
+        }
+
+        const thinkingOn = offlineThinkingEnabled && modelSupportsThinking(catalogMatch);
+
+        // Build enriched prompt with file/workflow context (like cloud does, but tiny)
+        let enrichedPrompt = messageContent;
+        if (context.currentFile?.content) {
+          enrichedPrompt = `File: ${context.currentFile.name} (${context.currentFile.language || ''})\n${context.currentFile.content.slice(0, 4000)}\n\nUser: ${messageContent}`;
+        } else if (context.template) {
+          enrichedPrompt = `Template: ${context.template}\n\nUser: ${messageContent}`;
+        }
+        if (context.consoleErrors) {
+          enrichedPrompt += `\n\nConsole errors:\n${context.consoleErrors.slice(0, 2000)}`;
+        }
+
+        // History for context: explicit pre-send snapshot, current message excluded.
+        // Keep small for 270M's 4k window.
+        const historyLimit = catalogMatch?.id.includes('270m') ? 2 : 6;
+        const perMsgChars = catalogMatch?.id.includes('270m') ? 1200 : 3000;
+        const offlineHistory: Array<{ role: 'user' | 'assistant'; content: string }> = priorMessages
+          .filter(m => m.role === 'user' || m.role === 'assistant')
+          .slice(-historyLimit)
+          // drop a trailing duplicate of this exact message if a previous run already stored it
+          .filter((m, i, arr) => !(i === arr.length - 1 && m.role === 'user' && m.content === messageContent))
+          .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content.slice(0, perMsgChars) }));
+
         setCurrentStep('Generating locally...');
-        const localReply = await offlineLLM.chat(messageContent);
-        setMessages(prev => [...prev, { id: generateId(), role: 'assistant', content: localReply || 'Local model returned an empty response.' }]);
-        setIsLoading(false);
-        setCurrentStep(null);
+        setMessages(prev => [...prev, { id: assistantId, role: 'assistant' as const, content: '', isStreaming: true }]);
+
+        let full = '';
+        let localReply = await offlineLLM.chat(enrichedPrompt, {
+          images: usableImages,
+          audio: useAudio,
+          enableThinking: thinkingOn,
+          systemPrompt: OFFLINE_SYSTEM_PROMPT,
+          history: offlineHistory,
+          onToken: (delta) => {
+            full += delta;
+            paintOfflineStream(assistantId, full);
+          },
+        });
+
+        let finalText = (localReply && localReply !== 'No response generated.') ? localReply : full;
+
+        // Handle <search_for_tool="..."> indirection: model asks for tool definition, we feed it back and regenerate once
+        const searchToolRegex = /<search_for_tool(?:\s*=\s*"([^"]+)")?(?:\s+tool="([^"]+)")?[^>]*\/?>/i;
+        const searchMatch = searchToolRegex.exec(finalText);
+        if (searchMatch) {
+          const requestedTool = (searchMatch[1] || searchMatch[2] || 'ask').toLowerCase();
+          const toolDef = OFFLINE_TOOL_DEFINITIONS[requestedTool] || OFFLINE_TOOL_DEFINITIONS.ask;
+          const toolOutput = `Tool output for "${requestedTool}": ${toolDef}\nNow continue and output the correct tag.`;
+          setCurrentStep(`Loading tool "${requestedTool}"...`);
+          // Keep thinking UI alive but clear previous partial thinking for second turn
+          full = '';
+          // History ends on the assistant's search_for_tool turn; toolOutput rides
+          // as the new user prompt so roles alternate cleanly (no duplicate user).
+          const retryHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [
+            ...offlineHistory,
+            { role: 'assistant', content: finalText },
+          ];
+          // Show intermediate tool loading step
+          setMessages(prev => prev.map(m => m.id === assistantId ? {
+            ...m,
+            content: `Looking up tool "${requestedTool}"...`,
+            steps: [{ id: `${assistantId}-tool`, type: 'thinking' as const, content: `Requested tool: ${requestedTool}`, timestamp: new Date(), isCollapsed: true }],
+          } : m));
+          localReply = await offlineLLM.chat(toolOutput, {
+            images: usableImages,
+            audio: useAudio,
+            enableThinking: thinkingOn,
+            systemPrompt: OFFLINE_SYSTEM_PROMPT,
+            history: retryHistory,
+            onToken: (delta) => {
+              full += delta;
+              paintOfflineStream(assistantId, full);
+            },
+          });
+          finalText = (localReply && localReply !== 'No response generated.') ? localReply : full;
+        }
+
+        // Full tag parsing (code changes, ask_prompt, widgets, etc.) so offline can actually act
+        const processed = processAgentResponse(finalText);
+        // A reply that is ONLY tool tags (e.g. <ask_prompt/>) parses to empty text but is
+        // still a real answer — only show the fallback when nothing actionable was produced.
+        const producedAction = processed.questions.length > 0
+          || processed.widgets.length > 0
+          || processed.steps.length > 0
+          || processed.imagePrompts.length > 0
+          || processed.musicActions.length > 0
+          || processed.presentationActions.length > 0
+          || processed.uiActions.length > 0;
+        setMessages(prev => prev.map(m => m.id === assistantId ? {
+          ...m,
+          content: processed.content.trim() || (producedAction ? '' : 'Local model returned an empty response.'),
+          steps: processed.steps.length ? processed.steps : undefined,
+          hasCodeChanges: processed.hasCodeChanges || false,
+          hasWorkflowChanges: processed.hasWorkflowChanges || false,
+          questions: processed.questions.length ? processed.questions : undefined,
+          widgets: processed.widgets.length ? processed.widgets : undefined,
+          isStreaming: false,
+        } : m));
+
+        // Execute image generation requests that the local model may have emitted (same as cloud)
+        if (processed.imagePrompts && processed.imagePrompts.length > 0) {
+          const { data: { session: imgSession } } = await supabase.auth.getSession();
+          if (imgSession?.access_token) {
+            for (const prompt of processed.imagePrompts) {
+              const imgKey = `img:${prompt}`;
+              if (executedActionsRef.current.has(imgKey)) continue;
+              executedActionsRef.current.add(imgKey);
+              setMessages(prev => prev.map(msg => msg.id === assistantId ? { ...msg, images: [...(msg.images || []), { prompt, imageUrl: '', isLoading: true }] } : msg));
+              try {
+                const imgResponse = await aiProvider.generateImage(prompt, { accessToken: imgSession.access_token });
+                const imgData = await imgResponse.json();
+                setMessages(prev => prev.map(msg => { if (msg.id !== assistantId) return msg; const images = (msg.images || []).map(img => img.prompt === prompt ? { ...img, imageUrl: imgData.imageUrl || '', isLoading: false, error: imgData.error } : img); return { ...msg, images }; }));
+              } catch {
+                setMessages(prev => prev.map(msg => { if (msg.id !== assistantId) return msg; const images = (msg.images || []).map(img => img.prompt === prompt ? { ...img, isLoading: false, error: 'Failed to generate image' } : img); return { ...msg, images }; }));
+              }
+            }
+          }
+        }
         return;
       } catch (error) {
-        setMessages(prev => [...prev, { id: generateId(), role: 'assistant', content: `❌ Offline mode error: ${error instanceof Error ? error.message : 'Unknown error'}` }]);
+        const errorMsg = `❌ Offline mode error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        setMessages(prev => {
+          const exists = prev.some(m => m.id === assistantId);
+          return exists
+            ? prev.map(m => m.id === assistantId ? { ...m, content: errorMsg, isStreaming: false } : m)
+            : [...prev, { id: generateId(), role: 'assistant' as const, content: errorMsg }];
+        });
+      } finally {
+        // Guaranteed reset: no code path may ever leave the composer bricked.
         setIsLoading(false);
         setCurrentStep(null);
-        return;
       }
     }
 
@@ -1679,7 +1876,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
       setCurrentStep(null);
       abortControllerRef.current = null;
     }
-  }, [isLoading, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, chatOnlyMode, autonomyConfig, processAgentResponse, onCreateFile, onOpenFile, workflows, aiProvider, byokBaseUrl, updateStreamingMessage]);
+  }, [isLoading, selectedModel, byokProvider, byokModel, offlineModeEnabled, offlineModelId, chatOnlyMode, offlineThinkingEnabled, autonomyConfig, processAgentResponse, onCreateFile, onOpenFile, workflows, aiProvider, byokBaseUrl, updateStreamingMessage, paintOfflineStream]);
 
   const applyCodeChange = useCallback((change: CodeChange) => {
     if (onApplyCode) {
@@ -1732,10 +1929,9 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
     setOfflineModelId: (model: string) => { setOfflineModelIdState(model); setSavedOfflineModel(model); },
     chatOnlyMode,
     setChatOnlyMode: (enabled: boolean) => { setChatOnlyModeState(enabled); setChatOnlyEnabledService(enabled); },
-    isDownloadingOfflineModel,
-    offlineDownloadProgress,
-    offlineDownloadStatus,
-    downloadingOfflineModelId,
+    offlineThinkingEnabled,
+    setOfflineThinkingEnabled: (enabled: boolean) => { setOfflineThinkingEnabledState(enabled); setOfflineThinkingService(enabled); },
+    offlineDownloadStates,
     downloadedOfflineModels,
     downloadOfflineModel,
     sendMessage,

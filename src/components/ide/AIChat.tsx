@@ -5,9 +5,11 @@ import {
   Wrench, StopCircle, Trash2, CheckCircle2, XCircle, AlertCircle, Paintbrush,
   GitBranch, GitCommit as GitCommitIcon, Download, Globe, Lock, Link2, Twitter,
   Linkedin, Mail, Share2, GitFork, Star, History, MessageCircleQuestion, Save,
-  PlayCircle, Music, Key, Settings, Diff, Paperclip, Image, FileVideo, FileAudio, FileText,
+  PlayCircle, Music, Key, Diff, Paperclip, Image, FileVideo, FileAudio, FileText,
   GripVertical, ArrowUp, ArrowDown, Shield, ShieldCheck, ShieldAlert, SlidersHorizontal, WifiOff, Search, Cpu
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { clearOfflineModelCache, removeDownloadedOfflineModel } from '@/services/offlineLLM';
 import { cn } from '@/lib/utils';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { explainShellCommand } from '@/lib/shellCommandHelp';
@@ -160,10 +162,11 @@ const BUILT_IN_MODELS: Array<{ id: AIModel; label: string; description: string }
 ];
 
 // Thinking step component
-const ThinkingStep = ({ step, isExpanded, onToggle }: { 
-  step: AgentStep; 
-  isExpanded: boolean; 
+const ThinkingStep = ({ step, isExpanded, onToggle, isLive }: {
+  step: AgentStep;
+  isExpanded: boolean;
   onToggle: () => void;
+  isLive?: boolean;
 }) => (
   <div className="border border-border/50 rounded-lg overflow-hidden bg-muted/30">
     <button
@@ -172,11 +175,16 @@ const ThinkingStep = ({ step, isExpanded, onToggle }: {
     >
       {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
       <Brain className="w-3 h-3 text-violet-400" />
-      <span>Thinking process</span>
+      {isLive ? (
+        <span className="animate-pulse text-violet-300">Thinking&hellip;</span>
+      ) : (
+        <span>Thinking process</span>
+      )}
     </button>
     {isExpanded && (
       <div className="px-3 pb-3 text-xs text-muted-foreground italic border-t border-border/30">
         {step.content}
+        {isLive && <span className="inline-block w-1.5 h-3 ml-0.5 bg-violet-400/60 animate-pulse align-middle" />}
       </div>
     )}
   </div>
@@ -753,13 +761,12 @@ export const AIChat = ({
     setOfflineModelId,
     chatOnlyMode,
     setChatOnlyMode,
-    isDownloadingOfflineModel,
-    offlineDownloadProgress,
-    offlineDownloadStatus,
-    downloadingOfflineModelId,
+    offlineThinkingEnabled,
+    setOfflineThinkingEnabled,
+    offlineDownloadStates,
     downloadedOfflineModels,
     downloadOfflineModel,
-    sendMessage, 
+    sendMessage,
     applyCodeChange,
     stopGeneration,
     clearMessages,
@@ -858,6 +865,17 @@ export const AIChat = ({
   );
   const downloadedOfflineModelFor = (modelId: string) =>
     downloadedOfflineModels.find(downloadedModel => downloadedModel.startsWith(`${modelId}@`));
+  const isDownloadingOffline = Object.keys(offlineDownloadStates).length > 0;
+  const handleDeleteOfflineModel = async (id: string) => {
+    try {
+      await clearOfflineModelCache(id);
+      removeDownloadedOfflineModel(id);
+      toast.success(`${id.split('/').pop()?.split('@')[0] ?? id} removed from this device`);
+    } catch (error) {
+      removeDownloadedOfflineModel(id);
+      toast.error(`Model unlisted, but cache cleanup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
   const filteredOfflineModels = RECOMMENDED_MODELS.filter(model =>
     downloadedOfflineModelFor(model.id) !== undefined &&
     (!normalizedModelSearch ||
@@ -952,6 +970,9 @@ export const AIChat = ({
       consoleErrors: recentErrors,
       agentMode: true,
       multimodalContent: attachments.length > 0 ? multimodalContent : undefined,
+      attachments: attachments.length > 0
+        ? attachments.map(a => ({ mimeType: a.mimeType, base64: a.base64 }))
+        : undefined,
       template: currentTemplate,
       automationConfig,
       projectId: currentProjectId,
@@ -1255,6 +1276,7 @@ export const AIChat = ({
                       step={step}
                       isExpanded={expandedThinking.has(step.id)}
                       onToggle={() => toggleThinking(step.id)}
+                      isLive={!!message.isStreaming && step.id.endsWith('-live-think')}
                     />
                   ))}
                   
@@ -1655,10 +1677,26 @@ export const AIChat = ({
                       <p className="px-2 py-1 text-[10px] text-muted-foreground">No local models match your search.</p>
                     )}
                   </div>
-                  {isDownloadingOfflineModel && (
-                    <div className="mx-2 mt-1 flex items-center gap-2 rounded bg-emerald-500/10 px-2 py-1">
-                      <Progress value={Math.round(offlineDownloadProgress * 100)} className="h-1 flex-1" />
-                      <span className="text-[9px] text-emerald-400">{Math.round(offlineDownloadProgress * 100)}%</span>
+                  {offlineModeEnabled && (
+                    <label className="flex items-center justify-between mx-2 mt-1 mb-1 rounded bg-muted/40 px-2 py-1.5 cursor-pointer">
+                      <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <Brain className="w-3 h-3 text-violet-400" />
+                        Thinking mode
+                      </span>
+                      <Switch
+                        checked={offlineThinkingEnabled}
+                        onCheckedChange={setOfflineThinkingEnabled}
+                      />
+                    </label>
+                  )}
+                  {isDownloadingOffline && (
+                    <div className="mx-2 mt-1 space-y-1">
+                      {Object.values(offlineDownloadStates).map(dl => (
+                        <div key={dl.model} className="flex items-center gap-2 rounded bg-emerald-500/10 px-2 py-1">
+                          <Progress value={Math.round(dl.progress * 100)} className="h-1 flex-1" />
+                          <span className="text-[9px] text-emerald-400">{Math.round(dl.progress * 100)}%</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </section>
@@ -1926,12 +1964,10 @@ export const AIChat = ({
         onClose={() => setShowOfflineManager(false)}
         currentModelId={offlineModelId}
         onSelectModel={setOfflineModelId}
-        downloadProgress={offlineDownloadProgress}
-        downloadStatus={offlineDownloadStatus}
-        downloadingModelId={downloadingOfflineModelId}
         downloadedModels={downloadedOfflineModels}
-        isDownloading={isDownloadingOfflineModel}
+        downloadStates={offlineDownloadStates}
         onDownload={downloadOfflineModel}
+        onDeleteModel={handleDeleteOfflineModel}
       />
     </div>
   );

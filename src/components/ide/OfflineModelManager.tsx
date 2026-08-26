@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { 
-  Download, CheckCircle2, Info, 
-  Search, ExternalLink, Cpu, HardDrive, Zap, Sparkles
+import {
+  Download, CheckCircle2, Info,
+  Search, ExternalLink, Cpu, HardDrive, Zap, Sparkles,
+  Image as ImageIcon, Mic, Video, Trash2, FolderDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -21,32 +22,47 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RECOMMENDED_MODELS } from './offlineModelCatalog';
+import { RECOMMENDED_MODELS, type OfflineModel } from './offlineModelCatalog';
+
+export interface OfflineDownloadState {
+  model: string;
+  status: string;
+  progress: number;
+}
 
 interface OfflineModelManagerProps {
   isOpen: boolean;
   onClose: () => void;
   currentModelId: string;
   onSelectModel: (id: string) => void;
-  downloadProgress: number;
-  downloadStatus: string;
-  downloadingModelId: string | null;
   downloadedModels: string[];
-  isDownloading: boolean;
   onDownload: (id: string) => void;
+  onDeleteModel: (id: string) => void;
+  downloadStates: Record<string, OfflineDownloadState>;
 }
+
+const prettyModelName = (id: string) => {
+  const base = id.split('@')[0].split('/').pop() || id;
+  return base.replace(/-ONNX$/i, '').replace(/-/g, ' ');
+};
+
+const ModalityBadges = ({ modalities }: { modalities: OfflineModel['modalities'] }) => (
+  <span className="flex gap-1">
+    {modalities.includes('image') && <ImageIcon className="w-3 h-3 text-sky-400" />}
+    {modalities.includes('audio') && <Mic className="w-3 h-3 text-fuchsia-400" />}
+    {modalities.includes('video') && <Video className="w-3 h-3 text-orange-400" />}
+  </span>
+);
 
 export function OfflineModelManager({
   isOpen,
   onClose,
   currentModelId,
   onSelectModel,
-  downloadProgress,
-  downloadStatus,
-  downloadingModelId,
   downloadedModels,
-  isDownloading,
-  onDownload
+  onDownload,
+  onDeleteModel,
+  downloadStates,
 }: OfflineModelManagerProps) {
   const [customModelId, setCustomModelId] = useState('');
   const [selectedQuant, setSelectedQuant] = useState('q4f16');
@@ -56,6 +72,10 @@ export function OfflineModelManager({
   const handleDownload = (id: string) => {
     onDownload(`${id}@${selectedQuant}`);
   };
+
+  const otherDownloaded = downloadedModels.filter(
+    id => !RECOMMENDED_MODELS.some(m => id.startsWith(m.id))
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -67,28 +87,13 @@ export function OfflineModelManager({
           </DialogTitle>
           <DialogDescription>
             Download and manage language models that run entirely in your browser.
-            Models are downloaded once (~500MB to 2.5GB) and then cached for offline use.
-            Ensure you have a stable internet connection for the initial download.
-            Existing caches are verified the next time their model is initialized.
+            Models are downloaded once (~200MB to 3.5GB) and then cached for offline use —
+            you can download several at the same time. Ensure you have a stable internet
+            connection for the initial download.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Active Download Progress */}
-          {isDownloading && (
-            <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 space-y-3">
-              <div className="flex justify-between items-center text-sm">
-                <span className="font-medium text-emerald-400 flex items-center gap-2">
-                  <Zap className="w-4 h-4 animate-pulse" />
-                  Downloading Model...
-                </span>
-                <span className="text-emerald-500/70">{Math.round(downloadProgress * 100)}%</span>
-              </div>
-              <Progress value={downloadProgress * 100} className="h-2 bg-emerald-500/20" />
-              <p className="text-xs text-emerald-500/60 truncate">{downloadStatus}</p>
-            </div>
-          )}
-
           {/* Configuration */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -121,65 +126,130 @@ export function OfflineModelManager({
               Recommended Models
             </h3>
             <div className="grid gap-3">
-              {RECOMMENDED_MODELS.map((model) => (
-                (() => {
-                  const modelId = `${model.id}@${selectedQuant}`;
-                  const isDownloaded = downloadedModels.includes(modelId);
-                  const isModelDownloading = downloadingModelId === modelId;
-                  const isActive = baseId === model.id && currentModelId === modelId;
-                  return (
-                <div 
-                  key={model.id}
-                  className={cn(
-                    "group p-3 rounded-lg border transition-all hover:border-primary/50",
-                    isActive ? "bg-primary/5 border-primary/40" : "bg-card border-border"
-                  )}
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <div>
-                      <h4 className="font-medium text-sm flex items-center gap-2">
-                        {model.name}
-                        {isActive && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
-                      </h4>
-                      <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{model.description}</p>
+              {RECOMMENDED_MODELS.map((model) => {
+                const modelId = `${model.id}@${selectedQuant}`;
+                const isDownloaded = downloadedModels.includes(modelId);
+                const dlState = downloadStates[modelId];
+                const isModelDownloading = !!dlState;
+                const isActive = baseId === model.id && currentModelId === modelId;
+                return (
+                  <div
+                    key={model.id}
+                    className={cn(
+                      "group p-3 rounded-lg border transition-all hover:border-primary/50",
+                      isActive ? "bg-primary/5 border-primary/40" : "bg-card border-border"
+                    )}
+                  >
+                    <div className="flex justify-between items-start mb-1">
+                      <div>
+                        <h4 className="font-medium text-sm flex items-center gap-2">
+                          {model.name}
+                          <ModalityBadges modalities={model.modalities} />
+                          {isActive && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+                        </h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{model.description}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">{model.size}</span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded">{model.size}</span>
-                    </div>
+
+                    {isModelDownloading ? (
+                      <div className="mt-3 space-y-1.5">
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-amber-400 flex items-center gap-1 font-medium uppercase tracking-tight">
+                            <Zap className="w-3 h-3 animate-pulse" />
+                            {dlState.status}
+                          </span>
+                          <span className="text-emerald-500/70">{Math.round(dlState.progress * 100)}%</span>
+                        </div>
+                        <Progress value={dlState.progress * 100} className="h-1.5 bg-emerald-500/20" />
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between mt-3">
+                        <span className={cn(
+                          "text-[10px] font-medium uppercase tracking-tight",
+                          isDownloaded ? "text-emerald-400" : "text-muted-foreground"
+                        )}>
+                          {isDownloaded ? "Downloaded" : "Not downloaded"}
+                        </span>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant={isActive ? "secondary" : "outline"}
+                            className="h-7 text-xs"
+                            disabled={!isDownloaded}
+                            onClick={() => onSelectModel(modelId)}
+                          >
+                            {isActive ? 'Active' : 'Select'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                            disabled={isDownloaded}
+                            onClick={() => handleDownload(model.id)}
+                          >
+                            {isDownloaded ? <CheckCircle2 className="w-3 h-3" /> : <Download className="w-3 h-3" />}
+                            {isDownloaded ? 'Downloaded' : 'Download'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between mt-3">
-                     <span className={cn(
-                       "text-[10px] font-medium uppercase tracking-tight",
-                       isDownloaded ? "text-emerald-400" : isModelDownloading ? "text-amber-400" : "text-muted-foreground"
-                     )}>
-                       {isDownloaded ? "Downloaded" : isModelDownloading ? "Downloading" : "Not downloaded"}
-                     </span>
-                    <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                         variant={isActive ? "secondary" : "outline"}
-                        className="h-7 text-xs"
-                         disabled={!isDownloaded}
-                         onClick={() => onSelectModel(modelId)}
-                      >
-                         {isActive ? 'Active' : 'Select'}
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        className="h-7 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-                         disabled={isDownloading || isDownloaded}
-                        onClick={() => handleDownload(model.id)}
-                      >
-                         {isDownloaded ? <CheckCircle2 className="w-3 h-3" /> : <Download className="w-3 h-3" />}
-                         {isDownloaded ? 'Downloaded' : isModelDownloading ? 'Downloading' : 'Download'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-                  );
-                })()
-              ))}
+                );
+              })}
             </div>
+          </div>
+
+          {/* Your Downloads */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <FolderDown className="w-4 h-4 text-violet-400" />
+              Your Downloads
+            </h3>
+            {otherDownloaded.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic px-1">
+                Models you download that aren't in the list above — like older models or custom HuggingFace pulls — will appear here.
+              </p>
+            ) : (
+              <div className="grid gap-2">
+                {otherDownloaded.map((id) => {
+                  const isActive = currentModelId === id || currentModelId.split('@')[0] === id.split('@')[0];
+                  const isDeletingTarget = !!downloadStates[id];
+                  return (
+                    <div key={id} className={cn(
+                      "flex items-center justify-between p-2.5 rounded-lg border",
+                      isActive ? "border-primary/40 bg-primary/5" : "border-border bg-card"
+                    )}>
+                      <div className="min-w-0">
+                        <h4 className="text-sm font-medium capitalize truncate">{prettyModelName(id)}</h4>
+                        <p className="text-[10px] text-muted-foreground truncate font-mono">{id}</p>
+                      </div>
+                      <div className="flex gap-2 shrink-0 ml-3">
+                        <Button
+                          size="sm"
+                          variant={isActive ? "secondary" : "outline"}
+                          className="h-7 text-xs"
+                          disabled={isActive}
+                          onClick={() => onSelectModel(id)}
+                        >
+                          {isActive ? 'Active' : 'Select'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs text-red-400 hover:text-red-300 hover:border-red-400/40"
+                          disabled={isDeletingTarget}
+                          onClick={() => onDeleteModel(id)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Custom Model */}
@@ -189,16 +259,16 @@ export function OfflineModelManager({
               Custom HuggingFace Model
             </h3>
             <div className="flex gap-2">
-              <Input 
-                placeholder="e.g. onnx-community/gemma-4-E2B-it-ONNX" 
+              <Input
+                placeholder="e.g. onnx-community/gemma-4-E2B-it-ONNX"
                 value={customModelId}
                 onChange={(e) => setCustomModelId(e.target.value)}
                 className="text-sm"
               />
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="gap-2"
-                disabled={!customModelId || isDownloading}
+                disabled={!customModelId || isDownloadingOffline(customModelId, downloadStates)}
                 onClick={() => handleDownload(customModelId)}
               >
                 <Download className="w-4 h-4" />
@@ -207,7 +277,7 @@ export function OfflineModelManager({
             </div>
             <p className="text-[10px] text-muted-foreground mt-2 flex items-center gap-1">
               <Info className="w-3 h-3" />
-              Must be a transformers.js compatible model on HuggingFace.
+              Must be a transformers.js compatible model on HuggingFace. Custom downloads also show up under Your Downloads.
               <a href="https://huggingface.co/models?other=transformers.js" target="_blank" rel="noreferrer" className="text-primary hover:underline flex items-center gap-0.5 ml-1">
                 Browse compatible models <ExternalLink className="w-2.5 h-2.5" />
               </a>
@@ -222,3 +292,9 @@ export function OfflineModelManager({
     </Dialog>
   );
 }
+
+const isDownloadingOffline = (
+  id: string,
+  states: Record<string, OfflineDownloadState>,
+) => Object.keys(states).some(key => key.startsWith(id));
+

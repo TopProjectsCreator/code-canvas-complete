@@ -1,4 +1,7 @@
 let pipelineFn = null;
+let loadedProcessor = null;
+let loadedModel = null;
+let loadedKind = null;
 const HTML_RESPONSE_ERROR_RE = /Unexpected token '<'|"<!doctype "|<html/i;
 
 const TRANSFORMERS_IMPORT_URLS = [
@@ -8,7 +11,9 @@ const TRANSFORMERS_IMPORT_URLS = [
   `${self.location.origin}/api/proxy/jsdelivr/npm/@huggingface/transformers@4.2.0/+esm`,
 ];
 
+let transformersMod = null;
 const loadTransformers = async () => {
+  if (transformersMod?.pipeline) return transformersMod;
   let lastError = null;
   for (const url of TRANSFORMERS_IMPORT_URLS) {
     try {
@@ -17,21 +22,16 @@ const loadTransformers = async () => {
       if (!mod?.pipeline) {
         throw new Error(`Invalid transformers module shape from ${url}`);
       }
+      transformersMod = mod;
       return mod;
     } catch (error) {
       lastError = error;
       console.error(`[Worker] Failed to load from ${url}:`, error);
       try {
         const hostname = new URL(url).hostname;
-        self.postMessage({
-          type: 'status',
-          text: `Could not load runtime from ${hostname}, trying fallback...`
-        });
+        self.postMessage({ type: 'status', text: `Could not load runtime from ${hostname}, trying fallback...` });
       } catch {
-        self.postMessage({
-          type: 'status',
-          text: `Could not load runtime, trying fallback...`
-        });
+        self.postMessage({ type: 'status', text: `Could not load runtime, trying fallback...` });
       }
     }
   }
@@ -52,61 +52,234 @@ const normalizeOfflineError = (error) => {
   return raw;
 };
 
+const detectKind = (modelId) => {
+  if (/gemma-4/i.test(modelId)) return 'gemma4';
+  if (/qwen3\.5/i.test(modelId)) return 'qwen35';
+  return 'pipeline';
+};
+
+const QWEN35_DTYPES = { embed_tokens: 'q4', vision_encoder: 'fp16', decoder_model_merged: 'q4' };
+
+const makeProgressCallback = () => (progress) => {
+  const pct = typeof progress?.progress === 'number' ? Math.max(0, Math.min(1, progress.progress)) : 0;
+  self.postMessage({ type: 'progress', progress: pct, text: progress?.file || progress?.status || 'Downloading...' });
+};
+
+const base64ToBlob = (b64, mime) => {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime || 'image/png' });
+};
+
+/** Map local-model think tags onto the tags the app's parser already understands. */
+const mapThinkTags = (text) =>
+  text.replace(/<think>/gi, '<thinking_process>').replace(/<\/think>/gi, '</thinking_process>');
+
+/**
+ * Enforces strict user/assistant alternation required by chat templates.
+ * Merges consecutive same-role turns, drops empty ones, and strips leading
+ * assistant turns (most templates require the first turn to be 'user').
+ */
+const normalizeTurns = (turns) => {
+  const out = [];
+  for (const t of Array.isArray(turns) ? turns : []) {
+    const role = t?.role === 'assistant' ? 'assistant' : 'user';
+    const content = String(t?.content ?? '').trim();
+    if (!content) continue;
+    const last = out[out.length - 1];
+    if (last && last.role === role) last.content += '\n\n' + content;
+    else out.push({ role, content });
+  }
+  while (out.length && out[0].role === 'assistant') out.shift();
+  return out;
+};
+
+const loadPipelineModel = async (modelId, quant) => {
+  const { pipeline } = await loadTransformers();
+  try {
+    return { kind: 'pipeline', pipelineFn: await pipeline('text-generation', modelId, {
+      dtype: quant,
+      device: 'webgpu',
+      progress_callback: makeProgressCallback(),
+    }) };
+  } catch (webgpuError) {
+    self.postMessage({ type: 'status', text: 'WebGPU not available, falling back to CPU/WASM...' });
+    try {
+      return { kind: 'pipeline', pipelineFn: await pipeline('text-generation', modelId, {
+        dtype: quant,
+        progress_callback: makeProgressCallback(),
+      }) };
+    } catch (fallbackError) {
+      throw new Error(`WebGPU failed: ${webgpuError.message}. CPU fallback also failed: ${fallbackError.message}`);
+    }
+  }
+};
+
+const loadMultimodalModel = async (kind, modelId, quant) => {
+  const t = await loadTransformers();
+  const isGemma = kind === 'gemma4';
+  const modelClass = isGemma ? t.Gemma4ForConditionalGeneration : t.Qwen3_5ForConditionalGeneration;
+  if (!modelClass) throw new Error(`This runtime build lacks support for ${isGemma ? 'Gemma 4' : 'Qwen 3.5'} models.`);
+  if (!t.AutoProcessor || !t.RawImage) throw new Error('Runtime build is missing multimodal primitives.');
+
+  const dtype = isGemma ? quant : QWEN35_DTYPES;
+  const load = async (device) => Promise.all([
+    t.AutoProcessor.from_pretrained(modelId),
+    modelClass.from_pretrained(modelId, { dtype, ...(device ? { device } : {}), progress_callback: makeProgressCallback() }),
+  ]);
+
+  let processor, model;
+  try {
+    [processor, model] = await load('webgpu');
+  } catch (webgpuError) {
+    self.postMessage({ type: 'status', text: 'WebGPU not available, falling back to CPU/WASM...' });
+    try {
+      [processor, model] = await load(undefined);
+    } catch (fallbackError) {
+      throw new Error(`WebGPU failed: ${webgpuError.message}. CPU fallback also failed: ${fallbackError.message}`);
+    }
+  }
+  return { kind, processor, model };
+};
+
+const extractPipelineText = (output) => {
+  const generated = output?.[0]?.generated_text;
+  return Array.isArray(generated)
+    ? generated.filter(m => m.role === 'assistant').map(m => m.content).join('\n') || generated.at(-1)?.content || ''
+    : typeof generated === 'string' ? '' : '';
+};
+
 self.onmessage = async (event) => {
-  const { type, model, prompt, requestId } = event.data || {};
+  const { type, model, prompt, images, audio, enableThinking, requestId } = event.data || {};
   try {
     if (type === 'init') {
       const [modelId, quant = 'q4f16'] = String(model || '').split('@');
       self.postMessage({ type: 'status', text: `Preparing ${modelId} (${quant})...` });
-
-      const transformers = await loadTransformers();
-      const { pipeline } = transformers;
-
+      const kind = detectKind(modelId);
       self.postMessage({ type: 'status', text: `Downloading ${modelId}...` });
 
-      pipelineFn = await pipeline('text-generation', modelId, {
-        dtype: quant,
-        device: 'webgpu',
-        progress_callback: (progress) => {
-          const pct = typeof progress?.progress === 'number' ? Math.max(0, Math.min(1, progress.progress)) : 0;
-          self.postMessage({ type: 'progress', progress: pct, text: progress?.file || progress?.status || 'Downloading...' });
-        },
-      }).catch(async (webgpuError) => {
-        self.postMessage({ type: 'status', text: 'WebGPU not available, falling back to CPU/WASM...' });
-        try {
-          return await pipeline('text-generation', modelId, {
-            dtype: quant,
-            progress_callback: (progress) => {
-              const pct = typeof progress?.progress === 'number' ? Math.max(0, Math.min(1, progress.progress)) : 0;
-              self.postMessage({ type: 'progress', progress: pct, text: progress?.file || progress?.status || 'Downloading...' });
-            },
-          });
-        } catch (fallbackError) {
-          throw new Error(`WebGPU failed: ${webgpuError.message}. CPU fallback also failed: ${fallbackError.message}`);
-        }
-      });
+      let loaded;
+      if (kind === 'pipeline') {
+        loaded = await loadPipelineModel(modelId, quant);
+        pipelineFn = loaded.pipelineFn;
+      } else {
+        loaded = await loadMultimodalModel(kind, modelId, quant);
+        loadedProcessor = loaded.processor;
+        loadedModel = loaded.model;
+        pipelineFn = null;
+      }
+      loadedKind = kind;
 
       self.postMessage({ type: 'progress', progress: 1, text: 'Download complete' });
       self.postMessage({ type: 'ready', model: `${modelId}@${quant}`, requestId });
       return;
     }
 
+    if (type === 'clear-cache') {
+      const [modelId] = String(model || '').split('@');
+      const { ModelRegistry } = await loadTransformers();
+      if (!ModelRegistry?.clear_pipeline_cache) throw new Error('Runtime build cannot clear caches.');
+      await ModelRegistry.clear_pipeline_cache('text-generation', modelId);
+      self.postMessage({ type: 'cache-cleared', requestId });
+      return;
+    }
+
     if (type === 'generate') {
-      if (!pipelineFn) throw new Error('Offline model is not initialized yet.');
+      if (loadedKind === 'pipeline' && !pipelineFn) throw new Error('Offline model is not initialized yet.');
+      if (loadedKind !== 'pipeline' && !loadedModel) throw new Error('Offline model is not initialized yet.');
+      const thinking = !!enableThinking;
+      const systemPrompt = event.data.systemPrompt || null;
+      const history = Array.isArray(event.data.history) ? event.data.history : [];
 
-      const messages = [{ role: 'user', content: prompt }];
-      const output = await pipelineFn(messages, {
-        max_new_tokens: 180,
-        temperature: 0.7,
-        do_sample: true,
-      });
+      const streamer = new (await loadTransformers()).TextStreamer(
+        loadedKind === 'pipeline' ? pipelineFn.tokenizer : loadedProcessor.tokenizer,
+        {
+          skip_prompt: true,
+          skip_special_tokens: true,
+          callback_function: (delta) => {
+            if (delta) self.postMessage({ type: 'token', text: delta, requestId });
+          },
+        }
+      );
 
-      const generated = output?.[0]?.generated_text;
-      const text = Array.isArray(generated)
-        ? generated.filter(m => m.role === 'assistant').map(m => m.content).join('\n') || generated.at(-1)?.content || ''
-        : typeof generated === 'string' ? generated.replace(prompt, '').trim() : '';
+      let text = '';
+      // System instructions ride inside the first user turn: several local
+      // template families (e.g. Gemma) reject a dedicated 'system' role.
+      const sysPrefix = systemPrompt ? `[Instructions]\n${systemPrompt}\n[/Instructions]` : null;
+      if (loadedKind === 'pipeline') {
+        const turns = normalizeTurns(history);
+        const messages = turns.map(t => ({ role: t.role, content: t.content }));
+        if (messages.length && messages[messages.length - 1].role === 'user') {
+          messages[messages.length - 1].content += `\n\n${sysPrefix ? `${sysPrefix}\n\n` : ''}${prompt}`;
+        } else {
+          messages.push({ role: 'user', content: sysPrefix ? `${sysPrefix}\n\n${prompt}` : prompt });
+        }
+        const output = await pipelineFn(messages, {
+          max_new_tokens: 350,
+          temperature: 0.7,
+          do_sample: true,
+          streamer,
+        });
+        text = extractPipelineText(output);
+      } else {
+        const contentParts = [];
+        for (const img of Array.isArray(images) ? images : []) {
+          if (img?.base64) contentParts.push({ type: 'image' });
+        }
+        if (audio) contentParts.push({ type: 'audio' });
 
-      self.postMessage({ type: 'result', text: text.trim() || 'No response generated.', requestId });
+        const conversation = [];
+        for (const t of normalizeTurns(history)) {
+          let turnText = t.content;
+          if (sysPrefix && conversation.length === 0) turnText = `${sysPrefix}\n\n${turnText}`;
+          conversation.push({ role: t.role, content: [{ type: 'text', text: turnText }] });
+        }
+        const userText = sysPrefix && conversation.length === 0 ? `${sysPrefix}\n\n${prompt}` : prompt;
+        contentParts.push({ type: 'text', text: userText });
+        if (conversation.length && conversation[conversation.length - 1].role === 'user') {
+          conversation[conversation.length - 1].content.push(...contentParts);
+        } else {
+          conversation.push({ role: 'user', content: contentParts });
+        }
+
+        const promptText = loadedProcessor.apply_chat_template(conversation, {
+          add_generation_prompt: true,
+          enable_thinking: thinking,
+          tokenize: false,
+        });
+
+        const rawImages = [];
+        const { RawImage } = await loadTransformers();
+        for (const img of Array.isArray(images) ? images : []) {
+          if (!img?.base64) continue;
+          const blob = base64ToBlob(img.base64, img.mime);
+          rawImages.push(await (await RawImage.fromBlob(blob)).resize(448, 448));
+        }
+
+        const inputs = await loadedProcessor(
+          promptText,
+          rawImages.length ? rawImages : null,
+          audio instanceof Float32Array && audio.length ? audio : undefined,
+          { add_special_tokens: false }
+        );
+        const outputs = await loadedModel.generate({
+          ...inputs,
+          max_new_tokens: thinking ? 900 : 350,
+          do_sample: true,
+          temperature: 0.7,
+          top_p: 0.9,
+          streamer,
+        });
+        const promptLen = inputs.input_ids.dims.at(-1);
+        const sliced = typeof outputs.slice === 'function'
+          ? outputs.slice(null, [promptLen, null])
+          : outputs;
+        text = loadedProcessor.batch_decode(sliced, { skip_special_tokens: true })[0] || '';
+      }
+
+      text = mapThinkTags(String(text).trim());
+      self.postMessage({ type: 'result', text: text || 'No response generated.', requestId });
       return;
     }
   } catch (error) {
