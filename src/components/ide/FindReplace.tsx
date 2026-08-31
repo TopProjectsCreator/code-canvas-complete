@@ -54,7 +54,7 @@ export const FindReplace = ({
           start: match.index,
           end: match.index + match[0].length
         });
-        if (match[0].length === 0) break; // Prevent infinite loop for zero-length matches
+        if (match[0].length === 0) pattern.lastIndex++; // Prevent infinite loop for zero-length matches
       }
 
       setMatches(foundMatches);
