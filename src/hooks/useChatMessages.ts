@@ -115,22 +115,28 @@ export function useChatMessages(channelId: string | null) {
           ))
           return
         }
+        setMessages(prev => [...prev, {
+          ...newMsg,
+          profile: undefined,
+          reactions: [],
+          attachments: [],
+          reply_count: 0,
+        } as ChatMessage])
         supabase
           .from('profiles')
           .select('id, user_id, display_name, avatar_url')
           .eq('user_id', newMsg.user_id)
-          .single()
-          .then(({ data: profile }) => {
+          .maybeSingle()
+          .then(({ data: profile, error }) => {
+            if (error) {
+              console.error('Failed to fetch profile for new message:', error)
+              return
+            }
             if (!mountedRef.current || channelIdRef.current !== channelId) return
-            setMessages(prev => [...prev, {
-              ...newMsg,
-              profile: profile ?? undefined,
-              reactions: [],
-              attachments: [],
-              reply_count: 0,
-            } as ChatMessage])
+            if (!profile) return
+            setMessages(prev => prev.map(m => m.id === newMsg.id ? { ...m, profile } : m))
           }, (err: unknown) => {
-            console.error('Failed to fetch profile for new message:', err);
+            console.error('Failed to fetch profile for new message:', err)
           })
       },
       (payload) => {

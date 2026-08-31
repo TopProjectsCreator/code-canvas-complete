@@ -56,13 +56,21 @@ export function ThreadPanel({ parentMessage, onClose }: ThreadPanelProps) {
       (payload) => {
         const newMsg = payload.new as any
         if (newMsg.parent_id !== parentMessage.id) return
+        setReplies(prev => [...prev, { ...newMsg, profile: undefined } as ChatMessage])
         supabase
           .from('profiles')
           .select('id, user_id, display_name, avatar_url')
           .eq('user_id', newMsg.user_id)
-          .single()
-          .then(({ data: profile }) => {
-            setReplies(prev => [...prev, { ...newMsg, profile: profile ?? undefined } as ChatMessage])
+          .maybeSingle()
+          .then(({ data: profile, error }) => {
+            if (error) {
+              console.error('Failed to fetch profile for new thread reply:', error)
+              return
+            }
+            if (!profile) return
+            setReplies(prev => prev.map(reply => reply.id === newMsg.id ? { ...reply, profile } : reply))
+          }, (err: unknown) => {
+            console.error('Failed to fetch profile for new thread reply:', err)
           })
       }
     )
