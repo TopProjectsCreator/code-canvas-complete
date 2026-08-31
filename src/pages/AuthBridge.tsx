@@ -39,6 +39,7 @@ const AuthBridge = () => {
         const params = new URLSearchParams(window.location.search);
         const returnParam = params.get('return');
         const stateParam = params.get('state');
+        const provider = readProvider(params.get('provider'));
 
         if (!returnParam || !stateParam) {
           setStatus('error');
@@ -54,15 +55,19 @@ const AuthBridge = () => {
         }
         if (cancelled) return;
 
+        setMessage(`Connecting to ${PROVIDER_LABELS[provider]}…`);
         stashOutbound(stateParam, returnUrl.toString());
 
-        const result = await lovable.auth.signInWithOAuth('google', {
-          redirect_uri: `${window.location.origin}/auth-bridge`,
+        const result = await lovable.auth.signInWithOAuth(provider, {
+          redirect_uri: `${window.location.origin}/auth-bridge?provider=${provider}`,
         });
         if (result.error) {
           setStatus('error');
-          setMessage(result.error.message || 'Failed to start Google sign-in.');
+          setMessage(
+            result.error.message || `Failed to start ${PROVIDER_LABELS[provider]} sign-in.`
+          );
         }
+
         // If redirected, browser navigates away.
         return;
       }
