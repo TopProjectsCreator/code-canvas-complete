@@ -98,6 +98,19 @@ const WELCOME_MESSAGE: AgentMessage = {
 };
 
 const chatStorageKey = (projectId?: string | null) => `canvas-agent-chat:${projectId || 'default'}`;
+const TASK_BOARD_STORAGE_KEY_PREFIX = 'taskboard_tasks_';
+export const taskBoardStorageKey = (projectId?: string | null) => `${TASK_BOARD_STORAGE_KEY_PREFIX}${projectId || 'default'}`;
+export const loadTaskBoardTasks = (projectId?: string | null): any[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(taskBoardStorageKey(projectId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
 const SIMPLE_MATH_PATTERN = /^[\d\s+\-*/%^().]+$/;
 const QUADRATIC_PATTERN = /^\s*([+-]?\d*)x\^2\s*([+-]\s*\d*)x\s*([+-]\s*\d+)\s*=\s*0\s*$/i;
 
@@ -877,7 +890,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
     return { steps, cleanContent: cleanContent.trim() };
   }, []);
 
-  const processAgentResponse = useCallback((rawContent: string): {
+  const processAgentResponse = useCallback((rawContent: string, projectId?: string | null): {
     content: string;
     steps: AgentStep[];
     hasCodeChanges: boolean;
@@ -1158,13 +1171,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
     const { hasGetTaskBoard, cleanContent: afterGetBoard } = parseGetTaskBoard(content);
     if (hasGetTaskBoard) {
       allSteps.push({ id: generateId(), type: 'tool_call', content: 'Reading task board', timestamp: new Date(), toolCall: { id: generateId(), name: 'get_task_board', arguments: {}, status: 'completed' } });
-      const allTasks = (() => {
-        try {
-          const raw = localStorage.getItem('taskboard_tasks');
-          if (raw) return JSON.parse(raw);
-        } catch {}
-        return [];
-      })();
+      const allTasks = loadTaskBoardTasks(projectId);
       const summary = allTasks.map((t: any) => ({
         id: t.id, title: t.title, status: t.status, priority: t.priority, description: t.description?.slice(0, 100)
       }));
@@ -1388,7 +1395,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
         }
 
         // Full tag parsing (code changes, ask_prompt, widgets, etc.) so offline can actually act
-        const processed = processAgentResponse(finalText);
+        const processed = processAgentResponse(finalText, context.projectId ?? currentProjectId);
         // A reply that is ONLY tool tags (e.g. <ask_prompt/>) parses to empty text but is
         // still a real answer — only show the fallback when nothing actionable was produced.
         const producedAction = processed.questions.length > 0
@@ -1567,7 +1574,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
       }
 
       // Final processing
-      const processed = (chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent)) as ReturnType<typeof processAgentResponse>;
+      const processed = (chatOnlyMode ? { content: fullContent } : processAgentResponse(fullContent, context.projectId ?? currentProjectId)) as ReturnType<typeof processAgentResponse>;
       setMessages(prev => prev.map(m => m.id === assistantId ? { 
         ...m, 
         content: processed.content, 
@@ -1844,7 +1851,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
         }
 
         loopContent = followContent;
-        loopProcessed = processAgentResponse(followContent);
+        loopProcessed = processAgentResponse(followContent, context.projectId ?? currentProjectId);
 
         if (loopProcessed.content || loopProcessed.steps.length > 0) {
           const followUpId = generateId();
