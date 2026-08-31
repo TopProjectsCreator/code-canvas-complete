@@ -11,9 +11,21 @@ import {
 
 type Status = 'working' | 'error';
 
+type BridgeProvider = 'google' | 'apple' | 'microsoft';
+
+const PROVIDER_LABELS: Record<BridgeProvider, string> = {
+  google: 'Google',
+  apple: 'Apple',
+  microsoft: 'Microsoft',
+};
+
+const readProvider = (value: string | null): BridgeProvider =>
+  value === 'apple' || value === 'microsoft' ? value : 'google';
+
 const AuthBridge = () => {
   const [status, setStatus] = useState<Status>('working');
-  const [message, setMessage] = useState('Connecting to Google…');
+  const [message, setMessage] = useState('Connecting…');
+
 
   useEffect(() => {
     let cancelled = false;
