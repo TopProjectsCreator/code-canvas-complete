@@ -21,7 +21,7 @@ import { SaveProjectDialog } from "./SaveProjectDialog";
 import { ShareDialog } from "./ShareDialog";
 import { GitProviderImportDialog } from "./GitProviderImportDialog";
 import { CollabDialog } from "./CollabDialog";
-import { hasTrackedFileContentChanges } from "./unsavedChanges";
+import { hasTrackedFileContentChanges, removeTrackedFileContent } from "./unsavedChanges";
 import { useCollaboration } from "@/hooks/useCollaboration";
 import { useDiscord } from "@/contexts/DiscordContext";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
@@ -1357,6 +1357,9 @@ export const IDELayout = ({ projectId, publishSlug }: IDELayoutProps) => {
 
       // Close any open tabs for this file
       setOpenTabs((prev) => prev.filter((tab) => tab.fileId !== fileId));
+
+      setFileContents((prev) => removeTrackedFileContent(prev, fileId));
+      setOriginalFileContents((prev) => removeTrackedFileContent(prev, fileId));
 
       // Clear active tab if it was the deleted file
       if (activeTab?.fileId === fileId) {
