@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasTrackedFileContentChanges } from "@/components/ide/unsavedChanges";
+import { hasTrackedFileContentChanges, removeTrackedFileContent } from "@/components/ide/unsavedChanges";
 
 describe("hasTrackedFileContentChanges", () => {
   it("returns false when no tracked file contents exist", () => {
@@ -16,5 +16,19 @@ describe("hasTrackedFileContentChanges", () => {
 
   it("treats tracked files missing in originals as unsaved changes", () => {
     expect(hasTrackedFileContentChanges({ "new-file": "new content" }, {})).toBe(true);
+  });
+});
+
+describe("removeTrackedFileContent", () => {
+  it("removes the deleted file from tracked content", () => {
+    expect(removeTrackedFileContent({ "file-1": "updated", "file-2": "stable" }, "file-1")).toEqual({
+      "file-2": "stable",
+    });
+  });
+
+  it("keeps content unchanged when the file id is not tracked", () => {
+    expect(removeTrackedFileContent({ "file-2": "stable" }, "file-1")).toEqual({
+      "file-2": "stable",
+    });
   });
 });
