@@ -176,6 +176,8 @@ export interface AgentMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  /** Which route produced this message: local on-device model vs cloud. */
+  modelSource?: 'local' | 'cloud';
   steps?: AgentStep[];
   isStreaming?: boolean;
   hasCodeChanges?: boolean;
