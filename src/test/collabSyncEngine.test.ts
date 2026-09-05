@@ -224,4 +224,56 @@ describe('collab patch delivery (issues #436 / #412)', () => {
     expect(() => engine.materializeUpdate(diverged)).not.toThrow();
     expect(engine.materializeUpdate(diverged)).toBeNull();
   });
+
+  it('rejects stale patches older than retained history after compaction', () => {
+    const engine = new CollaborationSyncEngine();
+    engine.initializeFile('file-6', 'history.txt', 'a');
+
+    let content = 'a';
+    for (let i = 0; i < 150; i += 1) {
+      content += 'x';
+      engine.createOutgoingPatch('file-6', content);
+    }
+
+    const stalePatch: import('@/services/collabSyncEngine').RemotePatchEnvelope = {
+      fileId: 'file-6',
+      filePath: 'history.txt',
+      version: 1,
+      baseVersion: 0,
+      patch: TextOperation.build('a', 'a!').serialize(),
+      checksum: 'deadbeef',
+      updatedBy: 'remote',
+      updatedByName: 'Remote',
+      updatedAt: new Date().toISOString(),
+    };
+
+    expect(() => engine.materializeUpdate(stalePatch)).not.toThrow();
+    expect(engine.materializeUpdate(stalePatch)).toBeNull();
+  });
+
+  it('still rebases stale patches that are within retained history', () => {
+    const alice = new CollaborationSyncEngine();
+    const bob = new CollaborationSyncEngine();
+    alice.initializeFile('file-7', 'sync.txt', 'a');
+    bob.initializeFile('file-7', 'sync.txt', 'a');
+
+    let content = 'a';
+    for (let i = 1; i <= 130; i += 1) {
+      content = `${content}${i}-`;
+      const patch = alice.createOutgoingPatch('file-7', content);
+      expect(patch).not.toBeNull();
+      bob.materializeUpdate(patchEnvelopeFromLocal(patch!, 'alice', 'Alice'));
+    }
+
+    const bobPatch = bob.createOutgoingPatch('file-7', `${bob.getContent('file-7')}B`);
+    expect(bobPatch).not.toBeNull();
+
+    for (let i = 131; i <= 150; i += 1) {
+      alice.createOutgoingPatch('file-7', `${alice.getContent('file-7')}${i}-`);
+    }
+
+    const rebased = alice.materializeUpdate(patchEnvelopeFromLocal(bobPatch!, 'bob', 'Bob'));
+    expect(rebased).not.toBeNull();
+    expect(rebased?.content).toContain('B');
+  });
 });

@@ -912,6 +912,8 @@ export interface PatchApplyResult {
 }
 
 export class CollaborativeFileState {
+  private static readonly MAX_HISTORY_ENTRIES = 100;
+
   readonly fileId: string;
 
   private version = 0;
@@ -921,6 +923,8 @@ export class CollaborativeFileState {
   private checksum = hashString('');
 
   private readonly chain: VersionChainEntry[] = [];
+
+  private historyBaseVersion = 0;
 
   constructor(fileId: string, initialContent: string = '') {
     this.fileId = fileId;
@@ -1009,6 +1013,19 @@ export class CollaborativeFileState {
       };
     }
 
+    if (patch.baseVersion < this.historyBaseVersion) {
+      return {
+        accepted: false,
+        conflict: {
+          reason: 'Incoming patch references a base version older than retained history',
+          localVersion: this.version,
+          incomingBaseVersion: patch.baseVersion,
+        },
+        content: this.content,
+        version: this.version,
+      };
+    }
+
     if (patch.baseVersion < this.version) {
       try {
         for (const entry of this.chain) {
@@ -1060,6 +1077,7 @@ export class CollaborativeFileState {
       timestamp: patch.updatedAt,
       checksum: this.checksum,
     });
+    this.compactHistory();
 
     return {
       accepted: true,
@@ -1081,6 +1099,7 @@ export class CollaborativeFileState {
       timestamp,
       checksum: this.checksum,
     });
+    this.compactHistory();
   }
 
   replaceFromSnapshot(snapshot: FileVersionSnapshot): void {
@@ -1091,6 +1110,7 @@ export class CollaborativeFileState {
     this.version = snapshot.version;
     this.content = snapshot.content;
     this.checksum = hashString(snapshot.content);
+    this.historyBaseVersion = snapshot.version;
     this.chain.length = 0;
   }
 
@@ -1102,6 +1122,14 @@ export class CollaborativeFileState {
       updatedBy,
       updatedAt: new Date().toISOString(),
     };
+  }
+
+  private compactHistory(maxEntries = CollaborativeFileState.MAX_HISTORY_ENTRIES): void {
+    const compacted = pruneHistory(this.chain, maxEntries);
+    if (compacted.length === this.chain.length) return;
+
+    this.chain.splice(0, this.chain.length, ...compacted);
+    this.historyBaseVersion = this.chain[0] ? this.chain[0].version - 1 : this.version;
   }
 }
 
@@ -1409,13 +1437,7 @@ export function pruneHistory(
 ): VersionChainEntry[] {
   if (history.length <= maxEntries) return history;
 
-  const keepTail = Math.floor(maxEntries * 0.7);
-  const keepHead = maxEntries - keepTail;
-
-  const head = history.slice(0, keepHead);
-  const tail = history.slice(history.length - keepTail);
-
-  return [...head, ...tail];
+  return history.slice(history.length - maxEntries);
 }
 
 export function coalesceSequentialPatches(
@@ -1487,4 +1509,3 @@ export function summarizePatch(operation: TextOperation): string {
   const stats = buildPatchStats(operation);
   return `ins=${stats.insertedChars}, del=${stats.deletedChars}, keep=${stats.retainedChars}, churn=${stats.churn.toFixed(2)}`;
 }
-
