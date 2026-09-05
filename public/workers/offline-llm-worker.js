@@ -60,6 +60,49 @@ const detectKind = (modelId) => {
 
 const QWEN35_DTYPES = { embed_tokens: 'q4', vision_encoder: 'fp16', decoder_model_merged: 'q4' };
 
+/**
+ * Same-origin mirror for Hugging Face files (see server /api/proxy/hf/*).
+ * Lets firewalled/VPN networks load weights through the app instead of
+ * reaching huggingface.co directly.
+ */
+const hfProxyOrigin = () => {
+  try { return `${self.location.origin}/api/proxy/hf`; } catch { return null; }
+};
+
+const isFetchFailure = (error) => {
+  const raw = String(error?.message || error || '');
+  return /failed to fetch|fetch failed|networkerror|network request failed|load failed|HTTP [45]\d\d|\b401\b|\b403\b|\b404\b|unauthorized|gated/i.test(raw);
+};
+
+/**
+ * Run a weights loader directly first (preserves behavior where the network
+ * is open), then retry once through the app's own HF proxy. Non-network
+ * errors (bad dtype, unsupported model class) are rethrown immediately so a
+ * real configuration bug never triggers a pointless proxy retry.
+ */
+const withHfProxyRetry = async (label, loader) => {
+  try {
+    return { result: await loader(), via: 'direct' };
+  } catch (directError) {
+    if (!isFetchFailure(directError)) throw directError;
+    const proxy = hfProxyOrigin();
+    let runtime = null;
+    try { runtime = await loadTransformers(); } catch { /* fall through to rethrow */ }
+    const env = runtime?.env;
+    if (!proxy || !env || typeof env.remoteHost === 'undefined') throw directError;
+    const prevHost = env.remoteHost;
+    self.postMessage({ type: 'status', text: `${label}: direct download blocked, retrying through app proxy...` });
+    try {
+      env.remoteHost = proxy;
+      return { result: await loader(), via: 'proxy' };
+    } catch (proxyError) {
+      throw new Error(`${directError.message} | Proxy retry also failed: ${proxyError.message}`);
+    } finally {
+      try { env.remoteHost = prevHost; } catch { /* ignore */ }
+    }
+  }
+};
+
 const makeProgressCallback = () => (progress) => {
   const pct = typeof progress?.progress === 'number' ? Math.max(0, Math.min(1, progress.progress)) : 0;
   self.postMessage({ type: 'progress', progress: pct, text: progress?.file || progress?.status || 'Downloading...' });
@@ -97,19 +140,21 @@ const normalizeTurns = (turns) => {
 
 const loadPipelineModel = async (modelId, quant) => {
   const { pipeline } = await loadTransformers();
+  const attempt = (device) => pipeline('text-generation', modelId, {
+    dtype: quant,
+    ...(device ? { device } : {}),
+    progress_callback: makeProgressCallback(),
+  });
   try {
-    return { kind: 'pipeline', pipelineFn: await pipeline('text-generation', modelId, {
-      dtype: quant,
-      device: 'webgpu',
-      progress_callback: makeProgressCallback(),
-    }) };
+    const { result, via } = await withHfProxyRetry('Loading model', () => attempt('webgpu'));
+    self.postMessage({ type: 'status', text: `Model ready on WebGPU (${via})` });
+    return { kind: 'pipeline', pipelineFn: result };
   } catch (webgpuError) {
     self.postMessage({ type: 'status', text: 'WebGPU not available, falling back to CPU/WASM...' });
     try {
-      return { kind: 'pipeline', pipelineFn: await pipeline('text-generation', modelId, {
-        dtype: quant,
-        progress_callback: makeProgressCallback(),
-      }) };
+      const { result, via } = await withHfProxyRetry('Loading model', () => attempt(undefined));
+      self.postMessage({ type: 'status', text: `Model ready on CPU/WASM (${via})` });
+      return { kind: 'pipeline', pipelineFn: result };
     } catch (fallbackError) {
       throw new Error(`WebGPU failed: ${webgpuError.message}. CPU fallback also failed: ${fallbackError.message}`);
     }
@@ -131,11 +176,15 @@ const loadMultimodalModel = async (kind, modelId, quant) => {
 
   let processor, model;
   try {
-    [processor, model] = await load('webgpu');
+    const out = await withHfProxyRetry('Loading model', () => load('webgpu'));
+    [processor, model] = out.result;
+    self.postMessage({ type: 'status', text: `Model ready on WebGPU (${out.via})` });
   } catch (webgpuError) {
     self.postMessage({ type: 'status', text: 'WebGPU not available, falling back to CPU/WASM...' });
     try {
-      [processor, model] = await load(undefined);
+      const out = await withHfProxyRetry('Loading model', () => load(undefined));
+      [processor, model] = out.result;
+      self.postMessage({ type: 'status', text: `Model ready on CPU/WASM (${out.via})` });
     } catch (fallbackError) {
       throw new Error(`WebGPU failed: ${webgpuError.message}. CPU fallback also failed: ${fallbackError.message}`);
     }

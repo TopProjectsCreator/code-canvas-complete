@@ -1401,6 +1401,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
         setMessages(prev => prev.map(m => m.id === assistantId ? {
           ...m,
           content: processed.content.trim() || (producedAction ? '' : 'Local model returned an empty response.'),
+          modelSource: 'local' as const,
           steps: processed.steps.length ? processed.steps : undefined,
           hasCodeChanges: processed.hasCodeChanges || false,
           hasWorkflowChanges: processed.hasWorkflowChanges || false,
@@ -1430,13 +1431,19 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
         }
         return;
       } catch (error) {
-        const errorMsg = `❌ Offline mode error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        const detail = error instanceof Error ? error.message : 'Unknown error';
+        // Never fall through to the online (cloud) path: when offline mode is
+        // selected, a local failure must surface as an error, not silently
+        // become a cloud response billed as the offline model.
+        console.error(`[chat] route=offline status=error model=${offlineModelId}: ${detail}`);
+        const errorMsg = `❌ Offline mode error: ${detail}`;
         setMessages(prev => {
           const exists = prev.some(m => m.id === assistantId);
           return exists
-            ? prev.map(m => m.id === assistantId ? { ...m, content: errorMsg, isStreaming: false } : m)
-            : [...prev, { id: generateId(), role: 'assistant' as const, content: errorMsg }];
+            ? prev.map(m => m.id === assistantId ? { ...m, content: errorMsg, isStreaming: false, modelSource: 'local' as const } : m)
+            : [...prev, { id: generateId(), role: 'assistant' as const, content: errorMsg, modelSource: 'local' as const }];
         });
+        return;
       } finally {
         // Guaranteed reset: no code path may ever leave the composer bricked.
         setIsLoading(false);
@@ -1571,6 +1578,7 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
       setMessages(prev => prev.map(m => m.id === assistantId ? { 
         ...m, 
         content: processed.content, 
+        modelSource: 'cloud' as const,
         steps: processed.steps || [], 
         hasCodeChanges: processed.hasCodeChanges || false, 
         questions: processed.questions || [], 

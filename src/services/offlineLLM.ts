@@ -84,13 +84,30 @@ class OfflineLLMManager {
     worker.postMessage({ type: 'init', model: normalizedModel, requestId: id });
     await new Promise<void>((resolve, reject) => {
       let stallTimer: ReturnType<typeof setTimeout> | undefined;
+      let settled = false;
+      const cleanup = () => {
+        settled = true;
+        if (stallTimer) clearTimeout(stallTimer);
+        worker.removeEventListener('message', onMessage);
+        worker.removeEventListener('error', onWorkerError);
+      };
       const arm = () => {
+        if (settled) return;
         if (stallTimer) clearTimeout(stallTimer);
         stallTimer = setTimeout(() => {
           const err = new Error('Model load stalled (no activity for a while).');
           (err as Error & { code?: string }).code = 'OFFLINE_STALL';
+          cleanup();
           reject(err);
         }, INIT_STALL_MS);
+      };
+      // A worker that fails to construct/parse (404, MIME type, CSP) never
+      // posts a message — fail fast instead of hanging until the watchdog.
+      const onWorkerError = (event: Event) => {
+        if (settled) return;
+        const message = (event as ErrorEvent)?.message || 'Offline worker failed to start';
+        cleanup();
+        reject(new Error(message));
       };
       const onMessage = (event: MessageEvent<OfflineEvent & { requestId?: number }>) => {
         const data = event.data;
@@ -100,17 +117,16 @@ class OfflineLLMManager {
           this.readyModel = normalizeOfflineModelId(data.model);
           this.lastModel = this.readyModel;
           markOfflineModelDownloaded(this.readyModel);
-          worker.removeEventListener('message', onMessage);
-          if (stallTimer) clearTimeout(stallTimer);
+          cleanup();
           resolve();
         }
         else if (data.type === 'error' && data.requestId === id) {
-          worker.removeEventListener('message', onMessage);
-          if (stallTimer) clearTimeout(stallTimer);
+          cleanup();
           reject(new Error(data.error));
         }
       };
       worker.addEventListener('message', onMessage);
+      worker.addEventListener('error', onWorkerError);
       arm();
     });
   }
