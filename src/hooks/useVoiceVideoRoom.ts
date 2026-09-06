@@ -60,6 +60,19 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
     return () => { mountedRef.current = false; };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (micTimeoutRef.current) {
+        clearTimeout(micTimeoutRef.current);
+        micTimeoutRef.current = null;
+      }
+      if (cameraTimeoutRef.current) {
+        clearTimeout(cameraTimeoutRef.current);
+        cameraTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
   const updatePeersList = useCallback(() => {
     const peerList: VoiceVideoPeer[] = [];
     peerConnectionsRef.current.forEach((pc, userId) => {
@@ -396,34 +409,20 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
     }
   }, [toast]);
 
-  // Latest cleanup is stored in a ref so the unmount effect always tears down
-  // the current room state (channel, peer connections, stream) without stale
-  // closures or eslint suppressions.
-  const cleanupRef = useRef<() => void>(() => {});
-  cleanupRef.current = () => {
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-    }
-    peerConnectionsRef.current.forEach((pc) => pc.pc.close());
-    peerConnectionsRef.current.clear();
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
-    }
-  };
-
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     return () => {
-      if (micTimeoutRef.current) {
-        clearTimeout(micTimeoutRef.current);
-        micTimeoutRef.current = null;
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
       }
-      if (cameraTimeoutRef.current) {
-        clearTimeout(cameraTimeoutRef.current);
-        cameraTimeoutRef.current = null;
+      peerConnectionsRef.current.forEach((pc) => pc.pc.close());
+      peerConnectionsRef.current.clear();
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
-      cleanupRef.current();
     };
   }, []);
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   return {
     isInRoom,
