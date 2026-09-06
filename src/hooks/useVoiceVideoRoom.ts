@@ -396,7 +396,21 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
     }
   }, [toast]);
 
-  /* eslint-disable react-hooks/exhaustive-deps */
+  // Latest cleanup is stored in a ref so the unmount effect always tears down
+  // the current room state (channel, peer connections, stream) without stale
+  // closures or eslint suppressions.
+  const cleanupRef = useRef<() => void>(() => {});
+  cleanupRef.current = () => {
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+    peerConnectionsRef.current.forEach((pc) => pc.pc.close());
+    peerConnectionsRef.current.clear();
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+    }
+  };
+
   useEffect(() => {
     return () => {
       if (micTimeoutRef.current) {
@@ -407,18 +421,9 @@ export function useVoiceVideoRoom(projectId: string | undefined, roomName: strin
         clearTimeout(cameraTimeoutRef.current);
         cameraTimeoutRef.current = null;
       }
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-      }
-      peerConnectionsRef.current.forEach((pc) => pc.pc.close());
-      peerConnectionsRef.current.clear();
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((track) => track.stop());
-        localStreamRef.current = null;
-      }
+      cleanupRef.current();
     };
   }, []);
-  /* eslint-enable react-hooks/exhaustive-deps */
 
   return {
     isInRoom,
