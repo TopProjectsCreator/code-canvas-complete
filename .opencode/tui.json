@@ -1,7 +1,0 @@
-{
-  "plugin": [
-    "@adtention/opencode",
-    "@prevalentware/opencode-goal-plugin",
-    "./tui-plugins/usage.tsx"
-  ]
-}
