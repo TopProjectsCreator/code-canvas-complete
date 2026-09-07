@@ -19,7 +19,9 @@ import {
   offlineDownloads, prepareOfflineAudio, prepareOfflineVideoImages,
   getOfflineThinkingEnabled, setOfflineThinkingEnabled as setOfflineThinkingService,
 } from '@/services/offlineLLM';
+import { ggufLLM, ggufDownloads, isGgufModelId } from '@/services/ggufLLM';
 import { RECOMMENDED_MODELS, modelSupportsImage, modelSupportsAudio, modelSupportsVideo, modelSupportsThinking, OFFLINE_SYSTEM_PROMPT, OFFLINE_TOOL_DEFINITIONS } from '@/components/ide/offlineModelCatalog';
+import { normalizeChatTurns } from '@/lib/chatRoles';
 
 const _agentChatPlatform = detectDeploymentPlatform();
 const canUseShellOnPlatform = isReplitLikePlatform(_agentChatPlatform);
@@ -221,10 +223,15 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
     return () => window.removeEventListener(offlineModelUpdatedEvent, refreshDownloadedModels);
   }, []);
 
-  // Mirror the parallel download manager's state (one entry per in-flight download).
+  // Mirror both download managers' state (one entry per in-flight download).
   useEffect(() => {
-    const unsubscribe = offlineDownloads.subscribe(setOfflineDownloadStates);
-    return () => { unsubscribe(); };
+    const merge = () => setOfflineDownloadStates({
+      ...(typeof offlineDownloads.snapshot === 'function' ? offlineDownloads.snapshot() : {}),
+      ...(typeof ggufDownloads.snapshot === 'function' ? ggufDownloads.snapshot() : {}),
+    });
+    const unsubA = offlineDownloads.subscribe(() => merge());
+    const unsubB = ggufDownloads.subscribe(() => merge());
+    return () => { unsubA(); unsubB(); };
   }, []);
 
   // Latest-callback refs so long-running async handlers never read stale props.
@@ -1206,7 +1213,11 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
 
   const downloadOfflineModel = useCallback(async (model: string) => {
     try {
-      await offlineDownloads.download(model);
+      if (isGgufModelId(model)) {
+        await ggufDownloads.download(model);
+      } else {
+        await offlineDownloads.download(model);
+      }
       toast.success(`${model.split('@')[0].split('/').pop() ?? model} ready for offline use`);
     } catch (error) {
       toast.error(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1274,10 +1285,17 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
       const audioAtt = atts.find(a => a.mimeType.startsWith('audio/') && a.base64);
       const videoAtts = atts.filter(a => a.mimeType.startsWith('video/') && a.base64);
       const catalogMatch = RECOMMENDED_MODELS.find(m => m.id === offlineModelId.split('@')[0]);
+      // GGUF models (official llama.cpp releases) run on a separate wllama worker.
+      const useGgufBackend = isGgufModelId(offlineModelId);
+      const thinkingOn = offlineThinkingEnabled && modelSupportsThinking(catalogMatch);
 
       try {
         setCurrentStep('Loading offline model...');
-        await offlineLLM.initialize(offlineModelId, setCurrentStep);
+        if (useGgufBackend) {
+          await ggufLLM.initialize(offlineModelId, setCurrentStep, undefined, thinkingOn);
+        } else {
+          await offlineLLM.initialize(offlineModelId, setCurrentStep);
+        }
 
         let usableImages: Array<{ base64: string; mime?: string }> = [];
         if (imageAtts.length) {
@@ -1316,8 +1334,6 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
           toast.error('Audio input needs Gemma 4 E2B. This model understands text and images only.');
         }
 
-        const thinkingOn = offlineThinkingEnabled && modelSupportsThinking(catalogMatch);
-
         // Build enriched prompt with file/workflow context (like cloud does, but tiny)
         let enrichedPrompt = messageContent;
         if (context.currentFile?.content) {
@@ -1330,31 +1346,39 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
         }
 
         // History for context: explicit pre-send snapshot, current message excluded.
-        // Keep small for 270M's 4k window.
+        // Keep small for 270M's 4k window. Sanitized so roles strictly alternate
+        // starting with 'user' — strict templates (Gemma) raise otherwise.
         const historyLimit = catalogMatch?.id.includes('270m') ? 2 : 6;
         const perMsgChars = catalogMatch?.id.includes('270m') ? 1200 : 3000;
-        const offlineHistory: Array<{ role: 'user' | 'assistant'; content: string }> = priorMessages
-          .filter(m => m.role === 'user' || m.role === 'assistant')
-          .slice(-historyLimit)
-          // drop a trailing duplicate of this exact message if a previous run already stored it
-          .filter((m, i, arr) => !(i === arr.length - 1 && m.role === 'user' && m.content === messageContent))
-          .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content.slice(0, perMsgChars) }));
+        const offlineHistory: Array<{ role: 'user' | 'assistant'; content: string }> = normalizeChatTurns(
+          priorMessages
+            .filter(m => m.role === 'user' || m.role === 'assistant')
+            .slice(-historyLimit)
+            // drop a trailing duplicate of this exact message if a previous run already stored it
+            .filter((m, i, arr) => !(i === arr.length - 1 && m.role === 'user' && m.content === messageContent))
+            .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content.slice(0, perMsgChars) }))
+        );
 
         setCurrentStep('Generating locally...');
         setMessages(prev => [...prev, { id: assistantId, role: 'assistant' as const, content: '', isStreaming: true }]);
 
         let full = '';
-        let localReply = await offlineLLM.chat(enrichedPrompt, {
-          images: usableImages,
-          audio: useAudio,
+        const chatOpts = {
           enableThinking: thinkingOn,
           systemPrompt: OFFLINE_SYSTEM_PROMPT,
           history: offlineHistory,
-          onToken: (delta) => {
+          onToken: (delta: string) => {
             full += delta;
             paintOfflineStream(assistantId, full);
           },
-        });
+        };
+        let localReply = useGgufBackend
+          ? await ggufLLM.chat(offlineModelId, enrichedPrompt, chatOpts)
+          : await offlineLLM.chat(enrichedPrompt, {
+            images: usableImages,
+            audio: useAudio,
+            ...chatOpts,
+          });
 
         let finalText = (localReply && localReply !== 'No response generated.') ? localReply : full;
 
@@ -1370,27 +1394,32 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
           full = '';
           // History ends on the assistant's search_for_tool turn; toolOutput rides
           // as the new user prompt so roles alternate cleanly (no duplicate user).
-          const retryHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [
+          const retryHistory: Array<{ role: 'user' | 'assistant'; content: string }> = normalizeChatTurns([
             ...offlineHistory,
             { role: 'assistant', content: finalText },
-          ];
+          ]);
           // Show intermediate tool loading step
           setMessages(prev => prev.map(m => m.id === assistantId ? {
             ...m,
             content: `Looking up tool "${requestedTool}"...`,
             steps: [{ id: `${assistantId}-tool`, type: 'thinking' as const, content: `Requested tool: ${requestedTool}`, timestamp: new Date(), isCollapsed: true }],
           } : m));
-          localReply = await offlineLLM.chat(toolOutput, {
-            images: usableImages,
-            audio: useAudio,
+          const retryOpts = {
             enableThinking: thinkingOn,
             systemPrompt: OFFLINE_SYSTEM_PROMPT,
             history: retryHistory,
-            onToken: (delta) => {
+            onToken: (delta: string) => {
               full += delta;
               paintOfflineStream(assistantId, full);
             },
-          });
+          };
+          localReply = useGgufBackend
+            ? await ggufLLM.chat(offlineModelId, toolOutput, retryOpts)
+            : await offlineLLM.chat(toolOutput, {
+              images: usableImages,
+              audio: useAudio,
+              ...retryOpts,
+            });
           finalText = (localReply && localReply !== 'No response generated.') ? localReply : full;
         }
 

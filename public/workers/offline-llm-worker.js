@@ -2,6 +2,55 @@ let pipelineFn = null;
 let loadedProcessor = null;
 let loadedModel = null;
 let loadedKind = null;
+// Shared role canonicalization (strict templates such as Gemma's raise
+// "Conversation roles must alternate..." on any violation). Falls back to
+// inline copies if the shared module is unreachable on a partial deploy.
+let normalizeChatTurns;
+let canonicalizeChatMessages;
+let assertAlternatingChatMessages;
+try {
+  ({
+    normalizeChatTurns,
+    canonicalizeChatMessages,
+    assertAlternatingChatMessages,
+  } = await import('./chat-roles.js'));
+} catch {
+  const coerceRole = (role) => (role === 'assistant' ? 'assistant' : 'user');
+  normalizeChatTurns = (turns) => {
+    const out = [];
+    for (const t of Array.isArray(turns) ? turns : []) {
+      const role = coerceRole(t?.role);
+      const content = String(t?.content ?? '').trim();
+      if (!content) continue;
+      const last = out[out.length - 1];
+      if (last && last.role === role) last.content += '\n\n' + content;
+      else out.push({ role, content });
+    }
+    while (out.length && out[0].role === 'assistant') out.shift();
+    return out;
+  };
+  canonicalizeChatMessages = (messages, appendUserText = '') => {
+    const turns = normalizeChatTurns(messages);
+    const text = appendUserText === undefined || appendUserText === null ? '' : String(appendUserText);
+    if (text.trim()) {
+      const last = turns[turns.length - 1];
+      if (last && last.role === 'user') last.content += `\n\n${text}`;
+      else turns.push({ role: 'user', content: text });
+    }
+    return turns;
+  };
+  assertAlternatingChatMessages = (messages) => {
+    const roles = (Array.isArray(messages) ? messages : []).map(m => m?.role);
+    for (let i = 0; i < roles.length; i++) {
+      const expected = i % 2 === 0 ? 'user' : 'assistant';
+      if (roles[i] !== expected) {
+        throw new Error(`Non-alternating chat roles [${roles.join(', ')}] at index ${i}.`);
+      }
+    }
+    return true;
+  };
+}
+const normalizeTurns = (...args) => normalizeChatTurns(...args);
 const HTML_RESPONSE_ERROR_RE = /Unexpected token '<'|"<!doctype "|<html/i;
 
 const TRANSFORMERS_IMPORT_URLS = [
@@ -120,23 +169,11 @@ const mapThinkTags = (text) =>
   text.replace(/<think>/gi, '<thinking_process>').replace(/<\/think>/gi, '</thinking_process>');
 
 /**
- * Enforces strict user/assistant alternation required by chat templates.
- * Merges consecutive same-role turns, drops empty ones, and strips leading
- * assistant turns (most templates require the first turn to be 'user').
+ * Role normalization lives in ./chat-roles.js (shared with the GGUF worker
+ * and unit-tested); normalizeTurns above is its alias. Strict templates such
+ * as Gemma's raise "Conversation roles must alternate..." on violations, so
+ * both generate paths canonicalize + assert the exact template-bound arrays.
  */
-const normalizeTurns = (turns) => {
-  const out = [];
-  for (const t of Array.isArray(turns) ? turns : []) {
-    const role = t?.role === 'assistant' ? 'assistant' : 'user';
-    const content = String(t?.content ?? '').trim();
-    if (!content) continue;
-    const last = out[out.length - 1];
-    if (last && last.role === role) last.content += '\n\n' + content;
-    else out.push({ role, content });
-  }
-  while (out.length && out[0].role === 'assistant') out.shift();
-  return out;
-};
 
 const loadPipelineModel = async (modelId, quant) => {
   const { pipeline } = await loadTransformers();
@@ -257,13 +294,11 @@ self.onmessage = async (event) => {
       // template families (e.g. Gemma) reject a dedicated 'system' role.
       const sysPrefix = systemPrompt ? `[Instructions]\n${systemPrompt}\n[/Instructions]` : null;
       if (loadedKind === 'pipeline') {
-        const turns = normalizeTurns(history);
-        const messages = turns.map(t => ({ role: t.role, content: t.content }));
-        if (messages.length && messages[messages.length - 1].role === 'user') {
-          messages[messages.length - 1].content += `\n\n${sysPrefix ? `${sysPrefix}\n\n` : ''}${prompt}`;
-        } else {
-          messages.push({ role: 'user', content: sysPrefix ? `${sysPrefix}\n\n${prompt}` : prompt });
-        }
+        const messages = canonicalizeChatMessages(
+          history,
+          `${sysPrefix ? `${sysPrefix}\n\n` : ''}${prompt}`
+        );
+        assertAlternatingChatMessages(messages);
         const output = await pipelineFn(messages, {
           max_new_tokens: 350,
           temperature: 0.7,
@@ -291,6 +326,9 @@ self.onmessage = async (event) => {
         } else {
           conversation.push({ role: 'user', content: contentParts });
         }
+        // Strict templates (Gemma family) raise on any role violation — verify
+        // the exact array bound for the template.
+        assertAlternatingChatMessages(conversation);
 
         const promptText = loadedProcessor.apply_chat_template(conversation, {
           add_generation_prompt: true,

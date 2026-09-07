@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { clearOfflineModelCache, removeDownloadedOfflineModel } from '@/services/offlineLLM';
+import { clearGgufModelCache, isGgufModelId, removeGgufDownloadedModel } from '@/services/ggufLLM';
 import { cn } from '@/lib/utils';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { explainShellCommand } from '@/lib/shellCommandHelp';
@@ -864,15 +865,20 @@ export const AIChat = ({
     model.description.toLowerCase().includes(normalizedModelSearch)
   );
   const downloadedOfflineModelFor = (modelId: string) =>
-    downloadedOfflineModels.find(downloadedModel => downloadedModel.startsWith(`${modelId}@`));
+    downloadedOfflineModels.find(downloadedModel => downloadedModel === modelId || downloadedModel.startsWith(`${modelId}@`));
   const isDownloadingOffline = Object.keys(offlineDownloadStates).length > 0;
   const handleDeleteOfflineModel = async (id: string) => {
     try {
-      await clearOfflineModelCache(id);
-      removeDownloadedOfflineModel(id);
+      if (isGgufModelId(id)) {
+        await clearGgufModelCache(id);
+        removeGgufDownloadedModel(id);
+      } else {
+        await clearOfflineModelCache(id);
+        removeDownloadedOfflineModel(id);
+      }
       toast.success(`${id.split('/').pop()?.split('@')[0] ?? id} removed from this device`);
     } catch (error) {
-      removeDownloadedOfflineModel(id);
+      if (isGgufModelId(id)) removeGgufDownloadedModel(id); else removeDownloadedOfflineModel(id);
       toast.error(`Model unlisted, but cache cleanup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };

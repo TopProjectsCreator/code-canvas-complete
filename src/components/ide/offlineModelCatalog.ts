@@ -1,5 +1,8 @@
 export type OfflineModality = 'text' | 'image' | 'audio' | 'video';
 
+/** Inference runtime: transformers.js pipeline (default) or llama.cpp GGUF via wllama. */
+export type OfflineRuntime = 'transformers' | 'gguf';
+
 export interface OfflineModel {
   id: string;
   name: string;
@@ -7,14 +10,17 @@ export interface OfflineModel {
   size: string;
   provider: string;
   modalities: OfflineModality[];
+  runtime?: OfflineRuntime;
 }
+
+export const isGgufCatalogModel = (m?: OfflineModel) => m?.runtime === 'gguf';
 
 export const modelSupportsImage = (m?: OfflineModel) => !!m?.modalities.includes('image');
 export const modelSupportsAudio = (m?: OfflineModel) => !!m?.modalities.includes('audio');
 export const modelSupportsVideo = (m?: OfflineModel) => !!m?.modalities.includes('video');
 /** Only models loaded through the multimodal (AutoProcessor) path can think. */
 export const modelSupportsThinking = (m?: OfflineModel) =>
-  !!m && m.modalities.some(mod => mod !== 'text');
+  !!m && (m.modalities.some(mod => mod !== 'text') || m.runtime === 'gguf');
 
 export const RECOMMENDED_MODELS: OfflineModel[] = [
   {
@@ -56,6 +62,24 @@ export const RECOMMENDED_MODELS: OfflineModel[] = [
     size: '~3.0 GB',
     provider: 'Alibaba',
     modalities: ['text', 'image'],
+  },
+  {
+    id: 'deepgrove/maple-preview-GGUF',
+    name: 'Maple Preview 20B',
+    description: "DeepGrove's official 20B-A1B ternary reasoning GGUF. Extremely fast on capable desktop GPUs; needs 8GB+ memory and a Maple-capable runtime build.",
+    size: '~5.0 GB',
+    provider: 'DeepGrove',
+    modalities: ['text'],
+    runtime: 'gguf',
+  },
+  {
+    id: 'inclusionAI/Ling-3.0-tiny-GGUF',
+    name: 'Ling 3.0 Tiny',
+    description: "InclusionAI's official 7.9B hybrid reasoning MoE GGUF (1.3B active). Strong agents + coding at low cost; needs 8GB+ memory.",
+    size: '~4.8 GB',
+    provider: 'InclusionAI',
+    modalities: ['text'],
+    runtime: 'gguf',
   },
 ];
 

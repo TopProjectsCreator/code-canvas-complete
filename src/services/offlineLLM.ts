@@ -22,7 +22,7 @@ export interface OfflineChatOptions {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
-const WORKER_URL = '/workers/offline-llm-worker.js?v=20260825-offline-fix1';
+const WORKER_URL = '/workers/offline-llm-worker.js?v=20260906-roles1';
 
 // Watchdogs: how long we tolerate zero activity before declaring a stall and
 // triggering one automatic worker rebuild + retry.

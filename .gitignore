@@ -43,3 +43,8 @@ Assets
 attached-assets/
 # FTC cloud-compile toolchain (self-provisioned JDK + Android SDK + Gradle caches)
 .ftc-toolchain/
+
+# opencode - local-only, never commit to GitHub
+.opencode/
+opencode.json
+opencode.jsonc

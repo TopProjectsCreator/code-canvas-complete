@@ -3,6 +3,7 @@ import {
   Download, CheckCircle2, Info,
   Search, ExternalLink, Cpu, HardDrive, Zap, Sparkles,
   Image as ImageIcon, Mic, Video, Trash2, FolderDown,
+  MonitorSmartphone, ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -23,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { RECOMMENDED_MODELS, type OfflineModel } from './offlineModelCatalog';
+import { checkGgufDeviceCap, type GgufDeviceVerdict } from '@/services/ggufLLM';
 
 export interface OfflineDownloadState {
   model: string;
@@ -66,11 +68,27 @@ export function OfflineModelManager({
 }: OfflineModelManagerProps) {
   const [customModelId, setCustomModelId] = useState('');
   const [selectedQuant, setSelectedQuant] = useState('q4f16');
+  const [deviceVerdict, setDeviceVerdict] = useState<GgufDeviceVerdict | null>(null);
+  const [checkingDevice, setCheckingDevice] = useState(false);
 
   const baseId = currentModelId.includes('@') ? currentModelId.split('@')[0] : currentModelId;
 
+  /** GGUF releases are single-file official builds — no quantization suffix. */
+  const modelIdFor = (model: OfflineModel) =>
+    model.runtime === 'gguf' ? model.id : `${model.id}@${selectedQuant}`;
+
   const handleDownload = (id: string) => {
-    onDownload(`${id}@${selectedQuant}`);
+    const runtime = RECOMMENDED_MODELS.find(m => m.id === id)?.runtime;
+    onDownload(runtime === 'gguf' ? id : `${id}@${selectedQuant}`);
+  };
+
+  const runDeviceCheck = async () => {
+    setCheckingDevice(true);
+    try {
+      setDeviceVerdict(await checkGgufDeviceCap());
+    } finally {
+      setCheckingDevice(false);
+    }
   };
 
   const otherDownloaded = downloadedModels.filter(
@@ -87,9 +105,10 @@ export function OfflineModelManager({
           </DialogTitle>
           <DialogDescription>
             Download and manage language models that run entirely in your browser.
-            Models are downloaded once (~200MB to 3.5GB) and then cached for offline use —
-            you can download several at the same time. Ensure you have a stable internet
-            connection for the initial download.
+            Small models download once (~200MB to 3.5GB) and the large GGUF reasoning
+            models (~5GB, official releases) download once, then all run offline from
+            browser cache — you can download several at the same time. Ensure you have
+            a stable internet connection (Wi-Fi recommended) for the initial download.
           </DialogDescription>
         </DialogHeader>
 
@@ -127,11 +146,12 @@ export function OfflineModelManager({
             </h3>
             <div className="grid gap-3">
               {RECOMMENDED_MODELS.map((model) => {
-                const modelId = `${model.id}@${selectedQuant}`;
+                const modelId = modelIdFor(model);
                 const isDownloaded = downloadedModels.includes(modelId);
                 const dlState = downloadStates[modelId];
                 const isModelDownloading = !!dlState;
-                const isActive = baseId === model.id && currentModelId === modelId;
+                const isActive = baseId === model.id && (currentModelId === modelId || (model.runtime === 'gguf' && baseId === model.id));
+                const isGguf = model.runtime === 'gguf';
                 return (
                   <div
                     key={model.id}
@@ -145,6 +165,11 @@ export function OfflineModelManager({
                         <h4 className="font-medium text-sm flex items-center gap-2">
                           {model.name}
                           <ModalityBadges modalities={model.modalities} />
+                          {isGguf && (
+                            <span className="text-[9px] font-mono bg-violet-500/15 text-violet-300 px-1.5 py-0.5 rounded" title="Official GGUF release, runs via the llama.cpp browser runtime">
+                              GGUF
+                            </span>
+                          )}
                           {isActive && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
                         </h4>
                         <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">{model.description}</p>
@@ -199,6 +224,41 @@ export function OfflineModelManager({
                 );
               })}
             </div>
+          </div>
+
+          {/* Device readiness for the large GGUF models */}
+          <div className="p-3 rounded-lg border border-border bg-card space-y-2">
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <MonitorSmartphone className="w-4 h-4 text-sky-400" />
+              Large-model device check
+            </h3>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Maple Preview 20B and Ling 3.0 Tiny are ~5GB official releases. They need a
+              WebGPU-capable browser and 8GB+ memory (12GB recommended). Phones and tablets
+              are often killed mid-load — check first, or load anyway at your own risk.
+            </p>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5" onClick={runDeviceCheck} disabled={checkingDevice}>
+                <ShieldCheck className="w-3 h-3" />
+                {checkingDevice ? 'Checking…' : 'Check my device'}
+              </Button>
+              {deviceVerdict && (
+                <span className={cn(
+                  "text-[10px] font-medium uppercase tracking-tight",
+                  deviceVerdict.tier === 'full' ? "text-emerald-400" : "text-amber-400"
+                )}>
+                  {deviceVerdict.tier === 'full' ? 'Ready' : 'Limited — load anyway allowed'}
+                </span>
+              )}
+            </div>
+            {deviceVerdict && deviceVerdict.warnings.length > 0 && (
+              <ul className="text-[11px] text-amber-300/90 leading-relaxed list-disc pl-4 space-y-1">
+                {deviceVerdict.warnings.map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+            )}
+            {deviceVerdict && deviceVerdict.warnings.length === 0 && (
+              <p className="text-[11px] text-emerald-400">WebGPU available with plenty of memory. Good to go.</p>
+            )}
           </div>
 
           {/* Your Downloads */}
