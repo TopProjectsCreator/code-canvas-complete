@@ -57,19 +57,12 @@ class FakeGgufWorker {
   }
 }
 
-const MAPLE = 'deepgrove/maple-preview-GGUF';
 const LING = 'inclusionAI/Ling-3.0-tiny-GGUF';
 
 describe('ggufLLM registry (official releases only)', () => {
-  it('exposes the two official GGUF models with verified file identities', async () => {
+  it('exposes the official GGUF model with verified file identity', async () => {
     const { GGUF_MODELS, getGgufModelConfig, isGgufModelId } = await import('@/services/ggufLLM');
-    expect(GGUF_MODELS.length).toBe(2);
-
-    const maple = getGgufModelConfig(MAPLE)!;
-    expect(maple.repo).toBe('deepgrove/maple-preview-GGUF');
-    expect(maple.file).toBe('maple-preview-TQ1_0-head-Q4_K.gguf');
-    expect(maple.arch).toBe('maple');
-    expect(maple.sizeBytes).toBe(4984016416);
+    expect(GGUF_MODELS.length).toBe(1);
 
     const ling = getGgufModelConfig(LING)!;
     expect(ling.repo).toBe('inclusionAI/Ling-3.0-tiny-GGUF');
@@ -77,21 +70,47 @@ describe('ggufLLM registry (official releases only)', () => {
     expect(ling.arch).toBe('bailingmoe3');
     expect(ling.sizeBytes).toBe(4823894944);
 
-    expect(isGgufModelId(MAPLE)).toBe(true);
     expect(isGgufModelId(LING)).toBe(true);
+    // Maple lives on its own WebGPU engine now, never on the GGUF road.
+    expect(isGgufModelId('deepgrove/maple-preview-GGUF')).toBe(false);
+    expect(isGgufModelId('deepgrove/maple-preview-webgpu')).toBe(false);
     expect(isGgufModelId('onnx-community/Qwen3.5-0.8B-ONNX@q4f16')).toBe(false);
     expect(isGgufModelId('some/random-model')).toBe(false);
   });
 
-  it('marks both GGUF catalog entries as thinking-capable text models', async () => {
+  it('marks the GGUF catalog entry as a thinking-capable text model', async () => {
     const { RECOMMENDED_MODELS, modelSupportsThinking, getOfflineModelById } = await import('@/components/ide/offlineModelCatalog');
-    for (const id of [MAPLE, LING]) {
-      const entry = getOfflineModelById(id);
-      expect(entry).toBeDefined();
-      expect(entry!.runtime).toBe('gguf');
-      expect(RECOMMENDED_MODELS).toContain(entry);
-      expect(modelSupportsThinking(entry)).toBe(true);
-    }
+    const entry = getOfflineModelById(LING);
+    expect(entry).toBeDefined();
+    expect(entry!.runtime).toBe('gguf');
+    expect(RECOMMENDED_MODELS).toContain(entry);
+    expect(modelSupportsThinking(entry)).toBe(true);
+  });
+
+  it('resolves the Maple CPU tier outside the catalog (slow machines)', async () => {
+    const { resolveGgufConfig, MAPLE_CPU_GGUF_ID, isGgufModelId } = await import('@/services/ggufLLM');
+    const cpu = resolveGgufConfig(MAPLE_CPU_GGUF_ID)!;
+    expect(cpu.repo).toBe('deepgrove/maple-preview-GGUF');
+    expect(cpu.file).toBe('maple-preview-TQ1_0-head-Q4_K.gguf');
+    expect(cpu.arch).toBe('maple');
+    expect(cpu.wasmUrls).toEqual(['/wllama-maple/wllama.wasm']);
+    expect(cpu.nGpuLayers).toBe(0);
+    expect(cpu.thinking).toBe(false);
+    // No-thought template: same official template minus the forced opener.
+    expect(cpu.chatTemplate).toContain(`'<|im_start|>assistant\\n'`);
+    expect(cpu.chatTemplate).not.toContain(`'<|im_start|>assistant\\n<think>\\n'`);
+    // The catalog stays stock-runtime-only; the CPU tier is opt-in by id.
+    expect(isGgufModelId(MAPLE_CPU_GGUF_ID)).toBe(false);
+  });
+
+
+  it('marks the Maple catalog entry as thinking-capable on its own engine', async () => {
+    const { modelSupportsThinking, getOfflineModelById } = await import('@/components/ide/offlineModelCatalog');
+    const { MAPLE_MODEL_ID } = await import('@/services/mapleWebGPU');
+    const entry = getOfflineModelById(MAPLE_MODEL_ID);
+    expect(entry).toBeDefined();
+    expect(entry!.runtime).toBe('maple');
+    expect(modelSupportsThinking(entry)).toBe(true);
   });
 });
 
@@ -192,13 +211,13 @@ describe('ggufLLM manager', () => {
 
   it('passes thinking + sampling config through to the worker', async () => {
     const llm = await loadService();
-    const initP = llm.initialize(MAPLE, undefined, undefined, true);
+    const initP = llm.initialize(LING, undefined, undefined, true);
     await pump(20);
     await initP;
     const initMsg = FakeGgufWorker.instances[0].lastMessage!;
     expect((initMsg.config as { enableThinking: boolean }).enableThinking).toBe(true);
 
-    const p = llm.chat(MAPLE, 'reason carefully', { enableThinking: true });
+    const p = llm.chat(LING, 'reason carefully', { enableThinking: true, maxTokens: 1024 });
     await pump(20);
     await expect(p).resolves.toBe('Hello from GGUF');
     const genMsg = FakeGgufWorker.instances[FakeGgufWorker.instances.length - 1].lastMessage!;
@@ -226,6 +245,19 @@ describe('ggufLLM manager', () => {
     await expect(p).resolves.toBe('Hello from GGUF');
     expect(FakeGgufWorker.instances.length).toBeGreaterThanOrEqual(2);
     expect(FakeGgufWorker.instances[0].terminated).toBe(true);
+  });
+
+  it('passes the CPU translator + template through on Maple CPU init', async () => {
+    const { MAPLE_CPU_GGUF_ID } = await import('@/services/ggufLLM');
+    const llm = await loadService();
+    const initP = llm.initialize(MAPLE_CPU_GGUF_ID);
+    await pump(20);
+    await initP;
+    const initMsg = FakeGgufWorker.instances[FakeGgufWorker.instances.length - 1].lastMessage!;
+    const config = initMsg.config as { wasmUrls?: string[]; chatTemplate?: string; n_gpu_layers?: number };
+    expect(config.wasmUrls).toEqual(['/wllama-maple/wllama.wasm']);
+    expect(typeof config.chatTemplate).toBe('string');
+    expect(config.n_gpu_layers).toBe(0);
   });
 
   it('rejects unknown model ids without touching a worker', async () => {

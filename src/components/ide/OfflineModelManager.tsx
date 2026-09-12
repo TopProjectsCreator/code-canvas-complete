@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { RECOMMENDED_MODELS, type OfflineModel } from './offlineModelCatalog';
 import { checkGgufDeviceCap, type GgufDeviceVerdict } from '@/services/ggufLLM';
+import { checkMapleDevice, type MapleDeviceVerdict } from '@/services/mapleWebGPU';
 
 export interface OfflineDownloadState {
   model: string;
@@ -69,23 +70,25 @@ export function OfflineModelManager({
   const [customModelId, setCustomModelId] = useState('');
   const [selectedQuant, setSelectedQuant] = useState('q4f16');
   const [deviceVerdict, setDeviceVerdict] = useState<GgufDeviceVerdict | null>(null);
+  const [mapleVerdict, setMapleVerdict] = useState<MapleDeviceVerdict | null>(null);
   const [checkingDevice, setCheckingDevice] = useState(false);
 
   const baseId = currentModelId.includes('@') ? currentModelId.split('@')[0] : currentModelId;
 
-  /** GGUF releases are single-file official builds — no quantization suffix. */
+  /** GGUF and Maple releases are single-file official builds — no quantization suffix. */
   const modelIdFor = (model: OfflineModel) =>
-    model.runtime === 'gguf' ? model.id : `${model.id}@${selectedQuant}`;
+    model.runtime === 'gguf' || model.runtime === 'maple' ? model.id : `${model.id}@${selectedQuant}`;
 
   const handleDownload = (id: string) => {
     const runtime = RECOMMENDED_MODELS.find(m => m.id === id)?.runtime;
-    onDownload(runtime === 'gguf' ? id : `${id}@${selectedQuant}`);
+    onDownload(runtime === 'gguf' || runtime === 'maple' ? id : `${id}@${selectedQuant}`);
   };
 
   const runDeviceCheck = async () => {
     setCheckingDevice(true);
     try {
       setDeviceVerdict(await checkGgufDeviceCap());
+      setMapleVerdict(await checkMapleDevice());
     } finally {
       setCheckingDevice(false);
     }
@@ -150,8 +153,9 @@ export function OfflineModelManager({
                 const isDownloaded = downloadedModels.includes(modelId);
                 const dlState = downloadStates[modelId];
                 const isModelDownloading = !!dlState;
-                const isActive = baseId === model.id && (currentModelId === modelId || (model.runtime === 'gguf' && baseId === model.id));
+                const isActive = baseId === model.id && (currentModelId === modelId || ((model.runtime === 'gguf' || model.runtime === 'maple') && baseId === model.id));
                 const isGguf = model.runtime === 'gguf';
+                const isMaple = model.runtime === 'maple';
                 return (
                   <div
                     key={model.id}
@@ -168,6 +172,11 @@ export function OfflineModelManager({
                           {isGguf && (
                             <span className="text-[9px] font-mono bg-violet-500/15 text-violet-300 px-1.5 py-0.5 rounded" title="Official GGUF release, runs via the llama.cpp browser runtime">
                               GGUF
+                            </span>
+                          )}
+                          {isMaple && (
+                            <span className="text-[9px] font-mono bg-emerald-500/15 text-emerald-300 px-1.5 py-0.5 rounded" title="Runs in your browser on its own WebGPU engine — no install needed">
+                              WebGPU
                             </span>
                           )}
                           {isActive && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
@@ -233,7 +242,8 @@ export function OfflineModelManager({
               Large-model device check
             </h3>
             <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Maple Preview 20B and Ling 3.0 Tiny are ~5GB official releases. They need a
+              Maple Preview 20B runs on its own WebGPU engine (~5.3GB, official weights)
+              and Ling 3.0 Tiny is a ~4.8GB official release. Both need a
               WebGPU-capable browser and 8GB+ memory (12GB recommended). Phones and tablets
               are often killed mid-load — check first, or load anyway at your own risk.
             </p>
@@ -258,6 +268,16 @@ export function OfflineModelManager({
             )}
             {deviceVerdict && deviceVerdict.warnings.length === 0 && (
               <p className="text-[11px] text-emerald-400">WebGPU available with plenty of memory. Good to go.</p>
+            )}
+            {mapleVerdict && (
+              <p className={cn(
+                "text-[11px] leading-relaxed",
+                mapleVerdict.supported ? "text-emerald-400" : "text-red-400"
+              )}>
+                {mapleVerdict.supported
+                  ? `Maple engine: ready${mapleVerdict.adapterLabel ? ` (${mapleVerdict.adapterLabel})` : ''}${mapleVerdict.mobile ? ' — tablet/phone memory is tight, load anyway at your own risk.' : '.'}${mapleVerdict.warning ? ` ${mapleVerdict.warning}` : ''}`
+                  : `Maple engine: ${mapleVerdict.reason || 'this device cannot run Maple.'}`}
+              </p>
             )}
           </div>
 

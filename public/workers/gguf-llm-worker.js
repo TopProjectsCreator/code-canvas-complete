@@ -5,12 +5,12 @@
  * Official weight sources only — no conversions, no third-party repacks:
  *   - inclusionAI/Ling-3.0-tiny-GGUF (arch bailingmoe3, Q4_K_M ~4.82GB)
  *     runs on the stock pinned runtime below.
- *   - deepgrove/maple-preview-GGUF (arch maple, TQ1_0-head-Q4_K ~4.98GB)
- *     needs a Maple-capable WASM built from the official
- *     deepgrove-ai/llama.cpp fork. The stock runtime below does NOT contain
- *     the maple architecture, so Maple loads fail with an explicit,
- *     actionable error. A fork-built WASM can be dropped in later via the
- *     `wasmUrls` init override with zero worker changes.
+ *
+ * Maple Preview does NOT use this worker: the stock runtime has no `maple`
+ * architecture, so Maple runs on its own custom WebGPU engine (see
+ * src/services/mapleWebGPU.ts). A stray `maple` GGUF id reaching this worker
+ * still fails fast with an explicit, actionable error instead of burning a
+ * ~5GB download — that preflight is a safety net, not a supported path.
  *
  * Protocol mirrors offline-llm-worker.js OfflineEvents:
  *   in:  {type:'init', model, requestId, config:{repo,file,n_ctx,
@@ -87,8 +87,8 @@ try {
   // without the shared module the full preflight is skipped and the runtime
   // surfaces the real load error instead.
   probeGgufArch = async () => ({ arch: '', skipped: true });
-  checkGgufArchSupported = (arch) => {
-    if (arch === 'maple') {
+  checkGgufArchSupported = (arch, opts = {}) => {
+    if (arch === 'maple' && !opts.allowUnsupported) {
       throw new Error(`Maple-Preview needs a Maple-capable browser runtime (this runtime has no 'maple' model backend).`);
     }
     return true;
@@ -166,14 +166,19 @@ const ensureLoaded = async (config, onProgress) => {
 
   // Preflight: fail fast on deterministically-unsupported architectures
   // (verified: 'maple' has no backend in the stock runtime) instead of
-  // burning a ~5GB download first. Probe failures are NON-FATAL so cached /
-  // offline loads keep working with no network.
+  // burning a ~5GB download first. A custom translator build passed as
+  // `wasmUrls` satisfies the requirement, so it exempts the block.
+  // Probe failures are NON-FATAL so cached / offline loads keep working.
   try {
     onProgress(0, 'Checking model compatibility...');
   } catch { /* listener gone */ }
   try {
     const info = await probeGgufArch(config.repo, config.file, { origin: wllamaOrigin() });
-    if (info && !info.skipped && info.arch) checkGgufArchSupported(info.arch);
+    if (info && !info.skipped && info.arch) {
+      checkGgufArchSupported(info.arch, {
+        allowUnsupported: Array.isArray(config.wasmUrls) && config.wasmUrls.length > 0,
+      });
+    }
   } catch (error) {
     if (error && /Maple-capable browser runtime/.test(String(error.message || ''))) throw error;
     // Probe unreachable (offline cache use, firewall) — continue to normal load.
@@ -194,6 +199,9 @@ const ensureLoaded = async (config, onProgress) => {
     n_ctx: config.n_ctx || 4096,
     n_threads: config.n_threads,
     n_gpu_layers: config.n_gpu_layers,
+    // CPU-tier overrides (e.g. Maple without thinking): a full replacement
+    // chat template plus any other load tuning the service provides.
+    ...(typeof config.chatTemplate === 'string' && config.chatTemplate ? { chat_template: config.chatTemplate } : {}),
     ...(thinking ? { default_template_kwargs: { enable_thinking: true } } : {}),
   };
   const downloadOpts = {
@@ -260,12 +268,28 @@ self.onmessage = async (event) => {
       try {
         const { Wllama } = await loadWllama();
         const tmp = new Wllama({ default: await pickWasmUrl(defaultWasmUrls()) }, { allowOffline: true });
-        const target = event.data.config?.file || '';
-        if (target && tmp.cacheManager?.delete) {
+        const repo = event.data.config?.repo || '';
+        const file = event.data.config?.file || '';
+        // The cache keys entries by hash(full download URL), so a bare filename
+        // never matches — delete by the full URL (direct + proxy variants) and
+        // keep the bare name as a best-effort fallback.
+        const candidates = [
+          file && repo ? `https://huggingface.co/${repo}/resolve/main/${file}` : '',
+          file || '',
+        ].filter(Boolean);
+        for (const target of candidates) {
           try { await tmp.cacheManager.delete(target); } catch { /* best effort */ }
-        } else if (tmp.cacheManager?.clear) {
-          // No filename given: only clear entries for this repo prefix is unsupported, so skip global clear.
         }
+        // Also drop the metadata entry wllama keeps alongside each file.
+        try {
+          const list = await tmp.cacheManager.list?.();
+          for (const entry of Array.isArray(list) ? list : []) {
+            const name = entry?.name || '';
+            if (file && name.endsWith(file)) {
+              try { await tmp.cacheManager.delete(name); } catch { /* best effort */ }
+            }
+          }
+        } catch { /* listing is optional */ }
       } catch { /* best effort */ }
       await destroyInstance();
       post({ type: 'cache-cleared', requestId });
@@ -277,17 +301,19 @@ self.onmessage = async (event) => {
       if (!config.repo || !config.file) throw new Error('GGUF model is not initialized yet.');
       const wllama = await ensureLoaded(config, (progress, text) => post({ type: 'progress', progress, text }));
       const history = Array.isArray(event.data.history) ? event.data.history : [];
-      const sysPrefix = event.data.systemPrompt
-        ? `[Instructions]\n${event.data.systemPrompt}\n[/Instructions]`
-        : null;
+      // llama.cpp templates (unlike Gemma's ONNX template) accept a real leading
+      // 'system' turn — Ling's template even has a dedicated branch for it — so
+      // instructions ride as system instead of being squished into the question.
+      const sysText = event.data.systemPrompt ? String(event.data.systemPrompt) : '';
       const prompt = String(event.data.prompt ?? '');
-      const messages = canonicalizeChatMessages(
-        history,
-        sysPrefix ? `${sysPrefix}\n\n${prompt}` : prompt
-      );
-      // Strict templates raise on any role violation — verify the exact
-      // array bound for the chat template.
-      assertAlternatingChatMessages(messages);
+      const tail = canonicalizeChatMessages(history, prompt);
+      const messages = sysText.trim()
+        ? [{ role: 'system', content: sysText }, ...tail]
+        : tail;
+      // Strict templates raise on any role violation — verify the exact array
+      // bound for the chat template (the leading system turn is exempt: these
+      // templates explicitly allow one).
+      assertAlternatingChatMessages(sysText.trim() && messages[0]?.role === 'system' ? messages.slice(1) : messages);
 
       const stream = await wllama.createChatCompletion({
         messages,

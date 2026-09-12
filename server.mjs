@@ -2862,7 +2862,16 @@ app.use((req, res, next) => {
 
 const distPath = path.join(__dirname, 'dist');
 if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
+  // COOP/COEP: the browser translators (wllama threads, including the Maple
+  // CPU build) need SharedArrayBuffer, which browsers only enable under these
+  // headers. Mirrors the Vite dev server config. WASM MIME pinned explicitly.
+  app.use(express.static(distPath, {
+    setHeaders: (res, filePath) => {
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+      res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+      if (filePath.endsWith('.wasm')) res.setHeader('Content-Type', 'application/wasm');
+    },
+  }));
   app.get(/.*/, (req, res) => {
     if (!req.path.startsWith('/api/')) {
       res.sendFile(path.join(distPath, 'index.html'));

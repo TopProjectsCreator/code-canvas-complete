@@ -20,6 +20,7 @@ import {
   getOfflineThinkingEnabled, setOfflineThinkingEnabled as setOfflineThinkingService,
 } from '@/services/offlineLLM';
 import { ggufLLM, ggufDownloads, isGgufModelId } from '@/services/ggufLLM';
+import { mapleLLM, mapleDownloads, isMapleModelId, MAPLE_MODEL_ID, MAPLE_LEGACY_GGUF_ID, selectMapleTier, initializeMapleCpu, chatMapleCpu, downloadMapleCpu } from '@/services/mapleWebGPU';
 import { RECOMMENDED_MODELS, modelSupportsImage, modelSupportsAudio, modelSupportsVideo, modelSupportsThinking, OFFLINE_SYSTEM_PROMPT, OFFLINE_TOOL_DEFINITIONS } from '@/components/ide/offlineModelCatalog';
 import { normalizeChatTurns } from '@/lib/chatRoles';
 
@@ -206,7 +207,11 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
   const [byokModel, setByokModel] = useState<string | null>(null);
   const [byokBaseUrl, setByokBaseUrl] = useState<string | null>(null);
   const [offlineModeEnabled, setOfflineModeEnabledState] = useState<boolean>(() => getOfflineModeEnabled());
-  const [offlineModelId, setOfflineModelIdState] = useState<string>(() => getSavedOfflineModel());
+  const [offlineModelId, setOfflineModelIdState] = useState<string>(() => {
+    // Migrate the old Maple GGUF-road id: that backend was never functional.
+    const saved = getSavedOfflineModel();
+    return saved.split('@')[0] === MAPLE_LEGACY_GGUF_ID ? MAPLE_MODEL_ID : saved;
+  });
   const [chatOnlyMode, setChatOnlyModeState] = useState<boolean>(() => getChatOnlyMode());
   const [offlineDownloadStates, setOfflineDownloadStates] = useState<Record<string, { model: string; status: string; progress: number }>>({});
   const [offlineThinkingEnabled, setOfflineThinkingEnabledState] = useState<boolean>(() => getOfflineThinkingEnabled());
@@ -223,15 +228,24 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
     return () => window.removeEventListener(offlineModelUpdatedEvent, refreshDownloadedModels);
   }, []);
 
-  // Mirror both download managers' state (one entry per in-flight download).
+  // Mirror all download managers' state (one entry per in-flight download).
+  // The Maple CPU tier files its progress under the legacy GGUF id — remap it
+  // to the canonical Maple id so the UI shows one entry, not two.
   useEffect(() => {
-    const merge = () => setOfflineDownloadStates({
-      ...(typeof offlineDownloads.snapshot === 'function' ? offlineDownloads.snapshot() : {}),
-      ...(typeof ggufDownloads.snapshot === 'function' ? ggufDownloads.snapshot() : {}),
-    });
+    const merge = () => {
+      const ggufSnap = typeof ggufDownloads.snapshot === 'function' ? ggufDownloads.snapshot() : {};
+      const { [MAPLE_LEGACY_GGUF_ID]: mapleCpuState, ...restGguf } = ggufSnap as Record<string, { model: string; status: string; progress: number }>;
+      setOfflineDownloadStates({
+        ...(typeof offlineDownloads.snapshot === 'function' ? offlineDownloads.snapshot() : {}),
+        ...restGguf,
+        ...(typeof mapleDownloads.snapshot === 'function' ? mapleDownloads.snapshot() : {}),
+        ...(mapleCpuState ? { [MAPLE_MODEL_ID]: { ...mapleCpuState, model: MAPLE_MODEL_ID } } : {}),
+      });
+    };
     const unsubA = offlineDownloads.subscribe(() => merge());
     const unsubB = ggufDownloads.subscribe(() => merge());
-    return () => { unsubA(); unsubB(); };
+    const unsubC = mapleDownloads.subscribe(() => merge());
+    return () => { unsubA(); unsubB(); unsubC(); };
   }, []);
 
   // Latest-callback refs so long-running async handlers never read stale props.
@@ -1213,7 +1227,11 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
 
   const downloadOfflineModel = useCallback(async (model: string) => {
     try {
-      if (isGgufModelId(model)) {
+      if (isMapleModelId(model)) {
+        const tier = await selectMapleTier();
+        if (tier === 'cpu') await downloadMapleCpu();
+        else await mapleDownloads.download(model);
+      } else if (isGgufModelId(model)) {
         await ggufDownloads.download(model);
       } else {
         await offlineDownloads.download(model);
@@ -1287,11 +1305,23 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
       const catalogMatch = RECOMMENDED_MODELS.find(m => m.id === offlineModelId.split('@')[0]);
       // GGUF models (official llama.cpp releases) run on a separate wllama worker.
       const useGgufBackend = isGgufModelId(offlineModelId);
-      const thinkingOn = offlineThinkingEnabled && modelSupportsThinking(catalogMatch);
+      // Maple Preview runs on its own custom WebGPU engine (never the GGUF road).
+      const useMapleBackend = isMapleModelId(offlineModelId);
+      // Maple always reasons — the toggle only shows/hides the thought text.
+      const thinkingOn = useMapleBackend || (offlineThinkingEnabled && modelSupportsThinking(catalogMatch));
+      let mapleTier: 'webgpu' | 'cpu' = 'webgpu';
 
       try {
         setCurrentStep('Loading offline model...');
-        if (useGgufBackend) {
+        if (useMapleBackend) {
+          mapleTier = await selectMapleTier();
+          if (mapleTier === 'cpu') {
+            setCurrentStep('Loading Maple (CPU mode — slow, thinking off)...');
+            await initializeMapleCpu(setCurrentStep, undefined);
+          } else {
+            await mapleLLM.initialize(setCurrentStep, undefined);
+          }
+        } else if (useGgufBackend) {
           await ggufLLM.initialize(offlineModelId, setCurrentStep, undefined, thinkingOn);
         } else {
           await offlineLLM.initialize(offlineModelId, setCurrentStep);
@@ -1363,22 +1393,29 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
         setMessages(prev => [...prev, { id: assistantId, role: 'assistant' as const, content: '', isStreaming: true }]);
 
         let full = '';
+        const streamInto = (delta: string) => {
+          full += delta;
+          paintOfflineStream(assistantId, full);
+        };
         const chatOpts = {
           enableThinking: thinkingOn,
           systemPrompt: OFFLINE_SYSTEM_PROMPT,
           history: offlineHistory,
-          onToken: (delta: string) => {
-            full += delta;
-            paintOfflineStream(assistantId, full);
-          },
+          onToken: streamInto,
         };
-        let localReply = useGgufBackend
-          ? await ggufLLM.chat(offlineModelId, enrichedPrompt, chatOpts)
-          : await offlineLLM.chat(enrichedPrompt, {
-            images: usableImages,
-            audio: useAudio,
-            ...chatOpts,
-          });
+        // Thinking models need room for the thought AND the answer in one reply.
+        const ggufOpts = { ...chatOpts, maxTokens: thinkingOn ? 1024 : 512 };
+        let localReply = useMapleBackend
+          ? mapleTier === 'cpu'
+            ? await chatMapleCpu(enrichedPrompt, chatOpts)
+            : await mapleLLM.chat(enrichedPrompt, chatOpts)
+          : useGgufBackend
+            ? await ggufLLM.chat(offlineModelId, enrichedPrompt, ggufOpts)
+            : await offlineLLM.chat(enrichedPrompt, {
+              images: usableImages,
+              audio: useAudio,
+              ...chatOpts,
+            });
 
         let finalText = (localReply && localReply !== 'No response generated.') ? localReply : full;
 
@@ -1408,17 +1445,19 @@ export const useAgentChat = ({ onCodeChange, onApplyCode, onCreateWorkflow, onIn
             enableThinking: thinkingOn,
             systemPrompt: OFFLINE_SYSTEM_PROMPT,
             history: retryHistory,
-            onToken: (delta: string) => {
-              full += delta;
-              paintOfflineStream(assistantId, full);
-            },
+            onToken: streamInto,
           };
-          localReply = useGgufBackend
-            ? await ggufLLM.chat(offlineModelId, toolOutput, retryOpts)
-            : await offlineLLM.chat(toolOutput, {
-              images: usableImages,
-              audio: useAudio,
-              ...retryOpts,
+          const ggufRetryOpts = { ...retryOpts, maxTokens: thinkingOn ? 1024 : 512 };
+          localReply = useMapleBackend
+            ? mapleTier === 'cpu'
+              ? await chatMapleCpu(toolOutput, retryOpts)
+              : await mapleLLM.chat(toolOutput, retryOpts)
+            : useGgufBackend
+              ? await ggufLLM.chat(offlineModelId, toolOutput, ggufRetryOpts)
+              : await offlineLLM.chat(toolOutput, {
+                images: usableImages,
+                audio: useAudio,
+                ...retryOpts,
             });
           finalText = (localReply && localReply !== 'No response generated.') ? localReply : full;
         }

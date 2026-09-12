@@ -5,9 +5,10 @@
  *
  * Source of truth: node_modules/@wllama/wllama (v3.6.1, stock upstream build).
  * That build supports bailingmoe3 (Ling-3.0-tiny-GGUF, official) but does NOT
- * contain the `maple` architecture — Maple loads will fail with an explicit
- * unsupported-architecture error until a Maple-capable WASM (built from the
- * official deepgrove-ai/llama.cpp fork) is provided via MAPLE_WASM_URLS.
+ * contain the `maple` architecture. Maple Preview does not use this runtime at
+ * all — it runs on its own custom WebGPU engine (see src/services/mapleWebGPU.ts
+ * and src/vendor/maple/); a `maple` GGUF id reaching the wllama worker still
+ * fails fast with an explicit unsupported-architecture error by design.
  *
  * Usage: node scripts/sync-wllama-assets.mjs
  */

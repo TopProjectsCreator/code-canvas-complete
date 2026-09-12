@@ -12,11 +12,11 @@ import {
  * Official weight sources only. No conversions, no third-party repacks:
  *   - inclusionAI/Ling-3.0-tiny-GGUF (bailingmoe3, Q4_K_M, ~4.82GB):
  *     supported by the pinned stock runtime.
- *   - deepgrove/maple-preview-GGUF (maple, TQ1_0-head-Q4_K, ~4.98GB):
- *     needs a Maple-capable WASM built from the official
- *     deepgrove-ai/llama.cpp fork. Until then loads fail with an explicit
- *     actionable error (see worker). A fork-built WASM drops into
- *     `wasmUrls` with zero code changes.
+ *
+ * Maple Preview 20B intentionally lives elsewhere: the stock runtime has no
+ * `maple` backend, so Maple runs on its own custom WebGPU engine — see
+ * src/services/mapleWebGPU.ts. A `maple` GGUF id reaching this backend fails
+ * with an explicit actionable error (see worker preflight).
  */
 
 export interface GgufModelConfig {
@@ -37,26 +37,15 @@ export interface GgufModelConfig {
   /** Model natively reasons (thinking / enable_thinking template kwarg). */
   thinking: boolean;
   requiresGgufRuntime: boolean;
+  /** Custom translator build (exempts the arch preflight — the stock runtime lacks it). */
+  wasmUrls?: string[];
+  /** Full replacement chat template (e.g. Maple CPU tier without the forced thought prefix). */
+  chatTemplate?: string;
+  /** Forced GPU layer offload (0 = CPU only). Undefined = runtime default. */
+  nGpuLayers?: number;
 }
 
 export const GGUF_MODELS: GgufModelConfig[] = [
-  {
-    id: 'deepgrove/maple-preview-GGUF',
-    name: 'Maple Preview 20B',
-    description:
-      "DeepGrove's 20B-A1B ternary reasoning model (official GGUF). Extremely fast on capable GPUs; needs a Maple-capable runtime build — see status message if load fails.",
-    size: '~5.0 GB',
-    sizeBytes: 4984016416,
-    provider: 'DeepGrove',
-    repo: 'deepgrove/maple-preview-GGUF',
-    file: 'maple-preview-TQ1_0-head-Q4_K.gguf',
-    arch: 'maple',
-    nCtx: 4096,
-    temperature: 1.0,
-    top_p: 0.95,
-    thinking: true,
-    requiresGgufRuntime: true,
-  },
   {
     id: 'inclusionAI/Ling-3.0-tiny-GGUF',
     name: 'Ling 3.0 Tiny',
@@ -83,8 +72,144 @@ export const getGgufModelConfig = (id: string): GgufModelConfig | undefined => {
 
 export const isGgufModelId = (id: string) => getGgufModelConfig(id) !== undefined;
 
-/** Override URLs for a Maple-capable WASM (official fork build). Unset by default. */
-export const MAPLE_WASM_URLS: string[] = [];
+// --- Maple CPU tier (slow machines without usable WebGPU) -------------------
+// The stock runtime has no `maple` backend, so this entry pairs the official
+// GGUF weights with the custom translator built from DeepGrove's official
+// code (see scripts/build-maple-wasm.mjs — output self-hosted under
+// public/wllama-maple/). Thinking is OFF here by design: at CPU speeds a
+// thought prefix would stall every answer, so the template below is the
+// official one with only the forced `<think>` opener removed.
+
+/** Legacy catalog id, reused as the CPU-tier key (migrated in mapleWebGPU.ts). */
+export const MAPLE_CPU_GGUF_ID = 'deepgrove/maple-preview-GGUF';
+
+/** Self-hosted translator; missing file degrades to a clear install message. */
+export const MAPLE_CPU_WASM_URLS: string[] = ['/wllama-maple/wllama.wasm'];
+
+/**
+ * Official Maple chat template with the forced thought prefix removed.
+ * Everything else is byte-identical to deepgrove/maple-preview's
+ * chat_template.jinja, so no new template constructs are introduced.
+ */
+export const MAPLE_CPU_NO_THINK_TEMPLATE = `{%- if tools %}
+    {{- '<|im_start|>system\\n' }}
+    {%- if messages[0].role == 'system' %}
+        {{- messages[0].content + '\\n\\n' }}
+    {%- endif %}
+    {{- '# Tools\\n\\nYou may call one or more functions to assist with the user query.\\n\\nYou are provided with function signatures within <tools></tools> XML tags:\\n<tools>' }}
+    {%- for tool in tools %}
+        {{- '\\n' }}
+        {{- tool | tojson }}
+    {%- endfor %}
+    {{- '\\n</tools>\\n\\nFor each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:\\n<tool_call>\\n{\\"name\\": <function-name>, \\"arguments\\": <args-json-object>}\\n</tool_call><|im_end|>\\n' }}
+{%- else %}
+    {%- if messages[0].role == 'system' %}
+        {{- '<|im_start|>system\\n' + messages[0].content + '<|im_end|>\\n' }}
+    {%- endif %}
+{%- endif %}
+
+
+{%- for message in messages %}
+    {%- if message.content is string %}
+        {%- set content = message.content %}
+    {%- else %}
+        {%- set content = '' %}
+    {%- endif %}
+
+    {%- if message.role == 'user' or (message.role == 'system' and not loop.first) %}
+        {{- '<|im_start|>' + message.role + '\\n' + content + '<|im_end|>\\n' }}
+
+    {%- elif message.role == 'assistant' %}
+        {%- set reasoning_content = '' %}
+
+        {%- if message.reasoning_content is string %}
+            {%- set reasoning_content = message.reasoning_content %}
+        {%- elif '</think>' in content %}
+            {%- set reasoning_content = content.split('</think>')[0].rstrip('\\n').split('<think>')[-1].lstrip('\\n') %}
+            {%- set content = content.split('</think>')[-1].lstrip('\\n') %}
+        {%- endif %}
+
+        {%- if reasoning_content %}
+            {{- '<|im_start|>' + message.role + '\\n<think>\\n' + reasoning_content.strip('\\n') + '\\n</think>\\n\\n' + content.lstrip('\\n') }}
+        {%- else %}
+            {{- '<|im_start|>' + message.role + '\\n' + content }}
+        {%- endif %}
+
+        {%- if message.tool_calls %}
+            {%- for tool_call in message.tool_calls %}
+                {%- if (loop.first and content) or not loop.first %}
+                    {{- '\\n' }}
+                {%- endif %}
+
+                {%- if tool_call.function %}
+                    {%- set tool_call = tool_call.function %}
+                {%- endif %}
+
+                {{- '<tool_call>\\n{\\"name\\": \\"' }}
+                {{- tool_call.name }}
+                {{- '\\", \\"arguments\\": ' }}
+
+                {%- if tool_call.arguments is string %}
+                    {{- tool_call.arguments }}
+                {%- else %}
+                    {{- tool_call.arguments | tojson }}
+                {%- endif %}
+
+                {{- '}\\n</tool_call>' }}
+            {%- endfor %}
+        {%- endif %}
+
+        {{- '<|im_end|>\\n' }}
+
+    {%- elif message.role == 'tool' %}
+        {%- if loop.first or messages[loop.index0 - 1].role != 'tool' %}
+            {{- '<|im_start|>user' }}
+        {%- endif %}
+
+        {{- '\\n<tool_response>\\n' }}
+        {{- content }}
+        {{- '\\n</tool_response>' }}
+
+        {%- if loop.last or messages[loop.index0 + 1].role != 'tool' %}
+            {{- '<|im_end|>\\n' }}
+        {%- endif %}
+    {%- endif %}
+{%- endfor %}
+
+{%- if add_generation_prompt %}
+    {{- '<|im_start|>assistant\\n' }}
+{%- endif %}
+`;
+
+const MAPLE_CPU_CONFIG: GgufModelConfig = {
+  id: MAPLE_CPU_GGUF_ID,
+  name: 'Maple Preview 20B (CPU)',
+  description: 'Maple on slow machines without WebGPU: official GGUF plus the custom CPU translator. Thinking off, short answers.',
+  size: '~4.6 GB',
+  sizeBytes: 4984016416,
+  provider: 'DeepGrove',
+  repo: 'deepgrove/maple-preview-GGUF',
+  file: 'maple-preview-TQ1_0-head-Q4_K.gguf',
+  arch: 'maple',
+  nCtx: 2048,
+  temperature: 1.0,
+  top_p: 0.95,
+  thinking: false,
+  requiresGgufRuntime: true,
+  wasmUrls: MAPLE_CPU_WASM_URLS,
+  chatTemplate: MAPLE_CPU_NO_THINK_TEMPLATE,
+  nGpuLayers: 0,
+};
+
+/**
+ * Full config lookup: catalog models plus the Maple CPU tier (kept out of
+ * GGUF_MODELS so catalog/routing never mistake it for a stock-runtime model).
+ */
+export const resolveGgufConfig = (id: string): GgufModelConfig | undefined => {
+  const catalog = getGgufModelConfig(id);
+  if (catalog) return catalog;
+  return id.split('@')[0] === MAPLE_CPU_GGUF_ID ? MAPLE_CPU_CONFIG : undefined;
+};
 
 const GGUF_WORKER_URL = '/workers/gguf-llm-worker.js?v=20260906-gguf2';
 
@@ -153,7 +278,7 @@ class GgufLLMManager {
   };
 
   private buildConfig(rawModel: string, enableThinking: boolean) {
-    const config = getGgufModelConfig(rawModel);
+    const config = resolveGgufConfig(rawModel);
     if (!config) throw new Error(`Unknown GGUF model: ${rawModel}`);
     return {
       repo: config.repo,
@@ -162,12 +287,14 @@ class GgufLLMManager {
       temperature: config.temperature,
       top_p: config.top_p,
       enableThinking,
-      ...(config.arch === 'maple' && MAPLE_WASM_URLS.length ? { wasmUrls: MAPLE_WASM_URLS } : {}),
+      ...(typeof config.nGpuLayers === 'number' ? { n_gpu_layers: config.nGpuLayers } : {}),
+      ...(config.wasmUrls?.length ? { wasmUrls: config.wasmUrls } : {}),
+      ...(config.chatTemplate ? { chatTemplate: config.chatTemplate } : {}),
     };
   }
 
   async initialize(rawModel: string, onStatus?: (s: string) => void, onProgress?: (p: number, label?: string) => void, enableThinking = false) {
-    const config = getGgufModelConfig(rawModel);
+    const config = resolveGgufConfig(rawModel);
     if (!config) throw new Error(`Unknown GGUF model: ${rawModel}`);
     const key = `${config.repo}/${config.file}`;
     if (this.readyKey === key && this.lastThinking === enableThinking) {
@@ -227,7 +354,7 @@ class GgufLLMManager {
   }
 
   async chat(rawModel: string, prompt: string, opts: GgufChatOptions = {}) {
-    const config = getGgufModelConfig(rawModel);
+    const config = resolveGgufConfig(rawModel);
     if (!config) throw new Error(`Unknown GGUF model: ${rawModel}`);
     const attempt = (): Promise<string> => new Promise<string>((resolve, reject) => {
       const worker = this.ensureWorker();
@@ -316,7 +443,7 @@ class GgufDownloadManager {
 
   /** Loads the official GGUF through an ephemeral worker; the runtime persists it in browser cache. */
   download(rawModel: string) {
-    const config = getGgufModelConfig(rawModel);
+    const config = resolveGgufConfig(rawModel);
     if (!config) return Promise.reject(new Error(`Unknown GGUF model: ${rawModel}`));
     const model = config.id;
     if (this.active.has(model)) return this.active.get(model)!;
@@ -368,7 +495,9 @@ class GgufDownloadManager {
               temperature: config.temperature,
               top_p: config.top_p,
               enableThinking: false,
-              ...(config.arch === 'maple' && MAPLE_WASM_URLS.length ? { wasmUrls: MAPLE_WASM_URLS } : {}),
+              ...(typeof config.nGpuLayers === 'number' ? { n_gpu_layers: config.nGpuLayers } : {}),
+              ...(config.wasmUrls?.length ? { wasmUrls: config.wasmUrls } : {}),
+              ...(config.chatTemplate ? { chatTemplate: config.chatTemplate } : {}),
             },
           });
         });
@@ -397,7 +526,7 @@ export const ggufDownloads = new GgufDownloadManager();
 
 export const clearGgufModelCache = (rawModel: string) =>
   new Promise<void>((resolve, reject) => {
-    const config = getGgufModelConfig(rawModel);
+    const config = resolveGgufConfig(rawModel);
     if (!config) { resolve(); return; }
     const worker = new Worker(GGUF_WORKER_URL, { type: 'module' });
     let settled = false;

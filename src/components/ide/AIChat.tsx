@@ -11,6 +11,7 @@ import {
 import { toast } from 'sonner';
 import { clearOfflineModelCache, removeDownloadedOfflineModel } from '@/services/offlineLLM';
 import { clearGgufModelCache, isGgufModelId, removeGgufDownloadedModel } from '@/services/ggufLLM';
+import { clearMapleCache, isMapleModelId, removeMapleDownloadedModel } from '@/services/mapleWebGPU';
 import { cn } from '@/lib/utils';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { explainShellCommand } from '@/lib/shellCommandHelp';
@@ -869,7 +870,10 @@ export const AIChat = ({
   const isDownloadingOffline = Object.keys(offlineDownloadStates).length > 0;
   const handleDeleteOfflineModel = async (id: string) => {
     try {
-      if (isGgufModelId(id)) {
+      if (isMapleModelId(id)) {
+        await clearMapleCache();
+        removeMapleDownloadedModel(id);
+      } else if (isGgufModelId(id)) {
         await clearGgufModelCache(id);
         removeGgufDownloadedModel(id);
       } else {
@@ -878,7 +882,8 @@ export const AIChat = ({
       }
       toast.success(`${id.split('/').pop()?.split('@')[0] ?? id} removed from this device`);
     } catch (error) {
-      if (isGgufModelId(id)) removeGgufDownloadedModel(id); else removeDownloadedOfflineModel(id);
+      if (isMapleModelId(id)) removeMapleDownloadedModel(id);
+      else if (isGgufModelId(id)) removeGgufDownloadedModel(id); else removeDownloadedOfflineModel(id);
       toast.error(`Model unlisted, but cache cleanup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };

@@ -1,7 +1,7 @@
 export type OfflineModality = 'text' | 'image' | 'audio' | 'video';
 
-/** Inference runtime: transformers.js pipeline (default) or llama.cpp GGUF via wllama. */
-export type OfflineRuntime = 'transformers' | 'gguf';
+/** Inference runtime: transformers.js pipeline (default), llama.cpp GGUF via wllama, or the custom Maple WebGPU engine. */
+export type OfflineRuntime = 'transformers' | 'gguf' | 'maple';
 
 export interface OfflineModel {
   id: string;
@@ -20,7 +20,7 @@ export const modelSupportsAudio = (m?: OfflineModel) => !!m?.modalities.includes
 export const modelSupportsVideo = (m?: OfflineModel) => !!m?.modalities.includes('video');
 /** Only models loaded through the multimodal (AutoProcessor) path can think. */
 export const modelSupportsThinking = (m?: OfflineModel) =>
-  !!m && (m.modalities.some(mod => mod !== 'text') || m.runtime === 'gguf');
+  !!m && (m.modalities.some(mod => mod !== 'text') || m.runtime === 'gguf' || m.runtime === 'maple');
 
 export const RECOMMENDED_MODELS: OfflineModel[] = [
   {
@@ -64,13 +64,14 @@ export const RECOMMENDED_MODELS: OfflineModel[] = [
     modalities: ['text', 'image'],
   },
   {
-    id: 'deepgrove/maple-preview-GGUF',
+    // Canonical id lives in src/services/mapleWebGPU.ts (MAPLE_MODEL_ID).
+    id: 'deepgrove/maple-preview-webgpu',
     name: 'Maple Preview 20B',
-    description: "DeepGrove's official 20B-A1B ternary reasoning GGUF. Extremely fast on capable desktop GPUs; needs 8GB+ memory and a Maple-capable runtime build.",
-    size: '~5.0 GB',
+    description: "DeepGrove's official 20B-A1B ternary reasoning model, running in your browser on its own WebGPU engine. Needs a WebGPU browser and 8GB+ memory.",
+    size: '~5.3 GB',
     provider: 'DeepGrove',
     modalities: ['text'],
-    runtime: 'gguf',
+    runtime: 'maple',
   },
   {
     id: 'inclusionAI/Ling-3.0-tiny-GGUF',

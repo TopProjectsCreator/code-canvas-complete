@@ -143,8 +143,11 @@ export const parseGgufHeaderBytes = (buffer) => {
   return out;
 };
 
-export const checkGgufArchSupported = (arch) => {
-  if (arch && GGUF_ARCH_PREFLIGHT_BLOCKED[arch]) {
+export const checkGgufArchSupported = (arch, opts = {}) => {
+  // A custom translator build (e.g. the Maple CPU build hosted with the app)
+  // satisfies the backend requirement the stock runtime lacks — only block when
+  // no override was provided.
+  if (arch && GGUF_ARCH_PREFLIGHT_BLOCKED[arch] && !opts.allowUnsupported) {
     throw new Error(GGUF_ARCH_PREFLIGHT_BLOCKED[arch]);
   }
   return true;

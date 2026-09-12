@@ -139,6 +139,15 @@ describe('GGUF arch preflight (fail fast before gigabytes download)', () => {
     expect(workerRoles.checkGgufArchSupported('')).toBe(true);
   });
 
+  it('exempts the maple block when a custom translator build is provided', () => {
+    // The Maple CPU tier ships its own fork-built translator, which satisfies
+    // the backend requirement the stock runtime lacks.
+    expect(workerRoles.checkGgufArchSupported('maple', { allowUnsupported: true })).toBe(true);
+    expect(() => workerRoles.checkGgufArchSupported('maple', { allowUnsupported: false }))
+      .toThrow(/Maple-capable browser runtime/);
+    expect(() => workerRoles.checkGgufArchSupported('maple', {})).toThrow(/Maple-capable browser runtime/);
+  });
+
   it('probes arch over fetch with proxy fallback, and throws when unreachable', async () => {
     const mapleBytes = loadFixture('maple-gguf-head.bin');
     const okOnce = () => Promise.resolve({ ok: true, status: 206, arrayBuffer: () => Promise.resolve(mapleBytes) });
